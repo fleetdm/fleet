@@ -1048,10 +1048,7 @@ func (svc *Service) ListMDMAppleConfigProfiles(ctx context.Context, teamID uint)
 		}
 	}
 
-	fmt.Println("Listing profiles for", teamID)
-
 	cps, err := svc.ds.ListMDMAppleConfigProfiles(ctx, &teamID)
-	fmt.Println("Profiles", err, len(cps))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -2804,7 +2801,6 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 			didUpdate = true
 		}
 	}
-	fmt.Println("===", didUpdate, ac.MDM.EnabledAndConfigured, ac.MDM.EnableDiskEncryption.Value)
 	if didUpdate {
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
