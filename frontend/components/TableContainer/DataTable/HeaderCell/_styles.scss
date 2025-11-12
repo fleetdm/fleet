@@ -28,13 +28,13 @@
 
   &.ascending {
     .ascending-arrow {
-      border-bottom-color: $core-vibrant-blue;
+      border-bottom-color: $core-fleet-black;
     }
   }
 
   &.descending {
     .descending-arrow {
-      border-top-color: $core-vibrant-blue;
+      border-top-color: $core-fleet-black;
     }
   }
 }

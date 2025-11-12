@@ -31,7 +31,7 @@ import paths from "router/paths";
 import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
@@ -246,7 +246,9 @@ const ScriptBatchDetailsPage = ({
 
     return (
       <>
-        <BackLink text="Back to script activity" path={pathToProgress} />
+        <div className={`${baseClass}__header-links`}>
+          <BackButton text="Back to script activity" path={pathToProgress} />
+        </div>
         <SectionHeader
           wrapperCustomClass={`${baseClass}__header`}
           title={script_name}
@@ -258,7 +260,7 @@ const ScriptBatchDetailsPage = ({
                 {
                   type: "secondary",
                   label: "Show script",
-                  buttonVariant: "text-icon",
+                  buttonVariant: "inverse",
                   iconName: "eye",
                   onClick: () => {
                     setShowBatchScriptDetails(true);
@@ -286,19 +288,39 @@ const ScriptBatchDetailsPage = ({
           >
             <TabList>
               <Tab>
-                <TabText>Ran</TabText>
+                <TabText count={batchDetails.ran_host_count}>Ran</TabText>
               </Tab>
               <Tab>
-                <TabText>Errored</TabText>
+                <TabText
+                  count={batchDetails.errored_host_count}
+                  countVariant={"alert"}
+                >
+                  Errored
+                </TabText>
               </Tab>
               <Tab>
-                <TabText>Pending</TabText>
+                <TabText
+                  count={batchDetails.pending_host_count}
+                  countVariant={"pending"}
+                >
+                  Pending
+                </TabText>
               </Tab>
               <Tab>
-                <TabText>Incompatible</TabText>
+                <TabText
+                  count={batchDetails.incompatible_host_count}
+                  countVariant={"pending"}
+                >
+                  Incompatible
+                </TabText>
               </Tab>
               <Tab>
-                <TabText>Canceled</TabText>
+                <TabText
+                  count={batchDetails.canceled_host_count}
+                  countVariant={"pending"}
+                >
+                  Canceled
+                </TabText>
               </Tab>
             </TabList>
             <TabPanel>

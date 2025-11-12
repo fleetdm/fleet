@@ -1,5 +1,6 @@
+import React, { memo } from "react";
+
 import { ILabel } from "interfaces/label";
-import React from "react";
 
 import { IUser } from "interfaces/user";
 
@@ -49,4 +50,4 @@ const LabelsTable = ({ labels, onClickAction, currentUser }: ILabelsTable) => {
   );
 };
 
-export default LabelsTable;
+export default memo(LabelsTable);

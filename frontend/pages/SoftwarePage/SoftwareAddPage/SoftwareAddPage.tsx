@@ -9,8 +9,9 @@ import { QueryContext } from "context/query";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
+import SidePanelPage from "components/SidePanelPage";
 import MainContent from "components/MainContent";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import SidePanelContent from "components/SidePanelContent";
@@ -102,14 +103,16 @@ const SoftwareAddPage = ({
   });
 
   return (
-    <>
-      <MainContent className={baseClass}>
-        <>
-          <BackLink
-            text="Back to software"
-            path={backUrl}
-            className={`${baseClass}__back-to-software`}
-          />
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>
+          <div className={`${baseClass}__header-links`}>
+            <BackButton
+              text="Back to software"
+              path={backUrl}
+              className={`${baseClass}__back-to-software`}
+            />
+          </div>
           <h1>Add software</h1>
           <TabNav>
             <Tabs
@@ -133,19 +136,19 @@ const SoftwareAddPage = ({
             isSidePanelOpen,
             setSidePanelOpen,
           })}
-        </>
-      </MainContent>
-      {isSidePanelOpen && (
-        <SidePanelContent>
-          <QuerySidePanel
-            key="query-side-panel"
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            selectedOsqueryTable={selectedOsqueryTable}
-            onClose={() => setSidePanelOpen(false)}
-          />
-        </SidePanelContent>
-      )}
-    </>
+        </MainContent>
+        {isSidePanelOpen && (
+          <SidePanelContent>
+            <QuerySidePanel
+              key="query-side-panel"
+              onOsqueryTableSelect={onOsqueryTableSelect}
+              selectedOsqueryTable={selectedOsqueryTable}
+              onClose={() => setSidePanelOpen(false)}
+            />
+          </SidePanelContent>
+        )}
+      </>
+    </SidePanelPage>
   );
 };
 

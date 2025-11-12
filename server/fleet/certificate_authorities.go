@@ -19,9 +19,15 @@ const (
 	CAConfigSmallstep       CAConfigAssetType = "smallstep"
 )
 
-// ListCATypesWithRenewalIDSupport returns the CA types that support renewal IDs.
-func ListCATypesWithRenewalIDSupport() []CAConfigAssetType {
+// ListCATypesWithRenewalSupport returns the CA types that support renewal by Fleet
+func ListCATypesWithRenewalSupport() []CAConfigAssetType {
 	return []CAConfigAssetType{CAConfigDigiCert, CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep}
+}
+
+// ListCATypesWithRenewalIDSupport returns the CA types that support renewal IDs within the profile. Digicert
+// is not included as renewal does not need special support within the profile
+func ListCATypesWithRenewalIDSupport() []CAConfigAssetType {
+	return []CAConfigAssetType{CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep}
 }
 
 // SupportsRenewalID returns whether the CA type supports renewal IDs.
@@ -42,6 +48,7 @@ const (
 	CATypeDigiCert        CAType = "digicert"
 	CATypeCustomSCEPProxy CAType = "custom_scep_proxy"
 	CATypeHydrant         CAType = "hydrant"
+	CATypeCustomESTProxy  CAType = "custom_est_proxy" // Enrollment over Secure Transport
 	CATypeSmallstep       CAType = "smallstep"
 )
 
@@ -72,9 +79,9 @@ type CertificateAuthority struct {
 	// Smallstep
 	ChallengeURL *string `json:"challenge_url,omitempty" db:"challenge_url"`
 
-	// Username is stored by both Smallstep and NDES CA types
+	// Username is stored by Smallstep, NDES, and EST CA types
 	Username *string `json:"username,omitempty" db:"username"`
-	// Password is stored by both Smallstep and NDES CA types
+	// Password is stored by Smallstep, NDES, and EST CA types
 	Password *string `json:"password,omitempty" db:"-"`
 
 	// Custom SCEP Proxy
@@ -97,6 +104,7 @@ type CertificateAuthorityPayload struct {
 	NDESSCEPProxy   *NDESSCEPProxyCA      `json:"ndes_scep_proxy,omitempty"`
 	CustomSCEPProxy *CustomSCEPProxyCA    `json:"custom_scep_proxy,omitempty"`
 	Hydrant         *HydrantCA            `json:"hydrant,omitempty"`
+	CustomESTProxy  *ESTProxyCA           `json:"custom_est_proxy,omitempty"`
 	Smallstep       *SmallstepSCEPProxyCA `json:"smallstep,omitempty"`
 }
 
@@ -127,6 +135,34 @@ func (d *DigiCertCA) Preprocess() {
 	d.Name = Preprocess(d.Name)
 	d.URL = Preprocess(d.URL)
 	d.ProfileID = Preprocess(d.ProfileID)
+}
+
+// Enrollment over Secure Transport Certificate Authority
+type ESTProxyCA struct {
+	ID       uint   `json:"-"`
+	Name     string `json:"name"`
+	URL      string `json:"url"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+func (h *ESTProxyCA) Equals(other *ESTProxyCA) bool {
+	return h.Name == other.Name &&
+		h.URL == other.URL &&
+		h.Username == other.Username &&
+		(h.Password == "" || h.Password == MaskedPassword || h.Password == other.Password)
+}
+
+func (h *ESTProxyCA) NeedToVerify(other *ESTProxyCA) bool {
+	return h.Name != other.Name ||
+		h.URL != other.URL ||
+		h.Username != other.Username ||
+		!(h.Password == "" || h.Password == MaskedPassword || h.Password == other.Password)
+}
+
+func (h *ESTProxyCA) Preprocess() {
+	h.Name = Preprocess(h.Name)
+	h.URL = Preprocess(h.URL)
 }
 
 type HydrantCA struct {
@@ -202,6 +238,7 @@ type CertificateAuthorityUpdatePayload struct {
 	*NDESSCEPProxyCAUpdatePayload      `json:"ndes_scep_proxy,omitempty"`
 	*CustomSCEPProxyCAUpdatePayload    `json:"custom_scep_proxy,omitempty"`
 	*HydrantCAUpdatePayload            `json:"hydrant,omitempty"`
+	*CustomESTCAUpdatePayload          `json:"custom_est_proxy,omitempty"`
 	*SmallstepSCEPProxyCAUpdatePayload `json:"smallstep,omitempty"`
 }
 
@@ -212,6 +249,9 @@ func (p *CertificateAuthorityUpdatePayload) ValidatePayload(privateKey string, e
 		caInPayload++
 	}
 	if p.HydrantCAUpdatePayload != nil {
+		caInPayload++
+	}
+	if p.CustomESTCAUpdatePayload != nil {
 		caInPayload++
 	}
 	if p.NDESSCEPProxyCAUpdatePayload != nil {
@@ -369,6 +409,36 @@ func (hp *HydrantCAUpdatePayload) Preprocess() {
 	}
 }
 
+type CustomESTCAUpdatePayload struct {
+	Name     *string `json:"name"`
+	URL      *string `json:"url"`
+	Username *string `json:"username"`
+	Password *string `json:"password"`
+}
+
+// IsEmpty checks if the struct only has all empty values
+func (ep CustomESTCAUpdatePayload) IsEmpty() bool {
+	return ep.Name == nil && ep.URL == nil && ep.Username == nil && ep.Password == nil
+}
+
+// ValidateRelatedFields verifies that fields that are related to each other are set correctly.
+// For example if the Name is provided then the Username and Password must also be provided
+func (ep *CustomESTCAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
+	if ep.URL != nil && (ep.Username == nil || ep.Password == nil) {
+		return &BadRequestError{Message: fmt.Sprintf(`%s"password" must be set when modifying "url" of an existing certificate authority: %s.`, errPrefix, certName)}
+	}
+	return nil
+}
+
+func (ep *CustomESTCAUpdatePayload) Preprocess() {
+	if ep.Name != nil {
+		*ep.Name = Preprocess(*ep.Name)
+	}
+	if ep.URL != nil {
+		*ep.URL = Preprocess(*ep.URL)
+	}
+}
+
 type SmallstepSCEPProxyCAUpdatePayload struct {
 	Name         *string `json:"name"`
 	URL          *string `json:"url"`
@@ -385,16 +455,8 @@ func (sscepp SmallstepSCEPProxyCAUpdatePayload) IsEmpty() bool {
 // ValidateRelatedFields verifies that fields that are related to each other are set correctly.
 // For example if the Name is provided then the Challenge URL, Username and Password must also be provided
 func (sscepp *SmallstepSCEPProxyCAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
-	if sscepp.URL != nil && (sscepp.ChallengeURL == nil || sscepp.Username == nil || sscepp.Password == nil) {
-		return &BadRequestError{Message: fmt.Sprintf(`%s"challenge_url", "username" and "password" must be set when modifying "url" of an existing certificate authority: %s.`, errPrefix, certName)}
-	}
-
-	if sscepp.ChallengeURL != nil && sscepp.Username == nil && sscepp.Password == nil {
-		return &BadRequestError{Message: fmt.Sprintf(`%s"username" and "password" must be set when modifying "challenge_url" of an existing certificate authority: %s.`, errPrefix, certName)}
-	}
-
-	if sscepp.ChallengeURL == nil && sscepp.URL == nil && sscepp.Username != nil && sscepp.Password == nil {
-		return &BadRequestError{Message: fmt.Sprintf(`%s"password" must be set when modifying "username" of an existing certificate authority: %s.`, errPrefix, certName)}
+	if (sscepp.URL != nil || sscepp.ChallengeURL != nil || sscepp.Username != nil) && sscepp.Password == nil {
+		return &BadRequestError{Message: fmt.Sprintf(`%s"password" must be set when modifying "url", "challenge_url", or "username" of an existing certificate authority: %s`, errPrefix, certName)}
 	}
 
 	return nil
@@ -428,6 +490,7 @@ func (c *RequestCertificatePayload) AuthzType() string {
 }
 
 type GroupedCertificateAuthorities struct {
+	EST             []ESTProxyCA           `json:"custom_est_proxy"` // Enrollment over Secure Transport
 	Hydrant         []HydrantCA            `json:"hydrant"`
 	DigiCert        []DigiCertCA           `json:"digicert"`
 	NDESSCEP        *NDESSCEPProxyCA       `json:"ndes_scep_proxy"`
@@ -439,6 +502,7 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 	grouped := &GroupedCertificateAuthorities{
 		DigiCert:        []DigiCertCA{},
 		Hydrant:         []HydrantCA{},
+		EST:             []ESTProxyCA{},
 		CustomScepProxy: []CustomSCEPProxyCA{},
 		NDESSCEP:        nil,
 		Smallstep:       []SmallstepSCEPProxyCA{},
@@ -477,6 +541,14 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 				URL:          *ca.URL,
 				ClientID:     *ca.ClientID,
 				ClientSecret: *ca.ClientSecret,
+			})
+		case string(CATypeCustomESTProxy):
+			grouped.EST = append(grouped.EST, ESTProxyCA{
+				ID:       ca.ID,
+				Name:     *ca.Name,
+				URL:      *ca.URL,
+				Username: *ca.Username,
+				Password: *ca.Password,
 			})
 		case string(CATypeCustomSCEPProxy):
 			grouped.CustomScepProxy = append(grouped.CustomScepProxy, CustomSCEPProxyCA{
@@ -582,6 +654,22 @@ func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertifica
 			return nil, fmt.Errorf("org_settings.certificate_authorities.hydrant cannot be parsed: %w", err)
 		}
 		groupedCAs.Hydrant = hydrantData
+	}
+
+	if ESTCA, ok := spec.(map[string]any)["custom_est_proxy"]; !ok || ESTCA == nil {
+		groupedCAs.EST = []ESTProxyCA{}
+	} else {
+		// We unmarshal EST CA integration into its dedicated type for additional validation
+		estJSON, err := json.Marshal(spec.(map[string]any)["custom_est_proxy"])
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.custom_est_proxy cannot be marshalled into JSON: %w", err)
+		}
+		var estData []ESTProxyCA
+		err = json.Unmarshal(estJSON, &estData)
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.custom_est_proxy cannot be parsed: %w", err)
+		}
+		groupedCAs.EST = estData
 	}
 
 	// TODO(sca): confirm this

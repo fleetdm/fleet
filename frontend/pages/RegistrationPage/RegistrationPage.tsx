@@ -9,12 +9,12 @@ import local from "utilities/local";
 
 import FlashMessage from "components/FlashMessage";
 import { INotification } from "interfaces/notification";
+
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 // @ts-ignore
 import RegistrationForm from "components/forms/RegistrationForm";
 // @ts-ignore
 import Breadcrumbs from "./Breadcrumbs";
-// @ts-ignore
-import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
 
 const ERROR_NOTIFICATION: INotification = {
   alertType: "error",
@@ -85,18 +85,26 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
     setPage(pageNum);
   };
 
+  const REGISTRATION_HEADERS: Record<number, string> = {
+    1: "Set up user",
+    2: "Organization details",
+    3: "Set Fleet URL",
+    4: "Confirm configuration",
+  };
+  const header = REGISTRATION_HEADERS[page];
+
   return (
-    <div className={baseClass}>
-      <img
-        alt="Fleet logo"
-        src={fleetLogoText}
-        className={`${baseClass}__logo`}
-      />
-      <Breadcrumbs
-        currentPage={page}
-        onSetPage={onSetPage}
-        pageProgress={pageProgress}
-      />
+    <AuthenticationFormWrapper
+      className={baseClass}
+      header={header}
+      breadcrumbs={
+        <Breadcrumbs
+          currentPage={page}
+          onSetPage={onSetPage}
+          pageProgress={pageProgress}
+        />
+      }
+    >
       <RegistrationForm
         page={page}
         onNextPage={onNextPage}
@@ -111,7 +119,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
           onRemoveFlash={() => setShowSetupError(false)}
         />
       )}
-    </div>
+    </AuthenticationFormWrapper>
   );
 };
 

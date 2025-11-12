@@ -3,8 +3,9 @@ import React, { useState, useContext } from "react";
 import { AppContext } from "context/app";
 
 import { CONTACT_FLEET_LINK } from "utilities/constants";
-
 import { IInputFieldParseTarget } from "interfaces/form_field";
+
+import SettingsSection from "pages/admin/components/SettingsSection";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
@@ -14,7 +15,6 @@ import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import validEmail from "components/forms/validators/valid_email";
 import CustomLink from "components/CustomLink";
-import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 import Card from "components/Card";
@@ -353,12 +353,9 @@ const Smtp = ({
     );
   };
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__section`}>
-        <SectionHeader title="SMTP options" />
-        {sesConfigured ? renderSesEnabled() : renderSmtpForm()}
-      </div>
-    </div>
+    <SettingsSection title="SMTP options">
+      {sesConfigured ? renderSesEnabled() : renderSmtpForm()}
+    </SettingsSection>
   );
 };
 

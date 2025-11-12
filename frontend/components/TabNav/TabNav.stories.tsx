@@ -91,3 +91,64 @@ export const Default: Story = {
     );
   },
 };
+
+export const Secondary: Story = {
+  render: () => {
+    const [selectedTabIndex, setSelectedTabIndex] = React.useState(0);
+
+    const platformSubNav = [
+      { name: <TabText>Basic tab</TabText>, type: "type1" },
+      { name: <TabText>Basic tab 2</TabText>, type: "type2" },
+      {
+        name: <TabText>Disabled tab</TabText>,
+        type: "type3",
+        disabled: true,
+      },
+      { name: <TabText count={3}>Tab with count</TabText>, type: "type4" },
+      {
+        name: (
+          <TabText count={20} countVariant="alert">
+            Tab with error count
+          </TabText>
+        ),
+        type: "type5",
+      },
+    ];
+
+    const renderPanel = (type: string) => {
+      switch (type) {
+        case "type1":
+          return <div>Content for Tab 1</div>;
+        case "type2":
+          return <div>Content for Tab 2</div>;
+        case "type3":
+          return <div>Content for Tab 3</div>;
+        case "type4":
+          return <div>Content for Tab 4</div>;
+        case "type5":
+          return <div>Content for Tab 5</div>;
+        default:
+          return null;
+      }
+    };
+
+    return (
+      <TabNav secondary>
+        <Tabs onSelect={setSelectedTabIndex} selectedIndex={selectedTabIndex}>
+          <TabList>
+            {platformSubNav.map((navItem) => (
+              <Tab disabled={navItem.disabled}>
+                <TabText>{navItem.name}</TabText>
+              </Tab>
+            ))}
+          </TabList>
+          {platformSubNav.map((navItem) => (
+            <TabPanel key={navItem.type}>
+              <div>{renderPanel(navItem.type)}</div>
+            </TabPanel>
+          ))}
+        </Tabs>
+      </TabNav>
+    );
+  },
+};

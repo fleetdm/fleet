@@ -126,18 +126,33 @@ func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInst
 // matchPackageIcons hydrates software responses with references to icons in the request payload, so we can track
 // which API calls to make to add/update/delete icons
 func matchPackageIcons(request []fleet.SoftwareInstallerPayload, response []fleet.SoftwarePackageResponse) []fleet.SoftwarePackageResponse {
-	type lookup struct {
-		Hash string
-		URL  string
-	}
-	byLookup := make(map[lookup]fleet.SoftwareInstallerPayload)
-	for _, clientSide := range request {
-		byLookup[lookup{Hash: clientSide.SHA256, URL: clientSide.URL}] = clientSide
+	// On the client side, software installer entries can have a URL or a hash or both ...
+	byURL := make(map[string]*fleet.SoftwareInstallerPayload)
+	byHash := make(map[string]*fleet.SoftwareInstallerPayload)
+
+	for i := range request {
+		clientSide := &request[i]
+
+		if clientSide.URL != "" {
+			byURL[clientSide.URL] = clientSide
+		}
+		if clientSide.SHA256 != "" {
+			byHash[clientSide.SHA256] = clientSide
+		}
 	}
 
 	for i := range response {
 		serverSide := &response[i]
-		if clientSide, ok := byLookup[lookup{Hash: serverSide.HashSHA256, URL: serverSide.URL}]; ok {
+
+		// All server side entries have a hash, so first try to match by that
+		if clientSide, ok := byHash[serverSide.HashSHA256]; ok {
+			serverSide.LocalIconHash = clientSide.IconHash
+			serverSide.LocalIconPath = clientSide.IconPath
+			continue
+		}
+
+		// ... Then by URL
+		if clientSide, ok := byURL[serverSide.URL]; ok {
 			serverSide.LocalIconHash = clientSide.IconHash
 			serverSide.LocalIconPath = clientSide.IconPath
 		}

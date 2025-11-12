@@ -165,14 +165,19 @@ type SoftwarePackage struct {
 	fleet.SoftwarePackageSpec
 }
 
-func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePackageSpec) fleet.SoftwarePackageSpec {
+func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePackageSpec) (fleet.SoftwarePackageSpec, error) {
+	if spec.Icon.Path != "" || spec.InstallScript.Path != "" || spec.UninstallScript.Path != "" ||
+		spec.PostInstallScript.Path != "" || spec.URL != "" || spec.SHA256 != "" || spec.PreInstallQuery.Path != "" {
+		return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
+	}
+
 	packageLevel.Categories = spec.Categories
 	packageLevel.LabelsIncludeAny = spec.LabelsIncludeAny
 	packageLevel.LabelsExcludeAny = spec.LabelsExcludeAny
 	packageLevel.InstallDuringSetup = spec.InstallDuringSetup
 	packageLevel.SelfService = spec.SelfService
 
-	return packageLevel
+	return packageLevel, nil
 }
 
 type Software struct {
@@ -1311,7 +1316,11 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 
 			for i, spec := range softwarePackageSpecs {
 				softwarePackageSpec := spec.ResolveSoftwarePackagePaths(filepath.Dir(spec.ReferencedYamlPath))
-				softwarePackageSpec = teamLevelPackage.HydrateToPackageLevel(softwarePackageSpec)
+				softwarePackageSpec, err = teamLevelPackage.HydrateToPackageLevel(softwarePackageSpec)
+				if err != nil {
+					multiError = multierror.Append(multiError, err)
+					continue
+				}
 				softwarePackageSpecs[i] = &softwarePackageSpec
 			}
 		} else {

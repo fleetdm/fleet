@@ -1,7 +1,5 @@
 .activity-feed {
-  margin-top: $pad-large;
-  display: flex;
-  flex-direction: column;
+  @include vertical-card-layout;
   position: relative;
   min-height: 500px;
 
@@ -40,7 +38,7 @@
 
     &:hover:not(.button--disabled),
     &:focus {
-      background-color: $ui-vibrant-blue-10;
+      background-color: $ui-fleet-black-10;
     }
   }
 

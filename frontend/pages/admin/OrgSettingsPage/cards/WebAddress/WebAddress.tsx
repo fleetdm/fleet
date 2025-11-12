@@ -3,11 +3,11 @@ import { size } from "lodash";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
+import SettingsSection from "pages/admin/components/SettingsSection";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
-import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import INVALID_SERVER_URL_MESSAGE from "utilities/error_messages";
@@ -96,42 +96,39 @@ const WebAddress = ({
   };
 
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__section`}>
-        <SectionHeader title="Fleet web address" />
-        <form onSubmit={onFormSubmit} autoComplete="off">
-          <InputField
-            label="URL"
-            helpText={
-              <>
-                Include base path only (eg. no <code>/latest</code>)
-              </>
-            }
-            onChange={onInputChange}
-            name="serverURL"
-            value={serverURL}
-            parseTarget
-            onBlur={onInputBlur}
-            error={formErrors.server_url}
-            tooltip="The base URL of this instance for use in Fleet links."
-            disabled={gitOpsModeEnabled}
-          />
-          <GitOpsModeTooltipWrapper
-            tipOffset={-8}
-            renderChildren={(disableChildren) => (
-              <Button
-                type="submit"
-                disabled={!!size(formErrors) || disableChildren}
-                className="button-wrap"
-                isLoading={isUpdatingSettings}
-              >
-                Save
-              </Button>
-            )}
-          />
-        </form>
-      </div>
-    </div>
+    <SettingsSection className={baseClass} title="Fleet web address">
+      <form onSubmit={onFormSubmit} autoComplete="off">
+        <InputField
+          label="URL"
+          helpText={
+            <>
+              Include base path only (eg. no <code>/latest</code>)
+            </>
+          }
+          onChange={onInputChange}
+          name="serverURL"
+          value={serverURL}
+          parseTarget
+          onBlur={onInputBlur}
+          error={formErrors.server_url}
+          tooltip="The base URL of this instance for use in Fleet links."
+          disabled={gitOpsModeEnabled}
+        />
+        <GitOpsModeTooltipWrapper
+          tipOffset={-8}
+          renderChildren={(disableChildren) => (
+            <Button
+              type="submit"
+              disabled={!!size(formErrors) || disableChildren}
+              className="button-wrap"
+              isLoading={isUpdatingSettings}
+            >
+              Save
+            </Button>
+          )}
+        />
+      </form>
+    </SettingsSection>
   );
 };
 

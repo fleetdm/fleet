@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
-	"github.com/fleetdm/fleet/v4/ee/server/service/hydrant"
+	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
@@ -204,7 +204,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 			ds:              ds,
 			authz:           authorizer,
 			digiCertService: digicert.NewService(),
-			hydrantService:  hydrant.NewService(),
+			estService:      est.NewService(),
 			scepConfigService: &scep_mock.SCEPConfigService{
 				ValidateSCEPURLFunc:               func(_ context.Context, _ string) error { return nil },
 				ValidateNDESSCEPAdminURLFunc:      func(_ context.Context, _ fleet.NDESSCEPProxyCA) error { return nil },
@@ -1199,7 +1199,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			ds:              ds,
 			authz:           authorizer,
 			digiCertService: digicert.NewService(),
-			hydrantService:  hydrant.NewService(),
+			estService:      est.NewService(),
 			scepConfigService: &scep_mock.SCEPConfigService{
 				ValidateSCEPURLFunc:               func(_ context.Context, _ string) error { return nil },
 				ValidateNDESSCEPAdminURLFunc:      func(_ context.Context, _ fleet.NDESSCEPProxyCA) error { return nil },
@@ -1852,7 +1852,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid challenge URL or credentials. Please correct and try again.")
 		})
 
-		t.Run("Requires all fields when updating URL", func(t *testing.T) {
+		t.Run("Requires password when updating SCEP URL", func(t *testing.T) {
 			svc, ctx := baseSetupForCATests()
 			payload := fleet.CertificateAuthorityUpdatePayload{
 				SmallstepSCEPProxyCAUpdatePayload: &fleet.SmallstepSCEPProxyCAUpdatePayload{
@@ -1861,10 +1861,10 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
-			require.EqualError(t, err, "Couldn't edit certificate authority. \"challenge_url\", \"username\" and \"password\" must be set when modifying \"url\" of an existing certificate authority: Smallstep CA.")
+			require.EqualError(t, err, "Couldn't edit certificate authority. \"password\" must be set when modifying \"url\", \"challenge_url\", or \"username\" of an existing certificate authority: Smallstep CA")
 		})
 
-		t.Run("Requires password and username when updating challenge URL", func(t *testing.T) {
+		t.Run("Requires password when updating challenge URL", func(t *testing.T) {
 			svc, ctx := baseSetupForCATests()
 			payload := fleet.CertificateAuthorityUpdatePayload{
 				SmallstepSCEPProxyCAUpdatePayload: &fleet.SmallstepSCEPProxyCAUpdatePayload{
@@ -1873,7 +1873,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
-			require.EqualError(t, err, "Couldn't edit certificate authority. \"username\" and \"password\" must be set when modifying \"challenge_url\" of an existing certificate authority: Smallstep CA.")
+			require.EqualError(t, err, "Couldn't edit certificate authority. \"password\" must be set when modifying \"url\", \"challenge_url\", or \"username\" of an existing certificate authority: Smallstep CA")
 		})
 
 		t.Run("Requires password when updating username", func(t *testing.T) {
@@ -1885,7 +1885,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
-			require.EqualError(t, err, "Couldn't edit certificate authority. \"password\" must be set when modifying \"username\" of an existing certificate authority: Smallstep CA.")
+			require.EqualError(t, err, "Couldn't edit certificate authority. \"password\" must be set when modifying \"url\", \"challenge_url\", or \"username\" of an existing certificate authority: Smallstep CA")
 		})
 
 		t.Run("Validates password and username on update", func(t *testing.T) {

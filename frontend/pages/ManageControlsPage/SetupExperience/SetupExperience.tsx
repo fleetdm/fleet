@@ -53,7 +53,9 @@ const SetupExperience = ({
 
   return (
     <div className={baseClass}>
-      <p>Customize the end user&apos;s setup experience.</p>
+      <p className={`${baseClass}__description`}>
+        Customize the end user&apos;s setup experience.
+      </p>
       <SideNav
         className={`${baseClass}__side-nav`}
         navItems={SETUP_EXPERIENCE_NAV_ITEMS.map((navItem) => ({

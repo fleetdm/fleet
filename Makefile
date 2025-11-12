@@ -838,6 +838,10 @@ vex-report:
 	sh -c 'go run ./tools/vex-parser ./security/vex/fleet >> security/status.md'
 	sh -c 'echo "## \`fleetdm/fleetctl\` docker image\n" >> security/status.md'
 	sh -c 'go run ./tools/vex-parser ./security/vex/fleetctl >> security/status.md'
+	sh -c 'echo "## \`fleetdm/wix\` docker image\n" >> security/status.md'
+	sh -c 'go run ./tools/vex-parser ./security/vex/wix >> security/status.md'
+	sh -c 'echo "## \`fleetdm/bomutils\` docker image\n" >> security/status.md'
+	sh -c 'go run ./tools/vex-parser ./security/vex/bomutils >> security/status.md'
 
 # make update-go version=1.24.4
 UPDATE_GO_DOCKERFILES := ./Dockerfile-desktop-linux ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile

@@ -12,6 +12,7 @@ import {
   isSoftwarePackage,
   ISoftwarePackage,
   IAppStoreApp,
+  NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
 
 import Card from "components/Card";
@@ -42,6 +43,8 @@ const SoftwareSummaryCard = ({
   softwareInstaller,
   refetchSoftwareTitle,
 }: ISoftwareSummaryCard) => {
+  const { source } = title;
+
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -50,8 +53,10 @@ const SoftwareSummaryCard = ({
 
   const [iconUploadedAt, setIconUploadedAt] = useState("");
 
-  // Hide versions table for tgz_packages only
-  const showVersionsTable = title.source !== "tgz_packages";
+  // Hide versions table for tgz_packages, sh_packages, & ps1_packages and when no hosts have the
+  // software installed
+  const showVersionsTable =
+    !!title.hosts_count && !NO_VERSION_OR_HOST_DATA_SOURCES.includes(source);
 
   const hasEditPermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
@@ -69,12 +74,12 @@ const SoftwareSummaryCard = ({
 
   return (
     <>
-      <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
+      <Card borderRadiusSize="xxlarge" className={baseClass}>
         <SoftwareDetailsSummary
-          title={title.name}
+          displayName={title.display_name || title.name}
           type={formatSoftwareType(title)}
           versions={title.versions?.length ?? 0}
-          hosts={title.hosts_count}
+          hostCount={title.hosts_count}
           countsUpdatedAt={title.counts_updated_at}
           queryParams={{
             software_title_id: softwareId,
@@ -114,12 +119,14 @@ const SoftwareSummaryCard = ({
               isSoftwarePackage(softwareInstaller) ? "package" : "vpp"
             }
             previewInfo={{
-              name: title.name,
+              name: softwareInstaller.display_name || title.name,
+              titleName: title.name,
               type: formatSoftwareType(title),
               source: title.source,
               currentIconUrl: title.icon_url,
               versions: title.versions?.length ?? 0,
               countsUpdatedAt: title.counts_updated_at,
+              selfServiceVersion: softwareInstaller.version,
             }}
           />
         )}

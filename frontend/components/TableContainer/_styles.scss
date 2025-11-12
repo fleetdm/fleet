@@ -1,4 +1,8 @@
 .table-container {
+  display: flex;
+  flex-direction: column;
+  gap: $gap-table-elements;
+
   // Container is responsive design used when customFilters is rendered
   .container {
     display: grid;
@@ -6,7 +10,7 @@
     grid-template-rows: auto auto; /* Two rows for smaller screens*/
     width: 100%;
     height: max-content;
-    gap: $pad-small $pad-medium;
+    gap: $gap-table-elements;
   }
 
   .stackable-header {
@@ -14,7 +18,7 @@
     align-content: center;
     display: flex;
     flex-direction: row;
-    gap: $pad-medium;
+    gap: $gap-table-elements;
 
     > div {
       display: flex;
@@ -73,12 +77,7 @@
     width: 100%;
     justify-content: space-between;
     align-items: center;
-    gap: $pad-small;
-    margin-top: 3px; // Fits button highlight during tabbing
-
-    .input-icon-field {
-      height: 40px; // Height 40px on table headers
-    }
+    gap: $gap-table-elements;
 
     &.stack-table-controls {
       align-items: start;
@@ -109,7 +108,7 @@
     // filter and search bar height
     .dropdown__select,
     .input-with-icon {
-      height: 40px;
+      height: 36px;
     }
   }
 
@@ -119,6 +118,7 @@
     justify-content: space-between;
     flex-direction: row;
     align-items: center;
+    gap: $gap-table-elements; // space between filters and host count on low screen widths
 
     &.stack-table-controls {
       flex-direction: column;
@@ -137,11 +137,11 @@
     font-weight: $bold;
     color: $core-fleet-black;
     margin: 0;
-    height: 40px;
-    gap: 12px;
+    height: 36px;
+    gap: $gap-table-elements;
 
     > span {
-      line-height: 40px; // Match other header components' height but still align text baseline
+      line-height: 36px; // Match other header components' height but still align text baseline
       min-width: fit-content;
     }
 
@@ -224,7 +224,7 @@
     .children-wrapper {
       overflow: hidden;
       white-space: nowrap;
-      display: block;
+      display: flex;
       text-overflow: ellipsis;
     }
 
@@ -236,17 +236,36 @@
     width: 120px;
   }
 
-  // This hides View all host link unless the row is hovered
+  // This hides View all host button unless the row is hovered
   tr {
-    .row-hover-link {
+    .row-hover-button {
       opacity: 0;
       transition: 250ms;
       text-overflow: none;
+
+      // React-select's dropdown opacity must be controlled at input level for keyboard nav
+      // So must be controlled at input level here as well
+      &.actions-dropdown {
+        opacity: 1;
+        .actions-dropdown-select__control {
+          opacity: 0;
+
+          &:hover,
+          &--is-focused {
+            opacity: 1;
+          }
+        }
+      }
     }
     &:hover,
     &:focus-visible {
-      .row-hover-link {
+      .row-hover-button {
         opacity: 1;
+      }
+      .row-hover-button.actions-dropdown {
+        .actions-dropdown-select__control {
+          opacity: 1;
+        }
       }
     }
   }

@@ -39,6 +39,7 @@ spec:
         enable_release_device_manually: false
         macos_setup_assistant:
         manual_agent_install:
+        require_all_software_macos: false
         script:
         software:
     scripts: null
@@ -94,6 +95,7 @@ spec:
         enable_release_device_manually: false
         macos_setup_assistant:
         manual_agent_install:
+        require_all_software_macos: false
         script:
         software:
     scripts: null

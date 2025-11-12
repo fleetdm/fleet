@@ -58,6 +58,7 @@ module.exports = {
 
       // Humans
       'noahtalerman',
+      'lppepper2',
       'mike-j-thomas',
       'mikermcneil',
       'lukeheath',
@@ -84,14 +85,12 @@ module.exports = {
       'pintomi1989',
       'nonpunctual',
       'dantecatalfamo',
-      'PezHub',
       'SFriendLee',
       'ddribeiro',
       'allenhouchins',
       'harrisonravazzolo',
       'tux234',
       'ksykulev',
-      'onasismunro',
       'jmwatts',
       'mason-buettner',
       'iansltx',
@@ -99,6 +98,7 @@ module.exports = {
       'BCTBB',
       'kc9wwh',
       'JordanMontgomery',
+      'ds0x',
       'bettapizza',
       'irenareedy',
       'jakestenger',
@@ -112,6 +112,11 @@ module.exports = {
       'karmine05',
       'ericswenson0',
       'kitzy',
+      'Seedity',
+      'NickBlee',
+      'GrayW',
+      'maribell-fleetdm',
+      'jkatz01',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -746,6 +751,7 @@ module.exports = {
        * - Orchestration
        * - MDM
        * - Software
+       * - Security & compliance
        *
        * Status transitions tracked:
        *
@@ -1170,19 +1176,10 @@ module.exports = {
               return Math.max(0, Math.floor(diffMs / 1000));
             });
 
-            // Determine project name
-            let projectName = '';
-            switch (projectNumber) {
-              case sails.config.custom.githubProjectsV2.projects.orchestration:
-                projectName = 'orchestration';
-                break;
-              case sails.config.custom.githubProjectsV2.projects.mdm:
-                projectName = 'mdm';
-                break;
-              case sails.config.custom.githubProjectsV2.projects.software:
-                projectName = 'software';
-                break;
-            }
+            // Determine project name by reverse lookup
+            const projectName = Object.keys(sails.config.custom.githubProjectsV2.projects).find(
+              key => sails.config.custom.githubProjectsV2.projects[key] === projectNumber
+            ) || '';
 
             // Prepare QA ready data
             const qaReadyData = {
@@ -1401,19 +1398,10 @@ module.exports = {
               return Math.max(0, Math.floor(diffMs / 1000));
             });
 
-            // Determine project name
-            let projectName = '';
-            switch (projectNumber) {
-              case sails.config.custom.githubProjectsV2.projects.orchestration:
-                projectName = 'orchestration';
-                break;
-              case sails.config.custom.githubProjectsV2.projects.mdm:
-                projectName = 'mdm';
-                break;
-              case sails.config.custom.githubProjectsV2.projects.software:
-                projectName = 'software';
-                break;
-            }
+            // Determine project name by reverse lookup
+            const projectName = Object.keys(sails.config.custom.githubProjectsV2.projects).find(
+              key => sails.config.custom.githubProjectsV2.projects[key] === projectNumber
+            ) || '';
 
             // Prepare release ready data
             const releaseReadyData = {

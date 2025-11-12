@@ -80,6 +80,15 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 			ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScripts bool) (*fleet.SoftwareInstaller, error) {
 				return &fleet.SoftwareInstaller{TeamID: tt.teamID}, nil
 			}
+			ds.GetVPPAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
+				if tt.teamID == nil {
+					return &fleet.VPPAppStoreApp{VPPAppsTeamsID: 0}, nil
+				}
+				return &fleet.VPPAppStoreApp{VPPAppsTeamsID: *tt.teamID}, nil
+			}
+			ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+				return &fleet.SoftwareInstaller{TeamID: tt.teamID}, nil
+			}
 
 			ds.DeleteSoftwareInstallerFunc = func(ctx context.Context, installerID uint) error {
 				return nil

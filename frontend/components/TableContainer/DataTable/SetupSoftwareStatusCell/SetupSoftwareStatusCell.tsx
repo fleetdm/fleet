@@ -1,6 +1,6 @@
 import React from "react";
 
-import { SetupSoftwareStatus } from "interfaces/software";
+import { SetupStepStatus } from "interfaces/setup";
 
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
@@ -9,11 +9,11 @@ import Spinner from "components/Spinner";
 const baseClass = "setup-software-status-cell";
 
 interface ISetupSoftwareStatusCell {
-  status: SetupSoftwareStatus;
+  status: SetupStepStatus;
 }
 
 const serverToUiStatus = (
-  status: SetupSoftwareStatus
+  status: SetupStepStatus
 ): { label: string; icon: IconNames | "spinner" } => {
   switch (status) {
     case "pending":

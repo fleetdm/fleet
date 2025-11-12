@@ -6,7 +6,6 @@ import {
   formatSoftwareType,
   IHostSoftware,
   isIpadOrIphoneSoftwareSource,
-  SoftwareSource,
 } from "interfaces/software";
 import { HostPlatform, isLinuxLike } from "interfaces/platform";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
@@ -64,6 +63,7 @@ export const generateSoftwareTableHeaders = ({
         const {
           id,
           name,
+          display_name,
           source,
           app_store_app,
           software_package,
@@ -85,6 +85,7 @@ export const generateSoftwareTableHeaders = ({
         return (
           <SoftwareNameCell
             name={name}
+            display_name={display_name}
             source={source}
             iconUrl={icon_url}
             path={softwareTitleDetailsPath}
@@ -112,17 +113,12 @@ export const generateSoftwareTableHeaders = ({
     {
       Header: "Type",
       disableSortBy: true,
-      accessor: "source",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell
-          value={cellProps.cell.value}
-          formatter={() =>
-            formatSoftwareType({
-              source: cellProps.cell.value as SoftwareSource,
-            })
-          }
-        />
-      ),
+      id: "source",
+      Cell: (cellProps: ITableStringCellProps) => {
+        const { source, extension_for } = cellProps.row.original;
+        const value = formatSoftwareType({ source, extension_for });
+        return <TextCell value={value} />;
+      },
     },
     {
       Header: (): JSX.Element => {

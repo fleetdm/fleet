@@ -1,4 +1,5 @@
 import React from "react";
+import { browserHistory } from "react-router";
 
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import { uniqueId } from "lodash";
@@ -6,7 +7,7 @@ import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import { Link } from "react-router";
+import Button from "components/buttons/Button";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import PATHS from "router/paths";
 
@@ -114,23 +115,26 @@ const ReportUpdatedCell = ({
     );
   };
 
+  const onClick = (): void => {
+    hostId &&
+      queryId &&
+      browserHistory.push(PATHS.HOST_QUERY_REPORT(hostId, queryId));
+  };
+
   return (
     <span className={baseClass}>
       {renderCellValue()}
       {should_link_to_hqr && hostId && queryId && (
         // parent row has same onClick functionality but link here is required for keyboard accessibility
-        <Link
-          className={`${baseClass}__link`}
-          title="link to host query report"
-          to={PATHS.HOST_QUERY_REPORT(hostId, queryId)}
+        <Button
+          variant="inverse"
+          className={`${baseClass}__view-report`}
+          onClick={onClick}
+          size="small"
         >
-          <span className={`${baseClass}__link-text`}>View report</span>
-          <Icon
-            name="chevron-right"
-            className={`${baseClass}__link-icon`}
-            color="core-fleet-blue"
-          />
-        </Link>
+          <span>View report</span>
+          <Icon name="chevron-right" color="ui-fleet-black-75" />
+        </Button>
       )}
     </span>
   );

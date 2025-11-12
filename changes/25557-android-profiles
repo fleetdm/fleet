@@ -1,2 +1,0 @@
-- Added Android MDM profiles to host details API response.
-- Added activity logging for Android profile creation, modification, and deletion.

@@ -26,6 +26,7 @@ import statusAPI from "services/entities/status";
 import { DOCUMENT_TITLE_SUFFIX, LIVE_POLICY_STEPS } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 
+import SidePanelPage from "components/SidePanelPage";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
 import SelectTargets from "components/LiveQuery/SelectTargets";
@@ -365,20 +366,20 @@ const PolicyPage = ({
   }
 
   return (
-    <>
-      <MainContent className={baseClass}>
-        <div className={`${baseClass}__wrapper`}>{renderScreen()}</div>
-      </MainContent>
-      {showSidebar && (
-        <SidePanelContent>
-          <QuerySidePanel
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            selectedOsqueryTable={selectedOsqueryTable}
-            onClose={onCloseSchemaSidebar}
-          />
-        </SidePanelContent>
-      )}
-    </>
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>{renderScreen()}</MainContent>
+        {showSidebar && (
+          <SidePanelContent>
+            <QuerySidePanel
+              onOsqueryTableSelect={onOsqueryTableSelect}
+              selectedOsqueryTable={selectedOsqueryTable}
+              onClose={onCloseSchemaSidebar}
+            />
+          </SidePanelContent>
+        )}
+      </>
+    </SidePanelPage>
   );
 };
 

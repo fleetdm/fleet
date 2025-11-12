@@ -11,7 +11,9 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,7 +76,6 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-
 			require.NoError(t, s.ds.UpdateHostOperatingSystem(ctx, tt.host.ID, tt.os))
 			var osinfo struct {
 				ID          uint `db:"id"`
@@ -129,7 +130,6 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 			// Aggregate OS versions
 			require.NoError(t, s.ds.UpdateOSVersions(ctx))
 			require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
-			require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 			require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 			require.NoError(t, s.ds.InsertKernelSoftwareMapping(ctx))
 
@@ -153,21 +153,319 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 			// Test entity endpoint
 			var osVersionResp getOSVersionResponse
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osVersion.OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id", fmt.Sprintf("%d", 0))
-			assert.Len(t, osVersionResp.OSVersion.Kernels, len(tt.software))
+			require.NotNil(t, osVersionResp.OSVersion.Kernels)
+			kernels := *osVersionResp.OSVersion.Kernels
+			assert.Len(t, kernels, len(tt.software))
 			// Make sure the ordering is the same
-			sort.Slice(osVersionResp.OSVersion.Kernels, func(i, j int) bool {
-				return osVersionResp.OSVersion.Kernels[i].Version < osVersionResp.OSVersion.Kernels[j].Version
+			sort.Slice(kernels, func(i, j int) bool {
+				return kernels[i].Version < kernels[j].Version
 			})
 			sort.Slice(tt.software, func(i, j int) bool {
 				return tt.software[i].Version < tt.software[j].Version
 			})
-			for i, k := range osVersionResp.OSVersion.Kernels {
+			for i, k := range kernels {
 				assert.Equal(t, tt.software[i].Version, k.Version)
 				assert.Equal(t, uint(1), k.HostsCount)
 				assert.ElementsMatch(t, tt.vulnsByKernelVersion[k.Version], k.Vulnerabilities)
 			}
-
 		})
 	}
+}
 
+func (s *integrationEnterpriseTestSuite) TestOSVersionsMaxVulnerabilities() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Shared setup - create a host with an OS that has many vulnerabilities
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + "1"),
+		NodeKey:         ptr.String(t.Name() + "1"),
+		UUID:            uuid.NewString(),
+		Hostname:        t.Name() + "foo.local",
+		Platform:        "ubuntu",
+	})
+	require.NoError(t, err)
+
+	// Set the OS version with a kernel version
+	require.NoError(t, s.ds.UpdateHostOperatingSystem(ctx, host.ID, fleet.OperatingSystem{
+		Name:          "Ubuntu",
+		Version:       "22.04.1 LTS",
+		Platform:      "ubuntu",
+		Arch:          "x86_64",
+		KernelVersion: "5.15.0-1001",
+	}))
+
+	// Create kernel software with many vulnerabilities
+	software := []fleet.Software{
+		{Name: "linux-image-5.15.0-1001-generic", Version: "5.15.0-1001", Source: "deb_packages", IsKernel: true},
+		{Name: "linux-image-5.15.0-1002-generic", Version: "5.15.0-1002", Source: "deb_packages", IsKernel: true},
+	}
+
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
+
+	cpes := make([]fleet.SoftwareCPE, 0, len(software))
+	for _, sw := range host.Software {
+		cpes = append(cpes, fleet.SoftwareCPE{
+			SoftwareID: sw.ID,
+			CPE:        fmt.Sprintf("cpe:2.3:a:linux:kernel:%s:*:*:*:*:*:*:*", sw.Version),
+		})
+	}
+	_, err = s.ds.UpsertSoftwareCPEs(ctx, cpes)
+	require.NoError(t, err)
+
+	// Reload software
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
+
+	// Insert multiple vulnerabilities for each software
+	vulns := []string{"CVE-2024-0001", "CVE-2024-0002", "CVE-2024-0003", "CVE-2024-0004", "CVE-2024-0005", "CVE-2024-0006", "CVE-2024-0007", "CVE-2024-0008"}
+	for _, sw := range host.Software {
+		for _, cve := range vulns {
+			_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+				SoftwareID: sw.ID,
+				CVE:        cve,
+			}, fleet.NVDSource)
+			require.NoError(t, err)
+		}
+	}
+
+	// Update OS versions table
+	require.NoError(t, s.ds.UpdateOSVersions(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+	require.NoError(t, s.ds.InsertKernelSoftwareMapping(ctx))
+
+	// Get the OS version ID for entity endpoint tests
+	var osVersionsResp osVersionsResponse
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
+	var osVersionID uint
+	for _, os := range osVersionsResp.OSVersions {
+		if os.Version == "22.04.1 LTS" {
+			osVersionID = os.OSVersionID
+			break
+		}
+	}
+	require.NotZero(t, osVersionID, "Should find Ubuntu 22.04.1 LTS OS version ID")
+
+	t.Run("aggregate endpoint", func(t *testing.T) {
+		// Test 1: Request without max_vulnerabilities should return all vulnerabilities
+		var resp osVersionsResponse
+		s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &resp)
+		var osVersion *fleet.OSVersion
+		for _, os := range resp.OSVersions {
+			if os.Version == "22.04.1 LTS" {
+				osVersion = &os
+				break
+			}
+		}
+		require.NotNil(t, osVersion, "Should find Ubuntu 22.04.1 LTS")
+		assert.Equal(t, len(vulns), len(osVersion.Vulnerabilities), "Should return all vulnerabilities when max_vulnerabilities is not specified")
+		assert.Equal(t, len(vulns), osVersion.VulnerabilitiesCount, "Count should match total vulnerabilities")
+
+		// Test 2: Request with max_vulnerabilities=3 should return only 3 vulnerabilities
+		s.DoJSON("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=3", nil, http.StatusOK, &resp)
+		osVersion = nil
+		for _, os := range resp.OSVersions {
+			if os.Version == "22.04.1 LTS" {
+				osVersion = &os
+				break
+			}
+		}
+		require.NotNil(t, osVersion, "Should find Ubuntu 22.04.1 LTS")
+		assert.Equal(t, 3, len(osVersion.Vulnerabilities), "Should return only 3 vulnerabilities when max_vulnerabilities=3")
+		assert.Equal(t, len(vulns), osVersion.VulnerabilitiesCount, "Count should still show total vulnerabilities")
+
+		// Test 3: Request with max_vulnerabilities=0 should return empty array with count
+		s.DoJSON("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=0", nil, http.StatusOK, &resp)
+		osVersion = nil
+		for _, os := range resp.OSVersions {
+			if os.Version == "22.04.1 LTS" {
+				osVersion = &os
+				break
+			}
+		}
+		require.NotNil(t, osVersion, "Should find Ubuntu 22.04.1 LTS")
+		assert.Equal(t, 0, len(osVersion.Vulnerabilities), "Should return 0 vulnerabilities when max_vulnerabilities=0")
+		assert.Equal(t, len(vulns), osVersion.VulnerabilitiesCount, "Count should still show total vulnerabilities")
+
+		// Test 4: Request with max_vulnerabilities=-1 should return error
+		res := s.Do("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=-1", nil, http.StatusUnprocessableEntity)
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "max_vulnerabilities must be >= 0")
+	})
+
+	t.Run("entity endpoint", func(t *testing.T) {
+		// Test 1: Request without max_vulnerabilities should return all vulnerabilities
+		var resp getOSVersionResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osVersionID), nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.OSVersion)
+		assert.Equal(t, len(vulns), len(resp.OSVersion.Vulnerabilities), "Should return all vulnerabilities when max_vulnerabilities is not specified")
+		assert.Equal(t, len(vulns), resp.OSVersion.VulnerabilitiesCount, "Count should match total vulnerabilities")
+
+		// Test 2: Request with max_vulnerabilities=3 should return only 3 vulnerabilities
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d?max_vulnerabilities=3", osVersionID), nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.OSVersion)
+		assert.Equal(t, 3, len(resp.OSVersion.Vulnerabilities), "Should return only 3 vulnerabilities when max_vulnerabilities=3")
+		assert.Equal(t, len(vulns), resp.OSVersion.VulnerabilitiesCount, "Count should still show total vulnerabilities")
+
+		// Test 3: Request with max_vulnerabilities=0 should return empty array with count
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d?max_vulnerabilities=0", osVersionID), nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.OSVersion)
+		assert.Equal(t, 0, len(resp.OSVersion.Vulnerabilities), "Should return 0 vulnerabilities when max_vulnerabilities=0")
+		assert.Equal(t, len(vulns), resp.OSVersion.VulnerabilitiesCount, "Count should still show total vulnerabilities")
+
+		// Test 4: Request with max_vulnerabilities=-1 should return error
+		res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d?max_vulnerabilities=-1", osVersionID), nil, http.StatusUnprocessableEntity)
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "max_vulnerabilities must be >= 0")
+	})
+}
+
+// TestOSVersionsMaxVulnerabilitiesMultipleOSIDs tests the scenario where multiple OS IDs
+// exist for the same name+version (e.g., different architectures), which can cause
+// max_vulnerabilities to be exceeded after deduplication.
+// This test uses Windows with different architectures and non-overlapping CVEs.
+// Note: TestOSVersionsMaxVulnerabilities already tests Linux with multiple kernels and overlapping CVEs.
+func (s *integrationEnterpriseTestSuite) TestOSVersionsMaxVulnerabilitiesMultipleOSIDs() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Create two hosts with Windows 11 but different architectures
+	// This will result in two separate OS IDs in the operating_systems table
+	hostX64, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + "x64"),
+		NodeKey:         ptr.String(t.Name() + "x64"),
+		UUID:            uuid.NewString(),
+		Hostname:        t.Name() + "x64.local",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	hostARM, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + "arm"),
+		NodeKey:         ptr.String(t.Name() + "arm"),
+		UUID:            uuid.NewString(),
+		Hostname:        t.Name() + "arm.local",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	// Set the same Windows version for both hosts but with different architectures
+	require.NoError(t, s.ds.UpdateHostOperatingSystem(ctx, hostX64.ID, fleet.OperatingSystem{
+		Name:     "Microsoft Windows 11 Pro 21H2",
+		Version:  "10.0.22000.795",
+		Platform: "windows",
+		Arch:     "x86_64",
+	}))
+
+	require.NoError(t, s.ds.UpdateHostOperatingSystem(ctx, hostARM.ID, fleet.OperatingSystem{
+		Name:     "Microsoft Windows 11 Pro 21H2",
+		Version:  "10.0.22000.795",
+		Platform: "windows",
+		Arch:     "arm64",
+	}))
+
+	// Get the OS IDs for both architectures
+	type osIDResult struct {
+		ID   uint   `db:"id"`
+		Arch string `db:"arch"`
+	}
+	var osIDs []osIDResult
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &osIDs, `
+			SELECT id, arch
+			FROM operating_systems
+			WHERE name = 'Microsoft Windows 11 Pro 21H2' AND version = '10.0.22000.795'
+		`)
+	})
+	require.Len(t, osIDs, 2, "Should have two OS IDs for different architectures")
+
+	// Insert different vulnerabilities for each OS ID
+	// OS ID 1 (x86_64): CVE-2024-1001, CVE-2024-1002, CVE-2024-1003
+	// OS ID 2 (arm64):  CVE-2024-1004, CVE-2024-1005, CVE-2024-1006
+	// Total unique: 6 CVEs
+	vulnsPerArch := map[string][]string{
+		"x86_64": {"CVE-2024-1001", "CVE-2024-1002", "CVE-2024-1003"},
+		"arm64":  {"CVE-2024-1004", "CVE-2024-1005", "CVE-2024-1006"},
+	}
+
+	for _, osID := range osIDs {
+		vulnsList := vulnsPerArch[osID.Arch]
+		osVulns := make([]fleet.OSVulnerability, 0, len(vulnsList))
+		for _, cve := range vulnsList {
+			osVulns = append(osVulns, fleet.OSVulnerability{
+				OSID: osID.ID,
+				CVE:  cve,
+			})
+		}
+		_, err = s.ds.InsertOSVulnerabilities(ctx, osVulns, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+
+	// Update OS versions aggregation table
+	require.NoError(t, s.ds.UpdateOSVersions(ctx))
+
+	// Test 1: Request with max_vulnerabilities=3
+	// Should enforce limit per name-version key, not per OSID
+	var resp osVersionsResponse
+	s.DoJSON("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=3", nil, http.StatusOK, &resp)
+
+	var osVersion *fleet.OSVersion
+	for _, os := range resp.OSVersions {
+		if os.Version == "10.0.22000.795" {
+			osVersion = &os
+			break
+		}
+	}
+	require.NotNil(t, osVersion, "Should find Windows 11 OS version")
+
+	// After the fix: limit is enforced per name-version key after deduplication
+	assert.LessOrEqual(t, len(osVersion.Vulnerabilities), 3,
+		"Should respect max_vulnerabilities=3 limit per name-version key")
+	// The count should reflect total unique CVEs (6 total across both architectures)
+	assert.Equal(t, 6, osVersion.VulnerabilitiesCount,
+		"Count should show total unique CVEs across all architectures")
+
+	// Test 2: Request with max_vulnerabilities=0 (count only)
+	s.DoJSON("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=0", nil, http.StatusOK, &resp)
+	osVersion = nil
+	for _, os := range resp.OSVersions {
+		if os.Version == "10.0.22000.795" {
+			osVersion = &os
+			break
+		}
+	}
+	require.NotNil(t, osVersion, "Should find Windows 11 OS version")
+	assert.Equal(t, 0, len(osVersion.Vulnerabilities),
+		"Should return 0 vulnerabilities when max_vulnerabilities=0")
+	assert.Equal(t, 6, osVersion.VulnerabilitiesCount,
+		"Count should still show total unique CVEs")
+
+	// Test 3: Request without max_vulnerabilities (all vulnerabilities)
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &resp)
+	osVersion = nil
+	for _, os := range resp.OSVersions {
+		if os.Version == "10.0.22000.795" {
+			osVersion = &os
+			break
+		}
+	}
+	require.NotNil(t, osVersion, "Should find Windows 11 OS version")
+	assert.Equal(t, 6, len(osVersion.Vulnerabilities),
+		"Should return all 6 unique vulnerabilities when max_vulnerabilities is omitted")
+	assert.Equal(t, 6, osVersion.VulnerabilitiesCount,
+		"Count should show total unique CVEs")
 }

@@ -94,14 +94,14 @@ const PackQueriesTable = ({
             name: "add query",
             buttonText: "Add query",
             iconSvg: "plus",
-            variant: "text-icon",
+            variant: "inverse",
             onClick: onAddPackQuery,
           }}
           primarySelectAction={{
             name: "remove query",
             buttonText: "Remove",
             iconSvg: "close",
-            variant: "text-icon",
+            variant: "inverse",
             onClick: onRemovePackQueries,
           }}
           searchable
@@ -111,7 +111,7 @@ const PackQueriesTable = ({
       ) : (
         <div className={`${baseClass}__no-queries`}>
           <p>Your pack has no queries.</p>
-          <Button onClick={onAddPackQuery} variant="text-icon" iconStroke>
+          <Button onClick={onAddPackQuery} variant="inverse" iconStroke>
             <>
               Add query
               <Icon name="plus" />

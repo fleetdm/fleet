@@ -141,7 +141,7 @@ func TestUploadSoftwareTitleIcon(t *testing.T) {
 		testFunc func(*testing.T)
 	}{
 		{
-			name: "upload icon title with no software installer or vpp app",
+			name: "upload icon title with no software installer, vpp app, or in-house app",
 			before: func() {
 				capturedActivities = make([]fleet.ActivityDetails, 0)
 				ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, includeUnpublished bool) (*fleet.SoftwareInstaller, error) {
@@ -150,6 +150,10 @@ func TestUploadSoftwareTitleIcon(t *testing.T) {
 				ds.GetVPPAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
 					return nil, ctxerr.Wrap(ctx, &common_mysql.NotFoundError{ResourceType: "VPPAppMetadata"}, "get VPP app metadata")
 				}
+				ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+					return nil, ctxerr.Wrap(ctx, &common_mysql.NotFoundError{ResourceType: "InHouseAppMetadata"}, "get in-house app metadata")
+				}
+
 				file, err := os.Open("testdata/icons/valid-icon.png")
 				require.NoError(t, err)
 				defer file.Close()
@@ -165,7 +169,7 @@ func TestUploadSoftwareTitleIcon(t *testing.T) {
 				}
 				_, err := svc.UploadSoftwareTitleIcon(ctx, payload)
 				require.Error(t, err)
-				require.Contains(t, err.Error(), "Software title has no software installer or VPP app")
+				require.Contains(t, err.Error(), "Software title has no software installer, VPP app, or in-house app")
 			},
 		},
 		{
@@ -256,6 +260,57 @@ func TestUploadSoftwareTitleIcon(t *testing.T) {
 						TeamName:            ptr.String("team1"),
 						TeamID:              1,
 						SoftwareTitleID:     1,
+					}, nil
+				}
+			},
+			testFunc: func(t *testing.T) {
+				payload := &fleet.UploadSoftwareTitleIconPayload{
+					TitleID:  1,
+					TeamID:   1,
+					IconFile: iconFile,
+					Filename: "icon.png",
+				}
+				_, err := svc.UploadSoftwareTitleIcon(ctx, payload)
+				require.NoError(t, err)
+				require.Len(t, capturedActivities, 1)
+			},
+		},
+
+		{
+			name: "upload icon for in-house app",
+			before: func() {
+				capturedActivities = make([]fleet.ActivityDetails, 0)
+				ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+					return &fleet.SoftwareInstaller{
+						TitleID: ptr.Uint(1),
+						TeamID:  ptr.Uint(1),
+					}, nil
+				}
+				ds.GetSoftwareTitleIconFunc = func(ctx context.Context, teamID, titleID uint) (*fleet.SoftwareTitleIcon, error) {
+					return nil, ctxerr.Wrap(ctx, &common_mysql.NotFoundError{ResourceType: "SoftwareTitleIcon"}, "get software title icon")
+				}
+				ds.GetTeamIdsForIconStorageIdFunc = func(ctx context.Context, storageID string) ([]uint, error) {
+					return []uint{1}, nil
+				}
+				ds.CreateOrUpdateSoftwareTitleIconFunc = func(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (*fleet.SoftwareTitleIcon, error) {
+					sha, err := file.SHA256FromTempFileReader(iconFile)
+					require.NoError(t, err)
+
+					return &fleet.SoftwareTitleIcon{
+						TeamID:          1,
+						SoftwareTitleID: 1,
+						StorageID:       sha,
+						Filename:        "icon.png",
+					}, nil
+				}
+				ds.ActivityDetailsForSoftwareTitleIconFunc = func(ctx context.Context, teamID uint, titleID uint) (fleet.DetailsForSoftwareIconActivity, error) {
+					return fleet.DetailsForSoftwareIconActivity{
+						InHouseAppID:    ptr.Uint(1),
+						SoftwareTitle:   "foo",
+						Filename:        ptr.String("icon.png"),
+						TeamName:        ptr.String("team1"),
+						TeamID:          1,
+						SoftwareTitleID: 1,
 					}, nil
 				}
 			},

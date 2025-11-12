@@ -543,13 +543,18 @@ const DataTable = ({
             {shouldRenderToggleAllPages && (
               <Button
                 onClick={onToggleAllPagesClick}
-                variant="text-link"
+                variant="inverse"
                 className="light-text"
+                size="small"
               >
                 <>Select all matching {resultsTitle}</>
               </Button>
             )}
-            <Button onClick={onClearSelectionClick} variant="text-link">
+            <Button
+              onClick={onClearSelectionClick}
+              variant="inverse"
+              size="small"
+            >
               Clear selection
             </Button>
           </div>
@@ -557,6 +562,18 @@ const DataTable = ({
       </tr>
     </thead>
   );
+
+  const shouldShowFooter =
+    // footer is not explicitly hidden
+    !hideFooter &&
+    // and any of:
+
+    // table is client-side paginated with more than 1 page of rows
+    ((isClientSidePagination && (canNextPage || canPreviousPage)) ||
+      // table's pagination is externally controlled
+      renderPagination ||
+      // there is help text and at least 1 row of data
+      (renderTableHelpText && !!rows?.length));
 
   return (
     <div className={baseClass}>
@@ -577,11 +594,24 @@ const DataTable = ({
                   return (
                     <th
                       className={column.id ? `${column.id}__header` : ""}
-                      {...column.getHeaderProps(
-                        column.getSortByToggleProps({ title: null })
-                      )}
+                      {...column.getHeaderProps()}
                     >
-                      {renderColumnHeader(column)}
+                      {column.canSort ? (
+                        <Button
+                          variant="unstyled"
+                          {...column.getSortByToggleProps({ title: null })}
+                          aria-label={`Sort by ${column.Header} ${
+                            column.isSortedDesc ? "descending" : "ascending"
+                          }`}
+                          tabIndex={0}
+                          className="sortable-header"
+                        >
+                          {renderColumnHeader(column)}
+                          {/* add arrow/icon as needed */}
+                        </Button>
+                      ) : (
+                        renderColumnHeader(column)
+                      )}
                     </th>
                   );
                 })}
@@ -653,7 +683,7 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
-      {!hideFooter && (
+      {shouldShowFooter && (
         <div className={`${baseClass}__footer`}>
           {renderTableHelpText && !!rows?.length && (
             <div className={`${baseClass}__table-help-text`}>

@@ -5,6 +5,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleet` docker image
 
+### [CVE-2025-9230](https://nvd.nist.gov/vuln/detail/CVE-2025-9230)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Fleet uses Go cryptography packages.
+- **Products:**: `fleet`,`pkg:apk/alpine/openssl@3.3.3-r0?os_name=alpine&os_version=3.21`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-10-01 10:09:03
+
 ### [CVE-2025-46569](https://nvd.nist.gov/vuln/detail/CVE-2025-46569)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -212,4 +220,18 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:**: `fleetctl`,`pkg:maven/xerces/xercesImpl`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-04-10 14:46:52
+
+## `fleetdm/wix` docker image
+
+### [CVE-2023-31484](https://nvd.nist.gov/vuln/detail/CVE-2023-31484)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The WiX toolset is unaffected by the perl vulnerability.
+- **Products:**: `wix`,`pkg:deb/debian/perl-base`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-10-01 08:36:42
+
+## `fleetdm/bomutils` docker image
+
+No vulnerabilities tracked at the moment.
 

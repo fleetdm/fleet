@@ -21,7 +21,6 @@ import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
-import SetupExperiencePreview from "./components/SetupExperienceScriptPreview";
 import SetupExperienceScriptUploader from "./components/SetupExperienceScriptUploader";
 import SetupExperienceScriptCard from "./components/SetupExperienceScriptCard";
 import DeleteSetupExperienceScriptModal from "./components/DeleteSetupExperienceScriptModal";
@@ -112,12 +111,6 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
             Upload a script to run on macOS hosts that automatically enroll to
             Fleet.
           </p>
-          <CustomLink
-            className={`${baseClass}__learn-how-link`}
-            newTab
-            url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-assistant`}
-            text="Learn how"
-          />
           {!script ? (
             <SetupExperienceScriptUploader
               currentTeamId={currentTeamId}
@@ -136,7 +129,6 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
             </>
           )}
         </div>
-        <SetupExperiencePreview />
         {showDeleteScriptModal && script && (
           <DeleteSetupExperienceScriptModal
             currentTeamId={currentTeamId}
@@ -151,7 +143,16 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
 
   return (
     <section className={baseClass}>
-      <SectionHeader title="Run script" />
+      <SectionHeader
+        title="Run script"
+        details={
+          <CustomLink
+            newTab
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-experience/run-script`}
+            text="Preview end user experience"
+          />
+        }
+      />
       {renderContent()}
     </section>
   );
