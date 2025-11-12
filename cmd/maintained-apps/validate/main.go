@@ -314,7 +314,10 @@ func appFromJson(manifest *maintained_apps.FMAManifestFile) fleet.MaintainedApp 
 }
 
 func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFileReader, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	// Use the same timeout as production for downloading installers.
+	// Large installers (e.g., Docker Desktop at 543MB) require more time
+	// on slower network connections, especially on CI runners.
+	ctx, cancel := context.WithTimeout(context.Background(), mdm_maintained_apps.InstallerTimeout)
 	defer cancel()
 
 	level.Info(cfg.logger).Log("msg", "Downloading...")
