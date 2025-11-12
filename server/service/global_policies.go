@@ -413,7 +413,7 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 			if err := svc.authz.Authorize(ctx, &fleet.Team{ID: id}, fleet.ActionWrite); err != nil {
 				return err
 			}
-			t, err := svc.ds.TeamWithExtras(ctx, id)
+			t, err := svc.ds.TeamLite(ctx, id)
 			if err != nil {
 				return err
 			}

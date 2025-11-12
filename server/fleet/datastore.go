@@ -559,7 +559,7 @@ type Datastore interface {
 	TeamLite(ctx context.Context, tid uint) (*TeamLite, error)
 	// DeleteTeam deletes the Team by ID.
 	DeleteTeam(ctx context.Context, tid uint) error
-	// TeamByName retrieves the Team by Name.
+	// TeamByName retrieves the Team by Name (including extras).
 	TeamByName(ctx context.Context, name string) (*Team, error)
 	// TeamByFilename retrieves the Team by GitOps filename.
 	TeamByFilename(ctx context.Context, filename string) (*Team, error)
@@ -2502,7 +2502,8 @@ type AndroidDatastore interface {
 	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)
 	AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error
 	TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error)
-	TeamWithExtras(ctx context.Context, tid uint) (*Team, error)
+	// TeamLite retrieves a Team by ID, including only id, created_at, name, filename, description, config fields.
+	TeamLite(ctx context.Context, tid uint) (*TeamLite, error)
 	// BulkUpsertMDMAndroidHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
 	BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*MDMAndroidProfilePayload) error

@@ -4643,7 +4643,7 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 	}
 
 	checkTeamConfig := func(teamID uint, wantURL string) {
-		tm, err := ds.TeamWithExtras(ctx, teamID)
+		tm, err := ds.TeamLite(ctx, teamID)
 		require.NoError(t, err)
 		require.Equal(t, wantURL, tm.Config.MDM.MacOSSetup.BootstrapPackage.Value)
 	}
@@ -4745,7 +4745,7 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 	checkTeamConfig(teamID, "https://example.com/bootstrap.pkg")
 
 	// set other team config values so we can confirm they are not affected by bootstrap package changes
-	tc, err := ds.TeamWithExtras(ctx, teamID)
+	tc, err := ds.TeamWithExtras(ctx, teamID) // TODO replace with TeamLite (will require a new save DS method)
 	require.NoError(t, err)
 	tc.Config.MDM.MacOSSetup.MacOSSetupAssistant = optjson.SetString("/path/to/setupassistant")
 	tc.Config.MDM.MacOSUpdates.Deadline = optjson.SetString("2024-01-01")
@@ -4775,14 +4775,14 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 	checkTeamConfig(teamID, "https://example.com/bs.pkg")
 
 	// confirm other team config values are unchanged
-	tc, err = ds.TeamWithExtras(ctx, teamID)
+	teamFromDb, err := ds.TeamLite(ctx, teamID)
 	require.NoError(t, err)
-	require.Equal(t, tc.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value, "/path/to/setupassistant")
-	require.Equal(t, tc.Config.MDM.MacOSUpdates.Deadline.Value, "2024-01-01")
-	require.Equal(t, tc.Config.MDM.MacOSUpdates.MinimumVersion.Value, "10.15.4")
-	require.Equal(t, tc.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL, "https://example.com/webhook")
-	require.Equal(t, tc.Config.WebhookSettings.FailingPoliciesWebhook.Enable, true)
-	require.Equal(t, tc.Config.Features.EnableHostUsers, false)
+	require.Equal(t, teamFromDb.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value, "/path/to/setupassistant")
+	require.Equal(t, teamFromDb.Config.MDM.MacOSUpdates.Deadline.Value, "2024-01-01")
+	require.Equal(t, teamFromDb.Config.MDM.MacOSUpdates.MinimumVersion.Value, "10.15.4")
+	require.Equal(t, teamFromDb.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL, "https://example.com/webhook")
+	require.Equal(t, teamFromDb.Config.WebhookSettings.FailingPoliciesWebhook.Enable, true)
+	require.Equal(t, teamFromDb.Config.Features.EnableHostUsers, false)
 }
 
 func TestHostDEPAssignments(t *testing.T) {

@@ -67,6 +67,11 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			assert.NotZero(t, team.ID)
 
+			teamLite, err := ds.TeamLite(context.Background(), team.ID)
+			require.NoError(t, err)
+			assert.Equal(t, tt.name, teamLite.Name)
+			assert.Equal(t, tt.description, teamLite.Description)
+
 			team, err = ds.TeamWithExtras(context.Background(), team.ID)
 			require.NoError(t, err)
 			assert.Equal(t, tt.name, team.Name)
@@ -313,7 +318,7 @@ func testTeamsList(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 2, teams[1].HostCount)
 	assert.Equal(t, 1, teams[1].UserCount)
 
-	// Test that ds.Teams returns the same data as ds.ListTeams
+	// Test that ds.TeamsWithExtras returns the same data as ds.ListTeams
 	// (except list of users).
 	for _, t1 := range teams {
 		t2, err := ds.TeamWithExtras(context.Background(), t1.ID)
@@ -477,7 +482,7 @@ func testTeamsDeleteIntegrationsFromTeams(t *testing.T, ds *Datastore) {
 		// expected values
 		expected := [][]string{wantTm1, wantTm2, wantTm3}
 		for i, id := range []uint{team1.ID, team2.ID, team3.ID} {
-			tm, err := ds.TeamWithExtras(ctx, id)
+			tm, err := ds.TeamLite(ctx, id)
 			require.NoError(t, err)
 
 			var urls []string
@@ -544,9 +549,9 @@ func testTeamsFeatures(t *testing.T, ds *Datastore) {
 
 		// retrieving a team also returns a team with the default
 		// features
-		team, err = ds.TeamWithExtras(ctx, team.ID)
+		teamLite, err := ds.TeamLite(ctx, team.ID)
 		require.NoError(t, err)
-		assert.Equal(t, defaultFeatures, team.Config.Features)
+		assert.Equal(t, defaultFeatures, teamLite.Config.Features)
 
 		team, err = ds.TeamByName(ctx, team.Name)
 		require.NoError(t, err)
@@ -571,9 +576,9 @@ func testTeamsFeatures(t *testing.T, ds *Datastore) {
 
 		// retrieving a team also returns a team with the default
 		// features
-		team, err = ds.TeamWithExtras(ctx, team.ID)
+		teamLite, err := ds.TeamLite(ctx, team.ID)
 		require.NoError(t, err)
-		assert.Equal(t, defaultFeatures, team.Config.Features)
+		assert.Equal(t, defaultFeatures, teamLite.Config.Features)
 
 		team, err = ds.TeamByName(ctx, team.Name)
 		require.NoError(t, err)
@@ -629,6 +634,10 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.Equal(t, defaultMDM, team.Config.MDM)
 
+		teamLite, err := ds.TeamLite(ctx, team.ID)
+		require.NoError(t, err)
+		assert.Equal(t, defaultMDM, teamLite.Config.MDM)
+
 		team, err = ds.TeamByName(ctx, team.Name)
 		require.NoError(t, err)
 		assert.Equal(t, defaultMDM, team.Config.MDM)
@@ -655,6 +664,10 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 		team, err = ds.TeamWithExtras(ctx, team.ID)
 		require.NoError(t, err)
 		assert.Equal(t, defaultMDM, team.Config.MDM)
+
+		teamLite, err := ds.TeamLite(ctx, team.ID)
+		require.NoError(t, err)
+		assert.Equal(t, defaultMDM, teamLite.Config.MDM)
 
 		team, err = ds.TeamByName(ctx, team.Name)
 		require.NoError(t, err)
