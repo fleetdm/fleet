@@ -325,6 +325,24 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
 	}
 
+	dirty := make(map[string]bool)
+
+	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
+	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
+	}
+
+	if len(catIDs) != len(payload.Categories) {
+		return nil, &fleet.BadRequestError{
+			Message:     "some or all of the categories provided don't exist",
+			InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
+		}
+	}
+
+	payload.CategoryIDs = catIDs
+	dirty["Categories"] = true
+
 	// Handle in house apps separately
 	if software.InHouseAppCount == 1 {
 		return svc.updateInHouseAppInstaller(ctx, payload, vc, teamName, software)
@@ -349,7 +367,6 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	payload.InstallerID = existingInstaller.InstallerID
-	dirty := make(map[string]bool)
 
 	if software.DisplayName != payload.DisplayName {
 		dirty["DisplayName"] = true
@@ -367,22 +384,6 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		dirty["Labels"] = true
 	}
 	payload.ValidatedLabels = validatedLabels
-
-	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
-	}
-
-	if len(catIDs) != len(payload.Categories) {
-		return nil, &fleet.BadRequestError{
-			Message:     "some or all of the categories provided don't exist",
-			InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
-		}
-	}
-
-	payload.CategoryIDs = catIDs
-	dirty["Categories"] = true
 
 	// activity team ID must be null if no team, not zero
 	var actTeamID *uint
