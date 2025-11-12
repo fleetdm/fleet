@@ -549,9 +549,9 @@ func testTeamsFeatures(t *testing.T, ds *Datastore) {
 
 		// retrieving a team also returns a team with the default
 		// features
-		teamLite, err := ds.TeamLite(ctx, team.ID)
+		team, err = ds.TeamWithExtras(ctx, team.ID)
 		require.NoError(t, err)
-		assert.Equal(t, defaultFeatures, teamLite.Config.Features)
+		assert.Equal(t, defaultFeatures, team.Config.Features)
 
 		team, err = ds.TeamByName(ctx, team.Name)
 		require.NoError(t, err)
@@ -576,9 +576,9 @@ func testTeamsFeatures(t *testing.T, ds *Datastore) {
 
 		// retrieving a team also returns a team with the default
 		// features
-		teamLite, err := ds.TeamLite(ctx, team.ID)
+		team, err = ds.TeamWithExtras(ctx, team.ID)
 		require.NoError(t, err)
-		assert.Equal(t, defaultFeatures, teamLite.Config.Features)
+		assert.Equal(t, defaultFeatures, team.Config.Features)
 
 		team, err = ds.TeamByName(ctx, team.Name)
 		require.NoError(t, err)
