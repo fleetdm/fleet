@@ -700,7 +700,7 @@ const HostDetailsPage = ({
               fleetInstallStatus: details?.status as SoftwareInstallUninstallStatus,
               hostDisplayName:
                 host?.display_name || details?.host_display_name || "",
-              appName: details?.name || "",
+              appName: details.software_display_name || details?.name || "", // TODO: Confirm correct field
               commandUuid: details?.command_uuid,
             });
           } else if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
@@ -726,7 +726,8 @@ const HostDetailsPage = ({
         case "uninstalled_software":
           setPackageUninstallDetails({
             ...details,
-            softwareName: details?.software_title || "",
+            softwareName:
+              details?.software_display_name || details?.software_title || "",
             uninstallStatus: resolveUninstallStatus(details?.status),
             scriptExecutionId: details?.script_execution_id || "",
             hostDisplayName: host?.display_name || details?.host_display_name,
@@ -734,7 +735,8 @@ const HostDetailsPage = ({
           break;
         case "installed_app_store_app":
           setActivityVPPInstallDetails({
-            appName: details?.software_title || "",
+            appName:
+              details?.software_display_name || details?.software_title || "",
             fleetInstallStatus: (details?.status ||
               "pending_install") as SoftwareInstallUninstallStatus,
             commandUuid: details?.command_uuid || "",

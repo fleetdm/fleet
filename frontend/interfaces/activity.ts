@@ -245,6 +245,7 @@ export interface IActivityDetails {
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
+  software_display_name?: string;
   source?: SoftwareSource;
   specs?: IQuery[] | IPolicy[];
   stats?: ISchedulableQueryStats;

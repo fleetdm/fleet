@@ -88,7 +88,10 @@ const LibrarySoftwareDetailsModal = ({
     >
       <>
         <div className={`${baseClass}__modal-content`}>
-          <DataSet title="Name" value={details.software_title} />
+          <DataSet
+            title="Name"
+            value={details.software_display_name || details.software_title}
+          />
           <DataSet title="Package name" value={details.software_package} />
           <DataSet
             title="Self-Service"
