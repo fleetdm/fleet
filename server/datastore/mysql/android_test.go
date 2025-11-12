@@ -1411,7 +1411,7 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	err = ds.UpdateHost(ctx, hosts[0])
 	require.NoError(t, err)
 
-	// host 0 is _not_ a member of the excluded labels, so p1, p2 and p3 are now applicable
+	// host 0 dynamic labels now apply, and this host is _not_ a member of the excluded labels, so p1, p2 and p3 are now applicable
 	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
