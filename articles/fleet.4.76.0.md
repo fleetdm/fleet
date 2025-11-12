@@ -1,4 +1,4 @@
-# Fleet 4.76.0 | Self-service scripts, JetBrains/Cursor/Windsurf vulnerabilities, and more...
+# Fleet 4.76.0 | Self-service scripts, JetBrains/Cursor/Windsurf inventory, and more...
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/2hJ7yZTBaVY?si=11HG8r-mS1iF9fma" frameborder="0" allowfullscreen></iframe>
@@ -9,7 +9,7 @@ Fleet 4.76.0 is now available. See the complete [changelog](https://github.com/f
 ## Highlights
 
 - Self-service scripts
-- Vulnerabilities for Cursor, Windsurf, and JetBrains extensions
+- Cursor, Windsurf, and JetBrains extensions
 - Improved macOS, iOS, and iPadOS setup experience
 - Android software inventory
 - Lock (Lost Mode) for iOS and iPadOS
@@ -17,17 +17,17 @@ Fleet 4.76.0 is now available. See the complete [changelog](https://github.com/f
 
 ### Self-service scripts
 
-You can now create custom Linux and Windows packages that include just a script (aka payload-free packages). In Fleet, head to **Software** page and select **Add software > Custom package**. This is perfect for self-service utilities or bundling multiple scripts as part of your out-of-the-box setup experience.
+You can now create custom Linux and Windows packages that include just a script (aka payload-free packages). In Fleet, head to **Software** page and select **Add software > Custom package**. This is perfect for self-service utilities or bundling multiple scripts as part of your out-of-the-box setup experience. macOS self-service scripts are coming soon.
 
-### Vulnerabilities for JetBrains, Cursor, and Windsurf extensions
+### JetBrains, Cursor, and Windsurf extensions
 
-Vulnerabilities (CVEs) in all Cursor, Windsurf, other VSCode forks, and JetBrains IDE extensions now show up in the **Software**, **Host details**, and **My device** pages. Gain better coverage of high-risk developer tools. Learn more about CVEs in the [vulnerabilities guide](https://fleetdm.com/guides/vulnerability-processing#basic-article).
+All Cursor, Windsurf, other VSCode forks, and JetBrains IDE extensions now show up in the **Software**, **Host details**, and **My device** pages. Vulnerabilities (CVEs) are detected for JetBrains IDE extenions. CVEs for Cursor, Windsurf, and other VSCode forks are coming soon. Learn more about CVEs in the [vulnerabilities guide](https://fleetdm.com/guides/vulnerability-processing#basic-article).
 
 ### Improved macOS, iOS, and iPadOS setup experience
 
 During out-of-the-box macOS setup, if critical software fails to install during setup, Fleet now cancels the process and shows an error. This ensures end users run through setup again and, if they're still running into issues, contact IT before moving forward. This helps avoid misconfigured hosts in production.
 
-For iOS and iPadoS, installing apps on company-owned iPhones and iPads during enrollment is now supported. Perfect for instantly setting up kiosk devices, shared iPads, or Zoom rooms without manual intervention.
+For iOS and iPadOS, installing apps on company-owned iPhones and iPads during enrollment is now supported. Perfect for instantly setting up kiosk devices, shared iPads, or Zoom rooms without manual intervention.
 
 Learn more in the [setup experience guide](https://fleetdm.com/guides/macos-setup-experience).
 
@@ -43,7 +43,7 @@ You can now remotely enable or disable [Lost Mode](https://support.apple.com/gui
 
 ### New Fleet-maintained apps
 
-Fleet added [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps) for Cursor, 010 Editor, and Linear on macOS and Cursor on Windows. See all Fleet-maintained apps in the [software catelog](https://fleetdm.com/software-catalog).
+Fleet added [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps) for Cursor, 010 Editor, and Linear on macOS and Cursor on Windows. See all Fleet-maintained apps in the [software catalog](https://fleetdm.com/software-catalog).
 
 ## Changes
 

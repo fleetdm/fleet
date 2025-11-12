@@ -2028,8 +2028,9 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 }
 
 var (
-	dcvVersionFormat   = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
-	basicAppSanitizers = []struct {
+	dcvVersionFormat         = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
+	tunnelblickVersionFormat = regexp.MustCompile(`^(.+?)\s*\(build\s+\d+\)$`)
+	basicAppSanitizers       = []struct {
 		matchBundleIdentifier string
 		matchName             string
 		mutate                func(*fleet.Software, log.Logger)
@@ -2119,6 +2120,14 @@ var (
 			matchName:             "sqldeveloper.sh/",
 			mutate: func(s *fleet.Software, logger log.Logger) {
 				s.Name = "Oracle SQLDeveloper"
+			},
+		},
+		{
+			matchBundleIdentifier: "net.tunnelblick.tunnelblick",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				if versionMatches := tunnelblickVersionFormat.FindStringSubmatch(s.Version); len(versionMatches) == 2 {
+					s.Version = versionMatches[1]
+				}
 			},
 		},
 		// end of #34159 cleanup in basic matchers

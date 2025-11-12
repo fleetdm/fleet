@@ -29,10 +29,10 @@ jobs:
           echo "FLEET_DESKTOP_VERSION=$VERSION" >> "$GITHUB_OUTPUT"
   
   desktop-macos:
-    # Set macOS version to '13' (previously was macos-12, and it was deprecated) for
-    # building the binary. This ensures compatibility with macOS version 13 and
-    # later, avoiding runtime errors on systems using macOS 13 or newer.
-    runs-on: macos-13
+    # Set macOS version to '14' (previously was macos-12/13 until they were deprecated) for
+    # building the binary. This ensures compatibility with macOS version 14 and
+    # later, avoiding runtime errors on systems using macOS 14 or newer.
+    runs-on: macos-14
     needs: set-version
     steps:
       - name: Harden Runner
