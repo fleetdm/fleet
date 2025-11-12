@@ -188,6 +188,7 @@ Product Designers (PD) review the checkboxes in user stories we shipped but have
 
 If the original request is a customer request, the PD also assigns the relevant Customer Success Manager (CSM) and adds the `#g-unicorns` label to add the customer request to the [🦄 #g-unicorns board](https://github.com/orgs/fleetdm/projects/81). The PD also moved the request to the "🗣️ Ready for feedback" column on the [💝 Customer requests](https://github.com/orgs/fleetdm/projects/82) board.
 
+If the story includes [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration) changes, the PD adds the dogfood issue to the `:help-customers` board, removes it from `:helpd-dogfooding`, and notifies the [SVP of Customer Success](https://fleetdm.com/handbook/customer-success). Up to Customer Success to decide if any changes to the server config in cloud environment is needed.
 
 ### Notify stakeholders when a user story is pushed to the next sprint
 
