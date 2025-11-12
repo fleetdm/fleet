@@ -775,7 +775,6 @@ func testDeleteIconsAssociatedWithTitlesWithoutInstallers(t *testing.T, ds *Data
 				require.NoError(t, err)
 				require.Len(t, softwareInstallerTitleIds, 2) // iha create 2 titles
 				require.Equal(t, titleID, softwareInstallerTitleIds[1].ID)
-
 				_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
 					TeamID:    team.ID,
 					TitleID:   titleID,
@@ -783,6 +782,10 @@ func testDeleteIconsAssociatedWithTitlesWithoutInstallers(t *testing.T, ds *Data
 					Filename:  "test-icon-updated.png",
 				})
 				require.NoError(t, err)
+
+				meta, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleID)
+				require.NoError(t, err)
+				require.NotEmpty(t, meta.IconUrl)
 
 				result, err := ds.writer(ctx).ExecContext(ctx, `
 					INSERT INTO software_titles (name, source, bundle_identifier) VALUES (?, ?, ?)
