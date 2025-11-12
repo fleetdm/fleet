@@ -36,7 +36,7 @@ const (
 	ndesInsufficientPermissions    = "You do not have sufficient permission to enroll with SCEP."
 	MessageSCEPProxyNotConfigured  = "SCEP proxy is not configured"
 	NDESChallengeInvalidAfter      = 57 * time.Minute
-	SmallstepChallengeInvalidAfter = 57 * time.Minute // TODO(sca): confirm expected expiration time for smallstep
+	SmallstepChallengeInvalidAfter = 4 * time.Minute
 )
 
 type scepProxyService struct {
@@ -173,6 +173,8 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		if profile.Status != nil {
 			status = string(*profile.Status)
 		}
+		// FIXME: MDM client will report a failed status for the profile when we return bad request, which consumes the sole retry attempt.
+		// Seems like we should proactively use ResendHostCertificateProfile here too?
 		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("profile status (%s) is not 'pending' for host:%s profile:%s", status,
 			hostUUID, profileUUID)}
 	}
@@ -206,15 +208,12 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			}
 		}
 
-		// TODO(sca): confirm if this resend method works for smallstep or if we need to use
-		// something like the approach taken for custom SCEP profiles (where we blank the command uuid
-		// to force a regeneration of the command bytes)
-		// Also confirm the expected expiration time for smallstep challenges
-		if checkChallenge && profile.ChallengeRetrievedAt != nil && profile.ChallengeRetrievedAt.Add(NDESChallengeInvalidAfter).Before(time.Now()) {
+		// FIXME: See comment in datastore method regarding how we resend profiles with dynamic content
+		if checkChallenge && profile.ChallengeRetrievedAt != nil && profile.ChallengeRetrievedAt.Add(SmallstepChallengeInvalidAfter).Before(time.Now()) {
 			// The challenge password was retrieved for this profile, and is now invalid.
 			// We need to resend the profile with a new challenge password.
 			// Note: we don't actually know if it is invalid, and we can't get that exact feedback from SCEP server.
-			if err = svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID); err != nil {
+			if err = svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID); err != nil {
 				return "", ctxerr.Wrap(ctx, err, "resending host mdm profile")
 			}
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
@@ -276,14 +275,8 @@ func (svc *scepProxyService) handleFleetChallenge(ctx context.Context, fleetChal
 
 	if err := svc.ds.ConsumeChallenge(ctx, fleetChallenge); err != nil {
 		errs = append(errs, ctxerr.Wrap(ctx, err, "custom scep proxy: validating challenge"))
-		// FIXME: We really should have a more generic function to handle this, but our existing methods
-		// for "resending" profiles don't reevaluate the profile variables so they aren't useful for
-		// custom SCEP profiles where we need to regenerate the SCEP challenge. The main difference between
-		// the existing flow and the implementation below is that we need to blank the command uuid in order
-		// get the reconcile cron to reevaluate the command template to generate the challenge. Otherwise,
-		// it just sends the old bytes again. It feels like we some leaky abstrations somewhere that we need
-		// to clean up.
-		if err := svc.ds.ResendHostCustomSCEPProfile(ctx, hostUUID, profileUUID); err != nil {
+		// FIXME: See comment in datastore method regarding how we resend profiles with dynamic content
+		if err := svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID); err != nil {
 			errs = append(errs, ctxerr.Wrap(ctx, err, "custom scep proxy: resending host mdm profile"))
 		}
 	}

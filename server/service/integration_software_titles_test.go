@@ -61,15 +61,11 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		DisplayName:       strings.Repeat("a", 256),
 	}, http.StatusBadRequest, "The maximum display name length is 255 characters.")
 
+	// Should update the display name even if no other fields are passed
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
-		SelfService:       ptr.Bool(true),
-		InstallScript:     ptr.String("some install script"),
-		PreInstallQuery:   ptr.String("some pre install query"),
-		PostInstallScript: ptr.String("some post install script"),
-		Filename:          "ruby.deb",
-		TitleID:           titleID,
-		TeamID:            &team.ID,
-		DisplayName:       "RubyUpdate1",
+		TitleID:     titleID,
+		TeamID:      &team.ID,
+		DisplayName: "RubyUpdate1",
 	}, http.StatusOK, "")
 
 	activityData := fmt.Sprintf(`
@@ -79,7 +75,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		"software_icon_url": null,
 		"team_name": "%s",
 	    "team_id": %d,
-		"self_service": true,
+		"self_service": false,
 		"software_title_id": %d,
 		"software_display_name": "%s"
 	}`,
@@ -97,6 +93,28 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	s.Assert().Len(resp.SoftwareTitles, 1)
 	s.Assert().Equal("RubyUpdate1", resp.SoftwareTitles[0].DisplayName)
+
+	// set self service to true
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:     titleID,
+		TeamID:      &team.ID,
+		DisplayName: "RubyUpdate1",
+		SelfService: ptr.Bool(true),
+	}, http.StatusOK, "")
+
+	activityData = fmt.Sprintf(`
+	{
+		"software_title": "ruby",
+		"software_package": "ruby.deb",
+		"software_icon_url": null,
+		"team_name": "%s",
+	    "team_id": %d,
+		"self_service": true,
+		"software_title_id": %d,
+		"software_display_name": "%s"
+	}`,
+		team.Name, team.ID, titleID, "RubyUpdate1")
+	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 	// My device self service has display name
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)

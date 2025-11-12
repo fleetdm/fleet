@@ -3707,6 +3707,8 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.1", Source: "test", ExtensionID: "ext"},
 		{Name: "foo", Version: "0.0.2", Source: "test"},
 		{Name: "foo", Version: "0.0.2", Source: "test", ApplicationID: ptr.String("foo.bar.baz")},
+		{Name: "foo", Version: "0.0.2", Source: "programs", UpgradeCode: ptr.String("{55ac7218-24cb-4b99-9449-f28d9c59cc7e}")},
+		{Name: "foo", Version: "0.0.2", Source: "programs", UpgradeCode: ptr.String("")},
 	}
 
 	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
@@ -3722,7 +3724,7 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 		var got fleet.Software
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &got,
-				`SELECT name, version, source, bundle_identifier, `+"`release`"+`, arch, vendor, extension_for, extension_id, application_id FROM software WHERE checksum = UNHEX(?)`, cs)
+				`SELECT name, version, source, bundle_identifier, `+"`release`"+`, arch, vendor, extension_for, extension_id, application_id, upgrade_code FROM software WHERE checksum = UNHEX(?)`, cs)
 		})
 		require.Equal(t, software[i], got)
 	}
@@ -9157,9 +9159,9 @@ func testCheckForDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
 
-	existingSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.0-2", "deb_packages", "", "", "", "", "", "", "", "")
+	existingSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.0-2", "deb_packages", "", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
-	updateSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.1-5", "deb_packages", "", "", "", "", "", "", "", "")
+	updateSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.1-5", "deb_packages", "", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
 
 	_, err = ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{*existingSw})
@@ -9696,6 +9698,7 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 		Extension:        "ipa",
 		BundleIdentifier: "inhouse2",
 		UserID:           user.ID,
+		SelfService:      true,
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
@@ -9783,7 +9786,16 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.Len(t, sw, 5)
 	require.Equal(t, []string{"a", "b", "inhouse1", "inhouse2", "inhouse3"}, pluckSoftwareNames(sw))
 
+	// only 1 with self-service
+	opts.IncludeAvailableForInstall = true
+	opts.SelfServiceOnly = true
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, []string{"inhouse2"}, pluckSoftwareNames(sw))
+
 	// vulnerable only returns "b"
+	opts.SelfServiceOnly = false
 	opts.IncludeAvailableForInstall = false
 	opts.VulnerableOnly = true
 	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
@@ -9870,7 +9882,7 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.NotNil(t, sw[3].SoftwarePackage)
 	require.Equal(t, sw[3].SoftwarePackage.Name, "inhouse2.ipa")
 	require.Equal(t, sw[3].SoftwarePackage.Platform, "ios")
-	require.Equal(t, sw[3].SoftwarePackage.SelfService, ptr.Bool(false))
+	require.Equal(t, sw[3].SoftwarePackage.SelfService, ptr.Bool(true))
 	require.NotNil(t, sw[3].SoftwarePackage.LastInstall)
 	require.Equal(t, sw[3].SoftwarePackage.LastInstall.CommandUUID, inhouse2InstallCmd)
 	require.Nil(t, sw[4].Status)
@@ -9921,7 +9933,7 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.NotNil(t, sw[1].SoftwarePackage)
 	require.Equal(t, sw[1].SoftwarePackage.Name, "inhouse2.ipa")
 	require.Equal(t, sw[1].SoftwarePackage.Platform, "ios")
-	require.Equal(t, sw[1].SoftwarePackage.SelfService, ptr.Bool(false))
+	require.Equal(t, sw[1].SoftwarePackage.SelfService, ptr.Bool(true))
 	require.NotNil(t, sw[1].SoftwarePackage.LastInstall)
 	require.Equal(t, sw[1].SoftwarePackage.LastInstall.CommandUUID, inhouse2InstallCmd)
 

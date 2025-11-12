@@ -2439,7 +2439,7 @@ func (svc *Service) conditionalAccessConfiguredAndEnabledForTeam(ctx context.Con
 	}
 
 	// Host belongs to a team, thus we load the team configuration.
-	team, err := svc.ds.Team(ctx, *hostTeamID)
+	team, err := svc.ds.TeamWithoutExtras(ctx, *hostTeamID)
 	if err != nil {
 		return false, false, ctxerr.Wrap(ctx, err, "failed to load team config")
 	}

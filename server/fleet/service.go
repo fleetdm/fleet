@@ -354,6 +354,10 @@ type Service interface {
 	// AuthenticateDevice loads host identified by the device's auth token.
 	// Returns an error if the auth token doesn't exist.
 	AuthenticateDevice(ctx context.Context, authToken string) (host *Host, debug bool, err error)
+	// AuthenticateDeviceByCertificate loads host identified by certificate serial and UUID.
+	// This is used for iOS/iPadOS devices accessing My Device page via client certificates.
+	// Returns an error if the certificate doesn't match the host or if the host is not iOS/iPadOS.
+	AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (host *Host, debug bool, err error)
 
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
 	// GetHost returns the host with the provided ID.
@@ -1341,6 +1345,13 @@ type Service interface {
 	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, setupError string, err error)
 	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Okta conditional access
+
+	// ConditionalAccessGetIdPSigningCert returns the Okta IdP signing certificate (public key only)
+	// for administrators to download and configure in Okta.
+	ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error)
 
 	//////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities

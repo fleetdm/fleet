@@ -25,6 +25,8 @@ export interface ICheckboxProps {
   parseTarget?: boolean;
   /** to display over the checkbox label */
   labelTooltipContent?: React.ReactNode;
+  /** to allow hovering over the tooltip e.g. links within it, default: false to not block form */
+  labelTooltipClickable?: boolean;
   /** to display over the checkbox icon */
   iconTooltipContent?: React.ReactNode;
   isLeftLabel?: boolean;
@@ -48,6 +50,7 @@ const Checkbox = (props: ICheckboxProps) => {
     indeterminate = false,
     parseTarget,
     labelTooltipContent,
+    labelTooltipClickable = false,
     iconTooltipContent,
     isLeftLabel,
     helpText,

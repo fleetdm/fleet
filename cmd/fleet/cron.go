@@ -1049,6 +1049,17 @@ func newCleanupsAndAggregationSchedule(
 			_, err := ds.CleanupWorkerJobs(ctx, failedSince, completedSince)
 			return err
 		}),
+		schedule.WithJob("revoke_old_conditional_access_certs", func(ctx context.Context) error {
+			const gracePeriod = 1 * time.Hour
+			count, err := ds.RevokeOldConditionalAccessCerts(ctx, gracePeriod)
+			if err != nil {
+				return err
+			}
+			if count > 0 {
+				level.Info(logger).Log("msg", "revoked old conditional access certificates", "count", count)
+			}
+			return nil
+		}),
 	)
 
 	return s, nil

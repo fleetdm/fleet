@@ -65,15 +65,15 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                                   @rachaelshaw
+/docs                                                   @noahtalerman
 /docs/solutions                                         @ddribeiro
-/docs/Configuration                                     @rachaelshaw
+/docs/Configuration                                     @noahtalerman
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
 /docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @sgress454 @getvictor # software ingestion is security & compliance
-/docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
-/docs/Contributing/reference/api-for-contributors.md    @rachaelshaw @lukeheath # « Advanced / contributors-only API reference documentation
-/docs/Contributing/reference/audit-logs.md              @rachaelshaw @lukeheath # « Advanced / contributors-only audit log documentation
-/docs/Contributing/reference/configuration-for-contributors.md @rachaelshaw @lukeheath # « Advanced / contributors-only configuration documentation
+/docs/REST\ API/rest-api.md                             @noahtalerman # « REST API reference documentation
+/docs/Contributing/reference/api-for-contributors.md    @noahtalerman @lukeheath # « Advanced / contributors-only API reference documentation
+/docs/Contributing/reference/audit-logs.md              @noahtalerman @lukeheath # « Advanced / contributors-only audit log documentation
+/docs/Contributing/reference/configuration-for-contributors.md @noahtalerman @lukeheath # « Advanced / contributors-only configuration documentation
 /schema                                                 @eashaw # « Data tables (osquery/fleetd schema) documentation
 /render.yaml                                            @edwardsb
 /it-and-security                                        @allenhouchins
