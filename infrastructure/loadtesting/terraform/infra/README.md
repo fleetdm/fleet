@@ -10,7 +10,7 @@ Although deployments through the github action should be prioritized, for manual
 
 Additionally, refer to the [Reference Architecture sizing recommendations](https://fleetdm.com/docs/deploy/reference-architectures#aws) for loadtest infrastructure sizing.
 
-# Deploy with Github Actions (Coming Soon)
+# Deploy with Github Actions
 
 ## Deploy/Destroy environment with Github Action
 
@@ -125,15 +125,15 @@ terraform workspace delete <workspace_name>
 |------|---------|
 | <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 5.68.0 |
 | <a name="requirement_docker"></a> [docker](#requirement\_docker) | ~> 2.16.0 |
-| <a name="requirement_git"></a> [git](#requirement\_git) | ~> 0.1.0 |
+| <a name="requirement_git"></a> [git](#requirement\_git) | 2025.10.10 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.14.1 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.20.0 |
 | <a name="provider_docker"></a> [docker](#provider\_docker) | 2.16.0 |
-| <a name="provider_git"></a> [git](#provider\_git) | 0.1.0 |
+| <a name="provider_git"></a> [git](#provider\_git) | 2025.10.10 |
 | <a name="provider_random"></a> [random](#provider\_random) | 3.7.2 |
 | <a name="provider_terraform"></a> [terraform](#provider\_terraform) | n/a |
 | <a name="provider_tls"></a> [tls](#provider\_tls) | 4.1.0 |
@@ -185,8 +185,9 @@ terraform workspace delete <workspace_name>
 | [aws_secretsmanager_secret.license](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/secretsmanager_secret) | data source |
 | [aws_secretsmanager_secret_version.enroll_secret](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/secretsmanager_secret_version) | data source |
 | [docker_registry_image.dockerhub](https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs/data-sources/registry_image) | data source |
-| [git_repository.tf](https://registry.terraform.io/providers/metio/git/latest/docs/data-sources/repository) | data source |
+| [git_repository.tf](https://registry.terraform.io/providers/metio/git/2025.10.10/docs/data-sources/repository) | data source |
 | [terraform_remote_state.shared](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/data-sources/remote_state) | data source |
+| [terraform_remote_state.signoz](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/data-sources/remote_state) | data source |
 
 ## Inputs
 
@@ -194,12 +195,13 @@ terraform workspace delete <workspace_name>
 |------|-------------|------|---------|:--------:|
 | <a name="input_database_instance_count"></a> [database\_instance\_count](#input\_database\_instance\_count) | The number of Aurora database instances | `number` | `2` | no |
 | <a name="input_database_instance_size"></a> [database\_instance\_size](#input\_database\_instance\_size) | The instance size for Aurora database instances | `string` | `"db.t4g.medium"` | no |
+| <a name="input_enable_otel"></a> [enable\_otel](#input\_enable\_otel) | Enable OpenTelemetry tracing with SigNoz instead of Elastic APM | `bool` | `false` | no |
 | <a name="input_fleet_task_count"></a> [fleet\_task\_count](#input\_fleet\_task\_count) | The total number (max) that ECS can scale Fleet containers up to | `number` | `5` | no |
 | <a name="input_fleet_task_cpu"></a> [fleet\_task\_cpu](#input\_fleet\_task\_cpu) | The CPU configuration for Fleet containers | `number` | `512` | no |
 | <a name="input_fleet_task_memory"></a> [fleet\_task\_memory](#input\_fleet\_task\_memory) | The memory configuration for Fleet containers | `number` | `4096` | no |
 | <a name="input_redis_instance_count"></a> [redis\_instance\_count](#input\_redis\_instance\_count) | The number of Elasticache nodes | `number` | `3` | no |
 | <a name="input_redis_instance_size"></a> [redis\_instance\_size](#input\_redis\_instance\_size) | The instance size for Elasticache nodes | `string` | `"cache.t4g.micro"` | no |
-| <a name="input_tag"></a> [tag](#input\_tag) | The tag to deploy. This would be the same as the branch name | `string` | `"v4.72.0"` | no |
+| <a name="input_tag"></a> [tag](#input\_tag) | The tag to deploy. This would be the same as the branch name | `string` | `"v4.75.1"` | no |
 
 ## Outputs
 
@@ -214,3 +216,7 @@ terraform workspace delete <workspace_name>
 | <a name="output_logging_config"></a> [logging\_config](#output\_logging\_config) | n/a |
 | <a name="output_security_groups"></a> [security\_groups](#output\_security\_groups) | n/a |
 | <a name="output_server_url"></a> [server\_url](#output\_server\_url) | n/a |
+| <a name="output_signoz_cluster_name"></a> [signoz\_cluster\_name](#output\_signoz\_cluster\_name) | SigNoz EKS cluster name |
+| <a name="output_signoz_configure_kubectl"></a> [signoz\_configure\_kubectl](#output\_signoz\_configure\_kubectl) | Command to configure kubectl for SigNoz |
+| <a name="output_signoz_otel_collector_endpoint"></a> [signoz\_otel\_collector\_endpoint](#output\_signoz\_otel\_collector\_endpoint) | Internal OTLP collector endpoint for Fleet |
+| <a name="output_vpc_subnets"></a> [vpc\_subnets](#output\_vpc\_subnets) | VPC private subnets from shared fleet-vpc |
