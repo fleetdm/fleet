@@ -3695,9 +3695,13 @@ with the download option.
 
 ##### Default response
 
-`Status: 307`
+`Status: 200`
 
-Redirects to the enrollment URL.
+```json
+{
+  "enroll_url": "https://your-fleet-server-url.com/enroll?enroll_secret=ABCzmPbtEECxZhHlFlz9uTWApZmXsCND"
+}
+```
 
 ---
 
