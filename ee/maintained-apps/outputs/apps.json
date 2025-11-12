@@ -260,6 +260,7 @@
       "unique_identifier": "Slack",
       "description": "Slack is a team communication and collaboration software for modern workplaces."
     },
+    {
       "name": "Sublime Text",
       "slug": "sublime-text/darwin",
       "platform": "darwin",
