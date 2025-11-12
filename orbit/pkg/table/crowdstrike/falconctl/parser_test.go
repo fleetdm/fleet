@@ -105,7 +105,8 @@ func TestParseOptions(t *testing.T) {
 			},
 		},
 		{
-			name:  "-rfm-state --rfm-reason --aph --tags --version",
+			name: "-rfm-state --rfm-reason --aph --tags --version",
+			// extra space at the end represents real falconctl output and exercises the "if pair is an empty string continue" case
 			input: []byte("aph is not set, rfm-state=false, rfm-reason=None, code=0x0, version = 6.45.14203.0\ntags=kolide-test-1,kolide-test-2, "),
 			expected: map[string]any{
 				"aph":             "is not set",
