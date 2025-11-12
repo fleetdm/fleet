@@ -788,7 +788,9 @@ type GetOrbitSetupExperienceStatusFunc func(ctx context.Context, orbitNodeKey st
 
 type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, downloadRequested bool) (*fleet.Script, []byte, error)
 
-type SetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, name string, r io.Reader) error
+type CreateSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, name string, r io.Reader) error
+
+type PutSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, name string, r io.Reader) error
 
 type DeleteSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) error
 
@@ -2002,8 +2004,11 @@ type Service struct {
 	GetSetupExperienceScriptFunc        GetSetupExperienceScriptFunc
 	GetSetupExperienceScriptFuncInvoked bool
 
-	SetSetupExperienceScriptFunc        SetSetupExperienceScriptFunc
-	SetSetupExperienceScriptFuncInvoked bool
+	CreateSetupExperienceScriptFunc        CreateSetupExperienceScriptFunc
+	CreateSetupExperienceScriptFuncInvoked bool
+
+	PutSetupExperienceScriptFunc        PutSetupExperienceScriptFunc
+	PutSetupExperienceScriptFuncInvoked bool
 
 	DeleteSetupExperienceScriptFunc        DeleteSetupExperienceScriptFunc
 	DeleteSetupExperienceScriptFuncInvoked bool
@@ -4787,11 +4792,18 @@ func (s *Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, do
 	return s.GetSetupExperienceScriptFunc(ctx, teamID, downloadRequested)
 }
 
-func (s *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
+func (s *Service) CreateSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
 	s.mu.Lock()
-	s.SetSetupExperienceScriptFuncInvoked = true
+	s.CreateSetupExperienceScriptFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetSetupExperienceScriptFunc(ctx, teamID, name, r)
+	return s.CreateSetupExperienceScriptFunc(ctx, teamID, name, r)
+}
+
+func (s *Service) PutSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
+	s.mu.Lock()
+	s.PutSetupExperienceScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.PutSetupExperienceScriptFunc(ctx, teamID, name, r)
 }
 
 func (s *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {

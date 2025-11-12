@@ -530,6 +530,10 @@ WHERE id = ?
 }
 
 func (ds *Datastore) GetSetupExperienceScript(ctx context.Context, teamID *uint) (*fleet.Script, error) {
+	return ds.getSetupExperienceScript(ctx, ds.reader(ctx), teamID)
+}
+
+func (ds *Datastore) getSetupExperienceScript(ctx context.Context, q sqlx.QueryerContext, teamID *uint) (*fleet.Script, error) {
 	query := `
 SELECT
   id,
@@ -549,7 +553,7 @@ WHERE
 	}
 
 	var script fleet.Script
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &script, query, globalOrTeamID); err != nil {
+	if err := sqlx.GetContext(ctx, q, &script, query, globalOrTeamID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("SetupExperienceScript"), "get setup experience script")
 		}
@@ -585,7 +589,7 @@ WHERE
 	return &script, nil
 }
 
-func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {
+func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script, allowUpdate bool) error {
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 
@@ -595,6 +599,29 @@ func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet
 			return err
 		}
 		id, _ := scRes.LastInsertId()
+
+		// This clause allows for PUT semantics in some cases. The basic idea is:
+		// - no existing setup script -> go through the usual insert logic
+		// - existing setup script with different content -> delete(with all side effects) and re-insert
+		// - existing setup script with same content -> no-op
+		if allowUpdate {
+			gotSetupExperienceScript, err := ds.getSetupExperienceScript(ctx, tx, script.TeamID)
+			if err != nil && !errors.Is(err, notFound("SetupExperienceScript")) {
+				return err
+			}
+			// fall through on notFound err - nothing to do
+			if err == nil {
+				if gotSetupExperienceScript.ScriptContentID != uint(id) {
+					err = ds.deleteSetupExperienceScript(ctx, tx, script.TeamID)
+					if err != nil {
+						return err
+					}
+				} else {
+					// no change
+					return nil
+				}
+			}
+		}
 
 		// then create the script entity
 		_, err = insertSetupExperienceScript(ctx, tx, script, uint(id)) // nolint: gosec
@@ -635,12 +662,16 @@ VALUES
 }
 
 func (ds *Datastore) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
+	return ds.deleteSetupExperienceScript(ctx, ds.writer(ctx), teamID)
+}
+
+func (ds *Datastore) deleteSetupExperienceScript(ctx context.Context, tx sqlx.ExtContext, teamID *uint) error {
 	var globalOrTeamID uint
 	if teamID != nil {
 		globalOrTeamID = *teamID
 	}
 
-	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM setup_experience_scripts WHERE global_or_team_id = ?`, globalOrTeamID)
+	_, err := tx.ExecContext(ctx, `DELETE FROM setup_experience_scripts WHERE global_or_team_id = ?`, globalOrTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete setup experience script")
 	}

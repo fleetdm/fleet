@@ -169,7 +169,8 @@ type setSetupExperienceScriptResponse struct {
 
 func (r setSetupExperienceScriptResponse) Error() error { return r.Err }
 
-func setSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+// EJM TODO EJM Rename this createSetupExperienceScript????
+func createSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*setSetupExperienceScriptRequest)
 
 	scriptFile, err := req.Script.Open()
@@ -178,14 +179,38 @@ func setSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, 
 	}
 	defer scriptFile.Close()
 
-	if err := svc.SetSetupExperienceScript(ctx, req.TeamID, filepath.Base(req.Script.Filename), scriptFile); err != nil {
+	if err := svc.CreateSetupExperienceScript(ctx, req.TeamID, filepath.Base(req.Script.Filename), scriptFile); err != nil {
 		return setSetupExperienceScriptResponse{Err: err}, nil
 	}
 
 	return setSetupExperienceScriptResponse{}, nil
 }
 
-func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
+func (svc *Service) CreateSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+func putSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*setSetupExperienceScriptRequest)
+
+	scriptFile, err := req.Script.Open()
+	if err != nil {
+		return setSetupExperienceScriptResponse{Err: err}, nil
+	}
+	defer scriptFile.Close()
+
+	if err := svc.PutSetupExperienceScript(ctx, req.TeamID, filepath.Base(req.Script.Filename), scriptFile); err != nil {
+		return setSetupExperienceScriptResponse{Err: err}, nil
+	}
+
+	return setSetupExperienceScriptResponse{}, nil
+}
+
+func (svc *Service) PutSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
