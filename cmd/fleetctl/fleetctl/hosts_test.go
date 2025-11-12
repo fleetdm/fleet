@@ -53,7 +53,7 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return nil, nil
 	}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: tid, Name: "team1"}, nil
 	}
 
@@ -125,7 +125,7 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return nil, nil
 	}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: tid, Name: "team1"}, nil
 	}
 
@@ -196,7 +196,7 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return nil, nil
 	}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: tid, Name: "team1"}, nil
 	}
 
@@ -256,7 +256,7 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		return nil, nil
 	}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: tid, Name: "team1"}, nil
 	}
 

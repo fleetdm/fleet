@@ -1372,7 +1372,7 @@ func TestGetQueries(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid == 1 {
 			return &fleet.Team{
 				ID:   tid,
@@ -1601,7 +1601,7 @@ func TestGetQuery(t *testing.T) {
 		},
 	})
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid == 1 {
 			return &fleet.Team{
 				ID:   tid,
