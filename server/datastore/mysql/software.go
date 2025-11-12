@@ -1334,7 +1334,194 @@ type softwareCVE struct {
 	CreatedAt *time.Time `db:"created_at"`
 }
 
+// canUseOptimizedListQuery determines if we can use the fast path query
+// that starts FROM software_host_counts instead of software.
+func canUseOptimizedListQuery(opts fleet.SoftwareListOptions) bool {
+	// Only optimize if:
+	// 1. We're listing all software (not filtering by HostID)
+	// 2. We're not filtering by CVE fields
+	// 3. We're not ordering by CVE fields
+	// 4. We're not searching (which requires CVE join)
+	// 5. We're not using multi-column sorts (e.g., "name,id")
+	return opts.HostID == nil &&
+		!opts.VulnerableOnly &&
+		opts.MinimumCVSS == 0 &&
+		opts.MaximumCVSS == 0 &&
+		!opts.KnownExploit &&
+		opts.ListOptions.MatchQuery == "" &&
+		!requiresCVEOrdering(opts.ListOptions.OrderKey) &&
+		!isMultiColumnSort(opts.ListOptions.OrderKey)
+}
+
+// isMultiColumnSort checks if the order key contains multiple columns (comma-separated)
+func isMultiColumnSort(orderKey string) bool {
+	return strings.Contains(orderKey, ",")
+}
+
+// requiresCVEOrdering checks if the order key requires CVE data
+func requiresCVEOrdering(orderKey string) bool {
+	cveOrderFields := []string{"cvss_score", "epss_probability", "cisa_known_exploit", "cve_published"}
+	for _, field := range cveOrderFields {
+		if orderKey == field {
+			return true
+		}
+	}
+	return false
+}
+
+// buildOptimizedListSoftwareSQL builds an optimized query for listing software
+// that starts FROM software_host_counts to leverage the optimized index.
+func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, error) {
+	var args []interface{}
+
+	// Inner query: efficiently get paginated list from software_host_counts
+	innerSQL := `
+		SELECT
+			s.id,
+			s.name,
+			s.version,
+			s.source,
+			s.bundle_identifier,
+			s.extension_id,
+			s.extension_for,
+			s.release,
+			s.vendor,
+			s.arch,
+			s.application_id,
+			s.title_id,
+			s.upgrade_code,
+			COALESCE(scp.cpe, '') AS generated_cpe,
+			shc.hosts_count,
+			shc.updated_at AS counts_updated_at
+		FROM software_host_counts shc
+		INNER JOIN software s ON s.id = shc.software_id
+		LEFT JOIN software_cpe scp ON scp.software_id = s.id
+		WHERE shc.hosts_count > 0
+	`
+
+	// Apply team filtering with global_stats
+	switch {
+	case opts.TeamID == nil:
+		innerSQL += " AND shc.team_id = 0 AND shc.global_stats = 1"
+	case *opts.TeamID == 0:
+		innerSQL += " AND shc.team_id = 0 AND shc.global_stats = 0"
+	default:
+		innerSQL += " AND shc.team_id = ? AND shc.global_stats = 0"
+		args = append(args, *opts.TeamID)
+	}
+
+	// Apply ordering for inner and outer queries
+	direction := "DESC"
+	if opts.ListOptions.OrderDirection == fleet.OrderAscending {
+		direction = "ASC"
+	}
+
+	var innerOrderBy, outerOrderBy string
+	switch opts.ListOptions.OrderKey {
+	case "hosts_count", "":
+		innerOrderBy = "shc.hosts_count " + direction
+		outerOrderBy = "s.hosts_count " + direction
+	case "name":
+		innerOrderBy = "s.name " + direction
+		outerOrderBy = "s.name " + direction
+	case "version":
+		innerOrderBy = "s.version " + direction
+		outerOrderBy = "s.version " + direction
+	case "generated_cpe":
+		innerOrderBy = "generated_cpe " + direction
+		outerOrderBy = "s.generated_cpe " + direction
+	default:
+		innerOrderBy = "shc.hosts_count DESC"
+		outerOrderBy = "s.hosts_count DESC"
+	}
+
+	innerSQL += " ORDER BY " + innerOrderBy
+
+	// Apply pagination
+	perPage := opts.ListOptions.PerPage
+	if perPage == 0 {
+		perPage = defaultSelectLimit
+	}
+
+	offset := perPage * opts.ListOptions.Page
+
+	// Request one extra row to determine if there are more results (only if pagination metadata is requested)
+	if opts.ListOptions.IncludeMetadata {
+		perPage++
+	}
+
+	innerSQL += " LIMIT ?"
+	args = append(args, perPage)
+
+	if offset > 0 {
+		innerSQL += " OFFSET ?"
+		args = append(args, offset)
+	}
+
+	// Outer query: join CVE data for the paginated results only
+	// This is efficient because we only join CVEs for ~20 rows
+	outerSQL := `
+		SELECT
+			s.id,
+			s.name,
+			s.version,
+			s.source,
+			s.bundle_identifier,
+			s.extension_id,
+			s.extension_for,
+			s.release,
+			s.vendor,
+			s.arch,
+			s.application_id,
+			s.title_id,
+			s.upgrade_code,
+			s.generated_cpe,
+			scv.cve,
+			scv.created_at
+	`
+
+	if opts.IncludeCVEScores {
+		outerSQL += `,
+			c.cvss_score,
+			c.epss_probability,
+			c.cisa_known_exploit,
+			c.description,
+			c.published AS cve_published,
+			scv.resolved_in_version
+		`
+	}
+
+	if opts.WithHostCounts {
+		outerSQL += `,
+			s.hosts_count,
+			s.counts_updated_at
+		`
+	}
+
+	outerSQL += `
+		FROM (` + innerSQL + `) AS s
+		LEFT JOIN software_cve scv ON scv.software_id = s.id
+	`
+
+	if opts.IncludeCVEScores {
+		outerSQL += `
+		LEFT JOIN cve_meta c ON c.cve = scv.cve
+		`
+	}
+
+	outerSQL += " ORDER BY " + outerOrderBy
+
+	return outerSQL, args, nil
+}
+
 func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, error) {
+	// Fast path: optimized query for the common case of listing all software
+	// without CVE filters/ordering.
+	if canUseOptimizedListQuery(opts) {
+		return buildOptimizedListSoftwareSQL(opts)
+	}
+
+	// Fallback to the original goqu-based query builder for complex cases
 	ds := dialect.
 		From(goqu.I("software").As("s")).
 		Select(
@@ -1590,20 +1777,96 @@ func countSoftwareDB(
 	q sqlx.QueryerContext,
 	opts fleet.SoftwareListOptions,
 ) (int, error) {
-	opts.ListOptions = fleet.ListOptions{
-		MatchQuery: opts.ListOptions.MatchQuery,
+	// Optimized count query that queries software_host_counts directly
+	// instead of wrapping the complex selectSoftwareSQL query
+
+	var args []interface{}
+	var whereClauses []string
+
+	if opts.HostID != nil {
+		// For specific host queries, fall back to the old method
+		opts.ListOptions = fleet.ListOptions{
+			MatchQuery: opts.ListOptions.MatchQuery,
+		}
+		sql, sqlArgs, err := selectSoftwareSQL(opts)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "sql build")
+		}
+		sql = `SELECT COUNT(DISTINCT s.id) FROM (` + sql + `) AS s`
+		var count int
+		if err := sqlx.GetContext(ctx, q, &count, sql, sqlArgs...); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "count host software")
+		}
+		return count, nil
 	}
 
-	sql, args, err := selectSoftwareSQL(opts)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "sql build")
+	// For listing all software, use optimized query starting from software_host_counts
+	countSQL := `
+		SELECT COUNT(DISTINCT shc.software_id)
+		FROM software_host_counts shc
+	`
+
+	// Add joins only if needed for filtering
+	needsSoftwareJoin := opts.ListOptions.MatchQuery != ""
+	needsCVEJoin := opts.VulnerableOnly || opts.ListOptions.MatchQuery != ""
+	needsCVEMetaJoin := opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0
+
+	if needsSoftwareJoin {
+		countSQL += ` INNER JOIN software s ON s.id = shc.software_id`
 	}
 
-	sql = `SELECT COUNT(DISTINCT s.id) FROM (` + sql + `) AS s`
+	if needsCVEJoin {
+		if opts.VulnerableOnly {
+			countSQL += ` INNER JOIN software_cve scv ON scv.software_id = shc.software_id`
+		} else {
+			countSQL += ` LEFT JOIN software_cve scv ON scv.software_id = shc.software_id`
+		}
+	}
+
+	if needsCVEMetaJoin {
+		countSQL += ` INNER JOIN cve_meta c ON c.cve = scv.cve`
+	}
+
+	countSQL += ` WHERE shc.hosts_count > 0`
+
+	// Apply team filtering with global_stats
+	if opts.TeamID == nil {
+		whereClauses = append(whereClauses, "shc.team_id = 0", "shc.global_stats = 1")
+	} else if *opts.TeamID == 0 {
+		whereClauses = append(whereClauses, "shc.team_id = 0", "shc.global_stats = 0")
+	} else {
+		whereClauses = append(whereClauses, "shc.team_id = ?", "shc.global_stats = 0")
+		args = append(args, *opts.TeamID)
+	}
+
+	// Apply CVE filtering
+	if opts.KnownExploit {
+		whereClauses = append(whereClauses, "c.cisa_known_exploit = 1")
+	}
+	if opts.MinimumCVSS > 0 {
+		whereClauses = append(whereClauses, "c.cvss_score >= ?")
+		args = append(args, opts.MinimumCVSS)
+	}
+	if opts.MaximumCVSS > 0 {
+		whereClauses = append(whereClauses, "c.cvss_score <= ?")
+		args = append(args, opts.MaximumCVSS)
+	}
+
+	// Apply search filter
+	if match := opts.ListOptions.MatchQuery; match != "" {
+		match = likePattern(match)
+		whereClauses = append(whereClauses, "(s.name LIKE ? OR s.version LIKE ? OR scv.cve LIKE ?)")
+		args = append(args, match, match, match)
+	}
+
+	// Add all WHERE clauses
+	for _, clause := range whereClauses {
+		countSQL += " AND " + clause
+	}
 
 	var count int
-	if err := sqlx.GetContext(ctx, q, &count, sql, args...); err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "count host software")
+	if err := sqlx.GetContext(ctx, q, &count, countSQL, args...); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count software")
 	}
 
 	return count, nil
