@@ -68,6 +68,10 @@ module.exports = {
       // Use the microsoftProcy.getAccessTokenAndApiUrls helper to get an access token and API urls for this tenant.
       let accessTokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
         complianceTenantRecordId: informationAboutThisTenant.id
+      }).intercept((err)=>{
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `Error occured when retrieving API tokens and URLs for a new tenant. Full error: ${require('util').inspect(err, {depth: null})}`});
+        sails.log.warn(`When retrieving API tokens and the URLs of API endpoints to provision new Microsoft compliance tenant, the getAccessTokenAndApiUrls helper returned an error. Full error: ${require('util').inspect(err, {depth: 3})}`);
+        return {redirect: fleetInstanceUrlToRedirectTo };
       });
 
       let manageApiAccessToken = accessTokenAndApiUrls.manageApiAccessToken;
