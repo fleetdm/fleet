@@ -2533,7 +2533,7 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 	err = svc.UploadMDMAppleAPNSCert(ctx, bytes.NewReader(apnsCert))
 	require.NoError(t, err)
 
-	require.Equal(t, 2, newProfileCalls)
-	require.Equal(t, 2, deleteCalls)
-	require.Equal(t, 2, newActivityCalls) // Only enabled Disk encryption activities, we don't want to log disable right before enabling.
+	require.EqualValues(t, 2, newProfileCalls)
+	require.EqualValues(t, 2, deleteCalls)
+	require.EqualValues(t, 2, newActivityCalls) // Only enabled Disk encryption activities, we don't want to log disable right before enabling.
 }
