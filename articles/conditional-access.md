@@ -12,6 +12,8 @@ If you use Entra, [Microsoft](https://learn.microsoft.com/en-us/intune/intune-se
 
 ## Okta
 
+TODO
+
 To block access to third-party apps when end users are failing Fleet policies, we'll do the following steps:
 
 - [Step 1: Create a "Fleet conditional access" group in Entra](#step-1-create-a-fleet-conditional-access-group-in-entra)
