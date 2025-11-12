@@ -4987,6 +4987,134 @@ None.
 
 `Status: 200`
 
+### Get Okta conditional access IdP signing certificate
+
+Download the SAML IdP signing certificate for Okta conditional access. Okta uses this certificate to verify SAML assertions signed by Fleet.
+
+`GET /api/v1/fleet/conditional_access/idp/signing_cert`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/conditional_access/idp/signing_cert`
+
+##### Default response
+
+`Status: 200`
+
+Returns a PEM-encoded X.509 certificate file with `Content-Type: application/x-pem-file`.
+
+### Get Okta conditional access Apple profile
+
+Download the Apple configuration profile (.mobileconfig) for Okta conditional access. This profile configures SCEP enrollment and client certificate authentication on Apple devices.
+
+`GET /api/v1/fleet/conditional_access/idp/apple/profile`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/conditional_access/idp/apple/profile`
+
+##### Default response
+
+`Status: 200`
+
+Returns an Apple configuration profile file with `Content-Type: application/x-apple-aspen-config`.
+
+### Get Okta conditional access SAML IdP metadata
+
+**Note:** This endpoint is unauthenticated and used by Okta to discover Fleet's SAML IdP configuration.
+
+Returns SAML IdP metadata XML for Okta conditional access. This metadata is consumed by Okta to configure Fleet as a SAML identity provider.
+
+`GET /api/fleet/conditional_access/idp/metadata`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/fleet/conditional_access/idp/metadata`
+
+##### Default response
+
+`Status: 200`
+
+Returns SAML IdP metadata XML with `Content-Type: application/xml`.
+
+### Okta conditional access SAML SSO
+
+**Note:** This endpoint requires mTLS authentication at the load balancer level. The regular Fleet load balancer should redirect requests to this endpoint to an mTLS-enabled load balancer that validates client certificates.
+
+Handles SAML authentication requests from Okta for conditional access. This endpoint validates the device's client certificate (via the `X-Client-Cert-Serial` header set by the mTLS load balancer), checks device health policies, and returns a SAML response.
+
+`POST /api/fleet/conditional_access/idp/sso`
+
+#### Parameters
+
+| Name                 | Type   | In     | Description                                                             |
+|----------------------|--------|--------|-------------------------------------------------------------------------|
+| X-Client-Cert-Serial | string | header | **Required.** The serial number of the client certificate (hex format). |
+| SAMLRequest          | string | body   | The SAML authentication request from Okta (URL-encoded).                |
+
+#### Example
+
+`POST /api/fleet/conditional_access/idp/sso`
+
+##### Request header
+
+```http
+X-Client-Cert-Serial: 1A
+```
+
+##### Default response
+
+`Status: 200`
+
+Returns a SAML response (HTML form auto-submit) or redirects to an error page if authentication fails.
+
+### Okta conditional access SCEP enrollment
+
+**Note:** This endpoint implements the SCEP protocol for automatic certificate enrollment. SCEP certificate requests are authenticated using a challenge password, which is a global enroll secret.
+
+Handles Simple Certificate Enrollment Protocol (SCEP) requests for Okta conditional access. Devices use this endpoint to automatically enroll and obtain client certificates.
+
+`GET /api/fleet/conditional_access/scep?operation={operation}`
+`POST /api/fleet/conditional_access/scep?operation={operation}`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                    |
+|-----------|--------|-------|--------------------------------------------------------------------------------|
+| operation | string | query | **Required.** The SCEP operation: `GetCACaps`, `GetCACert`, or `PKIOperation`. |
+
+#### Example
+
+Get CA capabilities:
+
+`GET /api/fleet/conditional_access/scep?operation=GetCACaps`
+
+Get CA certificate:
+
+`GET /api/fleet/conditional_access/scep?operation=GetCACert`
+
+Submit certificate signing request:
+
+`POST /api/fleet/conditional_access/scep?operation=PKIOperation`
+
+##### Default response
+
+`Status: 200`
+
+Response format varies by operation according to the SCEP protocol specification.
+
 ## Android fleetdm.com proxy
 
 The following endpoints are exposed on fleetdm.com to proxy Google Android Management API.
