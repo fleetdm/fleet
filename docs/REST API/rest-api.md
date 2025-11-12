@@ -3568,8 +3568,6 @@ This endpoint doesn't require API token authentication. Authentication on macOS,
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's token. For macOS, Windows, and Linux, this is a random UUID that rotates hourly. For iOS and iPadOS, this is the host's hardware UUID. |
 
-
-
 #### Request headers
 
 This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.

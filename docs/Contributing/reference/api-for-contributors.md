@@ -3142,6 +3142,16 @@ Same as [Refetch host route](https://fleetdm.com/docs/using-fleet/rest-api#refet
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
 
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
+
 #### Get device's Google Chrome profiles
 
 Same as [Get host's Google Chrome profiles](https://fleetdm.com/docs/using-fleet/rest-api#get-hosts-google-chrome-profiles) for the current device.
@@ -3250,6 +3260,16 @@ Lists the software installed on the current device.
 | query   | string | query | Search query keywords. Searchable fields include `name`. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
+
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
 
 ##### Example
 
@@ -3361,6 +3381,16 @@ Retrieve the icon added via Fleet or icon from App Store (VPP).
 | ----            | ------- | ---- | ----------------------------------------- |
 | id              | integer | path | ID of the software title to get icon for. |
 
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
+
 This endpoint will redirect (302) to the Apple-hosted URL of an icon if an icon override isn't set and a VPP app is added for the title on the host's team.
 
 #### Example
@@ -3469,6 +3499,16 @@ Install self-service software on macOS, Windows, or Linux (Ubuntu) host. The sof
 | token | string | path | **Required**. The device's authentication token. |
 | software_title_id | string | path | **Required**. The software title's ID. |
 
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
+
 ##### Example
 
 `POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install/123`
@@ -3489,6 +3529,16 @@ Uninstalls software from a host via the My device page.
 | ---------         | ---------- | ---- | --------------------------------------------     |
 | token | string | path | **Required**. The device's authentication token. |
 | software_title_id | integer    | path | **Required**. The software title's ID.           |
+
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
 
 #### Example
 
@@ -3664,6 +3714,16 @@ Returns the URL to open when clicking the "About Fleet" menu item in Fleet Deskt
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
+
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
 
 ##### Example
 
