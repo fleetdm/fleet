@@ -16,7 +16,7 @@ Fleet 4.70.0 is now available. See the complete [changelog](https://github.com/f
 
 ### Entra ID conditional access
 
-Fleet now supports [Microsoft Entra ID for conditional access](https://fleetdm.com/guides/entra-conditional-access-integration). This allows IT and Security teams to block third-party app logins when a host is failing one or more policies.
+Fleet now supports [Microsoft Entra ID for conditional access](https://fleetdm.com/guides/conditional-access). This allows IT and Security teams to block third-party app logins when a host is failing one or more policies.
 
 ### One-time code for custom SCEP certificate authorities (CAs)
 
