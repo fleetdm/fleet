@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -43,11 +44,11 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		row := tx.QueryRowxContext(ctx, selectStmt, globalOrTeamID, payload.BundleID, payload.Filename)
 		if err := row.Scan(&count); err != nil {
-			return ctxerr.Wrap(ctx, err, "insertInHouseApp")
+			return err
 		}
 		if count > 0 {
 			// ios or ipados version of this installer exists
-			err = alreadyExists("insertInHouseApp", payload.Filename)
+			err = alreadyExists("In-house app", payload.Filename)
 		}
 
 		argsIos := []any{
@@ -75,12 +76,12 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 
 		_, err := ds.insertInHouseAppDB(ctx, tx, payload, argsIpad)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "insertInHouseApp")
+			return err
 		}
 
 		installerID, err = ds.insertInHouseAppDB(ctx, tx, payload, argsIos)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "insertInHouseApp")
+			return err
 		}
 
 		return nil
@@ -129,7 +130,7 @@ func (ds *Datastore) insertInHouseAppDB(ctx context.Context, tx sqlx.ExtContext,
 	res, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		if IsDuplicate(err) {
-			err = alreadyExists("insertInHouseAppDB", payload.Filename)
+			err = alreadyExists("In-house app", payload.Filename)
 		}
 		return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 	}
@@ -142,6 +143,13 @@ func (ds *Datastore) insertInHouseAppDB(ctx context.Context, tx sqlx.ExtContext,
 	if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels, softwareTypeInHouseApp); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 	}
+
+	if payload.CategoryIDs != nil {
+		if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, installerID, payload.CategoryIDs, softwareTypeInHouseApp); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "upsert in house apps categories")
+		}
+	}
+
 	return installerID, nil
 }
 
@@ -230,6 +238,25 @@ WHERE
 	dest.LabelsExcludeAny = exclAny
 	dest.LabelsIncludeAny = inclAny
 
+	categoryMap, err := ds.GetCategoriesForSoftwareTitles(ctx, []uint{titleID}, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting categories for in house app metadata")
+	}
+
+	if categories, ok := categoryMap[titleID]; ok {
+		dest.Categories = categories
+	}
+
+	if teamID != nil {
+		icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, titleID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get software title icon")
+		}
+		if icon != nil {
+			dest.IconUrl = ptr.String(icon.IconUrl())
+		}
+	}
+
 	return &dest, nil
 }
 
@@ -258,6 +285,12 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 		if payload.ValidatedLabels != nil {
 			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, payload.InstallerID, *payload.ValidatedLabels, softwareTypeInHouseApp); err != nil {
 				return ctxerr.Wrap(ctx, err, "upsert in house app labels")
+			}
+		}
+
+		if payload.CategoryIDs != nil {
+			if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, payload.InstallerID, payload.CategoryIDs, softwareTypeInHouseApp); err != nil {
+				return ctxerr.Wrap(ctx, err, "upsert in house app categories")
 			}
 		}
 
