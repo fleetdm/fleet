@@ -81,7 +81,7 @@ func TestVPPAuth(t *testing.T) {
 				_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, nil
 			}
-			ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+			ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 				return &fleet.Team{ID: 1}, nil
 			}
 			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {

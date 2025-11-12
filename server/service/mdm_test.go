@@ -675,7 +675,7 @@ func TestMDMCommonAuthorization(t *testing.T) {
 		return fleet.MDMConfigProfileStatus{}, nil
 	}
 
-	mockTeamFuncWithUser := func(u *fleet.User) mock.TeamFunc {
+	mockTeamFuncWithUser := func(u *fleet.User) mock.TeamWithExtrasFunc {
 		return func(ctx context.Context, teamID uint) (*fleet.Team, error) {
 			if len(u.Teams) > 0 {
 				for _, t := range u.Teams {
@@ -767,7 +767,7 @@ func TestMDMCommonAuthorization(t *testing.T) {
 
 	for _, tt := range testCases {
 		ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
-		ds.TeamFunc = mockTeamFuncWithUser(tt.user)
+		ds.TeamWithExtrasFunc = mockTeamFuncWithUser(tt.user)
 
 		t.Run(tt.name, func(t *testing.T) {
 			// test authz for MDM summary endpoints (no team)
@@ -1172,7 +1172,7 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			TeamID:      &tid,
 		}, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: tid, Name: "team1"}, nil
 	}
 	ds.DeleteMDMWindowsConfigProfileFunc = func(ctx context.Context, profileUUID string) error {
@@ -1250,7 +1250,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid != 1 {
 			return nil, &notFoundError{}
 		}
@@ -1367,7 +1367,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		return &fleet.Team{ID: 1, Name: name}, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: id, Name: "team"}, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
@@ -2138,7 +2138,7 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
-			// ds.TeamFunc = mockTeamFuncWithUser(tt.user)
+			// ds.TeamWithExtrasFunc = mockTeamFuncWithUser(tt.user)
 
 			// test authz resend config profile (no team)
 			err := svc.ResendHostMDMProfile(ctx, 1337, "a-no-team-profile")
@@ -2171,7 +2171,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{
 			ID:   tid,
 			Name: "team1",

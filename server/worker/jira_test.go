@@ -41,11 +41,11 @@ func TestJiraRun(t *testing.T) {
 			},
 		}}, nil
 	}
-	ds.TeamWithoutExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid != 123 {
 			return nil, errors.New("unexpected team id")
 		}
-		return &fleet.Team{
+		return &fleet.TeamLite{
 			ID: 123,
 			Config: fleet.TeamConfig{
 				Integrations: fleet.TeamIntegrations{
@@ -366,7 +366,7 @@ func TestJiraRunClientUpdate(t *testing.T) {
 		}}, nil
 	}
 
-	teamCfg := &fleet.Team{
+	teamCfg := &fleet.TeamLite{
 		ID: 123,
 		Config: fleet.TeamConfig{
 			Integrations: fleet.TeamIntegrations{
@@ -378,7 +378,7 @@ func TestJiraRunClientUpdate(t *testing.T) {
 	}
 
 	var teamCount int
-	ds.TeamWithoutExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		teamCount++
 
 		if tid != 123 {
