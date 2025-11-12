@@ -5644,7 +5644,7 @@ FROM
 	JOIN in_house_app_software_categories ihasc ON ihasc.in_house_app_id = iha.id
 	JOIN software_categories sc ON ihasc.software_category_id = sc.id
 WHERE
-	st.id IN (?) AND iha.global_or_team_id = ?;
+	st.id IN (?) AND iha.global_or_team_id = ?
 `
 
 	var tmID uint
