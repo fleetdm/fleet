@@ -342,7 +342,7 @@ const ConditionalAccess = () => {
       entraIconName = "pending-outline";
     }
 
-    let entraCta: JSX.Element | undefined;
+    let entraCta: React.JSX.Element | undefined;
     if (entraIsConfigured) {
       entraCta = (
         <Button variant="text-icon" onClick={handleEntraDelete}>
