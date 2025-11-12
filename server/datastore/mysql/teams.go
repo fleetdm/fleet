@@ -65,14 +65,7 @@ func (ds *Datastore) TeamLite(ctx context.Context, tid uint) (*fleet.TeamLite, e
 		return nil, err
 	}
 
-	return &fleet.TeamLite{ // re-marshaling this way to avoid more code duplication
-		ID:          team.ID,
-		Filename:    team.Filename,
-		CreatedAt:   team.CreatedAt,
-		Name:        team.Name,
-		Description: team.Description,
-		Config:      team.Config,
-	}, err
+	return team.ToTeamLite(), err // re-marshaling this way to avoid more code duplication
 }
 
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras bool) (*fleet.Team, error) {

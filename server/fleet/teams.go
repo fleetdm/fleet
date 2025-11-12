@@ -108,6 +108,17 @@ type TeamLite struct {
 	Config      TeamConfig `json:"-" db:"config"` // see json.MarshalJSON/UnmarshalJSON implementations
 }
 
+func (t *Team) ToTeamLite() *TeamLite {
+	return &TeamLite{
+		ID:          t.ID,
+		Filename:    t.Filename,
+		CreatedAt:   t.CreatedAt,
+		Name:        t.Name,
+		Description: t.Description,
+		Config:      t.Config,
+	}
+}
+
 func (t Team) MarshalJSON() ([]byte, error) {
 	// The reason for not embedding TeamConfig above, is that it also implements sql.Scanner/Valuer.
 	// We do not want it be promoted to the parent struct, because it causes issues when using sqlx for scanning.

@@ -631,17 +631,17 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	// Track default team config for team 0
 	defaultTeamConfig := &fleet.TeamConfig{}
 
-	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid == 0 {
 			// Return a mock team 0 with the default config
-			return &fleet.Team{
+			return &fleet.TeamLite{
 				ID:     0,
 				Name:   fleet.ReservedNameNoTeam,
 				Config: *defaultTeamConfig,
 			}, nil
 		}
 		if tid == team.ID {
-			return savedTeam, nil
+			return savedTeam.ToTeamLite(), nil
 		}
 		return nil, nil
 	}
@@ -1191,6 +1191,12 @@ func TestGitOpsFullTeam(t *testing.T) {
 		}
 		return nil, nil
 	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		if tid == savedTeam.ID {
+			return savedTeam.ToTeamLite(), nil
+		}
+		return nil, nil
+	}
 	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return true, nil
 	}
@@ -1598,17 +1604,17 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	// Track default team config for team 0
 	defaultTeamConfig := &fleet.TeamConfig{}
 
-	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid == 0 {
 			// Return a mock team 0 with the default config
-			return &fleet.Team{
+			return &fleet.TeamLite{
 				ID:     0,
 				Name:   fleet.ReservedNameNoTeam,
 				Config: *defaultTeamConfig,
 			}, nil
 		}
 		if tid == team.ID {
-			return savedTeam, nil
+			return savedTeam.ToTeamLite(), nil
 		}
 		return nil, nil
 	}
@@ -1842,15 +1848,15 @@ software:
 	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 		return []*fleet.Team{teamToDelete, team}, nil
 	}
-	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		switch tid {
 		case team.ID:
-			return team, nil
+			return team.ToTeamLite(), nil
 		case teamToDeleteID:
-			return teamToDelete, nil
+			return teamToDelete.ToTeamLite(), nil
 		}
 		assert.Fail(t, fmt.Sprintf("unexpected team ID %d", tid))
-		return teamToDelete, nil
+		return teamToDelete.ToTeamLite(), nil
 	}
 	ds.DeleteTeamFunc = func(ctx context.Context, tid uint) error {
 		assert.Equal(t, teamToDeleteID, tid)
@@ -1974,17 +1980,17 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	// Track default team config for team 0
 	defaultTeamConfig := &fleet.TeamConfig{}
 
-	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid == 0 {
 			// Return a mock team 0 with the default config
-			return &fleet.Team{
+			return &fleet.TeamLite{
 				ID:     0,
 				Name:   fleet.ReservedNameNoTeam,
 				Config: *defaultTeamConfig,
 			}, nil
 		}
 		if tid == team.ID {
-			return savedTeam, nil
+			return savedTeam.ToTeamLite(), nil
 		}
 		return nil, nil
 	}
