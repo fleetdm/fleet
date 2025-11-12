@@ -22,12 +22,14 @@ const baseClass = "windows-mdm-page";
 interface ISetWindowsMdmOptions {
   enableMdm: boolean;
   enableAutoMigration: boolean;
+  enrollmentType: "automatic" | "manual" | null;
   router: InjectedRouter;
 }
 
 const useSetWindowsMdm = ({
   enableMdm,
   enableAutoMigration,
+  enrollmentType,
   router,
 }: ISetWindowsMdmOptions) => {
   const { setConfig } = useContext(AppContext);
@@ -37,6 +39,8 @@ const useSetWindowsMdm = ({
     try {
       const updatedConfig = await configAPI.updateMDMConfig(
         {
+          enable_turn_on_windows_mdm_manually:
+            enrollmentType !== null && enrollmentType === "manual",
           windows_enabled_and_configured: enableMdm,
           windows_migration_enabled: enableAutoMigration,
         },
@@ -79,6 +83,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
   const updateWindowsMdm = useSetWindowsMdm({
     enableMdm: mdmOn,
     enableAutoMigration: autoMigration,
+    enrollmentType,
     router,
   });
 
