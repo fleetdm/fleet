@@ -47,7 +47,7 @@ jobs:
       - name: Update Testing & QA Apps
         id: update-apps
         run: |
-          .github/scripts/update-testing-qa-apps.sh
+          .github/scripts/dogfood-update-testing-qa-apps.sh
           if [ $? -eq 0 ]; then
             # Check if there are any changes
             if git diff --quiet it-and-security/teams/testing-and-qa.yml; then
@@ -101,7 +101,7 @@ jobs:
           body: |
             This PR automatically updates the `fleet_maintained_apps` list in `testing-and-qa.yml` with any new apps from Fleet's maintained apps library.
 
-            The changes were generated automatically by the [update-testing-qa-apps workflow](https://github.com/${{ github.repository }}/actions/workflows/update-testing-qa-apps.yml).
+            The changes were generated automatically by the [dogfood-update-testing-qa-apps workflow](https://github.com/${{ github.repository }}/actions/workflows/dogfood-update-testing-qa-apps.yml).
           branch: update-testing-qa-apps-$(date +%s)
           delete-branch: true
           assignees: allenhouchins
@@ -129,5 +129,6 @@ jobs:
                 });
               }
             }
+
 
 

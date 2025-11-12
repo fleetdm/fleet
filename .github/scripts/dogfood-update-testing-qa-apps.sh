@@ -192,3 +192,4 @@ FIRST_WINDOWS_LINE=$(awk -v start="$FLEET_APPS_START" -v end="$FLEET_APPS_END" '
 mv "$TEMP_FILE" "$YAML_FILE"
 
 echo "Successfully added $TOTAL_MISSING new apps to testing-and-qa.yml"
+
