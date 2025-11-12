@@ -526,7 +526,6 @@ const EditIconModal = ({
     </Card>
   );
 
-  // TODO: Confirm design with designer as this was a missed spec and not on Figma
   const renderPreviewSelfServiceMobileCard = () => (
     <Card
       borderRadiusSize="medium"
@@ -567,7 +566,7 @@ const EditIconModal = ({
           className={`${baseClass}__self-service-preview-name-version--mobile`}
         >
           <div className={`${baseClass}__self-service-preview-name--mobile`}>
-            <TooltipTruncatedText value={previewInfo.name} />
+            <TooltipTruncatedText value={displayName || previewInfo.name} />
           </div>
           <div className={`${baseClass}__self-service-preview-version--mobile`}>
             {"latest_version" in software
@@ -686,7 +685,7 @@ const EditIconModal = ({
       }
 
       // Process display name change
-      if (displayName !== previewInfo.name) {
+      if (canSaveDisplayName) {
         try {
           await (installerType === "package"
             ? softwareAPI.editSoftwarePackage({
@@ -701,12 +700,18 @@ const EditIconModal = ({
             id: "name-edited",
             alertType: "success",
             isVisible: true,
-            message: (
-              <>
-                Successfully renamed <b>{previewInfo.name}</b> to{" "}
-                <b>{displayName}</b>.
-              </>
-            ),
+            message:
+              displayName === "" ? (
+                <>
+                  Successfully removed custom name for <b>{previewInfo.name}</b>
+                  .
+                </>
+              ) : (
+                <>
+                  Successfully renamed <b>{previewInfo.name}</b> to{" "}
+                  <b>{displayName}</b>.
+                </>
+              ),
             persistOnPageChange: false,
           });
         } catch (e) {

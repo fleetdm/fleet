@@ -192,7 +192,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	// Create activity
 	var teamName *string
 	if payload.TeamID != nil && *payload.TeamID != 0 {
-		t, err := svc.ds.Team(ctx, *payload.TeamID)
+		t, err := svc.ds.TeamWithExtras(ctx, *payload.TeamID)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "getting team")
 		}
