@@ -8257,7 +8257,6 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	host.LabelUpdatedAt = time.Now()
 	err = ds.UpdateHost(ctx, host)
 	require.NoError(t, err)
-	time.Sleep(time.Second)
 
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
@@ -8268,7 +8267,6 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.True(t, scoped)
 
 	// Create a manual label (prior was dynamic) and set it instead as exclude-any for the VPP app
-	time.Sleep(time.Second)
 	label4, err := ds.NewLabel(ctx, &fleet.Label{Name: "label4" + t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual})
 	require.NoError(t, err)
 
