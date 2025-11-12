@@ -841,7 +841,5 @@ func (ts *withServer) updateSoftwareInstaller(
 	var resp getSoftwareInstallerResponse
 	require.NoError(t, json.Unmarshal(bodyBytes, &resp))
 
-	fmt.Printf("resp: %v\n", resp)
-
 	assert.Equal(t, payload.DisplayName, resp.SoftwareInstaller.DisplayName)
 }
