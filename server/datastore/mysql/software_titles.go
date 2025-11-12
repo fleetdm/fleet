@@ -502,6 +502,10 @@ WHERE
 		{{end}}
 		AND ({{$defFilter}})
 	{{end}}
+	-- If for setup experience, exclude any installers that are not supported
+	{{if .ForSetupExperience}}
+		AND iha.id IS NULL
+	{{end}}
 GROUP BY
 	st.id
 	{{if hasTeamID .}}

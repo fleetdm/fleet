@@ -3019,3 +3019,119 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	require.Equal(t, "App 5", statusResp.Results.Software[2].Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[2].Status)
 }
+
+func (s *integrationMDMTestSuite) TestSetupExperienceGetPutSoftware() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	s.setVPPTokenForTeam(0)
+
+	// add a macOS software installer
+	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "dummy_installer.pkg",
+		Title:         "DummyApp",
+		TeamID:        nil,
+	}
+	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
+
+	// add a VPP app only available on macos
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: nil, Platform: "darwin", AppStoreID: "1", SelfService: true}, http.StatusOK)
+	// add a VPP app available on all macos and ios
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: nil, Platform: "darwin", AppStoreID: "2", SelfService: false}, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: nil, Platform: "ios", AppStoreID: "2", SelfService: false}, http.StatusOK)
+
+	// add an iDevice ipa installer
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
+
+	// get the macos title IDs
+	var listSoftware listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftware, "team_id", "0", "platform", "darwin", "order_key", "name")
+	require.Len(t, listSoftware.SoftwareTitles, 3)
+	app1MacTitleID := listSoftware.SoftwareTitles[0].ID
+	app2MacTitleID := listSoftware.SoftwareTitles[1].ID
+	pkgTitleID := listSoftware.SoftwareTitles[2].ID
+
+	// get the ios title IDs
+	listSoftware = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftware, "team_id", "0", "platform", "ios", "order_key", "name")
+	require.Len(t, listSoftware.SoftwareTitles, 2)
+	app2IOSTitleID := listSoftware.SoftwareTitles[0].ID
+	ipaTitleID := listSoftware.SoftwareTitles[1].ID
+
+	// list software for setup experience macos
+	var listSetupSoftware getSetupExperienceSoftwareResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
+		http.StatusOK, &listSetupSoftware, "platform", "macos", "team_id", "0", "order_key", "name")
+
+	require.Len(t, listSetupSoftware.SoftwareTitles, 3)
+	require.Equal(t, "App 1", listSetupSoftware.SoftwareTitles[0].Name)
+	require.NotNil(t, listSetupSoftware.SoftwareTitles[0].AppStoreApp)
+	require.Equal(t, "1", listSetupSoftware.SoftwareTitles[0].AppStoreApp.AppStoreID)
+	require.Equal(t, "App 2", listSetupSoftware.SoftwareTitles[1].Name)
+	require.NotNil(t, listSetupSoftware.SoftwareTitles[1].AppStoreApp)
+	require.Equal(t, "2", listSetupSoftware.SoftwareTitles[1].AppStoreApp.AppStoreID)
+	require.Equal(t, "DummyApp", listSetupSoftware.SoftwareTitles[2].Name)
+	require.NotNil(t, listSetupSoftware.SoftwareTitles[2].SoftwarePackage)
+	require.Equal(t, "dummy_installer.pkg", listSetupSoftware.SoftwareTitles[2].SoftwarePackage.Name)
+
+	// list software for setup experience ios
+	listSetupSoftware = getSetupExperienceSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
+		http.StatusOK, &listSetupSoftware, "platform", "ios", "team_id", "0", "order_key", "name")
+
+	// only 1 installer, the VPP app, the ipa is filtered out because unsupported
+	require.Len(t, listSetupSoftware.SoftwareTitles, 1)
+	require.Equal(t, "App 2", listSetupSoftware.SoftwareTitles[0].Name)
+
+	// put software for setup experience macos with an unknown one
+	res := s.Do("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "macos",
+		TeamID:   0,
+		TitleIDs: []uint{pkgTitleID, 9999},
+	}, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "at least one selected software title does not exist or is not available for setup experience")
+
+	// put software for setup experience macos with an invalid one (the ipa)
+	res = s.Do("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "macos",
+		TeamID:   0,
+		TitleIDs: []uint{app1MacTitleID, ipaTitleID},
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "at least one selected software title does not exist or is not available for setup experience")
+
+	// put software for setup experience macos with valid ones
+	var putSetupSoftware putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "macos",
+		TeamID:   0,
+		TitleIDs: []uint{app1MacTitleID, app2MacTitleID},
+	}, http.StatusOK, &putSetupSoftware)
+
+	// put software for setup experience ios with an unknown one
+	res = s.Do("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "ios",
+		TeamID:   0,
+		TitleIDs: []uint{app2IOSTitleID, 9999},
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "at least one selected software title does not exist or is not available for setup experience")
+
+	// put software for setup experience ios with an invalid one (ipa)
+	res = s.Do("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "ios",
+		TeamID:   0,
+		TitleIDs: []uint{ipaTitleID},
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "at least one selected software title does not exist or is not available for setup experience")
+
+	// put software for setup experience ios with valid ones
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "ios",
+		TeamID:   0,
+		TitleIDs: []uint{app2IOSTitleID},
+	}, http.StatusOK, &putSetupSoftware)
+}

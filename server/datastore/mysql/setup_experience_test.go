@@ -679,6 +679,35 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), sec.Installers)
 	require.Equal(t, uint(0), sec.VPP)
 	require.Equal(t, uint(0), sec.Scripts)
+
+	// add an ipa installer and check that it isn't listed for setup experience
+	payload := fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team1.ID,
+		UserID:           user1.ID,
+		Title:            "ipa_test",
+		Filename:         "ipa_test.ipa",
+		BundleIdentifier: "com.ipa_test",
+		StorageID:        "testingtesting123",
+		Platform:         "ios",
+		Extension:        "ipa",
+		Version:          "1.2.3",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	}
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+	require.NoError(t, err)
+
+	// definitely not listed for darwin
+	titles, _, _, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 2)
+	require.Equal(t, "file1", titles[0].Name)
+	require.Equal(t, "vpp_app_1", titles[1].Name)
+
+	// but also not listed for ios
+	titles, _, _, err = ds.ListSetupExperienceSoftwareTitles(ctx, "ios", team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 1)
+	require.Equal(t, "vpp_app_2", titles[0].Name)
 }
 
 func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
