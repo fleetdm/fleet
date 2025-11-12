@@ -25,6 +25,8 @@ Learn more about the [end user experience](#end-user-experience-okta).
 
 ### End user experience (Okta)
 
+TODO
+
 ## Microsoft Entra ID
 
 To block access to third-party apps when end users are failing Fleet policies, we'll do the following steps:
