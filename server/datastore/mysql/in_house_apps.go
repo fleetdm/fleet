@@ -295,6 +295,10 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 			}
 		}
 
+		if err := updateSoftwareTitleDisplayName(ctx, tx, payload.TeamID, payload.TitleID, payload.DisplayName); err != nil {
+			return ctxerr.Wrap(ctx, err, "update in house app display name")
+		}
+
 		return nil
 	})
 	if err != nil {

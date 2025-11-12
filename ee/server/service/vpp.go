@@ -553,7 +553,7 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	return apps, nil
 }
 
-func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string) (*fleet.VPPAppStoreApp, error) {
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string, displayName string) (*fleet.VPPAppStoreApp, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -588,6 +588,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 			},
 			SelfService:     selfService,
 			ValidatedLabels: validatedLabels,
+			DisplayName:     displayName,
 		},
 		TeamID:           teamID,
 		TitleID:          titleID,
@@ -693,6 +694,8 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting updated app metadata")
 	}
+
+	fmt.Printf("updatedAppMeta.DisplayName: %v\n", updatedAppMeta.DisplayName)
 
 	return updatedAppMeta, nil
 }
