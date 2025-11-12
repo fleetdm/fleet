@@ -52,8 +52,7 @@ Fleet added [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-
 - Added support for npm packages in software inventory and vulnerability matching for macOS and Linux hosts.
 - Added support for JetBrains inventory on hosts.
 - Added vulnerbaility detection in JetBrains plugins.
-- Added support for VSCode fork (Cursor, Windsurf, VSCodium, VSCodium Insiders, and Trae) extensions in software inventory. 
-- Added Santa tables to fleetd.
+- Added support for VSCode fork (Cursor, Windsurf, VSCodium, VSCodium Insiders, and Trae) extensions in software inventory.
 
 ### IT Admins
 - Added ability to install software for iOS and iPadOS hosts during the setup experience.
