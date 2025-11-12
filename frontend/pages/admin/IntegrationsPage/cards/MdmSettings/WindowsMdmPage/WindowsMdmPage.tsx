@@ -78,7 +78,12 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
   );
   const [enrollmentType, setEnrollmentType] = useState<
     "automatic" | "manual" | null
-  >(null);
+  >(() => {
+    if (!config?.mdm?.windows_enabled_and_configured) return null;
+    return config?.mdm?.enable_turn_on_windows_mdm_manually
+      ? "manual"
+      : "automatic";
+  });
 
   const updateWindowsMdm = useSetWindowsMdm({
     enableMdm: mdmOn,
