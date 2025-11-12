@@ -654,7 +654,7 @@ func (ds *Datastore) insertHostCountsIntoTable(ctx context.Context, tx sqlx.ExtC
 	insertStmt := fmt.Sprintf("INSERT INTO %s (team_id, cve, host_count, global_stats) VALUES ", tableName)
 
 	// Use smaller chunks to avoid parameter limits
-	chunkSize := 100
+	chunkSize := 500
 	for i := 0; i < len(counts); i += chunkSize {
 		end := min(i+chunkSize, len(counts))
 
