@@ -710,7 +710,7 @@ func getMDMCommandResultsEndpoint(ctx context.Context, request interface{}, svc 
 }
 
 func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
-	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) {
 		return svc.getDeviceSoftwareMDMCommandResults(ctx, commandUUID)
 	}
 
@@ -2593,7 +2593,7 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 
 	if teamID != nil && *teamID > 0 {
 		// confirm that team exists
-		if _, err := svc.ds.Team(ctx, *teamID); err != nil {
+		if _, err := svc.ds.TeamWithExtras(ctx, *teamID); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err)
 		}
 	}

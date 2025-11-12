@@ -1329,6 +1329,8 @@ type CleanupUnusedSoftwareTitleIconsFunc func(ctx context.Context, softwareTitle
 
 type BatchSetSoftwareInstallersFunc func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error
 
+type BatchSetInHouseAppsInstallersFunc func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error
+
 type GetSoftwareInstallersFunc func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error)
 
 type HasSelfServiceSoftwareInstallersFunc func(ctx context.Context, platform string, teamID *uint) (bool, error)
@@ -1381,7 +1383,7 @@ type SetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string,
 
 type GetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string) (bool, error)
 
-type GetTeamsWithInstallerByHashFunc func(ctx context.Context, sha256 string, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error)
+type GetTeamsWithInstallerByHashFunc func(ctx context.Context, sha256 string, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error)
 
 type TeamIDsWithSetupExperienceIdPEnabledFunc func(ctx context.Context) ([]uint, error)
 
@@ -1573,9 +1575,13 @@ type GetHostIdentityCertByNameFunc func(ctx context.Context, name string) (*type
 
 type UpdateHostIdentityCertHostIDBySerialFunc func(ctx context.Context, serialNumber uint64, hostID uint) error
 
+type GetMDMSCEPCertBySerialFunc func(ctx context.Context, serialNumber uint64) (string, error)
+
 type GetConditionalAccessCertHostIDBySerialNumberFunc func(ctx context.Context, serial uint64) (uint, error)
 
 type GetConditionalAccessCertCreatedAtByHostIDFunc func(ctx context.Context, hostID uint) (*time.Time, error)
+
+type RevokeOldConditionalAccessCertsFunc func(ctx context.Context, gracePeriod time.Duration) (int64, error)
 
 type NewCertificateAuthorityFunc func(ctx context.Context, ca *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error)
 
@@ -3557,6 +3563,9 @@ type DataStore struct {
 	BatchSetSoftwareInstallersFunc        BatchSetSoftwareInstallersFunc
 	BatchSetSoftwareInstallersFuncInvoked bool
 
+	BatchSetInHouseAppsInstallersFunc        BatchSetInHouseAppsInstallersFunc
+	BatchSetInHouseAppsInstallersFuncInvoked bool
+
 	GetSoftwareInstallersFunc        GetSoftwareInstallersFunc
 	GetSoftwareInstallersFuncInvoked bool
 
@@ -3923,11 +3932,17 @@ type DataStore struct {
 	UpdateHostIdentityCertHostIDBySerialFunc        UpdateHostIdentityCertHostIDBySerialFunc
 	UpdateHostIdentityCertHostIDBySerialFuncInvoked bool
 
+	GetMDMSCEPCertBySerialFunc        GetMDMSCEPCertBySerialFunc
+	GetMDMSCEPCertBySerialFuncInvoked bool
+
 	GetConditionalAccessCertHostIDBySerialNumberFunc        GetConditionalAccessCertHostIDBySerialNumberFunc
 	GetConditionalAccessCertHostIDBySerialNumberFuncInvoked bool
 
 	GetConditionalAccessCertCreatedAtByHostIDFunc        GetConditionalAccessCertCreatedAtByHostIDFunc
 	GetConditionalAccessCertCreatedAtByHostIDFuncInvoked bool
+
+	RevokeOldConditionalAccessCertsFunc        RevokeOldConditionalAccessCertsFunc
+	RevokeOldConditionalAccessCertsFuncInvoked bool
 
 	NewCertificateAuthorityFunc        NewCertificateAuthorityFunc
 	NewCertificateAuthorityFuncInvoked bool
@@ -5341,14 +5356,14 @@ func (s *DataStore) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 	return s.SaveTeamFunc(ctx, team)
 }
 
-func (s *DataStore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
+func (s *DataStore) TeamWithExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
 	s.mu.Lock()
 	s.TeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.TeamFunc(ctx, tid)
 }
 
-func (s *DataStore) TeamWithoutExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
+func (s *DataStore) TeamLite(ctx context.Context, tid uint) (*fleet.Team, error) {
 	s.mu.Lock()
 	s.TeamWithoutExtrasFuncInvoked = true
 	s.mu.Unlock()
@@ -8533,6 +8548,13 @@ func (s *DataStore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, 
 	return s.BatchSetSoftwareInstallersFunc(ctx, tmID, installers)
 }
 
+func (s *DataStore) BatchSetInHouseAppsInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+	s.mu.Lock()
+	s.BatchSetInHouseAppsInstallersFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchSetInHouseAppsInstallersFunc(ctx, tmID, installers)
+}
+
 func (s *DataStore) GetSoftwareInstallers(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 	s.mu.Lock()
 	s.GetSoftwareInstallersFuncInvoked = true
@@ -8715,7 +8737,7 @@ func (s *DataStore) GetHostAwaitingConfiguration(ctx context.Context, hostUUID s
 	return s.GetHostAwaitingConfigurationFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) GetTeamsWithInstallerByHash(ctx context.Context, sha256 string, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+func (s *DataStore) GetTeamsWithInstallerByHash(ctx context.Context, sha256 string, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 	s.mu.Lock()
 	s.GetTeamsWithInstallerByHashFuncInvoked = true
 	s.mu.Unlock()
@@ -8897,7 +8919,7 @@ func (s *DataStore) ListHostMDMManagedCertificates(ctx context.Context, hostUUID
 	return s.ListHostMDMManagedCertificatesFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) ResendHostCustomSCEPProfile(ctx context.Context, hostUUID string, profUUID string) error {
+func (s *DataStore) ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error {
 	s.mu.Lock()
 	s.ResendHostCustomSCEPProfileFuncInvoked = true
 	s.mu.Unlock()
@@ -9387,6 +9409,13 @@ func (s *DataStore) UpdateHostIdentityCertHostIDBySerial(ctx context.Context, se
 	return s.UpdateHostIdentityCertHostIDBySerialFunc(ctx, serialNumber, hostID)
 }
 
+func (s *DataStore) GetMDMSCEPCertBySerial(ctx context.Context, serialNumber uint64) (string, error) {
+	s.mu.Lock()
+	s.GetMDMSCEPCertBySerialFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMSCEPCertBySerialFunc(ctx, serialNumber)
+}
+
 func (s *DataStore) GetConditionalAccessCertHostIDBySerialNumber(ctx context.Context, serial uint64) (uint, error) {
 	s.mu.Lock()
 	s.GetConditionalAccessCertHostIDBySerialNumberFuncInvoked = true
@@ -9399,6 +9428,13 @@ func (s *DataStore) GetConditionalAccessCertCreatedAtByHostID(ctx context.Contex
 	s.GetConditionalAccessCertCreatedAtByHostIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetConditionalAccessCertCreatedAtByHostIDFunc(ctx, hostID)
+}
+
+func (s *DataStore) RevokeOldConditionalAccessCerts(ctx context.Context, gracePeriod time.Duration) (int64, error) {
+	s.mu.Lock()
+	s.RevokeOldConditionalAccessCertsFuncInvoked = true
+	s.mu.Unlock()
+	return s.RevokeOldConditionalAccessCertsFunc(ctx, gracePeriod)
 }
 
 func (s *DataStore) NewCertificateAuthority(ctx context.Context, ca *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error) {

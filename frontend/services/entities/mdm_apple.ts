@@ -41,6 +41,7 @@ export interface IEditVppAppPostBody {
   labels_include_any?: string[];
   labels_exclude_any?: string[];
   categories?: SoftwareCategory[];
+  display_name?: string;
 }
 
 export interface IGetVppAppsResponse {
@@ -62,9 +63,8 @@ const handleDisplayNameVppForm = (
   teamId: number
 ): IEditVppAppPostBody => {
   return {
-    self_service: false, // or some default as needed
+    display_name: formData.displayName,
     team_id: teamId,
-    // you might not need categories/labels with this form
   };
 };
 

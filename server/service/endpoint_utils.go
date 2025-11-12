@@ -176,6 +176,8 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts
 		return authenticatedDevice(svc, logger, next)
 	}
 
+	// Extract certificate serial from X-Client-Cert-Serial header for certificate-based auth
+	opts = append(opts, kithttp.ServerBefore(extractCertSerialFromHeader))
 	// Inject the fleet.CapabilitiesHeader header to the response for device endpoints
 	opts = append(opts, capabilitiesResponseFunc(fleet.GetServerDeviceCapabilities()))
 	// Add the capabilities reported by the device to the request context

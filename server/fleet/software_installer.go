@@ -520,17 +520,17 @@ type UploadSoftwareInstallerPayload struct {
 }
 
 type ExistingSoftwareInstaller struct {
-	InstallerID      uint     `db:"installer_id"`
-	TeamID           *uint    `db:"team_id"`
-	Filename         string   `db:"filename"`
-	Extension        string   `db:"extension"`
-	Version          string   `db:"version"`
-	Platform         string   `db:"platform"`
-	Source           string   `db:"source"`
-	BundleIdentifier *string  `db:"bundle_identifier"`
-	Title            string   `db:"title"`
-	PackageIDList    string   `db:"package_ids"`
-	PackageIDs       []string ``
+	InstallerID      uint    `db:"installer_id"`
+	TeamID           *uint   `db:"team_id"`
+	Filename         string  `db:"filename"`
+	Extension        string  `db:"extension"`
+	Version          string  `db:"version"`
+	Platform         string  `db:"platform"`
+	Source           string  `db:"source"`
+	BundleIdentifier *string `db:"bundle_identifier"`
+	Title            string  `db:"title"`
+	PackageIDList    string  `db:"package_ids"`
+	PackageIDs       []string
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -636,6 +636,8 @@ type HostSoftwareWithInstaller struct {
 	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
 	DisplayName       string                          `json:"display_name" db:"display_name"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 
 	// SoftwarePackage provides software installer package information, it is
 	// only present if a software installer is available for the software title.

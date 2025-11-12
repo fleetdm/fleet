@@ -180,7 +180,7 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 
 		// This function is called when a new event is being created.
 		var team *fleet.Team
-		team, err = svc.ds.TeamWithoutExtras(ctx, *eventDetails.TeamID)
+		team, err = svc.ds.TeamLite(ctx, *eventDetails.TeamID)
 		if err != nil {
 			return "", false, err
 		}

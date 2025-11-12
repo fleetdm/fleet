@@ -4,13 +4,19 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -815,7 +821,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsPermissions() {
 		},
 	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", editTeam1Spec, http.StatusOK)
-	team1b, err := s.ds.Team(context.Background(), team1.ID)
+	team1b, err := s.ds.TeamWithExtras(context.Background(), team1.ID)
 	require.NoError(t, err)
 	require.Equal(t, *team1b.Config.AgentOptions, agentOpts)
 
@@ -21971,4 +21977,361 @@ qcznMoapfGAjRwaheTlWbzyUh57ToALyx3xQbzqYIxiQCzY=
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.True(t, acResp.ConditionalAccess.OktaCertificate.Valid)
 	assert.Equal(t, validCertMultiple, acResp.ConditionalAccess.OktaCertificate.Value)
+}
+
+// generateTestCertForDeviceAuth generates a test certificate for device authentication.
+// Returns: certPEM, certHash (SHA256 of DER bytes), parsed certificate
+func generateTestCertForDeviceAuth(t *testing.T, certSerial uint64, deviceUUID string) (string, string, *x509.Certificate) {
+	// Generate a private key
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	// Create certificate template
+	serialNumber := new(big.Int).SetUint64(certSerial)
+	certTemplate := &x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			CommonName: deviceUUID,
+		},
+		NotBefore: time.Now().Add(-24 * time.Hour),
+		NotAfter:  time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:  x509.KeyUsageDigitalSignature,
+	}
+
+	// Create self-signed certificate
+	certDER, err := x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &priv.PublicKey, priv)
+	require.NoError(t, err)
+
+	// Parse the certificate to get cert.Raw for hashing
+	cert, err := x509.ParseCertificate(certDER)
+	require.NoError(t, err)
+
+	// Calculate SHA256 hash of certificate DER bytes (same as nanomdm)
+	hashed := sha256.Sum256(cert.Raw)
+	certHash := hex.EncodeToString(hashed[:])
+
+	// Encode to PEM
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+
+	return string(certPEM), certHash, cert
+}
+
+func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create an iOS host enrolled in MDM
+	iosHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("ios-test-host"),
+		NodeKey:         ptr.String("ios-test-node-key"),
+		UUID:            "ios-test-uuid-12345",
+		Hostname:        "ios-test-device",
+		Platform:        "ios",
+	})
+	require.NoError(t, err)
+
+	// Create a macOS host for backward compatibility testing
+	macHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("mac-test-host"),
+		NodeKey:         ptr.String("mac-test-node-key"),
+		UUID:            "mac-test-uuid-67890",
+		Hostname:        "mac-test-device",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Create device token for macOS host (traditional token-based auth)
+	macToken := "valid-mac-token"
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(ctx, `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, macHost.ID, macToken)
+		return err
+	})
+
+	// Generate test certificate for the iOS host
+	certSerial := uint64(123456789)
+	certPEM, certHash, cert := generateTestCertForDeviceAuth(t, certSerial, iosHost.UUID)
+
+	// Insert certificate into nanomdm tables
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		// Insert serial (scep_serials uses auto-increment but we can insert explicit value)
+		_, err := db.ExecContext(ctx, `INSERT INTO scep_serials (serial) VALUES (?)`, certSerial)
+		if err != nil {
+			return err
+		}
+
+		// Insert certificate into scep_certificates
+		_, err = db.ExecContext(ctx, `
+			INSERT INTO scep_certificates
+			(serial, name, not_valid_before, not_valid_after, certificate_pem, revoked)
+			VALUES (?, ?, ?, ?, ?, ?)
+		`,
+			certSerial,
+			iosHost.UUID,
+			cert.NotBefore,
+			cert.NotAfter,
+			certPEM,
+			false,
+		)
+		if err != nil {
+			return err
+		}
+
+		// Insert certificate association into nano_cert_auth_associations
+		_, err = db.ExecContext(ctx, `
+			INSERT INTO nano_cert_auth_associations
+			(id, sha256, cert_not_valid_after)
+			VALUES (?, ?, ?)
+		`,
+			iosHost.UUID,
+			certHash,
+			cert.NotAfter,
+		)
+		return err
+	})
+
+	t.Run("iOS device with valid certificate", func(t *testing.T) {
+		var getHostResp getDeviceHostResponse
+		headers := map[string]string{
+			"X-Client-Cert-Serial": fmt.Sprintf("%d", certSerial),
+		}
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusOK, headers)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
+		require.NoError(t, res.Body.Close())
+		require.Equal(t, iosHost.ID, getHostResp.Host.ID)
+		require.Equal(t, iosHost.UUID, getHostResp.Host.UUID)
+		require.Equal(t, "ios", getHostResp.Host.Platform)
+	})
+
+	t.Run("iOS device without certificate header", func(t *testing.T) {
+		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized)
+		res.Body.Close()
+	})
+
+	t.Run("iOS device with wrong certificate serial", func(t *testing.T) {
+		headers := map[string]string{
+			"X-Client-Cert-Serial": "999999999",
+		}
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized, headers)
+		res.Body.Close()
+	})
+
+	// Ensures token-based auth still works for macOS (backward compatibility)
+	t.Run("macOS device with token auth", func(t *testing.T) {
+		var getHostResp getDeviceHostResponse
+		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", macToken), nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
+		require.NoError(t, res.Body.Close())
+		require.Equal(t, macHost.ID, getHostResp.Host.ID)
+		require.Equal(t, "darwin", getHostResp.Host.Platform)
+	})
+
+	t.Run("multiple endpoints with certificate auth", func(t *testing.T) {
+		headers := map[string]string{
+			"X-Client-Cert-Serial": fmt.Sprintf("%d", certSerial),
+		}
+
+		res := s.DoRawWithHeaders("POST", fmt.Sprintf("/api/latest/fleet/device/%s/refetch", iosHost.UUID), nil, http.StatusOK, headers)
+		res.Body.Close()
+
+		var getHostResp getDeviceHostResponse
+		res = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusOK, headers)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
+		require.NoError(t, res.Body.Close())
+		require.True(t, getHostResp.Host.RefetchRequested)
+
+		res = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s/transparency", iosHost.UUID), nil, http.StatusTemporaryRedirect, headers)
+		res.Body.Close()
+	})
+
+	t.Run("iPadOS device with certificate", func(t *testing.T) {
+		ipadHost, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String("ipad-test-host"),
+			NodeKey:         ptr.String("ipad-test-node-key"),
+			UUID:            "ipad-test-uuid-11111",
+			Hostname:        "ipad-test-device",
+			Platform:        "ipados",
+		})
+		require.NoError(t, err)
+
+		ipadCertSerial := uint64(987654321)
+		ipadCertPEM, ipadCertHash, ipadCert := generateTestCertForDeviceAuth(t, ipadCertSerial, ipadHost.UUID)
+
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(ctx, `INSERT INTO scep_serials (serial) VALUES (?)`, ipadCertSerial)
+			if err != nil {
+				return err
+			}
+
+			_, err = db.ExecContext(ctx, `
+				INSERT INTO scep_certificates
+				(serial, name, not_valid_before, not_valid_after, certificate_pem, revoked)
+				VALUES (?, ?, ?, ?, ?, ?)
+			`,
+				ipadCertSerial,
+				ipadHost.UUID,
+				ipadCert.NotBefore,
+				ipadCert.NotAfter,
+				ipadCertPEM,
+				false,
+			)
+			if err != nil {
+				return err
+			}
+
+			_, err = db.ExecContext(ctx, `
+				INSERT INTO nano_cert_auth_associations
+				(id, sha256, cert_not_valid_after)
+				VALUES (?, ?, ?)
+			`,
+				ipadHost.UUID,
+				ipadCertHash,
+				ipadCert.NotAfter,
+			)
+			return err
+		})
+
+		var getHostResp getDeviceHostResponse
+		headers := map[string]string{
+			"X-Client-Cert-Serial": fmt.Sprintf("%d", ipadCertSerial),
+		}
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", ipadHost.UUID), nil, http.StatusOK, headers)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
+		require.NoError(t, res.Body.Close())
+		require.Equal(t, ipadHost.ID, getHostResp.Host.ID)
+		require.Equal(t, "ipados", getHostResp.Host.Platform)
+	})
+
+	t.Run("certificate for wrong host", func(t *testing.T) {
+		headers := map[string]string{
+			"X-Client-Cert-Serial": fmt.Sprintf("%d", certSerial),
+		}
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", macHost.UUID), nil, http.StatusUnauthorized, headers)
+		res.Body.Close()
+	})
+
+	t.Run("invalid cert serial format - non-numeric", func(t *testing.T) {
+		headers := map[string]string{
+			"X-Client-Cert-Serial": "invalid-format",
+		}
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized, headers)
+		res.Body.Close()
+	})
+
+	t.Run("invalid cert serial format - negative number", func(t *testing.T) {
+		headers := map[string]string{
+			"X-Client-Cert-Serial": "-12345",
+		}
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized, headers)
+		res.Body.Close()
+	})
+
+	t.Run("cert serial zero should fail cert auth", func(t *testing.T) {
+		headers := map[string]string{
+			"X-Client-Cert-Serial": "0",
+		}
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized, headers)
+		res.Body.Close()
+	})
+
+	t.Run("iOS device with token auth should be rejected", func(t *testing.T) {
+		// Create a device token for the iOS host
+		iosToken := "ios-device-token"
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(ctx, `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, iosHost.ID, iosToken)
+			return err
+		})
+
+		// Attempt to use token auth (no cert header) - should be rejected
+		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosToken), nil, http.StatusUnauthorized)
+		res.Body.Close()
+	})
+}
+
+func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
+	t := s.T()
+	ctx := context.Background()
+
+	t.Run("upload update delete in-house app", func(t *testing.T) {
+		var createTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+			Name: t.Name(),
+		}, http.StatusOK, &createTeamResp)
+		require.NotZero(t, createTeamResp.Team.ID)
+
+		var labelResp createLabelResponse
+		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+			Name:  "iha_label",
+			Query: "select 1",
+		}}, http.StatusOK, &labelResp)
+		require.NotZero(t, labelResp.Label.ID)
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			TeamID:      &createTeamResp.Team.ID,
+			Filename:    "ipa_test.ipa",
+			Version:     "1.0.0",
+			StorageID:   uuid.New().String(),
+			SelfService: true,
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		var titleID uint
+		var installerID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			require.NoError(t, sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM in_house_apps WHERE filename = ?`, payload.Filename))
+			require.NoError(t, sqlx.GetContext(ctx, q, &installerID, `SELECT title_id FROM in_house_apps WHERE filename = ?`, payload.Filename))
+			return nil
+		})
+
+		// check activity
+		activityData := fmt.Sprintf(
+			`{"software_title": "ipa_test", "software_package": "ipa_test.ipa", "team_name": "%s", "team_id": %d, "self_service": true, "software_title_id": %d}`,
+			createTeamResp.Team.Name,
+			createTeamResp.Team.ID,
+			titleID+1, // iOS title is created first and returned, so the latest title is the iPadOS one
+		)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
+
+		// upload again fails
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
+
+		// patch the in house app to change labels, categories
+		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":            {fmt.Sprintf("%d", createTeamResp.Team.ID)},
+			"labels_exclude_any": {"iha_label"},
+			"categories":         {"Productivity", "Browsers"},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+		expectedPayload := *payload
+		expectedPayload.LabelsExcludeAny = []string{labelResp.Label.Name}
+		expectedPayload.Categories = []string{"Productivity", "Browsers"}
+
+		meta, err := s.ds.GetInHouseAppMetadataByTeamAndTitleID(context.Background(), &createTeamResp.Team.ID, installerID)
+		require.NoError(t, err)
+		require.Equal(t, expectedPayload.Filename, meta.Name)
+		require.Equal(t, expectedPayload.LabelsExcludeAny[0], meta.LabelsExcludeAny[0].LabelName)
+		require.Equal(t, expectedPayload.Categories, meta.Categories)
+
+		// delete the installer
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(),
+			fmt.Sprintf(`{"labels_exclude_any":  [{"id": %d, "name": "%s"}], "software_title": "ipa_test", "software_package": "ipa_test.ipa", "software_icon_url": null, "team_name": "%s", "team_id": %d, "self_service": true}`,
+				labelResp.Label.ID, labelResp.Label.Name, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
+
+		// download the installer, not found anymore
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+	})
 }

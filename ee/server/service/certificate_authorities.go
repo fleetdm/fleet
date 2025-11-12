@@ -104,7 +104,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		caToCreate.Username = &p.CustomESTProxy.Username
 		caToCreate.Password = &p.CustomESTProxy.Password
 		caDisplayType = "custom EST"
-		activity = fleet.ActivityAddedCustomESTProxy{}
+		activity = fleet.ActivityAddedCustomESTProxy{Name: p.CustomESTProxy.Name}
 	}
 
 	if p.NDESSCEPProxy != nil {

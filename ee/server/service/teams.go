@@ -135,7 +135,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamWithExtras(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -462,7 +462,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 		return nil, err
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamWithExtras(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -531,7 +531,7 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 		}
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamWithExtras(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -564,7 +564,7 @@ func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fl
 		idMap[user.ID] = true
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamWithExtras(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -589,7 +589,7 @@ func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.Li
 		return nil, err
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamWithExtras(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -647,7 +647,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		return err
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamWithExtras(ctx, teamID)
 	if err != nil {
 		return err
 	}
@@ -743,7 +743,7 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 		return team, nil
 	}
 
-	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken)
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate)
 	if alreadyAuthd {
 		// device-authenticated request can only get the device's team
 		host, ok := hostctx.FromContext(ctx)
@@ -775,7 +775,7 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 		user = vc.User
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamWithExtras(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -856,7 +856,7 @@ func (svc *Service) teamByIDOrName(ctx context.Context, id *uint, name *string) 
 		err error
 	)
 	if id != nil {
-		tm, err = svc.ds.Team(ctx, *id)
+		tm, err = svc.ds.TeamWithExtras(ctx, *id)
 		if err != nil {
 			return nil, err
 		}

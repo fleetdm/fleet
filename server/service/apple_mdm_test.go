@@ -3512,6 +3512,24 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.Contains(t, updatedProfile.Detail, "Unexpected number of hosts (0) for UUID")
 	assert.Empty(t, targets)
 
+	// Host UUID
+	profileContents = map[string]mobileconfig.Mobileconfig{
+		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarHostUUID),
+	}
+	updatedProfile = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
+	require.NoError(t, err)
+	assert.Nil(t, updatedProfile)
+	require.NotEmpty(t, targets)
+	assert.Len(t, targets, 1)
+	for profUUID, target := range targets {
+		assert.NotEqual(t, profUUID, "p1") // new temporary UUID generated for specific host
+		assert.NotEqual(t, cmdUUID, target.cmdUUID)
+		assert.Equal(t, []string{hostUUID}, target.enrollmentIDs)
+		assert.Equal(t, hostUUID, string(profileContents[profUUID]))
+	}
+
 	// multiple profiles, multiple hosts
 	populateTargets = func() {
 		targets = map[string]*cmdTarget{
@@ -4500,6 +4518,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 		require.Equal(t, "ff:ff:ff:ff:ff:ff", host.PrimaryMac)
 		require.Equal(t, "iPad13,18", host.HardwareModel)
 		require.WithinDuration(t, time.Now(), host.DetailUpdatedAt, 1*time.Minute)
+		require.WithinDuration(t, time.Now(), host.LabelUpdatedAt, 1*time.Minute)
 		return nil
 	}
 	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, incomingHostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {

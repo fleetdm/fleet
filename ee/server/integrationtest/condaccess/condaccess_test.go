@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
@@ -42,6 +43,8 @@ func TestConditionalAccessSCEP(t *testing.T) {
 		{"InvalidChallenge", testInvalidChallenge},
 		{"MissingUUID", testMissingUUID},
 		{"NonExistentHost", testNonExistentHost},
+		{"CertificateRotation", testCertificateRotation},
+		{"GetIDPSigningCert", testGetIDPSigningCert},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -94,8 +97,8 @@ func testGetCACert(t *testing.T, s *Suite) {
 	require.NoError(t, err)
 
 	// Verify CA certificate attributes
-	assert.Equal(t, "Fleet Conditional Access CA", cert.Subject.CommonName)
-	assert.Contains(t, cert.Subject.Organization, "Local Certificate Authority")
+	assert.Equal(t, "Fleet conditional access CA", cert.Subject.CommonName)
+	assert.Contains(t, cert.Subject.Organization, "Local certificate authority")
 	assert.True(t, cert.IsCA)
 
 	// Verify RSA key
@@ -347,4 +350,104 @@ func requestSCEPCertificateWithOptions(t *testing.T, s *Suite, uris []*url.URL, 
 
 	cert := pkiMsgResp.CertRepMessage.Certificate
 	return httpResp, pkiMsgResp, cert
+}
+
+// testCertificateRotation tests the grace period behavior during certificate rotation.
+// This validates that after a host requests a new certificate via SCEP, both the old and new certificates
+// continue to work for authentication until the grace period expires (cleaned up by periodic job).
+func testCertificateRotation(t *testing.T, s *Suite) {
+	ctx := t.Context()
+
+	// Create enrollment secret
+	err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}})
+	require.NoError(t, err)
+
+	// Create a test host
+	host, err := s.DS.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("test-host-rotation"),
+		NodeKey:         ptr.String("test-node-key-rotation"),
+		UUID:            "test-uuid-rotation",
+		Hostname:        "test-hostname-rotation",
+		Platform:        "darwin",
+		DetailUpdatedAt: time.Now(),
+	})
+	require.NoError(t, err)
+
+	// Request first certificate via SCEP (old cert)
+	oldCert := requestSCEPCertificate(t, s, host.UUID, testEnrollmentSecret)
+	require.NotNil(t, oldCert)
+
+	// Make HTTP request to IdP SSO endpoint with old cert serial to verify authentication
+	oldSerialHex := fmt.Sprintf("%X", oldCert.SerialNumber)
+	req, err := http.NewRequestWithContext(ctx, "POST", s.Server.URL+"/api/fleet/conditional_access/idp/sso", nil)
+	require.NoError(t, err)
+	req.Header.Set("X-Client-Cert-Serial", oldSerialHex)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+	// StatusBadRequest (400) indicates cert authentication succeeded but SAML request is invalid/empty
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "old cert should authenticate (400 = auth success, SAML parse fail)")
+
+	// Request new certificate via SCEP (certificate rotation)
+	newCert := requestSCEPCertificate(t, s, host.UUID, testEnrollmentSecret)
+	require.NotNil(t, newCert)
+	require.NotEqual(t, oldCert.SerialNumber, newCert.SerialNumber, "new cert should have different serial")
+
+	// CRITICAL TEST: Both old and new certs should work via actual HTTP endpoint (grace period behavior)
+	// This validates that old cert is NOT immediately revoked, allowing grace period for rotation
+	req, err = http.NewRequestWithContext(ctx, "POST", s.Server.URL+"/api/fleet/conditional_access/idp/sso", nil)
+	require.NoError(t, err)
+	req.Header.Set("X-Client-Cert-Serial", oldSerialHex)
+
+	resp, err = http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "old cert should still work after new cert issued (grace period)")
+
+	newSerialHex := fmt.Sprintf("%X", newCert.SerialNumber)
+	req, err = http.NewRequestWithContext(ctx, "POST", s.Server.URL+"/api/fleet/conditional_access/idp/sso", nil)
+	require.NoError(t, err)
+	req.Header.Set("X-Client-Cert-Serial", newSerialHex)
+
+	resp, err = http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "new cert should work via HTTP endpoint")
+}
+
+// testGetIDPSigningCert tests retrieving the IdP signing certificate via the API endpoint.
+func testGetIDPSigningCert(t *testing.T, s *Suite) {
+	ctx := t.Context()
+
+	// Make HTTP request to get IdP signing certificate
+	req, err := http.NewRequestWithContext(ctx, "GET", s.Server.URL+"/api/latest/fleet/conditional_access/idp/signing_cert", nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.Token))
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode, "should return 200 OK")
+
+	// Verify content type
+	require.Equal(t, "application/x-pem-file", resp.Header.Get("Content-Type"))
+	require.Equal(t, "attachment; filename=\"fleet-idp-signing-cert.pem\"", resp.Header.Get("Content-Disposition"))
+
+	// Read certificate content
+	certPEM, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.NotEmpty(t, certPEM)
+
+	// Parse and verify it's a valid certificate
+	block, _ := pem.Decode(certPEM)
+	require.NotNil(t, block, "should be valid PEM")
+	require.Equal(t, "CERTIFICATE", block.Type)
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+	require.NotNil(t, cert)
+
+	// Verify certificate subject contains IdP
+	require.Contains(t, cert.Subject.CommonName, "IdP", "certificate should be for IdP")
 }

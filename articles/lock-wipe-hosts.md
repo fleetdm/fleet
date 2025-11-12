@@ -4,9 +4,9 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can lock and wipe macOS, Windows, and Linux hosts remotely when a host might have been lost or stolen, or to remotely prepare a device to be re-deployed to another end user.
+In Fleet, you can lock and wipe macOS, Windows, Linux, iOS and iPadOS hosts remotely when a host might have been lost or stolen, or to remotely prepare a device to be re-deployed to another end user.
 
-iOS and iPadOS hosts can be wiped. Restricting wipe to only company-owned iPhones and iPads is coming soon.
+Restricting wipe for iPhones and iPads to only company-owned iPhones and iPads is coming soon.
 
 ## Lock a host
 
@@ -15,11 +15,28 @@ iOS and iPadOS hosts can be wiped. Restricting wipe to only company-owned iPhone
 3. Click the **Actions** dropdown, then click  **Lock**.
 4. A confirmation dialog will appear. Confirm that you want to lock the device. The host will now be marked with a "Lock pending" badge. Once the lock command is acknowledged by the host, the badge will update to "Locked".*
 
-Currently, there's no **Lock** button for iOS and iPadOS. If an iOS or iPadOS host is lost/stolen, the best practice is to send the [`EnableLostMode`](https://developer.apple.com/documentation/devicemanagement/enable_lost_mode) and [`DisableLostMode`](https://developer.apple.com/documentation/devicemanagement/disable_lost_mode) commands using a [custom command](https://fleetdm.com/guides/mdm-commands). If the host's owner (employee) is leaving the company and keeping a company-owned iOS or iPadOS host, the best practice is to wipe it.
-
 Currently, for Windows hosts that are [Microsoft Entra joined](https://learn.microsoft.com/en-us/entra/identity/devices/concept-directory-join), the best practice is to disable the end user's account in Entra and then lock the host in Fleet. This applies to all Windows hosts that [automatically enroll](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment). These hosts are Entra joined.
 
+> **iOS and iPadOS**: Lock action is only available for company-owned ([supervised](https://support.apple.com/en-gb/guide/deployment/dep1d89f0bff/web)) hosts.
+
 > **Linux hosts**: The system may automatically reboot after approximately 10 seconds to complete the lock process.
+
+### Get location of locked iOS/iPadOS host
+
+To obtain the location of a locked iOS or iPadOS host, send the [`DeviceLocation`](https://developer.apple.com/documentation/devicemanagement/device-location-command) command using a [custom command](https://fleetdm.com/guides/mdm-commands). This command will only work if the device is locked and in [Lost Mode](https://support.apple.com/en-gb/guide/security/secc46f3562c/web#sec49d5c5c50).
+
+To view the location on Google Maps, use the latitude and longitude values from the command response in the following URL: `https://google.com/maps?q={latitude},{longitude}`
+
+Example response:
+```xml
+  <key>Latitude</key>
+  <real>37.33385013244351</real>
+  <key>Longitude</key>
+  <real>-122.01079213269968</real>
+```
+
+Example URL:
+`https://google.com/maps?q=37.33385013244351,-122.01079213269968`
 
 ## Wipe a host
 
@@ -38,8 +55,8 @@ Currently, for Windows hosts that are [Microsoft Entra joined](https://learn.mic
 2. Click the host to open the **Host Overview** page.
 3. Click the **Actions** menu, then click **Unlock**.
     - **macOS**: A dialog with the PIN will appear. Type the PIN into the device to unlock it.
-    - **Windows and Linux**: The command to unlock the host will be queued and the host will unlock once it receives the command (no PIN needed).*
-4. When you click **Unlock**, Windows and Linux hosts will be marked with an "Unlock pending" badge. Once the host is unlocked and checks back in with Fleet, the "Unlock pending" badge will be removed. macOS hosts do not have an "Unlock pending" badge as they cannot be remotely unlocked (the PIN has to be typed into the device).
+    - **Windows, Linux, iOS and iPadOS**: The command to unlock the host will be queued and the host will unlock once it receives the command (no PIN needed).*
+4. When you click **Unlock**, Windows, Linux, iOS and iPadOS hosts will be marked with an "Unlock pending" badge. Once the host is unlocked and checks back in with Fleet, the "Unlock pending" badge will be removed. macOS hosts do not have an "Unlock pending" badge as they cannot be remotely unlocked (the PIN has to be typed into the device).
 
 > **Linux hosts**: The system will automatically reboot after approximately 10 seconds to complete the unlock process and ensure the user interface is properly restored. If the host loses connection to Fleet, the unlock process may run again, causing the host to reboot again.
 
@@ -66,6 +83,8 @@ Add the `--help` flag to any command to learn more about how to use it.
 For macOS hosts, the `mdm unlock` command will return the six-digit PIN, which must be typed into the device in order to finish unlocking it. 
 
 *For Windows and Linux hosts, a script will run as part of the lock and unlock actions. Details for each script can be found in GitHub for [Windows](https://github.com/fleetdm/fleet/tree/main/ee/server/service/embedded_scripts/windows_lock.ps1) and [Linux](https://github.com/fleetdm/fleet/tree/main/ee/server/service/embedded_scripts/linux_lock.sh) hosts.
+
+** Fleet is currently tracking a [known Apple bug](https://github.com/fleetdm/fleet/issues/34208), which results in Lost mode being cleared after reboot on iOS/iPadOS 26.
 
 <meta name="articleTitle" value="Lock and wipe hosts">
 <meta name="authorFullName" value="JD Strong">

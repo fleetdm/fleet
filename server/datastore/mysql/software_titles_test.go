@@ -2217,7 +2217,7 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 	}
 
 	// install software on host
-	updateSw, err := fleet.SoftwareFromOsqueryRow("foo", "1.0", "apps", "", "", "", "", "com.foo.installer", "", "", "")
+	updateSw, err := fleet.SoftwareFromOsqueryRow("foo", "1.0", "apps", "", "", "", "", "com.foo.installer", "", "", "", "")
 	require.NoError(t, err)
 
 	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installers[0], fleet.HostSoftwareInstallOptions{})
@@ -2314,6 +2314,7 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 		Extension:        "ipa",
 		UserID:           user.ID,
 		TeamID:           &team1.ID,
+		SelfService:      true,
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
@@ -2376,8 +2377,8 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
 				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
 			},
 		},
@@ -2398,8 +2399,8 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
 			},
 		},
 		{
@@ -2419,8 +2420,8 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
 				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
 			},
 		},
@@ -2435,7 +2436,12 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 				TeamID:          &team1.ID,
 				SelfServiceOnly: true,
 			},
-			wantCount: 0,
+			wantCount: 2,
+			wantNames: []string{"in-house2", "in-house2"},
+			wantInstallers: []*fleet.SoftwarePackageOrApp{
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
+			},
 		},
 		{
 			desc: "macos only",
@@ -2469,7 +2475,7 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantNames: []string{"in-house1", "in-house2"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
 			},
 		},
 		{
@@ -2488,8 +2494,8 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
 				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
 			},
 		},

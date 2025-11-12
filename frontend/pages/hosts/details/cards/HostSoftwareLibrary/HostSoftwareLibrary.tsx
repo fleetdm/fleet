@@ -45,7 +45,7 @@ import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/Ho
 import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
 import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
 import { getUiStatus } from "../Software/helpers";
-import SoftwareUpdateModal from "../Software/SoftwareUpdateModal";
+import SoftwareUpdateModal from "../Software/SelfService/components/SoftwareUpdateModal";
 
 const baseClass = "host-software-library-card";
 
