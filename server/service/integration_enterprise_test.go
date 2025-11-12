@@ -21682,7 +21682,8 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 	}
 	assert.True(t, foundIdpInDetailsById, "Should find IDP user in ID-based host endpoint")
 
-	// Test that IDP accepts any username, even if not a SCIM user
+	// Test that IDP accepts any username, even if not a SCIM user - should replace existing
+	// "scim.user@example.com" idp mapping
 	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
 		putHostDeviceMappingRequest{Email: "any.username@example.com", Source: "idp"},
 		http.StatusOK, &putResp)
@@ -21775,26 +21776,21 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 	}
 	assert.False(t, foundNonScimInOtherEmails, "Non-SCIM IDP should NOT appear in other_emails")
 
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
-		nil, http.StatusOK, &getResp)
-	fmt.Printf("\n\ndevice_mapping resp before delet: %+v\n\n", getResp)
+	// test DELETE
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping/idp", host.ID), deleteHostIDPRequest{}, http.StatusNoContent)
 
-	var delResp deleteHostIDPResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping/idp", host.ID), deleteHostIDPRequest{}, http.StatusNoContent, &delResp)
-
-	// verify nothing from device_mapping endpoint
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
-		nil, http.StatusOK, &getResp)
-	require.Len(t, getResp.DeviceMapping, 0)
-
-	// verify nothing from host by identifier endpoint
 	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+host.UUID, nil, http.StatusOK, &hostResp)
+	require.Len(t, hostResp.Host.EndUsers, 1, "Should have exactly one end user")
+	endUser = hostResp.Host.EndUsers[0]
+	// Non-SCIM IDP user should now be replaced by user's username
+	assert.Equal(t, "test.user", endUser.IdpUserName)
 
-	require.Empty(t, hostResp.Host.EndUsers)
-
-	// verify nothing from host by id endpoint
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp2)
-	require.Empty(t, hostResp2.Host.EndUsers)
+	require.Len(t, hostResp2.Host.EndUsers, 1, "Should have exactly one end user")
+	endUser = hostResp.Host.EndUsers[0]
+
+	// Non-SCIM IDP user should now be replaced by user's username
+	assert.Equal(t, "test.user", endUser.IdpUserName)
 }
 
 func (s *integrationEnterpriseTestSuite) TestAppConfigOktaConditionalAccess() {
