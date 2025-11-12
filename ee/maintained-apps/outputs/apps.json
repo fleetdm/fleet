@@ -240,6 +240,13 @@
       "description": "Privileges is an admin rights switcher for macOS."
     },
     {
+      "name": "Proton Mail",
+      "slug": "proton-mail/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ch.protonmail.desktop",
+      "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
+    },
+    {
       "name": "Santa",
       "slug": "santa/darwin",
       "platform": "darwin",
