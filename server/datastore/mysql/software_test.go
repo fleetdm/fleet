@@ -7142,8 +7142,6 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkSoftware(software, installer2.Filename, installer3.Filename, installer4.Filename)
 
-	time.Sleep(time.Second)
-
 	// Create a new manual label and apply it to the new installer
 	label5, err := ds.NewLabel(ctx, &fleet.Label{Name: "label5" + t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual})
 	require.NoError(t, err)
