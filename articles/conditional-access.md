@@ -311,11 +311,9 @@ Ready to switch? Start at the [top of this guide](#conditional-access-entra) and
 
 ## Disable
 
-If you need all your hosts to be marked as "Compliant" (e.g. to unblock access to a resource) go to **Policies > Select team > Automations > Conditional access**, uncheck all policies, and select **Save**. The hosts will be marked as "Compliant" the next time they check in with policy results (within one hour, or by refetching manually).
+If you're using Entra and you want to unblock all end users, you can disable conditional access by heading to Entra and turning off the ["Conditional Access" Entra policies](#step-6-add-entra-policies).
 
-To disable the "Conditional Access" feature on a team head to **Policies > Select team > Automations > Conditional access > Disable**.
-
-Once disabled, hosts will not be reporting compliance status to Okta or Entra anymore.
+For Okta, TODO
 
 <meta name="articleTitle" value="Conditional access">
 <meta name="authorFullName" value="Lucas Manuel Rodriguez">
