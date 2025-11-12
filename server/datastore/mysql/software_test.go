@@ -8279,7 +8279,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// The host need not update its LabelUpdatedAt because the label is manually scoped and not applied,
-	// so it is immediately resolvable
+	// so it is immediately resolvable (and the host doesn't have the excluded label applied to it)
 	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
 	require.NoError(t, err)
 	require.True(t, scoped)
