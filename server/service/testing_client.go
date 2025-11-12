@@ -832,5 +832,16 @@ func (ts *withServer) updateSoftwareInstaller(
 	if expectedError != "" {
 		errMsg := extractServerErrorText(r.Body)
 		require.Contains(t, errMsg, expectedError)
+		return
 	}
+
+	bodyBytes, err := io.ReadAll(r.Body)
+	require.NoError(t, err)
+
+	var resp getSoftwareInstallerResponse
+	require.NoError(t, json.Unmarshal(bodyBytes, &resp))
+
+	fmt.Printf("resp: %v\n", resp)
+
+	assert.Equal(t, payload.DisplayName, resp.SoftwareInstaller.DisplayName)
 }

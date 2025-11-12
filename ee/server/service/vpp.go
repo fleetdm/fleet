@@ -695,8 +695,6 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting updated app metadata")
 	}
 
-	fmt.Printf("updatedAppMeta.DisplayName: %v\n", updatedAppMeta.DisplayName)
-
 	return updatedAppMeta, nil
 }
 

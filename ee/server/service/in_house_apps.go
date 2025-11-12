@@ -104,7 +104,6 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		}
 	}
 
-	fmt.Printf("payload.DisplayName: %v\n", payload.DisplayName)
 	if err := svc.ds.SaveInHouseAppUpdates(ctx, payload); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving installer updates")
 	}

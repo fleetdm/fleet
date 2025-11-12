@@ -130,6 +130,9 @@ type SoftwareInstaller struct {
 	Categories []string `json:"categories"`
 
 	BundleIdentifier string `json:"-" db:"bundle_identifier"`
+
+	// DisplayName is an end-user friendly name.
+	DisplayName string `json:"display_name"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
