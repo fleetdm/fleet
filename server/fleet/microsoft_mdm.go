@@ -1012,6 +1012,10 @@ type SyncMLCmd struct {
 	// AddCommands is a catch-all for any nested <Add> commands,
 	// which can be found under <Atomic> elements.
 	AddCommands []SyncMLCmd `xml:"Add,omitempty"`
+
+	// ExecCommands is a catch-all for any nested <Exec> commands,
+	// which can be found under <Atomic> elements.
+	ExecCommands []SyncMLCmd `xml:"Exec,omitempty"`
 }
 
 // ParseWindowsMDMCommand parses the raw XML as a single Windows MDM command.

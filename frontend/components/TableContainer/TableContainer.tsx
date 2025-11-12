@@ -123,11 +123,13 @@ interface ITableContainerProps<T = any> {
   hideFooter?: boolean;
   /** handler called when the  `clear selection` button is called */
   onClearSelection?: () => void;
+  /** don't show the Clear selection button and selected item count when items are selected */
+  suppressHeaderActions?: boolean;
 }
 
 const baseClass = "table-container";
 
-const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_PAGE_INDEX = 0;
 
 const TableContainer = <T,>({
@@ -184,6 +186,7 @@ const TableContainer = <T,>({
   disableTableHeader,
   persistSelectedRows,
   onClearSelection = noop,
+  suppressHeaderActions,
 }: ITableContainerProps<T>) => {
   const isControlledSearchQuery = controlledSearchQuery !== undefined;
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
@@ -328,7 +331,9 @@ const TableContainer = <T,>({
         >
           <>
             {actionButton.buttonText}
-            {actionButton.iconSvg && <Icon name={actionButton.iconSvg} />}
+            {actionButton.iconSvg && (
+              <Icon name={actionButton.iconSvg} color="ui-fleet-black-75" />
+            )}
           </>
         </Button>
       );
@@ -574,6 +579,7 @@ const TableContainer = <T,>({
                 }
                 setExportRows={setExportRows}
                 onClearSelection={onClearSelection}
+                suppressHeaderActions={suppressHeaderActions}
                 persistSelectedRows={persistSelectedRows}
                 hideFooter={hideFooter}
               />

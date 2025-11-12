@@ -13,11 +13,10 @@ import {
 } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 
 import {
-  ApplePlatform,
-  APPLE_PLATFORM_DISPLAY_NAMES,
   HostPlatform,
-  isIPadOrIPhone,
   isAndroid,
+  PLATFORM_DISPLAY_NAMES,
+  isVulnUnsupportedPlatform,
 } from "interfaces/platform";
 
 import TableContainer from "components/TableContainer";
@@ -52,13 +51,14 @@ interface IEmptyComponentProps {
 const EmptyComponent = React.memo(
   ({ hasVulnFilters, platform, searchQuery }: IEmptyComponentProps) => {
     const vulnFilterAndNotSupported =
-      hasVulnFilters && isIPadOrIPhone(platform);
+      hasVulnFilters && isVulnUnsupportedPlatform(platform);
     return vulnFilterAndNotSupported ? (
-      <VulnsNotSupported
-        platformText={APPLE_PLATFORM_DISPLAY_NAMES[platform as ApplePlatform]}
-      />
+      <VulnsNotSupported platformText={PLATFORM_DISPLAY_NAMES[platform]} />
     ) : (
-      <EmptySoftwareTable noSearchQuery={searchQuery === ""} />
+      <EmptySoftwareTable
+        noSearchQuery={searchQuery === ""}
+        platform={platform}
+      />
     );
   }
 );
@@ -181,20 +181,6 @@ const HostSoftwareTable = ({
     [onShowInventoryVersions]
   );
 
-  if (isAndroid(platform)) {
-    return (
-      <EmptyTable
-        header="Software is not supported for this host"
-        info={
-          <>
-            Interested in viewing software for Android hosts?{" "}
-            <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
-          </>
-        }
-      />
-    );
-  }
-
   const renderCustomFiltersButton = () => {
     return (
       <TooltipWrapper
@@ -206,8 +192,8 @@ const HostSoftwareTable = ({
         tipContent={vulnFilterDetails.tooltipText}
         disableTooltip={!hasVulnFilters}
       >
-        <Button variant="text-link" onClick={onAddFiltersClick}>
-          <Icon name="filter" color="core-fleet-blue" />
+        <Button variant="inverse" onClick={onAddFiltersClick}>
+          <Icon name="filter" />
           <span>{vulnFilterDetails.buttonText}</span>
         </Button>
       </TooltipWrapper>

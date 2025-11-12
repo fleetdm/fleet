@@ -255,7 +255,7 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	}
 
 	if teamID > 0 {
-		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+		if _, err := svc.ds.TeamWithExtras(ctx, teamID); err != nil {
 			return nil, nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 		}
 	}
@@ -326,7 +326,7 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 	}
 
 	if teamID > 0 {
-		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+		if _, err := svc.ds.TeamWithExtras(ctx, teamID); err != nil {
 			return 0, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 		}
 	}
@@ -422,7 +422,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	}
 
 	if teamID > 0 {
-		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+		if _, err := svc.ds.TeamWithExtras(ctx, teamID); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 		}
 	}
@@ -677,7 +677,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 
 	// Add a special case for handling "No Team" (teamID = 0) in ModifyTeamPolicy
-	if teamID != nil && *teamID == 0 {
+	if *teamID == 0 {
 		noTeamID := int64(0)
 		if err := svc.NewActivity(
 			ctx,
@@ -698,7 +698,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	// rollback an action in the event of an error writing the associated activity
 
 	var teamName *string
-	if teamID != nil && *teamID != 0 {
+	if *teamID != 0 {
 		if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
 			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, teamID, nil)
 			if err != nil {
@@ -710,10 +710,8 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 
 	// Convert *uint to *int64 for the activity
 	var activityTeamID *int64
-	if teamID != nil {
-		teamIDInt64 := int64(*teamID)
-		activityTeamID = &teamIDInt64
-	}
+	teamIDInt64 := int64(*teamID)
+	activityTeamID = &teamIDInt64
 
 	if err := svc.NewActivity(
 		ctx,

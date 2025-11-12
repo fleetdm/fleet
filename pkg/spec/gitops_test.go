@@ -272,7 +272,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 					assert.Equal(t, "SELECT 1 FROM osquery_info", gitops.Labels[0].Query)
 					require.Len(t, gitops.Labels[1].Hosts, 2)
 					assert.Equal(t, "host1", gitops.Labels[1].Hosts[0])
-					assert.Equal(t, "host2", gitops.Labels[1].Hosts[1])
+					assert.Equal(t, "2", gitops.Labels[1].Hosts[1])
 
 				}
 
@@ -697,6 +697,12 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config += "org_settings:\n"
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "'org_settings.secrets' is required")
+
+					// Bad label spec (float instead of string in hosts)
+					config = getConfig([]string{"labels"})
+					config += "labels:\n  - name: TestLabel\n    description: Label for testing\n    hosts:\n    - 2.5\n    label_membership_type: manual\n"
+					_, err = gitOpsFromString(t, config)
+					assert.ErrorContains(t, err, "hosts must be strings or integers, got float 2.5")
 				}
 
 				// Invalid agent_options
@@ -1326,6 +1332,34 @@ software:
 	}
 	_, err := GitOpsFromFile(path, basePath, &appConfig, nopLogf)
 	require.NoError(t, err)
+}
+
+func TestSoftwarePackagesPathWithInline(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"software"})
+	config += `
+software:
+  packages:
+    - path: software/single-package.yml
+      icon:
+        path: ./foo/bar.png
+`
+
+	path, basePath := createTempFile(t, "", config)
+
+	err := file.Copy(
+		filepath.Join("testdata", "software", "single-package.yml"),
+		filepath.Join(basePath, "software", "single-package.yml"),
+		os.FileMode(0o755),
+	)
+	require.NoError(t, err)
+
+	appConfig := fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err, "the software package defined in software/single-package.yml must not have icons, scripts, queries, URL, or hash specified at the team level")
 }
 
 func TestIllegalFleetSecret(t *testing.T) {

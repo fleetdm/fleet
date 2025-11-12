@@ -22,6 +22,8 @@ import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import NDESForm from "../NDESForm";
 import CustomSCEPForm from "../CustomSCEPForm";
 import HydrantForm from "../HydrantForm";
+import SmallstepForm from "../SmallstepForm";
+import CustomESTForm from "../CustomESTForm";
 
 const baseClass = "edit-cert-authority-modal";
 
@@ -74,7 +76,7 @@ const EditCertAuthorityModal = ({
         certAuthority.id,
         editPatchData
       );
-      renderFlash("success", "Successfully edited your certificate authority.");
+      renderFlash("success", "Successfully edited certificate authority.");
       onExit();
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
@@ -83,16 +85,24 @@ const EditCertAuthorityModal = ({
   };
 
   const getFormComponent = () => {
-    if (certAuthority.type === "ndes_scep_proxy") {
-      return NDESForm;
+    switch (certAuthority.type) {
+      case "ndes_scep_proxy":
+        return NDESForm;
+      case "digicert":
+        return DigicertForm;
+      case "hydrant":
+        return HydrantForm;
+      case "smallstep":
+        return SmallstepForm;
+      case "custom_scep_proxy":
+        return CustomSCEPForm;
+      case "custom_est_proxy":
+        return CustomESTForm;
+      default:
+        throw new Error(
+          `Unknown certificate authority type: ${certAuthority.type}`
+        );
     }
-    if (certAuthority.type === "digicert") {
-      return DigicertForm;
-    }
-    if (certAuthority.type === "hydrant") {
-      return HydrantForm;
-    }
-    return CustomSCEPForm;
   };
 
   const renderForm = () => {

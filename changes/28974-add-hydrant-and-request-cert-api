@@ -1,1 +1,0 @@
-* Added support for Hydrant as a Certificate Authority and added an experimental API that can be used to have Fleet request a certificate from a CA(only supporting Hydrant at this time)

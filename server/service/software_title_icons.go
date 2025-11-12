@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	_ "image/png"
+	"io"
 	"math"
 	"mime/multipart"
 	"net/http"
@@ -179,7 +180,7 @@ func (putSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Re
 		}
 		defer file.Close()
 
-		if err := iconValidator(file); err != nil {
+		if err := ValidateIcon(file); err != nil {
 			return nil, err
 		}
 	}
@@ -234,13 +235,13 @@ func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.
 	return fleet.SoftwareTitleIcon{}, fleet.ErrMissingLicense
 }
 
-func iconValidator(file multipart.File) error {
+func ValidateIcon(file io.ReadSeeker) error {
 	// Check file size first
-	fileSize, err := file.Seek(0, 2) // Seek to end to get size
+	fileSize, err := file.Seek(0, io.SeekEnd) // Seek to end to get size
 	if err != nil {
 		return &fleet.BadRequestError{Message: "failed to read file size"}
 	}
-	if _, err := file.Seek(0, 0); err != nil { // Reset to beginning
+	if _, err := file.Seek(0, io.SeekStart); err != nil { // Reset to beginning
 		return &fleet.BadRequestError{Message: "failed to rewind file"}
 	}
 

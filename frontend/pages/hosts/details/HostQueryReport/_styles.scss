@@ -1,24 +1,17 @@
 .host-query-report {
-  display: flex;
-  flex-direction: column;
-  gap: $pad-large;
+  @include vertical-page-layout;
   @include color-contrasted-sections;
 
   h1 {
     font-weight: $bold;
   }
-  &__header {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-xlarge;
 
+  &__header {
+    @include vertical-page-layout;
     &__row2 {
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
-  }
-  &__direction-link {
-    @include direction-link;
   }
 }

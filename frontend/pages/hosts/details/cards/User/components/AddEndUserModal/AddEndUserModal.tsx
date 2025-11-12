@@ -1,6 +1,6 @@
 import React from "react";
-import { Link } from "react-router";
 
+import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
@@ -17,17 +17,26 @@ const AddEndUserModal = ({ onExit }: IAddEndUserModalProps) => {
     <Modal title="Add user" onExit={onExit} className={baseClass}>
       <>
         <div className={`${baseClass}__content`}>
-          <p>
-            Currently, <b>Username (IdP)</b> is only added when the host
-            automatically enrolls (ADE).{" "}
-          </p>
-          <p>
-            To add username when hosts enroll in the future, enable{" "}
-            <Link to={paths.CONTROLS_END_USER_AUTHENTICATION}>
-              end user authentication
-            </Link>
-            .
-          </p>
+          <p>Currently, Username (IdP) can be added in the following ways:</p>
+          <ul style={{ listStyle: "disc", paddingLeft: "20px" }}>
+            <li style={{ marginBottom: "10px" }}>
+              <b>Automatically:</b> A username is added when the host
+              automatically enrolls (ADE), if{" "}
+              <CustomLink
+                url={paths.CONTROLS_END_USER_AUTHENTICATION}
+                text="end user authentication"
+              />{" "}
+              is enabled.
+            </li>
+            <li>
+              <b>Manually:</b> Usernames can be added or updated via the{" "}
+              <CustomLink
+                url="https://fleetdm.com/learn-more-about/edit-idp-username"
+                text="REST API"
+                newTab
+              />
+            </li>
+          </ul>
         </div>
         <div className="modal-cta-wrap">
           <Button onClick={onExit}>Done</Button>

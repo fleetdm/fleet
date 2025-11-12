@@ -78,6 +78,7 @@ const updateCampaignStateFromResults = (
     // therefore `campaign.errors.length` === `campaign.hosts_count.failed`
     newErrors = prevErrors.concat([
       {
+        host_id: curHost?.id,
         host_display_name: curHost?.display_name,
         osquery_version: curHost?.osquery_version,
         error:
@@ -101,6 +102,13 @@ const updateCampaignStateFromResults = (
       successful: prevUIHostCounts.successful + 1,
       failed: prevUIHostCounts.failed,
     };
+
+    if (curQueryResults) {
+      curQueryResults.forEach((row) => {
+        row.host_id = curHost?.id;
+      });
+    }
+
     const curHostWithResults = { ...curHost, query_results: curQueryResults };
     newHostsWithResults = prevHostsWithResults.concat(curHostWithResults);
   }

@@ -50,8 +50,4 @@
       white-space: nowrap;
     }
   }
-
-  &__preview-data {
-    @include form-button-extra-clickable-area-compensation;
-  }
 }

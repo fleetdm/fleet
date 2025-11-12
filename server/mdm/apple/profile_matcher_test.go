@@ -266,7 +266,7 @@ func TestPreassignProfileValidation(t *testing.T) {
 				HostUUID:               "1234",
 				Profile:                []byte(`abcd`),
 			},
-			"mobileconfig is not XML nor PKCS7",
+			"signed profiles are not supported",
 		},
 		{
 			"invalid profile type",

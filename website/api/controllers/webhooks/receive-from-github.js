@@ -58,6 +58,7 @@ module.exports = {
 
       // Humans
       'noahtalerman',
+      'lppepper2',
       'mike-j-thomas',
       'mikermcneil',
       'lukeheath',
@@ -84,14 +85,12 @@ module.exports = {
       'pintomi1989',
       'nonpunctual',
       'dantecatalfamo',
-      'PezHub',
       'SFriendLee',
       'ddribeiro',
       'allenhouchins',
       'harrisonravazzolo',
       'tux234',
       'ksykulev',
-      'onasismunro',
       'jmwatts',
       'mason-buettner',
       'iansltx',
@@ -99,6 +98,7 @@ module.exports = {
       'BCTBB',
       'kc9wwh',
       'JordanMontgomery',
+      'ds0x',
       'bettapizza',
       'irenareedy',
       'jakestenger',
@@ -112,6 +112,11 @@ module.exports = {
       'karmine05',
       'ericswenson0',
       'kitzy',
+      'Seedity',
+      'NickBlee',
+      'GrayW',
+      'maribell-fleetdm',
+      'jkatz01',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -285,7 +290,9 @@ module.exports = {
       await sails.helpers.http.post('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/comments',
         {'body': newBotComment},
         baseHeadersForGithubApiRequests
-      );
+      ).tolerate((err)=>{
+        sails.log.warn(`When the receive-from-github webhook sent a request to post a Haiku on a closed issue (${owner}/${repo} #${issueNumber}), an error occured. Full error: ${require('util').inspect(err)}`);
+      });
 
     } else if (
       (ghNoun === 'pull_request' &&  ['opened','reopened','edited', 'synchronize', 'ready_for_review'].includes(action))
@@ -425,7 +432,10 @@ module.exports = {
             // [?] https://docs.github.com/en/rest/pulls/review-requests?apiVersion=2022-11-28#request-reviewers-for-a-pull-request
             await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`, {
               reviewers: newReviewers,
-            }, baseHeaders);
+            }, baseHeaders)
+            .tolerate((err)=>{
+              sails.log.warn(`When the receive-from-github webhook sent a request to add reviewers to an open pull request (${owner}/${repo} #${prNumber}), an error occured. Full error: ${require('util').inspect(err)}`);
+            });
           }//ﬁ
         }//ﬁ
 
@@ -450,7 +460,7 @@ module.exports = {
           // [?] https://docs.github.com/en/rest/issues/labels?apiVersion=2022-11-28#remove-a-label-from-an-issue
           await sails.helpers.http.del(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent('#handbook')}`, {}, baseHeaders)
           .tolerate({ exit: 'non200Response', raw: {statusCode: 404} }, (err)=>{// if the PR has gone missing, swallow the error and warn instead.
-            sails.log.warn(`When trying to send a request to remove the #handbook label from PR #${prNumber} in the ${owner}/${repo} repo, an error occured. Raw error: ${require('util').inspect(err)}`);
+            sails.log.warn(`When trying to send a request to remove the #handbook label from PR #${prNumber} in the ${owner}/${repo} repo, an error occured. full error: ${require('util').inspect(err)}`);
           });
         }//ﬁ
 
@@ -466,7 +476,7 @@ module.exports = {
           // [?] https://docs.github.com/en/rest/issues/labels?apiVersion=2022-11-28#remove-a-label-from-an-issue
           await sails.helpers.http.del(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent('~ceo')}`, {}, baseHeaders)
           .tolerate({ exit: 'non200Response', raw: {statusCode: 404} }, (err)=>{// if the PR has gone missing, swallow the error and warn instead.
-            sails.log.warn(`When trying to send a request to remove the ~ceo label from PR #${prNumber} in the ${owner}/${repo} repo, an error occured. Raw error: ${require('util').inspect(err)}`);
+            sails.log.warn(`When trying to send a request to remove the ~ceo label from PR #${prNumber} in the ${owner}/${repo} repo, an error occured. full error: ${require('util').inspect(err)}`);
           });
         }//ﬁ
 
@@ -476,7 +486,9 @@ module.exports = {
           // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
             labels: ['~ga4-annotation']
-          }, baseHeaders);
+          }, baseHeaders).tolerate((err)=>{
+            sails.log.warn(`When the receive-from-github webhook sent a request to add the "~ga4-annotation" label on an open pull request (${owner}/${repo} #${prNumber}), an error occured. Full error: ${require('util').inspect(err)}`);
+          });
         }//ﬁ
 
         //  ┌─┐┬ ┬┌┬┐┌─┐   ┌─┐┌─┐┌─┐┬─┐┌─┐┬  ┬┌─┐   ┬   ┬ ┬┌┐┌┌─┐┬─┐┌─┐┌─┐┌─┐┌─┐
@@ -511,7 +523,11 @@ module.exports = {
           // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
             event: 'APPROVE'
-          }, baseHeaders);
+          }, baseHeaders)
+          .retry()
+          .tolerate((err)=>{
+            return new Error(`When the receive-from-github webhook sent a request to approve a pull request (${owner}/${repo} #${prNumber}) an error occured. Full error: ${require('util').inspect(err)}`);
+          });
         }//ﬁ
         //   // If "main" is explicitly frozen, then unfreeze this PR because it no longer contains
         //   // (or maybe never did contain) changes to freezeworthy files.
@@ -735,6 +751,7 @@ module.exports = {
        * - Orchestration
        * - MDM
        * - Software
+       * - Security & compliance
        *
        * Status transitions tracked:
        *
@@ -1159,19 +1176,10 @@ module.exports = {
               return Math.max(0, Math.floor(diffMs / 1000));
             });
 
-            // Determine project name
-            let projectName = '';
-            switch (projectNumber) {
-              case sails.config.custom.githubProjectsV2.projects.orchestration:
-                projectName = 'orchestration';
-                break;
-              case sails.config.custom.githubProjectsV2.projects.mdm:
-                projectName = 'mdm';
-                break;
-              case sails.config.custom.githubProjectsV2.projects.software:
-                projectName = 'software';
-                break;
-            }
+            // Determine project name by reverse lookup
+            const projectName = Object.keys(sails.config.custom.githubProjectsV2.projects).find(
+              key => sails.config.custom.githubProjectsV2.projects[key] === projectNumber
+            ) || '';
 
             // Prepare QA ready data
             const qaReadyData = {
@@ -1390,19 +1398,10 @@ module.exports = {
               return Math.max(0, Math.floor(diffMs / 1000));
             });
 
-            // Determine project name
-            let projectName = '';
-            switch (projectNumber) {
-              case sails.config.custom.githubProjectsV2.projects.orchestration:
-                projectName = 'orchestration';
-                break;
-              case sails.config.custom.githubProjectsV2.projects.mdm:
-                projectName = 'mdm';
-                break;
-              case sails.config.custom.githubProjectsV2.projects.software:
-                projectName = 'software';
-                break;
-            }
+            // Determine project name by reverse lookup
+            const projectName = Object.keys(sails.config.custom.githubProjectsV2.projects).find(
+              key => sails.config.custom.githubProjectsV2.projects[key] === projectNumber
+            ) || '';
 
             // Prepare release ready data
             const releaseReadyData = {

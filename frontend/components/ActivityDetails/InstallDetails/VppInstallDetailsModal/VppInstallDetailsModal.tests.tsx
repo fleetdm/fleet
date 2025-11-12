@@ -158,7 +158,7 @@ describe("getStatusMessage helper function", () => {
   it("on the device user page, does not show host info", () => {
     render(
       getStatusMessage({
-        isDUP: true,
+        isMyDevicePage: true,
         displayStatus: "installed",
         isMDMStatusNotNow: false,
         isMDMStatusAcknowledged: false,

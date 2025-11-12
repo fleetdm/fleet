@@ -1,6 +1,7 @@
 .main-content {
-  padding: $pad-xlarge;
-  background-color: $core-white;
+  max-width: $break-lg;
+  margin: 0 auto;
+  padding: $pad-page;
   flex-grow: 1;
   // overflow: auto allows for horizontal scrolling
   // of the main-content when there is a banner. (e.g. sandbox mode)
@@ -17,11 +18,16 @@
     position: sticky; // Needed for settings page scroll
     z-index: 4; // Needed for settings page scroll
   }
+
+  &.manage-hosts,
+  &.query-details-page {
+    max-width: 100%;
+  }
 }
 
 @media (max-width: ($break-xs - 1)) {
   .main-content {
-    padding: $pad-large;
+    padding: $pad-large $pad-medium $pad-medium; // 24px top, 16px sides according to #32247
   }
 }
 

@@ -1,9 +1,12 @@
 .new-label-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow: visible;
   &__header {
     display: flex;
     flex-direction: column;
-    gap: $pad-smedium;
-    margin-bottom: $pad-large;
+    gap: $pad-large;
   }
   &__page-description {
     margin: 0;

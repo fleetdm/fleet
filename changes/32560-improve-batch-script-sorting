@@ -1,1 +1,0 @@
-- Improved the sorting of batch scripts in the Batch Progress UI. Batches in the "started" state now sort by started date, and batches in the "finished" state now sort by the finished date.

@@ -1,8 +1,8 @@
 import classnames from "classnames";
-import React, { ReactChild } from "react";
+import React, { ReactNode } from "react";
 
 interface ISidePanelContentProps {
-  children: ReactChild;
+  children: ReactNode;
   className?: string;
 }
 

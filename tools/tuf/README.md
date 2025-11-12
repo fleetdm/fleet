@@ -168,7 +168,7 @@ GITHUB_TOKEN_1PASSWORD_PATH="Private/Github Token/password" \
 2. Smoke test release on staging.
 3. Push to production:
 ```sh
-ACTION=release-to-production ./tools/tuf/releaser.sh
+ACTION=release-to-production COMPONENT=fleetd VERSION=1.23.0 ./tools/tuf/releaser.sh
 ```
 4. Smoke test release on production.
 

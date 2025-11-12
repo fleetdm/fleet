@@ -1,40 +1,13 @@
 .user-registration {
-  display: flex;
-  justify-content: center;
-  align-items: stretch;
-  margin-top: $pad-large;
-  min-height: 950px;
+  @include vertical-card-layout;
 
   &__container {
-    @include size(500px auto);
-    @include position(absolute, 49% 0 null null);
     transition: left 300ms ease, opacity 300ms ease;
-    border-radius: 10px;
-    background-color: $ui-off-white;
-    box-sizing: border-box;
-    padding: $pad-xxlarge;
     z-index: 1;
-    transform: translateY(-50%);
-
-    h2 {
-      font-size: $large;
-      font-weight: $regular;
-      text-align: center;
-      padding: 0 0 $pad-medium;
-      margin: 0;
-      margin-bottom: $pad-xxlarge;
-      border-bottom: 1px solid $ui-fleet-black-10;
-    }
-
-    p {
-      font-size: $small;
-      margin: 0;
-    }
 
     &--admin {
       left: 0;
       top: unquote("max(60%, 625px)");
-      margin: auto;
     }
 
     &--org {
@@ -68,12 +41,7 @@
   }
 
   &__form {
-    display: flex;
-    width: 100%;
-    box-sizing: border-box;
-
     @include breakpoint(tablet) {
-      transform: translateY(-100px);
     }
 
     &--step1-complete {
@@ -84,7 +52,6 @@
 
       .user-registration__container--org {
         left: 0;
-        margin: auto;
         display: block;
       }
 
@@ -112,7 +79,6 @@
 
       .user-registration__container--fleet {
         left: 0;
-        margin: auto;
         display: block;
       }
 
@@ -140,7 +106,6 @@
 
       .user-registration__container--confirmation {
         left: 0;
-        margin: auto;
         display: block;
       }
     }
@@ -172,16 +137,12 @@
   }
 
   &__field-wrapper {
-    background-color: $ui-off-white;
-    box-sizing: border-box;
-    z-index: 2;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    .button-wrap {
+      justify-content: center;
+    }
 
     .button {
       width: 160px;
-      margin-top: $pad-medium; // 40px total (24px gap + 16px more)
     }
   }
 }

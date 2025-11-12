@@ -20,8 +20,8 @@ labels:
   query: SELECT * FROM osquery_info
 - description: Label B description
   hosts:
-  - host1
-  - host2
+  - "1"
+  - "2"
   label_membership_type: manual
   name: Label B
 - criteria:
@@ -32,6 +32,11 @@ labels:
   name: Label C
 org_settings:
   certificate_authorities:
+    custom_est_proxy:
+    - name: some-est-name
+      password: # TODO: Add your EST password here
+      url: https://some-est-url.example.com
+      username: some-est-username
     custom_scep_proxy:
     - challenge: # TODO: Add your custom SCEP proxy challenge here
       name: some-custom-scep-proxy-name
@@ -56,6 +61,12 @@ org_settings:
       password: # TODO: Add your NDES SCEP proxy password here
       url: https://some-ndes-scep-proxy-url.com
       username: some-ndes-username
+    smallstep:
+    - challenge_url: https://some-smallstep-challenge-url.com
+      name: some-smallstep-name
+      password: # TODO: Add your Smallstep password here
+      url: https://some-smallstep-url.com
+      username: # TODO: Add your Smallstep username here
   features:
     additional_queries:
       macs: SELECT mac FROM interface_details

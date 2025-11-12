@@ -59,7 +59,7 @@ const teamBatchSummariesHandler = http.get(
             script_name: "Test Script 1",
             status: "scheduled",
             finished_at: null,
-            not_before: "2099-01-01T10:11:00.000Z",
+            not_before: "9999-01-01T10:11:00.000Z",
           }),
         ],
         meta: { has_next_results: false, has_previous_results: false },
@@ -198,7 +198,7 @@ describe("ScriptBatchProgress", () => {
     await waitFor(() => {
       expect(screen.getByText("Test Script 1")).toBeInTheDocument();
       expect(screen.getByText(/Will start/)).toBeInTheDocument();
-      expect(screen.getByText(/in over \d+ years/)).toBeInTheDocument();
+      expect(screen.getByText(/in (about|over) \d+ years/)).toBeInTheDocument();
     });
   });
 

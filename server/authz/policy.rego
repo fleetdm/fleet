@@ -74,6 +74,13 @@ allow {
   action == write
 }
 
+# Global admin, gitops, maintainer, observer_plus and observer can read Okta IdP certificate.
+allow {
+  object.type == "conditional_access_idp_cert"
+  subject.global_role == [admin, gitops, maintainer, observer_plus, observer][_]
+  action == read
+}
+
 ##
 # Teams
 ##

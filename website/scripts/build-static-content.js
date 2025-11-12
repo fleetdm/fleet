@@ -397,7 +397,6 @@ module.exports = {
               // Compile markdown to HTML.
               // > This includes build-time enablement of:
               // >  • syntax highlighting
-              // >  • data type bubbles
               // >  • transforming relative markdown links to their fleetdm.com equivalents
               // >
               // > For more info about how these additional features work, see: https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
@@ -426,7 +425,8 @@ module.exports = {
               if(htmlString.match(/(&#96;){3,4}[\s\S]+(&#96;){3}/g)){
                 throw new Error('The compiled markdown has a codeblock (\`\`\`) nested inside of another codeblock (\`\`\`\`) at '+pageSourcePath+'. To resolve this error, remove the codeblock nested inside another codeblock from this file.');
               }
-              htmlString = htmlString.replace(/\(\(([^())]*)\)\)/g, '<bubble type="$1" class="colors"><span is="bubble-heart"></span></bubble>');// « Replace ((bubble))s with HTML. For more background, see https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
+              // (2025-11-06) eashaw: I'm commenting the line below out to resolve a bug where the regex below would replace content inside of a code block. See https://github.com/fleetdm/fleet/issues/34935 for more details.
+              // htmlString = htmlString.replace(/\(\(([^())]*)\)\)/g, '<bubble type="$1" class="colors"><span is="bubble-heart"></span></bubble>');// « Replace ((bubble))s with HTML. For more background, see https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
               htmlString = htmlString.replace(/(href="(\.\/[^"]+|\.\.\/[^"]+)")/g, (hrefString)=>{// « Modify path-relative links like `./…` and `../…` to make them absolute.  (See https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for more background)
                 let oldRelPath = hrefString.match(/href="(\.\/[^"]+|\.\.\/[^"]+)"/)[1];
                 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -490,6 +490,9 @@ module.exports = {
                   // to work on fleetdm.com e.g. ('../website/assets/images/articles/foo-300x900@2x.png' -> '/images/articles/foo-200x300@2x.png')
                   let isWebsiteAsset = referencedPageSourcePath.match(/(?<=\/website\/assets)(\/images\/(.+))/g)[0];
                   if(isWebsiteAsset) {
+                    if(!isWebsiteAsset.match(/\d+x\d+@2x.+/)){
+                      throw new Error(`Failed compiling markdown content. An article page references an image (${isWebsiteAsset}) that does not follow the website's image naming conventions. Please update the filename and reference to the image in "${path.join(topLvlRepoPath, pageSourcePath)}" to include the CSS dimensions of the image (pixel dimensions * 0.5 postfixed with "@2x" e.g., a 400x600 pixel image should be postfixed with "-200x300@2x.png") and try running this script again. Read more about the website's image naming conventions here: https://fleetdm.com/handbook/company/communications#export-an-image-for-fleetdm-com`);
+                    }
                     return '="'+isWebsiteAsset+'"';
                   } else {
                     // If the relative link doesn't go to the `website/assets/` folder, we'll throw an error.
@@ -670,6 +673,9 @@ module.exports = {
                       throw new Error(`Failed compiling markdown content: An article page has an invalid articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be an image that will be hosted on fleetdm.com`);
                     }
                   } else if(inWebsiteAssetFolder) { // If the `articleImageUrl` value is a relative link to the `website/assets/` folder, we'll modify the value to link directly to that folder.
+                    if(!embeddedMetadata.articleImageUrl.match(/\d+x\d+@2x.+/)){
+                      throw new Error(`Failed compiling markdown content. An article page has a articleImageUrl meta tag value that does not follow the website's image naming conventions. Please update the image's filename and articleImageUrl value in "${path.join(topLvlRepoPath, pageSourcePath)}" to include the CSS dimensions of the image (pixel dimensions * 0.5 postfixed with "@2x" e.g., a 400x600 pixel image should be postfixed with "-200x300@2x.png") and try running this script again. Read more about the website's image naming conventions here: https://fleetdm.com/handbook/company/communications#export-an-image-for-fleetdm-com`);
+                    }
                     embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/^\.\.\/website\/assets/g, '');
                   } else { // If the value is not a url and the relative link does not go to the 'website/assets/' folder, we'll throw an error.
                     throw new Error(`Failed compiling markdown content: An article page has an invalid articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL or repo relative link to an image in the 'website/assets/images' folder`);
@@ -1299,12 +1305,22 @@ module.exports = {
         let appLibrary = [];
         // Get app library json
         let appsJsonData = await sails.helpers.fs.readJson(path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/apps.json'));
+        // Read the same file as text. This is so we can determine the line number of apps to use in the edit page link.
+        let appsJsonDataAsAString = await sails.helpers.fs.read(path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/apps.json'));
+        let linesInAppsJsonFile = appsJsonDataAsAString.split('\n');
         // Then for each item in the json, build a configuration object to add to the sails.builtStaticContent.appLibrary array.
         await sails.helpers.flow.simultaneouslyForEach(appsJsonData.apps, async(app)=>{
           // FUTURE: add support for windows apps once the page is updated to be multi-platform.
           if(app.platform !== 'darwin'){
             return;
           }
+
+          // Determine the line in the JSON that the object for this app starts on.
+          // this will allow us to link users directly to the app's position in the JSON file when users want to make a change.
+          let lineWithTheAppsSlugKey = _.find(linesInAppsJsonFile, (line)=>{
+            return line.includes(`"slug": "${app.slug}"`);
+          });
+          let lineNumberForEdittingThisApp = linesInAppsJsonFile.indexOf(lineWithTheAppsSlugKey);
 
           let appInformation = {
             name: app.name,
@@ -1313,6 +1329,7 @@ module.exports = {
             bundleIdentifier: app.unique_identifier,
             description: app.description,
             platform: app.platform,
+            lineNumberInJson: lineNumberForEdittingThisApp,
           };
 
           // Grab the latest information about these apps from the the ee/maintained-apps folder in the repo.

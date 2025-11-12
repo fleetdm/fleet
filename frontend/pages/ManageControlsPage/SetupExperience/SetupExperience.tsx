@@ -23,7 +23,7 @@ const SetupExperience = ({
   router,
   teamIdForApi,
 }: ISetupExperienceProps) => {
-  const { section } = params;
+  const { section, platform: urlPlatformParam } = params;
   const { isPremiumTier } = useContext(AppContext);
 
   // Not premium shows premium message
@@ -41,11 +41,21 @@ const SetupExperience = ({
     SETUP_EXPERIENCE_NAV_ITEMS.find((item) => item.urlSection === section) ??
     DEFAULT_SETTINGS_SECTION;
 
+  if (
+    currentFormSection.urlSection !== "install-software" &&
+    urlPlatformParam
+  ) {
+    router.replace(
+      currentFormSection.path + queryString // current card doesn't support platforms yet
+    );
+  }
   const CurrentCard = currentFormSection.Card;
 
   return (
     <div className={baseClass}>
-      <p>Customize the end user&apos;s setup experience.</p>
+      <p className={`${baseClass}__description`}>
+        Customize the end user&apos;s setup experience.
+      </p>
       <SideNav
         className={`${baseClass}__side-nav`}
         navItems={SETUP_EXPERIENCE_NAV_ITEMS.map((navItem) => ({
@@ -58,6 +68,7 @@ const SetupExperience = ({
             key={teamIdForApi}
             currentTeamId={teamIdForApi}
             router={router}
+            urlPlatformParam={urlPlatformParam}
           />
         }
       />

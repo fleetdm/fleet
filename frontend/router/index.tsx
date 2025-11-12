@@ -194,8 +194,16 @@ const routes = (
                   to="integrations/mdm"
                 />
                 <Redirect from="integrations/vpp" to="integrations/mdm" />
+                <Redirect
+                  from="integrations/sso"
+                  to="integrations/sso/fleet-users"
+                />
                 <Route
                   path="integrations/:section"
+                  component={AdminIntegrationsPage}
+                />
+                <Route
+                  path="integrations/sso/:subsection"
                   component={AdminIntegrationsPage}
                 />
                 <Route component={ExcludeInSandboxRoutes}>
@@ -288,16 +296,22 @@ const routes = (
                 <Route path="os-updates" component={OSUpdates} />
                 <Route path="os-settings" component={OSSettings} />
                 <Route path="os-settings/:section" component={OSSettings} />
+
                 <Route path="setup-experience" component={SetupExperience} />
+                <Route
+                  path="setup-experience/:section"
+                  component={SetupExperience}
+                />
+                <Route
+                  path="setup-experience/:section/:platform"
+                  component={SetupExperience}
+                />
+
                 <Route path="scripts">
                   <IndexRedirect to="library" />
                   <Route path=":section" component={Scripts} />
                 </Route>
                 <Route path="variables" component={Secrets} />
-                <Route
-                  path="setup-experience/:section"
-                  component={SetupExperience}
-                />
               </Route>
             </Route>
             <Route

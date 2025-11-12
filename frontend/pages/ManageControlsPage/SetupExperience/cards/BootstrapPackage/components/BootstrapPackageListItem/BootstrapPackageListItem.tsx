@@ -41,7 +41,7 @@ const DownloadPackageButton = ({ url, token, className }: ITestFormProps) => {
     >
       <input type="hidden" name="token" value={token || ""} />
       <Button
-        variant="text-icon"
+        variant="icon"
         type="submit"
         className={`${baseClass}__list-item-button`}
       >
@@ -87,11 +87,11 @@ const BootstrapPackageListItem = ({
           renderChildren={(disabled) => (
             <Button
               className={`${baseClass}__list-item-button`}
-              variant="text-icon"
+              variant="icon"
               disabled={disabled}
               onClick={() => onDelete(bootstrapPackage)}
             >
-              <Icon name="trash" color="ui-fleet-black-75" />
+              <Icon name="trash" />
             </Button>
           )}
         />

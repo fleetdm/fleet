@@ -84,7 +84,7 @@ extract_minimum_version() {
 
 # Fetch the latest macOS version and previous major version
 echo "Fetching latest macOS versions..."
-macos_versions=$(curl -s "https://sofafeed.macadmins.io/v1/macos_data_feed.json" | \
+macos_versions=$(curl -s "https://sofafeed.macadmins.io/v2/macos_data_feed.json" | \
 jq -r '.. | objects | select(has("ProductVersion")) | .ProductVersion' | sort -Vr)
 
 if [ -z "$macos_versions" ]; then
@@ -98,8 +98,11 @@ latest_macos_version=$(echo "$macos_versions" | head -n 1)
 # Extract major version number from latest version (e.g., "15.7" -> "15")
 latest_major_version=$(echo "$latest_macos_version" | cut -d. -f1)
 
-# Calculate previous major version
-previous_major_version=$((latest_major_version - 1))
+# Find all unique major versions in the data
+all_major_versions=$(echo "$macos_versions" | cut -d. -f1 | sort -Vr | uniq)
+
+# Find the previous major version (second highest major version)
+previous_major_version=$(echo "$all_major_versions" | head -n 2 | tail -n 1)
 
 # Find the latest version of the previous major version
 previous_major_latest_version=$(echo "$macos_versions" | grep "^$previous_major_version\." | head -n 1)

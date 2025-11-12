@@ -46,6 +46,9 @@ func TestAndroid(t *testing.T) {
 		{"BulkDeleteMDMAndroidHostProfiles", testBulkDeleteMDMAndroidHostProfiles},
 		{"BatchSetMDMAndroidProfiles_Associations", testBatchSetMDMAndroidProfiles_Associations},
 		{"NewAndroidHostWithIdP", testNewAndroidHostWithIdP},
+		{"AndroidBYODDetection", testAndroidBYODDetection},
+		{"SetAndroidHostUnenrolled", testSetAndroidHostUnenrolled},
+		{"BulkSetAndroidHostsUnenrolled", testBulkSetAndroidHostsUnenrolled},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -172,6 +175,10 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	host.Host.HardwareModel = "hardware_model_updated"
 	host.Host.HardwareVendor = "hardware_vendor_updated"
 	host.Device.AppliedPolicyID = ptr.String("2")
+
+	// Make sure host UUID is preserved during update
+	host.Host.UUID = enterpriseSpecificID
+
 	err = ds.UpdateAndroidHost(testCtx(), host, false)
 	require.NoError(t, err)
 
@@ -179,6 +186,46 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, host.Host.ID, resultLite.Host.ID)
 	assert.EqualValues(t, host.Device, resultLite.Device)
+
+	// Make sure UUID was preserved after update
+	assert.Equal(t, enterpriseSpecificID, resultLite.Host.UUID, "UUID should be preserved after UpdateAndroidHost")
+
+	// Regression: empty UUID doesn't corrupt existing data
+	// This simulates a scenario where updateHost might not set UUID, resulting in empty value
+	t.Run("Empty UUID regression test", func(t *testing.T) {
+		const regressionESID = "regression-uuid-test"
+		regressionHost := createAndroidHost(regressionESID)
+		createdHost, err := ds.NewAndroidHost(testCtx(), regressionHost)
+		require.NoError(t, err)
+		require.Equal(t, regressionESID, createdHost.Host.UUID)
+
+		// Simulate update where UUID might be accidentally cleared
+		hostWithEmptyUUID := createdHost
+		hostWithEmptyUUID.Host.UUID = ""
+		hostWithEmptyUUID.Host.Hostname = "regression-hostname"
+
+		// This should still work but UUID should be empty
+		err = ds.UpdateAndroidHost(testCtx(), hostWithEmptyUUID, false)
+		require.NoError(t, err)
+
+		// UUID is now empty
+		resultAfterBug, err := ds.AndroidHostLite(testCtx(), regressionESID)
+		require.NoError(t, err)
+		assert.Equal(t, "", resultAfterBug.Host.UUID, "UUID should be empty after update without UUID set (documents the bug)")
+
+		// Update with UUID properly set
+		hostWithUUID := resultAfterBug
+		hostWithUUID.Host.UUID = regressionESID
+		hostWithUUID.Host.Hostname = "fixed-hostname"
+
+		err = ds.UpdateAndroidHost(testCtx(), hostWithUUID, false)
+		require.NoError(t, err)
+
+		// UUID is restored
+		resultAfterFix, err := ds.AndroidHostLite(testCtx(), regressionESID)
+		require.NoError(t, err)
+		assert.Equal(t, regressionESID, resultAfterFix.Host.UUID, "UUID should be restored after fix")
+	})
 }
 
 func testAndroidMDMStats(t *testing.T, ds *Datastore) {
@@ -247,7 +294,8 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "")
 	require.NoError(t, err)
-	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 4, EnrolledManualHostsCount: 4}, statusStats)
+	// 3 Android hosts with UUID are counted as personal enrollment, 1 macOS host as manual
+	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 4, EnrolledManualHostsCount: 1, EnrolledPersonalHostsCount: 3}, statusStats)
 	require.Len(t, solutionsStats, 2)
 
 	// both solutions are Fleet
@@ -271,7 +319,8 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "android")
 	require.NoError(t, err)
-	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, EnrolledManualHostsCount: 3}, statusStats)
+	// All 3 Android hosts with UUID are counted as personal enrollment
+	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, EnrolledPersonalHostsCount: 3}, statusStats)
 	require.Len(t, solutionsStats, 1)
 	require.Equal(t, 3, solutionsStats[0].HostsCount)
 	require.Equal(t, serverURL, solutionsStats[0].ServerURL)
@@ -316,7 +365,8 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "android")
 	require.NoError(t, err)
-	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, UnenrolledHostsCount: 2, EnrolledManualHostsCount: 1}, statusStats)
+	// After re-enrollment, 1 Android host with UUID is counted as personal enrollment
+	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, UnenrolledHostsCount: 2, EnrolledPersonalHostsCount: 1}, statusStats)
 	require.Len(t, solutionsStats, 1)
 	require.Equal(t, 1, solutionsStats[0].HostsCount)
 	require.Equal(t, serverURL, solutionsStats[0].ServerURL)
@@ -1269,6 +1319,33 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
 		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
 	}, profs)
+
+	// Turn off MDM on host 2 - it should no longer have any operations listed
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm SET enrolled=0 WHERE host_id=?`, hosts[2].ID)
+		return err
+	})
+
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Empty(t, toRemoveProfs)
+	require.Len(t, profs, 4)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
+	}, profs)
+
+	// Turn off MDM on host 0 - no more profiles to send
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm SET enrolled=0 WHERE host_id=?`, hosts[0].ID)
+		return err
+	})
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Empty(t, profs)
+	require.Empty(t, toRemoveProfs)
 }
 
 func testGetMDMAndroidProfilesContents(t *testing.T, ds *Datastore) {
@@ -1866,4 +1943,206 @@ func testNewAndroidHostWithIdP(t *testing.T, ds *Datastore) {
 	emails, err = ds.GetHostEmails(ctx, "test-host-uuid", fleet.DeviceMappingMDMIdpAccounts)
 	require.NoError(t, err)
 	require.Empty(t, emails, "IdP email should be removed when association is deleted")
+}
+
+func testAndroidBYODDetection(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.AddBuiltinLabels(t, ds)
+
+	// Test 1: Android host with non-empty UUID (BYOD/personal device)
+	t.Run("personal enrollment with UUID", func(t *testing.T) {
+		const enterpriseID = "test-enterprise-id-byod"
+		host := createAndroidHost(enterpriseID)
+		// Ensure UUID is set (createAndroidHost already does this)
+		require.NotEmpty(t, host.Host.UUID)
+		require.Equal(t, enterpriseID, host.Host.UUID)
+
+		result, err := ds.NewAndroidHost(ctx, host)
+		require.NoError(t, err)
+		require.NotZero(t, result.Host.ID)
+
+		// Query host_mdm table directly to verify is_personal_enrollment = 1
+		var isPersonalEnrollment bool
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &isPersonalEnrollment,
+			`SELECT is_personal_enrollment FROM host_mdm WHERE host_id = ?`,
+			result.Host.ID)
+		require.NoError(t, err)
+		assert.True(t, isPersonalEnrollment, "BYOD device with UUID should have is_personal_enrollment = 1")
+	})
+
+	// Test 2: Android host without UUID (company-owned device)
+	t.Run("company enrollment without UUID", func(t *testing.T) {
+		const enterpriseID = "test-enterprise-id-company"
+		host := createAndroidHost(enterpriseID)
+		// Override UUID to be empty to simulate company-owned device
+		host.Host.UUID = ""
+
+		result, err := ds.NewAndroidHost(ctx, host)
+		require.NoError(t, err)
+		require.NotZero(t, result.Host.ID)
+
+		// Query host_mdm table directly to verify is_personal_enrollment = 0
+		var isPersonalEnrollment bool
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &isPersonalEnrollment,
+			`SELECT is_personal_enrollment FROM host_mdm WHERE host_id = ?`,
+			result.Host.ID)
+		require.NoError(t, err)
+		assert.False(t, isPersonalEnrollment, "Company device without UUID should have is_personal_enrollment = 0")
+	})
+
+	// Test 3: Verify update path also sets personal enrollment correctly
+	t.Run("update existing host enrollment status", func(t *testing.T) {
+		// Create a host initially without UUID
+		const enterpriseID = "test-enterprise-id-update"
+		host := createAndroidHost(enterpriseID)
+		host.Host.UUID = ""
+
+		result, err := ds.NewAndroidHost(ctx, host)
+		require.NoError(t, err)
+		require.NotZero(t, result.Host.ID)
+
+		// Initially should not be personal enrollment
+		var isPersonalEnrollment bool
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &isPersonalEnrollment,
+			`SELECT is_personal_enrollment FROM host_mdm WHERE host_id = ?`,
+			result.Host.ID)
+		require.NoError(t, err)
+		assert.False(t, isPersonalEnrollment, "Initially should not be personal enrollment")
+
+		// Update the host with a UUID (simulating re-enrollment as BYOD)
+		result.Host.UUID = enterpriseID
+		err = ds.UpdateAndroidHost(ctx, result, true) // fromEnroll = true to trigger MDM info update
+		require.NoError(t, err)
+
+		// Now should be marked as personal enrollment
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &isPersonalEnrollment,
+			`SELECT is_personal_enrollment FROM host_mdm WHERE host_id = ?`,
+			result.Host.ID)
+		require.NoError(t, err)
+		assert.True(t, isPersonalEnrollment, "After update with UUID should have is_personal_enrollment = 1")
+	})
+}
+
+// NEW TEST: verify single-host unenroll updates host_mdm correctly
+func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
+	// Set a non-empty server URL so initial enrolled row has data to clear
+	appCfg, err := ds.AppConfig(testCtx())
+	require.NoError(t, err)
+	appCfg.ServerSettings.ServerURL = "https://mdm.example.com"
+	require.NoError(t, ds.SaveAppConfig(testCtx(), appCfg))
+
+	// Create an Android host (this also upserts an enrolled host_mdm row)
+	esid := "enterprise-" + uuid.NewString()
+	h := createAndroidHost(esid)
+	res, err := ds.NewAndroidHost(testCtx(), h)
+	require.NoError(t, err)
+
+	// Sanity check initial host_mdm values
+	var enrolled int
+	var serverURL string
+	var mdmIDIsNull int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &enrolled, `SELECT enrolled FROM host_mdm WHERE host_id = ?`, res.Host.ID)
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &serverURL, `SELECT server_url FROM host_mdm WHERE host_id = ?`, res.Host.ID)
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &mdmIDIsNull, `SELECT CASE WHEN mdm_id IS NULL THEN 1 ELSE 0 END FROM host_mdm WHERE host_id = ?`, res.Host.ID)
+	})
+	require.Equal(t, 1, enrolled)
+	require.NotEmpty(t, serverURL)
+	require.Equal(t, 0, mdmIDIsNull)
+
+	upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-1", &fleet.MDMDeliveryPending)
+	upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-2", &fleet.MDMDeliveryPending)
+
+	// Perform single-host unenroll
+	didUnenroll, err := ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
+	require.NoError(t, err)
+	require.True(t, didUnenroll)
+
+	// Calling unenrolled again returns false
+	didUnenroll, err = ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
+	require.NoError(t, err)
+	require.False(t, didUnenroll)
+
+	profileCountForHost := 0
+
+	// Validate host_mdm row updated
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &enrolled, `SELECT enrolled FROM host_mdm WHERE host_id = ?`, res.Host.ID)
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &serverURL, `SELECT server_url FROM host_mdm WHERE host_id = ?`, res.Host.ID)
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &mdmIDIsNull, `SELECT CASE WHEN mdm_id IS NULL THEN 1 ELSE 0 END FROM host_mdm WHERE host_id = ?`, res.Host.ID)
+	})
+	// validate profile records deleted
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &profileCountForHost, `SELECT COUNT(*) FROM host_mdm_android_profiles WHERE host_uuid=?`, res.Host.UUID)
+	})
+	assert.Equal(t, 0, enrolled)
+	assert.Equal(t, "", serverURL)
+	assert.Equal(t, 1, mdmIDIsNull)
+	assert.Equal(t, 0, profileCountForHost)
+}
+
+func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
+	// Set a non-empty server URL so initial enrolled row has data to clear
+	appCfg, err := ds.AppConfig(testCtx())
+	require.NoError(t, err)
+	appCfg.ServerSettings.ServerURL = "https://mdm.example.com"
+	require.NoError(t, ds.SaveAppConfig(testCtx(), appCfg))
+
+	// Create 5 android hosts
+	for i := 0; i < 5; i++ {
+		esid := "enterprise-" + uuid.NewString()
+		h := createAndroidHost(esid)
+		res, err := ds.NewAndroidHost(testCtx(), h)
+		require.NoError(t, err)
+
+		upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-1", &fleet.MDMDeliveryPending)
+		upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-2", &fleet.MDMDeliveryPending)
+	}
+
+	// Create a macOS host (to verify we don't unenroll non-Android hosts)
+	macHost, err := ds.NewHost(testCtx(), &fleet.Host{
+		Hostname:       "test-host1-name",
+		OsqueryHostID:  ptr.String("1337"),
+		NodeKey:        ptr.String("1337"),
+		UUID:           "test-uuid-1",
+		Platform:       "darwin",
+		HardwareSerial: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, macHost, false)
+	err = ds.MDMAppleUpsertHost(testCtx(), macHost, false)
+	require.NoError(t, err)
+
+	// Initial sanity check
+	enrolledCount := 0
+	androidHostProfileCount := 0
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &enrolledCount, `SELECT COUNT(*) FROM host_mdm WHERE enrolled = 1`)
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &androidHostProfileCount, `SELECT COUNT(*) FROM host_mdm_android_profiles`)
+	})
+	assert.Equal(t, 10, androidHostProfileCount)
+	require.Equal(t, 6, enrolledCount) // 5 android + 1 macOS
+
+	err = ds.BulkSetAndroidHostsUnenrolled(testCtx())
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &enrolledCount, `SELECT COUNT(*) FROM host_mdm WHERE enrolled = 1`)
+	})
+	require.Equal(t, 1, enrolledCount)
+
+	// validate profile records deleted
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &androidHostProfileCount, `SELECT COUNT(*) FROM host_mdm_android_profiles`)
+	})
+	assert.Equal(t, 0, androidHostProfileCount)
 }

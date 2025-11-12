@@ -3,12 +3,15 @@
   flex-direction: column;
   align-items: center;
   border-radius: $border-radius-medium;
-  background-color: $ui-fleet-blue-10;
+  background-color: $core-fleet-white;
   border: 1px solid $ui-fleet-black-10;
   padding: $pad-xlarge $pad-large;
   font-size: $x-small;
   text-align: center;
-  gap: $pad-small;
+
+  .content-wrapper {
+    @include content-wrapper();
+  }
 
   // when the file preview is showing, we want the padding to be
   // slightly smaller on the top and bottom.
@@ -18,7 +21,7 @@
 
   &__graphics {
     display: flex;
-    align-items: center;
+    justify-content: center;
     gap: $pad-medium;
   }
   &__message {
@@ -39,7 +42,8 @@
     // we handle the padding in the label so the entire button is clickable
     padding: 0;
 
-    label {
+    label,
+    span {
       padding: $pad-small $pad-medium;
       display: flex;
       align-items: center;

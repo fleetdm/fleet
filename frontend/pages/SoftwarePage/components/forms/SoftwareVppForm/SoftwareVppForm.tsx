@@ -117,7 +117,7 @@ interface ISoftwareVppFormProps {
   onSubmit: (formData: ISoftwareVppFormData) => void;
   isLoading?: boolean;
   onCancel: () => void;
-  onClickPreviewEndUserExperience: () => void;
+  onClickPreviewEndUserExperience: (isIosOrIpadosApp: boolean) => void;
 }
 
 const SoftwareVppForm = ({
@@ -263,8 +263,11 @@ const SoftwareVppForm = ({
                 onToggleSelfService={onToggleSelfServiceCheckbox}
                 onSelectCategory={onSelectCategory}
                 isEditingSoftware
-                onClickPreviewEndUserExperience={
-                  onClickPreviewEndUserExperience
+                onClickPreviewEndUserExperience={() =>
+                  onClickPreviewEndUserExperience(
+                    softwareVppForEdit.platform === "ios" ||
+                      softwareVppForEdit.platform === "ipados"
+                  )
                 }
               />
             </Card>
@@ -316,8 +319,11 @@ const SoftwareVppForm = ({
                 onToggleAutomaticInstall={onToggleAutomaticInstall}
                 onToggleSelfService={onToggleSelfServiceCheckbox}
                 onSelectCategory={onSelectCategory}
-                onClickPreviewEndUserExperience={
-                  onClickPreviewEndUserExperience
+                onClickPreviewEndUserExperience={() =>
+                  onClickPreviewEndUserExperience(
+                    formData.selectedApp?.platform === "ios" ||
+                      formData.selectedApp?.platform === "ipados"
+                  )
                 }
               />
             </Card>

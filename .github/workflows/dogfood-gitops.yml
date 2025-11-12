@@ -1,4 +1,4 @@
-name: 'Apply latest configuration to dogfood with gitops'
+name: 'Apply latest configuration to dogfood with GitOps'
 
 on:
   push:

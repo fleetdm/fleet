@@ -47,6 +47,9 @@ func SetupRedisWithConfig(tb testing.TB, cleanupKeyPrefix string, cluster, redir
 		tb.Skipf("docker networking limitations prevent running redis cluster tests on %s", runtime.GOOS)
 	}
 	if cluster && runtime.GOOS == "darwin" {
+		if _, ok := os.LookupEnv("REDIS_TEST_SKIP_CLUSTER"); ok {
+			tb.Skip("REDIS_TEST_SKIP_CLUSTER set")
+		}
 		tb.Log("running redis cluster test on macOS. Make sure to follow the instructions in testing-and-local-development.md#redis-cluster-on-macOS")
 	}
 	if cleanupKeyPrefix == "" {

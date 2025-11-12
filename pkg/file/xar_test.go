@@ -224,6 +224,20 @@ func TestParseRealDistributionFiles(t *testing.T) {
 				"com.getcoldturkey.blocker-firefox-ext", "com.getcoldturkey.coldturkeyblocker",
 			},
 		},
+		{
+			file:               "distribution-privileges.xml",
+			expectedName:       "Privileges",
+			expectedVersion:    "2.4.0",
+			expectedBundleID:   "corp.sap.privileges",
+			expectedPackageIDs: []string{"corp.sap.privileges.pkg"},
+		},
+		{
+			file:               "distribution-cisco-secure-client.xml",
+			expectedName:       "Cisco Secure Client",
+			expectedVersion:    "5.1.3.62",
+			expectedBundleID:   "com.cisco.secureclient.gui",
+			expectedPackageIDs: []string{"com.cisco.pkg.anyconnect.vpn"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -251,14 +265,14 @@ func TestParsePackageInfoFiles(t *testing.T) {
 	}{
 		{
 			file:               "packageInfo-oktaVerify.xml",
-			expectedName:       "Okta Verify.app",
+			expectedName:       "Okta Verify",
 			expectedVersion:    "9.27.0",
 			expectedBundleID:   "com.okta.mobile",
 			expectedPackageIDs: []string{"com.okta.mobile"},
 		},
 		{
 			file:             "packageInfo-iriunWebcam.xml",
-			expectedName:     "IriunWebcam.app",
+			expectedName:     "IriunWebcam",
 			expectedVersion:  "2.8.10",
 			expectedBundleID: "com.iriun.macwebcam",
 			expectedPackageIDs: []string{
@@ -318,10 +332,14 @@ func TestIsValidAppFilePath(t *testing.T) {
 		{"baz.app", true},
 		{"foo/bar/baz.app", false},
 		{"Applications/baz.app", true},
-		{"Applications/foo/baz.app", false},
+		{"Applications/foo/baz.app", true},
 		{"foo/baz.app", false},
 		{"baz.txt", true},
 		{"Applications/baz.txt", false},
+		{"Applications/Cisco/Cisco Secure Client.app", true},
+		{"Applications/Foo with spaces.app", true},
+		{"Applications/foo", false},
+		{"foo", true},
 	}
 
 	for _, test := range tests {

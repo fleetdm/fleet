@@ -138,6 +138,13 @@ type VulnerabilityWithMetadata struct {
 	Source              VulnerabilitySource `db:"source" json:"-"`
 }
 
+// OSVulnerabilitiesWithCount holds vulnerabilities and their total count for an OS version.
+// This is used when limiting the number of vulnerabilities returned while still providing the total count.
+type OSVulnerabilitiesWithCount struct {
+	Vulnerabilities []CVE
+	Count           int
+}
+
 type VulnListOptions struct {
 	// ListOptions cannot be embedded in order to unmarshall with validation.
 	ListOptions      ListOptions `url:"list_options"`

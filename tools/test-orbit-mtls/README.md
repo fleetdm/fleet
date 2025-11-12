@@ -66,6 +66,8 @@ docker compose -f ./tools/test-orbit-mtls/docker-compose.yml up
 
 The proxy will listen to port 8888 and use TLS client certificates for authentication.
 
+> Note: If you would like to use a public URL, see [public mTLS reverse proxy instructions](../../docs/Contributing/guides/mtls-reverse-proxy-setup.md)
+
 ## 3. Generate Orbit installers with custom flags
 
 ```sh

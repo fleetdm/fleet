@@ -383,21 +383,33 @@ module.exports.custom = {
     'yandex.ru',       'ymail.com',    'zoho.com',         'zonnet.nl'
   ],
 
-  // For website signups & contact form submissions:
+  // For website signups & "Talk to us" form submissions:
   bannedEmailDomainsForWebsiteSubmissions: [
+    'example.com',
     'gmail.com',
+    'hotmail.ca',
+    'hotmail.co.uk',
+    'hotmail.com',
+    'icloud.com',
+    'live.com',
+    'mac.com',
+    'me.com',
+    'msn.com',
+    'outlook.com',
+    'proton.com',
+    'proton.me',
+    'protonmail.com',
+    'qq.com',
     'yahoo.com',
     'yahoo.co.uk',
-    'hotmail.com',
-    'hotmail.co.uk',
-    'hotmail.ca',
-    'outlook.com',
-    'icloud.com',
-    'proton.me',
-    'live.com',
     'yandex.ru',
-    'ymail.com',
-    'qq.com',
+    'ymail.com'
+  ],
+
+  // For contact form submissions.
+  // Note: We're using a separate list for the contact form because we previously allowed signups/license dispenser purchases with a personal email address.
+  bannedEmailDomainsForContactFormSubmissions: [
+    'example.com'
   ],
 
   /***************************************************************************
@@ -409,10 +421,14 @@ module.exports.custom = {
     projects: {
       orchestration: 71,
       mdm: 58,
-      software: 70
+      software: 70,
+      'security-compliance': 97
     },
     excludeWeekends: true
   },
+
+  // Docsearch search-only public key.
+  algoliaPublicKey: 'f3c02b646222734376a5e94408d6fead',// [?]: https://docsearch.algolia.com/docs/legacy/faq/#can-i-share-the-apikey-in-my-repo
 
   // Zapier:
   // zapierWebhookSecret: '…',
@@ -445,6 +461,12 @@ module.exports.custom = {
   // Deal registration form
   // dealRegistrationContactEmailAddress: '…',
 
+  // Render instance trials
+  // renderOwnerId: '…',
+  // renderApiToken: '…',
+  // renderInstancePoolSize: 10,
+  // renderInstanceSesSecretId: '…',
+  // renderInstanceSesSecretKey: '…',
 
   // Microsoft compliance proxy
   // compliancePartnerClientId: '…',

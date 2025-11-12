@@ -1,1 +1,0 @@
-Fixed duplicate enrolled macOS UUIDs/SNs: for macOS, orbit saves hardware UUID to a file and forces a re-enrollment if the hardware UUID has changed. Existing duplicate hosts on the server are unaffected by this agent change.

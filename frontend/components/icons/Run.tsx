@@ -4,7 +4,7 @@ import { COLORS, Colors } from "styles/var/colors";
 interface IRefresh {
   color?: Colors;
 }
-const Run = ({ color = "core-fleet-blue" }: IRefresh) => {
+const Run = ({ color = "ui-fleet-black-75" }: IRefresh) => {
   return (
     <svg
       width="12"

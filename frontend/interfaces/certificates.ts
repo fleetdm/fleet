@@ -78,18 +78,41 @@ export interface ICertificatesCustomSCEP {
   challenge: string;
 }
 
+export interface ICertificatesSmallstep {
+  id?: number;
+  type?: "smallstep";
+  name: string;
+  url: string;
+  challenge_url: string;
+  username: string;
+  password: string;
+}
+
+export interface ICertificatesCustomEST {
+  id?: number;
+  type?: "custom_est_proxy";
+  name: string;
+  url: string;
+  username: string;
+  password: string;
+}
+
 export type ICertificateAuthorityType =
   | "ndes_scep_proxy"
   | "digicert"
   | "custom_scep_proxy"
-  | "hydrant";
+  | "hydrant"
+  | "smallstep"
+  | "custom_est_proxy";
 
 /** all the types of certificates */
 export type ICertificateAuthority =
   | ICertificatesNDES
   | ICertificatesDigicert
   | ICertificatesHydrant
-  | ICertificatesCustomSCEP;
+  | ICertificatesCustomSCEP
+  | ICertificatesSmallstep
+  | ICertificatesCustomEST;
 
 export const isNDESCertAuthority = (
   integration: ICertificateAuthority
@@ -128,5 +151,30 @@ export const isCustomSCEPCertAuthority = (
 ): integration is ICertificatesCustomSCEP => {
   return (
     "name" in integration && "url" in integration && "challenge" in integration
+  );
+};
+
+export const isSmallstepCertAuthority = (
+  integration: ICertificateAuthority
+): integration is ICertificatesSmallstep => {
+  return (
+    "name" in integration &&
+    "url" in integration &&
+    "challenge_url" in integration &&
+    "username" in integration &&
+    "password" in integration
+  );
+};
+
+export const isCustomESTCertAuthority = (
+  integration: ICertificateAuthority
+): integration is ICertificatesCustomEST => {
+  return (
+    "name" in integration &&
+    "url" in integration &&
+    // differentiates from smallstep
+    !("challenge_url" in integration) &&
+    "username" in integration &&
+    "password" in integration
   );
 };

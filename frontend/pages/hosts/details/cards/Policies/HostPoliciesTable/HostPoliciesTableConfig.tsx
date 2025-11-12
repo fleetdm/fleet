@@ -66,7 +66,14 @@ const generatePolicyTableHeaders = (currentTeamId?: number): IDataColumn[] => {
       Cell: (cellProps) => {
         const { name } = cellProps.row.original;
 
-        return <LinkCell customOnClick={noop} tooltipTruncate value={name} />;
+        return (
+          <LinkCell
+            className="w400"
+            customOnClick={noop}
+            tooltipTruncate
+            value={name}
+          />
+        );
       },
     },
     {

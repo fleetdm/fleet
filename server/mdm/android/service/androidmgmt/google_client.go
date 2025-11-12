@@ -186,6 +186,32 @@ func (g *GoogleClient) EnterprisesDevicesPatch(ctx context.Context, deviceName s
 	return ret, nil
 }
 
+func (g *GoogleClient) EnterprisesDevicesGet(ctx context.Context, deviceName string) (*androidmanagement.Device, error) {
+	if g == nil || g.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+	ret, err := g.mgmt.Enterprises.Devices.Get(deviceName).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("getting device %s: %w", deviceName, err)
+	}
+	return ret, nil
+}
+
+func (g *GoogleClient) EnterprisesDevicesDelete(ctx context.Context, deviceName string) error {
+	if g == nil || g.mgmt == nil {
+		return errors.New("android management service not initialized")
+	}
+	_, err := g.mgmt.Enterprises.Devices.Delete(deviceName).Context(ctx).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		g.logger.Log("msg", "Android device already deleted", "device_name", deviceName)
+		return nil
+	case err != nil:
+		return fmt.Errorf("deleting device %s: %w", deviceName, err)
+	}
+	return nil
+}
+
 func (g *GoogleClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken,
 ) (*androidmanagement.EnrollmentToken, error) {
 	if g == nil || g.mgmt == nil {

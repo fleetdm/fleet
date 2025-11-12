@@ -34,6 +34,12 @@ export const generateListData = (
       case "hydrant":
         description = "Hydrant (EST - Enrollment Over Secure Transport) ";
         break;
+      case "smallstep":
+        description = "Smallstep";
+        break;
+      case "custom_est_proxy":
+        description = "Custom Enrollment Over Secure Transport (EST)";
+        break;
       default:
         description = "Unknown Certificate Authority Type";
     }

@@ -55,6 +55,8 @@ Configuration:
 
 > Available in Fleet Premium
 
+Fleet's agents must have [updates enabled](https://fleetdm.com/guides/fleetd-updates) (default), for the end user migration workflow to work.
+
 ![Fleet's MDM migration dialog](../website/assets/images/articles/mdm-migration-dialog-494x327@2x.png)
 
 End user experience:
