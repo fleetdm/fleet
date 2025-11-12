@@ -452,7 +452,7 @@ All issues are treated as standard priority by default. Some issues are assigned
 
 - Urgent: `P2`
   - Examples: A supported workflow is not functioning as intended, a newly drafted feature has an associated urgent Fleet need.
-  - Response: Issue is prioritized at the top of the next sprint. If opporunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
+  - Response: Issue is prioritized at the top of the next sprint. If opportunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
   - Impact: Low to medium impact. If prioritized into current sprint, may reduce overall velocity and require deprioritizing other work.
 
 Any fleetie can follow the process below to add a priority label to an issue.
