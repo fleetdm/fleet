@@ -614,6 +614,26 @@ In brief, this means that as a Fleet team member, you may:
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/finance/spending-company-money/).
 
 
+### Paying back company money
+
+If you have accidentally incurred a charge on your Brex card that was not intended and/or approved, you can initiate a "Repay" process in Brex that would allow you to pay back the company. 
+
+1. Login to [brex.com](http://brex.com/) with your Fleet email and navigate to the "[Wallet](https://dashboard.brex.com/wallet)".
+2. Select the transaction you'd like to repay.
+
+> If you need to split the transaction amount:
+>   - Ensure the transaction is in the "Approved" status. If it's not in "Approved" status yet, wait a few days and retry. 
+>   - Click "Itemize this expense."
+>   - Separate out the amount that needs to be repaid.
+>   - Click "Itemize" and proceed to the next step.
+
+3. On the bottom right-hand side, click on "Repay".
+4. Select the desired bank account and verify the account.
+5. Click "confirm repayment".
+
+After a short period of processing, your transaction will show as “denied”, and this means the repayment is in process. 
+  
+  
 ## Travel
 
 When attending a conference or traveling for Fleet, keep the following in mind:
@@ -666,18 +686,14 @@ Finance will review and process your request within 2 business days.
 
 ### Attending conferences
 
-The Marketing department is responsible for executing and organizing all [marketing-related events](https://fleetdm.com/handbook/marketing#settle-event-strategy). When attending a conference for Fleet, treat it [like other travel for the company](https://fleetdm.com/handbook/company/communications#travel).
-
-The relevant department head should approve and organize all other event types (trainings, developer conferences, meetups, etc.).
+The Marketing department is responsible for executing and organizing all [marketing-related events](https://fleetdm.com/handbook/marketing#settle-event-strategy). When attending a conference for Fleet, treat it [like other travel for the company](https://fleetdm.com/handbook/company/communications#travel). The relevant department head should approve and organize all other event types (trainings, developer conferences, meetups, etc.).
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/8c3eeeb4-f322-44cf-8405-4f94f10fde6d">
 
 
 ### Offsites
 
-From time to time, Fleet organizes offsites to bring team members together in person.  This encourages trust and makes the company more productive.
-
-Offsites are:
+From time to time, Fleet organizes offsites to bring team members together in person.  This encourages trust and makes the company more productive. Offsites are:
   - Attended by a particular [product group](https://fleetdm.com/handbook/company#product-groups), a [department](https://fleetdm.com/handbook/company#org-chart), or a team such as the E-group.
   - Sometimes also attended by founders or other team members on a case-by-case basis.
   - 1-3 full days long (2-4 nights stay).
