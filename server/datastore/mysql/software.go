@@ -1801,15 +1801,27 @@ func countSoftwareDB(
 	}
 
 	// For listing all software, use optimized query starting from software_host_counts
-	countSQL := `
-		SELECT COUNT(DISTINCT shc.software_id)
-		FROM software_host_counts shc
-	`
-
 	// Add joins only if needed for filtering
 	needsSoftwareJoin := opts.ListOptions.MatchQuery != ""
 	needsCVEJoin := opts.VulnerableOnly || opts.ListOptions.MatchQuery != ""
 	needsCVEMetaJoin := opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0
+
+	// Ensure CVE join exists if we need to join cve_meta
+	if needsCVEMetaJoin {
+		needsCVEJoin = true
+	}
+
+	// Use COUNT(*) when no joins are needed (faster since primary key guarantees uniqueness)
+	// Use COUNT(DISTINCT) when joins could create duplicate rows
+	countFunc := "COUNT(*)"
+	if needsSoftwareJoin || needsCVEJoin {
+		countFunc = "COUNT(DISTINCT shc.software_id)"
+	}
+
+	countSQL := fmt.Sprintf(`
+		SELECT %s
+		FROM software_host_counts shc
+	`, countFunc)
 
 	if needsSoftwareJoin {
 		countSQL += ` INNER JOIN software s ON s.id = shc.software_id`
@@ -1830,11 +1842,12 @@ func countSoftwareDB(
 	countSQL += ` WHERE shc.hosts_count > 0`
 
 	// Apply team filtering with global_stats
-	if opts.TeamID == nil {
+	switch {
+	case opts.TeamID == nil:
 		whereClauses = append(whereClauses, "shc.team_id = 0", "shc.global_stats = 1")
-	} else if *opts.TeamID == 0 {
+	case *opts.TeamID == 0:
 		whereClauses = append(whereClauses, "shc.team_id = 0", "shc.global_stats = 0")
-	} else {
+	default:
 		whereClauses = append(whereClauses, "shc.team_id = ?", "shc.global_stats = 0")
 		args = append(args, *opts.TeamID)
 	}
