@@ -186,6 +186,17 @@ spec:
 apiVersion: v1
 kind: query
 spec:
+  name: Get Ubuntu Advantage (Ubuntu Pro) Attachment Status
+  platform: linux
+  description: Checks to see if the Ubuntu Pro status file exists, and ensures attachment and expiry are as expected. Can be used as a policy with a script automation to run the attach command for remediation.
+  query: SELECT 1 FROM parse_json WHERE path = '/var/lib/ubuntu-advantage/status.json' AND ((key = 'attached' AND value = 'true') OR (key = 'expires' AND datetime(value) > datetime('now'))) GROUP BY path HAVING SUM(CASE WHEN key = 'attached' AND value = 'true' THEN 1 ELSE 0 END) = 1 AND SUM(CASE WHEN key = 'expires' AND datetime(value) > datetime('now') THEN 1 ELSE 0 END) = 1;
+  purpose: Informational
+  tags: inventory
+  contributors: GrayW
+---
+apiVersion: v1
+kind: query
+spec:
   name: Get authorized SSH keys
   platform: darwin, linux
   description: Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.
