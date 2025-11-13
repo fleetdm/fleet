@@ -246,6 +246,8 @@ export interface IActivityDetails {
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
+  /** Custom name set per team by admin */
+  software_display_name?: string;
   source?: SoftwareSource;
   specs?: IQuery[] | IPolicy[];
   stats?: ISchedulableQueryStats;

@@ -30,7 +30,10 @@ const VppDetailsModal = ({ details, onCancel }: IVppDetailsModalProps) => {
     >
       <>
         <div className={`${baseClass}__modal-content`}>
-          <DataSet title="Name" value={details.software_title} />
+          <DataSet
+            title="Name"
+            value={details.software_display_name || details.software_title}
+          />
           <DataSet title="App Store ID" value={details.app_store_id} />
           <DataSet
             title="Self-Service"
