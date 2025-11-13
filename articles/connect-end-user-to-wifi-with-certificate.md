@@ -592,7 +592,7 @@ openssl req -new -sha256 -key /opt/company/CustomerUserNetworkAccess.key -out Cu
 fetch_cert -ca <EST-CA-ID> -fleeturl "<Fleet-server-URL>" -csr CustomerUserNetworkAccess.csr -out /opt/company/certificate.pem
 ```
 
-This script assumes that your company installs a custom Company Portal app or something similar at `/opt/company`, gathers the user's IdP session information, uses username and a password to protect the private key from `/opt/company/userinfo`, and installs that the certificate in `/opt/company`. You will want to modify it to match your company's requirements.
+This script assumes that your company installs a custom Company Portal app or something similar at `/opt/company`, gathers the user's IdP session information, uses a username and password to protect the private key from `/opt/company/userinfo`, and installs the certificate in `/opt/company`. You will want to modify it to match your company's requirements.
 
 For simplicity, the scripts use a `userinfo` file (below). However, the best practice is to load variables from the output of a command or even a separate network request:
 
