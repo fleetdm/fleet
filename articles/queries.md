@@ -48,9 +48,11 @@ How to view a query report:
 
 3. If you want to download the query report, select **Export results** to save it as a CSV.
 
-Fleet will store up to 1000 results for each scheduled query to give users a snapshot of query results. If the number of results for a scheduled query is below 1000, then the results will continuously get updated every time the hosts send results to Fleet.
+Fleet will store up to 1000 results for each query. If the number of results stays below 1000, then the results will continuously get updated every time the hosts send results to Fleet. 
 
-> You can tell Fleet to store more than 1000 results in query reports by setting [`server_settings.query_report_cap`](https://fleetdm.com/docs/rest-api/rest-api#server-settings) via [the Modify configuration API endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration).
+If the results exceed 1000, Fleet will stop updating the results. When this happens, you can clear the results so Fleet starts collecting them again. Navigate to the query's page, select **Advanced options**, check **Discard data**, select **Save**, uncheck **Discard data**, and select **Save** again.
+
+> You can tell Fleet to bump the 1000 results limit by setting [`server_settings.query_report_cap`](https://fleetdm.com/docs/rest-api/rest-api#server-settings) via [the Modify configuration API endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration).
 
 Persisting query reports within Fleet creates load on the database, so you'll want to monitor database load as you add queries. If needed, you can disable query reports either globally or per-query.
 
