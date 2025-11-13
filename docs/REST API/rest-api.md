@@ -921,7 +921,7 @@ Returns a PEM-encoded X.509 certificate file with `Content-Type: application/x-p
 
 ### Get Okta configuration profile
 
-Download the Apple configuration profile (.mobileconfig) for Okta conditional access. This profile configures SCEP enrollment and client certificate authentication on Apple devices.
+Download the macOS configuration profile (.mobileconfig) for Okta conditional access. This profile configures SCEP enrollment and client certificate authentication on macOS hosts.
 
 `GET /api/v1/fleet/conditional_access/idp/apple/profile`
 
