@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -210,6 +211,21 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 		return ctxerr.Wrap(ctx, err, "getting checkin info")
 	}
 
+	mdmEnrolledActivity := &fleet.ActivityTypeMDMEnrolled{
+		HostDisplayName:  info.DisplayName,
+		InstalledFromDEP: info.DEPAssignedToFleet,
+		MDMPlatform:      fleet.MDMPlatformApple,
+		Platform:         info.Platform,
+	}
+	if r.Type == mdm.UserEnrollmentDevice {
+		mdmEnrolledActivity.EnrollmentID = ptr.String(m.EnrollmentID)
+	} else {
+		mdmEnrolledActivity.HostSerial = ptr.String(info.HardwareSerial)
+	}
+	err = newActivity(ctx, nil, mdmEnrolledActivity, t.ds, t.logger)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "create mdm enrolled activity")
+	}
 	var tmID *uint
 	if info.TeamID != 0 {
 		tmID = &info.TeamID
