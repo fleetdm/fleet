@@ -1,16 +1,10 @@
-# Install App store apps
+# Install app store apps
 
 _Available in Fleet Premium_
 
-In Fleet, you can install Apple App Store apps on your macOS, iOS, and iPadOS hosts. 
+In Fleet, you can install Apple App Store apps on your macOS, iOS, and iPadOS hosts. To do this, you must first [turn on Apple MDM](https://fleetdm.com/guides/apple-mdm-setup#turn-on-apple-mdm) and Apple's [Volume Purchasing Program (VPP)](https://fleetdm.com/guides/apple-mdm-setup#volume-purchasing-program-vpp).
 
 You can also manage which Google Play Store apps are available for self-serivce in your end user's Android work profiles.
-
-## Apple App Store
-
-* **MDM features**: to use the VPP integration, you must first enable MDM features in Fleet. See the [MDM setup guide](https://fleetdm.com/docs/using-fleet/mdm-setup) for instructions on enabling MDM features.
-
-## Google Play Store
 
 ## Add app
 
@@ -54,7 +48,7 @@ Fleet also provides a REST API for managing App store apps programmatically. Lea
 
 To manage App Store apps using Fleet's best practice GitOps, check out the `app_store_apps` key in [the GitOps reference documentation](https://fleetdm.com/docs/using-fleet/gitops#app-store-apps).
 
-<meta name="articleTitle" value="Install App store apps">
+<meta name="articleTitle" value="Install app store apps">
 <meta name="authorFullName" value="Jahziel Villasana-Espinoza">
 <meta name="authorGitHubUsername" value="jahzielv">
 <meta name="category" value="guides">
