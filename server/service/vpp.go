@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"

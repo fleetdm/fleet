@@ -1,7 +1,6 @@
 package fleet
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 )
