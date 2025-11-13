@@ -1702,7 +1702,7 @@ This activity contains the following fields:
       "id": 17
     }
   ],
-  "configuration": "{\n    "managedConfiguration": {\n        "baseUrl": "https://example.com"\n    }\n}"
+  "configuration": "{\n    \"managedConfiguration\": {\n        \"baseUrl\": \"https://example.com\"\n    }\n}"
 }
 ```
 
