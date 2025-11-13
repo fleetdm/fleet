@@ -347,6 +347,8 @@ type Datastore interface {
 	SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hostID uint, email, source string) ([]*HostDeviceMapping, error)
 	// SetOrUpdateIDPHostDeviceMapping creates or updates an IDP device mapping for a host.
 	SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error
+	// DeleteHostIDP deletes an existing host IDP device mapping.
+	DeleteHostIDP(ctx context.Context, id uint) error
 	// SetOrUpdateHostSCIMUserMapping associates a host with a SCIM user. If a
 	// mapping already exists, it will be updated to the new SCIM user.
 	SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error

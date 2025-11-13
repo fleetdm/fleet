@@ -261,6 +261,8 @@ type SetOrUpdateHostSCIMUserMappingFunc func(ctx context.Context, hostID uint, s
 
 type DeleteHostSCIMUserMappingFunc func(ctx context.Context, hostID uint) error
 
+type DeleteHostIDPFunc func(ctx context.Context, id uint) error
+
 type ListHostBatteriesFunc func(ctx context.Context, id uint) ([]*fleet.HostBattery, error)
 
 type ListUpcomingHostMaintenanceWindowsFunc func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error)
@@ -1960,6 +1962,9 @@ type DataStore struct {
 
 	DeleteHostSCIMUserMappingFunc        DeleteHostSCIMUserMappingFunc
 	DeleteHostSCIMUserMappingFuncInvoked bool
+
+	DeleteHostIDPFunc        DeleteHostIDPFunc
+	DeleteHostIDPFuncInvoked bool
 
 	ListHostBatteriesFunc        ListHostBatteriesFunc
 	ListHostBatteriesFuncInvoked bool
@@ -4808,6 +4813,13 @@ func (s *DataStore) DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) 
 	s.DeleteHostSCIMUserMappingFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostSCIMUserMappingFunc(ctx, hostID)
+}
+
+func (s *DataStore) DeleteHostIDP(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteHostIDPFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostIDPFunc(ctx, id)
 }
 
 func (s *DataStore) ListHostBatteries(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
