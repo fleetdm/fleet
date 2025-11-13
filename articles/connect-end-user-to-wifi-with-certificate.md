@@ -416,7 +416,10 @@ The following steps show how to connect end users to Wi-Fi or VPN with a [custom
 
 When the profile is delivered to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
 
-#### Example configuration profile
+#### Example configuration profiles
+
+<details>
+<summary>Apple configuration profile</summary>
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -441,13 +444,13 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
                         <array>
                           <array>
                             <string>CN</string>
-                            <string>%SerialNumber% WIFI</string>
+                            <string>%SerialNumber% WIFI $FLEET_VAR_SCEP_RENEWAL_ID</string>
                           </array>
                         </array>
                         <array>
                           <array>
                             <string>OU</string>
-                            <string>$FLEET_VAR_SCEP_RENEWAL_ID</string>
+                            <string>FLEET DEVICE MANAGEMENT</string>
                           </array>
                         </array>
                     </array>
@@ -479,6 +482,125 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
 </dict>
 </plist>
 ```
+
+</details>
+<details>
+<summary>Windows configuration profile</summary>
+
+To get the CAThumbprint of your SCEP server, see the [advanced section](#how-to-get-the-cathumbprint-for-windows-scep-profiles) below.
+
+Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp), can be configured with the SCEP profile.
+
+```xml
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">node</Format>
+        </Meta>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/KeyUsage</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">int</Format>
+        </Meta>
+        <Data>160</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/KeyLength</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">int</Format>
+        </Meta>
+        <Data>1024</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/HashAlgorithm</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Data>SHA-1</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/SubjectName</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Data>CN=$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/EKUMapping</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Data>1.3.6.1.5.5.7.3.2</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Data>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CA_NAME</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Challenge</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Data>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CA_NAME</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/CAThumbprint</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Data>2133EC6A3CFB8418837BB395188D1A62CA2B96A6</Data>
+    </Item>
+</Add>
+<Exec>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll</LocURI>
+        </Target>
+    </Item>
+</Exec>
+```
+
+> Currently only device scoped SCEP profiles are supported for Windows devices.
+</details>
 
 ## Custom EST (Enrollment over Secure Transport)
 
