@@ -99,7 +99,6 @@ const TooltipWrapper = ({
     delayShowVal = delayShow;
   }
 
-  console.log("clickable", clickable);
   let delayHideVal;
   if ((typeof delayHide === "boolean" && delayHide) || clickable) {
     delayHideVal = DEFAULT_DELAY_MS;
