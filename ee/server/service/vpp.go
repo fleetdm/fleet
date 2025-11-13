@@ -378,9 +378,6 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		teamName = tm.Name
 	}
 
-	if appID.SelfService && (appID.Platform != fleet.MacOSPlatform && appID.Platform != fleet.AndroidPlatform) {
-		return 0, fleet.NewUserMessageError(errors.New("Currently, self-service is only supported on macOS, Android, Windows, and Linux. Please add the app without self_service and manually install it on the Host details page."), http.StatusBadRequest)
-	}
 	if appID.AddAutoInstallPolicy && appID.Platform != fleet.MacOSPlatform {
 		return 0, fleet.NewUserMessageError(errors.New("Currently, automatic install is only supported on macOS, Windows, and Linux. Please add the app without automatic_install and manually install it on the Host details page."), http.StatusBadRequest)
 	}
