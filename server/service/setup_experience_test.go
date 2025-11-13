@@ -25,7 +25,7 @@ func TestSetupExperienceAuth(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error {
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script, allowUpdate bool) error {
 		return nil
 	}
 
