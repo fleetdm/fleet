@@ -3518,17 +3518,33 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	}
 
 	var hasSetupExpItems bool
+	enqueueSetupExperienceItems := false
+
 	if m.AwaitingConfiguration {
-		// Always run setup experience on non-macOS hosts(i.e. iOS/iPadOS), only run it on macOS if
-		// this is not an ABM MDM migration
-		if info.Platform != "darwin" || !info.MigrationInProgress {
-			// Enqueue setup experience items and mark the host as being in setup experience
-			hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, info.Platform, r.ID, info.TeamID)
-			if err != nil {
-				return ctxerr.Wrap(r.Context, err, "queueing setup experience tasks")
-			}
-		} else {
+		if info.MigrationInProgress {
 			svc.logger.Log("info", "skipping setup experience enqueueing because DEP migration is in progress", "host_uuid", r.ID)
+		} else {
+			enqueueSetupExperienceItems = true
+		}
+	} else if info.Platform != "darwin" && r.Type == mdm.Device && !info.InstalledFromDEP {
+		// For manual iOS/iPadOS device enrollments, check the `TokenUpdateTally` so that
+		// we only run the setup experience enqueueing once per device.
+		// TODO -- implement checks for setup experience status in case we want to
+		//         retry failed items on restart.
+		nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(r.Context, r.ID)
+		if err != nil {
+			return ctxerr.Wrap(r.Context, err, "getting nanomdm enrollment")
+		}
+		if nanoEnroll != nil && nanoEnroll.TokenUpdateTally == 1 {
+			enqueueSetupExperienceItems = true
+		}
+	}
+
+	if enqueueSetupExperienceItems {
+		// Enqueue setup experience items and mark the host as being in setup experience
+		hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, info.Platform, r.ID, info.TeamID)
+		if err != nil {
+			return ctxerr.Wrap(r.Context, err, "queueing setup experience tasks")
 		}
 	}
 
