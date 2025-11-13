@@ -435,9 +435,8 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}
 
 		if len(assets) == 0 {
-			return 0, ctxerr.New(ctx,
-				fmt.Sprintf("Error: Couldn't add software. %s isn't available in Apple Business Manager. Please purchase license in Apple Business Manager and try again.",
-					appID.AdamID))
+			return 0, fleet.NewInvalidArgumentError("app_store_id",
+				fmt.Sprintf("Error: Couldn't add software. %s isn't available in Apple Business Manager. Please purchase license in Apple Business Manager and try again.", appID.AdamID))
 		}
 
 		asset := assets[0]

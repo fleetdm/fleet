@@ -52,12 +52,12 @@ func Up_20251112191443(tx *sql.Tx) error {
 		return fmt.Errorf("failed to increase size of host_vpp_software_installs .adam_id: %w", err)
 	}
 
-	// Add back all the FKs we deleted above
 	_, err = tx.Exec(`ALTER TABLE vpp_apps_teams MODIFY COLUMN adam_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL`)
 	if err != nil {
 		return fmt.Errorf("failed to increase size of vpp_apps_teams.adam_id: %w", err)
 	}
 
+	// Add back all the FKs we deleted above
 	_, err = tx.Exec(`ALTER TABLE vpp_app_upcoming_activities ADD CONSTRAINT fk_vpp_app_upcoming_activities_adam_id_platform FOREIGN KEY (adam_id, platform) REFERENCES vpp_apps (adam_id, platform)`)
 	if err != nil {
 		return fmt.Errorf("failed to add vpp_app_upcoming_activities.adam_id fk: %w", err)

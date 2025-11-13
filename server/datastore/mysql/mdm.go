@@ -1854,7 +1854,7 @@ func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.
 		return isAppleHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
 	case "android":
 		// Android hosts can only enroll via MDM
-		return true, nil
+		return isAndroidHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
 	default:
 		return false, nil
 	}

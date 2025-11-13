@@ -131,7 +131,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		"POST",
 		"/api/latest/fleet/software/app_store_apps",
 		&addAppStoreAppRequest{AppStoreID: "com.valid.app.id"},
-		http.StatusInternalServerError,
+		http.StatusUnprocessableEntity,
 	)
 	require.Contains(t, extractServerErrorText(r.Body), "Error: Couldn't add software. com.valid.app.id isn't available in Apple Business Manager. Please purchase license in Apple Business Manager and try again.")
 

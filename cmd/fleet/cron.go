@@ -727,7 +727,12 @@ func newWorkerIntegrationsSchedule(
 		Datastore: ds,
 		Log:       logger,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify)
+	softwareWorker := &worker.SoftwareWorker{
+		Datastore:     ds,
+		Log:           logger,
+		AndroidModule: androidModule,
+	}
+	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify, softwareWorker)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL

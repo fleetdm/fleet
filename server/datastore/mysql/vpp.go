@@ -819,7 +819,7 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 			selectStmt = `
 				   SELECT id
 				   FROM software_titles
-				   WHERE application_id = ? AND additional_identifier IS NULL`
+				   WHERE application_id = ? AND additional_identifier IS NULL AND source = 'android_apps'`
 			selectArgs = []any{app.BundleIdentifier}
 			insertStmt = `INSERT INTO software_titles (name, source, application_id, extension_for) VALUES (?, ?, ?, '')`
 		default:
