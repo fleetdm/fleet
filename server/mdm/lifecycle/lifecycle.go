@@ -185,9 +185,11 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 		return ctxerr.Wrap(ctx, err, "retrieving nano enrollment info")
 	}
 
+	userEnrollmentDeviceType := mdm.EnrollType(mdm.UserEnrollmentDevice).String()
+
 	if nanoEnroll == nil ||
 		!nanoEnroll.Enabled ||
-		!(nanoEnroll.Type == mdm.EnrollType(mdm.Device).String() || nanoEnroll.Type == mdm.EnrollType(mdm.UserEnrollmentDevice).String()) ||
+		!(nanoEnroll.Type == mdm.EnrollType(mdm.Device).String() || nanoEnroll.Type == userEnrollmentDeviceType) ||
 		nanoEnroll.TokenUpdateTally != 1 {
 		// something unexpected, so we skip the turn on
 		// and log the details for debugging
@@ -211,21 +213,25 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 		return ctxerr.Wrap(ctx, err, "getting checkin info")
 	}
 
-	mdmEnrolledActivity := &fleet.ActivityTypeMDMEnrolled{
-		HostDisplayName:  info.DisplayName,
-		InstalledFromDEP: info.DEPAssignedToFleet,
-		MDMPlatform:      fleet.MDMPlatformApple,
-		Platform:         info.Platform,
+	// create MDM enrolled activity if not in the middle of a SCEP renewal
+	if !info.SCEPRenewalInProgress {
+		mdmEnrolledActivity := &fleet.ActivityTypeMDMEnrolled{
+			HostDisplayName:  info.DisplayName,
+			InstalledFromDEP: info.DEPAssignedToFleet,
+			MDMPlatform:      fleet.MDMPlatformApple,
+			Platform:         info.Platform,
+		}
+		if nanoEnroll.Type == userEnrollmentDeviceType {
+			mdmEnrolledActivity.EnrollmentID = ptr.String(opts.UserEnrollmentID)
+		} else {
+			mdmEnrolledActivity.HostSerial = ptr.String(info.HardwareSerial)
+		}
+		err = t.newActivityFunc(ctx, nil, mdmEnrolledActivity, t.ds, t.logger)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "create mdm enrolled activity")
+		}
 	}
-	if r.Type == mdm.UserEnrollmentDevice {
-		mdmEnrolledActivity.EnrollmentID = ptr.String(m.EnrollmentID)
-	} else {
-		mdmEnrolledActivity.HostSerial = ptr.String(info.HardwareSerial)
-	}
-	err = newActivity(ctx, nil, mdmEnrolledActivity, t.ds, t.logger)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "create mdm enrolled activity")
-	}
+
 	var tmID *uint
 	if info.TeamID != 0 {
 		tmID = &info.TeamID
