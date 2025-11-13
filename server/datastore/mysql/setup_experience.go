@@ -609,9 +609,9 @@ func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet
 			if err != nil && !fleet.IsNotFound(err) {
 				return err
 			}
-			// fall through on notFound err - nothing to do
+			// We will fall through on a notFound err - nothing to do here
 			if err == nil {
-				if gotSetupExperienceScript.ScriptContentID != uint(id) {
+				if gotSetupExperienceScript.ScriptContentID != uint(id) { // nolint:gosec // dismiss G115 - low risk here
 					err = ds.deleteSetupExperienceScript(ctx, tx, script.TeamID)
 					if err != nil {
 						return err
