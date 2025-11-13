@@ -1035,7 +1035,7 @@ CREATE TABLE `host_users` (
 CREATE TABLE `host_vpp_software_installs` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `host_id` int unsigned NOT NULL,
-  `adam_id` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `adam_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
   `user_id` int unsigned DEFAULT NULL,
   `self_service` tinyint(1) NOT NULL DEFAULT '0',
@@ -2826,7 +2826,7 @@ CREATE TABLE `vpp_app_team_software_categories` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `vpp_app_upcoming_activities` (
   `upcoming_activity_id` bigint unsigned NOT NULL,
-  `adam_id` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `adam_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `platform` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
   `vpp_token_id` int unsigned DEFAULT NULL,
   `policy_id` int unsigned DEFAULT NULL,
