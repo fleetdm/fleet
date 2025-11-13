@@ -1410,15 +1410,23 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 		args = append(args, *opts.TeamID)
 	}
 
-	// Apply ordering for inner and outer queries
-	direction := "DESC"
-	if opts.ListOptions.OrderDirection == fleet.OrderAscending {
-		direction = "ASC"
+	// Determine sort direction
+	// Default is ascending per API docs, except for hosts_count where descending is the default
+	orderKey := opts.ListOptions.OrderKey
+	if orderKey == "" {
+		orderKey = "hosts_count"
 	}
 
+	direction := "ASC"
+	if opts.ListOptions.OrderDirection == fleet.OrderDescending ||
+		orderKey == "hosts_count" && opts.ListOptions.OrderDirection != fleet.OrderAscending {
+		direction = "DESC"
+	}
+
+	// Apply ordering for inner and outer queries
 	var innerOrderBy, outerOrderBy string
-	switch opts.ListOptions.OrderKey {
-	case "hosts_count", "":
+	switch orderKey {
+	case "hosts_count":
 		innerOrderBy = "shc.hosts_count " + direction
 		outerOrderBy = "s.hosts_count " + direction
 	case "name":
