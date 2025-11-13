@@ -3854,7 +3854,7 @@ func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID
 	)
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// First, delete any existing IDP mappings for this host (both sources)
+		// First, delete any existing IDP mappings for this host from both mdm_idp and idp sources
 		if _, err := tx.ExecContext(ctx, delStmt, hostID, fleet.DeviceMappingIDP); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete existing IDP device mappings")
 		}
@@ -3874,8 +3874,10 @@ func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID
 func (ds *Datastore) DeleteHostIDP(ctx context.Context, id uint) error {
 	delStmt := `DELETE FROM host_emails WHERE host_id = ? AND source = ?`
 
+	// delete rows from host_emails
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var idpDelRes, mdmIdpDelRes sql.Result
+		// delete where source == "idp"
 		idpDelRes, err := tx.ExecContext(ctx, delStmt, id, fleet.DeviceMappingIDP)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete existing IdP device mappings")
@@ -3885,6 +3887,7 @@ func (ds *Datastore) DeleteHostIDP(ctx context.Context, id uint) error {
 			return ctxerr.Wrap(ctx, err, "delete existing IdP device mappings - get IdP rows affected")
 		}
 
+		// delete where source == "mdm_idp_accounts"
 		mdmIdpDelRes, err = tx.ExecContext(ctx, delStmt, id, fleet.DeviceMappingMDMIdpAccounts)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete existing MDM IdP device mappings")
@@ -3898,6 +3901,8 @@ func (ds *Datastore) DeleteHostIDP(ctx context.Context, id uint) error {
 			return fleet.NewInvalidArgumentError("delete host IdP mapping", "no existing IdP mappings for this host")
 		}
 
+		// remove an scim associations, if present. Note that this will not delete the associated row in
+		// scim_users, if it exists
 		if err := deleteHostSCIMUserMapping(ctx, tx, id); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete existing host SCIM user mapping")
 		}
