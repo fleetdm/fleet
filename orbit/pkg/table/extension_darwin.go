@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tcc_access"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
 	"github.com/macadmins/osquery-extension/tables/crowdstrike_falcon"
+	"github.com/macadmins/osquery-extension/tables/wifi_network"
 	"github.com/rs/zerolog/log"
 
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
@@ -77,6 +78,12 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("crowdstrike_falcon", crowdstrike_falcon.CrowdstrikeFalconColumns(),
 			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 				return crowdstrike_falcon.CrowdstrikeFalconGenerate(ctx, queryContext, opts.Socket)
+			},
+		),
+		table.NewPlugin(
+			"wifi_network", wifi_network.WifiNetworkColumns(),
+			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
+				return wifi_network.WifiNetworkGenerate(ctx, queryContext, opts.Socket)
 			},
 		),
 		// osquery version 5.5.0 and up ships a unified_log table in core
