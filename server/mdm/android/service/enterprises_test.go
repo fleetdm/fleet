@@ -232,11 +232,6 @@ type mockService struct {
 	fleet.Service
 }
 
-// NewActivity mocks the fleet.Service method.
-func (m *mockService) NewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
-	return nil
-}
-
 func TestGetEnterprise(t *testing.T) {
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	user := &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
