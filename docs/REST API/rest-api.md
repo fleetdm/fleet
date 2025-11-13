@@ -9523,6 +9523,7 @@ Get a list of all software.
       "id": 12,
       "name": "Firefox.app",
       "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
+      "display_name": "",
       "software_package": {
         "platform": "darwin",
         "fleet_maintained_app_id": 42,
@@ -9563,6 +9564,8 @@ Get a list of all software.
     {
       "id": 22,
       "name": "Google Chrome.app",
+      "icon_url": null,
+      "display_name": "",
       "software_package": null,
       "app_store_app": null,
       "versions_count": 5,
@@ -9595,6 +9598,8 @@ Get a list of all software.
     {
       "id": 32,
       "name": "1Password – Password Manager",
+      "icon_url": null,
+      "display_name": "",
       "software_package": null,
       "app_store_app": null,
       "versions_count": 1,
@@ -9613,6 +9618,8 @@ Get a list of all software.
     {
       "id": 77,
       "name": "Prettier",
+      "icon_url": null,
+      "display_name": "",
       "software_package": null,
       "app_store_app": null,
       "versions_count": 2,
