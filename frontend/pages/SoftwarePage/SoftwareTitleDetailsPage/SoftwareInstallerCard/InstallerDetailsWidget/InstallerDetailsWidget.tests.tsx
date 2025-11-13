@@ -21,8 +21,9 @@ describe("InstallerDetailsWidget", () => {
     softwareName: "Test Software",
     installerType: "package" as const,
     addedTimestamp: "2024-05-06T10:00:00Z",
-    versionInfo: <span>v1.2.3</span>,
+    version: "v1.2.3",
     isFma: false,
+    isScriptPackage: false,
   };
 
   it("renders the package icon when installerType is 'package'", () => {
@@ -39,6 +40,30 @@ describe("InstallerDetailsWidget", () => {
   it("renders version info and relative time when addedTimestamp is present", () => {
     render(<InstallerDetailsWidget {...defaultProps} />);
     expect(screen.getByText("v1.2.3")).toBeInTheDocument();
+    expect(screen.getByText(/2 days ago/i)).toBeInTheDocument();
+  });
+
+  it("does not render Version (unknown) info for a script package", () => {
+    render(
+      <InstallerDetailsWidget
+        {...defaultProps}
+        version={undefined}
+        isScriptPackage
+      />
+    );
+    expect(screen.queryByText(/Version \(unknown\)/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/2 days ago/i)).toBeInTheDocument();
+  });
+
+  it("renders Version (unknown) info for a non-script package with no version info", () => {
+    render(
+      <InstallerDetailsWidget
+        {...defaultProps}
+        version={undefined}
+        isScriptPackage={false}
+      />
+    );
+    expect(screen.getByText(/Version \(unknown\)/i)).toBeInTheDocument();
     expect(screen.getByText(/2 days ago/i)).toBeInTheDocument();
   });
 

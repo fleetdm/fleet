@@ -53,6 +53,9 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 		if strings.Contains(errText, "password reset required") {
 			return ErrPasswordResetRequired
 		}
+		if strings.Contains(errText, "END_USER_AUTH_REQUIRED") {
+			return ErrEndUserAuthRequired
+		}
 		return ErrUnauthenticated
 	case http.StatusPaymentRequired:
 		return ErrMissingLicense

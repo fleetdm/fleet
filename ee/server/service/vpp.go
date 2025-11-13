@@ -72,19 +72,21 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		// Currently only macOS is supported for self-service. Don't
 		// import vpp apps as self-service for ios or ipados
 		payloadsWithPlatform = append(payloadsWithPlatform, []fleet.VPPBatchPayloadWithPlatform{{
-			AppStoreID:       payload.AppStoreID,
-			SelfService:      false,
-			Platform:         fleet.IOSPlatform,
-			LabelsExcludeAny: payload.LabelsExcludeAny,
-			LabelsIncludeAny: payload.LabelsIncludeAny,
-			Categories:       payload.Categories,
+			AppStoreID:         payload.AppStoreID,
+			SelfService:        payload.SelfService,
+			InstallDuringSetup: payload.InstallDuringSetup,
+			Platform:           fleet.IOSPlatform,
+			LabelsExcludeAny:   payload.LabelsExcludeAny,
+			LabelsIncludeAny:   payload.LabelsIncludeAny,
+			Categories:         payload.Categories,
 		}, {
-			AppStoreID:       payload.AppStoreID,
-			SelfService:      false,
-			Platform:         fleet.IPadOSPlatform,
-			LabelsExcludeAny: payload.LabelsExcludeAny,
-			LabelsIncludeAny: payload.LabelsIncludeAny,
-			Categories:       payload.Categories,
+			AppStoreID:         payload.AppStoreID,
+			SelfService:        payload.SelfService,
+			InstallDuringSetup: payload.InstallDuringSetup,
+			Platform:           fleet.IPadOSPlatform,
+			LabelsExcludeAny:   payload.LabelsExcludeAny,
+			LabelsIncludeAny:   payload.LabelsIncludeAny,
+			Categories:         payload.Categories,
 		}, {
 			AppStoreID:         payload.AppStoreID,
 			SelfService:        payload.SelfService,
@@ -360,7 +362,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 	var teamName string
 	if teamID != nil && *teamID != 0 {
-		tm, err := svc.ds.Team(ctx, *teamID)
+		tm, err := svc.ds.TeamWithExtras(ctx, *teamID)
 		if fleet.IsNotFound(err) {
 			return 0, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
@@ -371,9 +373,6 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		teamName = tm.Name
 	}
 
-	if appID.SelfService && appID.Platform != fleet.MacOSPlatform {
-		return 0, fleet.NewUserMessageError(errors.New("Currently, self-service is only supported on macOS, Windows, and Linux. Please add the app without self_service and manually install it on the Host details page."), http.StatusBadRequest)
-	}
 	if appID.AddAutoInstallPolicy && appID.Platform != fleet.MacOSPlatform {
 		return 0, fleet.NewUserMessageError(errors.New("Currently, automatic install is only supported on macOS, Windows, and Linux. Please add the app without automatic_install and manually install it on the Host details page."), http.StatusBadRequest)
 	}
@@ -418,7 +417,8 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		if exists {
 			return 0, ctxerr.Wrap(ctx, fleet.ConflictError{
 				Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
-					assetMD.TrackName, teamName)}, "vpp app conflicts with existing software installer")
+					assetMD.TrackName, teamName),
+			}, "vpp app conflicts with existing software installer")
 		}
 	}
 
@@ -560,7 +560,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 
 	var teamName string
 	if teamID != nil && *teamID != 0 {
-		tm, err := svc.ds.Team(ctx, *teamID)
+		tm, err := svc.ds.TeamWithExtras(ctx, *teamID)
 		if fleet.IsNotFound(err) {
 			return nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
@@ -579,10 +579,6 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting vpp app metadata")
-	}
-
-	if selfService && meta.Platform != fleet.MacOSPlatform {
-		return nil, fleet.NewUserMessageError(errors.New("Currently, self-service only supports macOS"), http.StatusBadRequest)
 	}
 
 	appToWrite := &fleet.VPPApp{

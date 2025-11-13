@@ -31,6 +31,7 @@ export const getInstallerCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
     version:
       (isPackage ? installerData.version : installerData.latest_version) ||
       null,
+    source: softwareTitle.source,
     addedTimestamp: isPackage
       ? installerData.uploaded_at
       : installerData.created_at,

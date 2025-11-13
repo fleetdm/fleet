@@ -4,6 +4,12 @@
       width: 95px; // Min width for 6 digits host IDs
     }
 
+    .last_fetched__header {
+      .column-header {
+        margin-bottom: 36px; // Fills space where filter is removed
+      }
+    }
+
     .data-table__wrapper {
       overflow-x: scroll;
     }

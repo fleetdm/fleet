@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "1.105.0",
+      "version": "1.105.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Visual Studio Code' AND publisher = 'Microsoft Corporation';"
       },
-      "installer_url": "https://vscode.download.prss.microsoft.com/dbazure/download/stable/03c265b1adee71ac88f833e065f7bb956b60550a/VSCodeSetup-x64-1.105.0.exe",
+      "installer_url": "https://vscode.download.prss.microsoft.com/dbazure/download/stable/7d842fb85a0275a4a8e4d7e040d2625abbf7f084/VSCodeSetup-x64-1.105.1.exe",
       "install_script_ref": "49122823",
       "uninstall_script_ref": "e09509e2",
-      "sha256": "51f02f4e6d8fa9e108be92eaadec94b497c3852eeeac1063d6ce5dec8c6270b9",
+      "sha256": "e1194d043dd8bdda8855acbc8e05373db9b79da918870f6296bf1746f968daaa",
       "default_categories": [
         "Developer tools"
       ]

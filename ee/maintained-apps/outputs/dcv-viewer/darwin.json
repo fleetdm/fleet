@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2024.0.8004",
+      "version": "2025.0.8846",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nicesoftware.dcvviewer';"
       },
-      "installer_url": "https://d1uj6qtbmh3dt5.cloudfront.net/2024.0/Clients/nice-dcv-viewer-2024.0.8004.arm64.dmg",
+      "installer_url": "https://d1uj6qtbmh3dt5.cloudfront.net/2025.0/Clients/nice-dcv-viewer-2025.0.8846.arm64.dmg",
       "install_script_ref": "60d5492f",
       "uninstall_script_ref": "881f68dc",
-      "sha256": "67dfa6f184794373a490d5d7ae1ae00b5db80d710c946f8be1ee210d12e54a05",
+      "sha256": "0f7e0d840b87f2f465e57923906c7926fdcd427b557ffb113670cefbb924bf81",
       "default_categories": [
         "Communication"
       ]

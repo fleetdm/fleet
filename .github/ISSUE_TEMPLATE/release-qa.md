@@ -3,7 +3,7 @@ name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
 labels: '#g-mdm,#g-orchestration,#g-software,#g-security-compliance,:release'
-assignees: 'xpkoala,pezhub,jmwatts,andreykizimenko'
+assignees: 'xpkoala,jmwatts,andreykizimenko'
 
 ---
 
@@ -70,6 +70,13 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
  
 </td><td>pass/fail</td></tr>
 
+<tr><td>GitOps and generate-gitops</td><td>
+
+1. `fleetctl generate-gitops` from a version-matched fleetctl successfully outputs YAML from a brand new Fleet server (net of auto-populated teams etc.).
+2. Running GitOps succeeds on the files created in the previous step, either using the `gitops.sh` script directly (from the `fleet-gitops` repo) or by using the GitOps GitHub or GitLab workflow (attempting via one of these three is sufficient).
+ 
+</td><td>pass/fail</td></tr>
+
 </table>
 
 ### MDM
@@ -80,7 +87,8 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
   
 1. Erase an ADE-eligible macOS host and verify able to complete automated enrollment flow.
 2. With Windows MDM turned On, enroll a Windows host and verify MDM is turned On for the host.
-3. Verify able to run MDM commands on both macOS and Windows hosts from the CLI.
+3. Erase an Auto-Pilot enabled Windows host and complete automated enrollment flow.
+4. Verify able to run MDM commands on both macOS and Windows hosts from the CLI.
 </td><td>pass/fail</td></tr>
 
 <tr><td>MDM migration flow</td><td>Verify MDM migration for ADE and non-ADE hosts</td><td>
@@ -113,14 +121,42 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 <tr><td>iOS/iPadOS</td><td>Verify enrollment, profiles, & software installs</td><td>
 
 1. Verify ADE enrollment.
-2. Verify OTA enrollment.
-3. Verify Profiles are delivered to host and applied.
-4. Verify VPP apps install & display correctly in Activity feed.
-5. Verify `Turn Off MDM` for BYOD & ADE hosts.
+2. Verify BYOD OTA enrollment.
+3. Verify BYOD Account-driven user enrollment (AppleID).
+4. Verify Profiles are delivered to host and applied.
+5. Verify VPP apps install & display correctly in Activity feed.
+6. Verify `Turn Off MDM` for BYOD & ADE hosts.
  
 </td><td>pass/fail</td></tr>
 
-<tr><td>Certificates Upload</td><td>APNs cert and ABM token renewal workflow</td><td>
+<tr><td>Android</td><td>Verify enrollment, profiles, & software installs</td><td>
+
+1. Verify BYOD enrollment.
+2. Verify Profiles are delivered to host and applied.
+3. Verify apps install.
+4. Verify `Unenroll`.
+ 
+</td><td>pass/fail</td></tr>
+
+<tr><td>Certificate Authorities</td><td>Verify setup and certificate delivery</td><td>
+
+1. Configure and verify that certificates deploy to hosts with the following CAs:
+    1. DigiCert
+    3. NDES
+    4. SmallStep
+ 
+</td><td>pass/fail</td></tr>
+
+<tr><td>IdP Provisioning (SCIM)</td><td>Verify host vitals sync</td><td>
+
+1. Configure and verify provisioning with the following IdPs:
+    1. Okta
+    3. Entra
+    4. Hydrant/Google
+ 
+</td><td>pass/fail</td></tr>
+
+<tr><td>Token & Certificate Renewals</td><td>APNs cert and ABM token renewal workflow</td><td>
 
 1. Renew APNs Certificate.
 2. Renew ABM Token.
@@ -207,8 +243,7 @@ Using the github action https://github.com/fleetdm/fleet/actions/workflows/db-up
 <tr><td>OS updates</td><td>Verify OS updates flow</td><td>
 
 1. Configure OS updates (macOS & Windows).
-2. Verify on-device that Nudge prompt appears (macOS 13).
-3. Verify enforce minimumOS occurs during enrollment (macOS 14+).
+2. Verify enforce minimumOS occurs during enrollment (macOS 14+).
 </td><td>pass/fail</td></tr>
 
 <tr><td>Lock & Wipe</td><td>Verify hosts can be locked & wiped</td><td>

@@ -259,12 +259,23 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 		// https://github.com/fleetdm/fleet/issues/34288
 		if r.IsForSoftwarePackage() {
 			softwarePackage := ""
+			var source *string
 			installerMeta, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, *r.SoftwareInstallerID)
 			if err != nil && !fleet.IsNotFound(err) {
 				return ctxerr.Wrap(ctx, err, "getting software installer metadata for cancelled setup experience software install")
 			}
 			if installerMeta != nil {
 				softwarePackage = installerMeta.Name
+				// Get the software title to retrieve the source
+				if installerMeta.TitleID != nil {
+					title, err := svc.ds.SoftwareTitleByID(ctx, *installerMeta.TitleID, nil, fleet.TeamFilter{})
+					if err != nil && !fleet.IsNotFound(err) {
+						return ctxerr.Wrap(ctx, err, "getting software title for cancelled setup experience software install")
+					}
+					if title != nil {
+						source = &title.Source
+					}
+				}
 			}
 			activity := fleet.ActivityTypeInstalledSoftware{
 				HostID:              hostID,
@@ -274,6 +285,7 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 				InstallUUID:         *r.HostSoftwareInstallsExecutionID,
 				Status:              "failed",
 				SelfService:         false,
+				Source:              source,
 				FromSetupExperience: true,
 			}
 			err = svc.NewActivity(ctx, nil, activity)
@@ -295,7 +307,7 @@ func isDeviceReleasedManually(ctx context.Context, ds fleet.Datastore, host *fle
 		}
 		manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 	} else {
-		tm, err := ds.Team(ctx, *host.TeamID)
+		tm, err := ds.TeamWithExtras(ctx, *host.TeamID)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
 		}

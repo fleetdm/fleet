@@ -345,6 +345,15 @@ type Datastore interface {
 	// SetOrUpdateCustomHostDeviceMapping replaces the custom email address
 	// associated with the host with the provided one.
 	SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hostID uint, email, source string) ([]*HostDeviceMapping, error)
+	// SetOrUpdateIDPHostDeviceMapping creates or updates an IDP device mapping for a host.
+	SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error
+	// DeleteHostIDP deletes an existing host IDP device mapping.
+	DeleteHostIDP(ctx context.Context, id uint) error
+	// SetOrUpdateHostSCIMUserMapping associates a host with a SCIM user. If a
+	// mapping already exists, it will be updated to the new SCIM user.
+	SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error
+	// DeleteHostSCIMUserMapping removes the association between a host and a SCIM user.
+	DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) error
 	// ListHostBatteries returns the list of batteries for the given host ID.
 	ListHostBatteries(ctx context.Context, id uint) ([]*HostBattery, error)
 	ListUpcomingHostMaintenanceWindows(ctx context.Context, hid uint) ([]*HostMaintenanceWindow, error)
@@ -518,7 +527,7 @@ type Datastore interface {
 	SaveScheduledQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
 	DeleteScheduledQuery(ctx context.Context, id uint) error
 	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
-	CleanupExpiredHosts(ctx context.Context) ([]uint, error)
+	CleanupExpiredHosts(ctx context.Context) ([]DeletedHostDetails, error)
 	// ScheduledQueryIDsByName loads the IDs associated with the given pack and
 	// query names. It returns a slice of IDs in the same order as
 	// packAndSchedQueryNames, with the ID set to 0 if the corresponding
@@ -546,10 +555,10 @@ type Datastore interface {
 	NewTeam(ctx context.Context, team *Team) (*Team, error)
 	// SaveTeam saves any changes to the team.
 	SaveTeam(ctx context.Context, team *Team) (*Team, error)
-	// Team retrieves the Team by ID.
-	Team(ctx context.Context, tid uint) (*Team, error)
-	// TeamWithoutExtras retrieves the Team by ID without extra fields.
-	TeamWithoutExtras(ctx context.Context, tid uint) (*Team, error)
+	// TeamWithExtras retrieves the Team by ID, including extra fields.
+	TeamWithExtras(ctx context.Context, tid uint) (*Team, error)
+	// TeamLite retrieves a Team by ID, including only id, created_at, name, filename, description, config fields.
+	TeamLite(ctx context.Context, tid uint) (*Team, error)
 	// DeleteTeam deletes the Team by ID.
 	DeleteTeam(ctx context.Context, tid uint) error
 	// TeamByName retrieves the Team by Name.
@@ -651,7 +660,18 @@ type Datastore interface {
 	// IsSoftwareInstallerLabelScoped returns whether or not the given installerID is scoped to the
 	// given host ID by labels.
 	IsSoftwareInstallerLabelScoped(ctx context.Context, installerID, hostID uint) (bool, error)
+
+	// IsVPPAppLabelScoped returns whether or not the given vppAppTeamID is scoped to the given hostID by labels.
 	IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID, hostID uint) (bool, error)
+
+	// IsInHouseAppLabelScoped returns whether or not the given inHouseAppID is scoped to the given hostID by labels.
+	IsInHouseAppLabelScoped(ctx context.Context, inHouseAppID, hostID uint) (bool, error)
+
+	GetUnverifiedInHouseAppInstallsForHost(ctx context.Context, hostUUID string) ([]*HostVPPSoftwareInstall, error)
+	SetInHouseAppInstallAsVerified(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
+	SetInHouseAppInstallAsFailed(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
+	ReplaceInHouseAppInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
+	GetPastActivityDataForInHouseAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityTypeInstalledSoftware, error)
 
 	// SetHostSoftwareInstallResult records the result of a software installation
 	// attempt on the host.
@@ -659,9 +679,10 @@ type Datastore interface {
 
 	// CreateIntermediateInstallFailureRecord creates a completed failure record for an
 	// installation attempt that will be retried, while keeping the original pending.
-	// Returns the execution ID of the failure record, the software install result details,
-	// and a boolean indicating whether a new record was created (true) or an existing one was updated (false).
-	CreateIntermediateInstallFailureRecord(ctx context.Context, result *HostSoftwareInstallResultPayload) (string, *HostSoftwareInstallerResult, bool, error)
+	// It returns a deterministic execution ID for the failure record (unique per base
+	// install UUID and retry ordinal) to support idempotency. This method is for
+	// persistence/bookkeeping only and must not be used to trigger user-visible side effects.
+	CreateIntermediateInstallFailureRecord(ctx context.Context, result *HostSoftwareInstallResultPayload) (string, error)
 
 	// UploadedSoftwareExists checks if a software title with the given bundle identifier exists in
 	// the given team.
@@ -675,23 +696,24 @@ type Datastore interface {
 	// from the title IDs to the categories assigned to the installers for those titles.
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
-	// AssociateVPPInstallToVerificationUUID updates the verification command UUID associated with the
-	// given install attempt (InstallApplication command)
-	AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID string) error
+	// AssociateMDMInstallToVerificationUUID updates the verification command UUID associated with the
+	// given install attempt (InstallApplication command).
+	// It will attempt to update both VPP and in-house app installs (only one will succeed since the command UUIDs are unique).
+	AssociateMDMInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID, hostUUID string) error
 	// SetVPPInstallAsVerified marks the VPP app install attempt as "verified" (Fleet has validated
 	// that it's installed on the device).
 	SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
 	// ReplaceVPPInstallVerificationUUID replaces the verification command UUID for all
 	// VPP app install attempts were related to oldVerifyUUID.
 	ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
-	// IsHostPendingVPPInstallVerification checks if a host has a pending VPP install verification command.
-	IsHostPendingVPPInstallVerification(ctx context.Context, hostUUID string) (bool, error)
+	// IsHostPendingMDMInstallVerification checks if a host has a pending VPP or in-house install verification command.
+	IsHostPendingMDMInstallVerification(ctx context.Context, hostUUID string) (bool, error)
 	// GetUnverifiedVPPInstallsForHost gets unverified HostVPPSoftwareInstalls by host UUID.
 	GetUnverifiedVPPInstallsForHost(ctx context.Context, verificationUUID string) ([]*HostVPPSoftwareInstall, error)
 	// SetVPPInstallAsFailed marks a VPP app install attempt as failed (Fleet couldn't validate that
 	// it was installed on the host).
 	SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
-	MarkAllPendingVPPInstallsAsFailed(ctx context.Context, jobName string) error
+	MarkAllPendingVPPAndInHouseInstallsAsFailed(ctx context.Context, jobName string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
@@ -987,7 +1009,9 @@ type Datastore interface {
 	UpdateMDMData(ctx context.Context, hostID uint, enrolled bool) error
 	// GetHostEmails returns the emails associated with the provided host for a given source, such as "google_chrome_profiles"
 	GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error)
-	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
+	// SetOrUpdateHostDisksSpace sets or updates the gigs_total_disk_space and gigs_all_disk_space
+	// fields for a host. gigs_all_disk_space should should only be non-nil for Linux hosts
+	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error
 
 	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
 	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
@@ -1116,10 +1140,13 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemVulnerabilities Store
 	ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) ([]OSVulnerability, error)
-	ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool, teamID *uint) (Vulnerabilities, error)
+	// ListVulnsByOsNameAndVersion fetches vulnerabilities for a single OS version. If maxVulnerabilities is provided,
+	// limits the number of vulnerabilities returned while still providing the total count.
+	ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool, teamID *uint, maxVulnerabilities *int) (OSVulnerabilitiesWithCount, error)
 	// ListVulnsByMultipleOSVersions is an optimized batch query that fetches vulnerabilities for multiple OS versions
-	// in a single efficient operation.
-	ListVulnsByMultipleOSVersions(ctx context.Context, osVersions []OSVersion, includeCVSS bool, teamID *uint) (map[string]Vulnerabilities, error)
+	// in a single efficient operation. If maxVulnerabilities is provided, limits the number of vulnerabilities returned
+	// per OS version while still providing the total count.
+	ListVulnsByMultipleOSVersions(ctx context.Context, osVersions []OSVersion, includeCVSS bool, teamID *uint, maxVulnerabilities *int) (map[string]OSVulnerabilitiesWithCount, error)
 	InsertOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability, source VulnerabilitySource) (int64, error)
 	DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability) error
 	// InsertOSVulnerability will either insert a new vulnerability in the datastore (in which
@@ -1373,6 +1400,9 @@ type Datastore interface {
 
 	// InsertMDMIdPAccount inserts a new MDM IdP account
 	InsertMDMIdPAccount(ctx context.Context, account *MDMIdPAccount) error
+
+	// AssociateHostMDMIdPAccountDB associates a host with an MDM IdP account
+	AssociateHostMDMIdPAccountDB(ctx context.Context, hostUUID string, acctUUID string) error
 
 	// GetMDMIdPAccountByUUID returns MDM IdP account that matches the given token.
 	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)
@@ -1983,6 +2013,8 @@ type Datastore interface {
 	// (if set) post-install scripts, otherwise those fields are left empty.
 	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*SoftwareInstaller, error)
 
+	InsertHostInHouseAppInstall(ctx context.Context, hostID uint, inHouseAppID, softwareTitleID uint, commandUUID string, opts HostSoftwareInstallOptions) error
+
 	// GetSoftwareInstallersPendingUninstallScriptPopulation returns a map of software installers to storage IDs that:
 	// 1. need uninstall scripts populated
 	// 2. can have uninstall scripts auto-generated by Fleet
@@ -2049,12 +2081,29 @@ type Datastore interface {
 	// no references to them from the software_installers table.
 	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore, removeCreatedBefore time.Time) error
 
+	// SaveInHouseAppUpdates persists new values to an existing in house app.
+	SaveInHouseAppUpdates(ctx context.Context, payload *UpdateSoftwareInstallerPayload) error
+
+	// GetInHouseAppMetadataByTeamAndTitleID returns the in house app corresponding to the specific team and title ids.
+	GetInHouseAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*SoftwareInstaller, error)
+
+	// Remove host inhouseapp installs and upcoming inhouseapp install activities
+	RemovePendingInHouseAppInstalls(ctx context.Context, inHouseAppID uint) error
+
+	// GetSummaryHostSoftwareInstalls returns the software install summary for the in house app ID
+	GetSummaryHostInHouseAppInstalls(ctx context.Context, teamID *uint, inHouseAppID uint) (*VPPAppStatusSummary, error)
+
+	// DeleteInHouseApp deletes an in house app and removes pending installs for it
+	DeleteInHouseApp(ctx context.Context, id uint) error
+
 	// CleanupUnusedSoftwareTitleIcons will remove software title icons that have
 	// no references to them from the software_title_icons table.
 	CleanupUnusedSoftwareTitleIcons(ctx context.Context, softwareTitleIconStore SoftwareTitleIconStore, removeCreatedBefore time.Time) error
 
 	// BatchSetSoftwareInstallers sets the software installers for the given team or no team.
 	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
+	// BatchSetInHouseAppsInstallers sets the in-house apps installers for the given team or no team.
+	BatchSetInHouseAppsInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
 	GetSoftwareInstallers(ctx context.Context, tmID uint) ([]SoftwarePackageResponse, error)
 
 	// HasSelfServiceSoftwareInstallers returns true if self-service software installers are available for the team or globally.
@@ -2113,7 +2162,7 @@ type Datastore interface {
 
 	// GetTeamsWithInstallerByHash gets a map of teamIDs (0 for No team) to software installers
 	// metadata by the installer's hash.
-	GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint]*ExistingSoftwareInstaller, error)
+	GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint][]*ExistingSoftwareInstaller, error)
 
 	// TeamIDsWithSetupExperienceIdPEnabled returns the list of team IDs that
 	// have the setup experience IdP (End user authentication) enabled. It uses
@@ -2208,9 +2257,12 @@ type Datastore interface {
 	// BulkUpsertMDMManagedCertificates updates metadata regarding certificates on the host.
 	BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*MDMManagedCertificate) error
 
-	// GetHostMDMCertificateProfile returns the MDM profile information for the specified host UUID and profile UUID.
+	// GetAppleHostMDMCertificateProfile returns the MDM profile information for the specified host UUID and profile UUID.
 	// nil is returned if the profile is not found.
-	GetHostMDMCertificateProfile(ctx context.Context, hostUUID string, profileUUID string, caName string) (*HostMDMCertificateProfile, error)
+	GetAppleHostMDMCertificateProfile(ctx context.Context, hostUUID string, profileUUID string, caName string) (*HostMDMCertificateProfile, error)
+	// GetWindowsHostMDMCertificateProfile returns the MDM profile information for the specified host UUID and profile UUID.
+	// nil is returned if the profile is not found.
+	GetWindowsHostMDMCertificateProfile(ctx context.Context, hostUUID string, profileUUID string, caName string) (*HostMDMCertificateProfile, error)
 
 	// CleanUpMDMManagedCertificates removes all managed certificates that are not associated with any host+profile.
 	CleanUpMDMManagedCertificates(ctx context.Context) error
@@ -2221,9 +2273,9 @@ type Datastore interface {
 	// ListHostMDMManagedCertificates returns the managed certificates for the given host UUID
 	ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*MDMManagedCertificate, error)
 
-	// ResendHostCustomSCEPProfile marks a custom SCEP profile to be resent to the host with the given UUID. It
-	// also deactivates prior nano commands for the profile UUID and host UUID.
-	ResendHostCustomSCEPProfile(ctx context.Context, hostUUID string, profUUID string) error
+	// ResendHostCertificateProfile marks the given profile UUID to be resent to the host with the given UUID. It
+	// also deactivates prior nano commands and resets the retry counter for the profile UUID and host UUID.
+	ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Secret variables
@@ -2391,6 +2443,20 @@ type Datastore interface {
 	GetHostIdentityCertByName(ctx context.Context, name string) (*types.HostIdentityCertificate, error)
 	// UpdateHostIdentityCertHostIDBySerial updates the host ID associated with a certificate using its serial number.
 	UpdateHostIdentityCertHostIDBySerial(ctx context.Context, serialNumber uint64, hostID uint) error
+	// GetMDMSCEPCertBySerial looks up an MDM SCEP certificate by serial number and returns the device UUID.
+	// This is used for iOS/iPadOS certificate-based authentication.
+	GetMDMSCEPCertBySerial(ctx context.Context, serialNumber uint64) (deviceUUID string, err error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Conditional access certificates
+
+	// GetConditionalAccessCertHostIDBySerialNumber retrieves the host_id for a valid certificate by serial number.
+	GetConditionalAccessCertHostIDBySerialNumber(ctx context.Context, serial uint64) (uint, error)
+	// GetConditionalAccessCertCreatedAtByHostID retrieves the created_at timestamp of the most recent certificate for a host.
+	GetConditionalAccessCertCreatedAtByHostID(ctx context.Context, hostID uint) (*time.Time, error)
+	// RevokeOldConditionalAccessCerts revokes old certificates for hosts that have a newer certificate.
+	// Returns the number of certificates revoked.
+	RevokeOldConditionalAccessCerts(ctx context.Context, gracePeriod time.Duration) (int64, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities
@@ -2415,6 +2481,8 @@ type Datastore interface {
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
+
+	UpdateOrDeleteHostMDMWindowsProfile(ctx context.Context, profile *HostMDMWindowsProfile) error
 }
 
 type AndroidDatastore interface {
@@ -2436,7 +2504,7 @@ type AndroidDatastore interface {
 	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)
 	AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error
 	TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error)
-	Team(ctx context.Context, tid uint) (*Team, error)
+	TeamWithExtras(ctx context.Context, tid uint) (*Team, error)
 	// BulkUpsertMDMAndroidHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
 	BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*MDMAndroidProfilePayload) error

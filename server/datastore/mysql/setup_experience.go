@@ -58,8 +58,8 @@ AND (
 		-- platform is 'linux', so we must check if the installer is compatible with the linux distribution.
 		OR
 		(
-			-- tar.gz can be installed on any Linux distribution
-			si.extension = 'tar.gz'
+			-- tar.gz and sh can be installed on any Linux distribution
+			(si.extension = 'tar.gz' OR si.extension = 'sh')
 			OR
 			(
 				-- deb packages can only be installed on Debian-based hosts.
@@ -71,7 +71,7 @@ AND (
 		)
 	)
 )
-AND %s ORDER BY st.name ASC	
+AND %s ORDER BY st.name ASC
 `
 	if resetFailedSetupSteps {
 		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
@@ -323,7 +323,10 @@ WHERE id IN (%s)`
 			for k := range missingTitleIDs {
 				keys = append(keys, fmt.Sprintf("%d", k))
 			}
-			return ctxerr.Errorf(ctx, "title IDs not available: %s", strings.Join(keys, ","))
+			err := &fleet.BadRequestError{
+				Message: "at least one selected software title does not exist or is not available for setup experience",
+			}
+			return ctxerr.Wrapf(ctx, err, "title IDs not available: %s", strings.Join(keys, ","))
 		}
 
 		// Unset all installers
@@ -414,6 +417,7 @@ func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, plat
 		ListOptions:         opts,
 		Platform:            platform,
 		AvailableForInstall: true,
+		ForSetupExperience:  true,
 	}, fleet.TeamFilter{
 		IncludeObserver: true,
 		TeamID:          &teamID,
@@ -453,6 +457,10 @@ SELECT
 	NULLIF(va.platform, '') AS vpp_app_platform,
 	ses.script_content_id,
 	COALESCE(si.title_id, COALESCE(va.title_id, NULL)) AS software_title_id,
+	COALESCE(
+		(SELECT source FROM software_titles WHERE id = si.title_id),
+		(SELECT source FROM software_titles WHERE id = va.title_id)
+	) AS source,
     CASE
         WHEN hsi.execution_status = 'failed_install' THEN
             CASE

@@ -1,1 +1,0 @@
-* Modified the Apple profile reconciliation cron logic to query for installs and removals within a transaction to avoid race conditions around team or label changes

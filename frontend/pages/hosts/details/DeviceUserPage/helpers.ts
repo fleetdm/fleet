@@ -39,11 +39,24 @@ export const getFailedSoftwareInstall = (
   return firstWithError ?? failedSoftware[0];
 };
 
-/** Checks if name value ends with .sh or .ps1 as
- * there's no other key to identify payload-free software
- * Update if/when API adds better identifier */
+/** Checks if the software is a payload-free script package (sh or ps1)
+ * by examining the source field from the API */
 export const isSoftwareScriptSetup = (s: ISetupStep) => {
-  if (!s.name) return false;
+  if (!s.source) return false;
 
-  return s.name.endsWith(".sh") || s.name.endsWith(".ps1");
+  return s.source === "sh_packages" || s.source === "ps1_packages";
 };
+
+// Same solution as defined in /templates/enroll-ota.html (https://github.com/fleetdm/fleet/pull/26592)
+export const isIPhone = (navigator: Navigator) =>
+  /iPhone/i.test(navigator.userAgent);
+export const isIPad = (navigator: Navigator) =>
+  /iPad/i.test(navigator.userAgent) ||
+  (/Macintosh/i.test(navigator.userAgent) &&
+    navigator.maxTouchPoints !== undefined &&
+    navigator.maxTouchPoints > 1);
+export const isAndroid = (navigator: Navigator) =>
+  /Android/i.test(navigator.userAgent);
+export const isMac = (navigator: Navigator) =>
+  (/Macintosh/i.test(navigator.userAgent) && !isIPad) ||
+  /Mac OS X/i.test(navigator.userAgent);

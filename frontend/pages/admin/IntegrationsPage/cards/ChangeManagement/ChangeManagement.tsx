@@ -25,6 +25,7 @@ import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import SettingsSection from "pages/admin/components/SettingsSection";
 
 const baseClass = "change-management";
 
@@ -83,7 +84,12 @@ const ChangeManagement = () => {
 
   const { isPremiumTier } = useContext(AppContext);
 
-  if (!isPremiumTier) return <PremiumFeatureMessage />;
+  if (!isPremiumTier)
+    return (
+      <SettingsSection title="Change management">
+        <PremiumFeatureMessage />
+      </SettingsSection>
+    );
 
   const { gitOpsModeEnabled, repoURL } = formData;
 

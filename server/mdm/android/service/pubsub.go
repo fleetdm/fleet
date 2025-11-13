@@ -387,7 +387,9 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	host.Host.CPUType = device.HardwareInfo.Hardware
 	host.Host.HardwareModel = svc.getComputerName(device)
 	host.Host.HardwareVendor = device.HardwareInfo.Brand
-	host.LabelUpdatedAt = time.Time{}
+	// Android hosts do not support dynamic labels so we should keep their labelUpdatedAt updated at every
+	// checkin to match platforms that do and make label logic simpler
+	host.LabelUpdatedAt = time.Now()
 	if device.LastStatusReportTime != "" {
 		lastStatusReportTime, err := time.Parse(time.RFC3339, device.LastStatusReportTime)
 		if err != nil {
@@ -443,7 +445,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 			CPUType:                   device.HardwareInfo.Hardware,
 			HardwareModel:             svc.getComputerName(device),
 			HardwareVendor:            device.HardwareInfo.Brand,
-			LabelUpdatedAt:            time.Time{},
+			LabelUpdatedAt:            time.Now(),
 			DetailUpdatedAt:           time.Time{},
 			UUID:                      device.HardwareInfo.EnterpriseSpecificId,
 		},

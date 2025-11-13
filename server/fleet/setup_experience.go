@@ -53,6 +53,10 @@ type SetupExperienceStatusResult struct {
 	Error                           *string                           `db:"error" json:"error" `
 	// SoftwareTitleID must be filled through a JOIN
 	SoftwareTitleID *uint `json:"software_title_id,omitempty" db:"software_title_id"`
+	// Source must be filled through a JOIN. It indicates the source of the software
+	// (e.g., "sh_packages", "ps1_packages", "apps", etc.) and is used by the frontend
+	// to determine appropriate UI display (e.g., "Run" vs "Install" verbs).
+	Source *string `json:"source,omitempty" db:"source"`
 }
 
 func (s *SetupExperienceStatusResult) IsValid() error {

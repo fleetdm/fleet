@@ -17,10 +17,11 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
-	"github.com/fleetdm/fleet/v4/ee/server/service/hydrant"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -76,7 +77,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		c                               clock.Clock                   = clock.C
 		scepConfigService                                             = eeservice.NewSCEPConfigService(logger, nil)
 		digiCertService                                               = digicert.NewService(digicert.WithLogger(logger))
-		hydrantService                                                = hydrant.NewService(hydrant.WithLogger(logger))
+		estCAService                                                  = est.NewService(est.WithLogger(logger))
 		conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
 		mdmStorage             fleet.MDMAppleStore
@@ -249,7 +250,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			keyValueStore,
 			scepConfigService,
 			digiCertService,
-			hydrantService,
+			estCAService,
 		)
 		if err != nil {
 			panic(err)
@@ -350,6 +351,11 @@ type HostIdentity struct {
 	RequireHTTPMessageSignature bool
 }
 
+// ConditionalAccess combines conditional access-related test options
+type ConditionalAccess struct {
+	SCEPStorage scep_depot.Depot
+}
+
 type TestServerOpts struct {
 	Logger                          kitlog.Logger
 	License                         *fleet.LicenseInfo
@@ -386,6 +392,7 @@ type TestServerOpts struct {
 	EnableSCIM                      bool
 	ConditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 	HostIdentity                    *HostIdentity
+	ConditionalAccess               *ConditionalAccess
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -501,6 +508,11 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		httpSigVerifier, err := httpsig.Middleware(ds, opts[0].HostIdentity.RequireHTTPMessageSignature, kitlog.With(logger, "component", "http-sig-verifier"))
 		require.NoError(t, err)
 		extra = append(extra, WithHTTPSigVerifier(httpSigVerifier))
+	}
+
+	if len(opts) > 0 && opts[0].ConditionalAccess != nil {
+		require.NoError(t, condaccess.RegisterSCEP(ctx, rootMux, opts[0].ConditionalAccess.SCEPStorage, ds, logger, &cfg))
+		require.NoError(t, condaccess.RegisterIdP(rootMux, ds, logger, &cfg))
 	}
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, featureRoutes, extra...)
 	rootMux.Handle("/api/", apiHandler)

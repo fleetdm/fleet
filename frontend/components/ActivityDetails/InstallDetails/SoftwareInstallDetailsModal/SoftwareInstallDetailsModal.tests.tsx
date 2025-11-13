@@ -247,10 +247,10 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(screen.getByText("Post-install success")).toBeInTheDocument();
     });
 
-    it("does not render output textareas if script outputs are empty", async () => {
+    it("does not render details button if details (script outputs) are empty", async () => {
       mockServer.use(getSoftwareInstallHandlerNoOutputs);
       const renderWithServer = createCustomRenderer({ withBackendMock: true });
-      const { user } = renderWithServer(
+      renderWithServer(
         <SoftwareInstallDetailsModal
           details={baseDetails}
           hostSoftware={baseHostSoftware}
@@ -258,16 +258,10 @@ describe("SoftwareInstallDetailsModal", () => {
         />
       );
 
-      const detailsBtn = await screen.findByRole("button", {
-        name: /Details/i,
-      });
-      await user.click(detailsBtn);
-
       expect(
-        screen.queryByText(/Install script output:/i)
-      ).not.toBeInTheDocument();
-      expect(
-        screen.queryByText(/Post-install script output:/i)
+        screen.queryByRole("button", {
+          name: /Details/i,
+        })
       ).not.toBeInTheDocument();
     });
 

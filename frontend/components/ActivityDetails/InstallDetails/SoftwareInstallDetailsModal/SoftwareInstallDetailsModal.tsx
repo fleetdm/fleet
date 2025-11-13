@@ -1,5 +1,7 @@
 /** For payload-free packages (e.g. software source is sh_packages or ps1_packages)
- * we use SoftwareScriptDetailsModal */
+ * we use SoftwareScriptDetailsModal
+ * For iOS/iPadOS packages (e.g. .ipa packages software source is ios_apps or ipados_apps)
+ * we use SoftwareIpaInstallDetailsModal with the command_uuid */
 
 import React, { useState } from "react";
 import { useQuery } from "react-query";
@@ -21,7 +23,7 @@ import InventoryVersions from "pages/hosts/details/components/InventoryVersions"
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import IconStatusMessage from "components/IconStatusMessage";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import DeviceUserError from "components/DeviceUserError";
@@ -71,12 +73,15 @@ export const StatusMessage = ({
   // the case when software is installed by the user and not by Fleet
   if (!installResult) {
     return (
-      <div className={`${baseClass}__status-message`}>
-        <Icon name="success" />
-        <span>
-          <b>{softwareName}</b> is installed.
-        </span>
-      </div>
+      <IconStatusMessage
+        className={`${baseClass}__status-message`}
+        iconName="success"
+        message={
+          <span>
+            <b>{softwareName}</b> is installed.
+          </span>
+        }
+      />
     );
   }
 
@@ -139,15 +144,14 @@ export const StatusMessage = ({
   };
 
   return (
-    <div className={`${baseClass}__status-message`}>
-      <Icon
-        name={
-          INSTALL_DETAILS_STATUS_ICONS[status || "pending_install"] ??
-          "pending-outline"
-        }
-      />
-      {renderStatusCopy()}
-    </div>
+    <IconStatusMessage
+      className={`${baseClass}__status-message`}
+      iconName={
+        INSTALL_DETAILS_STATUS_ICONS[status || "pending_install"] ??
+        "pending-outline"
+      }
+      message={renderStatusCopy()}
+    />
   );
 };
 
@@ -266,15 +270,23 @@ export const SoftwareInstallDetailsModal = ({
       },
     ];
 
+    // Only show details button if there's details to display
+    const showDetailsButton =
+      (!!swInstallResult?.post_install_script_output ||
+        !!swInstallResult?.output) &&
+      swInstallResult?.status !== "pending_install";
+
     return (
       <>
-        <RevealButton
-          isShowing={showInstallDetails}
-          showText="Details"
-          hideText="Details"
-          caretPosition="after"
-          onClick={toggleInstallDetails}
-        />
+        {showDetailsButton && (
+          <RevealButton
+            isShowing={showInstallDetails}
+            showText="Details"
+            hideText="Details"
+            caretPosition="after"
+            onClick={toggleInstallDetails}
+          />
+        )}
         {showInstallDetails &&
           outputs.map(
             ({ label, value }) =>
@@ -354,16 +366,15 @@ export const SoftwareInstallDetailsModal = ({
       <div className={`${baseClass}__modal-content`}>
         <StatusMessage
           installResult={installResultWithHostDisplayName}
-          softwareName={hostSoftware?.name || "Software"} // will always be defined at this point
+          softwareName={
+            hostSoftware?.display_name || hostSoftware?.name || "Software"
+          } // will always be defined at this point
           isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
         />
 
         {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
-
-        {swInstallResult?.status !== "pending_install" &&
-          isInstalledByFleet &&
-          renderInstallDetailsSection()}
+        {isInstalledByFleet && renderInstallDetailsSection()}
       </div>
     );
   };
