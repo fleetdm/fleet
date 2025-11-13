@@ -23,6 +23,7 @@ var Aliases = map[string]int{
 	"orch":                  71,
 	"sec":                   97,
 	"g-security-compliance": 97,
+	"roadmap":               87,
 }
 
 // ProjectLabels maps project IDs to their corresponding label filters for the drafting project
@@ -72,7 +73,7 @@ func ParseJSONtoProjectItems(jsonData []byte, limit int) ([]ProjectItem, int, er
 
 // GetProjectItemsWithTotal retrieves project items and returns the server reported total count.
 func GetProjectItemsWithTotal(projectID, limit int) ([]ProjectItem, int, error) {
-	results, err := RunCommandAndReturnOutput(fmt.Sprintf("gh project item-list --owner fleetdm --format json --limit %d %d", limit, projectID))
+	results, err := runCommandWithRetry(fmt.Sprintf("gh project item-list --owner fleetdm --format json --limit %d %d", limit, projectID), 5, 2*time.Second)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -601,6 +602,12 @@ func getProjectItemFieldValue(itemID string, projectID int, fieldName string) (s
 							}
 							name
 						}
+						... on ProjectV2ItemFieldIterationValue {
+							field { ... on ProjectV2FieldCommon { id } }
+							title
+							startDate
+							duration
+						}
 					}
 				}
 			}
@@ -625,6 +632,7 @@ func getProjectItemFieldValue(itemID string, projectID int, fieldName string) (s
 						Number *float64 `json:"number,omitempty"`
 						Text   *string  `json:"text,omitempty"`
 						Name   *string  `json:"name,omitempty"`
+						Title  *string  `json:"title,omitempty"`
 					} `json:"nodes"`
 				} `json:"fieldValues"`
 			} `json:"node"`
@@ -647,6 +655,9 @@ func getProjectItemFieldValue(itemID string, projectID int, fieldName string) (s
 			}
 			if fieldValue.Name != nil {
 				return *fieldValue.Name, nil
+			}
+			if fieldValue.Title != nil {
+				return *fieldValue.Title, nil
 			}
 		}
 	}

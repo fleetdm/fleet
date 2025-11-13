@@ -42,6 +42,7 @@ func main() {
 	rootCmd.AddCommand(estimatedCmd)
 	rootCmd.AddCommand(sprintCmd)
 	rootCmd.AddCommand(milestoneCmd)
+	rootCmd.AddCommand(roadmapCmd)
 
 	// Test command to test SetCurrentSprint functionality
 	rootCmd.AddCommand(&cobra.Command{
