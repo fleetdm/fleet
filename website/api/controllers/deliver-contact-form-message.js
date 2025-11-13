@@ -117,8 +117,13 @@ Fleet Premium subscription details:
         contactSource: 'Website - Contact forms',
         description: `Sent a contact form message: ${message}`,
       }).intercept((err)=>{
-        return new Error(`Could not create/update a contact or account. Full error: ${require('util').inspect(err)}`)
+        return new Error(`Could not create/update a contact or account. Full error: ${require('util').inspect(err)}`);
       });
+
+      // If the Contact record returned by the updateOrCreateContactAndAccount does not have a parent Account record, throw an error to stop the build helper.
+      if(!recordIds.salesforceAccountId) {
+        throw new Error(`Could not create historical event. The contact record (ID: ${recordIds.salesforceContactId}) returned by the updateOrCreateContactAndAccount helper is missing an Account.`);
+      }
       // Create the new Fleet website page view record.
       await sails.helpers.salesforce.createHistoricalEvent.with({
         salesforceAccountId: recordIds.salesforceAccountId,
@@ -127,7 +132,7 @@ Fleet Premium subscription details:
         intentSignal: 'Submitted the "Send a message" form',
         eventContent: message,
       }).intercept((err)=>{
-        return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`)
+        return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
       });
     }).exec((err)=>{// Use .exec() to run the salesforce helpers in the background.
       if(err) {
