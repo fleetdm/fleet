@@ -398,7 +398,8 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		enterprise, err := svc.ds.GetEnterprise(ctx)
 		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "add app store app: get android enterprise")
+			// return 0, ctxerr.Wrap(ctx, err, "add app store app: get android enterprise")
+			return 0, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
 
 		androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterprise.Name(), appID.AdamID)

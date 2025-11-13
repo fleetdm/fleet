@@ -32,11 +32,6 @@ type appleSoftwareArgs struct {
 	Task                    AppleSoftwareTask `json:"task"`
 	HostUUID                string            `json:"host_uuid"`
 	VerificationCommandUUID string            `json:"verification_command_uuid"`
-	ApplicationID           string            `json:"application_id"`
-	AppTeamID               uint              `json:"app_team_id"`
-	EnterpriseName          string            `json:"enterprise_name"`
-	HostID                  uint              `json:"host_id"`
-	PolicyID                string            `json:"policy_id"`
 }
 
 func (v *AppleSoftware) Run(ctx context.Context, argsJSON json.RawMessage) error {

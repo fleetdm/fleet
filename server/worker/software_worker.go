@@ -13,7 +13,7 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-const SoftwareWorkerJobName = "software_worker"
+const softwareWorkerJobName = "software_worker"
 
 type SoftwareWorkerTask string
 
@@ -24,11 +24,11 @@ type SoftwareWorker struct {
 }
 
 func (v *SoftwareWorker) Name() string {
-	return SoftwareWorkerJobName
+	return softwareWorkerJobName
 }
 
-const MakeAndroidAppsAvailableForHostTask SoftwareWorkerTask = "make_android_apps_available_for_host"
-const MakeAndroidAppAvailableTask SoftwareWorkerTask = "make_android_app_available"
+const makeAndroidAppsAvailableForHostTask SoftwareWorkerTask = "make_android_apps_available_for_host"
+const makeAndroidAppAvailableTask SoftwareWorkerTask = "make_android_app_available"
 
 type softwareWorkerArgs struct {
 	Task           SoftwareWorkerTask `json:"task"`
@@ -48,20 +48,20 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 
 	switch args.Task {
 
-	case MakeAndroidAppsAvailableForHostTask:
+	case makeAndroidAppsAvailableForHostTask:
 		return ctxerr.Wrapf(
 			ctx,
 			v.makeAndroidAppsAvailableForHost(ctx, args.HostUUID, args.HostID, args.EnterpriseName, args.PolicyID),
 			"running %s task",
-			MakeAndroidAppsAvailableForHostTask,
+			makeAndroidAppsAvailableForHostTask,
 		)
 
-	case MakeAndroidAppAvailableTask:
+	case makeAndroidAppAvailableTask:
 		return ctxerr.Wrapf(
 			ctx,
 			v.makeAndroidAppAvailable(ctx, args.ApplicationID, args.AppTeamID, args.EnterpriseName),
 			"running %s task",
-			MakeAndroidAppAvailableTask,
+			makeAndroidAppAvailableTask,
 		)
 
 	default:
@@ -86,18 +86,18 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 
 func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, applicationID string, appTeamID uint, enterpriseName string) error {
 	args := &softwareWorkerArgs{
-		Task:           MakeAndroidAppAvailableTask,
+		Task:           makeAndroidAppAvailableTask,
 		ApplicationID:  applicationID,
 		AppTeamID:      appTeamID,
 		EnterpriseName: enterpriseName,
 	}
 
-	job, err := QueueJob(ctx, ds, SoftwareWorkerJobName, args)
+	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	level.Debug(logger).Log("job_id", job.ID, "job_name", SoftwareWorkerJobName, "task", MakeAndroidAppAvailableTask)
+	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", makeAndroidAppAvailableTask)
 	return nil
 }
 
@@ -168,18 +168,18 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 
 func QueueMakeAndroidAppsAvailableForHostJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, hostUUID string, hostID uint, enterpriseName, policyID string) error {
 	args := &softwareWorkerArgs{
-		Task:           MakeAndroidAppsAvailableForHostTask,
+		Task:           makeAndroidAppsAvailableForHostTask,
 		HostUUID:       hostUUID,
 		HostID:         hostID,
 		EnterpriseName: enterpriseName,
 		PolicyID:       policyID,
 	}
 
-	job, err := QueueJob(ctx, ds, SoftwareWorkerJobName, args)
+	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	level.Debug(logger).Log("job_id", job.ID, "job_name", SoftwareWorkerJobName, "task", MakeAndroidAppsAvailableForHostTask)
+	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", makeAndroidAppsAvailableForHostTask)
 	return nil
 }

@@ -44,7 +44,6 @@ type Service struct {
 	ds               fleet.AndroidDatastore
 	fleetDS          fleet.Datastore
 	androidAPIClient androidmgmt.Client
-	// fleetSvc         fleet.Service
 	activityModule   activities.ActivityModule
 	serverPrivateKey string
 
@@ -58,13 +57,12 @@ func NewService(
 	ctx context.Context,
 	logger kitlog.Logger,
 	ds fleet.AndroidDatastore,
-	// fleetSvc fleet.Service,
 	licenseKey string,
 	serverPrivateKey string,
 	fleetDS fleet.Datastore,
 	activityModule activities.ActivityModule,
 ) (android.Service, error) {
-	client := NewAMAPIClient(ctx, logger, licenseKey)
+	client := newAMAPIClient(ctx, logger, licenseKey)
 	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, activityModule)
 }
 
@@ -105,7 +103,7 @@ func NewServiceWithClient(
 	return svc, nil
 }
 
-func NewAMAPIClient(ctx context.Context, logger kitlog.Logger, licenseKey string) androidmgmt.Client {
+func newAMAPIClient(ctx context.Context, logger kitlog.Logger, licenseKey string) androidmgmt.Client {
 	var client androidmgmt.Client
 	if os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
 		client = androidmgmt.NewGoogleClient(ctx, logger, os.Getenv)

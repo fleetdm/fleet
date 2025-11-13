@@ -18,7 +18,7 @@ import (
 )
 
 type activityModule struct {
-	repo   ActivityRepo
+	repo   ActivityStore
 	logger kitlog.Logger
 }
 
@@ -26,14 +26,14 @@ type ActivityModule interface {
 	NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 }
 
-// ActivityRepo is the datastore repository interface needed to handle Fleet activities.
+// ActivityStore is the datastore interface needed to handle Fleet activities.
 // It is implemented by fleet.Datastore.
-type ActivityRepo interface {
+type ActivityStore interface {
 	AppConfig(ctx context.Context) (*fleet.AppConfig, error)
 	NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error
 }
 
-func NewActivityModule(repo ActivityRepo, logger kitlog.Logger) ActivityModule {
+func NewActivityModule(repo ActivityStore, logger kitlog.Logger) ActivityModule {
 	return &activityModule{
 		repo:   repo,
 		logger: logger,

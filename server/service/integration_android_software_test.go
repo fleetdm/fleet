@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -43,7 +42,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		"POST",
 		"/api/latest/fleet/software/app_store_apps",
 		&addAppStoreAppRequest{AppStoreID: "com.should.fail", Platform: fleet.AndroidPlatform},
-		http.StatusNotFound,
+		http.StatusBadRequest,
 		&addAppResp,
 	)
 
@@ -198,16 +197,6 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 	}
 
-	pending, err := s.ds.GetQueuedJobs(context.Background(), 100, time.Time{})
-	require.NoError(t, err)
-	for _, p := range pending {
-		fmt.Printf("p: %+v\n", string(*p.Args))
-	}
-	s.runWorkerUntilDone()
-
-	// Should have hit the android API endpoint
-	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
-
 	var hosts listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts)
 
@@ -222,5 +211,14 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 	assert.Len(t, getHostSw.Software, 1)
 	s.Assert().NotNil(getHostSw.Software[0].AppStoreApp)
 	s.Assert().Equal(androidApp.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+
+	// Google AMAPI hasn't been hit yet
+	s.Assert().False(s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+
+	// Run worker, should run the job that assigns the app to the host's MDM policy
+	s.runWorkerUntilDone()
+
+	// Should have hit the android API endpoint
+	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 
 }
