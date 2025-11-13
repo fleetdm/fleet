@@ -1020,6 +1020,13 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
 
+  const canResendProfiles =
+    isDarwinHost &&
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isHostTeamAdmin ||
+      isHostTeamMaintainer);
+
   const showSoftwareLibraryTab = isPremiumTier;
 
   const showActivityCard = !isAndroidHost;
@@ -1392,7 +1399,7 @@ const HostDetailsPage = ({
           )}
           {showOSSettingsModal && (
             <OSSettingsModal
-              canResendProfiles={host.platform === "darwin"}
+              canResendProfiles={canResendProfiles}
               platform={host.platform}
               hostMDMData={host.mdm}
               onClose={toggleOSSettingsModal}
