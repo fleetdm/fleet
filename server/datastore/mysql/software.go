@@ -1416,7 +1416,8 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 		args = append(args, *opts.TeamID)
 	}
 
-	innerSQL += " ORDER BY shc.hosts_count " + direction
+	// software_id is the secondary key to make ordering deterministic
+	innerSQL += " ORDER BY shc.hosts_count " + direction + ", shc.software_id ASC"
 
 	// Apply pagination
 	perPage := opts.ListOptions.PerPage
@@ -1523,7 +1524,8 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 		WHERE s.id IS NOT NULL
 	`
 
-	outerSQL += " ORDER BY top.hosts_count " + direction
+	// software_id is the secondary key to make ordering deterministic
+	outerSQL += " ORDER BY top.hosts_count " + direction + ", top.software_id ASC"
 
 	return outerSQL, args, nil
 }
