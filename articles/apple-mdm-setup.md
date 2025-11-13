@@ -62,7 +62,7 @@ Hosts that automatically enroll will be assigned to a default team. You can conf
 
 > Available in Fleet Premium
 
-Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides/TODO) to your hosts:
+Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides/install-app-store-apps) to your hosts:
 
 1. In Fleet, select your avatar on the far right of the main navigation menu, and then **Settings > Integrations > Mobile device management (MDM)**
 
