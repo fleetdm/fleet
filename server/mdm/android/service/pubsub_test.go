@@ -143,7 +143,7 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 
 			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
-				return nil, nil // We do not care about return value here
+				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 			}
 
 			enrollmentToken := enrollmentTokenRequest{
@@ -172,7 +172,7 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 
 			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
-				return nil, nil // We do not care about return value here
+				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 			}
 			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
 				return nil
