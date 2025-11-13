@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -590,6 +591,8 @@ func TestUpdateHost(t *testing.T) {
 	// verify UUID is set correctly
 	var capturedHost *fleet.AndroidHost
 	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+		// Validate that the update always updates the label updated at value with a recent one
+		require.Greater(t, host.LabelUpdatedAt, time.Now().Add(-5*time.Second))
 		capturedHost = host
 		return nil
 	}

@@ -526,7 +526,6 @@ const EditIconModal = ({
     </Card>
   );
 
-  // TODO: Confirm design with designer as this was a missed spec and not on Figma
   const renderPreviewSelfServiceMobileCard = () => (
     <Card
       borderRadiusSize="medium"
@@ -567,7 +566,7 @@ const EditIconModal = ({
           className={`${baseClass}__self-service-preview-name-version--mobile`}
         >
           <div className={`${baseClass}__self-service-preview-name--mobile`}>
-            <TooltipTruncatedText value={previewInfo.name} />
+            <TooltipTruncatedText value={displayName || previewInfo.name} />
           </div>
           <div className={`${baseClass}__self-service-preview-version--mobile`}>
             {"latest_version" in software

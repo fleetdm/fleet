@@ -417,9 +417,9 @@ type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error
 
 type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
-type TeamFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
+type TeamWithExtrasFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
 
-type TeamWithoutExtrasFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
+type TeamLiteFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
 
 type DeleteTeamFunc func(ctx context.Context, tid uint) error
 
@@ -1331,6 +1331,8 @@ type CleanupUnusedSoftwareTitleIconsFunc func(ctx context.Context, softwareTitle
 
 type BatchSetSoftwareInstallersFunc func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error
 
+type BatchSetInHouseAppsInstallersFunc func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error
+
 type GetSoftwareInstallersFunc func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error)
 
 type HasSelfServiceSoftwareInstallersFunc func(ctx context.Context, platform string, teamID *uint) (bool, error)
@@ -1385,7 +1387,7 @@ type SetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string,
 
 type GetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string) (bool, error)
 
-type GetTeamsWithInstallerByHashFunc func(ctx context.Context, sha256 string, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error)
+type GetTeamsWithInstallerByHashFunc func(ctx context.Context, sha256 string, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error)
 
 type TeamIDsWithSetupExperienceIdPEnabledFunc func(ctx context.Context) ([]uint, error)
 
@@ -2197,11 +2199,11 @@ type DataStore struct {
 	SaveTeamFunc        SaveTeamFunc
 	SaveTeamFuncInvoked bool
 
-	TeamFunc        TeamFunc
-	TeamFuncInvoked bool
+	TeamWithExtrasFunc        TeamWithExtrasFunc
+	TeamWithExtrasFuncInvoked bool
 
-	TeamWithoutExtrasFunc        TeamWithoutExtrasFunc
-	TeamWithoutExtrasFuncInvoked bool
+	TeamLiteFunc        TeamLiteFunc
+	TeamLiteFuncInvoked bool
 
 	DeleteTeamFunc        DeleteTeamFunc
 	DeleteTeamFuncInvoked bool
@@ -3567,6 +3569,9 @@ type DataStore struct {
 
 	BatchSetSoftwareInstallersFunc        BatchSetSoftwareInstallersFunc
 	BatchSetSoftwareInstallersFuncInvoked bool
+
+	BatchSetInHouseAppsInstallersFunc        BatchSetInHouseAppsInstallersFunc
+	BatchSetInHouseAppsInstallersFuncInvoked bool
 
 	GetSoftwareInstallersFunc        GetSoftwareInstallersFunc
 	GetSoftwareInstallersFuncInvoked bool
@@ -5361,18 +5366,18 @@ func (s *DataStore) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 	return s.SaveTeamFunc(ctx, team)
 }
 
-func (s *DataStore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
+func (s *DataStore) TeamWithExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
 	s.mu.Lock()
-	s.TeamFuncInvoked = true
+	s.TeamWithExtrasFuncInvoked = true
 	s.mu.Unlock()
-	return s.TeamFunc(ctx, tid)
+	return s.TeamWithExtrasFunc(ctx, tid)
 }
 
-func (s *DataStore) TeamWithoutExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
+func (s *DataStore) TeamLite(ctx context.Context, tid uint) (*fleet.Team, error) {
 	s.mu.Lock()
-	s.TeamWithoutExtrasFuncInvoked = true
+	s.TeamLiteFuncInvoked = true
 	s.mu.Unlock()
-	return s.TeamWithoutExtrasFunc(ctx, tid)
+	return s.TeamLiteFunc(ctx, tid)
 }
 
 func (s *DataStore) DeleteTeam(ctx context.Context, tid uint) error {
@@ -8560,6 +8565,13 @@ func (s *DataStore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, 
 	return s.BatchSetSoftwareInstallersFunc(ctx, tmID, installers)
 }
 
+func (s *DataStore) BatchSetInHouseAppsInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+	s.mu.Lock()
+	s.BatchSetInHouseAppsInstallersFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchSetInHouseAppsInstallersFunc(ctx, tmID, installers)
+}
+
 func (s *DataStore) GetSoftwareInstallers(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 	s.mu.Lock()
 	s.GetSoftwareInstallersFuncInvoked = true
@@ -8749,7 +8761,7 @@ func (s *DataStore) GetHostAwaitingConfiguration(ctx context.Context, hostUUID s
 	return s.GetHostAwaitingConfigurationFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) GetTeamsWithInstallerByHash(ctx context.Context, sha256 string, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+func (s *DataStore) GetTeamsWithInstallerByHash(ctx context.Context, sha256 string, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 	s.mu.Lock()
 	s.GetTeamsWithInstallerByHashFuncInvoked = true
 	s.mu.Unlock()

@@ -452,7 +452,7 @@ All issues are treated as standard priority by default. Some issues are assigned
 
 - Urgent: `P2`
   - Examples: A supported workflow is not functioning as intended, a newly drafted feature has an associated urgent Fleet need.
-  - Response: Issue is prioritized at the top of the next sprint. If opporunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
+  - Response: Issue is prioritized at the top of the next sprint. If opportunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
   - Impact: Low to medium impact. If prioritized into current sprint, may reduce overall velocity and require deprioritizing other work.
 
 Any fleetie can follow the process below to add a priority label to an issue.
@@ -582,131 +582,6 @@ The [Audit logs doc page](https://fleetdm.com/docs/Using-Fleet/Audit-logs) has a
 After making your changes, save them and run `make generate-doc`. This will generate a new `Audit-logs.md` file. Make sure you run the command in the top-level folder of your cloned Fleet repo.
 
 
-## Spending company money
-
-As we continue to expand our company policies, we use [GitLab's open expense policy](https://handbook.gitlab.com/handbook/finance/spending-company-money/) as a guide for company spending.
-In brief, this means that as a Fleet team member, you may:
-- Spend company money like it is your own money.
-- [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).  Purchase what you need to do your job effectively.
-- Feel free to make purchases __in the company's interest__ without asking for permission beforehand (when in doubt, do __inform__ your manager prior to purchase or as soon as possible after the purchase).
-
-For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/finance/spending-company-money/).
-
-
-### Coworking
-
-Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the [Finance team](https://fleetdm.com/handbook/finance#contact-us).
-
-
-## Tools and equipment
-
-Fleet provides laptops, YubiKey security keys, and software licenses for core team members to use while working at Fleet. If you need new equipment or would like to propose a tool to be used internally at Fleet, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement%2C%3Ait-gtm&projects=&template=1-custom-request.md&title=) on the 🌐 IT & Enablement kanban board.
-
-
-### Requesting new equipment
-
-As soon as an offer is accepted, IT & Enablement will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company. If you are in need of additional equipment for any reason, [open a warehouse request](https://github.com/fleetdm/confidential/issues/new?template=warehouse-request.md) with IT & Enablement. When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
-
-- **Tracking equipment:** All company-owned devices are tracked in Fleet's ["🍽️ Dogfood" instance](https://dogfood.fleetdm.com/dashboard). When a device is purchased, it's automatically enrolled in dogfood.
-
-- **Returning equipment:** Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers. Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of Digital Workplace & GTM Systems. Please return all equipment to the Fleet IT warehouse using Fleet's FedEx account (address and account # in 1Password).
-
-- **Equipment retention and replacement:** Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare+ Protection Plan (or another warranty plan), are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs), or when the "Battery condition" status in Fleet is less than "Normal". The old equipment should be evaluated for return or retention as a test environment.
-
-> If your Apple device is less than 3 years old, has normal battery condition, but is experiencing operating difficulties, you should first contact Apple support and troubleshoot performance issues before requesting a new device.
-
-
-### Requesting IT support
-
-If you are in need of IT support, reach out to 🌐 [IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#contact-us) to assist with a software or hardware issue. [Open a support request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement%2C%3Ait-gtm&projects=&template=1-custom-request.md&title=) and a Fleet IT team member will attempt to correct your issue remotely using Fleet, and will notify you if any action is needed on your part.
-
-
-## New Fleeties
-
-**Welcome to Fleet!** 
-
-> Fleet is open source. Anyone can contribute at any time. Before a core team member's start date, they are welcome to contribute, but not expected to.
-
-The first 3 weekdays (excluding days off) for **every new team member** at Fleet are reserved for completing their onboarding tasks issue.  New team members **should not work on anything else during this time**, whether or not other tasks are stacking up or assigned.  It is OK, expected, and appreciated for new team members to **remind their manager and colleagues** of this [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) responsibility. Even after the first 3 days, during the rest of their first 2 weeks, completing onboarding tasks on time is a new team member's [highest priority](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training). Onboarding time (all checkboxes checked) is a KPI for the People team, our goal is 14 days or less.
-
-
-
-### Recommendations for new teammates
-
-**Understand the company**. Take some time to:
-- Learn about the [values we share](https://fleetdm.com/handbook/company). (5m read)
-- Understand [Fleet's business model](https://www.heavybit.com/library/video/commercial-open-source-business-strategies/).  (35m video or 15m read)
-- Get acquainted with [Fleet's history](https://fleetdm.com/handbook/company) and our [Fleet investors and advisors](https://fleetdm.com/handbook/company#advisors). (5m read)
-- Fleet is not affiliated with [GitLab](https://gitlab.com).  But we've learned a lot from [Sid](https://www.cnbc.com/2021/01/15/gitlab-ceo-eyes-public-market-after-secondary-valued-it-at-6-billion-.html).
-
-**Take the time to get trained.**  
-- Up-front training is important, valuable, and often underrated.  Ask a lot of questions, and don't be afraid to bug anyone.
-- Without making mistakes, nothing ever gets done.  Everyone at Fleet, especially our CEO, makes [plenty of dumb mistakes](https://www.youtube.com/watch?v=_T-UR9mU4-o&list=PLzn32d5NSCl_DtZ6rcTAwbmunAfvsP5io).
-- We strive for a [short feedback loop](https://fleetdm.com/handbook/company/communications#feedback) and [shorter toes](https://handbook.gitlab.com/handbook/values/#short-toes).
-- Everyone has [one-on-one meetings (1:1s)](https://about.gitlab.com/handbook/leadership/1-1/) between them and their manager. 1:1s are your meeting, with your agenda, prepared by you, ahead of time.
-
-**Get comfortable with the tools**
-- We do not send internal emails (except when absolutely necessary).
-- We all use the same tools for asynchronous collaboration, including [chat (Slack)](https://fleetdm.com/handbook/company/communications#communicating-with-team-members), [tasks (GitHub)](https://fleetdm.com/handbook/company/communications#change-management), [email (gmail.com)](https://fleetdm.com/handbook/company/communications#email-relays), [calendar (Google Calendar)](https://fleetdm.com/handbook/company/communications#scheduling-a-meeting), spreadsheets (Google Sheets), [presentations (Google Slides or Keynote)](https://fleetdm.com/handbook/company/communications#all-hands), and [video calls (Zoom)](https://fleetdm.com/handbook/company/communications#meetings).
-- Everyone at [Fleet uses 1Password](https://fleetdm.com/handbook/company/communications#security) as their password manager.  We store any passwords and credentials vaguely related to Fleet, including accounts we create ourselves.
-
-**Immerse yourself in the world of device management and security.**
-- Here are some podcast episodes which could be great to listen to on a walk, etc:
-  - What's the [story behind the creation of osquery and Fleet](https://fleetdm.com/podcasts/the-future-of-device-management-ep1)? (32m listen)
-  - [Prima shares her journey into security and what excites her](https://fleetdm.com/podcasts/the-future-of-device-management-ep2) (31m listen)
-  - Understanding the business: [Interview with Mike McNeil, CEO »](https://oss-startup-podcast.launchnotes.io/announcements/episode-47-open-source-device-management-with-fleet)
-- If you aren't already familiar with device management/security, this can be a lot to take in.   Don't worry if you're still confused.
-
-
-### Team member onboarding
-
-It's [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) that every team member at Fleet takes the time to get fully trained and onboarded. When a new team member joins Fleet, we create an onboarding issue for them in the [fleetdm/confidential](https://github.com/fleetdm/confidential) repo using this [issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md). 
-We want to make sure that the new team member will be able to complete every task in their issue. To make sure the new team member is successful in their onboarding, we customize their issue by commenting on any tasks they won't need to complete.
-We believe in taking onboarding and training seriously and that the onboarding template is an essential source of truth and good use of time for every single new hire. If managers see a step that they don't feel is necessary, they should make a pull request to the [onboarding template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md).
-
-
-#### Sightseeing tour
-
-During their first day at Fleet, new team members join a sightseeing tour call. During this call, the new team member will participate in an interactive tour of the main attractions in our all-remote company, including the primary tools used company-wide, what the human experience is like, and when/why we use them at Fleet.
-
-In this meeting, we'll [use this agenda](https://docs.google.com/document/d/1_gAy_ndrRQ-RwHAm4xhZ8rbY8XJZl9QqZBMS7YU2aMY/edit?tab=t.0#heading=h.7en766pueek4) to walk through the following:
-- Handbook: values, purpose, key pages to pay special attention to
-- GitHub issues: the living bloodstream of the company.
-- Kanban boards: the bulletin board of quests you can get and how you update status and let folks know things are done.
-- Google Calendar: the future.
-- Gmail: like any mailbox, full of junk mail, plus some important things, so it is important to check carefully.
-- Salesforce: the Rolodex.
-- Google Docs: the archives.
-- Slack:
-  - The "office" (#g-, #general).
-  - The walkie talkies (DMs).
-  - The watering hole (#oooh-, #random, #news, #help-).
-
-
-#### Contributor experience training
-
-During their first week at Fleet, every new team member schedules a contributor experience training call. During this call, the new team member will share their screen, and their counterpart will walk them through:
-- The handbook at 10,000ft: The structure, the values, the purpose, and key pages to pay special attention to. Check out and read all the way through (check the links).
-- GitHub issues: the living bloodstream of the company. 
-- Search issues: https://github.com/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+
-- Making sure emails are going to get seen and responded to quickly (make sure inbox management is going to be productive, talk about filters, unsubscribe).
-- Making sure Slack messages will get seen and responded to quickly.
-- Making sure you know where your issues are tracked, which kanban board you use, and what the columns mean.
-- Making sure you can succeed with submitting a PR with the GitHub web editor, modifying docs or handbook, and working with Markdown.
-- Talking about Google Calendar. Make sure you know how to see and subscribe to other team members' calendars and that you can add yourself to an event on someone else's calendar.
-- A quick tour of the Google Drive folder. Does their access look correct? Give access to executed documents on the shared drive as needed. Show how to use “Add to drive” or “favorite,” or just a browser bookmark, so the folder is easily accessible. This is where things go. It's the archive.
-- Make sure you know how to share a Google Doc in the folder for all Fleeties to see and access.
-- Make sure new team members understand the expectations of, and [how to prepare](https://fleetdm.com/handbook/company/leadership#prepare-for-the-program) for, the [CEO shadow program](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program).
-
-
-### Onboarding retrospective
-
-At the end of their first two weeks of onboarding at Fleet, every new team member schedules an onboarding retro call.  Agenda: 
-> Welcome once again to the team! Please tell me about your first few weeks at Fleet. How did your onboarding/training go? What didn't you manage to get to? Anything you weren't sure how to do? Any feedback on how we can make the experience better for Fleet's next hire?
-
-Fleet prioritizes a [bias for action](https://fleetdm.com/handbook/company#ownership).  If possible, apply onboarding feedback to the handbook and issue templates in realtime, during this call.  This avoids backlogging tasks that may just get out of date before we get around to them anyway.
-
-
 ## Feedback
 
 At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Managers at Fleet will provide performance feedback [during scheduled 1:1 meetings](https://fleetdm.com/handbook/company/leadership#performance-feedback), if not sooner. When sharing feedback publicly, it's important to remember what feedback _is_: 
@@ -728,7 +603,37 @@ When _receiving_ feedback:
 > When delivering feedback, you can also use the [other person's personality type](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0&range=AA1) as [a guide](https://drive.google.com/file/d/1iWHYJzc6WKdR95GBFAvjumouh0ej2DQM/view).  For example, when delivering feedback to a ["type 1" personality](https://www.enneagraminstitute.com/type-1/), it helps to focus on minimizing the extent to which the person spirals into self-blame.  In contrast, when delivering feedback to a ["type 7" personality](https://www.enneagraminstitute.com/type-7/), it is better to focus on being sensitive to the person's tendency to avoid negative emotions and reframe things positively.
 
 
+## Spending company money
 
+As we continue to expand our company policies, we use [GitLab's open expense policy](https://handbook.gitlab.com/handbook/finance/spending-company-money/) as a guide for company spending.
+In brief, this means that as a Fleet team member, you may:
+- Spend company money like it is your own money.
+- [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).  Purchase what you need to do your job effectively.
+- Feel free to make purchases __in the company's interest__ without asking for permission beforehand (when in doubt, do __inform__ your manager prior to purchase or as soon as possible after the purchase).
+
+For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/finance/spending-company-money/).
+
+
+### Paying back company money
+
+If you have accidentally incurred a charge on your Brex card that was not intended and/or approved, you can initiate a "Repay" process in Brex that would allow you to pay back the company. 
+
+1. Login to [brex.com](http://brex.com/) with your Fleet email and navigate to the "[Wallet](https://dashboard.brex.com/wallet)".
+2. Select the transaction you'd like to repay.
+
+> If you need to split the transaction amount:
+>   - Ensure the transaction is in the "Approved" status. If it's not in "Approved" status yet, wait a few days and retry. 
+>   - Click "Itemize this expense."
+>   - Separate out the amount that needs to be repaid.
+>   - Click "Itemize" and proceed to the next step.
+
+3. On the bottom right-hand side, click on "Repay".
+4. Select the desired bank account and verify the account.
+5. Click "confirm repayment".
+
+After a short period of processing, your transaction will show as “denied”, and this means the repayment is in process. 
+  
+  
 ## Travel
 
 When attending a conference or traveling for Fleet, keep the following in mind:
@@ -749,6 +654,23 @@ When attending a conference or traveling for Fleet, keep the following in mind:
 Everyone at Fleet, including the CEO, uses the same [principles for booking flights](https://fleetdm.com/handbook/ceo#schedule-travel-for-the-ceo). For example, feel free to book a direct flight if there is one that is less than double the price of the cheapest non-direct flight.
 
 
+### Mileage reimbursement
+
+When you travel for work and choose to drive your own vehicle, you can use your Brex card to purchase fuel (or Electric Vehicle charging) *or* request reimbursement based on the mileage driven. To request reimbursement, you'll need:
+- A personal bank account to link to Brex. (This is required for reimbursement. Use your Brex card to purchase fuel if you would like to avoid providing your banking details.)
+- The start and end destination of your journey (Brex will automatically calculate the reimbursement amount based on this data).
+- The reason for the trip.
+
+To request reimbursement for miles driven: 
+1. Navigate to [Brex](https://dashboard.brex.com/wallet)
+2. Click "Request reimbursement". then "Mileage".
+3. Select your available Brex spending limit and the travel date.
+4. Enter your starting and ending destinations, and whether it was one-way or round-trip. Brex will automatically calculate your miles driven. If the distance doesn't match what you actually drove, edit it to be correct.
+5. In the memo line, describe the reason for your travel (E.g. Houston GetOps) and submit the request.
+
+Finance will review and process your request within 2 business days. 
+
+
 ### Lodging
 
 - Choose a modest location with inexpensive lodging and [minimally-viable comfort](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
@@ -764,18 +686,14 @@ Everyone at Fleet, including the CEO, uses the same [principles for booking flig
 
 ### Attending conferences
 
-The Marketing department is responsible for executing and organizing all [marketing-related events](https://fleetdm.com/handbook/marketing#settle-event-strategy). When attending a conference for Fleet, treat it [like other travel for the company](https://fleetdm.com/handbook/company/communications#travel).
-
-The relevant department head should approve and organize all other event types (trainings, developer conferences, meetups, etc.).
+The Marketing department is responsible for executing and organizing all [marketing-related events](https://fleetdm.com/handbook/marketing#settle-event-strategy). When attending a conference for Fleet, treat it [like other travel for the company](https://fleetdm.com/handbook/company/communications#travel). The relevant department head should approve and organize all other event types (trainings, developer conferences, meetups, etc.).
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/8c3eeeb4-f322-44cf-8405-4f94f10fde6d">
 
 
 ### Offsites
 
-From time to time, Fleet organizes offsites to bring team members together in person.  This encourages trust and makes the company more productive.
-
-Offsites are:
+From time to time, Fleet organizes offsites to bring team members together in person.  This encourages trust and makes the company more productive. Offsites are:
   - Attended by a particular [product group](https://fleetdm.com/handbook/company#product-groups), a [department](https://fleetdm.com/handbook/company#org-chart), or a team such as the E-group.
   - Sometimes also attended by founders or other team members on a case-by-case basis.
   - 1-3 full days long (2-4 nights stay).
@@ -786,19 +704,42 @@ Offsites are:
 Follow the process to [request an offsite](https://fleetdm.com/handbook/company/leadership#request-a-team-offsite) and [plan an offsite](https://fleetdm.com/handbook/company/leadership#plan-a-team-offsite).
 
 
-### Sales kickoffs
+##### Sales kickoffs
 
 From time to time, Fleet holds a sales kickoff (SKO) meeting.  This is a type of [offsite](https://fleetdm.com/handbook/company/communications#offsites).
 
 
-## Holidays
+### Coworking
 
-At Fleet, we have team members with various employment classifications in many different countries worldwide. Fleet is a US company, but we think you should choose the days you want to work and what days you are on holiday, rather than being locked into any particular nation or culture's expectation about when to take time off. When a team member joins Fleet, they pick one of the following holiday schedules:
- - **Traditional**: This is based on the country where you work. Non-US team members should let their managers know the dates of national holidays.
- **Or**
- - **Freestyle**: You have no set schedule and start with no holidays. Then you add the days that are holidays to you.
+Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the [Finance team](https://fleetdm.com/handbook/finance#contact-us).
 
-Either way, it's up to you to make sure that your responsibilities are covered and that your team knows you're out of the office.
+
+### Relocating
+
+When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please create a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-it-and-enablement&projects=&template=x-teammate-relocation.md) issue to [let the company know in advance](https://fleetdm.com/handbook/it-and-enablement#update-personnel-details) by following the directions listed in the relevant issue template.
+
+
+## Tools and equipment
+
+Fleet provides laptops, YubiKey security keys, and software licenses for core team members to use while working at Fleet. If you need new equipment or would like to propose a tool to be used internally at Fleet, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement%2C%3Ait-gtm&projects=&template=1-custom-request.md&title=) on the 🌐 IT & Enablement kanban board.
+
+
+### Requesting new equipment
+
+As soon as an offer is accepted, IT & Enablement will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company. If you are in need of additional equipment for any reason, [open a warehouse request](https://github.com/fleetdm/confidential/issues/new?template=warehouse-request.md) with IT & Enablement. When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
+
+- **Tracking equipment:** All company-owned devices are tracked in Fleet's ["🍽️ Dogfood" instance](https://dogfood.fleetdm.com/dashboard). When a device is purchased, it's automatically enrolled in dogfood.
+
+- **Returning equipment:** Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers. Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of Digital Workplace & GTM Systems. Please return all equipment to the Fleet IT warehouse using Fleet's FedEx account (address and account # in 1Password).
+
+- **Equipment retention and replacement:** Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare+ Protection Plan (or another warranty plan), are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs), or when the "Battery condition" status in Fleet is less than "Normal". The old equipment should be evaluated for return or retention as a test environment.
+
+> If your Apple device is less than 3 years old, has normal battery condition, but is experiencing operating difficulties, you should first contact Apple support and troubleshoot performance issues before requesting a new device.
+
+
+#### Requesting IT support
+
+If you are in need of IT support, reach out to 🌐 [IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#contact-us) to assist with a software or hardware issue. [Open a support request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement%2C%3Ait-gtm&projects=&template=1-custom-request.md&title=) and a Fleet IT team member will attempt to correct your issue remotely using Fleet, and will notify you if any action is needed on your part.
 
 
 ## Taking time off
@@ -808,10 +749,20 @@ When you need to take time off, follow this process:
 - Life happens and things come up.  But as soon as you know when you'll be out, let the company know.  (Extra notice helps!)
 - Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, [CODEOWNERS](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) coverage, anything where someone might be depending on you).
 - Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off, or for the hours that you will be off if less than a day. Google Calendar recognizes the event title "OOO" and will give you the option to decline existing and new meetings or just new meetings. You are expected to attend any meetings that you have accepted, so be sure to decline meetings you are not going to attend.
-  - If you are the DRI of meetings, especially external meetings with prospects and customers, be sure not to use an "Out of office" event, because it will cancel the meeting.  Instead, you can find someone else at Fleet to cover the meeting.
+  - If you are the DRI of meetings, especially external meetings with prospects and customers, be sure not to use an "Out of Office" (OOO) event, because it will cancel the meeting.  Instead, you can find someone else at Fleet to cover the meeting.
 - If you can’t complete these steps because you need to take the day off quickly due to an emergency, let your manager know and they will help you complete the handoff.
 - If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” Talk to your manager if you’re unsure, but it is perfectly OK to reschedule internal meetings that can wait so that you can take a day off.
 - This process is the same for any days you take off, whether it's a holiday or you just need a break.
+
+
+### Holidays
+
+At Fleet, we have team members with various employment classifications in many different countries worldwide. Fleet is a US company, but we think you should choose the days you want to work and what days you are on holiday, rather than being locked into any particular nation or culture's expectation about when to take time off. When a team member joins Fleet, they pick one of the following holiday schedules:
+ - **Traditional**: This is based on the country where you work. Non-US team members should let their managers know the dates of national holidays.
+ **Or**
+ - **Freestyle**: You have no set schedule and start with no holidays. Then you add the days that are holidays to you.
+
+Either way, it's up to you to make sure that your responsibilities are covered and that your team knows you're out of the office.
 
 
 ## Benefits
@@ -882,9 +833,90 @@ As a US Fleetie, if you choose to "early exercise" your unvested options, you wi
 We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The team will celebrate your tenure at the monthly "All Hands" meeting to highlight your dedication and contribution to Fleet, giving teammates an opportunity to share their appreciation of your contribution!
 
 
-## Relocating
+## New Fleeties
 
-When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please create a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-it-and-enablement&projects=&template=x-teammate-relocation.md) issue to [let the company know in advance](https://fleetdm.com/handbook/it-and-enablement#update-personnel-details) by following the directions listed in the relevant issue template.
+**Welcome to Fleet!** 
+
+> Fleet is open source. Anyone can contribute at any time. Before a core team member's start date, they are welcome to contribute, but not expected to.
+
+The first 3 weekdays (excluding days off) for **every new team member** at Fleet are reserved for completing their onboarding tasks issue.  New team members **should not work on anything else during this time**, whether or not other tasks are stacking up or assigned.  It is OK, expected, and appreciated for new team members to **remind their manager and colleagues** of this [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) responsibility. Even after the first 3 days, during the rest of their first 2 weeks, completing onboarding tasks on time is a new team member's [highest priority](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training). Onboarding time (all checkboxes checked) is a KPI for the People team, our goal is 14 days or less.
+
+
+### Recommendations for new teammates
+
+**Understand the company**. Take some time to:
+- Learn about the [values we share](https://fleetdm.com/handbook/company). (5m read)
+- Understand [Fleet's business model](https://www.heavybit.com/library/video/commercial-open-source-business-strategies/).  (35m video or 15m read)
+- Get acquainted with [Fleet's history](https://fleetdm.com/handbook/company) and our [Fleet investors and advisors](https://fleetdm.com/handbook/company#advisors). (5m read)
+- Fleet is not affiliated with [GitLab](https://gitlab.com).  But we've learned a lot from [Sid](https://www.cnbc.com/2021/01/15/gitlab-ceo-eyes-public-market-after-secondary-valued-it-at-6-billion-.html).
+
+**Take the time to get trained.**  
+- Up-front training is important, valuable, and often underrated.  Ask a lot of questions, and don't be afraid to bug anyone.
+- Without making mistakes, nothing ever gets done.  Everyone at Fleet, especially our CEO, makes [plenty of dumb mistakes](https://www.youtube.com/watch?v=_T-UR9mU4-o&list=PLzn32d5NSCl_DtZ6rcTAwbmunAfvsP5io).
+- We strive for a [short feedback loop](https://fleetdm.com/handbook/company/communications#feedback) and [shorter toes](https://handbook.gitlab.com/handbook/values/#short-toes).
+- Everyone has [one-on-one meetings (1:1s)](https://about.gitlab.com/handbook/leadership/1-1/) between them and their manager. 1:1s are your meeting, with your agenda, prepared by you, ahead of time.
+
+**Get comfortable with the tools**
+- We do not send internal emails (except when absolutely necessary).
+- We all use the same tools for asynchronous collaboration, including [chat (Slack)](https://fleetdm.com/handbook/company/communications#communicating-with-team-members), [tasks (GitHub)](https://fleetdm.com/handbook/company/communications#change-management), [email (gmail.com)](https://fleetdm.com/handbook/company/communications#email-relays), [calendar (Google Calendar)](https://fleetdm.com/handbook/company/communications#scheduling-a-meeting), spreadsheets (Google Sheets), [presentations (Google Slides or Keynote)](https://fleetdm.com/handbook/company/communications#all-hands), and [video calls (Zoom)](https://fleetdm.com/handbook/company/communications#meetings).
+- Everyone at [Fleet uses 1Password](https://fleetdm.com/handbook/company/communications#security) as their password manager.  We store any passwords and credentials vaguely related to Fleet, including accounts we create ourselves.
+
+**Immerse yourself in the world of device management and security.**
+- Here are some podcast episodes which could be great to listen to on a walk, etc:
+  - What's the [story behind the creation of osquery and Fleet](https://fleetdm.com/podcasts/the-future-of-device-management-ep1)? (32m listen)
+  - [Prima shares her journey into security and what excites her](https://fleetdm.com/podcasts/the-future-of-device-management-ep2) (31m listen)
+  - Understanding the business: [Interview with Mike McNeil, CEO »](https://oss-startup-podcast.launchnotes.io/announcements/episode-47-open-source-device-management-with-fleet)
+- If you aren't already familiar with device management/security, this can be a lot to take in.   Don't worry if you're still confused.
+
+
+### Team member onboarding
+
+It's [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) that every team member at Fleet takes the time to get fully trained and onboarded. When a new team member joins Fleet, we create an onboarding issue for them in the [fleetdm/confidential](https://github.com/fleetdm/confidential) repo using this [issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md). 
+We want to make sure that the new team member will be able to complete every task in their issue. To make sure the new team member is successful in their onboarding, we customize their issue by commenting on any tasks they won't need to complete.
+We believe in taking onboarding and training seriously and that the onboarding template is an essential source of truth and good use of time for every single new hire. If managers see a step that they don't feel is necessary, they should make a pull request to the [onboarding template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md).
+
+
+#### Sightseeing tour
+
+During their first day at Fleet, new team members join a sightseeing tour call. During this call, the new team member will participate in an interactive tour of the main attractions in our all-remote company, including the primary tools used company-wide, what the human experience is like, and when/why we use them at Fleet.
+
+In this meeting, we'll [use this agenda](https://docs.google.com/document/d/1_gAy_ndrRQ-RwHAm4xhZ8rbY8XJZl9QqZBMS7YU2aMY/edit?tab=t.0#heading=h.7en766pueek4) to walk through the following:
+- Handbook: values, purpose, key pages to pay special attention to
+- GitHub issues: the living bloodstream of the company.
+- Kanban boards: the bulletin board of quests you can get and how you update status and let folks know things are done.
+- Google Calendar: the future.
+- Gmail: like any mailbox, full of junk mail, plus some important things, so it is important to check carefully.
+- Salesforce: the Rolodex.
+- Google Docs: the archives.
+- Slack:
+  - The "office" (#g-, #general).
+  - The walkie talkies (DMs).
+  - The watering hole (#oooh-, #random, #news, #help-).
+
+
+#### Contributor experience training
+
+During their first week at Fleet, every new team member schedules a contributor experience training call. During this call, the new team member will share their screen, and their counterpart will walk them through:
+- The handbook at 10,000ft: The structure, the values, the purpose, and key pages to pay special attention to. Check out and read all the way through (check the links).
+- GitHub issues: the living bloodstream of the company. 
+- Search issues: https://github.com/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+
+- Making sure emails are going to get seen and responded to quickly (make sure inbox management is going to be productive, talk about filters, unsubscribe).
+- Making sure Slack messages will get seen and responded to quickly.
+- Making sure you know where your issues are tracked, which kanban board you use, and what the columns mean.
+- Making sure you can succeed with submitting a PR with the GitHub web editor, modifying docs or handbook, and working with Markdown.
+- Talking about Google Calendar. Make sure you know how to see and subscribe to other team members' calendars and that you can add yourself to an event on someone else's calendar.
+- A quick tour of the Google Drive folder. Does their access look correct? Give access to executed documents on the shared drive as needed. Show how to use “Add to drive” or “favorite,” or just a browser bookmark, so the folder is easily accessible. This is where things go. It's the archive.
+- Make sure you know how to share a Google Doc in the folder for all Fleeties to see and access.
+- Make sure new team members understand the expectations of, and [how to prepare](https://fleetdm.com/handbook/company/leadership#prepare-for-the-program) for, the [CEO shadow program](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program).
+
+<!--
+### Onboarding retrospective
+
+At the end of their first two weeks of onboarding at Fleet, every new team member schedules an onboarding retro call.  Agenda: 
+> Welcome once again to the team! Please tell me about your first few weeks at Fleet. How did your onboarding/training go? What didn't you manage to get to? Anything you weren't sure how to do? Any feedback on how we can make the experience better for Fleet's next hire?
+
+Fleet prioritizes a [bias for action](https://fleetdm.com/handbook/company#ownership).  If possible, apply onboarding feedback to the handbook and issue templates in realtime, during this call.  This avoids backlogging tasks that may just get out of date before we get around to them anyway.
+-->
 
 
 ## Writing
@@ -1090,12 +1122,12 @@ Headings and titles should:
 
 ##### Static headings
 
-Use static headings (a `noun` or `noun phrase`) e.g., “Log destinations,” for concept or reference topics. Be as short and specific as possible.
+Use static headings (a `noun` or `noun phrase`) e.g., _“Log destinations,”_ for concept or reference topics. Be as short and specific as possible.
 
 
 ##### Task-based headings
 
-Use task-based headings (`verb` + `topic`) e.g., _“Configure a log destination”_ for guides and tutorials where the heading should reveal the task that the reader is trying to achieve. 
+Use task-based headings (`verb` + `topic`) e.g., _“Configure a log destination,”_ for guides and tutorials where the heading should reveal the task that the reader is trying to achieve. 
 
 
 ##### Avoid _-ing_ verb forms in headings

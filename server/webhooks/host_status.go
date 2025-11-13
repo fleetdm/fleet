@@ -85,7 +85,7 @@ func triggerTeamHostStatusWebhook(ctx context.Context, ds fleet.Datastore, logge
 	multiErr := &multierror.Error{}
 	for _, teamSummary := range teams {
 		id := teamSummary.ID
-		team, err := ds.Team(ctx, id)
+		team, err := ds.TeamWithExtras(ctx, id)
 		if err != nil {
 			multiErr = multierror.Append(multiErr, ctxerr.Wrap(ctx, err, "getting team"))
 			continue

@@ -71,7 +71,7 @@ AND (
 		)
 	)
 )
-AND %s ORDER BY st.name ASC	
+AND %s ORDER BY st.name ASC
 `
 	if resetFailedSetupSteps {
 		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
@@ -323,7 +323,10 @@ WHERE id IN (%s)`
 			for k := range missingTitleIDs {
 				keys = append(keys, fmt.Sprintf("%d", k))
 			}
-			return ctxerr.Errorf(ctx, "title IDs not available: %s", strings.Join(keys, ","))
+			err := &fleet.BadRequestError{
+				Message: "at least one selected software title does not exist or is not available for setup experience",
+			}
+			return ctxerr.Wrapf(ctx, err, "title IDs not available: %s", strings.Join(keys, ","))
 		}
 
 		// Unset all installers
@@ -414,6 +417,7 @@ func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, plat
 		ListOptions:         opts,
 		Platform:            platform,
 		AvailableForInstall: true,
+		ForSetupExperience:  true,
 	}, fleet.TeamFilter{
 		IncludeObserver: true,
 		TeamID:          &teamID,

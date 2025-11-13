@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251110161126, Down_20251110161126)
+	MigrationClient.AddMigration(Up_20251112191443, Down_20251112191443)
 }
 
-func Up_20251110161126(tx *sql.Tx) error {
+func Up_20251112191443(tx *sql.Tx) error {
 	_, err := tx.Exec(`ALTER TABLE vpp_apps_teams DROP FOREIGN KEY fk_vpp_apps_teams_vpp_token_id`)
 	if err != nil {
 		return fmt.Errorf("failed to drop fk from vpp_apps_table: %w", err)
@@ -63,6 +63,6 @@ func Up_20251110161126(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20251110161126(tx *sql.Tx) error {
+func Down_20251112191443(tx *sql.Tx) error {
 	return nil
 }
