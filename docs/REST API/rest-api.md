@@ -9830,6 +9830,7 @@ Returns information about the specified software. By default, `versions` are sor
     "id": 12,
     "name": "Falcon.app",
     "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
+    "display_name": "",
     "bundle_identifier": "crowdstrike.falcon.Agent",
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
@@ -9911,6 +9912,7 @@ Returns information about the specified software. By default, `versions` are sor
     "id": 15,
     "name": "Logic Pro",
     "icon_url": "/api/latest/fleet/software/titles/15/icon?team_id=3",
+    "display_name": "",
     "bundle_identifier": "com.apple.logic10",
     "software_package": null,
     "app_store_app": {
@@ -9961,6 +9963,8 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 16,
     "name": "Zoom Workplace",
+    "icon_url": null,
+    "display_name": "",
     "application_id": "us.zoom.videomeetings",
     "counts_updated_at": "2025-08-29T10:23:48Z",
     "software_package": null,
@@ -10237,6 +10241,8 @@ Content-Type: application/octet-stream
   "software_package": {
     "title_id": 123,
     "name": "FalconSensor-6.44.pkg",
+    "icon_url": null,
+    "categories": null,
     "version": "6.44",
     "platform": "darwin",
     "fleet_maintained_app_id": 42,
@@ -10278,6 +10284,7 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | id | integer | path | ID of the software title being updated. |
 | software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, .rpm, .tar.gz, and .ipa   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
+| display_name    | string  | form | Optional override for the default `name`. |
 | categories        | string[] | form | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
@@ -10311,6 +10318,9 @@ Content-Disposition: form-data; name="team_id"
 Content-Disposition: form-data; name="self_service"
 true
 --------------------------d8c247122f594ba0
+Content-Disposition: form-data; display_name="CrowdStrike agent"
+true
+--------------------------d8c247122f594ba0
 Content-Disposition: form-data; name="install_script"
 sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /
 --------------------------d8c247122f594ba0
@@ -10332,9 +10342,11 @@ Content-Type: application/octet-stream
 
 ```json
 {
-  "software_package": {
+  "software_installer": {
     "name": "FalconSensor-6.44.pkg",
-    "categories": [],
+    "display_name": "CrowdStrike agent",
+    "icon_url": null,
+    "categories": null,
     "version": "6.44",
     "platform": "darwin",
     "fleet_maintained_app_id": 42,
@@ -10583,6 +10595,7 @@ Modify Apple App Store (VPP) or Google Play app's options.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | team_id       | integer | body | **Required**. The team ID. Edits Apple App Store or Android Play store app from the specified team.  |
+| display_name    | string  | body | Optional override for the default `name`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
 | categories | array | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page (currently only macOS). Software with no categories will still be shown under **All**. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
@@ -10616,6 +10629,8 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 {
   "app_store_app": {
     "name": "Logic Pro",
+    "display_name": "",
+    "icon_url" null,
     "app_store_id": 1091189122,
     "categories": ["Browser"],
     "latest_version": "2.04",
