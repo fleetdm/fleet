@@ -1,4 +1,4 @@
-# Ignore all customer data files
+# Ignore all source data files
 *
 
 # Except this gitignore file

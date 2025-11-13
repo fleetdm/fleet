@@ -40,37 +40,37 @@ software-library/
 ├── software.db            # SQLite database (created from software.sql)
 ├── software.sql           # SQL dump with schema + data (source of truth)
 ├── tools/                 # Import and maintenance tools
-│   ├── import-customer-data/   # Import customer data from CSV
-│   └── generate-sql/           # Generate software.sql from database
-└── source-data/           # Customer CSV files (all gitignored)
+│   ├── import-data/       # Import server data from CSV
+│   └── generate-sql/      # Generate software.sql from database
+└── source-data/           # Source CSV files (all gitignored)
     └── .gitignore
 
 ```
 
 ## Tools
 
-### import-customer-data
+### import-data
 
-Imports customer software data from CSV files, validates entries, and optionally filters out internal/proprietary software.
+Imports software data from CSV files, validates entries, and optionally filters out internal/proprietary software.
 
 **Usage:**
 ```bash
-cd tools/import-customer-data
+cd tools/import-data
 
 # Import CSV file (no filtering)
-go run . --input ../../source-data/customer_export.csv
+go run . --input ../../source-data/server_export.csv
 
 # Import with pattern filtering
-go run . --input ../../source-data/customer_export.csv --filter "numa-internal,numa-,corp-"
+go run . --input ../../source-data/server_export.csv --filter "numa-internal,numa-,corp-"
 
 # Import with vendor filtering
-go run . --input ../../source-data/customer_export.csv --filter-vendor "numa"
+go run . --input ../../source-data/server_export.csv --filter-vendor "numa"
 
 # Dry run (validate without importing)
-go run . --input ../../source-data/customer_export.csv --dry-run
+go run . --input ../../source-data/server_export.csv --dry-run
 
 # Verbose output
-go run . --input ../../source-data/customer_export.csv --verbose
+go run . --input ../../source-data/server_export.csv --verbose
 ```
 
 **What it does:**
@@ -115,9 +115,9 @@ sqlite3 software.db < software.sql
 
 This creates the database with schema and initial data.
 
-### Step 2: Export customer data from production
+### Step 2: Export server data
 
-Export software from Fleet's production MySQL database to CSV:
+Export software from Fleet's MySQL database to CSV:
 
 ```bash
 mysql -h <host> -u <user> -p <database> --batch --raw -e "
@@ -137,7 +137,7 @@ SELECT
     IFNULL(application_id, ''),
     IFNULL(upgrade_code, '')
 FROM software
-" 2>&1 | sed 's/\t/","/g' | sed 's/^/"/' | sed 's/$/"/' | tail -n +3 > source-data/customer_export.csv
+" 2>&1 | sed 's/\t/","/g' | sed 's/^/"/' | sed 's/$/"/' | tail -n +3 > source-data/server_export.csv
 ```
 
 **Note:** This command properly quotes CSV fields to handle commas in values (e.g., "Red Hat, Inc."). The `tail -n +3` removes the MySQL password warning message from the output.
@@ -157,19 +157,19 @@ This creates a CSV with the following columns:
 - Add `WHERE` clause to filter by date, team, or other criteria
 - Example: `WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
 
-### Step 3: Import customer data
+### Step 3: Import server data
 
 ```bash
-cd tools/import-customer-data
+cd tools/import-data
 
 # Import with filtering for internal software
-go run . --input ../../source-data/customer_export.csv \
+go run . --input ../../source-data/server_export.csv \
   --filter "numa-internal,numa-,corp-,internal-" \
   --filter-vendor "numa" \
   --verbose
 ```
 
-This imports and validates customer data, optionally filtering out internal software.
+This imports and validates server data, optionally filtering out internal software.
 
 ### Step 4: Generate software.sql
 
