@@ -35,7 +35,9 @@ For more information on how to configure the `fleet` binary to use the correct M
 
 Fleet requires at least MySQL version 8.0.36, and is tested using the InnoDB storage engine [with versions 8.0.36, 8.4.6, and 9.4.0](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L51).
 
-There are many "drop-in replacements" for MySQL available. If you'd like to experiment with some bleeding-edge technology and use Fleet with one of these alternative database servers, we think that's awesome! Please be aware they are not officially supported and that it is very important to set up a dev environment to thoroughly test new releases. 
+There are many "drop-in replacements" for MySQL available. If you'd like to experiment with some bleeding-edge technology and use Fleet with one of these alternative database servers, we think that's awesome! Please be aware they are not officially supported and that it is very important to set up a dev environment to thoroughly test new releases.
+
+Fleet officially supports traditional single-writer database setups: one writable primary with read replicas. Multi-writer or group-replication MySQL setups are not supported.
 
 > If you use multiple databases per database server for multiple Fleet instances, you'll need to provision more resources for your database server to ensure performance. You can experiment with finding the right resourcing for your needs.
 
