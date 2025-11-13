@@ -64,7 +64,7 @@ Hosts that automatically enroll will be assigned to a default team. You can conf
 
 Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides/TODO) to your hosts:
 
-1. In Flet, select your avatar on the far right of the main navigation menu, and then **Settings > Integrations > Mobile device management (MDM)**
+1. In Fleet, select your avatar on the far right of the main navigation menu, and then **Settings > Integrations > Mobile device management (MDM)**
 
 2. In the **Volume Purchasing Program (VPP)** section, select **Add VPP**, and then select **Add VPP** again on the following page. Follow the directions on the modal to get your VPP token from Apple Business Manager, and then select the **Upload** button at the bottom to upload it to Fleet.
 
