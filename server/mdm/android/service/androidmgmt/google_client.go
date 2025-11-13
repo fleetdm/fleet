@@ -71,9 +71,6 @@ func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getenv func(stri
 }
 
 func (g *GoogleClient) SignupURLsCreate(ctx context.Context, _, callbackURL string) (*android.SignupDetails, error) {
-	if g == nil || g.mgmt == nil {
-		return nil, errors.New("android management service not initialized")
-	}
 	signupURL, err := g.mgmt.SignupUrls.Create().ProjectId(g.androidProjectID).CallbackUrl(callbackURL).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("creating signup url: %w", err)
@@ -86,9 +83,6 @@ func (g *GoogleClient) SignupURLsCreate(ctx context.Context, _, callbackURL stri
 
 func (g *GoogleClient) EnterprisesCreate(ctx context.Context, req EnterprisesCreateRequest) (EnterprisesCreateResponse, error) {
 	res := EnterprisesCreateResponse{}
-	if g == nil || g.mgmt == nil {
-		return res, errors.New("android management service not initialized")
-	}
 
 	topicName, err := g.createPubSub(ctx, req.PubSubPushURL)
 	if err != nil {
@@ -165,11 +159,15 @@ func (g *GoogleClient) createPubSub(ctx context.Context, pushURL string) (string
 	return topic.String(), nil
 }
 
-func policyFieldMask() string {
+// generatePolicyFieldMask creates an "update mask": a list of an androidmanagement.Policy's fields that will be updated in
+// a given call to EnterprisesPoliciesPatch. We omit `applications` from this list of fields to ensure that apps are only
+// updated through calls to EnterprisesPoliciesModifyPolicyApplications.
+// See https://developers.google.com/android/management/reference/rest/v1/enterprises.policies/patch#query-parameters
+// for more details.
+func generatePolicyFieldMask() string {
 	getJSONFieldName := func(t string) string {
-		t = strings.TrimSuffix(t, ",omitempty")
-		return strings.TrimSuffix(t, ",omitempty,string")
-
+		fieldName, _, _ := strings.Cut(t, ",")
+		return fieldName
 	}
 	var p androidmanagement.Policy
 	t := reflect.TypeOf(p)
@@ -188,9 +186,10 @@ func policyFieldMask() string {
 	return strings.Join(mask, ",")
 }
 
+var policyFieldMask = generatePolicyFieldMask()
+
 func (g *GoogleClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
-	mask := policyFieldMask()
-	ret, err := g.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).UpdateMask(mask).Do()
+	ret, err := g.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).UpdateMask(policyFieldMask).Do()
 	switch {
 	case googleapi.IsNotModified(err):
 		g.logger.Log("msg", "Android policy not modified", "policy_name", policyName)
@@ -214,9 +213,6 @@ func (g *GoogleClient) EnterprisesDevicesPatch(ctx context.Context, deviceName s
 }
 
 func (g *GoogleClient) EnterprisesDevicesGet(ctx context.Context, deviceName string) (*androidmanagement.Device, error) {
-	if g == nil || g.mgmt == nil {
-		return nil, errors.New("android management service not initialized")
-	}
 	ret, err := g.mgmt.Enterprises.Devices.Get(deviceName).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("getting device %s: %w", deviceName, err)
@@ -225,9 +221,6 @@ func (g *GoogleClient) EnterprisesDevicesGet(ctx context.Context, deviceName str
 }
 
 func (g *GoogleClient) EnterprisesDevicesDelete(ctx context.Context, deviceName string) error {
-	if g == nil || g.mgmt == nil {
-		return errors.New("android management service not initialized")
-	}
 	_, err := g.mgmt.Enterprises.Devices.Delete(deviceName).Context(ctx).Do()
 	switch {
 	case googleapi.IsNotModified(err):
@@ -241,9 +234,6 @@ func (g *GoogleClient) EnterprisesDevicesDelete(ctx context.Context, deviceName 
 
 func (g *GoogleClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken,
 ) (*androidmanagement.EnrollmentToken, error) {
-	if g == nil || g.mgmt == nil {
-		return nil, errors.New("android management service not initialized")
-	}
 	token, err := g.mgmt.Enterprises.EnrollmentTokens.Create(enterpriseName, token).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("creating enrollment token: %w", err)
@@ -252,10 +242,6 @@ func (g *GoogleClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, en
 }
 
 func (g *GoogleClient) EnterpriseDelete(ctx context.Context, enterpriseName string) error {
-	if g == nil || g.mgmt == nil {
-		return errors.New("android management service not initialized")
-	}
-
 	// To find out the enterprise's PubSub topic, we need to get the enterprise first.
 	// We can also pull the topic from the DB, but this way is more reliable.
 	enterprise, err := g.mgmt.Enterprises.Get(enterpriseName).Context(ctx).Do()
@@ -303,9 +289,6 @@ func (g *GoogleClient) EnterpriseDelete(ctx context.Context, enterpriseName stri
 }
 
 func (g *GoogleClient) EnterprisesList(ctx context.Context, serverURL string) ([]*androidmanagement.Enterprise, error) {
-	if g == nil || g.mgmt == nil {
-		return nil, errors.New("android management service not initialized")
-	}
 	resp, err := g.mgmt.Enterprises.List().ProjectId(g.androidProjectID).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("listing enterprises: %w", err)
@@ -339,10 +322,6 @@ func (p appNotFoundError) IsNotFound() bool {
 }
 
 func (g *GoogleClient) EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error) {
-	if g == nil || g.mgmt == nil {
-		return nil, errors.New("android management service not initialized")
-	}
-
 	path := fmt.Sprintf("%s/applications/%s", enterpriseName, packageName)
 	app, err := g.mgmt.Enterprises.Applications.Get(path).Context(ctx).Do()
 	if err != nil {
@@ -371,7 +350,6 @@ func (g *GoogleClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.C
 	switch {
 	case googleapi.IsNotModified(err):
 		g.logger.Log("msg", "Android application policy not modified", "policy_name", policyName)
-		// TODO(JVE): does it make sense to return an error here?
 		return nil, err
 	case err != nil:
 		return nil, ctxerr.Wrapf(ctx, err, "modifying application policy %s", policyName)

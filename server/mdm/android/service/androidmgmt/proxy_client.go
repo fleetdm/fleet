@@ -70,9 +70,6 @@ func (p *ProxyClient) SetAuthenticationSecret(secret string) error {
 // SignupURLsCreate hits the unauthenticated endpoint of the proxy. If a record already exists for this serverURL,
 // then the proxy will return a conflict error.
 func (p *ProxyClient) SignupURLsCreate(ctx context.Context, serverURL, callbackURL string) (*android.SignupDetails, error) {
-	if p == nil || p.mgmt == nil {
-		return nil, errors.New("android management service not initialized")
-	}
 	call := p.mgmt.SignupUrls.Create().CallbackUrl(callbackURL).Context(ctx)
 	call.Header().Set("Origin", serverURL)
 	signupURL, err := call.Do()
@@ -93,10 +90,6 @@ func (p *ProxyClient) SignupURLsCreate(ctx context.Context, serverURL, callbackU
 // The reason is that we are passing additional information such as license key, pubSubURL, etc. Because of that,
 // we use a separate HTTP client in this method.
 func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCreateRequest) (EnterprisesCreateResponse, error) {
-	if p == nil || p.mgmt == nil {
-		return EnterprisesCreateResponse{}, errors.New("android management service not initialized")
-	}
-
 	type proxyEnterprise struct {
 		FleetLicenseKey string                       `json:"fleetLicenseKey"`
 		PubSubPushURL   string                       `json:"pubsubPushUrl"`
@@ -156,8 +149,7 @@ func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCrea
 }
 
 func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
-	mask := policyFieldMask()
-	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).UpdateMask(mask)
+	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).UpdateMask(policyFieldMask)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 	ret, err := call.Do()
 	switch {
@@ -185,9 +177,6 @@ func (p *ProxyClient) EnterprisesDevicesPatch(ctx context.Context, deviceName st
 }
 
 func (p *ProxyClient) EnterprisesDevicesGet(ctx context.Context, deviceName string) (*androidmanagement.Device, error) {
-	if p == nil || p.mgmt == nil {
-		return nil, errors.New("android management service not initialized")
-	}
 	call := p.mgmt.Enterprises.Devices.Get(deviceName).Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 	ret, err := call.Do()
@@ -198,9 +187,6 @@ func (p *ProxyClient) EnterprisesDevicesGet(ctx context.Context, deviceName stri
 }
 
 func (p *ProxyClient) EnterprisesDevicesDelete(ctx context.Context, deviceName string) error {
-	if p == nil || p.mgmt == nil {
-		return errors.New("android management service not initialized")
-	}
 	call := p.mgmt.Enterprises.Devices.Delete(deviceName).Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 	_, err := call.Do()
@@ -216,9 +202,7 @@ func (p *ProxyClient) EnterprisesDevicesDelete(ctx context.Context, deviceName s
 
 func (p *ProxyClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string,
 	token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
-	if p == nil || p.mgmt == nil {
-		return nil, errors.New("android management service not initialized")
-	}
+
 	call := p.mgmt.Enterprises.EnrollmentTokens.Create(enterpriseName, token).Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 	token, err := call.Do()
@@ -229,10 +213,6 @@ func (p *ProxyClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, ent
 }
 
 func (p *ProxyClient) EnterpriseDelete(ctx context.Context, enterpriseName string) error {
-	if p == nil || p.mgmt == nil {
-		return errors.New("android management service not initialized")
-	}
-
 	call := p.mgmt.Enterprises.Delete(enterpriseName).Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 	_, err := call.Do()
@@ -248,9 +228,6 @@ func (p *ProxyClient) EnterpriseDelete(ctx context.Context, enterpriseName strin
 }
 
 func (p *ProxyClient) EnterprisesList(ctx context.Context, serverURL string) ([]*androidmanagement.Enterprise, error) {
-	if p == nil || p.mgmt == nil {
-		return nil, errors.New("android management service not initialized")
-	}
 	call := p.mgmt.Enterprises.List().Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 	call.Header().Set("Origin", serverURL)
@@ -285,10 +262,6 @@ func isErrorCode(err error, code int) bool {
 }
 
 func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error) {
-	if p == nil || p.mgmt == nil {
-		return nil, errors.New("android management service not initialized")
-	}
-
 	path := fmt.Sprintf("%s/applications/%s", enterpriseName, packageName)
 	call := p.mgmt.Enterprises.Applications.Get(path).Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
@@ -308,10 +281,6 @@ func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseNam
 }
 
 func (p *ProxyClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
-	if p == nil || p.mgmt == nil {
-		return nil, errors.New("android management service not initialized")
-	}
-
 	var changes []*androidmanagement.ApplicationPolicyChange
 	for _, p := range appPolicies {
 		changes = append(changes, &androidmanagement.ApplicationPolicyChange{
@@ -329,7 +298,6 @@ func (p *ProxyClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Co
 	switch {
 	case googleapi.IsNotModified(err):
 		p.logger.Log("msg", "Android application policy not modified", "policy_name", policyName)
-		// TODO(JVE): does it make sense to return an error here?
 		return nil, err
 	case err != nil:
 		return nil, ctxerr.Wrapf(ctx, err, "modifying application policy %s", policyName)

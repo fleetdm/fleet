@@ -20,6 +20,7 @@ func Up_20251112191443(tx *sql.Tx) error {
 		return fmt.Errorf("failed to make vpp_apps_table.vpp_token_id nullable: %w", err)
 	}
 
+	// Drop all FK constraints so we can modify the column size
 	_, err = tx.Exec(`ALTER TABLE vpp_app_upcoming_activities DROP CONSTRAINT fk_vpp_app_upcoming_activities_adam_id_platform`)
 	if err != nil {
 		return fmt.Errorf("failed to drop vpp_app_upcoming_activities.adam_id fk: %w", err)
@@ -35,11 +36,23 @@ func Up_20251112191443(tx *sql.Tx) error {
 		return fmt.Errorf("failed to drop vpp_apps_teams.adam_id fk: %w", err)
 	}
 
+	// Do the actual column size modification
 	_, err = tx.Exec(`ALTER TABLE vpp_apps MODIFY COLUMN adam_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL`)
 	if err != nil {
 		return fmt.Errorf("failed to increase size of vpp_apps.adam_id: %w", err)
 	}
 
+	_, err = tx.Exec(`ALTER TABLE vpp_app_upcoming_activities MODIFY COLUMN adam_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL`)
+	if err != nil {
+		return fmt.Errorf("failed to increase size of vpp_app_upcoming_activities.adam_id: %w", err)
+	}
+
+	_, err = tx.Exec(`ALTER TABLE host_vpp_software_installs MODIFY COLUMN adam_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL`)
+	if err != nil {
+		return fmt.Errorf("failed to increase size of host_vpp_software_installs .adam_id: %w", err)
+	}
+
+	// Add back all the FKs we deleted above
 	_, err = tx.Exec(`ALTER TABLE vpp_apps_teams MODIFY COLUMN adam_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL`)
 	if err != nil {
 		return fmt.Errorf("failed to increase size of vpp_apps_teams.adam_id: %w", err)

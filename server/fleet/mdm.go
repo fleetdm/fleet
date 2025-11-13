@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"time"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
@@ -1051,11 +1052,11 @@ const (
 	AndroidPlatform InstallableDevicePlatform = "android"
 )
 
-func (p InstallableDevicePlatform) IsValidInstallableDevicePlatform() bool {
-	return p == IOSPlatform || p == IPadOSPlatform || p == MacOSPlatform || p == AndroidPlatform
-}
-
 var VPPAppsPlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform, AndroidPlatform}
+
+func (p InstallableDevicePlatform) IsValidInstallableDevicePlatform() bool {
+	return slices.Contains(VPPAppsPlatforms, p)
+}
 
 type AppleDevicesToRefetch struct {
 	HostID              uint                   `db:"host_id"`
