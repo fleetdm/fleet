@@ -175,7 +175,7 @@ const SoftwareOptionsSelector = ({
               isIpaPackage || isPlatformIosOrIpados || false
             )
           }
-          labelTooltipClickable
+          labelTooltipClickable // Allow interaction with link in tooltip
           disabled={isSelfServiceDisabled}
         >
           Self-service
