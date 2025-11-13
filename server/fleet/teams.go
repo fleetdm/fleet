@@ -104,8 +104,8 @@ type TeamLite struct {
 	// Name is the human friendly name of the team.
 	Name string `json:"name" db:"name"`
 	// Description is an optional description for the team.
-	Description string     `json:"description" db:"description"`
-	Config      TeamConfig `json:"-" db:"config"` // see json.MarshalJSON/UnmarshalJSON implementations
+	Description string         `json:"description" db:"description"`
+	Config      TeamConfigLite `json:"-" db:"config"`
 }
 
 func (t *Team) ToTeamLite() *TeamLite {
@@ -115,7 +115,7 @@ func (t *Team) ToTeamLite() *TeamLite {
 		CreatedAt:   t.CreatedAt,
 		Name:        t.Name,
 		Description: t.Description,
-		Config:      t.Config,
+		Config:      t.Config.ToLite(),
 	}
 }
 
@@ -199,6 +199,26 @@ type TeamConfig struct {
 	Features Features              `json:"features"`
 	Scripts  optjson.Slice[string] `json:"scripts,omitempty"`
 	Software *SoftwareSpec         `json:"software,omitempty"`
+}
+
+func (t TeamConfig) ToLite() TeamConfigLite {
+	return TeamConfigLite{
+		AgentOptions:       t.AgentOptions,
+		HostExpirySettings: t.HostExpirySettings,
+		WebhookSettings:    t.WebhookSettings,
+		Integrations:       t.Integrations,
+		MDM:                t.MDM,
+	}
+}
+
+// TeamConfigLite contains only TeamConfig fields that are available as-is from teams.config JSON
+type TeamConfigLite struct {
+	// AgentOptions is the options for osquery and Orbit.
+	AgentOptions       *json.RawMessage    `json:"agent_options,omitempty"`
+	HostExpirySettings HostExpirySettings  `json:"host_expiry_settings"`
+	WebhookSettings    TeamWebhookSettings `json:"webhook_settings"`
+	Integrations       TeamIntegrations    `json:"integrations"`
+	MDM                TeamMDM             `json:"mdm"`
 }
 
 type TeamWebhookSettings struct {
