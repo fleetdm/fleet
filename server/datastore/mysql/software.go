@@ -1337,19 +1337,30 @@ type softwareCVE struct {
 // canUseOptimizedListQuery determines if we can use the fast path query
 // that starts FROM software_host_counts instead of software.
 func canUseOptimizedListQuery(opts fleet.SoftwareListOptions) bool {
+	// Determine the effective order key
+	orderKey := opts.ListOptions.OrderKey
+	if orderKey == "" {
+		orderKey = "hosts_count"
+	}
+
 	// Only optimize if:
 	// 1. We're listing all software (not filtering by HostID)
-	// 2. We're not filtering by CVE fields
-	// 3. We're not ordering by CVE fields
+	// 2. We're ordering by hosts_count only (covering index requirement)
+	// 3. We're not filtering by CVE fields
 	// 4. We're not searching (which requires CVE join)
 	// 5. We're not using multi-column sorts (e.g., "name,id")
+	//
+	// The covering index optimization only works when ordering by hosts_count
+	// because the inner query uses a covering index scan that only includes
+	// (team_id, global_stats, hosts_count DESC, software_id). This dramatically
+	// improves performance.
 	return opts.HostID == nil &&
 		!opts.VulnerableOnly &&
 		opts.MinimumCVSS == 0 &&
 		opts.MaximumCVSS == 0 &&
 		!opts.KnownExploit &&
 		opts.ListOptions.MatchQuery == "" &&
-		!requiresCVEOrdering(opts.ListOptions.OrderKey) &&
+		orderKey == "hosts_count" &&
 		!isMultiColumnSort(opts.ListOptions.OrderKey)
 }
 
@@ -1370,32 +1381,38 @@ func requiresCVEOrdering(orderKey string) bool {
 }
 
 // buildOptimizedListSoftwareSQL builds an optimized query for listing software
-// that starts FROM software_host_counts to leverage the optimized index.
+// that uses a covering index scan.
+//
+// This optimization uses a two-stage query approach:
+//  1. Inner query: Covering index scan on software_host_counts that only selects
+//     indexed columns (software_id, hosts_count). This allows MySQL to read
+//     directly from the index without accessing the table.
+//  2. Outer query: LEFT JOINs to all necessary tables (software, software_cpe,
+//     software_host_counts, software_cve, cve_meta) for only the paginated results.
+//
+// Eventual consistency: During the hourly SyncHostsSoftware cron job, there's a
+// ~50-200ms window where orphaned software_host_counts rows may exist (between
+// deleting software entries and deleting orphaned count rows). The LEFT JOIN to
+// software with WHERE s.id IS NOT NULL handles this gracefully by filtering out
+// any software_ids that don't have matching software rows during this window.
 func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, error) {
 	var args []interface{}
 
-	// Inner query: efficiently get paginated list from software_host_counts
+	// Determine sort direction. Default is descending for hosts_count.
+	direction := "DESC"
+	if opts.ListOptions.OrderDirection == fleet.OrderAscending {
+		direction = "ASC"
+	}
+
+	// Inner query: covering index scan that only selects indexed columns
+	// This allows MySQL to read from the index without accessing the table,
+	// which is critical for performance.
+	// IMPORTANT: Update this query if modifying idx_software_host_counts_team_global_hosts_desc index.
 	innerSQL := `
 		SELECT
-			s.id,
-			s.name,
-			s.version,
-			s.source,
-			s.bundle_identifier,
-			s.extension_id,
-			s.extension_for,
-			s.release,
-			s.vendor,
-			s.arch,
-			s.application_id,
-			s.title_id,
-			s.upgrade_code,
-			COALESCE(scp.cpe, '') AS generated_cpe,
-			shc.hosts_count,
-			shc.updated_at AS counts_updated_at
+			shc.software_id,
+			shc.hosts_count
 		FROM software_host_counts shc
-		INNER JOIN software s ON s.id = shc.software_id
-		LEFT JOIN software_cpe scp ON scp.software_id = s.id
 		WHERE shc.hosts_count > 0
 	`
 
@@ -1410,40 +1427,7 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 		args = append(args, *opts.TeamID)
 	}
 
-	// Determine sort direction
-	// Default is ascending per API docs, except for hosts_count where descending is the default
-	orderKey := opts.ListOptions.OrderKey
-	if orderKey == "" {
-		orderKey = "hosts_count"
-	}
-
-	direction := "ASC"
-	if opts.ListOptions.OrderDirection == fleet.OrderDescending ||
-		orderKey == "hosts_count" && opts.ListOptions.OrderDirection != fleet.OrderAscending {
-		direction = "DESC"
-	}
-
-	// Apply ordering for inner and outer queries
-	var innerOrderBy, outerOrderBy string
-	switch orderKey {
-	case "hosts_count":
-		innerOrderBy = "shc.hosts_count " + direction
-		outerOrderBy = "s.hosts_count " + direction
-	case "name":
-		innerOrderBy = "s.name " + direction
-		outerOrderBy = "s.name " + direction
-	case "version":
-		innerOrderBy = "s.version " + direction
-		outerOrderBy = "s.version " + direction
-	case "generated_cpe":
-		innerOrderBy = "generated_cpe " + direction
-		outerOrderBy = "s.generated_cpe " + direction
-	default:
-		innerOrderBy = "shc.hosts_count DESC"
-		outerOrderBy = "s.hosts_count DESC"
-	}
-
-	innerSQL += " ORDER BY " + innerOrderBy
+	innerSQL += " ORDER BY shc.hosts_count " + direction
 
 	// Apply pagination
 	perPage := opts.ListOptions.PerPage
@@ -1466,8 +1450,9 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 		args = append(args, offset)
 	}
 
-	// Outer query: join CVE data for the paginated results only
-	// This is efficient because we only join CVEs for ~20 rows
+	// Outer query: LEFT JOIN to all necessary tables for the paginated results only.
+	// LEFT JOINs handle eventual consistency where software_host_counts rows may
+	// temporarily exist without corresponding software rows during cleanup.
 	outerSQL := `
 		SELECT
 			s.id,
@@ -1483,7 +1468,7 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 			s.application_id,
 			s.title_id,
 			s.upgrade_code,
-			s.generated_cpe,
+			COALESCE(scp.cpe, '') AS generated_cpe,
 			scv.cve,
 			scv.created_at
 	`
@@ -1501,14 +1486,41 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 
 	if opts.WithHostCounts {
 		outerSQL += `,
-			s.hosts_count,
-			s.counts_updated_at
+			top.hosts_count,
+			shc.updated_at AS counts_updated_at
 		`
 	}
 
 	outerSQL += `
-		FROM (` + innerSQL + `) AS s
-		LEFT JOIN software_cve scv ON scv.software_id = s.id
+		FROM (` + innerSQL + `) AS top
+		LEFT JOIN software s ON s.id = top.software_id
+		LEFT JOIN software_cpe scp ON scp.software_id = top.software_id
+	`
+
+	// Join back to software_host_counts to get updated_at (not in covering index)
+	if opts.WithHostCounts {
+		switch {
+		case opts.TeamID == nil:
+			outerSQL += `
+		LEFT JOIN software_host_counts shc ON shc.software_id = top.software_id
+			AND shc.team_id = 0 AND shc.global_stats = 1
+			`
+		case *opts.TeamID == 0:
+			outerSQL += `
+		LEFT JOIN software_host_counts shc ON shc.software_id = top.software_id
+			AND shc.team_id = 0 AND shc.global_stats = 0
+			`
+		default:
+			outerSQL += `
+		LEFT JOIN software_host_counts shc ON shc.software_id = top.software_id
+			AND shc.team_id = ? AND shc.global_stats = 0
+			`
+			args = append(args, *opts.TeamID)
+		}
+	}
+
+	outerSQL += `
+		LEFT JOIN software_cve scv ON scv.software_id = top.software_id
 	`
 
 	if opts.IncludeCVEScores {
@@ -1517,7 +1529,12 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 		`
 	}
 
-	outerSQL += " ORDER BY " + outerOrderBy
+	// Filter out any orphaned software_ids (eventual consistency handling)
+	outerSQL += `
+		WHERE s.id IS NOT NULL
+	`
+
+	outerSQL += " ORDER BY top.hosts_count " + direction
 
 	return outerSQL, args, nil
 }
