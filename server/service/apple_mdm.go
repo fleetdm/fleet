@@ -2801,7 +2801,6 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 			didUpdate = true
 		}
 	}
-
 	if didUpdate {
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
