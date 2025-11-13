@@ -233,6 +233,9 @@ type mockService struct {
 }
 
 // NewActivity mocks the fleet.Service method.
+func (m *mockService) NewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+	return nil
+}
 
 func TestGetEnterprise(t *testing.T) {
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
