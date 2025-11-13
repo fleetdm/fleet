@@ -1303,6 +1303,7 @@ func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
 	require.NotEqual(t, team1OriginalScript.ID, team1UpdatedScript.ID)
 
 	host1NewItems, err = ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID)
+	require.NoError(t, err)
 	require.Len(t, host1NewItems, 0)
 
 	// Should not have affected host 2's enqueued execution
