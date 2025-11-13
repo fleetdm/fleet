@@ -4975,58 +4975,6 @@ None.
 }
 ```
 
-### Delete Microsoft Entra conditional access
-
-`DELETE /api/v1/conditional-access/microsoft`
-
-#### Parameters
-
-None.
-
-##### Default response
-
-`Status: 200`
-
-### Get Okta conditional access IdP signing certificate
-
-Download the SAML IdP signing certificate for Okta conditional access. Okta uses this certificate to verify SAML assertions signed by Fleet.
-
-`GET /api/v1/fleet/conditional_access/idp/signing_cert`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/conditional_access/idp/signing_cert`
-
-##### Default response
-
-`Status: 200`
-
-Returns a PEM-encoded X.509 certificate file with `Content-Type: application/x-pem-file`.
-
-### Get Okta conditional access Apple profile
-
-Download the Apple configuration profile (.mobileconfig) for Okta conditional access. This profile configures SCEP enrollment and client certificate authentication on Apple devices.
-
-`GET /api/v1/fleet/conditional_access/idp/apple/profile`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/conditional_access/idp/apple/profile`
-
-##### Default response
-
-`Status: 200`
-
-Returns an Apple configuration profile file with `Content-Type: application/x-apple-aspen-config`.
-
 ### Get Okta conditional access SAML IdP metadata
 
 **Note:** This endpoint is unauthenticated and used by Okta to discover Fleet's SAML IdP configuration.
