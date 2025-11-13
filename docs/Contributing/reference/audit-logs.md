@@ -1678,6 +1678,7 @@ This activity contains the following fields:
 - "team_id": ID of the team on which this App Store app was updated, or `null`if it was updated on no team.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
+- "configuration": The Android Play Store app's managed configuration. Currently only supported for Android.
 
 #### Example
 
