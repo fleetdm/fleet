@@ -74,7 +74,7 @@ go run . --input ../../source-data/customer_export.csv --verbose
 ```
 
 **What it does:**
-- Reads software entries from CSV (also supports JSON)
+- Reads software entries from CSV files
 - **Optional filtering** (disabled by default):
   - `--filter`: Filter names containing specified patterns (comma-separated)
   - `--filter-vendor`: Filter software from specified vendor (except well-known public software)

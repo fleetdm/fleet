@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"encoding/csv"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -17,17 +16,17 @@ import (
 
 // SoftwareEntry represents a software item from customer data
 type SoftwareEntry struct {
-	Name             string  `json:"name" csv:"name"`
-	Version          string  `json:"version" csv:"version"`
-	Source           string  `json:"source" csv:"source"`
-	BundleIdentifier string  `json:"bundle_identifier" csv:"bundle_identifier"`
-	Vendor           string  `json:"vendor" csv:"vendor"`
-	Arch             string  `json:"arch" csv:"arch"`
-	Release          string  `json:"release" csv:"release"`
-	ExtensionID      string  `json:"extension_id" csv:"extension_id"`
-	ExtensionFor     string  `json:"extension_for" csv:"extension_for"`
-	ApplicationID    *string `json:"application_id" csv:"application_id"`
-	UpgradeCode      *string `json:"upgrade_code" csv:"upgrade_code"`
+	Name             string
+	Version          string
+	Source           string
+	BundleIdentifier string
+	Vendor           string
+	Arch             string
+	Release          string
+	ExtensionID      string
+	ExtensionFor     string
+	ApplicationID    *string
+	UpgradeCode      *string
 }
 
 // Known public software (always keep when filtering by vendor)
@@ -60,8 +59,7 @@ type Importer struct {
 }
 
 func main() {
-	inputFile := flag.String("input", "", "Input CSV or JSON file (required)")
-	format := flag.String("format", "", "Input format: csv or json (auto-detected if not specified)")
+	inputFile := flag.String("input", "", "Input CSV file (required)")
 	dbPath := flag.String("db", "../../software.db", "Database path")
 	dryRun := flag.Bool("dry-run", false, "Validate data without importing")
 	verbose := flag.Bool("verbose", false, "Verbose output")
@@ -76,23 +74,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := run(*inputFile, *format, *dbPath, *dryRun, *verbose, *filter, *filterVendor); err != nil {
+	if err := run(*inputFile, *dbPath, *dryRun, *verbose, *filter, *filterVendor); err != nil {
 		fmt.Printf("❌ Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(inputFile, format, dbPath string, dryRun, verbose bool, filter, filterVendor string) error {
-	// Auto-detect format
-	if format == "" {
-		switch {
-		case strings.HasSuffix(inputFile, ".csv"):
-			format = "csv"
-		case strings.HasSuffix(inputFile, ".json"):
-			format = "json"
-		default:
-			return errors.New("could not detect format. Please specify --format")
-		}
+func run(inputFile, dbPath string, dryRun, verbose bool, filter, filterVendor string) error {
+	// Verify input file is CSV
+	if !strings.HasSuffix(inputFile, ".csv") {
+		return errors.New("input file must be a CSV file")
 	}
 
 	// Resolve database path
@@ -112,7 +103,6 @@ func run(inputFile, format, dbPath string, dryRun, verbose bool, filter, filterV
 
 	fmt.Println("🚀 Starting import...")
 	fmt.Printf("   Input:  %s\n", inputFile)
-	fmt.Printf("   Format: %s\n", format)
 	fmt.Printf("   Database: %s\n", absDBPath)
 	if dryRun {
 		fmt.Println("   Mode: DRY RUN")
@@ -160,14 +150,8 @@ func run(inputFile, format, dbPath string, dryRun, verbose bool, filter, filterV
 		filterVendor:   filterVendor,
 	}
 
-	// Import data
-	if format == "csv" {
-		err = importer.importCSV(inputFile)
-	} else {
-		err = importer.importJSON(inputFile)
-	}
-
-	if err != nil {
+	// Import CSV data
+	if err := importer.importCSV(inputFile); err != nil {
 		return err
 	}
 
@@ -217,46 +201,6 @@ func (imp *Importer) importCSV(filename string) error {
 
 		// Parse row into SoftwareEntry
 		entry := parseSoftwareFromCSV(record, headerMap)
-		imp.importEntry(entry)
-	}
-
-	return nil
-}
-
-func (imp *Importer) importJSON(filename string) error {
-	file, err := os.Open(filename)
-	if err != nil {
-		return fmt.Errorf("opening JSON file: %w", err)
-	}
-	defer file.Close()
-
-	var entries []SoftwareEntry
-	decoder := json.NewDecoder(file)
-
-	// Try to decode as array first
-	if err := decoder.Decode(&entries); err != nil {
-		// Try as object with "software" key
-		if _, err := file.Seek(0, 0); err != nil {
-			return fmt.Errorf("seeking file: %w", err)
-		}
-		var data struct {
-			Software []SoftwareEntry `json:"software"`
-		}
-		if err := json.NewDecoder(file).Decode(&data); err != nil {
-			return fmt.Errorf("decoding JSON: %w", err)
-		}
-		entries = data.Software
-	}
-
-	fmt.Printf("📁 Importing from JSON: %s\n", filename)
-	fmt.Printf("📊 Processing %d software entries...\n", len(entries))
-
-	imp.stats.Total = len(entries)
-
-	for i, entry := range entries {
-		if (i+1)%1000 == 0 {
-			fmt.Printf("  Processed %d/%d...\n", i+1, len(entries))
-		}
 		imp.importEntry(entry)
 	}
 
