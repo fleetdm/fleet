@@ -68,10 +68,9 @@ End users can start manual enrollment directly from their **My device** page.
 
 If a macOS host is listed in your organization’s ABM:
 
-1. The user will see a **Turn on MDM** banner at the top of their **My device** page.
-2. Clicking **Turn on MDM** opens a modal with a download link for the enrollment profile and
-   step-by-step instructions on how to install the profile on their device.
-3. After completing the installation steps, the device is added to Fleet’s MDM.
+1. The end user will see a **Turn on MDM** banner at the top of their **My device** page.
+2. Clicking **Turn on MDM** opens a modal with a step-by-step instruction on how to turn on MDM on their device.
+3. After completing the steps, the device is added to Fleet’s MDM.
 
 ### Enroll a macOS host that’s **not** in Apple Business Manager
 
