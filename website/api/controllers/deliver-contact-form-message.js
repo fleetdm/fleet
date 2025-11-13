@@ -122,7 +122,7 @@ Fleet Premium subscription details:
 
       // If the Contact record returned by the updateOrCreateContactAndAccount does not have a parent Account record, throw an error to stop the build helper.
       if(!recordIds.salesforceAccountId) {
-        throw new Error(`Could not create historical event. The contact record (ID: ${recordIds.salesforceContactId}) returned by the updateOrCreateContactAndAccount helper is missing an Account.`);
+        throw new Error(`Could not create historical event. The contact record (ID: ${recordIds.salesforceContactId}) returned by the updateOrCreateContactAndAccount helper is missing a parent account record.`);
       }
       // Create the new Fleet website page view record.
       await sails.helpers.salesforce.createHistoricalEvent.with({
