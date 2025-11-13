@@ -503,7 +503,7 @@ This step will vary depending between providers. EST servers require a `username
 
 ### Step 3: Create a custom script
 
-To automatically deploy certificates to Linux hosts when they enroll, we'll create a custom script to write a certificate to a location. This script will be triggered by a policy that checks for the existence of a certificate.
+To deploy certificates automatically to Linux hosts at enrollment, create a script that writes the certificate to the filesystem. Use a policy to trigger this script on any host that doesn’t have a certificate.
 
 There are two methods available for requesting a certificate from the "Request certificate" endpoint. The first is to use an API token, the second is to use HTTP Message Signing (RFC 9421).
 
