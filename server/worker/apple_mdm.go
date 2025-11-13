@@ -114,6 +114,13 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
 		}
+	} else {
+		// TODO: We likely want to wait for the actual installs to complete not just the commands to be ack'd
+		commandUUIDs, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
+		}
+		awaitCmdUUIDs = append(awaitCmdUUIDs, commandUUIDs...)
 	}
 
 	return nil

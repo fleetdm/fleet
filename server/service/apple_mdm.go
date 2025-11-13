@@ -3540,6 +3540,9 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		}
 	}
 
+	// Don't enqueue setup experience items if we don't have a premium license.
+	enqueueSetupExperienceItems = enqueueSetupExperienceItems && license.IsPremium(r.Context)
+
 	if enqueueSetupExperienceItems {
 		// Enqueue setup experience items and mark the host as being in setup experience
 		hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, info.Platform, r.ID, info.TeamID)
