@@ -131,12 +131,12 @@ terraform workspace delete <workspace_name>
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 5.68.0 |
-| <a name="provider_docker"></a> [docker](#provider\_docker) | ~> 2.16.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.21.0 |
+| <a name="provider_docker"></a> [docker](#provider\_docker) | 2.16.0 |
 | <a name="provider_git"></a> [git](#provider\_git) | 2025.10.10 |
-| <a name="provider_random"></a> [random](#provider\_random) | n/a |
+| <a name="provider_random"></a> [random](#provider\_random) | 3.7.2 |
 | <a name="provider_terraform"></a> [terraform](#provider\_terraform) | n/a |
-| <a name="provider_tls"></a> [tls](#provider\_tls) | n/a |
+| <a name="provider_tls"></a> [tls](#provider\_tls) | 4.1.0 |
 
 ## Modules
 
