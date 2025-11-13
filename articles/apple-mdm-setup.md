@@ -19,32 +19,6 @@ Then click **Turn on** under the Apple (macOS, iOS, iPadOS) MDM section.
 > - If your certificate expires, you will have to turn MDM off and back on for all macOS hosts.
 > - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all macOS hosts.
 
-## Manual enrollment
-
-Fleet supports manual MDM enrollment for macOS devices that are already enrolled in Fleet but not yet managed via MDM.
-
-End users can start manual enrollment directly from their **My device** page.
-
-### Enroll a macOS host that’s in Apple Business Manager (ABM)
-
-If a macOS host is listed in your organization’s ABM:
-
-1. The user will see a **Turn on MDM** banner at the top of their **My device** page.
-2. Clicking **Turn on MDM** opens a modal with a download link for the enrollment profile and
-   step-by-step instructions on how to install the profile on their device.
-3. After completing the installation steps, the device is added to Fleet’s MDM.
-
-### Enroll a macOS host that’s **not** in Apple Business Manager
-
-If the host isn’t part of ABM, users can still manually enroll:
-
-1. On the **My device** page, the user sees the same **Turn on MDM** banner.
-2. Clicking **Turn on MDM** opens a new tab.
-   - If **End user authentication** is turned on (in **Controls > Setup experience > End user authentication**), the user is prompted to sign in with the organization’s identity provider (IdP).
-   - If authentication is successful, or if **End user authentication** is disabled, the user is taken
-     to an enrollment page and shown instructions to download the enrollment profile and install it
-     on their macOS device to complete MDM enrollment.
-
 ## Apple Business Manager (ABM)
 
 > Available in Fleet Premium
@@ -83,6 +57,31 @@ Hosts that automatically enroll will be assigned to a default team. You can conf
 > If no default team is set for a host platform (macOS, iOS, or iPadOS), then newly enrolled hosts of that platform will be placed in "No team".
 
 > A host can be transferred to a new (not default) team before it enrolls. In the Fleet UI, you can do this under **Settings** > **Teams**.
+
+## Manual enrollment
+
+Fleet supports manual MDM enrollment for macOS devices that are already enrolled in Fleet but not yet managed via MDM.
+
+End users can start manual enrollment directly from their **My device** page.
+
+### Enroll a macOS host that’s in Apple Business Manager (ABM)
+
+If a macOS host is listed in your organization’s ABM:
+
+1. The end user will see a **Turn on MDM** banner at the top of their **My device** page.
+2. Clicking **Turn on MDM** opens a modal with a step-by-step instruction on how to turn on MDM on their device.
+3. After completing the steps, the device is added to Fleet’s MDM.
+
+### Enroll a macOS host that’s **not** in Apple Business Manager
+
+If the host isn’t part of ABM, users can still manually enroll:
+
+1. On the **My device** page, the end user sees the same **Turn on MDM** banner.
+2. Clicking **Turn on MDM** opens a new tab.
+   - If **End user authentication** is turned on (in **Controls > Setup experience > End user authentication**), the end user is prompted to sign in with the organization’s identity provider (IdP).
+   - If authentication is successful, or if **End user authentication** is disabled, the end user is taken
+     to an enrollment page and shown instructions to download the enrollment profile and install it
+     on their macOS device to complete MDM enrollment.
 
 ## Volume Purchasing Program (VPP)
 
