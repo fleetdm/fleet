@@ -127,7 +127,7 @@ Fleet Premium subscription details:
       });
     }).exec((err)=>{// Use .exec() to run the salesforce helpers in the background.
       if(err) {
-        sails.log.warn(`Background task failed: When a user submitted a contact form message, a contact/account/historical event could not be created/updated in the CRM for this email address: ${emailAddress}.`, err);
+        sails.log.warn(`Background task failed: When a user submitted a contact form message, a contact/account/historical event could not be created/updated in the CRM for this email address: ${emailAddress}. Full error: ${requre('util').inspect(err)}`);
       }
       return;
     });//_∏_
