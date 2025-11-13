@@ -1369,17 +1369,6 @@ func isMultiColumnSort(orderKey string) bool {
 	return strings.Contains(orderKey, ",")
 }
 
-// requiresCVEOrdering checks if the order key requires CVE data
-func requiresCVEOrdering(orderKey string) bool {
-	cveOrderFields := []string{"cvss_score", "epss_probability", "cisa_known_exploit", "cve_published"}
-	for _, field := range cveOrderFields {
-		if orderKey == field {
-			return true
-		}
-	}
-	return false
-}
-
 // buildOptimizedListSoftwareSQL builds an optimized query for listing software
 // that uses a covering index scan.
 //
