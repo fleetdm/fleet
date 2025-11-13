@@ -374,7 +374,7 @@ func TestGetSSOUser(t *testing.T) {
 		return nil
 	}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: tid}, nil
 	}
 
@@ -438,7 +438,7 @@ func TestGetSSOUser(t *testing.T) {
 		}, nil
 	}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return nil, newNotFoundError()
 	}
 

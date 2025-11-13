@@ -35,6 +35,7 @@ export interface IGetSoftwareByIdResponse {
 export interface ISoftware {
   id: number;
   name: string; // e.g., "Figma.app"
+  /** Custom name set per team by admin */
   display_name?: string; // e.g. "Figma for Desktop"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string | null; // e.g., "com.figma.Desktop"
@@ -91,6 +92,9 @@ export interface ISoftwareAppStoreAppStatus {
 
 export interface ISoftwarePackage {
   name: string;
+  /** Not included in SoftwareTitle software.software_package response, hoisted up one level
+   * Custom name set per team by admin
+   */
   display_name?: string;
   title_id: number;
   url: string;
@@ -120,6 +124,9 @@ export const isSoftwarePackage = (
 
 export interface IAppStoreApp {
   name: string;
+  /** Not included in SoftwareTitle software.app_store_app response, hoisted up one level
+   * Custom name set per team by admin
+   */
   display_name?: string;
   app_store_id: string; // API returns this as a string
   latest_version: string;
@@ -145,6 +152,7 @@ export interface IAppStoreApp {
 export interface ISoftwareTitle {
   id: number;
   name: string;
+  /** Custom name set per team by admin */
   display_name?: string;
   icon_url: string | null;
   versions_count: number;
@@ -161,6 +169,7 @@ export interface ISoftwareTitle {
 export interface ISoftwareTitleDetails {
   id: number;
   name: string;
+  /** Custom name set per team by admin */
   display_name?: string;
   icon_url: string | null;
   software_package: ISoftwarePackage | null;
@@ -191,6 +200,7 @@ export interface ISoftwareVulnerability {
 export interface ISoftwareVersion {
   id: number;
   name: string; // e.g., "Figma.app"
+  /** Custom name set per team by admin */
   display_name?: string; // e.g. "Figma for Desktop"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string; // e.g., "com.figma.Desktop"
@@ -499,7 +509,6 @@ export interface ISoftwareInstallVersion {
 
 export interface IHostSoftwarePackage {
   name: string;
-  display_name?: string;
   self_service: boolean;
   icon_url: string | null;
   version: string;
@@ -511,7 +520,6 @@ export interface IHostSoftwarePackage {
 }
 
 export interface IHostAppStoreApp {
-  display_name?: string;
   app_store_id: string;
   self_service: boolean;
   icon_url: string;
@@ -523,8 +531,9 @@ export interface IHostAppStoreApp {
 
 export interface IHostSoftware {
   id: number;
-  name: string;
-  display_name?: string;
+  name: string; // e.g., "mock software.app"
+  /** Custom name set per team by admin */
+  display_name?: string; // e.g. "Mock Software"
   icon_url: string | null;
   software_package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;
