@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -58,6 +59,7 @@ type addAppStoreAppRequest struct {
 	LabelsIncludeAny []string                        `json:"labels_include_any"`
 	LabelsExcludeAny []string                        `json:"labels_exclude_any"`
 	Categories       []string                        `json:"categories"`
+	Configuration    []byte                          `json:"configuration"`
 }
 
 type addAppStoreAppResponse struct {
@@ -76,6 +78,7 @@ func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.
 		LabelsExcludeAny:     req.LabelsExcludeAny,
 		AddAutoInstallPolicy: req.AutomaticInstall,
 		Categories:           req.Categories,
+		Configuration:        req.Configuration,
 	})
 	if err != nil {
 		return &addAppStoreAppResponse{Err: err}, nil
@@ -103,6 +106,7 @@ type updateAppStoreAppRequest struct {
 	LabelsIncludeAny []string `json:"labels_include_any"`
 	LabelsExcludeAny []string `json:"labels_exclude_any"`
 	Categories       []string `json:"categories"`
+	Configuration    []byte   `json:"configuration"`
 }
 
 type updateAppStoreAppResponse struct {
@@ -115,7 +119,7 @@ func (r updateAppStoreAppResponse) Error() error { return r.Err }
 func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateAppStoreAppRequest)
 
-	updatedApp, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, req.SelfService, req.LabelsIncludeAny, req.LabelsExcludeAny, req.Categories)
+	updatedApp, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, req.SelfService, req.LabelsIncludeAny, req.LabelsExcludeAny, req.Categories, req.Configuration)
 	if err != nil {
 		return updateAppStoreAppResponse{Err: err}, nil
 	}

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"encoding/json"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -383,6 +385,15 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 
 	var app *fleet.VPPApp
+	// TODO(JK): parse app config json
+	// should this be here? later in the function?
+	// what if there's an error and we don't upload the app?
+	// what if it gets orphaned later?
+	appConfig, err := parseAndroidAppConfiguration(ctx, appID.Configuration)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "parsing Android app configuration")
+	}
+	svc.ds.UpsertAndroidAppConfiguration(ctx, appConfig)
 
 	// Different flows based on platform
 	switch appID.Platform {
@@ -881,4 +892,16 @@ func (svc *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 	}
 
 	return svc.ds.DeleteVPPToken(ctx, tokenID)
+}
+
+func parseAndroidAppConfiguration(ctx context.Context, configuration []byte) (fleet.AndroidAppConfig, error) {
+	dec := json.NewDecoder(bytes.NewReader(configuration))
+	dec.DisallowUnknownFields() // Only allow the two keys
+
+	var cfg fleet.AndroidAppConfig
+	if err := dec.Decode(&cfg); err != nil {
+		return fleet.AndroidAppConfig{}, err
+	}
+
+	return cfg, nil
 }
