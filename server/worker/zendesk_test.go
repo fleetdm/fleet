@@ -46,7 +46,7 @@ func TestZendeskRun(t *testing.T) {
 		}
 		return &fleet.TeamLite{
 			ID: 123,
-			Config: fleet.TeamConfig{
+			Config: fleet.TeamConfigLite{
 				Integrations: fleet.TeamIntegrations{
 					Zendesk: []*fleet.TeamZendeskIntegration{
 						{EnableFailingPolicies: true},
@@ -347,7 +347,7 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 
 	teamCfg := &fleet.TeamLite{
 		ID: 123,
-		Config: fleet.TeamConfig{
+		Config: fleet.TeamConfigLite{
 			Integrations: fleet.TeamIntegrations{
 				Zendesk: []*fleet.TeamZendeskIntegration{
 					{GroupID: 1, EnableFailingPolicies: true},

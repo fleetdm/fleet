@@ -123,7 +123,7 @@ func TestTriggerHostStatusWebhookTeam(t *testing.T) {
 		assert.Equal(t, uint(1), id)
 		return &fleet.TeamLite{
 			ID: 1,
-			Config: fleet.TeamConfig{
+			Config: fleet.TeamConfigLite{
 				WebhookSettings: fleet.TeamWebhookSettings{
 					HostStatusWebhook: &teamSettings,
 				},

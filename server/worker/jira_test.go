@@ -47,7 +47,7 @@ func TestJiraRun(t *testing.T) {
 		}
 		return &fleet.TeamLite{
 			ID: 123,
-			Config: fleet.TeamConfig{
+			Config: fleet.TeamConfigLite{
 				Integrations: fleet.TeamIntegrations{
 					Jira: []*fleet.TeamJiraIntegration{
 						{EnableFailingPolicies: true},
@@ -368,7 +368,7 @@ func TestJiraRunClientUpdate(t *testing.T) {
 
 	teamCfg := &fleet.TeamLite{
 		ID: 123,
-		Config: fleet.TeamConfig{
+		Config: fleet.TeamConfigLite{
 			Integrations: fleet.TeamIntegrations{
 				Jira: []*fleet.TeamJiraIntegration{
 					{ProjectKey: "1", EnableFailingPolicies: true},

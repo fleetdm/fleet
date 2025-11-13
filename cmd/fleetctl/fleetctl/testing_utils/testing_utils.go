@@ -391,7 +391,7 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 					CreatedAt:   teamToCopy.CreatedAt,
 					Name:        teamToCopy.Name,
 					Description: teamToCopy.Description,
-					Config:      teamToCopy.Config,
+					Config:      teamToCopy.Config.ToLite(),
 				}, nil
 			}
 		}

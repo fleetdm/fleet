@@ -3512,7 +3512,7 @@ func TestPolicyWebhooks(t *testing.T) {
 		if id == 0 {
 			return &fleet.TeamLite{
 				ID: 0,
-				Config: fleet.TeamConfig{
+				Config: fleet.TeamConfigLite{
 					WebhookSettings: fleet.TeamWebhookSettings{
 						FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 							Enable:    true,

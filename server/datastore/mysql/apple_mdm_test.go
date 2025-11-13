@@ -4745,7 +4745,7 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 	checkTeamConfig(teamID, "https://example.com/bootstrap.pkg")
 
 	// set other team config values so we can confirm they are not affected by bootstrap package changes
-	tc, err := ds.TeamWithExtras(ctx, teamID) // TODO replace with TeamLite (will require a new save DS method)
+	tc, err := ds.TeamWithExtras(ctx, teamID)
 	require.NoError(t, err)
 	tc.Config.MDM.MacOSSetup.MacOSSetupAssistant = optjson.SetString("/path/to/setupassistant")
 	tc.Config.MDM.MacOSUpdates.Deadline = optjson.SetString("2024-01-01")
@@ -4754,7 +4754,7 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 		Enable:         true,
 		DestinationURL: "https://example.com/webhook",
 	}
-	tc.Config.Features.EnableHostUsers = false
+	tc.Config.Features.EnableHostUsers = true
 	savedTeam, err := ds.SaveTeam(ctx, tc)
 	require.NoError(t, err)
 	require.Equal(t, tc.Config, savedTeam.Config)
@@ -4775,14 +4775,14 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 	checkTeamConfig(teamID, "https://example.com/bs.pkg")
 
 	// confirm other team config values are unchanged
-	teamFromDb, err := ds.TeamLite(ctx, teamID)
+	teamFromDb, err := ds.TeamWithExtras(ctx, teamID)
 	require.NoError(t, err)
 	require.Equal(t, teamFromDb.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value, "/path/to/setupassistant")
 	require.Equal(t, teamFromDb.Config.MDM.MacOSUpdates.Deadline.Value, "2024-01-01")
 	require.Equal(t, teamFromDb.Config.MDM.MacOSUpdates.MinimumVersion.Value, "10.15.4")
 	require.Equal(t, teamFromDb.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL, "https://example.com/webhook")
 	require.Equal(t, teamFromDb.Config.WebhookSettings.FailingPoliciesWebhook.Enable, true)
-	require.Equal(t, teamFromDb.Config.Features.EnableHostUsers, false)
+	require.Equal(t, teamFromDb.Config.Features.EnableHostUsers, true)
 }
 
 func TestHostDEPAssignments(t *testing.T) {

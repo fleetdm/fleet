@@ -239,7 +239,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 		if tid == teamID {
 			return &fleet.TeamLite{
 				ID: teamID,
-				Config: fleet.TeamConfig{
+				Config: fleet.TeamConfigLite{
 					WebhookSettings: fleet.TeamWebhookSettings{
 						FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 							Enable:         true,

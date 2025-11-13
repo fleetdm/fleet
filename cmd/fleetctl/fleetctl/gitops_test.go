@@ -637,7 +637,7 @@ func TestGitOpsBasicTeam(t *testing.T) {
 			return &fleet.TeamLite{
 				ID:     0,
 				Name:   fleet.ReservedNameNoTeam,
-				Config: *defaultTeamConfig,
+				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
 		if tid == team.ID {
@@ -1610,7 +1610,7 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 			return &fleet.TeamLite{
 				ID:     0,
 				Name:   fleet.ReservedNameNoTeam,
-				Config: *defaultTeamConfig,
+				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
 		if tid == team.ID {
@@ -1986,7 +1986,7 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 			return &fleet.TeamLite{
 				ID:     0,
 				Name:   fleet.ReservedNameNoTeam,
-				Config: *defaultTeamConfig,
+				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
 		if tid == team.ID {

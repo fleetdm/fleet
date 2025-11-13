@@ -109,7 +109,7 @@ func main() {
 		return &fleet.TeamLite{
 			ID:   tid,
 			Name: fmt.Sprintf("team-test-%d", tid),
-			Config: fleet.TeamConfig{
+			Config: fleet.TeamConfigLite{
 				Integrations: fleet.TeamIntegrations{
 					Jira: []*fleet.TeamJiraIntegration{
 						{
