@@ -42,7 +42,7 @@ If the host isn’t part of ABM, users can still manually enroll:
 2. Clicking **Turn on MDM** opens a new tab.
    - If **End user authentication** is turned on (in **Controls > Setup experience > End user authentication**), the user is prompted to sign in with the organization’s identity provider (IdP).
    - If authentication is successful, or if **End user authentication** is disabled, the user is taken
-     to an enrollment page and shown instructions to Download the enrollment profile and install it
+     to an enrollment page and shown instructions to download the enrollment profile and install it
      on their macOS device to complete MDM enrollment.
 
 ## Apple Business Manager (ABM)
