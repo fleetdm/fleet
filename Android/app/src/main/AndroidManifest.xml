@@ -2,6 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- REQUIRED for downloading certificates from remote server -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Permission to receive the boot event -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -22,6 +28,29 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- ACTION_BOOT_COMPLETED Receiver -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ACTION_APPLICATION_RESTRICTIONS_CHANGED Receiver -->
+        <receiver
+            android:name=".RestrictionsReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.APPLICATION_RESTRICTIONS_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Service Declaration -->
+        <service
+            android:name=".CertificateService"
+            android:exported="false" />
     </application>
 
 </manifest>
