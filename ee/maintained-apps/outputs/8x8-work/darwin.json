@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "8.28.2-3",
+      "version": "8.28.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.8x8---virtual-office';"
       },
