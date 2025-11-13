@@ -34,17 +34,9 @@ Currently, Android apps can only be installed via self-service in the end user's
 
 Currently, Apple App Stpre (VPP) apps can't be uninstalled via Fleet.
 
-## Install an app via self-service
-
-1. **Open Fleet from the host**: On the host that will be installing an application through self-service, click on the Fleet Desktop tray icon, then click **My Device**. This will open the browser to the device's page on Fleet.
-
-2. **Navigate to the self-service tab**: Click on the **Self-Service** tab under the device's details.
-
-3. **Locate the app and click install**: Scroll through the list of software to find the app you would like to install, then click the **Install** button underneath it.
-
 ## API and GitOps
 
-Fleet also provides a REST API for managing App store apps programmatically. Learn more in the API [reference docs](https://fleetdm.com/docs/rest-api/rest-api#add-app-store-app).
+Fleet also provides a REST API for managing app store apps programmatically. Learn more in the API [reference docs](https://fleetdm.com/docs/rest-api/rest-api#add-app-store-app).
 
 To manage App Store apps using Fleet's best practice GitOps, check out the `app_store_apps` key in [the GitOps reference documentation](https://fleetdm.com/docs/using-fleet/gitops#app-store-apps).
 
