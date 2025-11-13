@@ -76,7 +76,7 @@ If a macOS host is listed in your organization’s ABM:
 
 If the host isn’t part of ABM, users can still manually enroll:
 
-1. On the **My device** page, the user sees the same **Turn on MDM** banner.
+1. On the **My device** page, the end user sees the same **Turn on MDM** banner.
 2. Clicking **Turn on MDM** opens a new tab.
    - If **End user authentication** is turned on (in **Controls > Setup experience > End user authentication**), the user is prompted to sign in with the organization’s identity provider (IdP).
    - If authentication is successful, or if **End user authentication** is disabled, the user is taken
