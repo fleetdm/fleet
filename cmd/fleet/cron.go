@@ -719,10 +719,9 @@ func newWorkerIntegrationsSchedule(
 		VPPInstaller:          vppInstaller,
 	}
 	vppVerify := &worker.AppleSoftware{
-		Datastore:     ds,
-		Log:           logger,
-		Commander:     commander,
-		AndroidModule: androidModule,
+		Datastore: ds,
+		Log:       logger,
+		Commander: commander,
 	}
 	dbMigrate := &worker.DBMigration{
 		Datastore: ds,
