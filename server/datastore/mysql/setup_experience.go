@@ -606,7 +606,7 @@ func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet
 		// - existing setup script with same content -> no-op
 		if allowUpdate {
 			gotSetupExperienceScript, err := ds.getSetupExperienceScript(ctx, tx, script.TeamID)
-			if err != nil && !errors.Is(err, notFound("SetupExperienceScript")) {
+			if err != nil && !fleet.IsNotFound(err) {
 				return err
 			}
 			// fall through on notFound err - nothing to do
