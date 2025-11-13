@@ -578,7 +578,6 @@ const EditIconModal = ({
     </Card>
   );
 
-  console.log("EDIT ICON MODAL software", software);
   const renderForm = () => (
     <>
       <InputField
