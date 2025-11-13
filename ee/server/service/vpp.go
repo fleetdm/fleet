@@ -362,7 +362,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 	var teamName string
 	if teamID != nil && *teamID != 0 {
-		tm, err := svc.ds.Team(ctx, *teamID)
+		tm, err := svc.ds.TeamWithExtras(ctx, *teamID)
 		if fleet.IsNotFound(err) {
 			return 0, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
@@ -560,7 +560,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 
 	var teamName string
 	if teamID != nil && *teamID != 0 {
-		tm, err := svc.ds.Team(ctx, *teamID)
+		tm, err := svc.ds.TeamWithExtras(ctx, *teamID)
 		if fleet.IsNotFound(err) {
 			return nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)

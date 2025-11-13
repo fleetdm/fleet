@@ -4078,7 +4078,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 							SELECT
 								COUNT(*) AS count_installer_labels,
 								COUNT(lm.label_id) AS count_host_labels,
-								SUM(CASE WHEN lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
+								SUM(
+									CASE WHEN lbl.label_membership_type <> 1 AND lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1
+									WHEN lbl.label_membership_type = 1 AND lbl.created_at IS NOT NULL THEN 1
+									ELSE 0 END) as count_host_updated_after_labels
 							FROM
 								software_installer_labels sil
 								LEFT OUTER JOIN labels lbl
@@ -5631,7 +5634,20 @@ FROM
 	JOIN vpp_app_team_software_categories vatsc ON vatsc.vpp_app_team_id = vat.id
 	JOIN software_categories sc ON vatsc.software_category_id = sc.id
 WHERE
-	st.id IN (?) AND vat.global_or_team_id = ?;
+	st.id IN (?) AND vat.global_or_team_id = ?
+
+UNION
+
+SELECT
+	st.id AS title_id,
+	sc.name AS software_category_name
+FROM
+	in_house_apps iha
+	JOIN software_titles st ON st.id = iha.title_id
+	JOIN in_house_app_software_categories ihasc ON ihasc.in_house_app_id = iha.id
+	JOIN software_categories sc ON ihasc.software_category_id = sc.id
+WHERE
+	st.id IN (?) AND iha.global_or_team_id = ?
 `
 
 	var tmID uint
@@ -5639,7 +5655,7 @@ WHERE
 		tmID = *teamID
 	}
 
-	stmt, args, err := sqlx.In(stmt, softwareTitleIDs, tmID, softwareTitleIDs, tmID)
+	stmt, args, err := sqlx.In(stmt, softwareTitleIDs, tmID, softwareTitleIDs, tmID, softwareTitleIDs, tmID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sqlx.In for get categories for software installers")
 	}
