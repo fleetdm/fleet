@@ -326,7 +326,7 @@ The flow for Hydrant differs from the other certificate authorities (CA's). Whil
 
 ### Step 3: Create a custom script
 
-To automatically deploy certificates to Linux hosts when they enroll, we'll create a custom script to write a certificate to a location. This script will be triggered by a policy that checks for the existence of a certificate.
+To deploy certificates automatically to Linux hosts at enrollment, create a script that writes the certificate to the filesystem. Use a policy to trigger this script on any host that doesn’t have a certificate.
 
 This custom script will create a certificate signing request (CSR) and make a request to Fleet's "Request certificate" API endpoint.
 
