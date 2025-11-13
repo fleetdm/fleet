@@ -19,7 +19,6 @@ import (
 	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
@@ -229,11 +228,6 @@ type notFoundError struct{}
 
 func (e *notFoundError) Error() string    { return "not found" }
 func (e *notFoundError) IsNotFound() bool { return true }
-
-type mockService struct {
-	mock.Mock
-	fleet.Service
-}
 
 func TestGetEnterprise(t *testing.T) {
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
