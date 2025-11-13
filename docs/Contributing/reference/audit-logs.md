@@ -1701,7 +1701,8 @@ This activity contains the following fields:
       "name": "Product",
       "id": 17
     }
-  ]
+  ],
+  "configuration": ""{\n    "managedConfiguration": {\n        "baseUrl": "https://example.com"\n    }\n}""
 }
 ```
 
