@@ -565,7 +565,7 @@ Enforcing IdP validation using `idp_oauth_url` and `idp_token` is optional. If e
 This method will only work on Linux hosts with TPM (Trusted Platform Module) hardware.
 
 This custom script will create a certificate signing request (CSR) and make a request to Fleet's "Request certificate" API endpoint using HTTP Signed Messages. 
-This method also requires a means of signing the HTTP request using the TPM key. Fleet has provided a reference implementation written in Go in the fleet repository under [/orbit/cmd/fetch_cert/](https://github.com/fleetdm/fleet/blob/main/orbit/cmd/fetch_cert/main.go).
+This method also requires a means of signing the HTTP request using the TPM key. Fleet has provided a reference implementation written in Go in the Fleet repository under [/orbit/cmd/fetch_cert/](https://github.com/fleetdm/fleet/blob/main/orbit/cmd/fetch_cert/main.go).
 The script in this example assumes the reference implementation has been distributed to the machine requesting the certificate.
 
 1. When enrolling the machine, make sure to build packages using the `--fleet-managed-host-identity-certificate` flag. When the client enrolls, this will generate the fleet trusted certificate used to sign the request.
