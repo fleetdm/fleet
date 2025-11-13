@@ -1,7 +1,7 @@
 # Overview
 
 ```mermaid
-flowchart LR
+flowchart TD
     n1(["User adds certificate to team/no team (UI or POST /api/v1/fleet/certificates)"]) --> n2["Cron job runs"]
     n2 --> n3["Send notification to each host on the team/no team (Notification contains certificate ID and host ID)"]
     n4["Android host enrolled"] --> n5["Default policy contains Fleet agent aplication that is required to install during enrollment (including <i>enroll_secret</i> as <i>managedConfiguration</i>)"]
