@@ -1,9 +1,5 @@
 data "aws_ecr_authorization_token" "token" {}
 
-data "docker_registry_image" "dockerhub" {
-  name = "fleetdm/fleet:${var.tag}"
-}
-
 data "aws_ecr_repository" "fleet" {
   name = local.customer
 }
@@ -14,8 +10,9 @@ resource "docker_registry_image" "loadtest" {
 }
 
 resource "docker_image" "loadtest" {
-  name         = "${data.aws_ecr_repository.fleet.repository_url}:loadtest-${local.loadtest_tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
+  name         = "${data.aws_ecr_repository.fleet.repository_url}:loadtest-${local.loadtest_tag}-${formatdate("YYYYMMDD-HHmmss", timestamp())}"
   keep_locally = true
+  force_remove = true
   build {
     context    = "../docker/"
     dockerfile = "loadtest.Dockerfile"

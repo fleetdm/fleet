@@ -1,5 +1,5 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import {
   createMockSoftwarePackage,
@@ -24,6 +24,7 @@ const MOCK_PROPS = {
     source: software.source,
     currentIconUrl: null,
     name: software.name,
+    titleName: software.name,
     countsUpdatedAt: "2025-09-03T12:00:00Z",
   },
 };
@@ -62,4 +63,31 @@ describe("EditIconModal", () => {
   });
 
   // Note: Rely on QA Wolf for E2e testing of file upload, preview, save, and remove icon
+
+  describe("Display name tests", () => {
+    it("shows the Display name input with correct default value", () => {
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(<EditIconModal {...MOCK_PROPS} />);
+      // Should default to blank if previewInfo.titleName === previewInfo.name
+      const displayNameInput = screen.getByLabelText("Display name");
+      expect(displayNameInput).toBeInTheDocument();
+      expect(displayNameInput).toHaveValue("");
+    });
+
+    it("pre-fills Display name if previewInfo.name has been modified", () => {
+      const MODIFIED_PROPS = {
+        ...MOCK_PROPS,
+        previewInfo: {
+          ...MOCK_PROPS.previewInfo,
+          name: "New Custom Name",
+          titleName: "Original Title Name",
+        },
+      };
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(<EditIconModal {...MODIFIED_PROPS} />);
+      const displayNameInput = screen.getByLabelText("Display name");
+      expect(displayNameInput).toBeInTheDocument();
+      expect(displayNameInput).toHaveValue("New Custom Name");
+    });
+  });
 });

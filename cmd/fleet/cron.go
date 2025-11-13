@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_svc "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
@@ -1048,6 +1049,17 @@ func newCleanupsAndAggregationSchedule(
 			_, err := ds.CleanupWorkerJobs(ctx, failedSince, completedSince)
 			return err
 		}),
+		schedule.WithJob("revoke_old_conditional_access_certs", func(ctx context.Context) error {
+			const gracePeriod = 1 * time.Hour
+			count, err := ds.RevokeOldConditionalAccessCerts(ctx, gracePeriod)
+			if err != nil {
+				return err
+			}
+			if count > 0 {
+				level.Info(logger).Log("msg", "revoked old conditional access certificates", "count", count)
+			}
+			return nil
+		}),
 	)
 
 	return s, nil
@@ -1831,7 +1843,7 @@ func newAndroidMDMDeviceReconcilerSchedule(
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidDeviceReconciler)
-		defaultInterval = 30 * time.Second
+		defaultInterval = 1 * time.Hour
 	)
 
 	logger = kitlog.With(logger, "cron", name)
@@ -1843,5 +1855,31 @@ func newAndroidMDMDeviceReconcilerSchedule(
 		}),
 	)
 
+	return s, nil
+}
+
+func cronEnableAndroidAppReportsOnDefaultPolicy(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	androidSvc android.Service,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronEnableAndroidAppReportsOnDefaultPolicy)
+		defaultInterval = 24 * time.Hour
+		priorJobDiff    = -(defaultInterval - 45*time.Second)
+	)
+	logger = kitlog.With(logger, "cron", name, "component", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithRunOnce(true),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return androidSvc.EnableAppReportsOnDefaultPolicy(ctx)
+		}),
+	)
 	return s, nil
 }

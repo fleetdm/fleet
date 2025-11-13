@@ -2,6 +2,13 @@
   "version": 2,
   "apps": [
     {
+      "name": "010 Editor",
+      "slug": "010-editor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.SweetScape.010Editor",
+      "description": "A toolkit for working with text and binary data."
+    },
+    {
       "name": "1Password",
       "slug": "1password/darwin",
       "platform": "darwin",
@@ -58,6 +65,13 @@
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
+      "name": "Claude",
+      "slug": "claude/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.anthropic.claudefordesktop",
+      "description": "Anthropic's official Claude AI desktop app."
+    },
+    {
       "name": "Cloudflare WARP",
       "slug": "cloudflare-warp/darwin",
       "platform": "darwin",
@@ -84,6 +98,13 @@
       "platform": "windows",
       "unique_identifier": "Cursor",
       "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
+    },
+    {
+      "name": "DataGrip",
+      "slug": "datagrip/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.datagrip",
+      "description": "A powerful cross-platform IDE for relational and NoSQL databases."
     },
     {
       "name": "Amazon DCV",
@@ -114,7 +135,7 @@
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
-      "name": "Firefox",
+      "name": "Mozilla Firefox",
       "slug": "firefox/windows",
       "platform": "windows",
       "unique_identifier": "Mozilla Firefox",
@@ -146,7 +167,21 @@
       "slug": "iterm2/darwin",
       "platform": "darwin",
       "unique_identifier": "com.googlecode.iterm2",
-      "description": ""
+      "description": "A terminal emulator alternative to Apple's Terminal app."
+    },
+    {
+      "name": "Linear",
+      "slug": "linear-linear/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.linear",
+      "description": "An app to manage software development and track bugs."
+    },
+    {
+      "name": "Logi Options+",
+      "slug": "logi-options+/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.logi.optionsplus",
+      "description": "Software for managing Logitech devices."
     },
     {
       "name": "Microsoft Edge",
@@ -205,11 +240,18 @@
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
+      "name": "Privileges",
+      "slug": "privileges/darwin",
+      "platform": "darwin",
+      "unique_identifier": "corp.sap.privileges",
+      "description": "Privileges is an admin rights switcher for macOS."
+    },
+    {
       "name": "Santa",
       "slug": "santa/darwin",
       "platform": "darwin",
       "unique_identifier": "com.northpolesec.santa",
-      "description": ""
+      "description": "Santa is a binary authorization system for macOS."
     },
     {
       "name": "Slack",
@@ -226,6 +268,13 @@
       "description": "Slack is a team communication and collaboration software for modern workplaces."
     },
     {
+      "name": "Sublime Text",
+      "slug": "sublime-text/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sublimetext.4",
+      "description": "Sublime Text is a text editor for code, markup, and prose."
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
@@ -238,6 +287,13 @@
       "platform": "windows",
       "unique_identifier": "TeamViewer",
       "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
+    },
+    {
+      "name": "Tunnelblick",
+      "slug": "tunnelblick/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.tunnelblick.tunnelblick",
+      "description": "Tunnelblick is a free and open-source OpenVPN client."
     },
     {
       "name": "Microsoft Visual Studio Code",

@@ -10,6 +10,10 @@
   &__info {
     flex-grow: 1;
     align-self: center;
+
+    .truncated-tooltip {
+      font-weight: $regular;
+    }
   }
 
   h1 {

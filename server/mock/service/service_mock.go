@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"io"
+	"net/url"
 	"sync"
 	"time"
 
@@ -205,6 +206,8 @@ type AgentOptionsForHostFunc func(ctx context.Context, hostTeamID *uint, hostPla
 
 type AuthenticateDeviceFunc func(ctx context.Context, authToken string) (host *fleet.Host, debug bool, err error)
 
+type AuthenticateDeviceByCertificateFunc func(ctx context.Context, certSerial uint64, hostUUID string) (host *fleet.Host, debug bool, err error)
+
 type ListHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error)
 
 type GetHostFunc func(ctx context.Context, id uint, opts fleet.HostDetailOptions) (host *fleet.HostDetail, err error)
@@ -237,6 +240,8 @@ type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.Host
 
 type SetHostDeviceMappingFunc func(ctx context.Context, id uint, email string, source string) ([]*fleet.HostDeviceMapping, error)
 
+type DeleteHostIDPFunc func(ctx context.Context, id uint) error
+
 type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.HostLite, error)
 
 type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error)
@@ -267,9 +272,9 @@ type AddLabelsToHostFunc func(ctx context.Context, id uint, labels []string) err
 
 type RemoveLabelsFromHostFunc func(ctx context.Context, id uint, labels []string) error
 
-type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error)
+type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error)
 
-type OSVersionFunc func(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error)
+type OSVersionFunc func(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersion, *time.Time, error)
 
 type ListHostSoftwareFunc func(ctx context.Context, hostID uint, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error)
 
@@ -541,7 +546,7 @@ type SkipAuthFunc func(ctx context.Context)
 
 type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error)
 
-type GetDeviceMDMAppleEnrollmentProfileFunc func(ctx context.Context) ([]byte, error)
+type GetDeviceMDMAppleEnrollmentProfileFunc func(ctx context.Context) (*url.URL, error)
 
 type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
 
@@ -824,6 +829,8 @@ type ConditionalAccessMicrosoftGetFunc func(ctx context.Context) (*fleet.Conditi
 type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurationCompleted bool, setupError string, err error)
 
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
+
+type ConditionalAccessGetIdPSigningCertFunc func(ctx context.Context) (certPEM []byte, err error)
 
 type ListCertificateAuthoritiesFunc func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error)
 
@@ -1124,6 +1131,9 @@ type Service struct {
 	AuthenticateDeviceFunc        AuthenticateDeviceFunc
 	AuthenticateDeviceFuncInvoked bool
 
+	AuthenticateDeviceByCertificateFunc        AuthenticateDeviceByCertificateFunc
+	AuthenticateDeviceByCertificateFuncInvoked bool
+
 	ListHostsFunc        ListHostsFunc
 	ListHostsFuncInvoked bool
 
@@ -1171,6 +1181,9 @@ type Service struct {
 
 	SetHostDeviceMappingFunc        SetHostDeviceMappingFunc
 	SetHostDeviceMappingFuncInvoked bool
+
+	DeleteHostIDPFunc        DeleteHostIDPFunc
+	DeleteHostIDPFuncInvoked bool
 
 	HostLiteByIdentifierFunc        HostLiteByIdentifierFunc
 	HostLiteByIdentifierFuncInvoked bool
@@ -2054,6 +2067,9 @@ type Service struct {
 	ConditionalAccessMicrosoftDeleteFunc        ConditionalAccessMicrosoftDeleteFunc
 	ConditionalAccessMicrosoftDeleteFuncInvoked bool
 
+	ConditionalAccessGetIdPSigningCertFunc        ConditionalAccessGetIdPSigningCertFunc
+	ConditionalAccessGetIdPSigningCertFuncInvoked bool
+
 	ListCertificateAuthoritiesFunc        ListCertificateAuthoritiesFunc
 	ListCertificateAuthoritiesFuncInvoked bool
 
@@ -2739,6 +2755,13 @@ func (s *Service) AuthenticateDevice(ctx context.Context, authToken string) (hos
 	return s.AuthenticateDeviceFunc(ctx, authToken)
 }
 
+func (s *Service) AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (host *fleet.Host, debug bool, err error) {
+	s.mu.Lock()
+	s.AuthenticateDeviceByCertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.AuthenticateDeviceByCertificateFunc(ctx, certSerial, hostUUID)
+}
+
 func (s *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error) {
 	s.mu.Lock()
 	s.ListHostsFuncInvoked = true
@@ -2851,6 +2874,13 @@ func (s *Service) SetHostDeviceMapping(ctx context.Context, id uint, email strin
 	return s.SetHostDeviceMappingFunc(ctx, id, email, source)
 }
 
+func (s *Service) DeleteHostIDP(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteHostIDPFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostIDPFunc(ctx, id)
+}
+
 func (s *Service) HostLiteByIdentifier(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 	s.mu.Lock()
 	s.HostLiteByIdentifierFuncInvoked = true
@@ -2956,18 +2986,18 @@ func (s *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labels []st
 	return s.RemoveLabelsFromHostFunc(ctx, id, labels)
 }
 
-func (s *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
+func (s *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.OSVersionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.OSVersionsFunc(ctx, teamID, platform, name, version, opts, includeCVSS)
+	return s.OSVersionsFunc(ctx, teamID, platform, name, version, opts, includeCVSS, maxVulnerabilities)
 }
 
-func (s *Service) OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error) {
+func (s *Service) OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersion, *time.Time, error) {
 	s.mu.Lock()
 	s.OSVersionFuncInvoked = true
 	s.mu.Unlock()
-	return s.OSVersionFunc(ctx, osVersionID, teamID, includeCVSS)
+	return s.OSVersionFunc(ctx, osVersionID, teamID, includeCVSS, maxVulnerabilities)
 }
 
 func (s *Service) ListHostSoftware(ctx context.Context, hostID uint, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
@@ -3915,7 +3945,7 @@ func (s *Service) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef stri
 	return s.ReconcileMDMAppleEnrollRefFunc(ctx, enrollRef, machineInfo)
 }
 
-func (s *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error) {
+func (s *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error) {
 	s.mu.Lock()
 	s.GetDeviceMDMAppleEnrollmentProfileFuncInvoked = true
 	s.mu.Unlock()
@@ -4907,6 +4937,13 @@ func (s *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error {
 	s.ConditionalAccessMicrosoftDeleteFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConditionalAccessMicrosoftDeleteFunc(ctx)
+}
+
+func (s *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error) {
+	s.mu.Lock()
+	s.ConditionalAccessGetIdPSigningCertFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessGetIdPSigningCertFunc(ctx)
 }
 
 func (s *Service) ListCertificateAuthorities(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {

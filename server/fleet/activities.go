@@ -206,6 +206,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedHydrant{},
 	ActivityDeletedHydrant{},
 	ActivityEditedHydrant{},
+	ActivityAddedCustomESTProxy{},
+	ActivityDeletedCustomESTProxy{},
+	ActivityEditedCustomESTProxy{},
 	ActivityAddedSmallstep{},
 	ActivityDeletedSmallstep{},
 	ActivityEditedSmallstep{},
@@ -236,6 +239,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityDeletedCustomVariable{},
 
 	ActivityEditedSetupExperienceSoftware{},
+
+	ActivityTypeEditedHostIdpData{},
 }
 
 type ActivityDetails interface {
@@ -2036,15 +2041,16 @@ func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
 }
 
 type ActivityTypeEditedSoftware struct {
-	SoftwareTitle    string                  `json:"software_title"`
-	SoftwarePackage  *string                 `json:"software_package"`
-	TeamName         *string                 `json:"team_name"`
-	TeamID           *uint                   `json:"team_id"`
-	SelfService      bool                    `json:"self_service"`
-	SoftwareIconURL  *string                 `json:"software_icon_url"`
-	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
-	SoftwareTitleID  uint                    `json:"software_title_id"`
+	SoftwareTitle       string                  `json:"software_title"`
+	SoftwarePackage     *string                 `json:"software_package"`
+	TeamName            *string                 `json:"team_name"`
+	TeamID              *uint                   `json:"team_id"`
+	SelfService         bool                    `json:"self_service"`
+	SoftwareIconURL     *string                 `json:"software_icon_url"`
+	LabelsIncludeAny    []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny    []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	SoftwareTitleID     uint                    `json:"software_title_id"`
+	SoftwareDisplayName string                  `json:"software_display_name"`
 }
 
 func (a ActivityTypeEditedSoftware) ActivityName() string {
@@ -2060,7 +2066,8 @@ func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
 - "self_service": Whether the software is available for installation by the end user.
 - "software_title_id": ID of the added software title.
 - "labels_include_any": Target hosts that have any label in the array.
-- "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
+- "labels_exclude_any": Target hosts that don't have any label in the array.
+- "software_display_name": Display name of the software title.`, `{
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
@@ -2068,6 +2075,7 @@ func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
   "self_service": true,
   "software_title_id": 2234,
   "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
+  "software_display_name": "Crowdstrike Falcon",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2598,6 +2606,51 @@ func (a ActivityEditedHydrant) Documentation() (activity string, details string,
 }`
 }
 
+type ActivityAddedCustomESTProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedCustomESTProxy) ActivityName() string {
+	return "added_custom_est_proxy"
+}
+
+func (a ActivityAddedCustomESTProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a custom EST certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "EST_WIFI"
+}`
+}
+
+type ActivityDeletedCustomESTProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedCustomESTProxy) ActivityName() string {
+	return "deleted_custom_est_proxy"
+}
+
+func (a ActivityDeletedCustomESTProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a custom EST certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "EST_WIFI"
+}`
+}
+
+type ActivityEditedCustomESTProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedCustomESTProxy) ActivityName() string {
+	return "edited_custom_est_proxy"
+}
+
+func (a ActivityEditedCustomESTProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a custom EST certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "EST_WIFI"
+}`
+}
+
 type ActivityAddedSmallstep struct {
 	Name string `json:"name"`
 }
@@ -3068,5 +3121,27 @@ func (a ActivityTypeEditedAndroidProfile) Documentation() (activity, details, de
 - "team_name": The name of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
   "team_id": 123,
   "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEditedHostIdpData struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	HostIdPUsername string `json:"host_idp_username"`
+}
+
+func (a ActivityTypeEditedHostIdpData) ActivityName() string {
+	return "edited_host_idp_data"
+}
+
+func (a ActivityTypeEditedHostIdpData) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user updates a host's IdP data. Currently IdP username can be edited.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_idp_username": The updated IdP username for this host.`, `{
+	"host_id": 1,
+	"host_display_name": "Anna's MacBook Pro",
+	"host_idp_username": "anna.chao@example.com"
 }`
 }

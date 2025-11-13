@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	pathUtils "path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"slices"
@@ -859,6 +860,15 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 				})
 			}
 		}
+		if estCA, ok := result["custom_est_proxy"]; ok && estCA != nil {
+			for _, intg := range estCA.([]any) {
+				intg.(map[string]interface{})["password"] = cmd.AddComment(filePath, "TODO: Add your EST password here")
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "certificate_authorities.custom_est_proxy.password",
+				})
+			}
+		}
 		if smallstep, ok := result["smallstep"]; ok && smallstep != nil {
 			for _, intg := range smallstep.([]interface{}) {
 				intg.(map[string]interface{})["password"] = cmd.AddComment(filePath, "TODO: Add your Smallstep password here")
@@ -1395,10 +1405,23 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	result := make(map[string]interface{})
 	packages := make([]map[string]interface{}, 0)
 	appStoreApps := make([]map[string]interface{}, 0)
+
+	// in-house apps generate two software titles for the same gitops entry: one
+	// for iOS and one for iPadOS. Use this set to deduplicate them (by filename,
+	// which is unique for a given team and platform).
+	dedupeInHouseAppsByFilename := make(map[string]struct{})
 	for _, sw := range software {
 		softwareSpec := make(map[string]interface{})
 		switch {
 		case sw.SoftwarePackage != nil:
+			if isInHouseApp := filepath.Ext(sw.SoftwarePackage.Name) == ".ipa"; isInHouseApp {
+				if _, ok := dedupeInHouseAppsByFilename[sw.SoftwarePackage.Name]; ok {
+					// ignore duplicate in-house app
+					continue
+				}
+				dedupeInHouseAppsByFilename[sw.SoftwarePackage.Name] = struct{}{}
+			}
+
 			pkgName := ""
 			if sw.SoftwarePackage.Name != "" {
 				pkgName = fmt.Sprintf(" (%s)", sw.SoftwarePackage.Name)

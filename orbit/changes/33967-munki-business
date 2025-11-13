@@ -1,0 +1,2 @@
+* Upgraded macadmins osquery-extension to v1.2.7.
+* Exposed `crowdstrike_falcon` osquery table from macadmins extension.

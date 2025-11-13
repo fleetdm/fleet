@@ -8,6 +8,7 @@ import {
   ICertificatesHydrant,
   ICertificatesNDES,
   ICertificatesSmallstep,
+  ICertificatesCustomEST,
 } from "interfaces/certificates";
 
 type IGetCertAuthoritiesListResponse = {
@@ -27,14 +28,16 @@ export type IAddCertAuthorityBody =
   | { ndes_scep_proxy: ICertificatesNDES }
   | { custom_scep_proxy: ICertificatesCustomSCEP }
   | { hydrant: ICertificatesHydrant }
-  | { smallstep: ICertificatesSmallstep };
+  | { smallstep: ICertificatesSmallstep }
+  | { custom_est_proxy: ICertificatesCustomEST };
 
 export type IEditCertAuthorityBody =
   | { digicert: Partial<ICertificatesDigicert> }
   | { ndes_scep_proxy: Partial<ICertificatesNDES> }
   | { custom_scep_proxy: Partial<ICertificatesCustomSCEP> }
   | { hydrant: Partial<ICertificatesHydrant> }
-  | { smallstep: Partial<ICertificatesSmallstep> };
+  | { smallstep: Partial<ICertificatesSmallstep> }
+  | { custom_est_proxy: Partial<ICertificatesCustomEST> };
 
 export default {
   getCertificateAuthoritiesList: (): Promise<IGetCertAuthoritiesListResponse> => {

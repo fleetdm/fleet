@@ -44,7 +44,7 @@ const SETUP_EXPERIENCE_NAV_ITEMS: ISideNavItem<ISetupExperienceCardProps>[] = [
   {
     title: "5. Setup assistant",
     urlSection: "setup-assistant",
-    path: PATHS.CONTROLS_SETUP_ASSITANT,
+    path: PATHS.CONTROLS_SETUP_ASSISTANT,
     Card: SetupAssistant,
   },
 ];

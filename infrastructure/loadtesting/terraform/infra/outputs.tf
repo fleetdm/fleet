@@ -35,3 +35,9 @@ output "enroll_secret_arn" {
   sensitive = true
   value     = data.aws_secretsmanager_secret_version.enroll_secret.arn
 }
+
+output "vpc_subnets" {
+  sensitive   = true
+  value       = data.terraform_remote_state.shared.outputs.vpc.private_subnets
+  description = "VPC private subnets from shared fleet-vpc"
+}
