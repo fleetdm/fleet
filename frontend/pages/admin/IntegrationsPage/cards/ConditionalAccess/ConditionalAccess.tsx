@@ -140,10 +140,9 @@ const ConditionalAccess = () => {
   // Modal states
   const [showEntraModal, setShowEntraModal] = useState(false);
   const [showOktaModal, setShowOktaModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteProvider, setDeleteProvider] = useState<
-    "microsoft-entra" | "okta"
-  >("microsoft-entra");
+  const [providerToDelete, setProviderToDelete] = useState<
+    "microsoft-entra" | "okta" | null
+  >(null);
 
   // Banner state - shows after form submission, before page refresh
   const [showAwaitingOAuthBanner, setShowAwaitingOAuthBanner] = useState(false);
@@ -274,7 +273,7 @@ const ConditionalAccess = () => {
   // HANDLERS
 
   const toggleDeleteModal = () => {
-    setShowDeleteModal(!showDeleteModal);
+    setProviderToDelete(null);
   };
 
   const handleEntraConnect = () => {
@@ -311,13 +310,11 @@ const ConditionalAccess = () => {
   };
 
   const handleEntraDelete = () => {
-    setDeleteProvider("microsoft-entra");
-    setShowDeleteModal(true);
+    setProviderToDelete("microsoft-entra");
   };
 
   const handleOktaDelete = () => {
-    setDeleteProvider("okta");
-    setShowDeleteModal(true);
+    setProviderToDelete("okta");
   };
 
   // RENDER
@@ -425,11 +422,11 @@ const ConditionalAccess = () => {
           onSuccess={handleOktaModalSuccess}
         />
       )}
-      {showDeleteModal && (
+      {providerToDelete && (
         <DeleteConditionalAccessModal
           onDelete={onDeleteConditionalAccess}
           toggleDeleteConditionalAccessModal={toggleDeleteModal}
-          provider={deleteProvider}
+          provider={providerToDelete}
           config={config}
         />
       )}
