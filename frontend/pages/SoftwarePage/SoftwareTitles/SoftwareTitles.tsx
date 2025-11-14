@@ -98,8 +98,7 @@ const SoftwareTitles = ({
     }
   );
 
-  // For Versions view, request software versions data. If empty, request titles available for
-  // install to determine empty state copy
+  // For Versions view, request software versions data.
 
   const {
     data: versionsData,
@@ -134,6 +133,15 @@ const SoftwareTitles = ({
     }
   );
 
+  // This query checks if there are any installable software titles (VPP apps or Fleet-managed
+  // installers) available for the team. It only runs when the versions table is empty, to
+  // determine which empty state message to show:
+  // - If installable software exists: "Install software on your hosts to see versions."
+  // - If no installable software: "Expecting to see software? Check back later."
+  // See PR #21118 (issue #21053) for context.
+  //
+  // The enabled condition ensures this query only fires after the versions query has fully loaded
+  // and confirmed it's actually empty, preventing unnecessary API calls during page transitions.
   const {
     data: titlesAvailableForInstallResponse,
     isFetching: isTitlesAFIFetching,
@@ -164,7 +172,9 @@ const SoftwareTitles = ({
       ...QUERY_OPTIONS,
       enabled:
         location.pathname === PATHS.SOFTWARE_VERSIONS &&
-        versionsData &&
+        !isVersionsLoading &&
+        !isVersionsFetching &&
+        versionsData !== undefined &&
         versionsData.count === 0,
     }
   );
