@@ -161,7 +161,7 @@ const ConditionalAccess = () => {
         setEntraPhase(EntraPhase.Configured);
         renderFlash(
           "success",
-          "Successfully verified conditional access integration"
+          "Successfully verified Microsoft Entra conditional access integration"
         );
       } else {
         setEntraPhase(EntraPhase.NotConfigured);
@@ -213,14 +213,17 @@ const ConditionalAccess = () => {
     microsoft_entra_tenant_id: entraTenantId,
     microsoft_entra_connection_configured: entraConfigured,
     okta_idp_id: oktaIdpId,
+    okta_assertion_consumer_service_url: oktaAcsUrl,
+    okta_audience_uri: oktaAudienceUri,
+    okta_certificate: oktaCertificate,
   } = config?.conditional_access || {};
 
   // Determine if Okta is configured (all 4 fields must be present)
   const oktaConfigured = !!(
     oktaIdpId &&
-    config?.conditional_access?.okta_assertion_consumer_service_url &&
-    config?.conditional_access?.okta_audience_uri &&
-    config?.conditional_access?.okta_certificate
+    oktaAcsUrl &&
+    oktaAudienceUri &&
+    oktaCertificate
   );
 
   // Check if this is a managed cloud deployment (Microsoft Entra requires proxy infrastructure)
@@ -326,11 +329,7 @@ const ConditionalAccess = () => {
         </Button>
       );
     } else if (!entraIsAwaitingOAuth) {
-      entraCta = (
-        <Button onClick={handleEntraConnect}>
-          Connect
-        </Button>
-      );
+      entraCta = <Button onClick={handleEntraConnect}>Connect</Button>;
     }
 
     let entraContent: string;
