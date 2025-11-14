@@ -511,6 +511,7 @@ software:
         - Marketing
       categories:
         - Communication
+      setup_experience: true
   fleet_maintained_apps:
     - slug: slack/darwin
       install_script:
@@ -526,6 +527,7 @@ software:
       categories:
         - Communication
         - Productivity
+      setup_experience: true
 ```
 
 #### self_service, labels, categories, and setup_experience
