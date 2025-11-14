@@ -428,6 +428,8 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	}
 
 	// PHASE 2: Main transaction for host-specific operations
+	// We do not retry the transaction here because we do not want to overwhelm the DB.
+	// The transaction will be retried naturally when the agent refreshes (or IT admin requests a refresh).
 	err = ds.withTx(
 		ctx, func(tx sqlx.ExtContext) error {
 			deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
@@ -459,6 +461,12 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		},
 	)
 	if err != nil {
+		// Check if this is a retryable error (e.g., deadlock, lock timeout)
+		if common_mysql.RetryableError(err) {
+			// Log the retryable error and return nil instead of failing the request.
+			level.Info(ds.logger).Log("msg", "retryable error during software update, will retry on next agent refresh", "err", err, "host_id", hostID)
+			return nil, nil
+		}
 		return nil, err
 	}
 	return r, err
