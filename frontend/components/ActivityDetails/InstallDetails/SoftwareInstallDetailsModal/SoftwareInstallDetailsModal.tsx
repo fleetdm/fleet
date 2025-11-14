@@ -261,6 +261,10 @@ export const SoftwareInstallDetailsModal = ({
   const renderInstallDetailsSection = () => {
     const outputs = [
       {
+        label: "Pre-install query output:",
+        value: swInstallResult?.pre_install_query_output,
+      },
+      {
         label: "Install script output:",
         value: swInstallResult?.output,
       },
@@ -273,7 +277,8 @@ export const SoftwareInstallDetailsModal = ({
     // Only show details button if there's details to display
     const showDetailsButton =
       (!!swInstallResult?.post_install_script_output ||
-        !!swInstallResult?.output) &&
+        !!swInstallResult?.output ||
+        !!swInstallResult?.pre_install_query_output) &&
       swInstallResult?.status !== "pending_install";
 
     return (
