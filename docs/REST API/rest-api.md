@@ -6769,7 +6769,7 @@ echo "hello"
 
 ```
 
-### Set setup experience script
+### Update setup experience script
 
 _Available in Fleet Premium_
 
