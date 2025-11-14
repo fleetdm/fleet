@@ -71,7 +71,6 @@ import {
   isSoftwareScriptSetup,
   isIPhone,
   isIPad,
-  isAndroid,
 } from "./helpers";
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
@@ -142,8 +141,7 @@ const DeviceUserPage = ({
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
   const isMobileView = useIsMobileWidth();
-  const isMobileDevice =
-    isIPhone(navigator) || isIPad(navigator) || isAndroid(navigator);
+  const isMobileDevice = isIPhone(navigator) || isIPad(navigator);
 
   const { renderFlash, notification, hideFlash } = useContext(
     NotificationContext
