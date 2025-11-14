@@ -2357,14 +2357,14 @@ type Datastore interface {
 	ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error)
 
 	// UpsertAndroidAppConfiguration inserts or updates an app configuration json
-	UpsertAndroidAppConfiguration(ctx context.Context, teamID *uint, adamID string, cfg AndroidAppConfig) error
+	UpsertAndroidAppConfiguration(ctx context.Context, teamID *uint, adamID string, cfg []byte) error
 
 	// DeleteAndroidAppConfiguration deletes an android app configuration
 	DeleteAndroidAppConfiguration(ctx context.Context, teamID *uint, adamID string) error
 
 	// GetAndroidAppConfiguration gets the json configuration
 	// TODO(JK): is this necessary?
-	GetAndroidAppConfiguration(ctx context.Context, teamID *uint, adamID string) (AndroidAppConfig, error)
+	// GetAndroidAppConfiguration(ctx context.Context, teamID *uint, adamID string) (AndroidAppConfig, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM

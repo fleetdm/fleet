@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"cmp"
 	"context"
 	"database/sql"
@@ -625,6 +626,14 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 
 		if err := updateSoftwareTitleDisplayName(ctx, tx, teamID, titleID, app.DisplayName); err != nil {
 			return ctxerr.Wrap(ctx, err, "setting software title display name for vpp app")
+		}
+
+		// TODO(JK): how do we clean these up if vpp(android) app suddenly disappears
+		// TODO: only do this on android apps (maybe handled by just configuration being nil? check this upstream)
+		if app.Configuration != nil {
+			if err := updateAndroidAppConfiguration(ctx, tx, teamID, app.AdamID, app.Configuration); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting configuration for android app")
+			}
 		}
 
 		return nil

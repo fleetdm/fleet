@@ -140,12 +140,3 @@ const (
 	DefaultVPPInstallVerifyTimeout = 10 * time.Minute
 	DefaultVPPVerifyRequestDelay   = 5 * time.Second
 )
-
-type AndroidAppConfig struct {
-	// can be anything, doesn't matter to us as long as it's valid
-	// mysql will validate it, so there is no need to do so in Go code
-	ManagedConfiguration []byte `json:"managedConfiguration"`
-	// TODO(JK): documentation says workProfileWidgets is an enum
-	// what type do we actually get here?
-	WorkProfileWidgets string `json:"workProfileWidgets"`
-}
