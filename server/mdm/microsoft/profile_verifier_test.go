@@ -932,7 +932,21 @@ func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := PreprocessWindowsProfileContentsForVerification(t.Context(), log.NewNopLogger(), ds, tt.hostUUID, uuid.NewString(), tt.profileContents, hostIDForUUIDCache)
+			deps := PreprocessDependencies{
+				Ctx:                t.Context(),
+				Logger:             log.NewNopLogger(),
+				Ds:                 ds,
+				AppConfig:          nil,
+				HostIDForUUIDCache: hostIDForUUIDCache,
+				CustomSCEPCAs:      nil,
+			}
+			params := PreprocessParams{
+				IsVerifying:                true,
+				HostUUID:                   tt.hostUUID,
+				ProfileUUID:                uuid.NewString(),
+				ManagedCertificatePayloads: nil,
+			}
+			result := PreprocessWindowsProfileContentsForVerification(deps, params, tt.profileContents)
 			require.Equal(t, tt.expectedContents, result)
 		})
 	}
@@ -1168,9 +1182,26 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
 			require.NoError(t, err)
 
+			customSCEPCAs := groupedCAs.ToCustomSCEPProxyCAMap()
+
 			managedCertificates := &[]*fleet.MDMManagedCertificate{}
 
-			result, err := PreprocessWindowsProfileContentsForDeployment(ctx, log.NewNopLogger(), ds, appConfig, tt.hostUUID, profileUUID, groupedCAs, tt.profileContents, managedCertificates, hostIDForUUIDCache)
+			deps := PreprocessDependencies{
+				Ctx:                ctx,
+				Logger:             log.NewNopLogger(),
+				Ds:                 ds,
+				AppConfig:          appConfig,
+				HostIDForUUIDCache: hostIDForUUIDCache,
+				CustomSCEPCAs:      customSCEPCAs,
+			}
+			params := PreprocessParams{
+				IsVerifying:                false,
+				HostUUID:                   tt.hostUUID,
+				ProfileUUID:                profileUUID,
+				ManagedCertificatePayloads: managedCertificates,
+			}
+
+			result, err := PreprocessWindowsProfileContentsForDeployment(deps, params, tt.profileContents)
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.processingError != "" {
