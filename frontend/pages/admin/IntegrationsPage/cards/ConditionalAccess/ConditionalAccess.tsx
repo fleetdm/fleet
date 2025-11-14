@@ -124,6 +124,7 @@ enum EntraPhase {
   ConfirmationError = "confirmation-error",
   Configured = "configured",
   NotConfigured = "not-configured",
+  AwaitingOAuth = "awaiting-oauth",
 }
 
 const ConditionalAccess = () => {
@@ -143,9 +144,6 @@ const ConditionalAccess = () => {
   const [providerToDelete, setProviderToDelete] = useState<
     "microsoft-entra" | "okta" | null
   >(null);
-
-  // Banner state - shows after form submission, before page refresh
-  const [showAwaitingOAuthBanner, setShowAwaitingOAuthBanner] = useState(false);
 
   // this page is unique in that it triggers a server process that will result in an update to
   // config, but via an endpoint (conditional access) other than the usual PATCH config, so we want
@@ -248,9 +246,8 @@ const ConditionalAccess = () => {
 
   // Check Entra configuration state
   useEffect(() => {
-    // Don't check config if we're showing the awaiting OAuth banner
-    if (showAwaitingOAuthBanner) {
-      setEntraPhase(EntraPhase.NotConfigured);
+    // Don't check config if we're in AwaitingOAuth phase
+    if (entraPhase === EntraPhase.AwaitingOAuth) {
       return;
     }
 
@@ -264,7 +261,7 @@ const ConditionalAccess = () => {
     } else {
       setEntraPhase(EntraPhase.NotConfigured);
     }
-  }, [entraTenantId, entraConfigured, showAwaitingOAuthBanner]);
+  }, [entraTenantId, entraConfigured, entraPhase]);
 
   if (!isPremiumTier) {
     return <PremiumFeatureMessage />;
@@ -286,9 +283,9 @@ const ConditionalAccess = () => {
 
   const handleEntraModalSuccess = () => {
     setShowEntraModal(false);
-    // Show banner instead of immediately refetching config
+    // Set phase to awaiting OAuth instead of immediately refetching config
     // Config will be checked when user refreshes the page
-    setShowAwaitingOAuthBanner(true);
+    setEntraPhase(EntraPhase.AwaitingOAuth);
   };
 
   const onDeleteConditionalAccess = (updatedConfig: IConfig) => {
@@ -330,11 +327,12 @@ const ConditionalAccess = () => {
 
     // Compute Entra card props to avoid nested ternaries
     const entraIsConfigured = entraPhase === EntraPhase.Configured;
+    const entraIsAwaitingOAuth = entraPhase === EntraPhase.AwaitingOAuth;
 
     let entraIconName: IconNames | undefined;
     if (entraIsConfigured) {
       entraIconName = "success";
-    } else if (showAwaitingOAuthBanner) {
+    } else if (entraIsAwaitingOAuth) {
       entraIconName = "pending-outline";
     }
 
@@ -346,7 +344,7 @@ const ConditionalAccess = () => {
           <Icon name="trash" color="ui-fleet-black-75" />
         </Button>
       );
-    } else if (!showAwaitingOAuthBanner) {
+    } else if (!entraIsAwaitingOAuth) {
       entraCta = (
         <Button onClick={handleEntraConnect} isLoading={isUpdating}>
           Connect
@@ -357,7 +355,7 @@ const ConditionalAccess = () => {
     let entraContent: string;
     if (entraIsConfigured) {
       entraContent = "Microsoft Entra conditional access configured";
-    } else if (showAwaitingOAuthBanner) {
+    } else if (entraIsAwaitingOAuth) {
       entraContent =
         "To complete your integration, follow the instructions in the other tab, then refresh this page to verify.";
     } else {
@@ -387,7 +385,7 @@ const ConditionalAccess = () => {
         {isManagedCloud && (
           <SectionCard
             header={
-              entraIsConfigured || showAwaitingOAuthBanner
+              entraIsConfigured || entraIsAwaitingOAuth
                 ? undefined
                 : "Microsoft Entra"
             }
