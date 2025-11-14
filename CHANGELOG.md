@@ -1,3 +1,9 @@
+## Fleet 4.76.1 (Nov 14, 2025)
+
+### Bug fixes
+
+* Added an endpoint to allow updating the macOS setup experience script in-place, and modified gitops to utilize it
+
 ## Fleet 4.76.0 (Nov 7, 2025)
 
 ### Security Engineers
