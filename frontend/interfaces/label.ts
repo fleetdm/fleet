@@ -73,7 +73,6 @@ export interface ILabel extends ILabelSummary {
   created_at: string;
   updated_at: string;
   uuid?: string;
-  host_count?: number; // returned for built-in labels but not custom labels
   display_text: string;
   count: number; // seems to be a repeat of hosts_count issue #1618
   type?: "custom" | "platform" | "status" | "all";
