@@ -120,11 +120,11 @@ const DeleteConditionalAccessModal = ({
 };
 
 enum EntraPhase {
+  NotConfigured = "not-configured",
   ConfirmingConfigured = "confirming-configured",
   ConfirmationError = "confirmation-error",
-  Configured = "configured",
-  NotConfigured = "not-configured",
   AwaitingOAuth = "awaiting-oauth",
+  Configured = "configured",
 }
 
 const ConditionalAccess = () => {
@@ -136,7 +136,6 @@ const ConditionalAccess = () => {
   const [entraPhase, setEntraPhase] = useState<EntraPhase>(
     EntraPhase.NotConfigured
   );
-  const [isUpdating, setIsUpdating] = useState(false);
 
   // Modal states
   const [showEntraModal, setShowEntraModal] = useState(false);
@@ -144,23 +143,6 @@ const ConditionalAccess = () => {
   const [providerToDelete, setProviderToDelete] = useState<
     "microsoft-entra" | "okta" | null
   >(null);
-
-  // this page is unique in that it triggers a server process that will result in an update to
-  // config, but via an endpoint (conditional access) other than the usual PATCH config, so we want
-  // to both reference config context AND conditionally (when `isUpdating` from the Configured
-  // phase) access `refetchConfig` and associated useQuery capability
-
-  // see frontend/docs/patterns.md > ### Reading and updating configs for why this is atypical
-
-  useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
-    select: (data: IConfig) => data,
-    enabled: isUpdating,
-    onSuccess: (_config) => {
-      setConfig(_config);
-      setIsUpdating(false);
-    },
-    ...DEFAULT_USE_QUERY_OPTIONS,
-  });
 
   // "loading" state here is encompassed by phase === Phase.ConfirmingConfigured state, don't need
   // to use useQuery's
@@ -290,7 +272,6 @@ const ConditionalAccess = () => {
 
   const onDeleteConditionalAccess = (updatedConfig: IConfig) => {
     setConfig(updatedConfig);
-    setIsUpdating(false);
   };
 
   const handleOktaConnect = () => {
@@ -346,7 +327,7 @@ const ConditionalAccess = () => {
       );
     } else if (!entraIsAwaitingOAuth) {
       entraCta = (
-        <Button onClick={handleEntraConnect} isLoading={isUpdating}>
+        <Button onClick={handleEntraConnect}>
           Connect
         </Button>
       );
