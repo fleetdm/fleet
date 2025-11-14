@@ -1,8 +1,13 @@
-## Android app to install certificates
+# Android app to install certificates
 
 POC app: https://github.com/marko-lisica/android-certificate-installer
 
 ---
+
+- [How Android app can install client certificate](#how-android-app-can-install-client-certificate)
+- [Local testing in Android Studio](#local-testing-in-android-studio)
+
+## How Android app can install client certificate
 
 Android Management API don't support certificate installation through REST API, but they let the MDM assign `delegatedScope` to the app, so certificate installation is delegated to the native app (usually these are called companion apps).
 
@@ -98,3 +103,33 @@ fun installWithSeparateKeyAndCert(
     }
 }
 ```
+
+## Local testing in Android Studio
+
+Testing is straightforward in Android Studio, you can run emulator or connect real device via USB cable, but if you want to test app in work profile it requires some configuration changes.
+
+Also additional complexity is that you need to mock MDM (work profile), and additionally to delegate `CERT_INSTALL` scope and define managed configuration. This can be done with Google's [Test DPC](https://play.google.com/store/apps/details?id=com.afwsamples.testdpc) app.
+
+
+### Use Test DPC to add work profile to your test device
+
+1. Install [Test DPC](https://play.google.com/store/apps/details?id=com.afwsamples.testdpc) from Google Play.
+2. You should see 2 apps installed **Test DPC** and **Set up Test DPC**.
+3. Open **Set up Test DPC**, select **Set up managed profile** and select **Next**.
+4. Select **Skip** on **Add account** page, and then select **Finish**.
+5. You should have now **Work profile** added on your device.
+6. Note that **Test DPC** app is available in both personal and work profile, but you should use one in work profile in order to change Work profile settings.
+
+### Run the debug app in Android Studio within the work profile
+
+1. First on your Android device, open **Test DPC** in work profile, and search for **Set user restrictions**, and select it.
+2. Disable **Disallow debugging features** and **Disallow install unknown resources**.
+3. Now open **Android Studio**, and in the menu bar select **Run > Edit Configurations...**.
+4. You probably have one configuration which is by default named **app**. Just make sure that **Install for all users (if already installed, will only update for existing users)** check box an save it for any configuration that you plan to run.
+5. Now when you run your app on emulator or real device (connected via USB), it will run on both personal and work profile.
+
+### Grant delegated scope to the app (CERT_INSTALL)
+
+1. Open **Test DPC** in work profile, and search for **Delegated cert installer**, and select it.
+2. Find your app in the list, select it and select **Set** button on the bottom.
+3. Your app should have granted scope to install certificate and to utilize `DevicePolicyManager.installKeyPair`.
