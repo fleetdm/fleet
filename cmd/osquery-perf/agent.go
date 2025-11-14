@@ -32,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/hostidentity"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/installer_cache"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/osquery_perf"
+	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/softwaredb"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -68,6 +69,9 @@ var (
 	windowsSoftware                    []map[string]string
 	ubuntuSoftware                     []map[string]string
 	ubuntuKernels                      []string
+
+	// Software library database (loaded from SQLite if --software_db_path is specified)
+	softwareDB *softwaredb.DB
 
 	installerMetadataCache installer_cache.Metadata
 
@@ -1861,55 +1865,61 @@ func (a *agent) softwareMacOS() []map[string]string {
 		uniqueSoftware = uniqueSoftware[:a.softwareCount.unique-a.softwareCount.uniqueSoftwareUninstallCount]
 	}
 
-	// Vulnerable Software
-	var vCount int
-	if a.softwareCount.vulnerable < 0 {
-		vCount = len(macosVulnerableSoftware)
+	// Use database software 80% of the time if available; otherwise use legacy vulnerable software.
+	var realSoftware []map[string]string
+	if softwareDB != nil && len(softwareDB.Darwin) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
+		realSoftware = softwareDB.DarwinToMaps()
 	} else {
-		vCount = a.softwareCount.vulnerable
-	}
-
-	vulnerableSoftware := make([]map[string]string, 0, vCount)
-	randomIndices := rand.Perm(len(macosVulnerableSoftware)) // Randomize software selection
-	var softwareLimit int
-
-	switch {
-	case a.softwareCount.vulnerable < 0: // Sequential assignment
-		softwareLimit = len(macosVulnerableSoftware)
-	case a.softwareCount.vulnerable == 0: // No vulnerable software
-		softwareLimit = 0
-	default: // Random assignment
-		softwareLimit = min(a.softwareCount.vulnerable, len(macosVulnerableSoftware)) // Limit to available software
-	}
-
-	for i := range softwareLimit {
-		var sw fleet.Software
-
+		// Vulnerable Software
+		var vCount int
 		if a.softwareCount.vulnerable < 0 {
-			sw = macosVulnerableSoftware[i]
+			vCount = len(macosVulnerableSoftware)
 		} else {
-			sw = macosVulnerableSoftware[randomIndices[i]]
+			vCount = a.softwareCount.vulnerable
 		}
 
-		var lastOpenedAt string
-		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
-			lastOpenedAt = l.Format(time.UnixDate)
+		realSoftware = make([]map[string]string, 0, vCount)
+		randomIndices := rand.Perm(len(macosVulnerableSoftware)) // Randomize software selection
+		var softwareLimit int
+
+		switch {
+		case a.softwareCount.vulnerable < 0: // Sequential assignment
+			softwareLimit = len(macosVulnerableSoftware)
+		case a.softwareCount.vulnerable == 0: // No vulnerable software
+			softwareLimit = 0
+		default: // Random assignment
+			softwareLimit = min(a.softwareCount.vulnerable, len(macosVulnerableSoftware)) // Limit to available software
 		}
 
-		vulnerableSoftware = append(vulnerableSoftware, map[string]string{
-			"name":              sw.Name,
-			"version":           sw.Version,
-			"bundle_identifier": sw.BundleIdentifier,
-			"source":            sw.Source,
-			"last_opened_at":    lastOpenedAt,
-			"installed_path":    fmt.Sprintf("/some/path/%s", sw.Name),
-		})
+		for i := range softwareLimit {
+			var sw fleet.Software
+
+			if a.softwareCount.vulnerable < 0 {
+				sw = macosVulnerableSoftware[i]
+			} else {
+				sw = macosVulnerableSoftware[randomIndices[i]]
+			}
+
+			var lastOpenedAt string
+			if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
+				lastOpenedAt = l.Format(time.UnixDate)
+			}
+
+			realSoftware = append(realSoftware, map[string]string{
+				"name":              sw.Name,
+				"version":           sw.Version,
+				"bundle_identifier": sw.BundleIdentifier,
+				"source":            sw.Source,
+				"last_opened_at":    lastOpenedAt,
+				"installed_path":    fmt.Sprintf("/some/path/%s", sw.Name),
+			})
+		}
 	}
 
 	// Combine all software
 	software := commonSoftware
 	software = append(software, uniqueSoftware...)
-	software = append(software, vulnerableSoftware...)
+	software = append(software, realSoftware...)
 	software = append(software, duplicateBundleSoftware...)
 	a.installedSoftware.Range(func(key, value interface{}) bool {
 		software = append(software, value.(map[string]string))
@@ -2660,18 +2670,23 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
-			results = make([]map[string]string, 0, len(windowsSoftware))
-			for _, s := range windowsSoftware {
-				// Use consistent version based on software name's first character
-				baseVersion := s["version"]
-				alternateVersion := baseVersion + ".1"
-				m := map[string]string{
-					"name":         s["name"],
-					"source":       s["source"],
-					"version":      a.selectSoftwareVersion(s["name"], baseVersion, alternateVersion),
-					"upgrade_code": s["upgrade_code"],
+			// Use database software 80% of the time if available, otherwise use embedded data
+			if softwareDB != nil && len(softwareDB.Windows) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
+				results = softwareDB.WindowsToMaps()
+			} else {
+				results = make([]map[string]string, 0, len(windowsSoftware))
+				for _, s := range windowsSoftware {
+					// Use consistent version based on software name's first character
+					baseVersion := s["version"]
+					alternateVersion := baseVersion + ".1"
+					m := map[string]string{
+						"name":         s["name"],
+						"source":       s["source"],
+						"version":      a.selectSoftwareVersion(s["name"], baseVersion, alternateVersion),
+						"upgrade_code": s["upgrade_code"],
+					}
+					results = append(results, m)
 				}
-				results = append(results, m)
 			}
 			a.installedSoftware.Range(func(key, value interface{}) bool {
 				results = append(results, value.(map[string]string))
@@ -2687,27 +2702,32 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		if ss == fleet.StatusOK {
 			switch a.os { //nolint:gocritic // ignore singleCaseSwitch
 			case "ubuntu":
-				results = make([]map[string]string, 0, len(ubuntuSoftware))
-				for _, s := range ubuntuSoftware {
-					softwareName := s["name"]
-					if a.linuxUniqueSoftwareTitle {
-						softwareName = fmt.Sprintf("%s-%d-%s", softwareName, a.agentIndex, linuxRandomBuildNumber)
+				// Use database software 80% of the time if available, otherwise use embedded data
+				if softwareDB != nil && len(softwareDB.Ubuntu) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
+					results = softwareDB.UbuntuToMaps()
+				} else {
+					results = make([]map[string]string, 0, len(ubuntuSoftware))
+					for _, s := range ubuntuSoftware {
+						softwareName := s["name"]
+						if a.linuxUniqueSoftwareTitle {
+							softwareName = fmt.Sprintf("%s-%d-%s", softwareName, a.agentIndex, linuxRandomBuildNumber)
+						}
+						var version string
+						if a.linuxUniqueSoftwareVersion {
+							version = fmt.Sprintf("1.2.%d-%s", a.agentIndex, linuxRandomBuildNumber)
+						} else {
+							// Use consistent version based on software name's first character
+							baseVersion := s["version"]
+							alternateVersion := baseVersion + ".1"
+							version = a.selectSoftwareVersion(softwareName, baseVersion, alternateVersion)
+						}
+						m := map[string]string{
+							"name":    softwareName,
+							"source":  s["source"],
+							"version": version,
+						}
+						results = append(results, m)
 					}
-					var version string
-					if a.linuxUniqueSoftwareVersion {
-						version = fmt.Sprintf("1.2.%d-%s", a.agentIndex, linuxRandomBuildNumber)
-					} else {
-						// Use consistent version based on software name's first character
-						baseVersion := s["version"]
-						alternateVersion := baseVersion + ".1"
-						version = a.selectSoftwareVersion(softwareName, baseVersion, alternateVersion)
-					}
-					m := map[string]string{
-						"name":    softwareName,
-						"source":  s["source"],
-						"version": version,
-					}
-					results = append(results, m)
 				}
 
 				// Add pre-selected kernels for this agent
@@ -3156,10 +3176,23 @@ func main() {
 		loggerTLSMaxLines = flag.Int("logger_tls_max_lines", 1024,
 			"Maximum number of buffered result log lines to send on every log request")
 		commonSoftwareNameSuffix = flag.String("common_software_name_suffix", "", "Suffix to add to generated common software names")
+		softwareDatabasePath     = flag.String("software_db_path", "software-library/software.db",
+			"Path to software.db (SQLite database with realistic software data). Auto-generates from software.sql if missing.")
 	)
 
 	flag.Parse()
 	rand.Seed(*randSeed)
+
+	// Load software from database if path provided
+	if *softwareDatabasePath != "" {
+		db, err := softwaredb.LoadFromDatabase(*softwareDatabasePath)
+		if err != nil {
+			log.Fatalf("Failed to load software database: %v", err)
+		}
+		softwareDB = db
+	} else {
+		log.Println("No software database specified (--software_db_path). Using embedded software data.")
+	}
 
 	// There are two modes for osquery-perf:
 	// 1. Non distributed mode (old behavior). All agents get all software specified. This is done when specifying --host_count and --common_software_count
