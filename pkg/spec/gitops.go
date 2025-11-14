@@ -762,6 +762,21 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 				}
 			}
 		}
+
+		if androidSettings.Certificates.Valid {
+			for i, cert := range androidSettings.Certificates.Value {
+				if cert.Name == "" {
+					multiError = multierror.Append(multiError, fmt.Errorf("android_settings.certificates[%d]: name is required", i))
+				}
+				if cert.CertificateAuthorityName == "" {
+					multiError = multierror.Append(multiError, fmt.Errorf("android_settings.certificates[%d]: certificate_authority_name is required", i))
+				}
+				if cert.SubjectName == "" {
+					multiError = multierror.Append(multiError, fmt.Errorf("android_settings.certificates[%d]: subject_name is required", i))
+				}
+			}
+		}
+
 		// Since we already unmarshalled and updated the path, we need to update the result struct.
 		result.Controls.AndroidSettings = androidSettings
 	}

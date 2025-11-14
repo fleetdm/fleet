@@ -513,9 +513,11 @@ func numberWithPluralization(n int, singular string, plural string) string {
 	return fmt.Sprintf("%d %s", n, plural)
 }
 
-const dryRunAppliedFormat = "[+] would've applied %s\n"
-const appliedFormat = "[+] applied %s\n"
-const applyingTeamFormat = "[+] applying %s for team %s\n"
+const (
+	dryRunAppliedFormat = "[+] would've applied %s\n"
+	appliedFormat       = "[+] applied %s\n"
+	applyingTeamFormat  = "[+] applying %s for team %s\n"
+)
 
 // ApplyGroup applies the given spec group to Fleet.
 func (c *Client) ApplyGroup(
@@ -2295,6 +2297,12 @@ func (c *Client) DoGitOps(
 		return nil, nil, err
 	}
 
+	// Apply Android certificates if present
+	err = c.doGitOpsAndroidCertificates(incoming, logFn, dryRun)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// apply icon changes from software installers and VPP apps
 	if len(teamSoftwareInstallers) > 0 || len(teamVPPApps) > 0 {
 		iconUpdates := fleet.IconChanges{}.WithUploadedHashes(iconSettings.UploadedHashes).WithSoftware(teamSoftwareInstallers, teamVPPApps)
@@ -2843,6 +2851,70 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 			}
 		}
 	}
+	return nil
+}
+
+func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
+	if config.Controls.AndroidSettings == nil {
+		return nil
+	}
+
+	androidSettings, ok := config.Controls.AndroidSettings.(fleet.AndroidSettings)
+	if !ok {
+		return nil
+	}
+
+	if !androidSettings.Certificates.Valid || len(androidSettings.Certificates.Value) == 0 {
+		return nil
+	}
+
+	certificates := androidSettings.Certificates.Value
+	numCerts := len(certificates)
+
+	if dryRun {
+		logFn("[+] would've applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+		return nil
+	}
+
+	logFn("[+] applying %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+
+	cas, err := c.GetCertificateAuthorities()
+	if err != nil {
+		return fmt.Errorf("getting certificate authorities: %w", err)
+	}
+	caIDsByName := make(map[string]uint)
+	for _, ca := range cas {
+		logFn("---------------Found CA: %s (ID: %d)\n", ca.Name, ca.ID)
+		caIDsByName[ca.Name] = ca.ID
+	}
+
+	certRequests := make([]*fleet.CertificateRequestSpec, len(certificates))
+	for i := range certificates {
+		logFn("---------------Processing Certificate: %s (CA Name: %s) %s\n", certificates[i].Name, certificates[i].CertificateAuthorityName, certificates[i].SubjectName)
+		caID, ok := caIDsByName[certificates[i].CertificateAuthorityName]
+		if !ok {
+			return fmt.Errorf("certificate authority %q not found for certificate %q",
+				certificates[i].CertificateAuthorityName, certificates[i].Name)
+		}
+
+		teamID := ""
+		if config.TeamID != nil {
+			teamID = fmt.Sprintf("%d", *config.TeamID)
+		}
+
+		certRequests[i] = &fleet.CertificateRequestSpec{
+			Name:                   certificates[i].Name,
+			Team:                   teamID,
+			CertificateAuthorityId: uint(caID),
+			SubjectName:            certificates[i].SubjectName,
+		}
+	}
+
+	if err := c.ApplyCertificateSpecs(certRequests); err != nil {
+		return fmt.Errorf("applying Android certificates: %w", err)
+	}
+
+	logFn("[+] applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 	return nil
 }
 

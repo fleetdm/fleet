@@ -1570,7 +1570,8 @@ var _ WithMDMProfileSpecs = WindowsSettings{}
 type AndroidSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings"`
+	CustomSettings optjson.Slice[MDMProfileSpec]  `json:"custom_settings"`
+	Certificates   optjson.Slice[CertificateSpec] `json:"certificates"`
 }
 
 func (ws AndroidSettings) GetMDMProfileSpecs() []MDMProfileSpec {
@@ -1579,6 +1580,13 @@ func (ws AndroidSettings) GetMDMProfileSpecs() []MDMProfileSpec {
 
 // Compile-time interface check
 var _ WithMDMProfileSpecs = AndroidSettings{}
+
+// CertificateSpec defines a certificate to be deployed to devices.
+type CertificateSpec struct {
+	Name                     string `json:"name"`
+	CertificateAuthorityName string `json:"certificate_authority_name"`
+	SubjectName              string `json:"subject_name"`
+}
 
 type YaraRuleSpec struct {
 	Path string `json:"path"`
