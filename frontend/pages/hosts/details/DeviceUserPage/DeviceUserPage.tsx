@@ -28,7 +28,12 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { isAppleDevice, isLinuxLike } from "interfaces/platform";
+import {
+  isAndroid,
+  isMacOS,
+  isAppleDevice,
+  isLinuxLike,
+} from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
 
@@ -64,6 +69,8 @@ import {
   getErrorMessage,
   hasRemainingSetupSteps,
   isSoftwareScriptSetup,
+  isIPhone,
+  isIPad,
 } from "./helpers";
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
@@ -134,6 +141,7 @@ const DeviceUserPage = ({
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
   const isMobileView = useIsMobileWidth();
+  const isMobileDevice = isIPhone(navigator) || isIPad(navigator);
 
   const { renderFlash, notification, hideFlash } = useContext(
     NotificationContext
@@ -338,7 +346,7 @@ const DeviceUserPage = ({
   const isSetupExperienceSoftwareEnabledPlatform =
     isLinuxLike(host?.platform || "") ||
     host?.platform === "windows" ||
-    host?.platform === "darwin";
+    isMacOS(host?.platform || "");
 
   const isFleetMdmManualUnenrolledMac =
     !!globalConfig?.mdm.enabled_and_configured &&
@@ -553,8 +561,8 @@ const DeviceUserPage = ({
       ?.enable_software_inventory;
 
     const showUsersCard =
-      host?.platform === "darwin" ||
-      host?.platform === "android" ||
+      isMacOS(host?.platform || "") ||
+      isAndroid(host?.platform || "") ||
       generateChromeProfilesValues(host?.end_users ?? []).length > 0 ||
       generateOtherEmailsValues(host?.end_users ?? []).length > 0;
 
@@ -695,22 +703,17 @@ const DeviceUserPage = ({
                   osSettings={host?.mdm.os_settings}
                 />
                 <AboutCard
-                  className={
-                    showUsersCard ? defaultCardClass : fullWidthCardClass
-                  }
+                  className={defaultCardClass}
                   aboutData={aboutData}
                   munki={deviceMacAdminsData?.munki}
                 />
-                {showUsersCard && (
-                  <UserCard
-                    className={defaultCardClass}
-                    platform={host.platform}
-                    endUsers={host.end_users ?? []}
-                    enableAddEndUser={false}
-                    disableFullNameTooltip
-                    disableGroupsTooltip
-                  />
-                )}
+                <UserCard
+                  className={defaultCardClass}
+                  canWriteEndUser={false}
+                  endUsers={host.end_users ?? []}
+                  disableFullNameTooltip
+                  disableGroupsTooltip
+                />
                 {isAppleHost && !!deviceCertificates?.certificates.length && (
                   <CertificatesCard
                     className={fullWidthCardClass}
@@ -867,6 +870,7 @@ const DeviceUserPage = ({
       {isDeviceUserError || enrollUrlError ? (
         <DeviceUserError
           isMobileView={isMobileView}
+          isMobileDevice={isMobileDevice}
           isAuthenticationError={!!isAuthenticationError}
         />
       ) : (

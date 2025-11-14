@@ -8,8 +8,8 @@ import (
 type VPPAppID struct {
 	// AdamID is a unique identifier assigned to each app in
 	// the App Store, this value is managed by Apple.
-	AdamID   string              `db:"adam_id" json:"app_store_id"`
-	Platform AppleDevicePlatform `db:"platform" json:"platform"`
+	AdamID   string                    `db:"adam_id" json:"app_store_id"`
+	Platform InstallableDevicePlatform `db:"platform" json:"platform"`
 }
 
 // VPPAppTeam contains extra metadata injected by fleet

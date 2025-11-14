@@ -114,6 +114,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     position: relative;
+    font-weight: $bold;
   }
 
   &__mask-overlay {

@@ -111,6 +111,8 @@ export const generateHostSWLibraryTableHeaders = ({
         const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
           cellProps.row.original
         );
+        const isAndroidPlayStoreApp =
+          !!app_store_app && source === "android_apps";
 
         return (
           <SoftwareNameCell
@@ -124,6 +126,7 @@ export const generateHostSWLibraryTableHeaders = ({
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetailsLibrary"
+            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );
       },
@@ -175,6 +178,15 @@ export const generateHostSWLibraryTableHeaders = ({
         const installerData = softwareTitle.software_package
           ? softwareTitle.software_package
           : (softwareTitle.app_store_app as IHostAppStoreApp);
+        const isAndroidPlayStoreApp =
+          !!softwareTitle.app_store_app &&
+          softwareTitle.source === "android_apps";
+
+        // For Android Play Store apps, we do not show the version in the library
+        if (isAndroidPlayStoreApp) {
+          return <span>Latest</span>;
+        }
+
         return (
           <VersionCell versions={[{ version: installerData?.version || "" }]} />
         );

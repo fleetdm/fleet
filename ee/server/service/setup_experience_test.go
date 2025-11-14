@@ -244,7 +244,7 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 		return nil
 	}
 
-	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error {
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script, allowUpdate bool) error {
 		return nil
 	}
 
@@ -258,7 +258,7 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 	require.NoError(t, err)
 
 	scriptReader := bytes.NewReader([]byte("hello"))
-	err = svc.SetSetupExperienceScript(ctx, nil, "potato.sh", scriptReader)
+	err = svc.CreateSetupExperienceScript(ctx, nil, "potato.sh", scriptReader)
 	require.NoError(t, err)
 	_, _ = scriptReader.Seek(0, io.SeekStart)
 
@@ -266,7 +266,7 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 	err = svc.SetSetupExperienceSoftware(ctx, "darwin", 1, []uint{1, 2})
 	require.NoError(t, err)
 
-	err = svc.SetSetupExperienceScript(ctx, ptr.Uint(1), "potato.sh", scriptReader)
+	err = svc.CreateSetupExperienceScript(ctx, ptr.Uint(1), "potato.sh", scriptReader)
 	require.NoError(t, err)
 	_, _ = scriptReader.Seek(0, io.SeekStart)
 
@@ -278,7 +278,7 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 	err = svc.SetSetupExperienceSoftware(ctx, "darwin", 0, []uint{1, 2})
 	require.ErrorContains(t, err, "Couldn’t add setup experience software. To add software, first disable manual_agent_install.")
 
-	err = svc.SetSetupExperienceScript(ctx, nil, "potato.sh", scriptReader)
+	err = svc.CreateSetupExperienceScript(ctx, nil, "potato.sh", scriptReader)
 	require.ErrorContains(t, err, "Couldn’t add setup experience script. To add script, first disable manual_agent_install.")
 	_, _ = scriptReader.Seek(0, io.SeekStart)
 
@@ -286,7 +286,7 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 	err = svc.SetSetupExperienceSoftware(ctx, "darwin", 1, []uint{1, 2})
 	require.ErrorContains(t, err, "Couldn’t add setup experience software. To add software, first disable manual_agent_install.")
 
-	err = svc.SetSetupExperienceScript(ctx, ptr.Uint(1), "potato.sh", scriptReader)
+	err = svc.CreateSetupExperienceScript(ctx, ptr.Uint(1), "potato.sh", scriptReader)
 	require.ErrorContains(t, err, "Couldn’t add setup experience script. To add script, first disable manual_agent_install.")
 	_, _ = scriptReader.Seek(0, io.SeekStart)
 
