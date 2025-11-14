@@ -92,7 +92,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	// update with a different name and contents via PUT endpoint, should suceed
 	body, headers = generateNewScriptMultipartRequest(t,
 		"different.sh", []byte(`echo "hello2"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
-	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
+	res = s.DoRawWithHeaders("PUT", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
 
 	// create no-team script
 	body, headers = generateNewScriptMultipartRequest(t,
