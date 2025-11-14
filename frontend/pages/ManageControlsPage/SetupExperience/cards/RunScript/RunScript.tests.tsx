@@ -39,6 +39,7 @@ describe("RunScript", () => {
       screen.getByText(/turn on automatic enrollment/)
     ).toBeInTheDocument();
   });
+
   it("should render the 'turn on automatic enrollment' message when MDM is configured but not ABM", async () => {
     mockServer.use(errorNoSetupExperienceScriptHandler);
     mockServer.use(
@@ -67,6 +68,7 @@ describe("RunScript", () => {
       screen.getByText(/turn on automatic enrollment/)
     ).toBeInTheDocument();
   });
+
   it("should render the script uploader when no script has been uploaded", async () => {
     mockServer.use(errorNoSetupExperienceScriptHandler);
     mockServer.use(createGetConfigHandler());
@@ -94,6 +96,9 @@ describe("RunScript", () => {
     render(<RunScript router={createMockRouter()} currentTeamId={1} />);
 
     expect(screen.getByTestId("spinner")).toBeVisible();
+    expect(
+      screen.queryByText("Script will run during setup:")
+    ).not.toBeInTheDocument();
     await waitFor(async () => {
       expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
     });
