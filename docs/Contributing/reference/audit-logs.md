@@ -639,6 +639,40 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_macos_update_new_hosts
+
+Generated when a user turns on updates during macOS Setup Assistant for hosts that automatically enroll (ADE).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that disk encryption applies to, `null` if it applies to hosts that are not in a team.
+- "team_name": The name of the team that disk encryption applies to, `null` if it applies to hosts that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## disabled_macos_update_new_hosts
+
+Generated when a user turns off updates during macOS Setup Assistant for hosts that automatically enroll (ADE).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that disk encryption applies to, `null` if it applies to hosts that are not in a team.
+- "team_name": The name of the team that disk encryption applies to, `null` if it applies to hosts that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ## edited_macos_min_version
 
 Generated when the minimum required macOS version or deadline is modified.
