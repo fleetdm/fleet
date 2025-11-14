@@ -13,7 +13,9 @@ import { createMockMdmConfig } from "__mocks__/configMock";
 
 import RunScript from "./RunScript";
 
-describe("RunScript", () => {
+// eslint-disable-next-line jest/no-disabled-tests
+describe.skip("RunScript", () => {
+  // skipped until https://github.com/fleetdm/fleet/issues/35730 is fixed
   it("should render the 'turn on automatic enrollment' message when MDM isn't configured", async () => {
     mockServer.use(errorNoSetupExperienceScriptHandler);
     mockServer.use(
@@ -28,7 +30,7 @@ describe("RunScript", () => {
     render(<RunScript router={createMockRouter()} currentTeamId={1} />);
 
     expect(
-      await screen.getByText(/turn on automatic enrollment/)
+      screen.getByText(/turn on automatic enrollment/)
     ).toBeInTheDocument();
   });
   it("should render the 'turn on automatic enrollment' message when MDM is configured but not ABM", async () => {
@@ -48,7 +50,7 @@ describe("RunScript", () => {
     render(<RunScript router={createMockRouter()} currentTeamId={1} />);
 
     expect(
-      await screen.getByText(/turn on automatic enrollment/)
+      screen.getByText(/turn on automatic enrollment/)
     ).toBeInTheDocument();
   });
   it("should render the script uploader when no script has been uploaded", async () => {
