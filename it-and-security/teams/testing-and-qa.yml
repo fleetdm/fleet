@@ -27,6 +27,13 @@ agent_options:
     orbit: edge
     desktop: edge
 controls:
+  macos_setup:
+    bootstrap_package: ""
+    enable_end_user_authentication: true
+    macos_setup_assistant: 
+  macos_updates:
+    deadline:
+    minimum_version:
   enable_disk_encryption: true
   scripts:
     # macOS scripts
@@ -117,6 +124,8 @@ software:
       self_service: true
     - slug: microsoft-excel/darwin # Microsoft Excel for macOS
       self_service: true
+    - slug: microsoft-office/darwin # Microsoft Office for macOS
+      self_service: true
     - slug: microsoft-teams/darwin # Microsoft Teams for macOS
       self_service: true
     - slug: microsoft-word/darwin # Microsoft Word for macOS
@@ -146,6 +155,8 @@ software:
     - slug: vnc-viewer/darwin # VNC Viewer for macOS
       self_service: true
     - slug: whatsapp/darwin # WhatsApp for macOS
+      self_service: true
+    - slug: windows-app/darwin # Windows App for macOS
       self_service: true
     - slug: yubico-yubikey-manager/darwin # Yubikey Manager for macOS
       self_service: true
