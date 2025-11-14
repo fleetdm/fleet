@@ -118,7 +118,13 @@ func (r updateAppStoreAppResponse) Error() error { return r.Err }
 func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateAppStoreAppRequest)
 
-	updatedApp, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, req.SelfService, req.LabelsIncludeAny, req.LabelsExcludeAny, req.Categories, req.Configuration)
+	updatedApp, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, fleet.VPPAppUpdate{
+		SelfService:      req.SelfService,
+		LabelsIncludeAny: req.LabelsIncludeAny,
+		LabelsExcludeAny: req.LabelsExcludeAny,
+		Categories:       req.Categories,
+		Configuration:    req.Configuration,
+	})
 	if err != nil {
 		return updateAppStoreAppResponse{Err: err}, nil
 	}
@@ -126,7 +132,7 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 	return updateAppStoreAppResponse{AppStoreApp: updatedApp}, nil
 }
 
-func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string) (*fleet.VPPAppStoreApp, error) {
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload fleet.VPPAppUpdate) (*fleet.VPPAppStoreApp, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

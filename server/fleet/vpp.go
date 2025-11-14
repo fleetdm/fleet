@@ -140,3 +140,11 @@ const (
 	DefaultVPPInstallVerifyTimeout = 10 * time.Minute
 	DefaultVPPVerifyRequestDelay   = 5 * time.Second
 )
+
+type VPPAppUpdate struct {
+	SelfService      bool
+	LabelsIncludeAny []string
+	LabelsExcludeAny []string
+	Categories       []string
+	Configuration    []byte
+}
