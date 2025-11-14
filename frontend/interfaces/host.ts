@@ -308,6 +308,7 @@ export interface IHost {
   batteries?: IBattery[];
   disk_encryption_enabled?: boolean;
   device_mapping: IDeviceUser[] | null;
+  /** There will be at most 1 end user */
   end_users?: IHostEndUser[];
 }
 

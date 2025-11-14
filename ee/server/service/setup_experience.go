@@ -30,7 +30,7 @@ func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform str
 			return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience software. To add software, first disable manual_agent_install."), http.StatusUnprocessableEntity)
 		}
 	} else {
-		team, err := svc.ds.Team(ctx, teamID)
+		team, err := svc.ds.TeamWithExtras(ctx, teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "load team")
 		}
@@ -95,7 +95,15 @@ func (svc *Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, 
 	return script, content, nil
 }
 
-func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
+func (svc *Service) CreateSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
+	return svc.setSetupExperienceScript(ctx, teamID, name, r, false)
+}
+
+func (svc *Service) PutSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
+	return svc.setSetupExperienceScript(ctx, teamID, name, r, true)
+}
+
+func (svc *Service) setSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader, allowUpdate bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -109,7 +117,7 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 			return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience script. To add script, first disable manual_agent_install."), http.StatusUnprocessableEntity)
 		}
 	} else {
-		team, err := svc.ds.Team(ctx, *teamID)
+		team, err := svc.ds.TeamWithExtras(ctx, *teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "load team")
 		}
@@ -143,7 +151,7 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 		return fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
-	if err := svc.ds.SetSetupExperienceScript(ctx, script); err != nil {
+	if err := svc.ds.SetSetupExperienceScript(ctx, script, allowUpdate); err != nil {
 		var (
 			existsErr fleet.AlreadyExistsError
 			fkErr     fleet.ForeignKeyError

@@ -11,7 +11,7 @@ interface ITooltipTruncatedTextCellProps {
   tooltip?: React.ReactNode;
   className?: string;
   tooltipPosition?: "top" | "bottom" | "left" | "right";
-  isMobileView?: boolean; // new prop
+  isMobileView?: boolean;
 }
 
 const baseClass = "tooltip-truncated-text";
@@ -38,6 +38,7 @@ const TooltipTruncatedText = ({
       position={tooltipPosition}
       showArrow
       tipContent={tooltip ?? value}
+      isMobileView={isMobileView}
     >
       <div className={`${baseClass}__text-value`} ref={ref}>
         {value}
