@@ -1,0 +1,8 @@
+{
+  "name": "Grammarly Desktop",
+  "unique_identifier": "com.grammarly.ProjectLlama",
+  "token": "grammarly-desktop",
+  "installer_format": "dmg",
+  "slug": "grammarly-desktop/darwin",
+  "default_categories": ["Productivity"]
+}
