@@ -3554,6 +3554,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		UUID:                    r.ID,
 		EnrollReference:         acctUUID,
 		HasSetupExperienceItems: hasSetupExpItems,
+		UserEnrollmentID:        m.EnrollmentID,
 	})
 }
 
