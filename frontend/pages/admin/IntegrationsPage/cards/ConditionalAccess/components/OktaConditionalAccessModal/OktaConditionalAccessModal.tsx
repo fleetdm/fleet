@@ -19,11 +19,12 @@ import { IInputFieldParseTarget } from "interfaces/form_field";
 import { getErrorReason } from "interfaces/errors";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import FileUploader from "components/FileUploader";
+import valid_url from "components/forms/validators/valid_url";
 
 const baseClass = "okta-conditional-access-modal";
 
 const OKTA_IDP_ID = "okta_idp_id";
-const OKTA_ACS_URL = "okta_assertion_consumer_service_url";
+const OKTA_ACS_URL = "okta_acs_url";
 const OKTA_AUDIENCE_URI = "okta_audience_uri";
 const OKTA_CERTIFICATE = "okta_certificate";
 
@@ -62,21 +63,11 @@ const validate = (formData: IFormData) => {
     errs[
       OKTA_ACS_URL
     ] = `Assertion Consumer Service URL must be ${maxURLLength} characters or less`;
-  } else {
-    // Validate URL format - must have http or https scheme and a host
-    try {
-      const acsURL = new URL(formData[OKTA_ACS_URL]);
-      if (
-        (acsURL.protocol !== "http:" && acsURL.protocol !== "https:") ||
-        !acsURL.host
-      ) {
-        errs[OKTA_ACS_URL] =
-          "Assertion Consumer Service URL must be a valid URL with http or https scheme and a host";
-      }
-    } catch {
-      errs[OKTA_ACS_URL] =
-        "Assertion Consumer Service URL must be a valid URL with http or https scheme and a host";
-    }
+  } else if (
+    !valid_url({ url: formData[OKTA_ACS_URL], protocols: ["http", "https"] })
+  ) {
+    errs[OKTA_ACS_URL] =
+      "Assertion Consumer Service URL must be a valid URL with http or https scheme and a host";
   }
 
   // Audience URI validation
