@@ -31,9 +31,6 @@ COPY --from=0 /go/fleet/cmd/osquery-perf/osquery-perf /go/osquery-perf
 COPY --from=0 /go/fleet/server/vulnerabilities/testdata/ /go/fleet/server/vulnerabilities/testdata/
 # Copy software database (generated in builder stage)
 COPY --from=0 /go/fleet/cmd/osquery-perf/software-library/ /go/software-library/
-RUN set -eux; \
-        apk update; \
-        apk upgrade; \
-        apk add --no-cache sqlite-libs
+RUN apk update && apk upgrade && apk add --no-cache sqlite-libs
 WORKDIR /go
 USER osquery-perf
