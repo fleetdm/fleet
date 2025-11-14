@@ -451,8 +451,6 @@ The `macos_setup` section lets you control the out-of-the-box macOS [setup exper
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 - `script` is the path to a custom setup script to run after the host is first set up.
 
-> In Fleet versions prior to 4.76.1, there is a known bug in which, if [GitOps](https://fleetdm.com/docs/configuration/yaml-files) runs while a new Mac is going through Setup Assistant, the script will not run. Follow the [GitHub issue](https://github.com/fleetdm/fleet/issues/35309) to learn more.
-
 #### Example
 
 `teams/team-name.yml`, or `teams/no-team.yml`
