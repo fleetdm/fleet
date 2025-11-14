@@ -275,12 +275,8 @@ const ConditionalAccess = () => {
     setConfig(updatedConfig);
   };
 
-  const handleOktaConnect = () => {
-    setShowOktaModal(true);
-  };
-
-  const handleOktaModalClose = () => {
-    setShowOktaModal(false);
+  const toggleOktaModal = () => {
+    setShowOktaModal(!showOktaModal);
   };
 
   const handleOktaModalSuccess = (updatedConfig: IConfig) => {
@@ -352,7 +348,7 @@ const ConditionalAccess = () => {
                 <Icon name="trash" color="ui-fleet-black-75" />
               </Button>
             ) : (
-              <Button onClick={handleOktaConnect}>Connect</Button>
+              <Button onClick={toggleOktaModal}>Connect</Button>
             )
           }
         >
@@ -394,7 +390,7 @@ const ConditionalAccess = () => {
       )}
       {showOktaModal && (
         <OktaConditionalAccessModal
-          onCancel={handleOktaModalClose}
+          onCancel={toggleOktaModal}
           onSuccess={handleOktaModalSuccess}
         />
       )}
