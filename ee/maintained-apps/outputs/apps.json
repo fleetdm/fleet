@@ -149,6 +149,13 @@
       "description": "Google Chrome Enterprise is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
+      "name": "iMazing Profile Editor",
+      "slug": "imazing-profile-editor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.DigiDNA.iMazingProfileEditorMac",
+      "description": "iMazing Profile Editor is an app for creating and editing Apple configuration profiles."
+    },
+    {
       "name": "Company Portal",
       "slug": "intune-company-portal/darwin",
       "platform": "darwin",
