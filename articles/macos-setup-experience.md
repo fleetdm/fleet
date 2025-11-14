@@ -141,7 +141,7 @@ To sign the package we need a valid Developer ID Installer certificate:
 
 ## Software and script
 
-> As of Fleet 4.59.0, there is a known bug in which, if [GitOps](https://fleetdm.com/docs/configuration/yaml-files) runs while a new Mac is going through Setup Assistant, the script will not run. Follow the [GitHub issue](https://github.com/fleetdm/fleet/issues/35309) to learn more.
+> In Fleet versions prior to 4.76.1, there is a known bug in which, if [GitOps](https://fleetdm.com/docs/configuration/yaml-files) runs while a new Mac is going through Setup Assistant, the script will not run. Follow the [GitHub issue](https://github.com/fleetdm/fleet/issues/35309) to learn more.
 
 You can configure software installations and a script to be executed during Setup Assistant. This capability allows you to configure your end users' machines during the unboxing experience, speeding up their onboarding and reducing setup time.
 
