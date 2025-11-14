@@ -6736,7 +6736,7 @@ Add a script that will automatically run during macOS setup.
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
 | team_id | integer | form | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
-| script | file | form | The ID of software titles to install during macOS setup. |
+| script | file | form | The contents of the script to run during setup. |
 
 #### Example
 
