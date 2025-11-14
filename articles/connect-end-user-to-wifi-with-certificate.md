@@ -779,7 +779,7 @@ When you edit a certificate configuration profile for Apple hosts, via GitOps, a
 * Fleet server assumes a one-time challenge password expiration time of 60 minutes.
 * On **Windows**, SCEP challenge strings should NOT include `base64` encoding or special characters such as `! @ # $ % ^ & * _`, and Common Names (CN) should NOT include `+` characters. 
 * The SCEP Server used for **Windows**, should accept `/pkiclient.exe` at the end, as Windows will always append this to the SCEP URL. If using a Certificate Authority and Fleet Variables, Fleet handles this and strips it away from the request sent to the backing SCEP server.
-* On **Windows** hosts, Fleet will not verify the SCEP profile via OSQuery reports. Fleet will mark it as verified, if a successful request went through, even if the certificate is not present.
+* On **Windows** hosts, Fleet will not verify the SCEP profile via osquery reports. Fleet will mark it as verified, if a successful request went through, even if the certificate is not present.
 * On **Windows** hosts, Fleet will not remove certificates from profiles, when removing the profile from the host, or transferring teams.
 
 ### How the SCEP proxy works
