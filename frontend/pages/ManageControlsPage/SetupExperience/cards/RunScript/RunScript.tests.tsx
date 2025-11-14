@@ -79,6 +79,7 @@ describe("RunScript", () => {
 
     render(<RunScript router={createMockRouter()} currentTeamId={1} />);
     expect(screen.getByTestId("spinner")).toBeVisible();
+    expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
     await waitFor(async () => {
       expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
     });
