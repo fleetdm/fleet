@@ -10,6 +10,7 @@ import { ILabelSummary } from "interfaces/label";
 import mdmAppleAPI, {
   IGetVppTokensResponse,
 } from "services/entities/mdm_apple";
+import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
@@ -25,9 +26,9 @@ import Button from "components/buttons/Button";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
 import { getPathWithQueryParams } from "utilities/url";
-import SoftwareVppForm from "../../components/forms/SoftwareVppForm";
+import SoftwareVppForm from "../../../components/forms/SoftwareVppForm";
 import { getErrorMessage, teamHasVPPToken } from "./helpers";
-import { ISoftwareVppFormData } from "../../components/forms/SoftwareVppForm/SoftwareVppForm";
+import { ISoftwareVppFormData } from "../../../components/forms/SoftwareVppForm/SoftwareVppForm";
 
 const baseClass = "software-app-store-vpp";
 //
@@ -168,7 +169,7 @@ const SoftwareAppStoreVpp = ({
     try {
       const {
         software_title_id: softwareVppTitleId,
-      } = await mdmAppleAPI.addVppApp(currentTeamId, formData);
+      } = await softwareAPI.addAppStoreApp(currentTeamId, formData);
 
       renderFlash(
         "success",
