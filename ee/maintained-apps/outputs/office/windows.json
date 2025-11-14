@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "16.0.19328.20178",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft 365 Apps for enterprise - en-us' AND publisher = 'Microsoft Corporation';"
+      },
+      "installer_url": "https://officecdn.microsoft.com/pr/wsus/setup.exe",
+      "install_script_ref": "484d30d7",
+      "uninstall_script_ref": "2f34d024",
+      "sha256": "ed26519c1db29f1cc16eb21a1d492b8b6d241c4d86fe2de127ef6854d21cf5ae",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "484d30d7": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    # Microsoft Office uses the Office Deployment Tool with /configure\n    # Using Microsoft's official Fleet/Winget configuration URL for silent install\n    $processOptions = @{\n        FilePath = \"$exeFilePath\"\n        ArgumentList = \"/configure https://aka.ms/fhlwingetconfig\"\n        PassThru = $true\n        Wait = $true\n    }\n\n    # Start process and track exit code\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n\n    # Prints the exit code\n    Write-Host \"Install exit code: $exitCode\"\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "2f34d024": "# Attempts to locate Microsoft 365 Apps uninstaller from registry and execute it silently\n\n$displayName = \"Microsoft 365 Apps for enterprise - en-us\"\n$publisher = \"Microsoft Corporation\"\n\n$paths = @(\n    'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n    'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n    'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n    $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n        $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like \"$displayName*\") -and ($publisher -eq \"\" -or $_.Publisher -eq $publisher)\n    }\n    if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n    Write-Host \"Uninstall entry not found\"\n    Exit 0\n}\n\n# Kill any running Office processes before uninstalling\n$officeProcesses = @(\"WINWORD\", \"EXCEL\", \"POWERPNT\", \"OUTLOOK\", \"ONENOTE\", \"MSACCESS\", \"MSPUB\", \"TEAMS\")\nforeach ($proc in $officeProcesses) {\n    Stop-Process -Name $proc -Force -ErrorAction SilentlyContinue\n}\n\n$uninstallCommand = $uninstall.UninstallString\n\n# Office Click-to-Run uninstall string is already properly formatted\n# Example: \"C:\\Program Files\\Common Files\\Microsoft Shared\\ClickToRun\\OfficeClickToRun.exe\" scenario=install scenariosubtype=ARP sourcetype=None productstoremove=O365ProPlusRetail.16_en-us_x-none culture=en-us version.16=16.0\n\n# Parse the command to separate executable from arguments\n$splitArgs = $uninstallCommand.Split('\"')\nif ($splitArgs.Length -gt 1) {\n    $executablePath = $splitArgs[1]\n    $arguments = if ($splitArgs.Length -gt 2) { $splitArgs[2].Trim() } else { \"\" }\n} else {\n    Write-Host \"Error: Unable to parse uninstall command\"\n    Exit 1\n}\n\nWrite-Host \"Uninstall executable: $executablePath\"\nWrite-Host \"Uninstall arguments: $arguments\"\n\ntry {\n    $processOptions = @{\n        FilePath = $executablePath\n        ArgumentList = $arguments\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n\n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}
