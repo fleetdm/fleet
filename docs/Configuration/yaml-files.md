@@ -338,6 +338,7 @@ controls:
   macos_updates: # Available in Fleet Premium
     deadline: "2024-12-31"
     minimum_version: "15.1"
+    update_new_hosts: true
   ios_updates: # Available in Fleet Premium
     deadline: "2024-12-31"
     minimum_version: "18.1"
@@ -381,6 +382,7 @@ controls:
 
 - `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time for hosts on macOS 14 and above, 20:00 UTC for hosts on older macOS versions. (default: `""`).
 - `minimum_version` specifies the minimum required macOS version (default: `""`).
+- `update_new_hosts` - macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](TODO) during macOS Setup Assistant (default: `false`).
 
 ### ios_updates
 
