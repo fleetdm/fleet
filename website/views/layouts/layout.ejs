@@ -971,14 +971,14 @@
         // --------------------------------------------------------------------
         var LATEST_SUPPORTED_VERSION_BY_OS = {
           iOS: '13',//« earliest version that suppports the embedded podcast player.
-          Android: '7' // « earliest version we can test for compatibility issues with on browserstack
+          Android: '6' // « Note: the earliest version we can test for compatibility issues with on browserstack is Android 7, but Google's search crawler uses an Android 6 user agent.
         };
         var LATEST_SUPPORTED_VERSION_BY_USER_AGENT = {
-          msedge: '80',//« earliest version to support the backdrop filter css property.
-          safari: '13',//« earliest version that suppports the hubspot chatbot.
+          msedge: '84',//« earliest version to support the gap css property.
+          safari: '14',//« earliest version that suppports the gap css property.
           firefox: '103',//« earliest version to support the backdrop filter css property.
-          chrome: '80',//« earliest version to support the embedded podcast player.
-          opera: '67',//« earliest version to support the backdrop filter css property.
+          chrome: '84',//« earliest version to support the gap css property.
+          opera: '70',//« earliest version to support the gap css property.
         };
         var LATEST_SUPPORTED_VERSION_BY_BROWSER_NAME = {
           'microsoft edge': LATEST_SUPPORTED_VERSION_BY_USER_AGENT.msedge,

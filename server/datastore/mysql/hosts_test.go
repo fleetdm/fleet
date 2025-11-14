@@ -8454,7 +8454,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Add a setup experience status result
-	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "test.sh", ScriptContents: "echo foo"})
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "test.sh", ScriptContents: "echo foo"}, false)
 	require.NoError(t, err)
 
 	added, err := ds.EnqueueSetupExperienceItems(ctx, host.Platform, host.UUID, 0)
