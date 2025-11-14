@@ -52,7 +52,7 @@ hdiutil detach "$MOUNT_POINT"
 # copy to the applications folder
 # Homebrew uses: app "Grammarly Installer.app", target: "Grammarly Desktop.app"
 # This means we extract "Grammarly Installer.app" and copy it to "/Applications/Grammarly Desktop.app"
-quit_application 'com.grammarly.desktop'
+quit_application 'com.grammarly.ProjectLlama'
 
 # Remove existing app if present
 if [ -d "$APPDIR/Grammarly Desktop.app" ]; then
