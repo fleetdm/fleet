@@ -149,6 +149,13 @@
       "description": "Google Chrome Enterprise is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
+      "name": "Grammarly Desktop",
+      "slug": "grammarly-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.grammarly.ProjectLlama",
+      "description": "Grammarly Desktop is an AI writing assistant."
+    },
+    {
       "name": "Company Portal",
       "slug": "intune-company-portal/darwin",
       "platform": "darwin",
