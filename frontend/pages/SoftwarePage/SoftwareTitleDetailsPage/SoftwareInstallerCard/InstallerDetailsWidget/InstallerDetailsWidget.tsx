@@ -20,7 +20,8 @@ import CustomLink from "components/CustomLink";
 
 const baseClass = "installer-details-widget";
 
-const ANDROID_PLAY_STORE_URL = "https://play.google.com/store/apps/details";
+export const ANDROID_PLAY_STORE_URL =
+  "https://play.google.com/store/apps/details";
 
 interface IInstallerNameProps {
   name: string;
@@ -152,6 +153,7 @@ const InstallerDetailsWidget = ({
 
       if (androidPlayStoreId) {
         versionInfo = (
+          // 2 usages here and selectsoftwaretableconfig, consider making component if more common
           <TooltipWrapper
             tipContent={
               <span>

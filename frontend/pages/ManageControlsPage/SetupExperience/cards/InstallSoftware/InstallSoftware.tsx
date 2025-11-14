@@ -48,6 +48,7 @@ export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
   "linux",
   "ios",
   "ipados",
+  "macos", // Change to android
 ];
 export interface InstallSoftwareLocation {
   search: string;
@@ -140,6 +141,8 @@ const InstallSoftware = ({
     teamConfig
   );
 
+  const isAndroidMdmEnabled = !globalConfig?.mdm.android_enabled_and_configured;
+
   const renderTabContent = (platform: SetupExperiencePlatform) => {
     if (
       isLoadingSoftwareTitles ||
@@ -231,6 +234,11 @@ const InstallSoftware = ({
             <Tab>
               <TabText>iPadOS</TabText>
             </Tab>
+            {isAndroidMdmEnabled && (
+              <Tab>
+                <TabText>Android</TabText>
+              </Tab>
+            )}
           </TabList>
           {PLATFORM_BY_INDEX.map((platform) => {
             return (

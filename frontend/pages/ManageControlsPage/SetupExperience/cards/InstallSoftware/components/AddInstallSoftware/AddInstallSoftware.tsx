@@ -81,6 +81,9 @@ const AddInstallSoftware = ({
       case "ipados":
         platformText = "iPadOS";
         break;
+      case "android":
+        platformText = "Android";
+        break;
       default:
         platformText = capitalize(platform);
     }

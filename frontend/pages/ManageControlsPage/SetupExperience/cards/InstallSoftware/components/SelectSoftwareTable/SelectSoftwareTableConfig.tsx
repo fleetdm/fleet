@@ -3,14 +3,17 @@ import { CellProps, Column } from "react-table";
 
 import { IStringCellProps } from "interfaces/datatable_config";
 import { ISoftwareTitle, SoftwareSource } from "interfaces/software";
+import { getPathWithQueryParams } from "utilities/url";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { ANDROID_PLAY_STORE_URL } from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget/InstallerDetailsWidget";
 
+import CustomLink from "components/CustomLink";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import Checkbox from "components/forms/fields/Checkbox";
+import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { SetupExperiencePlatform } from "interfaces/platform";
-
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 type ISelectSoftwareTableConfig = Column<ISoftwareTitle>;
 type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
@@ -80,6 +83,35 @@ const generateTableConfig = (
       Header: "Version",
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => {
+        if (platform === "android") {
+          const androidPlayStoreId =
+            cellProps.row.original.app_store_app?.app_store_id;
+
+          return (
+            <TextCell
+              value={
+                // 2 usages here and softwaredetailswidget, consider making component if more common
+                <TooltipWrapper
+                  tipContent={
+                    <span>
+                      See latest version on the{" "}
+                      <CustomLink
+                        text="Play Store"
+                        url={getPathWithQueryParams(ANDROID_PLAY_STORE_URL, {
+                          id: androidPlayStoreId,
+                        })}
+                        newTab
+                      />
+                    </span>
+                  }
+                >
+                  <span>Latest</span>
+                </TooltipWrapper>
+              }
+            />
+          );
+        }
+
         const title = cellProps.row.original;
         let versionFoRender = title.software_package?.version;
         if (platform === "linux") {
