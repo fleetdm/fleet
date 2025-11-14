@@ -14,6 +14,15 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+const (
+	// SoftwareMutationProb is the probability of mutating software after initial load
+	SoftwareMutationProb = 0.2
+	// MaxSoftwareAdd is the maximum number of software items to add during mutation
+	MaxSoftwareAdd = 20
+	// MaxSoftwareRemove is the maximum number of software items to remove during mutation
+	MaxSoftwareRemove = 20
+)
+
 // DarwinSoftware represents macOS/iOS software
 type DarwinSoftware struct {
 	Name             string
@@ -55,16 +64,16 @@ type DB struct {
 	Ubuntu  []UbuntuSoftware
 }
 
-// DarwinToMaps converts Darwin software to osquery result format
-func (db *DB) DarwinToMaps() []map[string]string {
-	results := make([]map[string]string, 0, len(db.Darwin))
-	for _, s := range db.Darwin {
+// DarwinToMaps converts Darwin software at given indices to osquery result format
+func (db *DB) DarwinToMaps(indices []int) []map[string]string {
+	results := make([]map[string]string, 0, len(indices))
+	for _, idx := range indices {
+		s := db.Darwin[idx]
 		m := map[string]string{
 			"name":    s.Name,
 			"source":  s.Source,
 			"version": s.Version,
 		}
-		// Add optional fields if present
 		if s.BundleIdentifier != "" {
 			m["bundle_identifier"] = s.BundleIdentifier
 		}
@@ -82,16 +91,16 @@ func (db *DB) DarwinToMaps() []map[string]string {
 	return results
 }
 
-// WindowsToMaps converts Windows software to osquery result format
-func (db *DB) WindowsToMaps() []map[string]string {
-	results := make([]map[string]string, 0, len(db.Windows))
-	for _, s := range db.Windows {
+// WindowsToMaps converts Windows software at given indices to osquery result format
+func (db *DB) WindowsToMaps(indices []int) []map[string]string {
+	results := make([]map[string]string, 0, len(indices))
+	for _, idx := range indices {
+		s := db.Windows[idx]
 		m := map[string]string{
 			"name":    s.Name,
 			"source":  s.Source,
 			"version": s.Version,
 		}
-		// Add optional fields if present
 		if s.Vendor != "" {
 			m["vendor"] = s.Vendor
 		}
@@ -109,16 +118,16 @@ func (db *DB) WindowsToMaps() []map[string]string {
 	return results
 }
 
-// UbuntuToMaps converts Ubuntu software to osquery result format
-func (db *DB) UbuntuToMaps() []map[string]string {
-	results := make([]map[string]string, 0, len(db.Ubuntu))
-	for _, s := range db.Ubuntu {
+// UbuntuToMaps converts Ubuntu software at given indices to osquery result format
+func (db *DB) UbuntuToMaps(indices []int) []map[string]string {
+	results := make([]map[string]string, 0, len(indices))
+	for _, idx := range indices {
+		s := db.Ubuntu[idx]
 		m := map[string]string{
 			"name":    s.Name,
 			"source":  s.Source,
 			"version": s.Version,
 		}
-		// Add optional fields if present
 		if s.Vendor != "" {
 			m["vendor"] = s.Vendor
 		}
@@ -137,6 +146,59 @@ func (db *DB) UbuntuToMaps() []map[string]string {
 		results = append(results, m)
 	}
 	return results
+}
+
+// MaybeMutateSoftware randomly mutates software indices (adds/removes items) 20% of the time.
+// This simulates software being installed/uninstalled on a host over time.
+// maxPoolSize is the total number of available software items in the database.
+func MaybeMutateSoftware(indices []int, maxPoolSize int) []int {
+	// Only mutate 20% of the time
+	if rand.Float64() >= SoftwareMutationProb { // nolint:gosec,G404 // load testing, not security-sensitive
+		return indices
+	}
+
+	// Copy indices to avoid mutating the original slice
+	result := make([]int, len(indices))
+	copy(result, indices)
+
+	// Randomly remove 0-20 items
+	numToRemove := rand.IntN(MaxSoftwareRemove + 1) // nolint:gosec,G404 // load testing, not security-sensitive
+	if numToRemove > len(result) {
+		numToRemove = len(result)
+	}
+	if numToRemove > 0 {
+		// Remove random items
+		rand.Shuffle(len(result), func(i, j int) { // nolint:gosec,G404 // load testing, not security-sensitive
+			result[i], result[j] = result[j], result[i]
+		})
+		result = result[:len(result)-numToRemove]
+	}
+
+	// Randomly add 0-20 items
+	numToAdd := rand.IntN(MaxSoftwareAdd + 1) // nolint:gosec,G404 // load testing, not security-sensitive
+	if numToAdd > 0 {
+		// Create a map of existing indices for quick lookup
+		existing := make(map[int]bool, len(result))
+		for _, idx := range result {
+			existing[idx] = true
+		}
+
+		// Add new random indices that don't already exist
+		added := 0
+		attempts := 0
+		maxAttempts := numToAdd * 10 // Avoid infinite loop
+		for added < numToAdd && attempts < maxAttempts {
+			newIdx := rand.IntN(maxPoolSize) // nolint:gosec,G404 // load testing, not security-sensitive
+			if !existing[newIdx] {
+				result = append(result, newIdx)
+				existing[newIdx] = true
+				added++
+			}
+			attempts++
+		}
+	}
+
+	return result
 }
 
 // Platform-specific counts based on production averages (±20%):

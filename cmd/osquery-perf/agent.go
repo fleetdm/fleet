@@ -368,6 +368,9 @@ type agent struct {
 	// Software installed on the host via Fleet. Key is the software name + version + bundle identifier.
 	installedSoftware sync.Map
 
+	// Cached software indices (pointers into global softwareDB array for this agent's platform)
+	cachedSoftwareIndices []int
+
 	// Host identity client for HTTP message signatures
 	hostIdentityClient *hostidentity.Client
 
@@ -1868,7 +1871,13 @@ func (a *agent) softwareMacOS() []map[string]string {
 	// Use database software 80% of the time if available; otherwise use legacy vulnerable software.
 	var realSoftware []map[string]string
 	if softwareDB != nil && len(softwareDB.Darwin) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
-		realSoftware = softwareDB.DarwinToMaps()
+		// Initialize cached indices on first call, then mutate on subsequent calls
+		if a.cachedSoftwareIndices == nil {
+			a.cachedSoftwareIndices = rand.Perm(len(softwareDB.Darwin))
+		} else {
+			a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(softwareDB.Darwin))
+		}
+		realSoftware = softwareDB.DarwinToMaps(a.cachedSoftwareIndices)
 	} else {
 		// Vulnerable Software
 		var vCount int
@@ -2672,7 +2681,13 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		if ss == fleet.StatusOK {
 			// Use database software 80% of the time if available, otherwise use embedded data
 			if softwareDB != nil && len(softwareDB.Windows) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
-				results = softwareDB.WindowsToMaps()
+				// Initialize cached indices on first call, then mutate on subsequent calls
+				if a.cachedSoftwareIndices == nil {
+					a.cachedSoftwareIndices = rand.Perm(len(softwareDB.Windows))
+				} else {
+					a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(softwareDB.Windows))
+				}
+				results = softwareDB.WindowsToMaps(a.cachedSoftwareIndices)
 			} else {
 				results = make([]map[string]string, 0, len(windowsSoftware))
 				for _, s := range windowsSoftware {
@@ -2704,7 +2719,13 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			case "ubuntu":
 				// Use database software 80% of the time if available, otherwise use embedded data
 				if softwareDB != nil && len(softwareDB.Ubuntu) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
-					results = softwareDB.UbuntuToMaps()
+					// Initialize cached indices on first call, then mutate on subsequent calls
+					if a.cachedSoftwareIndices == nil {
+						a.cachedSoftwareIndices = rand.Perm(len(softwareDB.Ubuntu))
+					} else {
+						a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(softwareDB.Ubuntu))
+					}
+					results = softwareDB.UbuntuToMaps(a.cachedSoftwareIndices)
 				} else {
 					results = make([]map[string]string, 0, len(ubuntuSoftware))
 					for _, s := range ubuntuSoftware {
