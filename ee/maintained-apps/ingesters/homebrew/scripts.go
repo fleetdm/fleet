@@ -29,7 +29,12 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 				sb.Writef("quit_application 'com.electron.dockerdesktop'")
 			}
 			includeQuitFunc = true
-			for _, appPath := range artifact.App {
+			for _, appItem := range artifact.App {
+				// Only process string values (skip objects with target, those are handled by custom scripts)
+				if appItem.String == "" {
+					continue
+				}
+				appPath := appItem.String
 				sb.Writef(`if [ -d "$APPDIR/%[1]s" ]; then
 	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"
 fi`, appPath)
@@ -78,7 +83,16 @@ func uninstallScriptForApp(cask *brewCask) string {
 		switch {
 		case len(artifact.App) > 0:
 			sb.AddVariable("APPDIR", `"/Applications/"`)
-			for _, appPath := range artifact.App {
+			for _, appItem := range artifact.App {
+				// Extract the app path - use target if it's an object (what gets installed), otherwise use the string
+				var appPath string
+				if appItem.String != "" {
+					appPath = appItem.String
+				} else if appItem.Other != nil {
+					appPath = appItem.Other.Target
+				} else {
+					continue
+				}
 				sb.RemoveFile(fmt.Sprintf(`"$APPDIR/%s"`, appPath))
 			}
 		case len(artifact.Binary) > 0:
