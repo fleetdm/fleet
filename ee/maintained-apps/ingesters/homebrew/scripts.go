@@ -83,17 +83,25 @@ func uninstallScriptForApp(cask *brewCask) string {
 		switch {
 		case len(artifact.App) > 0:
 			sb.AddVariable("APPDIR", `"/Applications/"`)
+			// Collect app paths to remove, prioritizing target names (what actually gets installed)
+			var appPathsToRemove []string
+			var hasTarget bool
 			for _, appItem := range artifact.App {
-				// Extract the app path - use target if it's an object (what gets installed), otherwise use the string
-				var appPath string
-				switch {
-				case appItem.String != "":
-					appPath = appItem.String
-				case appItem.Other != nil:
-					appPath = appItem.Other.Target
-				default:
-					continue
+				if appItem.Other != nil {
+					appPathsToRemove = append(appPathsToRemove, appItem.Other.Target)
+					hasTarget = true
 				}
+			}
+			// Only use string values if no target was found (target takes precedence)
+			if !hasTarget {
+				for _, appItem := range artifact.App {
+					if appItem.String != "" {
+						appPathsToRemove = append(appPathsToRemove, appItem.String)
+					}
+				}
+			}
+			// Remove all collected app paths
+			for _, appPath := range appPathsToRemove {
 				sb.RemoveFile(fmt.Sprintf(`"$APPDIR/%s"`, appPath))
 			}
 		case len(artifact.Binary) > 0:
