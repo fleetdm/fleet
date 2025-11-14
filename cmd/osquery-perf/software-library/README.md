@@ -34,7 +34,7 @@ Each simulated host will get random platform-specific software from the database
 
 ## Directory structure
 
-```
+```text
 software-library/
 ├── README.md              # This file
 ├── software.db            # SQLite database (created from software.sql)
