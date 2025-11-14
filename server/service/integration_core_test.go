@@ -103,25 +103,54 @@ func (s *integrationTestSuite) TestSlowOsqueryHost() {
 
 // TestMDMAnyMiddlewareAccess performs an end-to-end check through the HTTP
 // handler to confirm the new middleware respects each platform toggle.
-func (s *integrationTestSuite) TestMDMAnyMiddlewareAccess(t *testing.T) {
+func (s *integrationTestSuite) TestMDMAnyMiddlewareAccess() {
+	t := s.T()
 	ctx := context.Background()
 	appCfg, err := s.ds.AppConfig(ctx)
 	require.NoError(t, err)
+
+	ensureAppleMDMAssets := func() {
+		assets := []fleet.MDMConfigAsset{
+			{Name: fleet.MDMAssetCACert, Value: []byte("test-ca-cert")},
+			{Name: fleet.MDMAssetCAKey, Value: []byte("test-ca-key")},
+			{Name: fleet.MDMAssetAPNSCert, Value: []byte("test-apns-cert")},
+			{Name: fleet.MDMAssetAPNSKey, Value: []byte("test-apns-key")},
+		}
+		if err := s.ds.InsertMDMConfigAssets(ctx, assets, nil); err != nil && !mysql.IsDuplicate(err) {
+			require.NoError(t, err)
+		}
+	}
+	ensureAppleMDMAssets()
 
 	origMDM := appCfg.MDM
 	defer func(orig fleet.MDM) {
 		appCfg.MDM = orig
 		require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+		require.NoError(t, s.ds.SetAndroidEnabledAndConfigured(ctx, orig.AndroidEnabledAndConfigured))
 	}(origMDM)
+
+	const endpoint = "/api/latest/fleet/configuration_profiles"
+
+	requestProfiles := func() *http.Response {
+		req, err := http.NewRequest("GET", s.server.URL+endpoint, nil)
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+s.token)
+
+		resp, err := fleethttp.NewClient().Do(req)
+		require.NoError(t, err)
+		return resp
+	}
 
 	setConfig := func(apple, windows, android bool) {
 		appCfg.MDM.EnabledAndConfigured = apple
 		appCfg.MDM.WindowsEnabledAndConfigured = windows
-		appCfg.MDM.AndroidEnabledAndConfigured = android
 		require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
-	}
 
-	const endpoint = "/api/latest/fleet/configuration_profiles"
+		require.NoError(t, s.ds.SetAndroidEnabledAndConfigured(ctx, android))
+
+		appCfg, err = s.ds.AppConfig(ctx)
+		require.NoError(t, err)
+	}
 
 	setConfig(false, false, false)
 	res := s.Do("GET", endpoint, nil, http.StatusBadRequest)
@@ -129,17 +158,23 @@ func (s *integrationTestSuite) TestMDMAnyMiddlewareAccess(t *testing.T) {
 	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 	require.NoError(t, res.Body.Close())
 
+	assertNotMDMNotConfigured := func() {
+		resp := requestProfiles()
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+		require.NotEqual(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotContains(t, string(body), fleet.ErrMDMNotConfigured.Error())
+	}
+
 	setConfig(true, false, false)
-	res = s.Do("GET", endpoint, nil, http.StatusOK)
-	require.NoError(t, res.Body.Close())
+	assertNotMDMNotConfigured()
 
 	setConfig(false, true, false)
-	res = s.Do("GET", endpoint, nil, http.StatusOK)
-	require.NoError(t, res.Body.Close())
+	assertNotMDMNotConfigured()
 
 	setConfig(false, false, true)
-	res = s.Do("GET", endpoint, nil, http.StatusOK)
-	require.NoError(t, res.Body.Close())
+	assertNotMDMNotConfigured()
 }
 
 func (s *integrationTestSuite) TestDistributedReadWithChangedQueries() {
