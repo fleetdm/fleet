@@ -33,7 +33,7 @@ COPY --from=0 /go/fleet/server/vulnerabilities/testdata/ /go/fleet/server/vulner
 COPY --from=0 /go/fleet/cmd/osquery-perf/software-library/ /go/software-library/
 RUN set -eux; \
         apk update; \
-        apk upgrade
-
+        apk upgrade; \
+        apk add --no-cache sqlite-libs
 WORKDIR /go
 USER osquery-perf
