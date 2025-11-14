@@ -2,7 +2,7 @@
   "name": "Nudge",
   "unique_identifier": "com.github.macadmins.Nudge",
   "token": "nudge",
-  "installer_format": "dmg",
+  "installer_format": "pkg",
   "slug": "nudge/darwin",
   "default_categories": ["Productivity"]
 }
