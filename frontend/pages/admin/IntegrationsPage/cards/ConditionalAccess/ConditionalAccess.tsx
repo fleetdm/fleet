@@ -34,15 +34,16 @@ interface IDeleteConditionalAccessModal {
   toggleDeleteConditionalAccessModal: () => void;
   onDelete: (config: IConfig) => void;
   provider: "microsoft-entra" | "okta";
+  config: IConfig | null;
 }
 
 const DeleteConditionalAccessModal = ({
   toggleDeleteConditionalAccessModal,
   onDelete,
   provider,
+  config,
 }: IDeleteConditionalAccessModal) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { config } = useContext(AppContext);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const providerName =
@@ -129,9 +130,7 @@ const ConditionalAccess = () => {
   // HOOKS
   const { renderFlash } = useContext(NotificationContext);
 
-  const { isPremiumTier, setConfig, config: contextConfig } = useContext(
-    AppContext
-  );
+  const { isPremiumTier, setConfig, config } = useContext(AppContext);
 
   const [entraPhase, setEntraPhase] = useState<EntraPhase>(
     EntraPhase.NotConfigured
@@ -235,18 +234,18 @@ const ConditionalAccess = () => {
     microsoft_entra_tenant_id: entraTenantId,
     microsoft_entra_connection_configured: entraConfigured,
     okta_idp_id: oktaIdpId,
-  } = contextConfig?.conditional_access || {};
+  } = config?.conditional_access || {};
 
   // Determine if Okta is configured (all 4 fields must be present)
   const oktaConfigured = !!(
     oktaIdpId &&
-    contextConfig?.conditional_access?.okta_assertion_consumer_service_url &&
-    contextConfig?.conditional_access?.okta_audience_uri &&
-    contextConfig?.conditional_access?.okta_certificate
+    config?.conditional_access?.okta_assertion_consumer_service_url &&
+    config?.conditional_access?.okta_audience_uri &&
+    config?.conditional_access?.okta_certificate
   );
 
   // Check if this is a managed cloud deployment (Microsoft Entra requires proxy infrastructure)
-  const isManagedCloud = contextConfig?.license?.managed_cloud || false;
+  const isManagedCloud = config?.license?.managed_cloud || false;
 
   // Check Entra configuration state
   useEffect(() => {
@@ -431,6 +430,7 @@ const ConditionalAccess = () => {
           onDelete={onDeleteConditionalAccess}
           toggleDeleteConditionalAccessModal={toggleDeleteModal}
           provider={deleteProvider}
+          config={config}
         />
       )}
     </div>
