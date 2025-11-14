@@ -237,6 +237,9 @@ export const reconcileMutuallyExclusiveHostParams = ({
     if (lowDiskSpaceHosts) {
       return { low_disk_space: lowDiskSpaceHosts };
     }
+    if (osSettings) {
+      return { [HOSTS_QUERY_PARAMS.OS_SETTINGS]: osSettings };
+    }
     return {};
   }
 

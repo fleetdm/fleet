@@ -73,6 +73,8 @@ software:
         - "RPM-based Linux hosts"
   fleet_maintained_apps:
     # macOS apps
+    - slug: 010-editor/darwin # 010 Editor for macOS
+      self_service: true
     - slug: 1password/darwin # 1Password for macOS
       self_service: true
     - slug: adobe-acrobat-reader/darwin # Adobe Acrobat Reader for macOS
@@ -85,9 +87,13 @@ software:
       self_service: true
     - slug: brave-browser/darwin # Brave for macOS
       self_service: true
+    - slug: claude/darwin # Claude for macOS
+      self_service: true
     - slug: cloudflare-warp/darwin # Cloudflare WARP for macOS
       self_service: true
     - slug: cursor/darwin # Cursor for macOS
+      self_service: true
+    - slug: datagrip/darwin # DataGrip for macOS
       self_service: true
     - slug: dcv-viewer/darwin # Amazon DCV for macOS
       self_service: true
@@ -102,6 +108,10 @@ software:
     - slug: intune-company-portal/darwin # Company Portal for macOS
       self_service: true
     - slug: iterm2/darwin # iTerm2 for macOS
+      self_service: true
+    - slug: linear-linear/darwin # Linear for macOS
+      self_service: true
+    - slug: logi-options+/darwin # Logi Options+ for macOS
       self_service: true
     - slug: microsoft-edge/darwin # Microsoft Edge for macOS
       self_service: true
@@ -119,11 +129,17 @@ software:
       self_service: true
     - slug: postman/darwin # Postman for macOS
       self_service: true
+    - slug: privileges/darwin # Privileges for macOS
+      self_service: true
     - slug: santa/darwin # Santa for macOS
       self_service: true
     - slug: slack/darwin # Slack for macOS
       self_service: true
+    - slug: sublime-text/darwin # Sublime Text for macOS
+      self_service: true
     - slug: teamviewer/darwin # TeamViewer for macOS
+      self_service: true
+    - slug: tunnelblick/darwin # Tunnelblick for macOS
       self_service: true
     - slug: visual-studio-code/darwin # Microsoft Visual Studio Code for macOS
       self_service: true

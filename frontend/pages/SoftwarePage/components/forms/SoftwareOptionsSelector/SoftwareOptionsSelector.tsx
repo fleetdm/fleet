@@ -42,8 +42,9 @@ const CategoriesSelector = ({
                 value={selectedCategories.includes(cat.value)}
                 onChange={onSelectCategory}
                 parseTarget
-              />
-              <div className={`${baseClass}__label-name`}>{cat.label}</div>
+              >
+                <div className={`${baseClass}__label-name`}>{cat.label}</div>
+              </Checkbox>
             </div>
           );
         })}
@@ -153,8 +154,8 @@ const SoftwareOptionsSelector = ({
     // Render unavailable description for iOS or iPadOS add software form only
     return isPlatformIosOrIpados && !isEditingSoftware ? (
       <p>
-        Currently, automatic installation are not available for iOS and iPadOS.
-        Manually install on the <b>Host details</b> page for each host.
+        Automatic install for iOS and iPadOS is coming soon. Today, you can
+        manually install the <strong>Host details</strong> page for each host.
       </p>
     ) : null;
   };
@@ -174,7 +175,7 @@ const SoftwareOptionsSelector = ({
               isIpaPackage || isPlatformIosOrIpados || false
             )
           }
-          labelTooltipClickable
+          labelTooltipClickable // Allow interaction with link in tooltip
           disabled={isSelfServiceDisabled}
         >
           Self-service

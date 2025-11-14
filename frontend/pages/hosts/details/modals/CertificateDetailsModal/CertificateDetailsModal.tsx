@@ -96,13 +96,7 @@ const CertificateDetailsModal = ({
                 {subjectOrganization && (
                   <DataSet
                     title="Organization"
-                    value={
-                      <TooltipTruncatedText
-                        value={
-                          "This is long text to truncate. does it get truncates? it should get truncated. alsjdf;lajsdl;fj;lajsdjasljjjfljk;j"
-                        }
-                      />
-                    }
+                    value={<TooltipTruncatedText value={subjectOrganization} />}
                     orientation="horizontal"
                   />
                 )}

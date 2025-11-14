@@ -100,6 +100,13 @@
       "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
     },
     {
+      "name": "DataGrip",
+      "slug": "datagrip/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.datagrip",
+      "description": "A powerful cross-platform IDE for relational and NoSQL databases."
+    },
+    {
       "name": "Amazon DCV",
       "slug": "dcv-viewer/darwin",
       "platform": "darwin",
@@ -163,6 +170,13 @@
       "description": "An app to manage software development and track bugs."
     },
     {
+      "name": "Logi Options+",
+      "slug": "logi-options+/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.logi.optionsplus",
+      "description": "Software for managing Logitech devices."
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
@@ -175,6 +189,13 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.Excel",
       "description": "Microsoft Excel is the industry-standard spreadsheet software, perfect for data analysis, reporting, and visualization."
+    },
+    {
+      "name": "Microsoft Outlook",
+      "slug": "microsoft-outlook/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.Outlook",
+      "description": "Microsoft Outlook is an email client."
     },
     {
       "name": "Microsoft Teams",
@@ -219,6 +240,13 @@
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
+      "name": "Privileges",
+      "slug": "privileges/darwin",
+      "platform": "darwin",
+      "unique_identifier": "corp.sap.privileges",
+      "description": "Privileges is an admin rights switcher for macOS."
+    },
+    {
       "name": "Santa",
       "slug": "santa/darwin",
       "platform": "darwin",
@@ -233,6 +261,13 @@
       "description": "Slack is a team communication and collaboration software for modern workplaces."
     },
     {
+      "name": "Sublime Text",
+      "slug": "sublime-text/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sublimetext.4",
+      "description": "Sublime Text is a text editor for code, markup, and prose."
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
@@ -245,6 +280,13 @@
       "platform": "windows",
       "unique_identifier": "TeamViewer",
       "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
+    },
+    {
+      "name": "Tunnelblick",
+      "slug": "tunnelblick/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.tunnelblick.tunnelblick",
+      "description": "Tunnelblick is a free and open-source OpenVPN client."
     },
     {
       "name": "Microsoft Visual Studio Code",
@@ -273,6 +315,13 @@
       "platform": "darwin",
       "unique_identifier": "net.whatsapp.WhatsApp",
       "description": "WhatsApp's native desktop client for seamless messaging and calling on macOS."
+    },
+    {
+      "name": "Windows App",
+      "slug": "windows-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.rdc.macos",
+      "description": "Windows App helps you connect to Windows from your Mac."
     },
     {
       "name": "Yubikey Manager",

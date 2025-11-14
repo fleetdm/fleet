@@ -5,13 +5,17 @@ import classNames from "classnames";
 const baseClass = "device-user-error";
 
 interface IDeviceUserErrorProps {
+  /** Modifies styling for mobile width (<768px) */
   isMobileView?: boolean;
+  /** Modifies error message for iPhone/iPad/Android */
+  isMobileDevice?: boolean;
   isAuthenticationError?: boolean;
   platform?: string;
 }
 
 const DeviceUserError = ({
   isMobileView = false,
+  isMobileDevice = false,
   isAuthenticationError = false,
   platform,
 }: IDeviceUserErrorProps): JSX.Element => {
@@ -33,39 +37,19 @@ const DeviceUserError = ({
     headerContent = (
       <>
         <Icon name="error" />
-        {isMobileView
+        {isMobileDevice
           ? "Invalid or missing certificate"
           : "This URL is invalid or expired."}
       </>
     );
-
-    // iOS/iPadOS specific error messaging
-    if (isIOSIPadOS) {
-      bodyContent = (
-        <>
-          Couldn&apos;t authenticate this device. This may be because:
-          <ul
-            style={{ marginTop: "8px", paddingLeft: "20px", textAlign: "left" }}
-          >
-            <li>The Fleet Identity certificate is not installed</li>
-            <li>The certificate has expired or been revoked</li>
-            <li>This device is not enrolled in MDM</li>
-          </ul>
-          <div style={{ marginTop: "12px" }}>
-            Please contact your IT admin for assistance.
-          </div>
-        </>
-      );
-    } else {
-      bodyContent = isMobileView ? (
-        "Couldn't authenticate this device. Please contact your IT admin."
-      ) : (
-        <>
-          To access your device information, please click <br />
-          &quot;My Device&quot; from the Fleet Desktop menu icon.
-        </>
-      );
-    }
+    bodyContent = isMobileDevice ? (
+      "Couldn't authenticate this device. Please contact your IT admin."
+    ) : (
+      <>
+        To access your device information, please click <br />
+        “My Device” from the Fleet Desktop menu icon.
+      </>
+    );
   }
 
   return (
