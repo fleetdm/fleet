@@ -48,7 +48,7 @@ How to view a query report:
 
 3. If you want to download the query report, select **Export results** to save it as a CSV.
 
-Fleet will store up to 1000 results for each query. If the number of results stays below 1000, then the results will continuously get updated every time the hosts send results to Fleet. 
+Fleet stores up to 1,000 results per query. If the count stays below this limit, Fleet updates the report each time hosts send new data.
 
 If the results exceed 1000, Fleet will stop updating the results. When this happens, you can clear the results so Fleet starts collecting them again. Navigate to the query's page, select **Advanced options**, check **Discard data**, select **Save**, uncheck **Discard data**, and select **Save** again.
 
