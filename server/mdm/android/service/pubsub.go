@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-json-experiment/json"
 	"github.com/go-kit/log/level"
 	"golang.org/x/text/cases"
@@ -152,7 +153,7 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 			// Emit system activity: mdm_unenrolled. For Android BYOD, InstalledFromDEP is always false.
 			// Use the computed display name from the device payload as lite host may not include it.
 			displayName := svc.getComputerName(&device)
-			_ = svc.fleetSvc.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+			_ = svc.activityModule.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
 				HostSerial:       "",
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
@@ -268,7 +269,7 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state (ENROLLMENT)")
 			}
 			displayName := svc.getComputerName(&device)
-			_ = svc.fleetSvc.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+			_ = svc.activityModule.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
 				HostSerial:       "",
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
@@ -292,6 +293,9 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 		return err
 	}
 
+	// Enqueue a job to send any necessary self-service software.
+	// Like Martin said below, this should properly be part of a device lifecycle action.
+
 	// Device may already be present in Fleet if device user removed the MDM profile and then re-enrolled
 	host, err := svc.getExistingHost(ctx, device)
 	if err != nil {
@@ -306,7 +310,7 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 	var enrollmentTokenRequest enrollmentTokenRequest
 	err = json.Unmarshal([]byte(device.EnrollmentTokenData), &enrollmentTokenRequest)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "unmarshilling enrollment token data")
+		return ctxerr.Wrap(ctx, err, "unmarshalling enrollment token data")
 	}
 
 	if host != nil {
@@ -453,8 +457,9 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 			DeviceID: deviceID,
 		},
 	}
+	policy := ptr.String(fmt.Sprint(defaultAndroidPolicyID))
 	if device.AppliedPolicyName != "" {
-		policy, err := svc.getPolicyID(ctx, device)
+		policy, err = svc.getPolicyID(ctx, device)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting Android policy ID")
 		}
@@ -469,7 +474,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 	}
 	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
-	_, err = svc.ds.NewAndroidHost(ctx, host)
+	fleetHost, err := svc.ds.NewAndroidHost(ctx, host)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
@@ -480,6 +485,16 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "associating host with idp account")
 		}
+	}
+
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get android enterprise")
+	}
+
+	err = worker.QueueMakeAndroidAppsAvailableForHostJob(ctx, svc.fleetDS, svc.logger, device.HardwareInfo.EnterpriseSpecificId, fleetHost.Host.ID, enterprise.Name(), *policy)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing make android apps available for host job")
 	}
 
 	return nil

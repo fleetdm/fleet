@@ -2470,7 +2470,7 @@ None.
 - [Update hosts' team by filter](#update-hosts-team-by-filter)
 - [Turn off host's MDM](#turn-off-hosts-mdm)
 - [Batch-delete hosts](#batch-delete-hosts)
-- [Update custom human-device mapping](#update-custom-human-device-mapping)
+- [Update human-device mapping](#update-human-device-mapping)
 - [Get host's device health report](#get-hosts-device-health-report)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) status](#get-mobile-device-management-mdm-status)

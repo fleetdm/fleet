@@ -296,5 +296,4 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 
 	err = svc.SetSetupExperienceSoftware(ctx, "darwin", 1, []uint{})
 	require.NoError(t, err)
-
 }
