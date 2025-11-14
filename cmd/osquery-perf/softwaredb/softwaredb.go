@@ -20,7 +20,60 @@ const (
 	MaxSoftwareAdd = 20
 	// MaxSoftwareRemove is the maximum number of software items to remove during mutation
 	MaxSoftwareRemove = 20
+	// MaxSoftwarePerPlatform is the maximum number of software items to load per platform
+	MaxSoftwarePerPlatform = 50000
 )
+
+// String interning pools to reduce memory usage by reusing common strings
+var (
+	sourcePool = map[string]string{
+		"apps":              "apps",
+		"homebrew_packages": "homebrew_packages",
+		"firefox_addons":    "firefox_addons",
+		"chrome_extensions": "chrome_extensions",
+		"python_packages":   "python_packages",
+		"vscode_extensions": "vscode_extensions",
+		"safari_extensions": "safari_extensions",
+		"programs":          "programs",
+		"ie_extensions":     "ie_extensions",
+		"deb_packages":      "deb_packages",
+		"npm_packages":      "npm_packages",
+		"rpm_packages":      "rpm_packages",
+		"android_apps":      "android_apps",
+		"ios_apps":          "ios_apps",
+		"ipados_apps":       "ipados_apps",
+		"jetbrains_plugins": "jetbrains_plugins",
+	}
+	vendorPool = make(map[string]string) // populated during load
+)
+
+// internString returns an interned version of s from the vendor pool, reducing memory usage
+func internString(s string) string {
+	if s == "" {
+		return ""
+	}
+	if interned, ok := vendorPool[s]; ok {
+		return interned
+	}
+	vendorPool[s] = s
+	return s
+}
+
+// internSource returns an interned source string
+func internSource(s string) string {
+	if interned, ok := sourcePool[s]; ok {
+		return interned
+	}
+	return s
+}
+
+// ptrString returns a pointer to s, or nil if s is empty
+func ptrString(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
 
 // RandomSoftwareCount returns a random count between min and max for the given platform
 func RandomSoftwareCount(platform string) int {
@@ -35,34 +88,34 @@ func RandomSoftwareCount(platform string) int {
 type DarwinSoftware struct {
 	Name             string
 	Version          string
-	Source           string // apps, homebrew_packages, firefox_addons, chrome_extensions, python_packages, vscode_extensions, safari_extensions
-	BundleIdentifier string // optional - used by apps
-	Vendor           string // optional - used by apps, vscode_extensions
-	ExtensionID      string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
-	ExtensionFor     string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
+	Source           string  // apps, homebrew_packages, firefox_addons, chrome_extensions, python_packages, vscode_extensions, safari_extensions (interned)
+	BundleIdentifier *string // optional - used by apps
+	Vendor           *string // optional - used by apps, vscode_extensions (interned)
+	ExtensionID      *string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
+	ExtensionFor     *string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
 }
 
 // WindowsSoftware represents Windows software
 type WindowsSoftware struct {
 	Name         string
 	Version      string
-	Source       string // firefox_addons, chrome_extensions, programs, vscode_extensions, ie_extensions, python_packages, deb_packages
-	Vendor       string // optional - used by programs, vscode_extensions
-	UpgradeCode  string // optional - used by programs
-	ExtensionID  string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
-	ExtensionFor string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
+	Source       string  // firefox_addons, chrome_extensions, programs, vscode_extensions, ie_extensions, python_packages, deb_packages (interned)
+	Vendor       *string // optional - used by programs, vscode_extensions (interned)
+	UpgradeCode  *string // optional - used by programs
+	ExtensionID  *string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
+	ExtensionFor *string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
 }
 
 // UbuntuSoftware represents Ubuntu/Linux software
 type UbuntuSoftware struct {
 	Name         string
 	Version      string
-	Source       string // firefox_addons, chrome_extensions, python_packages, deb_packages, vscode_extensions, npm_packages, rpm_packages
-	Vendor       string // optional - used by rpm_packages, vscode_extensions
-	Arch         string // optional - used by rpm_packages
-	Release      string // optional - used by rpm_packages
-	ExtensionID  string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
-	ExtensionFor string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
+	Source       string  // firefox_addons, chrome_extensions, python_packages, deb_packages, vscode_extensions, npm_packages, rpm_packages (interned)
+	Vendor       *string // optional - used by rpm_packages, vscode_extensions (interned)
+	Arch         *string // optional - used by rpm_packages
+	Release      *string // optional - used by rpm_packages
+	ExtensionID  *string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
+	ExtensionFor *string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
 }
 
 // DB holds the loaded software data for each platform
@@ -73,7 +126,7 @@ type DB struct {
 }
 
 // DarwinToMaps converts Darwin software at given indices to osquery result format
-func (db *DB) DarwinToMaps(indices []int) []map[string]string {
+func (db *DB) DarwinToMaps(indices []uint32) []map[string]string {
 	results := make([]map[string]string, 0, len(indices))
 	for _, idx := range indices {
 		s := db.Darwin[idx]
@@ -82,17 +135,17 @@ func (db *DB) DarwinToMaps(indices []int) []map[string]string {
 			"source":  s.Source,
 			"version": s.Version,
 		}
-		if s.BundleIdentifier != "" {
-			m["bundle_identifier"] = s.BundleIdentifier
+		if s.BundleIdentifier != nil {
+			m["bundle_identifier"] = *s.BundleIdentifier
 		}
-		if s.Vendor != "" {
-			m["vendor"] = s.Vendor
+		if s.Vendor != nil {
+			m["vendor"] = *s.Vendor
 		}
-		if s.ExtensionID != "" {
-			m["extension_id"] = s.ExtensionID
+		if s.ExtensionID != nil {
+			m["extension_id"] = *s.ExtensionID
 		}
-		if s.ExtensionFor != "" {
-			m["browser"] = s.ExtensionFor
+		if s.ExtensionFor != nil {
+			m["browser"] = *s.ExtensionFor
 		}
 		results = append(results, m)
 	}
@@ -100,7 +153,7 @@ func (db *DB) DarwinToMaps(indices []int) []map[string]string {
 }
 
 // WindowsToMaps converts Windows software at given indices to osquery result format
-func (db *DB) WindowsToMaps(indices []int) []map[string]string {
+func (db *DB) WindowsToMaps(indices []uint32) []map[string]string {
 	results := make([]map[string]string, 0, len(indices))
 	for _, idx := range indices {
 		s := db.Windows[idx]
@@ -109,17 +162,17 @@ func (db *DB) WindowsToMaps(indices []int) []map[string]string {
 			"source":  s.Source,
 			"version": s.Version,
 		}
-		if s.Vendor != "" {
-			m["vendor"] = s.Vendor
+		if s.Vendor != nil {
+			m["vendor"] = *s.Vendor
 		}
-		if s.UpgradeCode != "" {
-			m["upgrade_code"] = s.UpgradeCode
+		if s.UpgradeCode != nil {
+			m["upgrade_code"] = *s.UpgradeCode
 		}
-		if s.ExtensionID != "" {
-			m["extension_id"] = s.ExtensionID
+		if s.ExtensionID != nil {
+			m["extension_id"] = *s.ExtensionID
 		}
-		if s.ExtensionFor != "" {
-			m["browser"] = s.ExtensionFor
+		if s.ExtensionFor != nil {
+			m["browser"] = *s.ExtensionFor
 		}
 		results = append(results, m)
 	}
@@ -127,7 +180,7 @@ func (db *DB) WindowsToMaps(indices []int) []map[string]string {
 }
 
 // UbuntuToMaps converts Ubuntu software at given indices to osquery result format
-func (db *DB) UbuntuToMaps(indices []int) []map[string]string {
+func (db *DB) UbuntuToMaps(indices []uint32) []map[string]string {
 	results := make([]map[string]string, 0, len(indices))
 	for _, idx := range indices {
 		s := db.Ubuntu[idx]
@@ -136,20 +189,20 @@ func (db *DB) UbuntuToMaps(indices []int) []map[string]string {
 			"source":  s.Source,
 			"version": s.Version,
 		}
-		if s.Vendor != "" {
-			m["vendor"] = s.Vendor
+		if s.Vendor != nil {
+			m["vendor"] = *s.Vendor
 		}
-		if s.Arch != "" {
-			m["arch"] = s.Arch
+		if s.Arch != nil {
+			m["arch"] = *s.Arch
 		}
-		if s.Release != "" {
-			m["release"] = s.Release
+		if s.Release != nil {
+			m["release"] = *s.Release
 		}
-		if s.ExtensionID != "" {
-			m["extension_id"] = s.ExtensionID
+		if s.ExtensionID != nil {
+			m["extension_id"] = *s.ExtensionID
 		}
-		if s.ExtensionFor != "" {
-			m["browser"] = s.ExtensionFor
+		if s.ExtensionFor != nil {
+			m["browser"] = *s.ExtensionFor
 		}
 		results = append(results, m)
 	}
@@ -159,14 +212,14 @@ func (db *DB) UbuntuToMaps(indices []int) []map[string]string {
 // MaybeMutateSoftware randomly mutates software indices (adds/removes items) 20% of the time.
 // This simulates software being installed/uninstalled on a host over time.
 // maxPoolSize is the total number of available software items in the database.
-func MaybeMutateSoftware(indices []int, maxPoolSize int) []int {
+func MaybeMutateSoftware(indices []uint32, maxPoolSize int) []uint32 {
 	// Only mutate 20% of the time
 	if rand.Float64() >= SoftwareMutationProb { // nolint:gosec,G404 // load testing, not security-sensitive
 		return indices
 	}
 
 	// Copy indices to avoid mutating the original slice
-	result := make([]int, len(indices))
+	result := make([]uint32, len(indices))
 	copy(result, indices)
 
 	// Randomly remove 0-20 items
@@ -186,7 +239,7 @@ func MaybeMutateSoftware(indices []int, maxPoolSize int) []int {
 	numToAdd := rand.IntN(MaxSoftwareAdd + 1) // nolint:gosec,G404 // load testing, not security-sensitive
 	if numToAdd > 0 {
 		// Create a map of existing indices for quick lookup
-		existing := make(map[int]bool, len(result))
+		existing := make(map[uint32]bool, len(result))
 		for _, idx := range result {
 			existing[idx] = true
 		}
@@ -196,7 +249,7 @@ func MaybeMutateSoftware(indices []int, maxPoolSize int) []int {
 		attempts := 0
 		maxAttempts := numToAdd * 10 // Avoid infinite loop
 		for added < numToAdd && attempts < maxAttempts {
-			newIdx := rand.IntN(maxPoolSize) // nolint:gosec,G404 // load testing, not security-sensitive
+			newIdx := uint32(rand.IntN(maxPoolSize)) // nolint:gosec,G404 // load testing, not security-sensitive
 			if !existing[newIdx] {
 				result = append(result, newIdx)
 				existing[newIdx] = true
@@ -336,7 +389,9 @@ func loadDarwinSoftware(db *sql.DB, sources []string) ([]DarwinSoftware, error) 
 		SELECT name, version, source, bundle_identifier, vendor, extension_id, extension_for
 		FROM software
 		WHERE source IN (%s)
-	`, sourceList)
+		ORDER BY RANDOM()
+		LIMIT %d
+	`, sourceList, MaxSoftwarePerPlatform)
 
 	rows, err := db.Query(query)
 	if err != nil {
@@ -344,27 +399,32 @@ func loadDarwinSoftware(db *sql.DB, sources []string) ([]DarwinSoftware, error) 
 	}
 	defer rows.Close()
 
-	software := make([]DarwinSoftware, 0, 200000)
+	software := make([]DarwinSoftware, 0, MaxSoftwarePerPlatform)
 	for rows.Next() {
 		var sw DarwinSoftware
+		var source string
 		var bundleID, vendor, extensionID, extensionFor sql.NullString
 
-		err := rows.Scan(&sw.Name, &sw.Version, &sw.Source, &bundleID, &vendor, &extensionID, &extensionFor)
+		err := rows.Scan(&sw.Name, &sw.Version, &source, &bundleID, &vendor, &extensionID, &extensionFor)
 		if err != nil {
 			return nil, fmt.Errorf("scanning darwin software row: %w", err)
 		}
 
+		// Use interned source string
+		sw.Source = internSource(source)
+
+		// Use pointers for optional fields
 		if bundleID.Valid {
-			sw.BundleIdentifier = bundleID.String
+			sw.BundleIdentifier = ptrString(bundleID.String)
 		}
 		if vendor.Valid {
-			sw.Vendor = vendor.String
+			sw.Vendor = ptrString(internString(vendor.String))
 		}
 		if extensionID.Valid {
-			sw.ExtensionID = extensionID.String
+			sw.ExtensionID = ptrString(extensionID.String)
 		}
 		if extensionFor.Valid {
-			sw.ExtensionFor = extensionFor.String
+			sw.ExtensionFor = ptrString(extensionFor.String)
 		}
 
 		software = append(software, sw)
@@ -385,7 +445,9 @@ func loadWindowsSoftware(db *sql.DB, sources []string) ([]WindowsSoftware, error
 		SELECT name, version, source, vendor, upgrade_code, extension_id, extension_for
 		FROM software
 		WHERE source IN (%s)
-	`, sourceList)
+		ORDER BY RANDOM()
+		LIMIT %d
+	`, sourceList, MaxSoftwarePerPlatform)
 
 	rows, err := db.Query(query)
 	if err != nil {
@@ -393,27 +455,32 @@ func loadWindowsSoftware(db *sql.DB, sources []string) ([]WindowsSoftware, error
 	}
 	defer rows.Close()
 
-	software := make([]WindowsSoftware, 0, 350000)
+	software := make([]WindowsSoftware, 0, MaxSoftwarePerPlatform)
 	for rows.Next() {
 		var sw WindowsSoftware
+		var source string
 		var vendor, upgradeCode, extensionID, extensionFor sql.NullString
 
-		err := rows.Scan(&sw.Name, &sw.Version, &sw.Source, &vendor, &upgradeCode, &extensionID, &extensionFor)
+		err := rows.Scan(&sw.Name, &sw.Version, &source, &vendor, &upgradeCode, &extensionID, &extensionFor)
 		if err != nil {
 			return nil, fmt.Errorf("scanning windows software row: %w", err)
 		}
 
+		// Use interned source string
+		sw.Source = internSource(source)
+
+		// Use pointers for optional fields
 		if vendor.Valid {
-			sw.Vendor = vendor.String
+			sw.Vendor = ptrString(internString(vendor.String))
 		}
 		if upgradeCode.Valid {
-			sw.UpgradeCode = upgradeCode.String
+			sw.UpgradeCode = ptrString(upgradeCode.String)
 		}
 		if extensionID.Valid {
-			sw.ExtensionID = extensionID.String
+			sw.ExtensionID = ptrString(extensionID.String)
 		}
 		if extensionFor.Valid {
-			sw.ExtensionFor = extensionFor.String
+			sw.ExtensionFor = ptrString(extensionFor.String)
 		}
 
 		software = append(software, sw)
@@ -434,7 +501,9 @@ func loadUbuntuSoftware(db *sql.DB, sources []string) ([]UbuntuSoftware, error) 
 		SELECT name, version, source, vendor, arch, release, extension_id, extension_for
 		FROM software
 		WHERE source IN (%s)
-	`, sourceList)
+		ORDER BY RANDOM()
+		LIMIT %d
+	`, sourceList, MaxSoftwarePerPlatform)
 
 	rows, err := db.Query(query)
 	if err != nil {
@@ -442,30 +511,35 @@ func loadUbuntuSoftware(db *sql.DB, sources []string) ([]UbuntuSoftware, error) 
 	}
 	defer rows.Close()
 
-	software := make([]UbuntuSoftware, 0, 250000)
+	software := make([]UbuntuSoftware, 0, MaxSoftwarePerPlatform)
 	for rows.Next() {
 		var sw UbuntuSoftware
+		var source string
 		var vendor, arch, release, extensionID, extensionFor sql.NullString
 
-		err := rows.Scan(&sw.Name, &sw.Version, &sw.Source, &vendor, &arch, &release, &extensionID, &extensionFor)
+		err := rows.Scan(&sw.Name, &sw.Version, &source, &vendor, &arch, &release, &extensionID, &extensionFor)
 		if err != nil {
 			return nil, fmt.Errorf("scanning ubuntu software row: %w", err)
 		}
 
+		// Use interned source string
+		sw.Source = internSource(source)
+
+		// Use pointers for optional fields
 		if vendor.Valid {
-			sw.Vendor = vendor.String
+			sw.Vendor = ptrString(internString(vendor.String))
 		}
 		if arch.Valid {
-			sw.Arch = arch.String
+			sw.Arch = ptrString(arch.String)
 		}
 		if release.Valid {
-			sw.Release = release.String
+			sw.Release = ptrString(release.String)
 		}
 		if extensionID.Valid {
-			sw.ExtensionID = extensionID.String
+			sw.ExtensionID = ptrString(extensionID.String)
 		}
 		if extensionFor.Valid {
-			sw.ExtensionFor = extensionFor.String
+			sw.ExtensionFor = ptrString(extensionFor.String)
 		}
 
 		software = append(software, sw)

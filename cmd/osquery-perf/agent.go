@@ -369,7 +369,7 @@ type agent struct {
 	installedSoftware sync.Map
 
 	// Cached software indices (pointers into global softwareDB array for this agent's platform)
-	cachedSoftwareIndices []int
+	cachedSoftwareIndices []uint32
 
 	// Host identity client for HTTP message signatures
 	hostIdentityClient *hostidentity.Client
@@ -1876,7 +1876,10 @@ func (a *agent) softwareMacOS() []map[string]string {
 			// Select a random count between min-max, then pick that many random indices
 			count := softwaredb.RandomSoftwareCount("darwin")
 			perm := rand.Perm(len(softwareDB.Darwin))
-			a.cachedSoftwareIndices = perm[:count]
+			a.cachedSoftwareIndices = make([]uint32, count)
+			for i := 0; i < count; i++ {
+				a.cachedSoftwareIndices[i] = uint32(perm[i])
+			}
 		} else {
 			a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(softwareDB.Darwin))
 		}
@@ -2689,7 +2692,10 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					// Select a random count between min-max, then pick that many random indices
 					count := softwaredb.RandomSoftwareCount("windows")
 					perm := rand.Perm(len(softwareDB.Windows))
-					a.cachedSoftwareIndices = perm[:count]
+					a.cachedSoftwareIndices = make([]uint32, count)
+					for i := 0; i < count; i++ {
+						a.cachedSoftwareIndices[i] = uint32(perm[i])
+					}
 				} else {
 					a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(softwareDB.Windows))
 				}
@@ -2730,7 +2736,10 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 						// Select a random count between min-max, then pick that many random indices
 						count := softwaredb.RandomSoftwareCount("ubuntu")
 						perm := rand.Perm(len(softwareDB.Ubuntu))
-						a.cachedSoftwareIndices = perm[:count]
+						a.cachedSoftwareIndices = make([]uint32, count)
+						for i := 0; i < count; i++ {
+							a.cachedSoftwareIndices[i] = uint32(perm[i])
+						}
 					} else {
 						a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(softwareDB.Ubuntu))
 					}
