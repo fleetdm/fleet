@@ -7909,10 +7909,21 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 		"Profile should be verified in host details API for no-vars host")
 }
 
-//go:embed testdata/profiles/windows-scep.xml
-var windowsSCEPProfileBytes []byte
+//go:embed testdata/profiles/windows-device-scep.xml
+var windowsDeviceSCEPProfileBytes []byte
 
-func (s *integrationMDMTestSuite) TestWindowsSCEPProfile() {
+func (s *integrationMDMTestSuite) TestWindowsDeviceSCEPProfile() {
+	testWindowsSCEPProfile(s, windowsDeviceSCEPProfileBytes)
+}
+
+//go:embed testdata/profiles/windows-user-scep.xml
+var windowsUserSCEPProfileBytes []byte
+
+func (s *integrationMDMTestSuite) TestWindowsUserSCEPProfile() {
+	testWindowsSCEPProfile(s, windowsUserSCEPProfileBytes)
+}
+
+func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byte) {
 	t := s.T()
 	ctx := context.Background()
 	scepServer := scep_server.StartTestSCEPServer(t)
@@ -7953,7 +7964,7 @@ func (s *integrationMDMTestSuite) TestWindowsSCEPProfile() {
 	// Upload SCEP profile with missing CA
 	resp := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-			{Name: "WindowsSCEPProfile", Contents: windowsSCEPProfileBytes},
+			{Name: "WindowsSCEPProfile", Contents: windowsScepProfile},
 		}},
 		http.StatusBadRequest)
 	errMsg := extractServerErrorText(resp.Body)
@@ -7972,7 +7983,7 @@ func (s *integrationMDMTestSuite) TestWindowsSCEPProfile() {
 
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-			{Name: "WindowsSCEPProfile", Contents: windowsSCEPProfileBytes},
+			{Name: "WindowsSCEPProfile", Contents: windowsScepProfile},
 		}},
 		http.StatusNoContent)
 
@@ -8022,16 +8033,10 @@ func (s *integrationMDMTestSuite) TestWindowsSCEPProfile() {
 			foundProfile = true
 			profileUUID = p.ProfileUUID
 			require.NotNil(t, p.Status)
-			assert.Equal(t, fleet.MDMDeliveryVerified, *p.Status)
+			require.Equal(t, fleet.MDMDeliveryVerified, *p.Status)
 		}
 	}
 	require.True(t, foundProfile, "WindowsSCEPProfile not found for host")
-
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "host_mdm_windows_profiles")
-		mysql.DumpTable(t, q, "host_mdm_managed_certificates")
-		return nil
-	})
 
 	// Attempt simple SCEP call with GetCACaps operation to verify SCEP server is reachable
 	identifier := host.UUID + "," + profileUUID + "," + "INTEGRATION"
