@@ -485,6 +485,8 @@ func (svc *Service) VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error
 	return nil
 }
 
+// VerifyAnyMDMConfigured checks that at least one MDM platform (Apple, Windows,
+// or Android) is configured so callers that rely on MDM functionality can proceed.
 func (svc *Service) VerifyAnyMDMConfigured(ctx context.Context) error {
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {

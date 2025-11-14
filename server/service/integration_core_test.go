@@ -101,6 +101,47 @@ func (s *integrationTestSuite) TestSlowOsqueryHost() {
 	assert.Equal(t, http.StatusRequestTimeout, resp.StatusCode)
 }
 
+// TestMDMAnyMiddlewareAccess performs an end-to-end check through the HTTP
+// handler to confirm the new middleware respects each platform toggle.
+func (s *integrationTestSuite) TestMDMAnyMiddlewareAccess(t *testing.T) {
+	ctx := context.Background()
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+
+	origMDM := appCfg.MDM
+	defer func(orig fleet.MDM) {
+		appCfg.MDM = orig
+		require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+	}(origMDM)
+
+	setConfig := func(apple, windows, android bool) {
+		appCfg.MDM.EnabledAndConfigured = apple
+		appCfg.MDM.WindowsEnabledAndConfigured = windows
+		appCfg.MDM.AndroidEnabledAndConfigured = android
+		require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+	}
+
+	const endpoint = "/api/latest/fleet/configuration_profiles"
+
+	setConfig(false, false, false)
+	res := s.Do("GET", endpoint, nil, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+	require.NoError(t, res.Body.Close())
+
+	setConfig(true, false, false)
+	res = s.Do("GET", endpoint, nil, http.StatusOK)
+	require.NoError(t, res.Body.Close())
+
+	setConfig(false, true, false)
+	res = s.Do("GET", endpoint, nil, http.StatusOK)
+	require.NoError(t, res.Body.Close())
+
+	setConfig(false, false, true)
+	res = s.Do("GET", endpoint, nil, http.StatusOK)
+	require.NoError(t, res.Body.Close())
+}
+
 func (s *integrationTestSuite) TestDistributedReadWithChangedQueries() {
 	t := s.T()
 

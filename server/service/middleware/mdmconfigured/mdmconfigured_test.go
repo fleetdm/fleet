@@ -11,14 +11,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// mockService implements the minimal subset of fleet.Service required by the
+// middleware tests. Each Verify* method gates execution via simple atomic flags
+// so tests can toggle the configured MDM platforms.
 type mockService struct {
 	mock.Mock
 	fleet.Service
 
-	mdmConfigured   atomic.Bool
-	msMdmConfigured atomic.Bool
+	mdmConfigured     atomic.Bool
+	msMdmConfigured   atomic.Bool
+	androidConfigured atomic.Bool
 }
 
+// VerifyMDMAppleConfigured marks whether Apple MDM is enabled for the test.
 func (m *mockService) VerifyMDMAppleConfigured(ctx context.Context) error {
 	if !m.mdmConfigured.Load() {
 		return fleet.ErrMDMNotConfigured
@@ -26,6 +31,7 @@ func (m *mockService) VerifyMDMAppleConfigured(ctx context.Context) error {
 	return nil
 }
 
+// VerifyMDMWindowsConfigured marks whether Windows MDM is enabled for the test.
 func (m *mockService) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	if !m.msMdmConfigured.Load() {
 		return fleet.ErrWindowsMDMNotConfigured
@@ -33,8 +39,19 @@ func (m *mockService) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	return nil
 }
 
+// VerifyMDMAppleOrWindowsConfigured satisfies the fleet.Service interface and
+// returns success when either Apple or Windows MDM is toggled on.
 func (m *mockService) VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error {
 	if !m.mdmConfigured.Load() && !m.msMdmConfigured.Load() {
+		return fleet.ErrMDMNotConfigured
+	}
+	return nil
+}
+
+// VerifyAnyMDMConfigured is the mock implementation that mirrors the production
+// VerifyAnyMDMConfigured service method, adding Android to the Apple/Windows check.
+func (m *mockService) VerifyAnyMDMConfigured(ctx context.Context) error {
+	if !m.mdmConfigured.Load() && !m.msMdmConfigured.Load() && !m.androidConfigured.Load() {
 		return fleet.ErrMDMNotConfigured
 	}
 	return nil
@@ -108,6 +125,8 @@ func TestWindowsMDMNotConfigured(t *testing.T) {
 	require.False(t, nextCalled)
 }
 
+// TestAppleOrWindowsMDMConfigured confirms the legacy middleware still permits
+// requests when either Apple or Windows MDM has been enabled.
 func TestAppleOrWindowsMDMConfigured(t *testing.T) {
 	svc := mockService{}
 	mw := NewMDMConfigMiddleware(&svc)
@@ -124,6 +143,7 @@ func TestAppleOrWindowsMDMConfigured(t *testing.T) {
 		t.Run(fmt.Sprintf("apple:%t;windows:%t", c.apple, c.windows), func(t *testing.T) {
 			svc.mdmConfigured.Store(c.apple)
 			svc.msMdmConfigured.Store(c.windows)
+			svc.androidConfigured.Store(false)
 			nextCalled := false
 			next := func(ctx context.Context, req interface{}) (interface{}, error) {
 				nextCalled = true
@@ -138,6 +158,8 @@ func TestAppleOrWindowsMDMConfigured(t *testing.T) {
 	}
 }
 
+// TestAppleOrWindowsMDMNotConfigured confirms the legacy middleware blocks
+// requests when neither Apple nor Windows MDM is configured.
 func TestAppleOrWindowsMDMNotConfigured(t *testing.T) {
 	svc := mockService{}
 	mw := NewMDMConfigMiddleware(&svc)
@@ -149,6 +171,64 @@ func TestAppleOrWindowsMDMNotConfigured(t *testing.T) {
 	}
 
 	f := mw.VerifyAppleOrWindowsMDM()(next)
+	_, err := f(context.Background(), struct{}{})
+	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
+	require.False(t, nextCalled)
+}
+
+// TestAnyMDMConfigured exercises the new middleware that recognizes Apple,
+// Windows, or Android MDM individually or in combination.
+func TestAnyMDMConfigured(t *testing.T) {
+	svc := mockService{}
+	mw := NewMDMConfigMiddleware(&svc)
+
+	cases := []struct {
+		apple   bool
+		windows bool
+		android bool
+	}{
+		{apple: true},
+		{windows: true},
+		{android: true},
+		{apple: true, windows: true},
+		{apple: true, android: true},
+		{windows: true, android: true},
+		{apple: true, windows: true, android: true},
+	}
+
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("apple:%t;windows:%t;android:%t", c.apple, c.windows, c.android), func(t *testing.T) {
+			svc.mdmConfigured.Store(c.apple)
+			svc.msMdmConfigured.Store(c.windows)
+			svc.androidConfigured.Store(c.android)
+
+			nextCalled := false
+			next := func(ctx context.Context, req interface{}) (interface{}, error) {
+				nextCalled = true
+				return struct{}{}, nil
+			}
+
+			f := mw.VerifyAnyMDM()(next)
+			_, err := f(context.Background(), struct{}{})
+			require.NoError(t, err)
+			require.True(t, nextCalled)
+		})
+	}
+}
+
+// TestAnyMDMNotConfigured ensures the new middleware continues to return
+// ErrMDMNotConfigured when no platform has MDM enabled.
+func TestAnyMDMNotConfigured(t *testing.T) {
+	svc := mockService{}
+	mw := NewMDMConfigMiddleware(&svc)
+
+	nextCalled := false
+	next := func(ctx context.Context, req interface{}) (interface{}, error) {
+		nextCalled = true
+		return struct{}{}, nil
+	}
+
+	f := mw.VerifyAnyMDM()(next)
 	_, err := f(context.Background(), struct{}{})
 	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
 	require.False(t, nextCalled)

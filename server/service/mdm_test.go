@@ -332,6 +332,91 @@ func TestVerifyMDMWindowsConfigured(t *testing.T) {
 	require.False(t, authzCtx.Checked())
 }
 
+// TestVerifyAnyMDMConfigured validates the service helper that powers the
+// middleware and ensures each Apple/Windows/Android configuration path is covered.
+func TestVerifyAnyMDMConfigured(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	cfg := config.TestConfig()
+	svc, baseCtx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	// helper to create context per assertion
+	newCtx := func() (context.Context, *authz_ctx.AuthorizationContext) {
+		authzCtx := &authz_ctx.AuthorizationContext{}
+		return authz_ctx.NewContext(baseCtx, authzCtx), authzCtx
+	}
+
+	// none configured
+	ctx, authzCtx := newCtx()
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{}}, nil
+	}
+	err := svc.VerifyAnyMDMConfigured(ctx)
+	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.True(t, authzCtx.Checked())
+
+	// error retrieving config
+	ctx, authzCtx = newCtx()
+	testErr := errors.New("test err")
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return nil, testErr
+	}
+	err = svc.VerifyAnyMDMConfigured(ctx)
+	require.ErrorIs(t, err, testErr)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.True(t, authzCtx.Checked())
+
+	// apple only
+	ctx, authzCtx = newCtx()
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	err = svc.VerifyAnyMDMConfigured(ctx)
+	require.NoError(t, err)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.False(t, authzCtx.Checked())
+
+	// windows only
+	ctx, authzCtx = newCtx()
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}, nil
+	}
+	err = svc.VerifyAnyMDMConfigured(ctx)
+	require.NoError(t, err)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.False(t, authzCtx.Checked())
+
+	// android only
+	ctx, authzCtx = newCtx()
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+	}
+	err = svc.VerifyAnyMDMConfigured(ctx)
+	require.NoError(t, err)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.False(t, authzCtx.Checked())
+
+	// multiple configs
+	ctx, authzCtx = newCtx()
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{
+			EnabledAndConfigured:        true,
+			WindowsEnabledAndConfigured: true,
+			AndroidEnabledAndConfigured: true,
+		}}, nil
+	}
+	err = svc.VerifyAnyMDMConfigured(ctx)
+	require.NoError(t, err)
+	require.True(t, ds.AppConfigFuncInvoked)
+	require.False(t, authzCtx.Checked())
+}
+
 func TestMicrosoftWSTEPConfig(t *testing.T) {
 	ds := new(mock.Store)
 	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
