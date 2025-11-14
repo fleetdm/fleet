@@ -294,13 +294,44 @@ const ConditionalAccess = () => {
 
   // RENDER
 
-  const renderContent = () => {
+  const renderOktaContent = () => {
+    return (
+      <SectionCard
+        header={oktaConfigured ? undefined : "Okta"}
+        iconName={oktaConfigured ? "success" : undefined}
+        cta={
+          oktaConfigured ? (
+            <Button variant="text-icon" onClick={handleOktaDelete}>
+              Delete
+              <Icon name="trash" color="ui-fleet-black-75" />
+            </Button>
+          ) : (
+            <Button onClick={toggleOktaModal}>Connect</Button>
+          )
+        }
+      >
+        {oktaConfigured
+          ? "Okta conditional access configured"
+          : "Connect Okta to enable conditional access."}
+      </SectionCard>
+    );
+  };
+
+  const renderEntraContent = () => {
     if (entraPhase === EntraPhase.ConfirmingConfigured) {
-      return <Spinner />;
+      return (
+        <SectionCard header="Microsoft Entra">
+          <Spinner />
+        </SectionCard>
+      );
     }
 
     if (entraPhase === EntraPhase.ConfirmationError) {
-      return <DataError />;
+      return (
+        <SectionCard header="Microsoft Entra">
+          <DataError />
+        </SectionCard>
+      );
     }
 
     // Compute Entra card props to avoid nested ternaries
@@ -337,38 +368,25 @@ const ConditionalAccess = () => {
     }
 
     return (
+      <SectionCard
+        header={
+          entraIsConfigured || entraIsAwaitingOAuth
+            ? undefined
+            : "Microsoft Entra"
+        }
+        iconName={entraIconName}
+        cta={entraCta}
+      >
+        {entraContent}
+      </SectionCard>
+    );
+  };
+
+  const renderContent = () => {
+    return (
       <div className={`${baseClass}__cards`}>
-        <SectionCard
-          header={oktaConfigured ? undefined : "Okta"}
-          iconName={oktaConfigured ? "success" : undefined}
-          cta={
-            oktaConfigured ? (
-              <Button variant="text-icon" onClick={handleOktaDelete}>
-                Delete
-                <Icon name="trash" color="ui-fleet-black-75" />
-              </Button>
-            ) : (
-              <Button onClick={toggleOktaModal}>Connect</Button>
-            )
-          }
-        >
-          {oktaConfigured
-            ? "Okta conditional access configured"
-            : "Connect Okta to enable conditional access."}
-        </SectionCard>
-        {isManagedCloud && (
-          <SectionCard
-            header={
-              entraIsConfigured || entraIsAwaitingOAuth
-                ? undefined
-                : "Microsoft Entra"
-            }
-            iconName={entraIconName}
-            cta={entraCta}
-          >
-            {entraContent}
-          </SectionCard>
-        )}
+        {renderOktaContent()}
+        {isManagedCloud && renderEntraContent()}
       </div>
     );
   };
