@@ -349,7 +349,7 @@ type IInstallStatusCellProps = {
 };
 
 const getSoftwarePackageName = (software: IHostSoftware) =>
-  software.software_package?.display_name || software.software_package?.name;
+  software.display_name || software.software_package?.name;
 
 const resolveDisplayText = (
   displayText: IStatusDisplayConfig["displayText"],

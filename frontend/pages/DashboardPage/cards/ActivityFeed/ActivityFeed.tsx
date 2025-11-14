@@ -161,7 +161,8 @@ const ActivityFeed = ({
       case ActivityType.UninstalledSoftware:
         setPackageUninstallDetails({
           ...details,
-          softwareName: details?.software_title || "",
+          softwareName:
+            details?.software_display_name || details?.software_title || "",
           uninstallStatus: resolveUninstallStatus(details?.status),
           scriptExecutionId: details?.script_execution_id || "",
           hostDisplayName: details?.host_display_name,
@@ -288,7 +289,10 @@ const ActivityFeed = ({
       {ipaPackageInstallDetails && (
         <SoftwareIpaInstallDetailsModal
           details={{
-            appName: ipaPackageInstallDetails.software_title || "",
+            appName:
+              ipaPackageInstallDetails.software_display_name ||
+              ipaPackageInstallDetails.software_title ||
+              "",
             fleetInstallStatus: (ipaPackageInstallDetails.status ||
               "pending_install") as SoftwareInstallUninstallStatus,
             hostDisplayName: ipaPackageInstallDetails.host_display_name || "",
@@ -307,7 +311,10 @@ const ActivityFeed = ({
       {vppInstallDetails && (
         <VppInstallDetailsModal
           details={{
-            appName: vppInstallDetails.software_title || "",
+            appName:
+              vppInstallDetails.software_display_name ||
+              vppInstallDetails.software_title ||
+              "",
             fleetInstallStatus: (vppInstallDetails.status ||
               "pending_install") as SoftwareInstallUninstallStatus,
             hostDisplayName: vppInstallDetails.host_display_name || "",

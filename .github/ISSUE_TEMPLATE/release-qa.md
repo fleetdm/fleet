@@ -3,7 +3,7 @@ name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
 labels: '#g-mdm,#g-orchestration,#g-software,#g-security-compliance,:release'
-assignees: 'xpkoala,pezhub,jmwatts,andreykizimenko'
+assignees: 'xpkoala,jmwatts,andreykizimenko'
 
 ---
 
@@ -67,6 +67,13 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 
 1. Software, query, policy, and packs logs are successfully sent to external log destinations
 2. Software, query, policy, and packs logs are successfully sent to Filesystem log destinations
+ 
+</td><td>pass/fail</td></tr>
+
+<tr><td>GitOps and generate-gitops</td><td>
+
+1. `fleetctl generate-gitops` from a version-matched fleetctl successfully outputs YAML from a brand new Fleet server (net of auto-populated teams etc.).
+2. Running GitOps succeeds on the files created in the previous step, either using the `gitops.sh` script directly (from the `fleet-gitops` repo) or by using the GitOps GitHub or GitLab workflow (attempting via one of these three is sufficient).
  
 </td><td>pass/fail</td></tr>
 

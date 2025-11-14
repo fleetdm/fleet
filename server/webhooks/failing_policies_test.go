@@ -235,7 +235,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 		}
 		return policy, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid == teamID {
 			return &fleet.Team{
 				ID: teamID,

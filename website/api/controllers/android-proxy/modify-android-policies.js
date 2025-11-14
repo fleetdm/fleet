@@ -81,7 +81,11 @@ module.exports = {
         requestBody: this.req.body,
       });
       return patchPoliciesResponse.data;
-    }).intercept((err) => {
+    }).intercept({status: 429}, (err)=>{
+      // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
+      sails.log.warn(`p1: Android management API rate limit exceeded!`);
+      return new Error(`When attempting to update a policy for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+    }).intercept((err)=>{
       return new Error(`When attempting to update a policy for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     });
 

@@ -398,6 +398,7 @@ const SoftwareInstallerCard = ({
           softwarePackage={softwareInstaller as ISoftwarePackage}
           onExit={onToggleViewYaml}
           isScriptPackage={isScriptPackage}
+          isIosOrIpadosApp={isIosOrIpadosApp}
         />
       )}
     </Card>

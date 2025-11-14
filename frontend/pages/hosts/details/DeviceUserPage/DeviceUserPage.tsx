@@ -69,6 +69,9 @@ import {
   getErrorMessage,
   hasRemainingSetupSteps,
   isSoftwareScriptSetup,
+  isIPhone,
+  isIPad,
+  isAndroid,
 } from "./helpers";
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
@@ -139,6 +142,8 @@ const DeviceUserPage = ({
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
   const isMobileView = useIsMobileWidth();
+  const isMobileDevice =
+    isIPhone(navigator) || isIPad(navigator) || isAndroid(navigator);
 
   const { renderFlash, notification, hideFlash } = useContext(
     NotificationContext
@@ -700,22 +705,17 @@ const DeviceUserPage = ({
                   osSettings={host?.mdm.os_settings}
                 />
                 <AboutCard
-                  className={
-                    showUsersCard ? defaultCardClass : fullWidthCardClass
-                  }
+                  className={defaultCardClass}
                   aboutData={aboutData}
                   munki={deviceMacAdminsData?.munki}
                 />
-                {showUsersCard && (
-                  <UserCard
-                    className={defaultCardClass}
-                    platform={host.platform}
-                    endUsers={host.end_users ?? []}
-                    enableAddEndUser={false}
-                    disableFullNameTooltip
-                    disableGroupsTooltip
-                  />
-                )}
+                <UserCard
+                  className={defaultCardClass}
+                  canWriteEndUser={false}
+                  endUsers={host.end_users ?? []}
+                  disableFullNameTooltip
+                  disableGroupsTooltip
+                />
                 {isAppleHost && !!deviceCertificates?.certificates.length && (
                   <CertificatesCard
                     className={fullWidthCardClass}
@@ -872,6 +872,7 @@ const DeviceUserPage = ({
       {isDeviceUserError || enrollUrlError ? (
         <DeviceUserError
           isMobileView={isMobileView}
+          isMobileDevice={isMobileDevice}
           isAuthenticationError={!!isAuthenticationError}
         />
       ) : (

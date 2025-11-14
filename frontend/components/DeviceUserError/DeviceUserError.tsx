@@ -5,12 +5,16 @@ import classNames from "classnames";
 const baseClass = "device-user-error";
 
 interface IDeviceUserErrorProps {
+  /** Modifies styling for mobile width (<768px) */
   isMobileView?: boolean;
+  /** Modifies error message for iPhone/iPad/Android */
+  isMobileDevice?: boolean;
   isAuthenticationError?: boolean;
 }
 
 const DeviceUserError = ({
   isMobileView = false,
+  isMobileDevice = false,
   isAuthenticationError = false,
 }: IDeviceUserErrorProps): JSX.Element => {
   const wrapperClassnames = classNames(baseClass, {
@@ -29,12 +33,12 @@ const DeviceUserError = ({
     headerContent = (
       <>
         <Icon name="error" />
-        {isMobileView
+        {isMobileDevice
           ? "Invalid or missing certificate"
           : "This URL is invalid or expired."}
       </>
     );
-    bodyContent = isMobileView ? (
+    bodyContent = isMobileDevice ? (
       "Couldn't authenticate this device. Please contact your IT admin."
     ) : (
       <>

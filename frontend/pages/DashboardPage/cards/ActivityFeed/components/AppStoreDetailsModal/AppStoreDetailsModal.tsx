@@ -36,7 +36,10 @@ const AppStoreDetailsModal = ({
     >
       <>
         <div className={`${baseClass}__modal-content`}>
-          <DataSet title="Name" value={details.software_title} />
+          <DataSet
+            title="Name"
+            value={details.software_display_name || details.software_title}
+          />
           <DataSet
             title={
               isAndroid(details.platform || "")
