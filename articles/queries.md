@@ -52,7 +52,7 @@ Fleet stores up to 1,000 results per query. If the count stays below this limit,
 
 If the results exceed 1,000, Fleet stops updating the report. To start collecting data again, clear the stored results from the query’s page. Go to **Advanced options**, check **Discard data**, and select **Save**. Then uncheck **Discard data** and select **Save** again.
 
-> You can tell Fleet to bump the 1000 results limit by setting [`server_settings.query_report_cap`](https://fleetdm.com/docs/rest-api/rest-api#server-settings) via [the Modify configuration API endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration).
+> You can change the 1,000-result limit by setting [`server_settings.query_report_cap`](https://fleetdm.com/docs/rest-api/rest-api#server-settings) via [the Modify configuration API endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration).
 
 Persisting query reports within Fleet creates load on the database, so you'll want to monitor database load as you add queries. If needed, you can disable query reports either globally or per-query.
 
