@@ -96,14 +96,14 @@ func (svc *Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, 
 }
 
 func (svc *Service) CreateSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
-	return svc.SetSetupExperienceScript(ctx, teamID, name, r, false)
+	return svc.setSetupExperienceScript(ctx, teamID, name, r, false)
 }
 
 func (svc *Service) PutSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
-	return svc.SetSetupExperienceScript(ctx, teamID, name, r, true)
+	return svc.setSetupExperienceScript(ctx, teamID, name, r, true)
 }
 
-func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader, allowUpdate bool) error {
+func (svc *Service) setSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader, allowUpdate bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}

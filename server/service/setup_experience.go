@@ -169,7 +169,6 @@ type setSetupExperienceScriptResponse struct {
 
 func (r setSetupExperienceScriptResponse) Error() error { return r.Err }
 
-// EJM TODO EJM Rename this createSetupExperienceScript????
 func createSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*setSetupExperienceScriptRequest)
 
