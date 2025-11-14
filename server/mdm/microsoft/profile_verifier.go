@@ -41,9 +41,7 @@ func LoopOverExpectedHostProfiles(
 		return fmt.Errorf("getting host profiles for verification: %w", err)
 	}
 
-	params := PreprocessingParameters{
-		HostIDForUUIDCache: make(map[string]uint),
-	}
+	hostIDForUUIDCache := make(map[string]uint)
 
 	for _, expectedProf := range profileMap {
 		expanded, err := ds.ExpandEmbeddedSecrets(ctx, string(expectedProf.RawProfile))
@@ -53,7 +51,7 @@ func LoopOverExpectedHostProfiles(
 
 		// Process Fleet variables if present (similar to how it's done during profile deployment)
 		// This ensures we compare what was actually sent to the device
-		processedContent := PreprocessWindowsProfileContentsForVerification(ctx, logger, ds, host.UUID, expectedProf.ProfileUUID, expanded, params)
+		processedContent := PreprocessWindowsProfileContentsForVerification(ctx, logger, ds, host.UUID, expectedProf.ProfileUUID, expanded, hostIDForUUIDCache)
 		expectedProf.RawProfile = []byte(processedContent)
 
 		var prof fleet.SyncMLCmd
@@ -292,20 +290,27 @@ func IsWin32OrDesktopBridgeADMXCSP(locURI string) bool {
 	return false
 }
 
-// PreprocessingParameters holds parameters needed for preprocessing Windows profiles, for both verification and deployment only.
-// It should only contain helper stuff, and not core values such as hostUUID, profileUUID, etc.
-type PreprocessingParameters struct {
-	// a lookup map to avoid repeated datastore calls for hostID from hostUUID
-	HostIDForUUIDCache map[string]uint
-}
-
 // PreprocessWindowsProfileContentsForVerification processes Windows configuration profiles to replace Fleet variables
 // with the given host UUID for verification purposes.
 //
 // This function is similar to PreprocessWindowsProfileContentsForDeployment, but it does not require
 // a datastore or logger since it only replaces certain fleet variables to avoid datastore unnecessary work.
-func PreprocessWindowsProfileContentsForVerification(ctx context.Context, logger kitlog.Logger, ds fleet.Datastore, hostUUID string, profileUUID string, profileContents string, params PreprocessingParameters) string {
-	replacedContents, _ := preprocessWindowsProfileContents(ctx, logger, ds, nil, true, hostUUID, profileUUID, nil, profileContents, nil, params)
+func PreprocessWindowsProfileContentsForVerification(ctx context.Context, logger kitlog.Logger, ds fleet.Datastore, hostUUID string, profileUUID string, profileContents string, hostIDForUUIDCache map[string]uint) string {
+	deps := preprocessDependencies{
+		ctx:                ctx,
+		logger:             logger,
+		ds:                 ds,
+		appConfig:          nil,
+		HostIDForUUIDCache: hostIDForUUIDCache,
+		customSCEPCAs:      nil,
+	}
+	preprocessParams := preprocessParams{
+		isVerifying:                true,
+		hostUUID:                   hostUUID,
+		profileUUID:                profileUUID,
+		managedCertificatePayloads: nil,
+	}
+	replacedContents, _ := preprocessWindowsProfileContents(deps, preprocessParams, profileContents)
 	// ^ We ignore the error here, and rely on the fact that the function will return the original contents if no replacements were made.
 	// So verification fails on individual profile level, instead of entire verification failing.
 	return replacedContents
@@ -314,10 +319,10 @@ func PreprocessWindowsProfileContentsForVerification(ctx context.Context, logger
 // PreprocessWindowsProfileContentsForDeployment processes Windows configuration profiles to replace Fleet variables
 // with their actual values for each host during profile deployment.
 func PreprocessWindowsProfileContentsForDeployment(ctx context.Context, logger kitlog.Logger, ds fleet.Datastore,
-	appConfig *fleet.AppConfig, hostCmdUUID string, profileUUID string,
+	appConfig *fleet.AppConfig, hostUUID string, profileUUID string,
 	groupedCAs *fleet.GroupedCertificateAuthorities, profileContents string,
 	managedCertificatePayloads *[]*fleet.MDMManagedCertificate,
-	params PreprocessingParameters,
+	hostIDForUUIDCache map[string]uint,
 ) (string, error) {
 	// TODO: Should we avoid iterating this list for every profile?
 	customSCEPCAs := make(map[string]*fleet.CustomSCEPProxyCA, len(groupedCAs.CustomScepProxy))
@@ -325,7 +330,21 @@ func PreprocessWindowsProfileContentsForDeployment(ctx context.Context, logger k
 		customSCEPCAs[ca.Name] = &ca
 	}
 
-	return preprocessWindowsProfileContents(ctx, logger, ds, appConfig, false, hostCmdUUID, profileUUID, customSCEPCAs, profileContents, managedCertificatePayloads, params)
+	deps := preprocessDependencies{
+		ctx:                ctx,
+		logger:             logger,
+		ds:                 ds,
+		appConfig:          appConfig,
+		HostIDForUUIDCache: hostIDForUUIDCache,
+		customSCEPCAs:      customSCEPCAs,
+	}
+	preprocessParams := preprocessParams{
+		isVerifying:                false,
+		hostUUID:                   hostUUID,
+		profileUUID:                profileUUID,
+		managedCertificatePayloads: managedCertificatePayloads,
+	}
+	return preprocessWindowsProfileContents(deps, preprocessParams, profileContents)
 }
 
 // This error type is used to indicate errors during Microsoft profile processing, such as variable replacement failures.
@@ -336,6 +355,22 @@ type MicrosoftProfileProcessingError struct {
 
 func (e *MicrosoftProfileProcessingError) Error() string {
 	return e.message
+}
+
+type preprocessDependencies struct {
+	ctx                context.Context
+	logger             kitlog.Logger
+	ds                 fleet.Datastore
+	appConfig          *fleet.AppConfig
+	HostIDForUUIDCache map[string]uint
+	customSCEPCAs      map[string]*fleet.CustomSCEPProxyCA
+}
+
+type preprocessParams struct {
+	isVerifying                bool
+	hostUUID                   string
+	profileUUID                string
+	managedCertificatePayloads *[]*fleet.MDMManagedCertificate
 }
 
 // preprocessWindowsProfileContents processes Windows configuration profiles to replace Fleet variables
@@ -360,12 +395,7 @@ func (e *MicrosoftProfileProcessingError) Error() string {
 //     thousands of host profiles. Direct string replacement is more efficient for our use case.
 //  4. XML escaping: We need XML-specific escaping for values, which is simpler to control with direct
 //     string replacement rather than template functions.
-func preprocessWindowsProfileContents(ctx context.Context, logger kitlog.Logger, ds fleet.Datastore, appConfig *fleet.AppConfig,
-	isVerifying bool, hostUUID string, profileUUID string,
-	customSCEPCAs map[string]*fleet.CustomSCEPProxyCA, profileContents string,
-	managedCertificatePayloads *[]*fleet.MDMManagedCertificate,
-	params PreprocessingParameters,
-) (string, error) {
+func preprocessWindowsProfileContents(deps preprocessDependencies, params preprocessParams, profileContents string) (string, error) {
 	// Check if Fleet variables are present
 	fleetVars := variables.Find(profileContents)
 	if len(fleetVars) == 0 {
@@ -377,40 +407,40 @@ func preprocessWindowsProfileContents(ctx context.Context, logger kitlog.Logger,
 	result := profileContents
 	for _, fleetVar := range fleetVars {
 		if fleetVar == string(fleet.FleetVarHostUUID) {
-			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostUUIDRegexp, result, hostUUID)
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostUUIDRegexp, result, params.hostUUID)
 		} else if slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(fleetVar)) {
-			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(ctx, ds, fleetVar, result, hostUUID, params.HostIDForUUIDCache, func(errMsg string) error {
+			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(deps.ctx, deps.ds, fleetVar, result, params.hostUUID, deps.HostIDForUUIDCache, func(errMsg string) error {
 				return &MicrosoftProfileProcessingError{message: errMsg}
 			})
 			if err != nil {
 				return profileContents, err
 			}
 			if !replacedVariable {
-				return profileContents, ctxerr.Wrap(ctx, err, "host end user IDP variable replacement failed for variable")
+				return profileContents, ctxerr.Wrap(deps.ctx, err, "host end user IDP variable replacement failed for variable")
 			}
 			result = replacedContents
 		}
 
 		// We skip some variables during verification, to avoid unnecessary datastore calls
 		// or processing that is not needed for verification.
-		if isVerifying {
+		if params.isVerifying {
 			continue
 		}
 
 		switch {
 		case fleetVar == string(fleet.FleetVarSCEPWindowsCertificateID):
-			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarSCEPWindowsCertificateIDRegexp, result, profileUUID)
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarSCEPWindowsCertificateIDRegexp, result, params.profileUUID)
 		case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)):
 			caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix))
-			err := profiles.IsCustomSCEPConfigured(ctx, customSCEPCAs, caName, fleetVar, func(errMsg string) error {
+			err := profiles.IsCustomSCEPConfigured(deps.ctx, deps.customSCEPCAs, caName, fleetVar, func(errMsg string) error {
 				return &MicrosoftProfileProcessingError{message: errMsg}
 			})
 			if err != nil {
 				return profileContents, err
 			}
-			replacedContents, replacedVariable, err := profiles.ReplaceCustomSCEPChallengeVariable(ctx, logger, fleetVar, customSCEPCAs, result)
+			replacedContents, replacedVariable, err := profiles.ReplaceCustomSCEPChallengeVariable(deps.ctx, deps.logger, fleetVar, deps.customSCEPCAs, result)
 			if err != nil {
-				return profileContents, ctxerr.Wrap(ctx, err, "replacing custom SCEP challenge variable")
+				return profileContents, ctxerr.Wrap(deps.ctx, err, "replacing custom SCEP challenge variable")
 			}
 			if !replacedVariable {
 				return profileContents, &MicrosoftProfileProcessingError{message: fmt.Sprintf("Custom SCEP challenge variable replacement failed for variable %s", fleetVar)}
@@ -418,22 +448,22 @@ func preprocessWindowsProfileContents(ctx context.Context, logger kitlog.Logger,
 			result = replacedContents
 		case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)):
 			caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix))
-			err := profiles.IsCustomSCEPConfigured(ctx, customSCEPCAs, caName, fleetVar, func(errMsg string) error {
+			err := profiles.IsCustomSCEPConfigured(deps.ctx, deps.customSCEPCAs, caName, fleetVar, func(errMsg string) error {
 				return &MicrosoftProfileProcessingError{message: errMsg}
 			})
 			if err != nil {
 				return profileContents, err
 			}
-			replacedContents, managedCertificate, replacedVariable, err := profiles.ReplaceCustomSCEPProxyURLVariable(ctx, logger, ds, appConfig, fleetVar, customSCEPCAs, result, hostUUID, profileUUID)
+			replacedContents, managedCertificate, replacedVariable, err := profiles.ReplaceCustomSCEPProxyURLVariable(deps.ctx, deps.logger, deps.ds, deps.appConfig, fleetVar, deps.customSCEPCAs, result, params.hostUUID, params.profileUUID)
 			if err != nil {
-				return profileContents, ctxerr.Wrap(ctx, err, "replacing custom SCEP challenge variable")
+				return profileContents, ctxerr.Wrap(deps.ctx, err, "replacing custom SCEP challenge variable")
 			}
 			if !replacedVariable {
 				return profileContents, &MicrosoftProfileProcessingError{message: fmt.Sprintf("Custom SCEP challenge variable replacement failed for variable %s", fleetVar)}
 			}
 			result = replacedContents
 
-			*managedCertificatePayloads = append(*managedCertificatePayloads, managedCertificate)
+			*params.managedCertificatePayloads = append(*params.managedCertificatePayloads, managedCertificate)
 		}
 
 		// Add other Fleet variables here as they are implemented, identify if it can be skipped for verification.

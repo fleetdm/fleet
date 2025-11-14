@@ -928,13 +928,11 @@ func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
 		},
 	}
 
-	params := PreprocessingParameters{
-		HostIDForUUIDCache: make(map[string]uint),
-	}
+	hostIDForUUIDCache := make(map[string]uint)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := PreprocessWindowsProfileContentsForVerification(t.Context(), log.NewNopLogger(), ds, tt.hostUUID, uuid.NewString(), tt.profileContents, params)
+			result := PreprocessWindowsProfileContentsForVerification(t.Context(), log.NewNopLogger(), ds, tt.hostUUID, uuid.NewString(), tt.profileContents, hostIDForUUIDCache)
 			require.Equal(t, tt.expectedContents, result)
 		})
 	}
@@ -1143,9 +1141,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		},
 	}
 
-	params := PreprocessingParameters{
-		HostIDForUUIDCache: make(map[string]uint),
-	}
+	hostIDForUUIDCache := make(map[string]uint)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1174,7 +1170,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 
 			managedCertificates := &[]*fleet.MDMManagedCertificate{}
 
-			result, err := PreprocessWindowsProfileContentsForDeployment(ctx, log.NewNopLogger(), ds, appConfig, tt.hostUUID, profileUUID, groupedCAs, tt.profileContents, managedCertificates, params)
+			result, err := PreprocessWindowsProfileContentsForDeployment(ctx, log.NewNopLogger(), ds, appConfig, tt.hostUUID, profileUUID, groupedCAs, tt.profileContents, managedCertificates, hostIDForUUIDCache)
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.processingError != "" {

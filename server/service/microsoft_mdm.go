@@ -2315,9 +2315,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		return ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
-	params := microsoft_mdm.PreprocessingParameters{
-		HostIDForUUIDCache: make(map[string]uint),
-	}
+	hostIDForUUIDCache := make(map[string]uint)
 
 	managedCertificatePayloads := &[]*fleet.MDMManagedCertificate{}
 
@@ -2350,7 +2348,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 				}
 
 				// Preprocess the profile content for this specific host
-				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(ctx, logger, ds, appConfig, hostUUID, profUUID, groupedCAs, string(p.SyncML), managedCertificatePayloads, params)
+				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(ctx, logger, ds, appConfig, hostUUID, profUUID, groupedCAs, string(p.SyncML), managedCertificatePayloads, hostIDForUUIDCache)
 				var profileProcessingError *microsoft_mdm.MicrosoftProfileProcessingError
 				if err != nil && !errors.As(err, &profileProcessingError) {
 					return ctxerr.Wrapf(ctx, err, "preprocessing profile contents for host %s and profile %s", hostUUID, profUUID)
