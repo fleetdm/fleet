@@ -1873,7 +1873,10 @@ func (a *agent) softwareMacOS() []map[string]string {
 	if softwareDB != nil && len(softwareDB.Darwin) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
 		// Initialize cached indices on first call, then mutate on subsequent calls
 		if a.cachedSoftwareIndices == nil {
-			a.cachedSoftwareIndices = rand.Perm(len(softwareDB.Darwin))
+			// Select a random count between min-max, then pick that many random indices
+			count := softwaredb.RandomSoftwareCount("darwin")
+			perm := rand.Perm(len(softwareDB.Darwin))
+			a.cachedSoftwareIndices = perm[:count]
 		} else {
 			a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(softwareDB.Darwin))
 		}
@@ -2683,7 +2686,10 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			if softwareDB != nil && len(softwareDB.Windows) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
 				// Initialize cached indices on first call, then mutate on subsequent calls
 				if a.cachedSoftwareIndices == nil {
-					a.cachedSoftwareIndices = rand.Perm(len(softwareDB.Windows))
+					// Select a random count between min-max, then pick that many random indices
+					count := softwaredb.RandomSoftwareCount("windows")
+					perm := rand.Perm(len(softwareDB.Windows))
+					a.cachedSoftwareIndices = perm[:count]
 				} else {
 					a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(softwareDB.Windows))
 				}
@@ -2721,7 +2727,10 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 				if softwareDB != nil && len(softwareDB.Ubuntu) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
 					// Initialize cached indices on first call, then mutate on subsequent calls
 					if a.cachedSoftwareIndices == nil {
-						a.cachedSoftwareIndices = rand.Perm(len(softwareDB.Ubuntu))
+						// Select a random count between min-max, then pick that many random indices
+						count := softwaredb.RandomSoftwareCount("ubuntu")
+						perm := rand.Perm(len(softwareDB.Ubuntu))
+						a.cachedSoftwareIndices = perm[:count]
 					} else {
 						a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(softwareDB.Ubuntu))
 					}

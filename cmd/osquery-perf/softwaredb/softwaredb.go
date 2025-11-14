@@ -23,6 +23,15 @@ const (
 	MaxSoftwareRemove = 20
 )
 
+// RandomSoftwareCount returns a random count between min and max for the given platform
+func RandomSoftwareCount(platform string) int {
+	config, ok := platformCounts[platform]
+	if !ok {
+		return 0
+	}
+	return config.min + rand.IntN(config.max-config.min+1) // nolint:gosec,G404 // load testing, not security-sensitive
+}
+
 // DarwinSoftware represents macOS/iOS software
 type DarwinSoftware struct {
 	Name             string
@@ -260,13 +269,12 @@ func LoadFromDatabase(dbPath string) (*DB, error) {
 		return nil, errors.New("database exists but 'software' table not found\n\nPlease initialize the database:\n  cd cmd/osquery-perf/software-library\n  sqlite3 software.db < software.sql")
 	}
 
-	// Load software for each platform
+	// Load ALL software for each platform (agents will select random subsets)
 	softwareDB := &DB{}
 
 	// Load Darwin software
 	darwinConfig := platformCounts["darwin"]
-	darwinCount := darwinConfig.min + rand.IntN(darwinConfig.max-darwinConfig.min+1) // nolint:gosec,G404
-	darwinSoftware, err := loadDarwinSoftware(db, darwinConfig.sources, darwinCount)
+	darwinSoftware, err := loadDarwinSoftware(db, darwinConfig.sources)
 	if err != nil {
 		return nil, err
 	}
@@ -275,8 +283,7 @@ func LoadFromDatabase(dbPath string) (*DB, error) {
 
 	// Load Windows software
 	windowsConfig := platformCounts["windows"]
-	windowsCount := windowsConfig.min + rand.IntN(windowsConfig.max-windowsConfig.min+1) // nolint:gosec,G404
-	windowsSoftware, err := loadWindowsSoftware(db, windowsConfig.sources, windowsCount)
+	windowsSoftware, err := loadWindowsSoftware(db, windowsConfig.sources)
 	if err != nil {
 		return nil, err
 	}
@@ -285,8 +292,7 @@ func LoadFromDatabase(dbPath string) (*DB, error) {
 
 	// Load Ubuntu software
 	ubuntuConfig := platformCounts["ubuntu"]
-	ubuntuCount := ubuntuConfig.min + rand.IntN(ubuntuConfig.max-ubuntuConfig.min+1) // nolint:gosec,G404
-	ubuntuSoftware, err := loadUbuntuSoftware(db, ubuntuConfig.sources, ubuntuCount)
+	ubuntuSoftware, err := loadUbuntuSoftware(db, ubuntuConfig.sources)
 	if err != nil {
 		return nil, err
 	}
@@ -323,25 +329,23 @@ func generateDatabaseFromSQL(dbPath, sqlPath string) error {
 	return nil
 }
 
-// loadDarwinSoftware loads macOS/iOS software from the database
-func loadDarwinSoftware(db *sql.DB, sources []string, count int) ([]DarwinSoftware, error) {
+// loadDarwinSoftware loads all macOS/iOS software from the database for the given sources
+func loadDarwinSoftware(db *sql.DB, sources []string) ([]DarwinSoftware, error) {
 	sourceList := "'" + strings.Join(sources, "', '") + "'"
 	// nolint:gosec // sources are hardcoded, not user input
 	query := fmt.Sprintf(`
 		SELECT name, version, source, bundle_identifier, vendor, extension_id, extension_for
 		FROM software
 		WHERE source IN (%s)
-		ORDER BY RANDOM()
-		LIMIT ?
 	`, sourceList)
 
-	rows, err := db.Query(query, count)
+	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("querying darwin software: %w", err)
 	}
 	defer rows.Close()
 
-	software := make([]DarwinSoftware, 0, count)
+	software := make([]DarwinSoftware, 0, 200000)
 	for rows.Next() {
 		var sw DarwinSoftware
 		var bundleID, vendor, extensionID, extensionFor sql.NullString
@@ -374,25 +378,23 @@ func loadDarwinSoftware(db *sql.DB, sources []string, count int) ([]DarwinSoftwa
 	return software, nil
 }
 
-// loadWindowsSoftware loads Windows software from the database
-func loadWindowsSoftware(db *sql.DB, sources []string, count int) ([]WindowsSoftware, error) {
+// loadWindowsSoftware loads all Windows software from the database for the given sources
+func loadWindowsSoftware(db *sql.DB, sources []string) ([]WindowsSoftware, error) {
 	sourceList := "'" + strings.Join(sources, "', '") + "'"
 	// nolint:gosec // sources are hardcoded, not user input
 	query := fmt.Sprintf(`
 		SELECT name, version, source, vendor, upgrade_code, extension_id, extension_for
 		FROM software
 		WHERE source IN (%s)
-		ORDER BY RANDOM()
-		LIMIT ?
 	`, sourceList)
 
-	rows, err := db.Query(query, count)
+	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("querying windows software: %w", err)
 	}
 	defer rows.Close()
 
-	software := make([]WindowsSoftware, 0, count)
+	software := make([]WindowsSoftware, 0, 350000)
 	for rows.Next() {
 		var sw WindowsSoftware
 		var vendor, upgradeCode, extensionID, extensionFor sql.NullString
@@ -425,25 +427,23 @@ func loadWindowsSoftware(db *sql.DB, sources []string, count int) ([]WindowsSoft
 	return software, nil
 }
 
-// loadUbuntuSoftware loads Ubuntu/Linux software from the database
-func loadUbuntuSoftware(db *sql.DB, sources []string, count int) ([]UbuntuSoftware, error) {
+// loadUbuntuSoftware loads all Ubuntu/Linux software from the database for the given sources
+func loadUbuntuSoftware(db *sql.DB, sources []string) ([]UbuntuSoftware, error) {
 	sourceList := "'" + strings.Join(sources, "', '") + "'"
 	// nolint:gosec // sources are hardcoded, not user input
 	query := fmt.Sprintf(`
 		SELECT name, version, source, vendor, arch, release, extension_id, extension_for
 		FROM software
 		WHERE source IN (%s)
-		ORDER BY RANDOM()
-		LIMIT ?
 	`, sourceList)
 
-	rows, err := db.Query(query, count)
+	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("querying ubuntu software: %w", err)
 	}
 	defer rows.Close()
 
-	software := make([]UbuntuSoftware, 0, count)
+	software := make([]UbuntuSoftware, 0, 250000)
 	for rows.Next() {
 		var sw UbuntuSoftware
 		var vendor, arch, release, extensionID, extensionFor sql.NullString
