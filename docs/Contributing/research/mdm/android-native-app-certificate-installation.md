@@ -124,9 +124,14 @@ Also additional complexity is that you need to mock MDM (work profile), and addi
 
 1. First on your Android device, open **Test DPC** in work profile, and search for **Set user restrictions**, and select it.
 2. Disable **Disallow debugging features** and **Disallow install unknown resources**.
-3. Now open **Android Studio**, and in the menu bar select **Run > Edit Configurations...**.
-4. You probably have one configuration which is by default named **app**. Just make sure that **Install for all users (if already installed, will only update for existing users)** check box an save it for any configuration that you plan to run.
-5. Now when you run your app on emulator or real device (connected via USB), it will run on both personal and work profile.
+3. In the bottom left corner, open **Terminal**, and run `adb shell pm list users`, which will return list of the users. Look for one that has "work profile" and remember ID (usually 10).
+4. Now open **Android Studio**, and in the menu bar select **Run > Edit Configurations...**.
+5. You probably have one configuration which is by default named **app**.
+6. Make sure that **Install for all users (if already installed, will only update for existing users)** is checked.
+7. In **Launch Flags** type `--user 10` or whatever ID you got from running command from step 3.
+8. Now when you run your app on emulator or real device (connected via USB), it will run on both personal and work profile.
+
+![Edit configurations in Android Studio](image.png)
 
 ### Grant delegated scope to the app (CERT_INSTALL)
 
