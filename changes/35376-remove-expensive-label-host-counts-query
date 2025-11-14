@@ -1,0 +1,1 @@
+- Removed "host counts" data from the GET /labels API to improve performance.
