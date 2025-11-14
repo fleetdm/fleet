@@ -131,7 +131,7 @@ Also additional complexity is that you need to mock MDM (work profile), and addi
 7. In **Launch Flags** type `--user 10` or whatever ID you got from running command from step 3.
 8. Now when you run your app on emulator or real device (connected via USB), it will run on both personal and work profile.
 
-![Edit configurations in Android Studio](image.png)
+<img src="../../assets/android-studio-edit-configurations.png" alt="Edit configurations in Android Studio" width="500" />
 
 ### Grant delegated scope to the app (CERT_INSTALL)
 
