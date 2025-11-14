@@ -1161,7 +1161,8 @@ None.
     "windows_require_bitlocker_pin": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
-      "deadline": "2022-01-01"
+      "deadline": "2022-01-01",
+      "update_new_hosts": true
     },
     "ios_updates": {
       "minimum_version": "17.0.1",
@@ -1469,7 +1470,8 @@ Modifies the Fleet's configuration with the supplied information.
     "windows_require_bitlocker_pin": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
-      "deadline": "2022-01-01"
+      "deadline": "2022-01-01",
+      "update_new_hosts": true
     },
     "ios_updates": {
       "minimum_version": "17.0.1",
@@ -2044,6 +2046,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be prompted to update when their OS is below this version. |
 | deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (noon local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions). |
+| update_new_hosts                          | string  | macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](TODO) during macOS Setup Assistant. |
 
 <br/>
 
@@ -2155,7 +2158,8 @@ _Available in Fleet Premium._
     "windows_require_bitlocker_pin": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
-      "deadline": "2022-01-01"
+      "deadline": "2022-01-01",
+      "update_new_hosts": true
     },
     "windows_updates": {
       "deadline_days": 5,
@@ -11324,7 +11328,8 @@ _Available in Fleet Premium_
       "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
-        "deadline": "2022-01-01"
+        "deadline": "2022-01-01",
+        "update_new_hosts": true
       },
       "windows_updates": {
         "deadline_days": 5,
@@ -11652,6 +11657,7 @@ _Available in Fleet Premium_
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                 | string  | Hosts that belong to this team and are enrolled into Fleet's MDM will be prompted to update when their OS is below this version.                                                                           |
 | deadline                        | string  | Hosts that belong to this team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (noon local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions).                                                                    |
+| update_new_hosts                          | string  | macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](TODO) during macOS Setup Assistant. |
 
 <br/>
 
@@ -11732,7 +11738,8 @@ _Available in Fleet Premium_
   "mdm": {
     "macos_updates": {
       "minimum_version": "12.3.1",
-      "deadline": "2025-04-01"
+      "deadline": "2025-04-01",
+      "update_new_hosts": true
     },
     "ios_updates": {
       "minimum_version": "18.3.1",
@@ -11871,7 +11878,8 @@ _Available in Fleet Premium_
       "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
-        "deadline": "2022-01-01"
+        "deadline": "2022-01-01",
+        "update_new_hosts": true
       },
       "windows_updates": {
         "deadline_days": 5,
