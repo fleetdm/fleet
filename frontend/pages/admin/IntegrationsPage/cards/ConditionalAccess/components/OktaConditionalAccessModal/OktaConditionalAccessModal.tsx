@@ -1,5 +1,6 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import { size } from "lodash";
+import { useQuery } from "react-query";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -17,7 +18,10 @@ import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { getErrorReason } from "interfaces/errors";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 import FileUploader from "components/FileUploader";
 import valid_url from "components/forms/validators/valid_url";
 
@@ -112,15 +116,14 @@ const OktaConditionalAccessModal = ({
   });
   const [formErrors, setFormErrors] = useState<IFormErrors>({});
   const [certFile, setCertFile] = useState<File | null>(null);
-  const [appleProfile, setAppleProfile] = useState<string>("");
 
-  // Fetch Apple profile on mount
-  useEffect(() => {
-    const fetchAppleProfile = async () => {
-      try {
-        const profileText = await conditionalAccessAPI.getIdpAppleProfile();
-        setAppleProfile(profileText);
-      } catch (e: any) {
+  // Fetch Apple profile with automatic retries
+  const { data: appleProfile = "" } = useQuery<string, Error>(
+    ["appleProfile"],
+    conditionalAccessAPI.getIdpAppleProfile,
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      onError: (e: any) => {
         // When responseType is "text", error responses come back as JSON strings
         // that need to be parsed manually
         let errorReason = "";
@@ -139,10 +142,9 @@ const OktaConditionalAccessModal = ({
           ? `Failed to load Apple profile: ${errorReason}`
           : "Failed to load Apple profile.";
         renderFlash("error", message);
-      }
-    };
-    fetchAppleProfile();
-  }, [renderFlash]);
+      },
+    }
+  );
 
   const onSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -150,6 +152,9 @@ const OktaConditionalAccessModal = ({
     const errs = validate(formData);
     if (Object.keys(errs).length > 0) {
       setFormErrors(errs);
+      return;
+    }
+    if (!config) {
       return;
     }
     setIsUpdating(true);
@@ -162,7 +167,7 @@ const OktaConditionalAccessModal = ({
           okta_certificate: formData[OKTA_CERTIFICATE],
           // Preserve existing Microsoft Entra settings
           microsoft_entra_tenant_id:
-            config?.conditional_access?.microsoft_entra_tenant_id || "",
+            config.conditional_access?.microsoft_entra_tenant_id || "",
         },
       });
       renderFlash("success", "Successfully configured Okta conditional access");
