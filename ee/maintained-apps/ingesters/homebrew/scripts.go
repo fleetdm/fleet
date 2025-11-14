@@ -86,11 +86,12 @@ func uninstallScriptForApp(cask *brewCask) string {
 			for _, appItem := range artifact.App {
 				// Extract the app path - use target if it's an object (what gets installed), otherwise use the string
 				var appPath string
-				if appItem.String != "" {
+				switch {
+				case appItem.String != "":
 					appPath = appItem.String
-				} else if appItem.Other != nil {
+				case appItem.Other != nil:
 					appPath = appItem.Other.Target
-				} else {
+				default:
 					continue
 				}
 				sb.RemoveFile(fmt.Sprintf(`"$APPDIR/%s"`, appPath))
