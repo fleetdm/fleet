@@ -593,7 +593,11 @@ const DeviceUserPage = ({
 
     if (shouldShowMobileUI) {
       // Force redirect to self-service route for iOS/iPadOS devices
-      if (isIOSIPadOS && !location.pathname.includes('/self-service') && hasSelfService) {
+      if (
+        isIOSIPadOS &&
+        !location.pathname.includes("/self-service") &&
+        hasSelfService
+      ) {
         router.replace(PATHS.DEVICE_USER_DETAILS_SELF_SERVICE(deviceAuthToken));
         return <Spinner />;
       }

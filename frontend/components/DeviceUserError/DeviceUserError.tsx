@@ -43,8 +43,10 @@ const DeviceUserError = ({
     if (isIOSIPadOS) {
       bodyContent = (
         <>
-          Couldn't authenticate this device. This may be because:
-          <ul style={{ marginTop: "8px", paddingLeft: "20px", textAlign: "left" }}>
+          Couldn&apos;t authenticate this device. This may be because:
+          <ul
+            style={{ marginTop: "8px", paddingLeft: "20px", textAlign: "left" }}
+          >
             <li>The Fleet Identity certificate is not installed</li>
             <li>The certificate has expired or been revoked</li>
             <li>This device is not enrolled in MDM</li>
@@ -60,7 +62,7 @@ const DeviceUserError = ({
       ) : (
         <>
           To access your device information, please click <br />
-          "My Device" from the Fleet Desktop menu icon.
+          &quot;My Device&quot; from the Fleet Desktop menu icon.
         </>
       );
     }

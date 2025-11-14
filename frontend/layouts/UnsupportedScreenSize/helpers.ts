@@ -5,9 +5,7 @@ const deviceSelfServiceRegex = new RegExp(
 );
 
 // iOS/iPadOS base device route should support low-width screens
-const deviceIOSIPadOSRegex = new RegExp(
-  `^${url_prefix}/device/[^/]+/?$`
-);
+const deviceIOSIPadOSRegex = new RegExp(`^${url_prefix}/device/[^/]+/?$`);
 
 // Define paths that will not show the unsupported screen overlay
 const lowWidthSupportedPathsRegex = [
