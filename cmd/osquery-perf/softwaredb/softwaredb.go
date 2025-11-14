@@ -1,5 +1,4 @@
-// Package softwaredb provides SQLite database loading for realistic software data
-// used in osquery-perf load testing.
+// Package softwaredb provides SQLite database loading for realistic software data used in osquery-perf load testing.
 package softwaredb
 
 import (
