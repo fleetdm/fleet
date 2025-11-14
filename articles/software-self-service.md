@@ -24,6 +24,29 @@ You can also add the software and later make it available in self-service:
 
 If a software item isn't made available in self-service, end users will not see it in **Fleet Desktop > Self-service**. IT admins can still install, update, and uninstall the software from Fleet.
 
+## iOS and iPadOS setup
+
+To enable self-service software on iOS and iPadOS devices, you need to deploy a configuration profile that creates a home screen app icon. When users tap this icon, they access the self-service software catalog without needing to manually authenticate.
+
+### Prerequisites
+
+- Safari must be installed and not restricted on devices.
+- Your Fleet server must support client certificate authentication.
+
+> **Note:** Self-service for iOS and iPadOS is not supported on Render-hosted Fleet deployments. Render automatically terminates HTTPS connections, which prevents the certificate authentication required for iOS/iPadOS devices.
+
+### Deploy the configuration profile
+
+Fleet provides a configuration profile that creates a "My Device" icon on iOS/iPadOS home screens. This profile uses the device's Fleet Identity certificate for automatic authentication.
+
+[Learn how to deploy self-service to iOS and iPadOS](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios)
+
+The configuration profile:
+- Creates a non-removable home screen icon
+- Opens in full-screen mode
+- Automatically authenticates using the device's enrollment certificate
+- Uses Fleet's `$FLEET_VAR_HOST_UUID` variable for easy deployment to multiple devices
+
 ## IT admin experience
 
 How to view, update, install, or uninstall self-service software:
@@ -45,8 +68,13 @@ Tips:
 
 How to update, install, or uninstall self-service software:
 
-1. Find the Fleet icon in your menu bar and select **Self-service.** This will open your default web browser to the list of self-service software available to update, install, or uninstall.
-2. If updates are available, end users can update one or all available self-service software. They can also view update progress and error details directly.
+**macOS and Windows:**
+1. Find the Fleet icon in your menu bar (macOS) or system tray (Windows) and select **Self-service.** This will open your default web browser to the list of self-service software available to update, install, or uninstall.
+
+**iOS and iPadOS:**
+1. Tap the **My Device** icon on your home screen. This opens the self-service software catalog where you can update, install, or uninstall approved apps.
+
+If updates are available, end users can update one or all available self-service software. They can also view update progress and error details directly.
 
 ## API
 
