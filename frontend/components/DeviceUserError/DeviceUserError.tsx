@@ -7,15 +7,19 @@ const baseClass = "device-user-error";
 interface IDeviceUserErrorProps {
   isMobileView?: boolean;
   isAuthenticationError?: boolean;
+  platform?: string;
 }
 
 const DeviceUserError = ({
   isMobileView = false,
   isAuthenticationError = false,
+  platform,
 }: IDeviceUserErrorProps): JSX.Element => {
   const wrapperClassnames = classNames(baseClass, {
     [`${baseClass}__mobile-view`]: isMobileView,
   });
+
+  const isIOSIPadOS = platform === "ios" || platform === "ipados";
 
   // Default: "Something went wrong"
   let headerContent: React.ReactNode = (
@@ -34,14 +38,32 @@ const DeviceUserError = ({
           : "This URL is invalid or expired."}
       </>
     );
-    bodyContent = isMobileView ? (
-      "Couldn't authenticate this device. Please contact your IT admin."
-    ) : (
-      <>
-        To access your device information, please click <br />
-        “My Device” from the Fleet Desktop menu icon.
-      </>
-    );
+
+    // iOS/iPadOS specific error messaging
+    if (isIOSIPadOS) {
+      bodyContent = (
+        <>
+          Couldn't authenticate this device. This may be because:
+          <ul style={{ marginTop: "8px", paddingLeft: "20px", textAlign: "left" }}>
+            <li>The Fleet Identity certificate is not installed</li>
+            <li>The certificate has expired or been revoked</li>
+            <li>This device is not enrolled in MDM</li>
+          </ul>
+          <div style={{ marginTop: "12px" }}>
+            Please contact your IT admin for assistance.
+          </div>
+        </>
+      );
+    } else {
+      bodyContent = isMobileView ? (
+        "Couldn't authenticate this device. Please contact your IT admin."
+      ) : (
+        <>
+          To access your device information, please click <br />
+          "My Device" from the Fleet Desktop menu icon.
+        </>
+      );
+    }
   }
 
   return (
