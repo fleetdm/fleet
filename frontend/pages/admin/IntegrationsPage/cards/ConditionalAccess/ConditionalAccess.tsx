@@ -230,6 +230,8 @@ const ConditionalAccess = () => {
   const isManagedCloud = config?.license?.managed_cloud || false;
 
   // Check Entra configuration state
+  // Note: entraPhase is intentionally included in the dependency array to allow
+  // manual phase overrides (e.g., AwaitingOAuth) to persist until config changes
   useEffect(() => {
     // Don't check config if we're in AwaitingOAuth phase
     if (entraPhase === EntraPhase.AwaitingOAuth) {
@@ -258,12 +260,8 @@ const ConditionalAccess = () => {
     setProviderToDelete(null);
   };
 
-  const handleEntraConnect = () => {
-    setShowEntraModal(true);
-  };
-
-  const handleEntraModalClose = () => {
-    setShowEntraModal(false);
+  const toggleEntraModal = () => {
+    setShowEntraModal(!showEntraModal);
   };
 
   const handleEntraModalSuccess = () => {
@@ -329,7 +327,7 @@ const ConditionalAccess = () => {
         </Button>
       );
     } else if (!entraIsAwaitingOAuth) {
-      entraCta = <Button onClick={handleEntraConnect}>Connect</Button>;
+      entraCta = <Button onClick={toggleEntraModal}>Connect</Button>;
     }
 
     let entraContent: string;
@@ -390,7 +388,7 @@ const ConditionalAccess = () => {
       {renderContent()}
       {showEntraModal && (
         <EntraConditionalAccessModal
-          onCancel={handleEntraModalClose}
+          onCancel={toggleEntraModal}
           onSuccess={handleEntraModalSuccess}
         />
       )}
