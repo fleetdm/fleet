@@ -11,7 +11,7 @@ Fleet’s self-service software lets end users update and install approved apps 
 1. Select the team to which you want to add the software from the dropdown in the upper left corner of the page.
 2. Select **Software** in the main navigation menu.
 3. Select the **Add software** button in the upper right corner of the page.
-4. Pick a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps), [App Store (VPP) app](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet#add-the-app-to-fleet), or upload a [custom package](https://fleetdm.com/guides/deploy-software-packages).
+4. Pick a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps), [App Store (VPP) app](https://fleetdm.com/guides/install-app-store-apps), or upload a [custom package](https://fleetdm.com/guides/deploy-software-packages).
 5. Check **Self-service** to make it available for self-service as soon as it's added.
 
 You can also add the software and later make it available in self-service:
@@ -19,7 +19,7 @@ You can also add the software and later make it available in self-service:
 1. Select the team to which you added the software from the dropdown in the upper left corner of the page.
 2. Select **Software** in the main navigation menu.
 3. Select the **All software** dropdown and choose **Available for install.** This filters the results in the table to show only software that can be installed on hosts. If you don’t see your software, page through the results or search for your software's name in the search bar. Once you find the software, select its title.
-4. Select the pencil (edit) icon and check **Self-service** in the **Options** section. You can also assign categories and add a custom icon to your software to customize the end user experience on the **My device > Self-service** page. Custom icons are only available for [custom packages](https://fleetdm.com/guides/deploy-software-packages) and [App Store (VPP) apps](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet).
+4. Select the pencil (edit) icon and check **Self-service** in the **Options** section. You can also assign categories and add a custom icon to your software to customize the end user experience on the **My device > Self-service** page. Custom icons are only available for [custom packages](https://fleetdm.com/guides/deploy-software-packages) and [App Store (VPP) apps](https://fleetdm.com/guides/install-app-store-apps).
 5. Select the **Save** button.
 
 If a software item isn't made available in self-service, end users will not see it in **Fleet Desktop > Self-service**. IT admins can still install, update, and uninstall the software from Fleet.
