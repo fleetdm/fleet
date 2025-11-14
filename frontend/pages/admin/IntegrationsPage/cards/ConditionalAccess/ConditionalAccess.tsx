@@ -240,7 +240,11 @@ const ConditionalAccess = () => {
 
     // Don't override if we just successfully confirmed (phase is Configured but config not yet updated)
     // However, if the tenant ID is removed (deleted), we should still update to NotConfigured
-    if (entraPhase === EntraPhase.Configured && !entraConfigured && entraTenantId) {
+    if (
+      entraPhase === EntraPhase.Configured &&
+      !entraConfigured &&
+      entraTenantId
+    ) {
       return;
     }
 
