@@ -124,7 +124,7 @@ software:
       self_service: true
     - slug: microsoft-excel/darwin # Microsoft Excel for macOS
       self_service: true
-    - slug: microsoft-office/darwin # Microsoft Office for macOS
+    - slug: microsoft-outlook/darwin # Microsoft Outlook for macOS
       self_service: true
     - slug: microsoft-teams/darwin # Microsoft Teams for macOS
       self_service: true
