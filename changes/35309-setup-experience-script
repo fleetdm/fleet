@@ -1,1 +1,0 @@
-* Added an endpoint to allow updating the macOS setup experience script in-place, and modified gitops to utilize it
