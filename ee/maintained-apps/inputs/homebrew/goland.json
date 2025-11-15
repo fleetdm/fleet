@@ -1,0 +1,8 @@
+{
+  "name": "GoLand",
+  "slug": "goland/darwin",
+  "unique_identifier": "com.jetbrains.goland",
+  "token": "goland",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
+}

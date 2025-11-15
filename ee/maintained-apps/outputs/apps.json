@@ -163,6 +163,13 @@
       "description": "GitKraken is a git client focusing on productivity."
     },
     {
+      "name": "GoLand",
+      "slug": "goland/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.goland",
+      "description": "Go (golang) IDE by JetBrains"
+    },
+    {
       "name": "Google Chrome",
       "slug": "google-chrome/darwin",
       "platform": "darwin",
@@ -385,8 +392,8 @@
       "platform": "darwin",
       "unique_identifier": "com.yubico.ykman",
       "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
-    },
-    {
+      },
+      {
       "name": "Zoom",
       "slug": "zoom/darwin",
       "platform": "darwin",
