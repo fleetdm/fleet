@@ -1596,6 +1596,13 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 		if strings.Contains(string(cmdWithSecret.RawCommand), "/Vendor/MSFT/ClientCertificateInstall/SCEP") {
 			commandStatus = MDMDeliveryVerified
 		}
+
+		// Check if the command contains ./User, and no ./Device paths
+		if strings.Contains(string(cmdWithSecret.RawCommand), "./User/") &&
+			!strings.Contains(string(cmdWithSecret.RawCommand), "./Device/") &&
+			!strings.Contains(string(cmdWithSecret.RawCommand), "./Vendor/") {
+			commandStatus = MDMDeliveryVerified
+		}
 	}
 
 	detail := strings.Join(details, ", ")
