@@ -1,0 +1,11 @@
+{
+   "name": "ChatGPT Desktop",
+   "slug": "chatgpt/darwin",
+   "unique_identifier": "com.openai.chat",
+   "token": "chatgpt",
+   "installer_format": "pkg",
+   "default_categories": [
+      "Productivity"
+   ],
+   "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/chatgpt-install.sh"
+}
