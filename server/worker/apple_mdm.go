@@ -240,7 +240,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 func (a *AppleMDM) getTeamConfig(ctx context.Context, team *fleet.Team, teamID uint) (*fleet.Team, error) {
 	if team == nil {
 		var err error
-		team, err = a.Datastore.Team(ctx, teamID)
+		team, err = a.Datastore.TeamWithExtras(ctx, teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "fetch team to send AccountConfiguration")
 		}

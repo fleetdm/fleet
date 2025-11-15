@@ -377,6 +377,12 @@ type SoftwareTitleListOptions struct {
 	MaximumCVSS         float64 `query:"max_cvss_score,optional"`
 	PackagesOnly        bool    `query:"packages_only,optional"`
 	Platform            string  `query:"platform,optional"`
+
+	// ForSetupExperience is an internal flag set when listing software via the
+	// setup experience endpoint, so that it filters out any software available
+	// for install that is not supported for setup experience. It cannot be set
+	// via the query parameters.
+	ForSetupExperience bool
 }
 
 type HostSoftwareTitleListOptions struct {
@@ -636,12 +642,12 @@ type VPPBatchPayload struct {
 }
 
 type VPPBatchPayloadWithPlatform struct {
-	AppStoreID         string              `json:"app_store_id"`
-	SelfService        bool                `json:"self_service"`
-	Platform           AppleDevicePlatform `json:"platform"`
-	InstallDuringSetup *bool               `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
-	LabelsExcludeAny   []string            `json:"labels_exclude_any"`
-	LabelsIncludeAny   []string            `json:"labels_include_any"`
+	AppStoreID         string                    `json:"app_store_id"`
+	SelfService        bool                      `json:"self_service"`
+	Platform           InstallableDevicePlatform `json:"platform"`
+	InstallDuringSetup *bool                     `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
+	LabelsExcludeAny   []string                  `json:"labels_exclude_any"`
+	LabelsIncludeAny   []string                  `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
 	// CategoryIDs is the list of IDs of software categories associated with this VPP app.

@@ -4116,6 +4116,12 @@ func (s *integrationTestSuite) TestHostDeviceMappingIDP() {
 	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
 		putHostDeviceMappingRequest{Email: "idp.user1@example.com", Source: "idp"},
 		http.StatusPaymentRequired, &putResp)
+
+	// Test 6: Delete IDP endpoint rejects request on Fleet Free
+	var delResp deleteHostIDPResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping/idp", host.ID),
+		deleteHostIDPRequest{},
+		http.StatusPaymentRequired, &delResp)
 }
 
 func (s *integrationTestSuite) TestListHostsDeviceMappingSize() {

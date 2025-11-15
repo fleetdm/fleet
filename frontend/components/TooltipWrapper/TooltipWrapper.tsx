@@ -100,7 +100,7 @@ const TooltipWrapper = ({
   }
 
   let delayHideVal;
-  if (typeof delayHide === "boolean" && delayHide) {
+  if ((typeof delayHide === "boolean" && delayHide) || clickable) {
     delayHideVal = DEFAULT_DELAY_MS;
   } else if (typeof delayHide === "number") {
     delayHideVal = delayHide;

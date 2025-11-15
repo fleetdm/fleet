@@ -255,7 +255,7 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	}
 
 	if teamID > 0 {
-		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+		if _, err := svc.ds.TeamWithExtras(ctx, teamID); err != nil {
 			return nil, nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 		}
 	}
@@ -326,7 +326,7 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 	}
 
 	if teamID > 0 {
-		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+		if _, err := svc.ds.TeamWithExtras(ctx, teamID); err != nil {
 			return 0, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 		}
 	}
@@ -422,7 +422,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	}
 
 	if teamID > 0 {
-		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+		if _, err := svc.ds.TeamWithExtras(ctx, teamID); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 		}
 	}
