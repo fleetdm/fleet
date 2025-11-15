@@ -154,9 +154,7 @@ describe("SoftwareOptionsSelector", () => {
     renderComponent({ platform: "ios" });
 
     expect(
-      screen.getByText(
-        /Currently, automatic installation are not available for iOS and iPadOS/i
-      )
+      screen.getByText(/Automatic install for iOS and iPadOS is coming soon./i)
     ).toBeInTheDocument();
   });
 
@@ -164,9 +162,7 @@ describe("SoftwareOptionsSelector", () => {
     renderComponent({ platform: "ipados" });
 
     expect(
-      screen.getByText(
-        /Currently, automatic installation are not available for iOS and iPadOS/i
-      )
+      screen.getByText(/Automatic install for iOS and iPadOS is coming soon./i)
     ).toBeInTheDocument();
   });
 

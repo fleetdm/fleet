@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -383,11 +384,13 @@ func testCertificateRotation(t *testing.T, s *Suite) {
 	require.NoError(t, err)
 	req.Header.Set("X-Client-Cert-Serial", oldSerialHex)
 
-	resp, err := http.DefaultClient.Do(req)
+	// Use client that doesn't follow redirects to verify redirect behavior
+	noRedirectClient := fleethttp.NewClient(fleethttp.WithFollowRedir(false))
+	resp, err := noRedirectClient.Do(req)
 	require.NoError(t, err)
 	resp.Body.Close()
-	// StatusBadRequest (400) indicates cert authentication succeeded but SAML request is invalid/empty
-	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "old cert should authenticate (400 = auth success, SAML parse fail)")
+	// StatusSeeOther (303) redirect indicates cert authentication succeeded, SAML parse failed, and user redirected to error page
+	require.Equal(t, http.StatusSeeOther, resp.StatusCode, "old cert should authenticate (303 = auth success, SAML parse fail, redirect to error page)")
 
 	// Request new certificate via SCEP (certificate rotation)
 	newCert := requestSCEPCertificate(t, s, host.UUID, testEnrollmentSecret)
@@ -400,20 +403,20 @@ func testCertificateRotation(t *testing.T, s *Suite) {
 	require.NoError(t, err)
 	req.Header.Set("X-Client-Cert-Serial", oldSerialHex)
 
-	resp, err = http.DefaultClient.Do(req)
+	resp, err = noRedirectClient.Do(req)
 	require.NoError(t, err)
 	resp.Body.Close()
-	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "old cert should still work after new cert issued (grace period)")
+	require.Equal(t, http.StatusSeeOther, resp.StatusCode, "old cert should still work after new cert issued (grace period)")
 
 	newSerialHex := fmt.Sprintf("%X", newCert.SerialNumber)
 	req, err = http.NewRequestWithContext(ctx, "POST", s.Server.URL+"/api/fleet/conditional_access/idp/sso", nil)
 	require.NoError(t, err)
 	req.Header.Set("X-Client-Cert-Serial", newSerialHex)
 
-	resp, err = http.DefaultClient.Do(req)
+	resp, err = noRedirectClient.Do(req)
 	require.NoError(t, err)
 	resp.Body.Close()
-	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "new cert should work via HTTP endpoint")
+	require.Equal(t, http.StatusSeeOther, resp.StatusCode, "new cert should work via HTTP endpoint")
 }
 
 // testGetIDPSigningCert tests retrieving the IdP signing certificate via the API endpoint.

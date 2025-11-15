@@ -190,7 +190,7 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE': 'sampfluger88',
 
     // 💝 Fleet-maintained apps
-    'ee/maintained-apps/inputs': 'mostlikelee',
+    'ee/maintained-apps/inputs': 'allenhouchins',
   },
 
   // FUTURE: Support DRIs for confidential and other repos (except see other note above about a consolidated way to do it, to reduce these 4-6 config keys into one)
@@ -385,20 +385,25 @@ module.exports.custom = {
 
   // For website signups & "Talk to us" form submissions:
   bannedEmailDomainsForWebsiteSubmissions: [
+    'example.com',
     'gmail.com',
+    'hotmail.ca',
+    'hotmail.co.uk',
+    'hotmail.com',
+    'icloud.com',
+    'live.com',
+    'mac.com',
+    'me.com',
+    'msn.com',
+    'outlook.com',
+    'proton.com',
+    'proton.me',
+    'protonmail.com',
+    'qq.com',
     'yahoo.com',
     'yahoo.co.uk',
-    'hotmail.com',
-    'hotmail.co.uk',
-    'hotmail.ca',
-    'outlook.com',
-    'icloud.com',
-    'proton.me',
-    'live.com',
     'yandex.ru',
-    'ymail.com',
-    'qq.com',
-    'example.com',
+    'ymail.com'
   ],
 
   // For contact form submissions.
@@ -456,6 +461,12 @@ module.exports.custom = {
   // Deal registration form
   // dealRegistrationContactEmailAddress: '…',
 
+  // Render instance trials
+  // renderOwnerId: '…',
+  // renderApiToken: '…',
+  // renderInstancePoolSize: 10,
+  // renderInstanceSesSecretId: '…',
+  // renderInstanceSesSecretKey: '…',
 
   // Microsoft compliance proxy
   // compliancePartnerClientId: '…',
