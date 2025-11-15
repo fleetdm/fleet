@@ -327,7 +327,7 @@ func Handle(ctx context.Context, err error) {
 
 		// Build attributes for the exception event
 		attrs := []attribute.KeyValue{
-			attribute.String("exception.type", fmt.Sprintf("%T", cause)),
+			attribute.String("exception.type", fmt.Sprintf("%T", Cause(cause))),
 			attribute.String("exception.message", cause.Error()),
 			attribute.String("exception.stacktrace", strings.Join(cause.Stack(), "\n")),
 		}
