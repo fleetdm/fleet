@@ -60,7 +60,7 @@ Although deployments through the github action should be prioritized, for manual
     > Note: Terraform will prompt you for confirmation to trigger the deployment. If everything looks ok, submitting `yes` will trigger the deployment.
 
     ```sh
-    terraform apply -var=git_tag_branch=fleet-v4.73.0
+    terraform apply -var=git_tag_branch=fleet-v4.76.0
     ```
 
     or, you can add the additional supported terraform variables, to overwrite the default values. You can choose which ones are included/overwritten. If a variable is not defined, the default value configured in [./variables.tf](variables.tf) is used.
@@ -68,13 +68,13 @@ Although deployments through the github action should be prioritized, for manual
     Below is an example with all available variables.
 
     ```sh
-    terraform apply -var=git_tag_branch=fleet-v4.73.0 -var=loadtest_containers=20 -var=extra_flags=["--orbit_prob", "0.0"]
+    terraform apply -var=git_tag_branch=fleet-v4.76.0 -var=loadtest_containers=20 -var=extra_flags=["--orbit_prob", "0.0"]
     ```
 
 6. If you'd like to deploy osquery\_perf tasks in batches, you can now run the original `enroll.sh` script, from the osquery\_perf directory. The script will deploy in batches of 8, every 60 seconds, so it's recommended to set your starting index and max number of osquery perf containers as a multiple of 8.
 
    ```sh
-   ./enroll.sh <branch_or_tag_name> <starting index> <max number of osquery_perf containers>
+   ./enroll.sh <branch_or_tag_name> <starting index> <max number of osquery_perf containers> <sleep_time>
    ```
 
 # Destroy osquery perf manually
@@ -123,20 +123,24 @@ terraform workspace delete <workspace_name>
 | <a name="provider_aws"></a> [aws](#provider\_aws) | 6.20.0 |
 | <a name="provider_docker"></a> [docker](#provider\_docker) | 3.6.2 |
 | <a name="provider_git"></a> [git](#provider\_git) | 2025.10.10 |
+| <a name="provider_random"></a> [random](#provider\_random) | 3.7.2 |
 | <a name="provider_terraform"></a> [terraform](#provider\_terraform) | n/a |
 
 ## Modules
 
 | Name | Source | Version |
 |------|--------|---------|
-| <a name="module_osquery_perf"></a> [osquery\_perf](#module\_osquery\_perf) | github.com/fleetdm/fleet-terraform//addons/osquery-perf | tf-mod-addon-osquery-perf-v1.2.0 |
+| <a name="module_osquery_perf"></a> [osquery\_perf](#module\_osquery\_perf) | github.com/fleetdm/fleet-terraform//addons/osquery-perf | tf-mod-addon-osquery-perf-v1.2.1 |
 
 ## Resources
 
 | Name | Type |
 |------|------|
+| [aws_ecr_repository.loadtest](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecr_repository) | resource |
+| [aws_kms_key.main](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kms_key) | resource |
 | [docker_image.loadtest](https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs/resources/image) | resource |
 | [docker_registry_image.loadtest](https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs/resources/registry_image) | resource |
+| [random_pet.rand_image_key](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/pet) | resource |
 | [aws_caller_identity.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) | data source |
 | [aws_ecr_authorization_token.token](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/ecr_authorization_token) | data source |
 | [aws_ecr_repository.fleet](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/ecr_repository) | data source |
@@ -150,8 +154,9 @@ terraform workspace delete <workspace_name>
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_extra_flags"></a> [extra\_flags](#input\_extra\_flags) | Comma delimited list (string) for passing extra flags to osquery-perf containers | `list(string)` | <pre>[<br/>  "--orbit_prob",<br/>  "0.0"<br/>]</pre> | no |
-| <a name="input_git_tag_branch"></a> [git\_tag\_branch](#input\_git\_tag\_branch) | The tag or git branch to use to build loadtest containers. | `string` | `null` | no |
+| <a name="input_git_tag_branch"></a> [git\_tag\_branch](#input\_git\_tag\_branch) | The tag or git branch to use to build loadtest containers. | `string` | n/a | yes |
 | <a name="input_loadtest_containers"></a> [loadtest\_containers](#input\_loadtest\_containers) | Number of loadtest containers to deploy | `number` | `1` | no |
+| <a name="input_task_size"></a> [task\_size](#input\_task\_size) | n/a | <pre>object({<br/>    cpu    = optional(number, 256)<br/>    memory = optional(number, 1024)<br/>  })</pre> | <pre>{<br/>  "cpu": 256,<br/>  "memory": 1024<br/>}</pre> | no |
 
 ## Outputs
 
