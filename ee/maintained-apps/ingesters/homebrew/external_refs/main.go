@@ -13,12 +13,21 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"whatsapp/darwin":               {WhatsAppVersionShortener},
 	"google-chrome/darwin":          {ChromePKGInstaller},
 	"omnissa-horizon-client/darwin": {OmnissaHorizonVersionShortener},
+	"cisco-jabber/darwin":           {CiscoJabberVersionTransformer},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
 	app.Version = "latest"
 	app.InstallerURL = "https://dl.google.com/dl/chrome/mac/universal/stable/gcem/GoogleChrome.pkg"
 
+	return app, nil
+}
+
+// CiscoJabberVersionTransformer sets the version to "latest" so that the validation
+// extracts the actual app version from the PKG file, which matches what osquery reports.
+// Homebrew reports a build number (e.g., "20251027035315") instead of the app version (e.g., "15.1.2").
+func CiscoJabberVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	app.Version = "latest"
 	return app, nil
 }
 
