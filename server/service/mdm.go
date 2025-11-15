@@ -1632,7 +1632,7 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 		Name:    profileName,
 		RawJSON: data,
 	}
-	if err := cp.ValidateUserProvided(); err != nil {
+	if err := cp.ValidateUserProvided(license.IsPremium(ctx)); err != nil {
 		err := &fleet.BadRequestError{Message: "Couldn't add. " + err.Error()}
 		return nil, ctxerr.Wrap(ctx, err, "validate profile")
 	}
@@ -2445,6 +2445,7 @@ func getAndroidProfiles(ctx context.Context,
 	appCfg *fleet.AppConfig,
 	profiles map[int]fleet.MDMProfileBatchPayload,
 	labelMap map[string]fleet.ConfigurationProfileLabel,
+	// isPremium bool,
 ) (map[int]*fleet.MDMAndroidConfigProfile, error) {
 	profs := make(map[int]*fleet.MDMAndroidConfigProfile, len(profiles))
 	for i, profile := range profiles {
@@ -2486,7 +2487,7 @@ func getAndroidProfiles(ctx context.Context,
 			}
 		}
 
-		if err := mdmProf.ValidateUserProvided(); err != nil {
+		if err := mdmProf.ValidateUserProvided(license.IsPremium(ctx)); err != nil {
 			msg := err.Error()
 			return nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", profile.Name), msg))

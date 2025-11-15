@@ -44,7 +44,6 @@ var AndroidForbiddenJSONKeys = map[string]string{
 	"uninstallAppsDisabled":         `Android configuration profile can't include "uninstallAppsDisabled" setting. Software management is coming soon.`,
 	"blockApplicationsEnabled":      `Android configuration profile can't include "blockApplicationsEnabled" setting. Software management is coming soon.`,
 	"appAutoUpdatePolicy":           `Android configuration profile can't include "appAutoUpdatePolicy" setting. Software management is coming soon.`,
-	"systemUpdate":                  `Android configuration profile can't include "systemUpdate" setting. OS updates are coming soon.`,
 	"kioskCustomLauncherEnabled":    `Android configuration profile can't include "kioskCustomLauncherEnabled" setting. Currently, only personal hosts are supported.`,
 	"kioskCustomization":            `Android configuration profile can't include "kioskCustomization" setting. Currently, only personal hosts are supported.`,
 	"persistentPreferredActivities": `Android configuration profile can't include "persistentPreferredActivities" setting. Currently, only personal hosts are supported.`,
@@ -52,7 +51,13 @@ var AndroidForbiddenJSONKeys = map[string]string{
 	"encryptionPolicy":              `Android configuration profile can't include "encryptionPolicy" setting. Currently, disk encryption isn't supported.`,
 }
 
-func (m *MDMAndroidConfigProfile) ValidateUserProvided() error {
+// AndroidPremiumOnlyJSONKeys are keys that may not be included in user-provided Android
+// configuration profiles for non-Premium licenses and associated error messages when they are included
+var AndroidPremiumOnlyJSONKeys = map[string]string{
+	"systemUpdate": `Android OS updates ("systemUpdate") is Fleet Premium only.`,
+}
+
+func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 	if len(bytes.TrimSpace(m.RawJSON)) == 0 {
 		return errors.New("The file should include valid JSON.")
 	}
@@ -73,6 +78,12 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided() error {
 	for key := range profileKeyMap {
 		if errMsg, ok := AndroidForbiddenJSONKeys[key]; ok {
 			return errors.New(errMsg)
+		}
+
+		if !isPremium {
+			if errMsg, ok := AndroidPremiumOnlyJSONKeys[key]; ok {
+				return errors.New(errMsg)
+			}
 		}
 
 		if !IsAndroidPolicyFieldValid(key) {
