@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
 import classnames from "classnames";
 import { SOFTWARE_ICON_SIZES, SoftwareIconSizes } from "styles/var/icon_sizes";
@@ -30,6 +30,8 @@ const SoftwareIcon = ({
   uploadedAt,
 }: ISoftwareIconProps) => {
   const classNames = classnames(baseClass, `${baseClass}__${size}`);
+
+  const [imgFailed, setImgFailed] = useState(false);
 
   const isApiUrl =
     (typeof url === "string" && url?.startsWith("/api/")) || false;
@@ -69,10 +71,16 @@ const SoftwareIcon = ({
     iconSrc = url;
   }
 
-  if (iconSrc) {
+  // Only use direct image URL if it hasn't failed, if it has, skip and go to matched icons
+  if (iconSrc && !imgFailed) {
     return (
       <div className={classNames}>
-        <img className={imgClasses} src={iconSrc} alt="" />
+        <img
+          className={imgClasses}
+          src={iconSrc}
+          alt=""
+          onError={() => setImgFailed(true)} // e.g. 429 rate limit
+        />
       </div>
     );
   }

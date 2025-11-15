@@ -73,7 +73,7 @@ const SoftwareAndroidForm = ({
       : {
           applicationID: "",
           selfService: true, // Default to true for new Android apps
-          automaticInstall: false, // 4.77 Currently navailable for Android apps
+          automaticInstall: false, // 4.77 Currently not available for Android apps
           targetType: "All hosts",
           customTarget: "labelsIncludeAny",
           labelTargets: {},
