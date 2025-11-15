@@ -247,7 +247,9 @@ type brewCask struct {
 
 // brew artifacts are objects that have one and only one of their fields set.
 type brewArtifact struct {
-	App []string `json:"app"`
+	// App is an array that can contain strings or objects with a target field.
+	// See grammarly-desktop cask.
+	App []optjson.StringOr[*brewAppTarget] `json:"app"`
 	// Pkg is a bit like Binary, it is an array with a string and an object as
 	// first two elements. The object has a choices field with an array of
 	// objects. See Microsoft Edge.
@@ -288,6 +290,10 @@ type brewPkgChoices struct {
 }
 
 type brewBinaryTarget struct {
+	Target string `json:"target"`
+}
+
+type brewAppTarget struct {
 	Target string `json:"target"`
 }
 
