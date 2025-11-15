@@ -69,12 +69,18 @@ const createProfileExtension = (profile: IMdmProfile) => {
   if (isDDMProfile(profile)) {
     return "json";
   }
+  if (profile.platform === "android") {
+    return "json";
+  }
   return isAppleDevice(profile.platform) ? "mobileconfig" : "xml";
 };
 
 const createFileContent = async (profile: IMdmProfile) => {
   const content = await mdmAPI.downloadProfile(profile.profile_uuid);
   if (isDDMProfile(profile)) {
+    return JSON.stringify(content, null, 2);
+  }
+  if (profile.platform === "android") {
     return JSON.stringify(content, null, 2);
   }
   return content;

@@ -50,7 +50,8 @@ const CustomSettings = ({
 
   const mdmEnabled =
     config?.mdm.enabled_and_configured ||
-    config?.mdm.windows_enabled_and_configured;
+    config?.mdm.windows_enabled_and_configured ||
+    config?.mdm.android_enabled_and_configured;
 
   const [showAddProfileModal, setShowAddProfileModal] = useState(false);
   const [

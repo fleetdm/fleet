@@ -1,0 +1,2 @@
+* Fixed Android configuration profiles downloading as unusable .xml files with content "[object Object]". Android profiles now download correctly as .json files with properly formatted JSON content, matching what was originally uploaded.
+
