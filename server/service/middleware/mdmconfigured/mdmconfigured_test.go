@@ -39,15 +39,6 @@ func (m *mockService) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	return nil
 }
 
-// VerifyMDMAppleOrWindowsConfigured satisfies the fleet.Service interface and
-// returns success when either Apple or Windows MDM is toggled on.
-func (m *mockService) VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error {
-	if !m.mdmConfigured.Load() && !m.msMdmConfigured.Load() {
-		return fleet.ErrMDMNotConfigured
-	}
-	return nil
-}
-
 // VerifyAnyMDMConfigured is the mock implementation that mirrors the production
 // VerifyAnyMDMConfigured service method, adding Android to the Apple/Windows check.
 func (m *mockService) VerifyAnyMDMConfigured(ctx context.Context) error {
@@ -122,57 +113,6 @@ func TestWindowsMDMNotConfigured(t *testing.T) {
 	f := mw.VerifyWindowsMDM()(next)
 	_, err := f(context.Background(), struct{}{})
 	require.ErrorIs(t, err, fleet.ErrWindowsMDMNotConfigured)
-	require.False(t, nextCalled)
-}
-
-// TestAppleOrWindowsMDMConfigured confirms the legacy middleware still permits
-// requests when either Apple or Windows MDM has been enabled.
-func TestAppleOrWindowsMDMConfigured(t *testing.T) {
-	svc := mockService{}
-	mw := NewMDMConfigMiddleware(&svc)
-
-	cases := []struct {
-		apple   bool
-		windows bool
-	}{
-		{true, false},
-		{false, true},
-		{true, true},
-	}
-	for _, c := range cases {
-		t.Run(fmt.Sprintf("apple:%t;windows:%t", c.apple, c.windows), func(t *testing.T) {
-			svc.mdmConfigured.Store(c.apple)
-			svc.msMdmConfigured.Store(c.windows)
-			svc.androidConfigured.Store(false)
-			nextCalled := false
-			next := func(ctx context.Context, req interface{}) (interface{}, error) {
-				nextCalled = true
-				return struct{}{}, nil
-			}
-
-			f := mw.VerifyAppleOrWindowsMDM()(next)
-			_, err := f(context.Background(), struct{}{})
-			require.NoError(t, err)
-			require.True(t, nextCalled)
-		})
-	}
-}
-
-// TestAppleOrWindowsMDMNotConfigured confirms the legacy middleware blocks
-// requests when neither Apple nor Windows MDM is configured.
-func TestAppleOrWindowsMDMNotConfigured(t *testing.T) {
-	svc := mockService{}
-	mw := NewMDMConfigMiddleware(&svc)
-
-	nextCalled := false
-	next := func(ctx context.Context, req interface{}) (interface{}, error) {
-		nextCalled = true
-		return struct{}{}, nil
-	}
-
-	f := mw.VerifyAppleOrWindowsMDM()(next)
-	_, err := f(context.Background(), struct{}{})
-	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
 	require.False(t, nextCalled)
 }
 

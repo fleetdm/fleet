@@ -463,28 +463,6 @@ func (svc *Service) VerifyMDMAndroidConfigured(ctx context.Context) error {
 	return nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Apple or Windows MDM Middleware
-////////////////////////////////////////////////////////////////////////////////
-
-func (svc *Service) VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error {
-	appCfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		// skipauth: Authorization is currently for user endpoints only.
-		svc.authz.SkipAuthorization(ctx)
-		return err
-	}
-
-	// Apple or Windows MDM configuration setting
-	if !appCfg.MDM.EnabledAndConfigured && !appCfg.MDM.WindowsEnabledAndConfigured {
-		// skipauth: Authorization is currently for user endpoints only.
-		svc.authz.SkipAuthorization(ctx)
-		return fleet.ErrMDMNotConfigured
-	}
-
-	return nil
-}
-
 // VerifyAnyMDMConfigured checks that at least one MDM platform (Apple, Windows,
 // or Android) is configured so callers that rely on MDM functionality can proceed.
 func (svc *Service) VerifyAnyMDMConfigured(ctx context.Context) error {
