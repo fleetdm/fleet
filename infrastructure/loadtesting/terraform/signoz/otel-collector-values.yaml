@@ -3,6 +3,9 @@
 # retry logic, and sending queues.
 
 otelCollector:
+  # Enable low cardinality exception grouping to reduce exception noise
+  lowCardinalityExceptionGrouping: true
+
   config:
     exporters:
       # Logs exporter with increased timeout and retry/queue support
