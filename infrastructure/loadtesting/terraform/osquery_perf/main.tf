@@ -6,7 +6,7 @@ data "git_repository" "tf" {
 }
 
 module "osquery_perf" {
-  source                     = "github.com/fleetdm/fleet-terraform//addons/osquery-perf?ref=tf-mod-addon-osquery-perf-v1.2.0"
+  source                     = "github.com/fleetdm/fleet-terraform//addons/osquery-perf?ref=tf-mod-addon-osquery-perf-v1.2.1"
   customer_prefix            = local.customer
   ecs_cluster                = data.terraform_remote_state.infra.outputs.ecs_cluster
   loadtest_containers        = local.loadtest_containers
@@ -19,4 +19,5 @@ module "osquery_perf" {
   extra_flags                = var.extra_flags
   logging_options            = data.terraform_remote_state.infra.outputs.logging_config
   enroll_secret_arn          = data.terraform_remote_state.infra.outputs.enroll_secret_arn
+  task_size                  = var.task_size
 }

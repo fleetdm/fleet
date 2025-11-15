@@ -119,7 +119,7 @@ func TestTriggerHostStatusWebhookTeam(t *testing.T) {
 	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
 		return []*fleet.TeamSummary{{ID: 1}}, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		assert.Equal(t, uint(1), id)
 		return &fleet.Team{
 			ID: 1,

@@ -1,0 +1,18 @@
+name: yaml_to_json
+platforms:
+  - darwin
+  - windows
+  - linux
+description: Converts YAML content to JSON format.
+columns:
+  - name: yaml
+    type: text
+    required: true
+    description: YAML content to convert to JSON.
+  - name: json
+    type: text
+    required: false
+    description: JSON representation of the YAML content.
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+evented: false
+

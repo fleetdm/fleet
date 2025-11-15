@@ -74,9 +74,9 @@ allow {
   action == write
 }
 
-# Global admin, gitops, maintainer, observer_plus and observer can read Okta IdP certificate.
+# Global admin, gitops, maintainer, observer_plus and observer can read Okta IdP assets.
 allow {
-  object.type == "conditional_access_idp_cert"
+  object.type == "conditional_access_idp_assets"
   subject.global_role == [admin, gitops, maintainer, observer_plus, observer][_]
   action == read
 }

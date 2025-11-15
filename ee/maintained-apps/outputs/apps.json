@@ -16,6 +16,13 @@
       "description": "Password manager that keeps all passwords secure behind one password."
     },
     {
+      "name": "Abstract",
+      "slug": "abstract/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.SweetScape.010Editor",
+      "description": "Abstract is a collaborative design tool with support for Sketch files."
+    },
+    {
       "name": "Adobe Acrobat Reader",
       "slug": "adobe-acrobat-reader/darwin",
       "platform": "darwin",
@@ -70,6 +77,13 @@
       "platform": "darwin",
       "unique_identifier": "com.anthropic.claudefordesktop",
       "description": "Anthropic's official Claude AI desktop app."
+    },
+    {
+      "name": "ClickUp",
+      "slug": "clickup/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.clickup.desktop-app",
+      "description": "ClickUp is a productivity platform for tasks, docs, goals, and chat."
     },
     {
       "name": "Cloudflare WARP",
@@ -135,6 +149,13 @@
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
+      "name": "GitKraken",
+      "slug": "gitkraken/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.axosoft.gitkraken",
+      "description": "GitKraken is a git client focusing on productivity."
+    },
+    {
       "name": "GoLand",
       "slug": "goland/darwin",
       "platform": "darwin",
@@ -198,6 +219,13 @@
       "description": "Microsoft Excel is the industry-standard spreadsheet software, perfect for data analysis, reporting, and visualization."
     },
     {
+      "name": "Microsoft Outlook",
+      "slug": "microsoft-outlook/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.Outlook",
+      "description": "Microsoft Outlook is an email client."
+    },
+    {
       "name": "Microsoft Teams",
       "slug": "microsoft-teams/darwin",
       "platform": "darwin",
@@ -233,6 +261,13 @@
       "description": "P4V is an app for accessing and managing Perforce version control repositories via a graphical interface."
     },
     {
+      "name": "PhpStorm",
+      "slug": "phpstorm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.PhpStorm",
+      "description": "PHP IDE by JetBrains"
+    },
+    {
       "name": "Postman",
       "slug": "postman/darwin",
       "platform": "darwin",
@@ -245,6 +280,13 @@
       "platform": "darwin",
       "unique_identifier": "corp.sap.privileges",
       "description": "Privileges is an admin rights switcher for macOS."
+    },
+    {
+      "name": "Proton Mail",
+      "slug": "proton-mail/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ch.protonmail.desktop",
+      "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
     },
     {
       "name": "Santa",
@@ -310,11 +352,25 @@
       "description": ""
     },
     {
+      "name": "Webex",
+      "slug": "webex/darwin",
+      "platform": "darwin",
+      "unique_identifier": "Cisco-Systems.Spark",
+      "description": "Webex is a video communication and virtual meeting platform."
+    },
+    {
       "name": "WhatsApp",
       "slug": "whatsapp/darwin",
       "platform": "darwin",
       "unique_identifier": "net.whatsapp.WhatsApp",
       "description": "WhatsApp's native desktop client for seamless messaging and calling on macOS."
+    },
+    {
+      "name": "Windows App",
+      "slug": "windows-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.rdc.macos",
+      "description": "Windows App helps you connect to Windows from your Mac."
     },
     {
       "name": "Yubikey Manager",
