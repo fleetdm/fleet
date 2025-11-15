@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -245,6 +246,16 @@ WHERE
 
 	if categories, ok := categoryMap[titleID]; ok {
 		dest.Categories = categories
+	}
+
+	if teamID != nil {
+		icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, titleID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get software title icon")
+		}
+		if icon != nil {
+			dest.IconUrl = ptr.String(icon.IconUrl())
+		}
 	}
 
 	return &dest, nil
@@ -941,6 +952,31 @@ WHERE
 	in_house_app_id = ?
 `
 
+	const deleteAllInHouseCategories = `
+DELETE FROM
+	in_house_app_software_categories
+WHERE
+	in_house_app_id = ?
+`
+
+	const deleteInHouseCategoriesNotInList = `
+DELETE FROM
+	in_house_app_software_categories
+WHERE
+	in_house_app_id = ? AND
+	software_category_id NOT IN (?)
+`
+
+	const upsertInHouseCategories = `
+INSERT IGNORE INTO
+	in_house_app_software_categories (
+		in_house_app_id,
+		software_category_id
+	)
+VALUES
+	%s
+`
+
 	// use a team id of 0 if no-team
 	var globalOrTeamID uint
 	if tmID != nil {
@@ -1194,6 +1230,35 @@ WHERE
 				_, err = tx.ExecContext(ctx, fmt.Sprintf(upsertInHouseLabels, upsertLabelValues), upsertLabelArgs...)
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "insert new/edited labels for in-house with name %q", installer.Filename)
+				}
+			}
+
+			if len(installer.CategoryIDs) == 0 {
+				// delete all categories if there are any
+				_, err := tx.ExecContext(ctx, deleteAllInHouseCategories, installerID)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "delete in-house categories for %s", installer.Filename)
+				}
+			} else {
+				// there are new categories to apply, delete only the obsolete ones
+				stmt, args, err := sqlx.In(deleteInHouseCategoriesNotInList, installerID, installer.CategoryIDs)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "build statement to delete in-house categories not in list")
+				}
+
+				_, err = tx.ExecContext(ctx, stmt, args...)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "delete in-house categories not in list for %s", installer.Filename)
+				}
+
+				var upsertCategoriesArgs []any
+				for _, catID := range installer.CategoryIDs {
+					upsertCategoriesArgs = append(upsertCategoriesArgs, installerID, catID)
+				}
+				upsertCategoriesValues := strings.TrimSuffix(strings.Repeat("(?,?),", len(installer.CategoryIDs)), ",")
+				_, err = tx.ExecContext(ctx, fmt.Sprintf(upsertInHouseCategories, upsertCategoriesValues), upsertCategoriesArgs...)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "insert new/edited categories for in-house with name %q", installer.Filename)
 				}
 			}
 

@@ -961,7 +961,7 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 
 	var teamName *string
 	if teamID != nil {
-		tm, err := svc.ds.Team(ctx, *teamID)
+		tm, err := svc.ds.TeamWithExtras(ctx, *teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get team for activity")
 		}
@@ -1652,7 +1652,6 @@ type putHostDeviceMappingResponse struct {
 func (r putHostDeviceMappingResponse) Error() error { return r.Err }
 
 // putHostDeviceMappingEndpoint
-// Deprecated: Because the corresponding GET endpoint is deprecated.
 func putHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*putHostDeviceMappingRequest)
 
@@ -1698,7 +1697,7 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 	case fleet.DeviceMappingCustomOverride, fleet.DeviceMappingCustomInstaller:
 		return svc.ds.SetOrUpdateCustomHostDeviceMapping(ctx, hostID, email, source)
 	case fleet.DeviceMappingIDP:
-		// Check if this is a premium-only feature
+		// This is a premium-only feature
 		lic, err := svc.License(ctx)
 		if err != nil {
 			return nil, err
@@ -1707,10 +1706,29 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			return nil, fleet.ErrMissingLicense
 		}
 
+		// Get host information for the activity
+		host, err := svc.ds.HostLite(ctx, hostID)
+		if err != nil {
+			// error before update to avoid update without activity
+			return nil, ctxerr.Wrap(ctx, err, "get host for activity")
+		}
+
 		// Store the IDP username for display (accept any value)
 		// This will appear in the host details API under the idp_username field
 		if err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "set IDP device mapping")
+		}
+
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedHostIdpData{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+				HostIdPUsername: email,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create updated host idp activity")
 		}
 
 		// Check if the user is a valid SCIM user to manage the join table
@@ -1738,6 +1756,72 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 	default:
 		return nil, fleet.NewInvalidArgumentError("source", fmt.Sprintf("must be 'custom' or '%s'", fleet.DeviceMappingIDP))
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete Host IdP
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteHostIDPRequest struct {
+	HostID uint `url:"id"`
+}
+
+type deleteHostIDPResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteHostIDPResponse) Error() error { return r.Err }
+func (r deleteHostIDPResponse) Status() int  { return http.StatusNoContent }
+
+func deleteHostIDPEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*deleteHostIDPRequest)
+	if err := svc.DeleteHostIDP(ctx, req.HostID); err != nil {
+		return deleteHostIDPResponse{Err: err}, nil
+	}
+	return deleteHostIDPResponse{}, nil
+}
+
+func (svc *Service) DeleteHostIDP(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+
+	host, err := svc.ds.HostLite(ctx, id)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host")
+	}
+
+	// Authorize again with team loaded now that we have team_id
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return err
+	}
+	if lic == nil || !lic.IsPremium() {
+		return fleet.ErrMissingLicense
+	}
+
+	// remove host device mapping and any SCIM mapping
+	if err := svc.ds.DeleteHostIDP(ctx, id); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host IdP and SCIM mappings")
+	}
+
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeEditedHostIdpData{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+			HostIdPUsername: "",
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create deleted host idp activity")
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1894,7 +1978,7 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 	}
 
 	if teamID != nil {
-		_, err := svc.ds.Team(ctx, *teamID)
+		_, err := svc.ds.TeamWithExtras(ctx, *teamID)
 		if err != nil {
 			return nil, err
 		}

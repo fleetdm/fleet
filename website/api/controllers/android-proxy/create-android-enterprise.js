@@ -173,6 +173,10 @@ module.exports = {
     }).intercept({status: 403}, (err)=>{
       sails.log.warn('Error details when creating Android enterprise with Android Management API (from 403):', require('util').inspect(err));
       return {'invalidEnterpriseToken': 'Access forbidden to Android Management API.'};
+    }).intercept({status: 429}, (err)=>{
+      // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
+      sails.log.warn(`p1: Android management API rate limit exceeded!`);
+      return new Error(`When attempting to create a new Android enterprise, an error occurred. Error: ${require('util').inspect(err)}`);
     }).intercept((err)=>{
       // For all other errors (5XX, network errors, etc.), maintain existing behavior
       return new Error(`When attempting to create a new Android enterprise, an error occurred. Error: ${require('util').inspect(err)}`);

@@ -175,6 +175,7 @@ export const createMockHostSoftwarePackage = (
 
 const DEFAULT_HOST_APP_STORE_APP_MOCK: IHostAppStoreApp = {
   app_store_id: "123456789",
+  platform: "darwin",
   version: "1.0.0",
   self_service: false,
   icon_url: "https://via.placeholder.com/512",
