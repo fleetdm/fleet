@@ -4,12 +4,12 @@ data "aws_ecr_repository" "fleet" {
   name = local.customer
 }
 
-resource "random_pet" "db_secret_postfix" {
+resource "random_pet" "rand_image_key" {
   length = 1
 }
 
 resource "aws_kms_key" "main" {
-  description             = "${local.customer}-${random_pet.db_secret_postfix.id}"
+  description             = "${local.customer}-osq-${random_pet.rand_image_key.id}"
   deletion_window_in_days = 10
   enable_key_rotation     = true
 }
