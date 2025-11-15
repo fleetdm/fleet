@@ -323,11 +323,12 @@ func Handle(ctx context.Context, err error) {
 	if span := trace.SpanFromContext(ctx); span != nil && span.IsRecording() {
 		// Mark the current span as failed by setting the error status.
 		// This status can be overridden if we recovered from the error.
-		span.SetStatus(codes.Error, cause.Error())
+		exceptionType := fmt.Sprintf("%T", Cause(cause)) // type of root error
+		span.SetStatus(codes.Error, exceptionType)       // low-cardinality identifier
 
 		// Build attributes for the exception event
 		attrs := []attribute.KeyValue{
-			attribute.String("exception.type", fmt.Sprintf("%T", Cause(cause))),
+			attribute.String("exception.type", exceptionType),
 			attribute.String("exception.message", cause.Error()),
 			attribute.String("exception.stacktrace", strings.Join(cause.Stack(), "\n")),
 		}
