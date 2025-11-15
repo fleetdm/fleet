@@ -21,6 +21,11 @@ on:
         type: string
         default: 0
         required: true
+      sleep_time:
+        description: "Sleep time (in seconds) between batched osquery container deployments"
+        type: string
+        default: 60
+        required: true
       extra_flags:
         description: "Extra flags for osquery-perf. Example: [\"--orbit_prob\", \"0.0\"]"
         type: string
@@ -146,7 +151,7 @@ jobs:
             echo "TERRAFORM WORKSPACE: MATCHES - ${{ inputs.terraform_workspace }}"
             if [[ ${{ inputs.loadtest_containers_starting_index}} -gt "0" ]];
             then
-              ./enroll.sh ${{ inputs.git_tag_branch }} ${{ inputs.loadtest_containers_starting_index}} ${{ inputs.loadtest_containers }}
+              ./enroll.sh ${{ inputs.git_tag_branch }} ${{ inputs.loadtest_containers_starting_index}} ${{ inputs.loadtest_containers }} ${{ inputs.sleep_time }} 
             else
               terraform apply -auto-approve
             fi
