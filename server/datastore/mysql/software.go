@@ -875,7 +875,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			newTitlesNeeded := make(map[string]fleet.SoftwareTitle)
 			for checksum, sw := range batchSoftware {
 				if _, ok := incomingChecksumsToExistingTitles[checksum]; !ok {
-					titleName := sw.Name
+					// there is not an existing software title corresponding to this incoming software version
+					newTitleName := sw.Name
 					if sw.BundleIdentifier != "" {
 						key := titleKey{
 							bundleID:     sw.BundleIdentifier,
@@ -883,27 +884,27 @@ func (ds *Datastore) preInsertSoftwareInventory(
 							extensionFor: sw.ExtensionFor,
 						}
 						if computedName, exists := bestTitleNames[key]; exists {
-							titleName = computedName
+							newTitleName = computedName
 						}
 					}
 
-					st := fleet.SoftwareTitle{
-						Name:         titleName,
+					newTitle := fleet.SoftwareTitle{
+						Name:         newTitleName,
 						Source:       sw.Source,
 						ExtensionFor: sw.ExtensionFor,
 						IsKernel:     sw.IsKernel,
 					}
 					if sw.BundleIdentifier != "" {
-						st.BundleIdentifier = ptr.String(sw.BundleIdentifier)
+						newTitle.BundleIdentifier = ptr.String(sw.BundleIdentifier)
 					}
 					if sw.ApplicationID != nil && *sw.ApplicationID != "" {
-						st.ApplicationID = sw.ApplicationID
+						newTitle.ApplicationID = sw.ApplicationID
 					}
 					if sw.UpgradeCode != nil {
 						// intentionally write both empty and non-empty strings as upgrade codes
-						st.UpgradeCode = sw.UpgradeCode
+						newTitle.UpgradeCode = sw.UpgradeCode
 					}
-					newTitlesNeeded[checksum] = st
+					newTitlesNeeded[checksum] = newTitle
 				}
 			}
 
@@ -916,6 +917,11 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			}
 			// TODO: somewhere around here: if new SW title has diff upgrade_code from existing, log as an error and
 			// do NOT insert the new title
+			// TODO(jacob) - should your comment above say "If new Software has diff upgrade_code from
+			// existing software_title, decide how to handle it: either 1) update the existing title's upgrade
+			// code and that of any existing associated versions, or 2) don't update the title, log an
+			// error, and (DO WHAT?) with the incoming version's upgrade code (wouldn't make sense for one
+			// software to have a more up-to-date UC than others and its corresponding title...RIGHT??)"
 
 			if len(newTitlesNeeded) > 0 {
 				uniqueTitlesToInsert := make(map[titleKey]fleet.SoftwareTitle)
