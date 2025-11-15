@@ -82,6 +82,8 @@ Fleet supports the following operating system versions on hosts.
 | ChromeOS   | 112.0.5615.134+                         |
 | Android    | 13+                                     |
 
+On Linux, Fleet Desktop only supports the GNOME and KDE Plasma desktop environments.
+
 While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them.
 
 ## Some notes on compatibility
