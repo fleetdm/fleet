@@ -1517,3 +1517,17 @@ func (ds *Datastore) ListAndroidEnrolledDevicesForReconcile(ctx context.Context)
 	}
 	return devices, nil
 }
+
+func isAndroidHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, h *fleet.Host) (bool, error) {
+	var isEnrolled bool
+
+	err := sqlx.GetContext(ctx, q, &isEnrolled, `
+		SELECT 1 FROM host_mdm
+			WHERE host_id = ? AND enrolled = 1
+	`, h.ID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check android host mdm enrolled")
+	}
+
+	return isEnrolled, nil
+}
