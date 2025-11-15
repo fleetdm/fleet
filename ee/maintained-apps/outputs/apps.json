@@ -142,6 +142,13 @@
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
+      "name": "GitKraken",
+      "slug": "gitkraken/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.axosoft.gitkraken",
+      "description": "GitKraken is a git client focusing on productivity."
+    },
+    {
       "name": "Google Chrome",
       "slug": "google-chrome/darwin",
       "platform": "darwin",
