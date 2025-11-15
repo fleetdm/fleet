@@ -179,7 +179,7 @@ Thanks,
 ```
 
 6. Update the opportunity and the opportunity billing cycle in Salesforce to include the "Invoice date" as the day the invoice was sent.
-8. Notify the AE/CSM that the invoice has been sent.
+8. Update github ticket that invoice was sent out on YYYY-MM-DD.
 
 > Certain vendors require invoices submitted via a payment portal (such as Coupa). Once you've generated the invoice using the steps above, upload it to the relevant payment portal and email the billing contact to let them know you've submitted the invoice.
 
