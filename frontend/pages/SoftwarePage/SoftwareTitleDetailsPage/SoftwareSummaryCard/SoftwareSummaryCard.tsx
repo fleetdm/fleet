@@ -119,7 +119,7 @@ const SoftwareSummaryCard = ({
               isSoftwarePackage(softwareInstaller) ? "package" : "vpp"
             }
             previewInfo={{
-              name: softwareInstaller.display_name || title.name,
+              name: title.display_name || title.name,
               titleName: title.name,
               type: formatSoftwareType(title),
               source: title.source,

@@ -124,7 +124,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 			},
 		}},
 	}
-	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		tm, ok := teams[id]
 		if !ok {
 			return nil, ctxerr.Wrap(ctx, sql.ErrNoRows)

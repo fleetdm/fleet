@@ -1,10 +1,11 @@
 package fleet
 
-// ConditionalAccessIDPCert is used for authorization checks on the Okta IdP signing certificate.
-// It represents the resource being accessed when downloading the certificate.
-type ConditionalAccessIDPCert struct{}
+// ConditionalAccessIDPAssets is used for authorization checks on Okta IdP assets
+// (signing certificate, Apple profile, etc.).
+// It represents the resource being accessed when downloading these assets.
+type ConditionalAccessIDPAssets struct{}
 
 // AuthzType implements authz.AuthzTyper.
-func (c *ConditionalAccessIDPCert) AuthzType() string {
-	return "conditional_access_idp_cert"
+func (c *ConditionalAccessIDPAssets) AuthzType() string {
+	return "conditional_access_idp_assets"
 }
