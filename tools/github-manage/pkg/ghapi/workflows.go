@@ -1,6 +1,10 @@
 package ghapi
 
-import "fleetdm/gm/pkg/logger"
+import (
+	"strings"
+
+	"fleetdm/gm/pkg/logger"
+)
 
 // ActionType represents the type of action to be performed on an issue.
 type ActionType string
@@ -125,6 +129,26 @@ func CreateBulkSetSprintAction(issues []Issue, projectID int) []Action {
 		})
 	}
 	return actions
+}
+
+// CreateBulkMoveToCurrentSprintIfNotReadyQA creates actions to set current sprint for issues whose
+// status does NOT contain "ready" or "qa" (case-insensitive) in the given project.
+func CreateBulkMoveToCurrentSprintIfNotReadyQA(issues []Issue, projectID int) []Action {
+	var filtered []Issue
+	for _, is := range issues {
+		s := strings.ToLower(strings.TrimSpace(is.Status))
+		if s == "" {
+			// No status -> include (move to current sprint)
+			filtered = append(filtered, is)
+			continue
+		}
+		if strings.Contains(s, "ready") || strings.Contains(s, "qa") {
+			// Skip statuses with ready or qa
+			continue
+		}
+		filtered = append(filtered, is)
+	}
+	return CreateBulkSetSprintAction(filtered, projectID)
 }
 
 func CreateBulkSprintKickoffActions(issues []Issue, sourceProjectID, projectID int) []Action {

@@ -7,6 +7,7 @@ type InHouseAppPayload struct {
 	StorageID       string
 	Platform        string
 	ValidatedLabels *LabelIdentsWithScope
+	CategoryIDs     []uint
 	Version         string
 	SelfService     bool
 }

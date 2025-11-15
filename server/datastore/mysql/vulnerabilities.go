@@ -540,20 +540,9 @@ func getVulnHostCountQuery(scope CountScope) string {
 }
 
 func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context, maxRoutines int) error {
-	// set all counts to 0 to later identify rows to delete
-	_, err := ds.writer(ctx).ExecContext(ctx, "UPDATE vulnerability_host_counts SET host_count = 0")
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "initializing vulnerability host counts")
-	}
-
 	globalHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, GlobalCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching global vulnerability host counts")
-	}
-
-	err = ds.batchInsertHostCounts(ctx, globalHostCounts)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting global vulnerability host counts")
 	}
 
 	teamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, TeamCount, maxRoutines)
@@ -561,27 +550,18 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context, maxRouti
 		return ctxerr.Wrap(ctx, err, "fetching team vulnerability host counts")
 	}
 
-	err = ds.batchInsertHostCounts(ctx, teamHostCounts)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
-	}
-
 	noTeamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, NoTeamCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching no team vulnerability host counts")
 	}
 
-	err = ds.batchInsertHostCounts(ctx, noTeamHostCounts)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
+	counts := vulnerabilityCounts{
+		Global: globalHostCounts,
+		Team:   teamHostCounts,
+		NoTeam: noTeamHostCounts,
 	}
 
-	err = ds.cleanupVulnerabilityHostCounts(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleaning up vulnerability host counts")
-	}
-
-	return nil
+	return ds.atomicTableSwapVulnerabilityCounts(ctx, counts)
 }
 
 type hostCount struct {
@@ -591,46 +571,109 @@ type hostCount struct {
 	GlobalStats bool   `db:"global_stats"`
 }
 
-func (ds *Datastore) cleanupVulnerabilityHostCounts(ctx context.Context) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, "DELETE FROM vulnerability_host_counts WHERE host_count = 0")
-	if err != nil {
-		return fmt.Errorf("deleting zero host count entries: %w", err)
-	}
-
-	return nil
+type vulnerabilityCounts struct {
+	Global []hostCount
+	Team   []hostCount
+	NoTeam []hostCount
 }
 
-func (ds *Datastore) batchInsertHostCounts(ctx context.Context, counts []hostCount) error {
+const (
+	vulnerabilityHostCountsSwapTable       = "vulnerability_host_counts_swap"
+	vulnerabilityHostCountsSwapTableSchema = `CREATE TABLE IF NOT EXISTS ` + vulnerabilityHostCountsSwapTable + ` LIKE vulnerability_host_counts`
+)
+
+// atomicTableSwapVulnerabilityCounts implements atomic table swap pattern
+// 1. Populate swap table with new data
+// 2. Atomically rename tables to swap them
+// 3. Clean up old table
+func (ds *Datastore) atomicTableSwapVulnerabilityCounts(ctx context.Context, counts vulnerabilityCounts) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Create/recreate the swap table fresh
+		_, err := tx.ExecContext(ctx, "DROP TABLE IF EXISTS "+vulnerabilityHostCountsSwapTable)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "dropping existing swap table")
+		}
+
+		_, err = tx.ExecContext(ctx, vulnerabilityHostCountsSwapTableSchema)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "creating swap table")
+		}
+
+		// Insert each group of counts separately
+		if len(counts.Global) > 0 {
+			err = ds.insertHostCountsIntoTable(ctx, tx, counts.Global, vulnerabilityHostCountsSwapTable)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "populating swap table with global counts")
+			}
+		}
+
+		if len(counts.Team) > 0 {
+			err = ds.insertHostCountsIntoTable(ctx, tx, counts.Team, vulnerabilityHostCountsSwapTable)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "populating swap table with team counts")
+			}
+		}
+
+		if len(counts.NoTeam) > 0 {
+			err = ds.insertHostCountsIntoTable(ctx, tx, counts.NoTeam, vulnerabilityHostCountsSwapTable)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "populating swap table with no-team counts")
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Atomic table swap using RENAME TABLE
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, fmt.Sprintf(`
+			RENAME TABLE
+				vulnerability_host_counts TO vulnerability_host_counts_old,
+				%s TO vulnerability_host_counts
+		`, vulnerabilityHostCountsSwapTable))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "atomic table swap")
+		}
+
+		// Clean up old table (drop it)
+		_, err = tx.ExecContext(ctx, "DROP TABLE vulnerability_host_counts_old")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "dropping old table")
+		}
+
+		return nil
+	})
+}
+
+// insertHostCountsIntoTable inserts counts into specified table
+func (ds *Datastore) insertHostCountsIntoTable(ctx context.Context, tx sqlx.ExtContext, counts []hostCount, tableName string) error {
 	if len(counts) == 0 {
 		return nil
 	}
 
-	insertStmt := "INSERT INTO vulnerability_host_counts (team_id, cve, host_count, global_stats) VALUES "
-	var insertArgs []interface{}
+	insertStmt := fmt.Sprintf("INSERT INTO %s (team_id, cve, host_count, global_stats) VALUES ", tableName)
 
-	chunkSize := 100
+	// Use smaller chunks to avoid parameter limits
+	chunkSize := 500
 	for i := 0; i < len(counts); i += chunkSize {
-		end := i + chunkSize
-		if end > len(counts) {
-			end = len(counts)
-		}
+		end := min(i+chunkSize, len(counts))
 
-		valueStrings := make([]string, 0, chunkSize)
+		valueStrings := make([]string, 0, end-i)
+		chunkArgs := make([]interface{}, 0, (end-i)*4)
+
 		for _, count := range counts[i:end] {
 			valueStrings = append(valueStrings, "(?, ?, ?, ?)")
-			insertArgs = append(insertArgs, count.TeamID, count.CVE, count.HostCount, count.GlobalStats)
+			chunkArgs = append(chunkArgs, count.TeamID, count.CVE, count.HostCount, count.GlobalStats)
 		}
 
-		insertStmt += strings.Join(valueStrings, ", ")
-		insertStmt += " ON DUPLICATE KEY UPDATE host_count = VALUES(host_count);"
-
-		_, err := ds.writer(ctx).ExecContext(ctx, insertStmt, insertArgs...)
+		fullStmt := insertStmt + strings.Join(valueStrings, ", ")
+		_, err := tx.ExecContext(ctx, fullStmt, chunkArgs...)
 		if err != nil {
-			return fmt.Errorf("inserting host counts: %w", err)
+			return fmt.Errorf("inserting host counts chunk %d-%d into %s: %w", i, end-1, tableName, err)
 		}
-
-		insertStmt = "INSERT INTO vulnerability_host_counts (team_id, cve, host_count, global_stats) VALUES "
-		insertArgs = nil
 	}
 
 	return nil

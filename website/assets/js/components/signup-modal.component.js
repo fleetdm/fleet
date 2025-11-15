@@ -232,6 +232,17 @@ parasails.registerComponent('signupModal', {
 
     submittedSignupForm: async function(){
       this.syncing = true;
+      // Track a "key event" in Google Analytics.
+      // > Naming convention:  (like sails config)
+      // > "Website - Sign up" becomes "fleet_website__sign_up"  (double-underscore representing hierarchy)
+      if(window.gtag !== undefined){
+        window.gtag('event','fleet_website__sign_up');
+      }
+
+      // Track a "conversion" in LinkedIn Campaign Manager.
+      if(window.lintrk !== undefined) {
+        window.lintrk('track', { conversion_id: 18587097 });// eslint-disable-line camelcase
+      }
       this.goto('/try');
     },
     submittedLoginForm: async function() {
