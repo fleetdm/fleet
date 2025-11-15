@@ -1396,9 +1396,15 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 	var args []interface{}
 
 	// Determine sort direction. Default is descending for hosts_count.
+	// For efficient index usage with ASC queries, reverse both columns in ORDER BY
+	// to enable full backward index scan. The index is (team_id, global_stats, hosts_count DESC, software_id).
+	// - DESC query: ORDER BY hosts_count DESC, software_id ASC (forward scan, matches index)
+	// - ASC query:  ORDER BY hosts_count ASC, software_id DESC (backward scan, full reversal)
 	direction := "DESC"
+	secondaryDirection := "ASC"
 	if opts.ListOptions.OrderDirection == fleet.OrderAscending {
 		direction = "ASC"
+		secondaryDirection = "DESC"
 	}
 
 	// Inner query: covering index scan that only selects indexed columns
@@ -1425,7 +1431,7 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 	}
 
 	// software_id is the secondary key to make ordering deterministic
-	innerSQL += " ORDER BY shc.hosts_count " + direction + ", shc.software_id ASC"
+	innerSQL += " ORDER BY shc.hosts_count " + direction + ", shc.software_id " + secondaryDirection
 
 	// Apply pagination
 	perPage := opts.ListOptions.PerPage
@@ -1533,7 +1539,7 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 	`
 
 	// software_id is the secondary key to make ordering deterministic
-	outerSQL += " ORDER BY top.hosts_count " + direction + ", top.software_id ASC"
+	outerSQL += " ORDER BY top.hosts_count " + direction + ", top.software_id " + secondaryDirection
 
 	return outerSQL, args, nil
 }
