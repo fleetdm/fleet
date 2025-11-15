@@ -257,11 +257,11 @@ type SetOrUpdateCustomHostDeviceMappingFunc func(ctx context.Context, hostID uin
 
 type SetOrUpdateIDPHostDeviceMappingFunc func(ctx context.Context, hostID uint, email string) error
 
+type DeleteHostIDPFunc func(ctx context.Context, id uint) error
+
 type SetOrUpdateHostSCIMUserMappingFunc func(ctx context.Context, hostID uint, scimUserID uint) error
 
 type DeleteHostSCIMUserMappingFunc func(ctx context.Context, hostID uint) error
-
-type DeleteHostIDPFunc func(ctx context.Context, id uint) error
 
 type ListHostBatteriesFunc func(ctx context.Context, id uint) ([]*fleet.HostBattery, error)
 
@@ -1605,6 +1605,8 @@ type UpdateCertificateAuthorityByIDFunc func(ctx context.Context, id uint, certi
 
 type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error
 
+type BatchUpsertCertificatesFunc func(ctx context.Context, certificates []*fleet.Certificate) error
+
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
 type UpdateOrDeleteHostMDMWindowsProfileFunc func(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error
@@ -1961,14 +1963,14 @@ type DataStore struct {
 	SetOrUpdateIDPHostDeviceMappingFunc        SetOrUpdateIDPHostDeviceMappingFunc
 	SetOrUpdateIDPHostDeviceMappingFuncInvoked bool
 
+	DeleteHostIDPFunc        DeleteHostIDPFunc
+	DeleteHostIDPFuncInvoked bool
+
 	SetOrUpdateHostSCIMUserMappingFunc        SetOrUpdateHostSCIMUserMappingFunc
 	SetOrUpdateHostSCIMUserMappingFuncInvoked bool
 
 	DeleteHostSCIMUserMappingFunc        DeleteHostSCIMUserMappingFunc
 	DeleteHostSCIMUserMappingFuncInvoked bool
-
-	DeleteHostIDPFunc        DeleteHostIDPFunc
-	DeleteHostIDPFuncInvoked bool
 
 	ListHostBatteriesFunc        ListHostBatteriesFunc
 	ListHostBatteriesFuncInvoked bool
@@ -3983,6 +3985,9 @@ type DataStore struct {
 	BatchApplyCertificateAuthoritiesFunc        BatchApplyCertificateAuthoritiesFunc
 	BatchApplyCertificateAuthoritiesFuncInvoked bool
 
+	BatchUpsertCertificatesFunc        BatchUpsertCertificatesFunc
+	BatchUpsertCertificatesFuncInvoked bool
+
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
 
@@ -4811,6 +4816,13 @@ func (s *DataStore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID 
 	return s.SetOrUpdateIDPHostDeviceMappingFunc(ctx, hostID, email)
 }
 
+func (s *DataStore) DeleteHostIDP(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteHostIDPFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostIDPFunc(ctx, id)
+}
+
 func (s *DataStore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error {
 	s.mu.Lock()
 	s.SetOrUpdateHostSCIMUserMappingFuncInvoked = true
@@ -4823,13 +4835,6 @@ func (s *DataStore) DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) 
 	s.DeleteHostSCIMUserMappingFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostSCIMUserMappingFunc(ctx, hostID)
-}
-
-func (s *DataStore) DeleteHostIDP(ctx context.Context, id uint) error {
-	s.mu.Lock()
-	s.DeleteHostIDPFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteHostIDPFunc(ctx, id)
 }
 
 func (s *DataStore) ListHostBatteries(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
@@ -9527,6 +9532,13 @@ func (s *DataStore) BatchApplyCertificateAuthorities(ctx context.Context, ops fl
 	s.BatchApplyCertificateAuthoritiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchApplyCertificateAuthoritiesFunc(ctx, ops)
+}
+
+func (s *DataStore) BatchUpsertCertificates(ctx context.Context, certificates []*fleet.Certificate) error {
+	s.mu.Lock()
+	s.BatchUpsertCertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchUpsertCertificatesFunc(ctx, certificates)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {
