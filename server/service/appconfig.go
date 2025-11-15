@@ -1183,6 +1183,9 @@ func (svc *Service) validateMDM(
 	if mdm.WindowsMigrationEnabled && !license.IsPremium() {
 		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())
 	}
+	if mdm.EnableTurnOnWindowsMDMManually && !license.IsPremium() {
+		invalid.Append("enable_turn_on_windows_mdm_manually", ErrMissingLicense.Error())
+	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet
 	// server at startup and can't be modified by the user
@@ -1371,6 +1374,14 @@ func (svc *Service) validateMDM(
 	}
 	if !mdm.WindowsEnabledAndConfigured && mdm.WindowsMigrationEnabled {
 		invalid.Append("mdm.windows_migration_enabled", "Couldn't enable Windows MDM migration, Windows MDM is not enabled.")
+	}
+
+	if !mdm.WindowsEnabledAndConfigured && mdm.EnableTurnOnWindowsMDMManually {
+		invalid.Append("mdm.enable_turn_on_windows_mdm_manually", "Couldn't enable Turn on Windows MDM Manually, Windows MDM is not enabled.")
+	}
+
+	if mdm.WindowsMigrationEnabled && mdm.EnableTurnOnWindowsMDMManually {
+		invalid.Append("mdm.enable_turn_on_windows_mdm_manually", "Couldn't enable Turn on Windows MDM Manually, Windows MDM migration is also enabled. Please enable only one.")
 	}
 
 	if !mdm.EnableDiskEncryption.Value {

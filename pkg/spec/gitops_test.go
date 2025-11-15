@@ -296,6 +296,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_enabled_and_configured not found")
 				_, ok = gitops.Controls.WindowsMigrationEnabled.(bool)
 				assert.True(t, ok, "windows_migration_enabled not found")
+				_, ok = gitops.Controls.EnableTurnOnWindowsMDMManually.(bool)
+				assert.True(t, ok, "enable_turn_on_windows_mdm_manually not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
 				assert.Equal(t, "fleet_secret", gitops.FleetSecrets["FLEET_SECRET_FLEET_SECRET_"])

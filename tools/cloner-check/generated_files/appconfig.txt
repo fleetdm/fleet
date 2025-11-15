@@ -155,6 +155,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Enable	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Mode	fleet.MacOSMigrationMode	string
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	WebhookURL	string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsMigrationEnabled	bool
+github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableTurnOnWindowsMDMManually	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EndUserAuthentication	fleet.MDMEndUserAuthentication
 github.com/fleetdm/fleet/v4/server/fleet/MDMEndUserAuthentication	SSOProviderSettings	fleet.SSOProviderSettings
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEnabledAndConfigured	bool

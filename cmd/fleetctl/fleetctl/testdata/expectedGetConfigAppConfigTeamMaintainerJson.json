@@ -102,6 +102,7 @@
         "grace_period_days": 3
       },
       "windows_migration_enabled": false,
+      "enable_turn_on_windows_mdm_manually": false,
       "macos_migration": {
         "enable": false,
         "mode": "",

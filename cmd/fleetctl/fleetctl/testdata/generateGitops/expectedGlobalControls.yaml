@@ -29,6 +29,7 @@ windows_updates:
   grace_period_days: 2
 windows_enabled_and_configured: true
 windows_migration_enabled: true
+enable_turn_on_windows_mdm_manually: false
 windows_require_bitlocker_pin: false
 android_enabled_and_configured: true
 enable_disk_encryption: true
