@@ -1,1 +1,0 @@
-* Fixed handling of various parsing bugs that caused the falconctl_options table to fail to load in some circumsatances.
