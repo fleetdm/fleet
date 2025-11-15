@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -20,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
@@ -110,7 +112,8 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 	ts.createCommonProxyMocks(t)
 
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
-	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, &ts.FleetSvc, "test-private-key", ts.DS.Datastore)
+	activityModule := activities.NewActivityModule(&ts.DS.DataStore, logger)
+	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, activityModule)
 	require.NoError(t, err)
 	ts.Svc = svc
 
@@ -150,6 +153,9 @@ func (ts *WithServer) CreateCommonDSMocks() {
 		return nil
 	}
 	ts.DS.BulkSetAndroidHostsUnenrolledFunc = func(ctx context.Context) error {
+		return nil
+	}
+	ts.DS.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
 		return nil
 	}
 }

@@ -156,7 +156,7 @@ func rolesChanged(oldGlobal *string, oldTeams []fleet.UserTeam, newGlobal *strin
 // to a `fleet.User` struct fields `GlobalRole` and `Teams` respectively.
 func (svc *Service) userRolesFromSSOAttributes(ctx context.Context, ssoRolesInfo fleet.SSORolesInfo) (globalRole *string, teamsRoles []fleet.UserTeam, err error) {
 	for _, teamRole := range ssoRolesInfo.Teams {
-		team, err := svc.ds.Team(ctx, teamRole.ID)
+		team, err := svc.ds.TeamWithExtras(ctx, teamRole.ID)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "invalid team")
 		}

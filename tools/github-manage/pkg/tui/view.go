@@ -364,8 +364,122 @@ func (m model) RenderWorkflowSelection() string {
 		}
 		s += fmt.Sprintf("%s %s %s\n", cursor, selected, workflow)
 	}
-	s += "\nPress 'enter' to select, 'esc' to cancel.\n"
+	// Detailed description for the currently-selected workflow
+	s += "\nDescription:\n"
+	width := m.termWidth
+	if width <= 0 {
+		width = 80
+	}
+	// Add a small margin to avoid bumping screen edges
+	wrapWidth := width - 2
+	if wrapWidth < 20 {
+		wrapWidth = 20
+	}
+	s += wrapTextPreserveBullets(m.selectedWorkflowDescription(), wrapWidth)
+	s += "\n\nPress 'enter' to select, 'esc' to cancel.\n"
 	return s
+}
+
+// selectedWorkflowDescription returns a helpful description for the currently-selected workflow,
+// including any required inputs and contextual hints.
+func (m model) selectedWorkflowDescription() string {
+	w := WorkflowType(m.workflowCursor)
+	// Base descriptions per workflow
+	var desc string
+	switch w {
+	case BulkAddLabel:
+		desc = "Add a label to all selected issues. You'll be prompted to type the label name."
+	case BulkRemoveLabel:
+		desc = "Remove a label from all selected issues. You'll be prompted to type the label name."
+	case BulkSprintKickoff:
+		desc = "Add selected issues to a project and set initial sprint kickoff fields (status, estimate sync, labels)."
+	case BulkMilestoneClose:
+		desc = "Generate a release summary from selected issues (features/bugs) suitable for milestone close notes."
+	case BulkKickOutOfSprint:
+		desc = "Remove selected issues from a project and reset sprint-related fields (status, labels)."
+	case BulkDemoSummary:
+		desc = "Generate a markdown summary of selected issues grouped by feature and bug, with assignees."
+	case BulkMoveToCurrentSprint:
+		desc = "For each selected issue, if its Status does not contain 'ready' or 'qa' (case-insensitive), set its sprint to the project's current iteration."
+	default:
+		desc = "Select a workflow to see details."
+	}
+
+	// Input requirements/hints
+	var hints []string
+	switch w {
+	case BulkAddLabel, BulkRemoveLabel:
+		hints = append(hints, "Input required: label name")
+	case BulkSprintKickoff, BulkKickOutOfSprint, BulkMoveToCurrentSprint:
+		hints = append(hints, "Input required: project ID or alias")
+		if m.projectID != 0 {
+			hints = append(hints, fmt.Sprintf("Current project in context: %d", m.projectID))
+		} else if m.projectInput != "" {
+			hints = append(hints, fmt.Sprintf("Pending project input: %s", m.projectInput))
+		}
+	}
+
+	if len(hints) > 0 {
+		desc += "\n- " + strings.Join(hints, "\n- ")
+	}
+	return desc
+}
+
+// wrapTextPreserveBullets wraps the input text to the given width, preserving
+// existing newlines and adding continuation indentation for bullet points.
+func wrapTextPreserveBullets(text string, width int) string {
+	if width <= 0 {
+		return text
+	}
+	lines := strings.Split(text, "\n")
+	var out []string
+	for _, line := range lines {
+		out = append(out, wrapLineWithPrefix(line, width))
+	}
+	return strings.Join(out, "\n")
+}
+
+// wrapLineWithPrefix wraps a single line. If it starts with "- ", it keeps
+// the bullet for the first line and indents continuation lines with two spaces.
+func wrapLineWithPrefix(line string, width int) string {
+	if len(line) <= width {
+		return line
+	}
+	bullet := ""
+	contIndent := ""
+	content := line
+	if strings.HasPrefix(line, "- ") {
+		bullet = "- "
+		contIndent = "  "
+		content = strings.TrimPrefix(line, "- ")
+	}
+	words := strings.Fields(content)
+	if len(words) == 0 {
+		return line
+	}
+	var wrapped []string
+	// first line with bullet (if any)
+	current := bullet
+	spaceLeft := width - len(current)
+	for _, w := range words {
+		if len(w)+1 > spaceLeft { // +1 for space
+			// commit current line
+			wrapped = append(wrapped, strings.TrimRight(current, " "))
+			// start new line with continuation indent
+			current = contIndent + w + " "
+			spaceLeft = width - len(contIndent) - len(w) - 1
+			if spaceLeft < 0 {
+				spaceLeft = 0
+			}
+		} else {
+			current += w + " "
+			spaceLeft -= len(w) + 1
+		}
+	}
+	if strings.TrimSpace(current) != "" {
+		wrapped = append(wrapped, strings.TrimRight(current, " "))
+	}
+	return strings.Join(wrapped, "\n")
 }
 
 func (m model) RenderLabelInput() string {

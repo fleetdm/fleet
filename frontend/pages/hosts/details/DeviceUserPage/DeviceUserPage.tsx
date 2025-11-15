@@ -28,7 +28,12 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { isAppleDevice, isLinuxLike } from "interfaces/platform";
+import {
+  isAndroid,
+  isMacOS,
+  isAppleDevice,
+  isLinuxLike,
+} from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
 
@@ -64,6 +69,8 @@ import {
   getErrorMessage,
   hasRemainingSetupSteps,
   isSoftwareScriptSetup,
+  isIPhone,
+  isIPad,
 } from "./helpers";
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
@@ -134,6 +141,7 @@ const DeviceUserPage = ({
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
   const isMobileView = useIsMobileWidth();
+  const isMobileDevice = isIPhone(navigator) || isIPad(navigator);
 
   const { renderFlash, notification, hideFlash } = useContext(
     NotificationContext
@@ -335,10 +343,11 @@ const DeviceUserPage = ({
   } = dupResponse || {};
   const isPremiumTier = license?.tier === "premium";
   const isAppleHost = isAppleDevice(host?.platform);
+  const isIOSIPadOS = host?.platform === "ios" || host?.platform === "ipados";
   const isSetupExperienceSoftwareEnabledPlatform =
     isLinuxLike(host?.platform || "") ||
     host?.platform === "windows" ||
-    host?.platform === "darwin";
+    isMacOS(host?.platform || "");
 
   const isFleetMdmManualUnenrolledMac =
     !!globalConfig?.mdm.enabled_and_configured &&
@@ -553,8 +562,8 @@ const DeviceUserPage = ({
       ?.enable_software_inventory;
 
     const showUsersCard =
-      host?.platform === "darwin" ||
-      host?.platform === "android" ||
+      isMacOS(host?.platform || "") ||
+      isAndroid(host?.platform || "") ||
       generateChromeProfilesValues(host?.end_users ?? []).length > 0 ||
       generateOtherEmailsValues(host?.end_users ?? []).length > 0;
 
@@ -587,9 +596,22 @@ const DeviceUserPage = ({
       );
     }
 
-    if (isMobileView) {
+    // iOS/iPadOS devices or narrow screens should show mobile UI
+    const shouldShowMobileUI = isIOSIPadOS || isMobileView;
+
+    if (shouldShowMobileUI) {
+      // Force redirect to self-service route for iOS/iPadOS devices
+      if (
+        isIOSIPadOS &&
+        !location.pathname.includes("/self-service") &&
+        hasSelfService
+      ) {
+        router.replace(PATHS.DEVICE_USER_DETAILS_SELF_SERVICE(deviceAuthToken));
+        return <Spinner />;
+      }
+
       // Render the simplified mobile version
-      // Currently only available for self-service page
+      // For iOS/iPadOS and narrow screen devices
       return (
         <div className={`${baseClass} main-content`}>
           <div className="device-user-mobile">
@@ -604,7 +626,7 @@ const DeviceUserPage = ({
               isHostDetailsPolling={showRefetchSpinner}
               hostSoftwareUpdatedAt={host.software_updated_at}
               hostDisplayName={host?.hostname || ""}
-              isMobileView={isMobileView}
+              isMobileView={shouldShowMobileUI}
             />
           </div>
         </div>
@@ -695,22 +717,17 @@ const DeviceUserPage = ({
                   osSettings={host?.mdm.os_settings}
                 />
                 <AboutCard
-                  className={
-                    showUsersCard ? defaultCardClass : fullWidthCardClass
-                  }
+                  className={defaultCardClass}
                   aboutData={aboutData}
                   munki={deviceMacAdminsData?.munki}
                 />
-                {showUsersCard && (
-                  <UserCard
-                    className={defaultCardClass}
-                    platform={host.platform}
-                    endUsers={host.end_users ?? []}
-                    enableAddEndUser={false}
-                    disableFullNameTooltip
-                    disableGroupsTooltip
-                  />
-                )}
+                <UserCard
+                  className={defaultCardClass}
+                  canWriteEndUser={false}
+                  endUsers={host.end_users ?? []}
+                  disableFullNameTooltip
+                  disableGroupsTooltip
+                />
                 {isAppleHost && !!deviceCertificates?.certificates.length && (
                   <CertificatesCard
                     className={fullWidthCardClass}
@@ -867,7 +884,9 @@ const DeviceUserPage = ({
       {isDeviceUserError || enrollUrlError ? (
         <DeviceUserError
           isMobileView={isMobileView}
+          isMobileDevice={isMobileDevice}
           isAuthenticationError={!!isAuthenticationError}
+          platform={host?.platform}
         />
       ) : (
         <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>

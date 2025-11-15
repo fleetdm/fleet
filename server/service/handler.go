@@ -406,9 +406,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Setup experience software endpoints:
 	ue.PUT("/api/_version_/fleet/setup_experience/software", putSetupExperienceSoftware, putSetupExperienceSoftwareRequest{})
 	ue.GET("/api/_version_/fleet/setup_experience/software", getSetupExperienceSoftware, getSetupExperienceSoftwareRequest{})
+
 	// Setup experience script endpoints:
 	ue.GET("/api/_version_/fleet/setup_experience/script", getSetupExperienceScriptEndpoint, getSetupExperienceScriptRequest{})
-	ue.POST("/api/_version_/fleet/setup_experience/script", setSetupExperienceScriptEndpoint, setSetupExperienceScriptRequest{})
+	ue.POST("/api/_version_/fleet/setup_experience/script", createSetupExperienceScriptEndpoint, setSetupExperienceScriptRequest{})
+	ue.PUT("/api/_version_/fleet/setup_experience/script", putSetupExperienceScriptEndpoint, setSetupExperienceScriptRequest{})
 	ue.DELETE("/api/_version_/fleet/setup_experience/script", deleteSetupExperienceScriptEndpoint, deleteSetupExperienceScriptRequest{})
 
 	// Fleet-maintained apps
@@ -437,6 +439,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Deprecated: Device mappings are included in the host details endpoint: /api/_version_/fleet/hosts/{id}
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/device_mapping", listHostDeviceMappingEndpoint, listHostDeviceMappingRequest{})
 	ue.PUT("/api/_version_/fleet/hosts/{id:[0-9]+}/device_mapping", putHostDeviceMappingEndpoint, putHostDeviceMappingRequest{})
+	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/device_mapping/idp", deleteHostIDPEndpoint, deleteHostIDPRequest{})
 	ue.GET("/api/_version_/fleet/hosts/report", hostsReportEndpoint, hostsReportRequest{})
 	ue.GET("/api/_version_/fleet/os_versions", osVersionsEndpoint, osVersionsRequest{})
 	ue.GET("/api/_version_/fleet/os_versions/{id:[0-9]+}", getOSVersionEndpoint, getOSVersionRequest{})
@@ -558,6 +561,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Okta Conditional Access
 	ue.GET("/api/_version_/fleet/conditional_access/idp/signing_cert", conditionalAccessGetIdPSigningCertEndpoint, conditionalAccessGetIdPSigningCertRequest{})
+	ue.GET("/api/_version_/fleet/conditional_access/idp/apple/profile", conditionalAccessGetIdPAppleProfileEndpoint, nil)
 
 	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
 	// NOTE: remember to update
