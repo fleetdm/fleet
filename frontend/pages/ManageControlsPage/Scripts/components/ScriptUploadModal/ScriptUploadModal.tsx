@@ -69,7 +69,7 @@ const ScriptUploadModal = ({
             disabled={!selectedFile || showLoading}
             isLoading={showLoading}
           >
-            Add Script
+            Add script
           </Button>
         </div>
       </>
