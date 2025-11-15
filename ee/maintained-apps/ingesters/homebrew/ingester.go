@@ -247,7 +247,7 @@ type brewCask struct {
 
 // brew artifacts are objects that have one and only one of their fields set.
 type brewArtifact struct {
-	App []string `json:"app"`
+	App []optjson.StringOr[*brewAppTarget] `json:"app"`
 	// Pkg is a bit like Binary, it is an array with a string and an object as
 	// first two elements. The object has a choices field with an array of
 	// objects. See Microsoft Edge.
@@ -261,6 +261,12 @@ type brewArtifact struct {
 	// Binary is an array with a string and an object as first two elements. See
 	// the "docker" and "firefox" casks.
 	Binary []optjson.StringOr[*brewBinaryTarget] `json:"binary"`
+}
+
+// brewAppTarget handles both string app names and objects with target redirects
+// Example: "Grammarly Installer.app" or {"target":"Grammarly Desktop.app"}
+type brewAppTarget struct {
+	Target string `json:"target"`
 }
 
 // The choiceChanges file is a property list containing an array of dictionaries. Each dictionary has the following three keys:
