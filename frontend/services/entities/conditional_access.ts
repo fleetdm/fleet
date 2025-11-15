@@ -24,6 +24,14 @@ const conditionalAccessService = {
   deleteMicrosoftConditionalAccess: () => {
     return sendRequest("DELETE", endpoints.CONDITIONAL_ACCESS_MICROSOFT);
   },
+  getIdpAppleProfile: (): Promise<string> => {
+    return sendRequest(
+      "GET",
+      endpoints.CONDITIONAL_ACCESS_IDP_APPLE_PROFILE,
+      undefined,
+      "text"
+    );
+  },
 };
 
 export default conditionalAccessService;

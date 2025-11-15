@@ -1,0 +1,28 @@
+.okta-conditional-access-modal {
+  .file-uploader__title {
+    color: $ui-fleet-black-75;
+    font-size: $small;
+    font-weight: $bold;
+  }
+
+  // User scope profile read-only textarea
+  .input-field--read-only {
+    .input-field__textarea {
+      background-color: $ui-off-white;
+    }
+  }
+
+  // Error message above file uploader
+  &__file-uploader-error {
+    color: $core-vibrant-red;
+    font-size: $x-small;
+    font-weight: $bold;
+  }
+
+  // Certificate file uploader wrapper
+  &__file-uploader-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small; // 0.5rem gap between error and FileUploader
+  }
+}
