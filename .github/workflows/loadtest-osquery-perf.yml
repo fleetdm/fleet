@@ -17,10 +17,10 @@ on:
         type: string
         required: true
       loadtest_containers_starting_index:
-        description: "Optional: Starting Index for enroll.sh (should be a multiple of 8)."
+        description: "Starting Index for enroll.sh. (Default: 0)."
         type: string
         default: 0
-        required: false
+        required: true
       extra_flags:
         description: "Extra flags for osquery-perf. Example: [\"--orbit_prob\", \"0.0\"]"
         type: string
