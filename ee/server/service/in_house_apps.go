@@ -17,9 +17,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		return nil, ctxerr.Wrap(ctx, err, "getting existing installer")
 	}
 
-	if payload.SelfService == nil && payload.InstallerFile == nil && payload.PreInstallQuery == nil &&
-		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil &&
-		payload.LabelsIncludeAny == nil && payload.LabelsExcludeAny == nil {
+	if payload.IsNoopPayload(software) {
 		return existingInstaller, nil // no payload, noop
 	}
 
@@ -41,13 +39,14 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		selfService = *payload.SelfService
 	}
 	activity := fleet.ActivityTypeEditedSoftware{
-		SoftwareTitle:   existingInstaller.SoftwareTitle,
-		TeamName:        teamName,
-		TeamID:          actTeamID,
-		SoftwarePackage: &existingInstaller.Name,
-		SoftwareTitleID: payload.TitleID,
-		SoftwareIconURL: existingInstaller.IconUrl,
-		SelfService:     selfService,
+		SoftwareTitle:       existingInstaller.SoftwareTitle,
+		TeamName:            teamName,
+		TeamID:              actTeamID,
+		SoftwarePackage:     &existingInstaller.Name,
+		SoftwareTitleID:     payload.TitleID,
+		SoftwareIconURL:     existingInstaller.IconUrl,
+		SelfService:         selfService,
+		SoftwareDisplayName: payload.DisplayName,
 	}
 
 	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload

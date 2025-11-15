@@ -360,9 +360,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "getting existing installer")
 	}
 
-	if payload.SelfService == nil && payload.InstallerFile == nil && payload.PreInstallQuery == nil &&
-		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil &&
-		payload.LabelsIncludeAny == nil && payload.LabelsExcludeAny == nil && software.DisplayName == payload.DisplayName {
+	if payload.IsNoopPayload(software) {
 		return existingInstaller, nil // no payload, noop
 	}
 
