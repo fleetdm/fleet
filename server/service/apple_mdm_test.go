@@ -693,6 +693,18 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 			return &fleet.Team{}, nil
 		}
 	}
+	mockTeamLiteFunc := func(u *fleet.User) mock.TeamLiteFunc {
+		return func(ctx context.Context, teamID uint) (*fleet.TeamLite, error) {
+			if len(u.Teams) > 0 {
+				for _, t := range u.Teams {
+					if t.ID == teamID {
+						return &fleet.TeamLite{ID: teamID}, nil
+					}
+				}
+			}
+			return &fleet.TeamLite{}, nil
+		}
+	}
 
 	checkShouldFail := func(err error, shouldFail bool) {
 		if !shouldFail {
@@ -708,6 +720,7 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	for _, tt := range testCases {
 		ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 		ds.TeamWithExtrasFunc = mockTeamFuncWithUser(tt.user)
+		ds.TeamLiteFunc = mockTeamLiteFunc(tt.user)
 
 		t.Run(tt.name, func(t *testing.T) {
 			// test authz create new profile (no team)

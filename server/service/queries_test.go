@@ -339,11 +339,11 @@ func TestQueryAuth(t *testing.T) {
 		team2Query.ID:  team2Query,
 	}
 
-	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid == team.ID {
-			return &team, nil
+			return team.ToTeamLite(), nil
 		} else if tid == team2.ID {
-			return &team2, nil
+			return team2.ToTeamLite(), nil
 		}
 		return nil, newNotFoundError()
 	}

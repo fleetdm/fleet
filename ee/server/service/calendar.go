@@ -179,7 +179,7 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 	var genBodyFn fleet.CalendarGenBodyFn = func(conflict bool) (body string, ok bool, err error) {
 
 		// This function is called when a new event is being created.
-		var team *fleet.Team
+		var team *fleet.TeamLite
 		team, err = svc.ds.TeamLite(ctx, *eventDetails.TeamID)
 		if err != nil {
 			return "", false, err

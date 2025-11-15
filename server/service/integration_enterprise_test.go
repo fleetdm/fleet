@@ -821,7 +821,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsPermissions() {
 		},
 	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", editTeam1Spec, http.StatusOK)
-	team1b, err := s.ds.TeamWithExtras(context.Background(), team1.ID)
+	team1b, err := s.ds.TeamLite(context.Background(), team1.ID)
 	require.NoError(t, err)
 	require.Equal(t, *team1b.Config.AgentOptions, agentOpts)
 

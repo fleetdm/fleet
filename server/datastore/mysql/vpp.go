@@ -447,7 +447,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 	if len(toAddApps) > 0 {
 		teamName = fleet.TeamNameNoTeam
 		if teamID != nil && *teamID > 0 {
-			tm, err := ds.TeamWithExtras(ctx, *teamID)
+			tm, err := ds.TeamLite(ctx, *teamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
 			}

@@ -474,7 +474,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 	}
 
 	if teamID != nil {
-		_, err := svc.ds.TeamWithExtras(ctx, tmID)
+		_, err := svc.ds.TeamLite(ctx, tmID) // TODO see if we can use TeamExists here instead
 		if err != nil {
 			return &fleet.MDMAppleBootstrapPackageSummary{}, err
 		}
@@ -586,7 +586,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 	var tm *fleet.Team
 	if asst.TeamID != nil {
 		var err error
-		tm, err = svc.ds.TeamWithExtras(ctx, *asst.TeamID)
+		tm, err = svc.ds.TeamWithExtras(ctx, *asst.TeamID) // TODO see if we can convert to TeamLite
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get team")
 		}
@@ -1493,7 +1493,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	token.IPadOSDefaultTeamID = nil
 
 	if macOSTeamID != nil && *macOSTeamID != 0 {
-		macOSTeam, err := svc.ds.TeamWithExtras(ctx, *macOSTeamID)
+		macOSTeam, err := svc.ds.TeamLite(ctx, *macOSTeamID)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
 				Message:     fmt.Sprintf("team with ID %d not found", *macOSTeamID),
@@ -1507,7 +1507,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	}
 
 	if iOSTeamID != nil && *iOSTeamID != 0 {
-		iOSTeam, err := svc.ds.TeamWithExtras(ctx, *iOSTeamID)
+		iOSTeam, err := svc.ds.TeamLite(ctx, *iOSTeamID)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
 				Message:     fmt.Sprintf("team with ID %d not found", *iOSTeamID),
@@ -1520,7 +1520,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	}
 
 	if iPadOSTeamID != nil && *iPadOSTeamID != 0 {
-		iPadOSTeam, err := svc.ds.TeamWithExtras(ctx, *iPadOSTeamID)
+		iPadOSTeam, err := svc.ds.TeamLite(ctx, *iPadOSTeamID)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
 				Message:     fmt.Sprintf("team with ID %d not found", *iPadOSTeamID),

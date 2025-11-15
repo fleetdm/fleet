@@ -66,7 +66,7 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		user.GlobalRole = newGlobalRole
 		user.Teams = newTeamsRoles
 
-		err = svc.ds.SaveUser(ctx, user)
+		err = svc.ds.SaveUser(ctx, user) // TODO see if we can use TeamLite through this workflow
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "save user")
 		}

@@ -814,7 +814,7 @@ LIMIT
 		})
 	}
 	if host.TeamID != nil && len(hostTeamQueriesStats) > 0 {
-		team, err := ds.TeamWithExtras(ctx, *host.TeamID)
+		team, err := ds.TeamLite(ctx, *host.TeamID)
 		if err != nil {
 			return nil, err
 		}

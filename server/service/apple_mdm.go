@@ -1043,7 +1043,7 @@ func (svc *Service) ListMDMAppleConfigProfiles(ctx context.Context, teamID uint)
 
 	if teamID >= 1 {
 		// confirm that team exists
-		if _, err := svc.ds.TeamWithExtras(ctx, teamID); err != nil {
+		if _, err := svc.ds.TeamLite(ctx, teamID); err != nil { // TODO see if we can use TeamExists here instead
 			return nil, ctxerr.Wrap(ctx, err)
 		}
 	}

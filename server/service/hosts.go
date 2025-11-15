@@ -961,7 +961,7 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 
 	var teamName *string
 	if teamID != nil {
-		tm, err := svc.ds.TeamWithExtras(ctx, *teamID)
+		tm, err := svc.ds.TeamLite(ctx, *teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get team for activity")
 		}
@@ -1978,7 +1978,7 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 	}
 
 	if teamID != nil {
-		_, err := svc.ds.TeamWithExtras(ctx, *teamID)
+		_, err := svc.ds.TeamLite(ctx, *teamID) // TODO see if we can use TeamExists here
 		if err != nil {
 			return nil, err
 		}

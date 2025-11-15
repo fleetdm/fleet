@@ -53,8 +53,8 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return nil, nil
 	}
 
-	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
-		return &fleet.Team{ID: tid, Name: "team1"}, nil
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: tid, Name: "team1"}, nil
 	}
 
 	ds.NewActivityFunc = func(
@@ -125,8 +125,8 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return nil, nil
 	}
 
-	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
-		return &fleet.Team{ID: tid, Name: "team1"}, nil
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: tid, Name: "team1"}, nil
 	}
 
 	ds.NewActivityFunc = func(
@@ -196,8 +196,8 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return nil, nil
 	}
 
-	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
-		return &fleet.Team{ID: tid, Name: "team1"}, nil
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: tid, Name: "team1"}, nil
 	}
 
 	ds.NewActivityFunc = func(
@@ -256,8 +256,8 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		return nil, nil
 	}
 
-	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
-		return &fleet.Team{ID: tid, Name: "team1"}, nil
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: tid, Name: "team1"}, nil
 	}
 
 	ds.NewActivityFunc = func(

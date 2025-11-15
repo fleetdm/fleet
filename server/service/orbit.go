@@ -180,7 +180,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	isEndUserAuthRequired := appConfig.MDM.MacOSSetup.EnableEndUserAuthentication
 	// If the secret is for a team, get the team config as well.
 	if secret.TeamID != nil {
-		team, err := svc.ds.TeamWithExtras(ctx, *secret.TeamID)
+		team, err := svc.ds.TeamLite(ctx, *secret.TeamID)
 		if err != nil {
 			return "", fleet.OrbitError{Message: "failed to get team config: " + err.Error()}
 		}
@@ -561,7 +561,7 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 		}
 		manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 	} else {
-		tm, err := svc.ds.TeamWithExtras(ctx, *host.TeamID)
+		tm, err := svc.ds.TeamLite(ctx, *host.TeamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
 		}
