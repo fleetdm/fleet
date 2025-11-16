@@ -463,13 +463,14 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	if err != nil {
 		// Check if this is a retryable error (e.g., deadlock, lock timeout)
 		if common_mysql.RetryableError(err) {
-			// Log the retryable error and return nil instead of failing the request.
+			// Log the retryable error and return the current state without changes.
+			// The transaction rolled back, so Deleted and Inserted will be empty.
 			level.Info(ds.logger).Log("msg", "retryable error during software update, will retry on next agent refresh", "err", err, "host_id", hostID)
-			return nil, nil
+			return r, nil
 		}
 		return nil, err
 	}
-	return r, err
+	return r, nil
 }
 
 func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, deleted []fleet.Software, inserted []fleet.Software,
