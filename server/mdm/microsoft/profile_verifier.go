@@ -424,15 +424,16 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 	// Process each Fleet variable
 	result := profileContents
 	for _, fleetVar := range fleetVars {
-		if fleetVar == string(fleet.FleetVarHostUUID) {
+		switch {
+		case fleetVar == string(fleet.FleetVarHostUUID):
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostUUIDRegexp, result, params.GetHostUUID())
-		} else if fleetVar == string(fleet.FleetVarHostHardwareSerial) {
+		case fleetVar == string(fleet.FleetVarHostHardwareSerial):
 			serial, err := getHostHardwareSerial(deps.GetContext(), deps.GetDS(), params.GetProfileUUID(), params.GetHostUUID())
 			if err != nil {
 				return profileContents, err
 			}
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostHardwareSerialRegexp, result, serial)
-		} else if slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(fleetVar)) {
+		case slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(fleetVar)):
 			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(deps.GetContext(), deps.GetDS(), fleetVar, result, params.GetHostUUID(), deps.GetHostIdForUUIDCache(), func(errMsg string) error {
 				return &MicrosoftProfileProcessingError{message: errMsg}
 			})
