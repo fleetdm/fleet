@@ -25,4 +25,3 @@ func ParallelsVersionShortener(app *maintained_apps.FMAManifestApp) (*maintained
 
 	return app, nil
 }
-
