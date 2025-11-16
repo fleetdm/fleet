@@ -1412,6 +1412,12 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 	// This allows MySQL to read from the index without accessing the table,
 	// which is critical for performance.
 	// IMPORTANT: Update this query if modifying idx_software_host_counts_team_global_hosts_desc index.
+	// PERFORMANCE ISSUE: The hosts_count > 0 filter causes ASC queries to read the entire index
+	// instead of stopping after LIMIT rows like DESC queries do. While both ASC and DESC
+	// use the index, DESC can stop early but ASC with a range condition must read all matching rows.
+	// RECOMMENDED SOLUTION: Eliminate zero-count rows from this table entirely.
+	// This would allow removing the hosts_count > 0 filter, making ASC queries as fast as DESC
+	// without requiring a second index. Related issue: https://github.com/fleetdm/fleet/issues/35805
 	innerSQL := `
 		SELECT
 			shc.software_id,
