@@ -2358,10 +2358,11 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 					HostIDForUUIDCache: hostIDForUUIDCache,
 					CustomSCEPCAs:      customSCEPCAs,
 				}
-				params := microsoft_mdm.ProfilePreprocessParams{
-					IsVerifying:                false,
-					HostUUID:                   hostUUID,
-					ProfileUUID:                profUUID,
+				params := microsoft_mdm.ProfilePreprocessParamsForDeploy{
+					ProfilePreprocessParamsForVerify: microsoft_mdm.ProfilePreprocessParamsForVerify{
+						HostUUID:    hostUUID,
+						ProfileUUID: profUUID,
+					},
 					ManagedCertificatePayloads: managedCertificatePayloads,
 				}
 				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(deps, params, string(p.SyncML))

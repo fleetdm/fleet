@@ -940,11 +940,9 @@ func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
 				HostIDForUUIDCache: hostIDForUUIDCache,
 				CustomSCEPCAs:      nil,
 			}
-			params := ProfilePreprocessParams{
-				IsVerifying:                true,
-				HostUUID:                   tt.hostUUID,
-				ProfileUUID:                uuid.NewString(),
-				ManagedCertificatePayloads: nil,
+			params := ProfilePreprocessParamsForVerify{
+				HostUUID:    tt.hostUUID,
+				ProfileUUID: uuid.NewString(),
 			}
 			result := PreprocessWindowsProfileContentsForVerification(deps, params, tt.profileContents)
 			require.Equal(t, tt.expectedContents, result)
@@ -1194,10 +1192,11 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 				HostIDForUUIDCache: hostIDForUUIDCache,
 				CustomSCEPCAs:      customSCEPCAs,
 			}
-			params := ProfilePreprocessParams{
-				IsVerifying:                false,
-				HostUUID:                   tt.hostUUID,
-				ProfileUUID:                profileUUID,
+			params := ProfilePreprocessParamsForDeploy{
+				ProfilePreprocessParamsForVerify: ProfilePreprocessParamsForVerify{
+					HostUUID:    tt.hostUUID,
+					ProfileUUID: profileUUID,
+				},
 				ManagedCertificatePayloads: managedCertificates,
 			}
 

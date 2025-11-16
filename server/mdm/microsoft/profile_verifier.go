@@ -59,11 +59,9 @@ func LoopOverExpectedHostProfiles(
 			HostIDForUUIDCache: hostIDForUUIDCache,
 			CustomSCEPCAs:      nil,
 		}
-		params := ProfilePreprocessParams{
-			IsVerifying:                true,
-			HostUUID:                   host.UUID,
-			ProfileUUID:                expectedProf.ProfileUUID,
-			ManagedCertificatePayloads: nil,
+		params := ProfilePreprocessParamsForVerify{
+			HostUUID:    host.UUID,
+			ProfileUUID: expectedProf.ProfileUUID,
 		}
 		processedContent := PreprocessWindowsProfileContentsForVerification(deps, params, expanded)
 		expectedProf.RawProfile = []byte(processedContent)
@@ -309,10 +307,10 @@ func IsWin32OrDesktopBridgeADMXCSP(locURI string) bool {
 //
 // This function is similar to PreprocessWindowsProfileContentsForDeployment, but it does not require
 // a datastore or logger since it only replaces certain fleet variables to avoid datastore unnecessary work.
-func PreprocessWindowsProfileContentsForVerification(deps ProfilePreprocessDependencies, params ProfilePreprocessParams, profileContents string) string {
+func PreprocessWindowsProfileContentsForVerification(deps ProfilePreprocessDependencies, params ProfilePreprocessParamsForVerify, profileContents string) string {
 	replacedContents, _ := preprocessWindowsProfileContents(deps, params, profileContents)
-	// ^ We ignore the error here, and rely on the fact that the function will return the original contents if no replacements were made.
-	// So verification fails on individual profile level, instead of entire verification failing.
+	// ^ We ignore the error here and rely on the fact that the function will return the original contents if no replacements were made.
+	// So verification fails on the individual profile level, instead of the entire verification failing.
 	return replacedContents
 }
 
@@ -320,13 +318,13 @@ func PreprocessWindowsProfileContentsForVerification(deps ProfilePreprocessDepen
 // with their actual values for each host during profile deployment.
 func PreprocessWindowsProfileContentsForDeployment(
 	deps ProfilePreprocessDependencies,
-	params ProfilePreprocessParams,
+	params ProfilePreprocessParamsForDeploy,
 	profileContents string,
 ) (string, error) {
 	return preprocessWindowsProfileContents(deps, params, profileContents)
 }
 
-// This error type is used to indicate errors during Microsoft profile processing, such as variable replacement failures.
+// MicrosoftProfileProcessingError is used to indicate errors during Microsoft profile processing, such as variable replacement failures.
 // It should not break the entire deployment flow, but rather be handled gracefully at the profile level, setting it to failed and detail = Error()
 type MicrosoftProfileProcessingError struct {
 	message string
@@ -345,10 +343,26 @@ type ProfilePreprocessDependencies struct {
 	CustomSCEPCAs      map[string]*fleet.CustomSCEPProxyCA
 }
 
-type ProfilePreprocessParams struct {
-	IsVerifying                bool
-	HostUUID                   string
-	ProfileUUID                string
+type ProfilePreprocessParams interface {
+	GetHostUUID() string
+	GetProfileUUID() string
+}
+
+type ProfilePreprocessParamsForVerify struct {
+	HostUUID    string
+	ProfileUUID string
+}
+
+func (p ProfilePreprocessParamsForVerify) GetHostUUID() string {
+	return p.HostUUID
+}
+
+func (p ProfilePreprocessParamsForVerify) GetProfileUUID() string {
+	return p.ProfileUUID
+}
+
+type ProfilePreprocessParamsForDeploy struct {
+	ProfilePreprocessParamsForVerify
 	ManagedCertificatePayloads *[]*fleet.MDMManagedCertificate
 }
 
@@ -386,9 +400,9 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 	result := profileContents
 	for _, fleetVar := range fleetVars {
 		if fleetVar == string(fleet.FleetVarHostUUID) {
-			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostUUIDRegexp, result, params.HostUUID)
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostUUIDRegexp, result, params.GetHostUUID())
 		} else if slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(fleetVar)) {
-			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(deps.Context, deps.DataStore, fleetVar, result, params.HostUUID, deps.HostIDForUUIDCache, func(errMsg string) error {
+			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(deps.Context, deps.DataStore, fleetVar, result, params.GetHostUUID(), deps.HostIDForUUIDCache, func(errMsg string) error {
 				return &MicrosoftProfileProcessingError{message: errMsg}
 			})
 			if err != nil {
@@ -400,9 +414,10 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 			result = replacedContents
 		}
 
-		// We skip some variables during verification, to avoid unnecessary datastore calls
+		// We skip some variables during verification to avoid unnecessary datastore calls
 		// or processing that is not needed for verification.
-		if params.IsVerifying {
+		params, isForDeploy := params.(ProfilePreprocessParamsForDeploy)
+		if !isForDeploy {
 			continue
 		}
 
