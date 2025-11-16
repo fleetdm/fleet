@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "26.1.2-57293",
+      "version": "26.1.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console';"
       },
