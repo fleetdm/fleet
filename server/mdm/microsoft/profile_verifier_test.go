@@ -932,13 +932,11 @@ func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			deps := ProfilePreprocessDependencies{
+			deps := ProfilePreprocessDependenciesForVerify{
 				Context:            t.Context(),
 				Logger:             log.NewNopLogger(),
 				DataStore:          ds,
-				AppConfig:          nil,
 				HostIDForUUIDCache: hostIDForUUIDCache,
-				CustomSCEPCAs:      nil,
 			}
 			result := PreprocessWindowsProfileContentsForVerification(deps, ProfilePreprocessParamsForVerify{
 				HostUUID:    tt.hostUUID,
@@ -1183,13 +1181,15 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 
 			managedCertificates := &[]*fleet.MDMManagedCertificate{}
 
-			deps := ProfilePreprocessDependencies{
-				Context:            ctx,
-				Logger:             log.NewNopLogger(),
-				DataStore:          ds,
-				AppConfig:          appConfig,
-				HostIDForUUIDCache: hostIDForUUIDCache,
-				CustomSCEPCAs:      customSCEPCAs,
+			deps := ProfilePreprocessDependenciesForDeploy{
+				ProfilePreprocessDependenciesForVerify: ProfilePreprocessDependenciesForVerify{
+					Context:            ctx,
+					Logger:             log.NewNopLogger(),
+					DataStore:          ds,
+					HostIDForUUIDCache: hostIDForUUIDCache,
+				},
+				AppConfig:     appConfig,
+				CustomSCEPCAs: customSCEPCAs,
 			}
 
 			result, err := PreprocessWindowsProfileContentsForDeployment(deps, ProfilePreprocessParamsForDeploy{

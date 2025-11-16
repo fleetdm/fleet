@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"io"
@@ -51,13 +52,11 @@ func LoopOverExpectedHostProfiles(
 
 		// Process Fleet variables if present (similar to how it's done during profile deployment)
 		// This ensures we compare what was actually sent to the device
-		deps := ProfilePreprocessDependencies{
+		deps := ProfilePreprocessDependenciesForVerify{
 			Context:            ctx,
 			Logger:             logger,
 			DataStore:          ds,
-			AppConfig:          nil,
 			HostIDForUUIDCache: hostIDForUUIDCache,
-			CustomSCEPCAs:      nil,
 		}
 		processedContent := PreprocessWindowsProfileContentsForVerification(deps, ProfilePreprocessParamsForVerify{
 			HostUUID:    host.UUID,
@@ -306,7 +305,7 @@ func IsWin32OrDesktopBridgeADMXCSP(locURI string) bool {
 //
 // This function is similar to PreprocessWindowsProfileContentsForDeployment, but it does not require
 // a datastore or logger since it only replaces certain fleet variables to avoid datastore unnecessary work.
-func PreprocessWindowsProfileContentsForVerification(deps ProfilePreprocessDependencies, params ProfilePreprocessParamsForVerify, profileContents string) string {
+func PreprocessWindowsProfileContentsForVerification(deps ProfilePreprocessDependenciesForVerify, params ProfilePreprocessParamsForVerify, profileContents string) string {
 	replacedContents, _ := preprocessWindowsProfileContents(deps, params, profileContents)
 	// ^ We ignore the error here and rely on the fact that the function will return the original contents if no replacements were made.
 	// So verification fails on the individual profile level, instead of the entire verification failing.
@@ -316,7 +315,7 @@ func PreprocessWindowsProfileContentsForVerification(deps ProfilePreprocessDepen
 // PreprocessWindowsProfileContentsForDeployment processes Windows configuration profiles to replace Fleet variables
 // with their actual values for each host during profile deployment.
 func PreprocessWindowsProfileContentsForDeployment(
-	deps ProfilePreprocessDependencies,
+	deps ProfilePreprocessDependenciesForDeploy,
 	params ProfilePreprocessParamsForDeploy,
 	profileContents string,
 ) (string, error) {
@@ -333,13 +332,40 @@ func (e *MicrosoftProfileProcessingError) Error() string {
 	return e.message
 }
 
-type ProfilePreprocessDependencies struct {
+type ProfilePreprocessDependencies interface {
+	GetContext() context.Context
+	GetLogger() kitlog.Logger
+	GetDS() fleet.Datastore
+	GetHostIdForUUIDCache() map[string]uint
+}
+
+type ProfilePreprocessDependenciesForVerify struct {
 	Context            context.Context
 	Logger             kitlog.Logger
 	DataStore          fleet.Datastore
-	AppConfig          *fleet.AppConfig
 	HostIDForUUIDCache map[string]uint
-	CustomSCEPCAs      map[string]*fleet.CustomSCEPProxyCA
+}
+
+func (p ProfilePreprocessDependenciesForVerify) GetContext() context.Context {
+	return p.Context
+}
+
+func (p ProfilePreprocessDependenciesForVerify) GetLogger() kitlog.Logger {
+	return p.Logger
+}
+
+func (p ProfilePreprocessDependenciesForVerify) GetDS() fleet.Datastore {
+	return p.DataStore
+}
+
+func (p ProfilePreprocessDependenciesForVerify) GetHostIdForUUIDCache() map[string]uint {
+	return p.HostIDForUUIDCache
+}
+
+type ProfilePreprocessDependenciesForDeploy struct {
+	ProfilePreprocessDependenciesForVerify
+	AppConfig     *fleet.AppConfig
+	CustomSCEPCAs map[string]*fleet.CustomSCEPProxyCA
 }
 
 type ProfilePreprocessParams interface {
@@ -401,14 +427,14 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		if fleetVar == string(fleet.FleetVarHostUUID) {
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostUUIDRegexp, result, params.GetHostUUID())
 		} else if slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(fleetVar)) {
-			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(deps.Context, deps.DataStore, fleetVar, result, params.GetHostUUID(), deps.HostIDForUUIDCache, func(errMsg string) error {
+			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(deps.GetContext(), deps.GetDS(), fleetVar, result, params.GetHostUUID(), deps.GetHostIdForUUIDCache(), func(errMsg string) error {
 				return &MicrosoftProfileProcessingError{message: errMsg}
 			})
 			if err != nil {
 				return profileContents, err
 			}
 			if !replacedVariable {
-				return profileContents, ctxerr.Wrap(deps.Context, err, "host end user IDP variable replacement failed for variable")
+				return profileContents, ctxerr.Wrap(deps.GetContext(), err, "host end user IDP variable replacement failed for variable")
 			}
 			result = replacedContents
 		}
@@ -418,6 +444,11 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		params, isForDeploy := params.(ProfilePreprocessParamsForDeploy)
 		if !isForDeploy {
 			continue
+		}
+		// We need extra dependencies when deploying profiles; fail if we don't have them
+		deps, hasDepsForDeploy := deps.(ProfilePreprocessDependenciesForDeploy)
+		if !hasDepsForDeploy {
+			return profileContents, errors.New("missing configuration to deploy profiles")
 		}
 
 		switch {

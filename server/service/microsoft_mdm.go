@@ -2350,13 +2350,15 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 				}
 
 				// Preprocess the profile content for this specific host
-				deps := microsoft_mdm.ProfilePreprocessDependencies{
-					Context:            ctx,
-					Logger:             logger,
-					DataStore:          ds,
-					AppConfig:          appConfig,
-					HostIDForUUIDCache: hostIDForUUIDCache,
-					CustomSCEPCAs:      customSCEPCAs,
+				deps := microsoft_mdm.ProfilePreprocessDependenciesForDeploy{
+					ProfilePreprocessDependenciesForVerify: microsoft_mdm.ProfilePreprocessDependenciesForVerify{
+						Context:            ctx,
+						Logger:             logger,
+						DataStore:          ds,
+						HostIDForUUIDCache: hostIDForUUIDCache,
+					},
+					AppConfig:     appConfig,
+					CustomSCEPCAs: customSCEPCAs,
 				}
 				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(
 					deps,
