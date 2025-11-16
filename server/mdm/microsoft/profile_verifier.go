@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/admx"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/wlanxml"
 	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -425,6 +426,12 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 	for _, fleetVar := range fleetVars {
 		if fleetVar == string(fleet.FleetVarHostUUID) {
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostUUIDRegexp, result, params.GetHostUUID())
+		} else if fleetVar == string(fleet.FleetVarHostHardwareSerial) {
+			serial, err := getHostHardwareSerial(deps.GetContext(), deps.GetDS(), params.GetProfileUUID(), params.GetHostUUID())
+			if err != nil {
+				return profileContents, err
+			}
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostHardwareSerialRegexp, result, serial)
 		} else if slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(fleetVar)) {
 			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(deps.GetContext(), deps.GetDS(), fleetVar, result, params.GetHostUUID(), deps.GetHostIdForUUIDCache(), func(errMsg string) error {
 				return &MicrosoftProfileProcessingError{message: errMsg}
@@ -493,4 +500,28 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 	}
 
 	return result, nil
+}
+
+func getHostHardwareSerial(ctx context.Context, ds fleet.Datastore, profileUUID string, hostUUID string) (string, error) {
+	hosts, err := ds.ListHostsLiteByUUIDs(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}, []string{hostUUID})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "listing hosts")
+	}
+	if len(hosts) != 1 {
+		// Something went wrong. Maybe host was deleted, or we have multiple hosts with the same UUID.
+		// Mark the profile as failed with additional detail.
+		err := ds.UpdateOrDeleteHostMDMWindowsProfile(ctx, &fleet.HostMDMWindowsProfile{
+			ProfileUUID:   profileUUID,
+			HostUUID:      hostUUID,
+			Status:        &fleet.MDMDeliveryFailed,
+			Detail:        fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s. ", len(hosts), hostUUID),
+			OperationType: fleet.MDMOperationTypeInstall,
+		})
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "updating host MDM Windows profile for hardware serial")
+		}
+		return "", ctxerr.Errorf(ctx, "failed to retrieve host for hardware serial number substitution")
+	}
+	hardwareSerial := hosts[0].HardwareSerial
+	return hardwareSerial, nil
 }
