@@ -42,7 +42,12 @@ func LoopOverExpectedHostProfiles(
 		return fmt.Errorf("getting host profiles for verification: %w", err)
 	}
 
-	hostIDForUUIDCache := make(map[string]uint)
+	deps := ProfilePreprocessDependenciesForVerify{
+		Context:            ctx,
+		Logger:             logger,
+		DataStore:          ds,
+		HostIDForUUIDCache: make(map[string]uint),
+	}
 
 	for _, expectedProf := range profileMap {
 		expanded, err := ds.ExpandEmbeddedSecrets(ctx, string(expectedProf.RawProfile))
@@ -52,12 +57,6 @@ func LoopOverExpectedHostProfiles(
 
 		// Process Fleet variables if present (similar to how it's done during profile deployment)
 		// This ensures we compare what was actually sent to the device
-		deps := ProfilePreprocessDependenciesForVerify{
-			Context:            ctx,
-			Logger:             logger,
-			DataStore:          ds,
-			HostIDForUUIDCache: hostIDForUUIDCache,
-		}
 		processedContent := PreprocessWindowsProfileContentsForVerification(deps, ProfilePreprocessParamsForVerify{
 			HostUUID:    host.UUID,
 			ProfileUUID: expectedProf.ProfileUUID,

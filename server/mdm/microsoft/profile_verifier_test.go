@@ -928,16 +928,15 @@ func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
 		},
 	}
 
-	hostIDForUUIDCache := make(map[string]uint)
+	deps := ProfilePreprocessDependenciesForVerify{
+		Context:            t.Context(),
+		Logger:             log.NewNopLogger(),
+		DataStore:          ds,
+		HostIDForUUIDCache: make(map[string]uint),
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			deps := ProfilePreprocessDependenciesForVerify{
-				Context:            t.Context(),
-				Logger:             log.NewNopLogger(),
-				DataStore:          ds,
-				HostIDForUUIDCache: hostIDForUUIDCache,
-			}
 			result := PreprocessWindowsProfileContentsForVerification(deps, ProfilePreprocessParamsForVerify{
 				HostUUID:    tt.hostUUID,
 				ProfileUUID: uuid.NewString(),

@@ -2315,11 +2315,17 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		return ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
-	customSCEPCAs := groupedCAs.ToCustomSCEPProxyCAMap()
-
-	hostIDForUUIDCache := make(map[string]uint)
-
 	managedCertificatePayloads := &[]*fleet.MDMManagedCertificate{}
+	deps := microsoft_mdm.ProfilePreprocessDependenciesForDeploy{
+		ProfilePreprocessDependenciesForVerify: microsoft_mdm.ProfilePreprocessDependenciesForVerify{
+			Context:            ctx,
+			Logger:             logger,
+			DataStore:          ds,
+			HostIDForUUIDCache: make(map[string]uint),
+		},
+		AppConfig:     appConfig,
+		CustomSCEPCAs: groupedCAs.ToCustomSCEPProxyCAMap(),
+	}
 
 	for profUUID, target := range installTargets {
 		p, ok := profileContents[profUUID]
@@ -2350,16 +2356,6 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 				}
 
 				// Preprocess the profile content for this specific host
-				deps := microsoft_mdm.ProfilePreprocessDependenciesForDeploy{
-					ProfilePreprocessDependenciesForVerify: microsoft_mdm.ProfilePreprocessDependenciesForVerify{
-						Context:            ctx,
-						Logger:             logger,
-						DataStore:          ds,
-						HostIDForUUIDCache: hostIDForUUIDCache,
-					},
-					AppConfig:     appConfig,
-					CustomSCEPCAs: customSCEPCAs,
-				}
 				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(
 					deps,
 					microsoft_mdm.ProfilePreprocessParamsForDeploy{
