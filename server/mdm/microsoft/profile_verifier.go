@@ -59,11 +59,10 @@ func LoopOverExpectedHostProfiles(
 			HostIDForUUIDCache: hostIDForUUIDCache,
 			CustomSCEPCAs:      nil,
 		}
-		params := ProfilePreprocessParamsForVerify{
+		processedContent := PreprocessWindowsProfileContentsForVerification(deps, ProfilePreprocessParamsForVerify{
 			HostUUID:    host.UUID,
 			ProfileUUID: expectedProf.ProfileUUID,
-		}
-		processedContent := PreprocessWindowsProfileContentsForVerification(deps, params, expanded)
+		}, expanded)
 		expectedProf.RawProfile = []byte(processedContent)
 
 		var prof fleet.SyncMLCmd

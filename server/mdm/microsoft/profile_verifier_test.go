@@ -940,11 +940,10 @@ func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
 				HostIDForUUIDCache: hostIDForUUIDCache,
 				CustomSCEPCAs:      nil,
 			}
-			params := ProfilePreprocessParamsForVerify{
+			result := PreprocessWindowsProfileContentsForVerification(deps, ProfilePreprocessParamsForVerify{
 				HostUUID:    tt.hostUUID,
 				ProfileUUID: uuid.NewString(),
-			}
-			result := PreprocessWindowsProfileContentsForVerification(deps, params, tt.profileContents)
+			}, tt.profileContents)
 			require.Equal(t, tt.expectedContents, result)
 		})
 	}
@@ -1192,15 +1191,14 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 				HostIDForUUIDCache: hostIDForUUIDCache,
 				CustomSCEPCAs:      customSCEPCAs,
 			}
-			params := ProfilePreprocessParamsForDeploy{
+
+			result, err := PreprocessWindowsProfileContentsForDeployment(deps, ProfilePreprocessParamsForDeploy{
 				ProfilePreprocessParamsForVerify: ProfilePreprocessParamsForVerify{
 					HostUUID:    tt.hostUUID,
 					ProfileUUID: profileUUID,
 				},
 				ManagedCertificatePayloads: managedCertificates,
-			}
-
-			result, err := PreprocessWindowsProfileContentsForDeployment(deps, params, tt.profileContents)
+			}, tt.profileContents)
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.processingError != "" {

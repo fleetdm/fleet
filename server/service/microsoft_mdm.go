@@ -2358,14 +2358,17 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 					HostIDForUUIDCache: hostIDForUUIDCache,
 					CustomSCEPCAs:      customSCEPCAs,
 				}
-				params := microsoft_mdm.ProfilePreprocessParamsForDeploy{
-					ProfilePreprocessParamsForVerify: microsoft_mdm.ProfilePreprocessParamsForVerify{
-						HostUUID:    hostUUID,
-						ProfileUUID: profUUID,
+				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(
+					deps,
+					microsoft_mdm.ProfilePreprocessParamsForDeploy{
+						ProfilePreprocessParamsForVerify: microsoft_mdm.ProfilePreprocessParamsForVerify{
+							HostUUID:    hostUUID,
+							ProfileUUID: profUUID,
+						},
+						ManagedCertificatePayloads: managedCertificatePayloads,
 					},
-					ManagedCertificatePayloads: managedCertificatePayloads,
-				}
-				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(deps, params, string(p.SyncML))
+					string(p.SyncML),
+				)
 				var profileProcessingError *microsoft_mdm.MicrosoftProfileProcessingError
 				if err != nil && !errors.As(err, &profileProcessingError) {
 					return ctxerr.Wrapf(ctx, err, "preprocessing profile contents for host %s and profile %s", hostUUID, profUUID)
