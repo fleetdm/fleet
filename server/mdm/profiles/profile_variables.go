@@ -135,7 +135,6 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,
 			return nil, false, onError(fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s. ", len(ids), hostUUID))
 		}
 		hostID = ids[0]
-		// TODO figure out whether we should be passing a ref around here, as this looks like the cache doesn't persist
 		hostIDForUUIDCache[hostUUID] = hostID
 	}
 

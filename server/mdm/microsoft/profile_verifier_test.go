@@ -1216,4 +1216,6 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			}
 		})
 	}
+
+	require.Len(t, hostIDForUUIDCache, 3) // make sure cache is populated by IdP var host UUID lookups
 }
