@@ -161,6 +161,7 @@ func writeSoftwareData(db *sql.DB, output *os.File, verbose bool) (int, error) {
 			name, version, source, bundle_identifier, vendor, arch, release,
 			extension_id, extension_for, application_id, upgrade_code
 		FROM software
+		WHERE NOT (source = 'deb_packages' AND name LIKE 'linux-image-%')
 		ORDER BY source, name
 	`
 
