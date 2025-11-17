@@ -1140,16 +1140,13 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, wantScriptNoTeam.ScriptContents, string(b))
 
-	// try to create another with name "script" and no team id
-	var existsErr fleet.AlreadyExistsError
+	// try to create another with name "script" and no team id. Should succeed
 	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script", ScriptContents: "echo baz"})
-	require.Error(t, err)
-	require.ErrorAs(t, err, &existsErr)
+	require.NoError(t, err)
 
-	// try to create another script with no team id and a different name
+	// try to create another script with no team id and a different name. Should succeed
 	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script2", ScriptContents: "echo baz"})
-	require.Error(t, err)
-	require.ErrorAs(t, err, &existsErr)
+	require.NoError(t, err)
 
 	// try to add a script for a team that doesn't exist
 	var fkErr fleet.ForeignKeyError
