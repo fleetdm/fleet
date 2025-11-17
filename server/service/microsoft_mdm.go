@@ -2323,8 +2323,9 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 			DataStore:          ds,
 			HostIDForUUIDCache: make(map[string]uint),
 		},
-		AppConfig:     appConfig,
-		CustomSCEPCAs: groupedCAs.ToCustomSCEPProxyCAMap(),
+		AppConfig:                  appConfig,
+		CustomSCEPCAs:              groupedCAs.ToCustomSCEPProxyCAMap(),
+		ManagedCertificatePayloads: managedCertificatePayloads,
 	}
 
 	for profUUID, target := range installTargets {
@@ -2358,13 +2359,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 				// Preprocess the profile content for this specific host
 				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(
 					deps,
-					microsoft_mdm.ProfilePreprocessParamsForDeploy{
-						ProfilePreprocessParamsForVerify: microsoft_mdm.ProfilePreprocessParamsForVerify{
-							HostUUID:    hostUUID,
-							ProfileUUID: profUUID,
-						},
-						ManagedCertificatePayloads: managedCertificatePayloads,
-					},
+					microsoft_mdm.ProfilePreprocessParams{HostUUID: hostUUID, ProfileUUID: profUUID},
 					string(p.SyncML),
 				)
 				var profileProcessingError *microsoft_mdm.MicrosoftProfileProcessingError
