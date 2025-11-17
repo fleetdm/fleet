@@ -272,7 +272,7 @@ func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.Label, []uint
 
 type listLabelsRequest struct {
 	ListOptions       fleet.ListOptions `url:"list_options"`
-	IncludeHostCounts *bool             `url:"include_host_counts,optional"`
+	IncludeHostCounts *bool             `query:"include_host_counts,optional"`
 }
 
 type listLabelsResponse struct {
