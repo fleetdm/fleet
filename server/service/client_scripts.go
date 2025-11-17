@@ -168,7 +168,7 @@ func (c *Client) deleteMacOSSetupScript(teamID *uint) error {
 }
 
 func (c *Client) uploadMacOSSetupScript(filename string, data []byte, teamID *uint) error {
-	verb, path := "PUT", "/api/latest/fleet/setup_experience/script"
+	verb, path := "POST", "/api/latest/fleet/setup_experience/script"
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)

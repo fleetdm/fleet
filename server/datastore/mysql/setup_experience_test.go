@@ -305,9 +305,9 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	})
 
 	// Create some scripts and add them to setup experience
-	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script1", ScriptContents: "SCRIPT 1", TeamID: &team1.ID}, false)
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script1", ScriptContents: "SCRIPT 1", TeamID: &team1.ID})
 	require.NoError(t, err)
-	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script2", ScriptContents: "SCRIPT 2", TeamID: &team2.ID}, false)
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script2", ScriptContents: "SCRIPT 2", TeamID: &team2.ID})
 	require.NoError(t, err)
 
 	script1, err := ds.GetSetupExperienceScript(ctx, &team1.ID)
@@ -654,7 +654,7 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 		TeamID:         &team1.ID,
 		Name:           "the script.sh",
 		ScriptContents: "hello",
-	}, false)
+	})
 	require.NoError(t, err)
 
 	sec, err := ds.GetSetupExperienceCount(ctx, "darwin", &team1.ID)
@@ -1080,7 +1080,7 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 		ScriptContents: "echo foo",
 	}
 
-	err = ds.SetSetupExperienceScript(ctx, wantScript1, false)
+	err = ds.SetSetupExperienceScript(ctx, wantScript1)
 	require.NoError(t, err)
 
 	// get the script for team1
@@ -1102,7 +1102,7 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 		ScriptContents: "echo bar",
 	}
 
-	err = ds.SetSetupExperienceScript(ctx, wantScript2, false)
+	err = ds.SetSetupExperienceScript(ctx, wantScript2)
 	require.NoError(t, err)
 
 	// get the script for team2
@@ -1124,7 +1124,7 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 		ScriptContents: "echo bar",
 	}
 
-	err = ds.SetSetupExperienceScript(ctx, wantScriptNoTeam, false)
+	err = ds.SetSetupExperienceScript(ctx, wantScriptNoTeam)
 	require.NoError(t, err)
 
 	// get the script nil team id is equivalent to team id 0
@@ -1142,18 +1142,18 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 
 	// try to create another with name "script" and no team id
 	var existsErr fleet.AlreadyExistsError
-	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script", ScriptContents: "echo baz"}, false)
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script", ScriptContents: "echo baz"})
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 
 	// try to create another script with no team id and a different name
-	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script2", ScriptContents: "echo baz"}, false)
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script2", ScriptContents: "echo baz"})
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 
 	// try to add a script for a team that doesn't exist
 	var fkErr fleet.ForeignKeyError
-	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{TeamID: ptr.Uint(42), Name: "script", ScriptContents: "echo baz"}, false)
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{TeamID: ptr.Uint(42), Name: "script", ScriptContents: "echo baz"})
 	require.Error(t, err)
 	require.ErrorAs(t, err, &fkErr)
 
@@ -1174,8 +1174,8 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 	err = ds.DeleteSetupExperienceScript(ctx, ptr.Uint(42))
 	require.NoError(t, err) // TODO: confirm if we want to return not found on deletes
 
-	// add same script for team1 again but with "allowUpdate" set(even though there will be no update since it doesn't exist)
-	err = ds.SetSetupExperienceScript(ctx, wantScript1, true)
+	// add same script for team1 again(even though there will be no update since it doesn't exist)
+	err = ds.SetSetupExperienceScript(ctx, wantScript1)
 	require.NoError(t, err)
 
 	// get the script for team1
@@ -1190,8 +1190,8 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 	// so the content id should be the same as the old
 	require.Equal(t, oldScript1.ScriptContentID, newScript1.ScriptContentID)
 
-	// add same script for team1 again with "allowUpdate" set.
-	err = ds.SetSetupExperienceScript(ctx, wantScript1, true)
+	// add same script for team1 again
+	err = ds.SetSetupExperienceScript(ctx, wantScript1)
 	require.NoError(t, err)
 
 	// Verify that the script contents remained the same
@@ -1234,13 +1234,13 @@ func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
 		ScriptContents: "echo updated foo",
 	}
 
-	err = ds.SetSetupExperienceScript(ctx, initialScript1, true)
+	err = ds.SetSetupExperienceScript(ctx, initialScript1)
 	require.NoError(t, err)
 	team1OriginalScript, err := ds.GetSetupExperienceScript(ctx, &team1.ID)
 	require.NoError(t, err)
 	require.NotNil(t, team1OriginalScript)
 
-	err = ds.SetSetupExperienceScript(ctx, initialScript2, true)
+	err = ds.SetSetupExperienceScript(ctx, initialScript2)
 	require.NoError(t, err)
 	team2OriginalScript, err := ds.GetSetupExperienceScript(ctx, &team2.ID)
 	require.NoError(t, err)
@@ -1272,7 +1272,7 @@ func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
 	require.Equal(t, team2OriginalScript.ID, *host2OriginalItems[0].SetupExperienceScriptID)
 
 	// "Update" the script for team1 with its original contents which should cause no change to the enqueued execution
-	err = ds.SetSetupExperienceScript(ctx, initialScript1, true)
+	err = ds.SetSetupExperienceScript(ctx, initialScript1)
 	require.NoError(t, err)
 
 	team1UpdatedScript, err := ds.GetSetupExperienceScript(ctx, &team1.ID)
@@ -1293,7 +1293,7 @@ func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
 	require.Equal(t, team2OriginalScript.ID, *host2NewItems[0].SetupExperienceScriptID)
 
 	// update script for team1 which should delete the enqueued execution
-	err = ds.SetSetupExperienceScript(ctx, updatedScript1, true)
+	err = ds.SetSetupExperienceScript(ctx, updatedScript1)
 	require.NoError(t, err)
 
 	team1UpdatedScript, err = ds.GetSetupExperienceScript(ctx, &team1.ID)
@@ -1354,7 +1354,7 @@ func testGetSetupExperienceScriptByID(t *testing.T, ds *Datastore) {
 		ScriptContents: "echo hello",
 	}
 
-	err := ds.SetSetupExperienceScript(ctx, script, false)
+	err := ds.SetSetupExperienceScript(ctx, script)
 	require.NoError(t, err)
 
 	scriptByTeamID, err := ds.GetSetupExperienceScript(ctx, nil)
