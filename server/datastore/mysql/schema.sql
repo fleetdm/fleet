@@ -250,7 +250,7 @@ CREATE TABLE `certificate_authorities` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `certificates` (
+CREATE TABLE `certificate_templates` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `team_id` int unsigned NOT NULL,
   `certificate_authority_id` int NOT NULL,
@@ -261,8 +261,8 @@ CREATE TABLE `certificates` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_cert_team_name` (`team_id`,`name`),
   KEY `certificate_authority_id` (`certificate_authority_id`),
-  CONSTRAINT `certificates_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`),
-  CONSTRAINT `certificates_ibfk_2` FOREIGN KEY (`certificate_authority_id`) REFERENCES `certificate_authorities` (`id`)
+  CONSTRAINT `certificate_templates_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`),
+  CONSTRAINT `certificate_templates_ibfk_2` FOREIGN KEY (`certificate_authority_id`) REFERENCES `certificate_authorities` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

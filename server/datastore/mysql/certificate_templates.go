@@ -9,7 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (ds *Datastore) BatchUpsertCertificates(ctx context.Context, certificates []*fleet.Certificate) error {
+func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certificates []*fleet.Certificate) error {
 	if len(certificates) == 0 {
 		return nil
 	}
@@ -17,7 +17,7 @@ func (ds *Datastore) BatchUpsertCertificates(ctx context.Context, certificates [
 	const argsCountInsertCertificate = 4
 
 	const sqlInsertCertificate = `
-		INSERT INTO certificates (
+		INSERT INTO certificate_templates (
 			name,
 			team_id,
 			certificate_authority_id,
@@ -41,7 +41,7 @@ func (ds *Datastore) BatchUpsertCertificates(ctx context.Context, certificates [
 	stmt := fmt.Sprintf(sqlInsertCertificate, strings.TrimSuffix(placeholders.String(), ","))
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "upserting certificates")
+		return ctxerr.Wrap(ctx, err, "upserting certificate_templates")
 	}
 
 	return nil

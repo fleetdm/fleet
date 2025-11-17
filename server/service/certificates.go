@@ -53,5 +53,5 @@ func (svc *Service) ApplyCertificateSpecs(ctx context.Context, specs []*fleet.Ce
 		certificates = append(certificates, cert)
 	}
 
-	return svc.ds.BatchUpsertCertificates(ctx, certificates)
+	return svc.ds.BatchUpsertCertificateTemplates(ctx, certificates)
 }

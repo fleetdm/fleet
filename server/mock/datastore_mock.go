@@ -1605,7 +1605,7 @@ type UpdateCertificateAuthorityByIDFunc func(ctx context.Context, id uint, certi
 
 type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error
 
-type BatchUpsertCertificatesFunc func(ctx context.Context, certificates []*fleet.Certificate) error
+type BatchUpsertCertificateTemplatesFunc func(ctx context.Context, certificates []*fleet.Certificate) error
 
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
@@ -3985,8 +3985,8 @@ type DataStore struct {
 	BatchApplyCertificateAuthoritiesFunc        BatchApplyCertificateAuthoritiesFunc
 	BatchApplyCertificateAuthoritiesFuncInvoked bool
 
-	BatchUpsertCertificatesFunc        BatchUpsertCertificatesFunc
-	BatchUpsertCertificatesFuncInvoked bool
+	BatchUpsertCertificateTemplatesFunc        BatchUpsertCertificateTemplatesFunc
+	BatchUpsertCertificateTemplatesFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -9534,11 +9534,11 @@ func (s *DataStore) BatchApplyCertificateAuthorities(ctx context.Context, ops fl
 	return s.BatchApplyCertificateAuthoritiesFunc(ctx, ops)
 }
 
-func (s *DataStore) BatchUpsertCertificates(ctx context.Context, certificates []*fleet.Certificate) error {
+func (s *DataStore) BatchUpsertCertificateTemplates(ctx context.Context, certificates []*fleet.Certificate) error {
 	s.mu.Lock()
-	s.BatchUpsertCertificatesFuncInvoked = true
+	s.BatchUpsertCertificateTemplatesFuncInvoked = true
 	s.mu.Unlock()
-	return s.BatchUpsertCertificatesFunc(ctx, certificates)
+	return s.BatchUpsertCertificateTemplatesFunc(ctx, certificates)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {

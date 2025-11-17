@@ -10,7 +10,7 @@ func init() {
 
 func Up_20251114121506(tx *sql.Tx) error {
 	_, err := tx.Exec(`
-		CREATE TABLE IF NOT EXISTS certificates (
+		CREATE TABLE IF NOT EXISTS certificate_templates (
 			id INT UNSIGNED NOT NULL AUTO_INCREMENT,
 			team_id INT UNSIGNED NOT NULL,
 			certificate_authority_id INT NOT NULL,

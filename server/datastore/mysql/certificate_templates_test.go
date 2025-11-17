@@ -43,7 +43,7 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 			func(ds *Datastore) {},
 			func(t *testing.T, ds *Datastore) {
 				// Test with empty slice
-				err = ds.BatchUpsertCertificates(ctx, []*fleet.Certificate{})
+				err = ds.BatchUpsertCertificateTemplates(ctx, []*fleet.Certificate{})
 				require.NoError(t, err)
 			},
 		},
@@ -81,11 +81,11 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 					},
 				}
 
-				err = ds.BatchUpsertCertificates(ctx, certificates)
+				err = ds.BatchUpsertCertificateTemplates(ctx, certificates)
 				require.NoError(t, err)
 
 				var count int
-				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificates")
+				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates")
 				require.NoError(t, err)
 				require.Equal(t, 2, count)
 			},
@@ -116,7 +116,7 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 					SubjectName:            "CN=Test Subject 1",
 				}
 				_, err = ds.writer(ctx).ExecContext(ctx,
-					"INSERT INTO certificates (name, team_id, certificate_authority_id, subject_name) VALUES (?, ?, ?, ?)",
+					"INSERT INTO certificate_templates (name, team_id, certificate_authority_id, subject_name) VALUES (?, ?, ?, ?)",
 					certificate.Name,
 					certificate.TeamID,
 					certificate.CertificateAuthorityID,
@@ -127,20 +127,20 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 			},
 			func(t *testing.T, ds *Datastore) {
 				var count int
-				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificates")
+				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates")
 				require.NoError(t, err)
 				require.Equal(t, 1, count)
 
 				certificates[0].SubjectName = "CN=Updated Subject 1"
-				err = ds.BatchUpsertCertificates(ctx, certificates)
+				err = ds.BatchUpsertCertificateTemplates(ctx, certificates)
 				require.NoError(t, err)
 
-				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificates")
+				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates")
 				require.NoError(t, err)
 				require.Equal(t, 1, count)
 
 				var updatedSubject string
-				err = ds.writer(ctx).GetContext(ctx, &updatedSubject, "SELECT subject_name FROM certificates WHERE name = ?", "Cert1")
+				err = ds.writer(ctx).GetContext(ctx, &updatedSubject, "SELECT subject_name FROM certificate_templates WHERE name = ?", "Cert1")
 				require.NoError(t, err)
 				require.Equal(t, "CN=Updated Subject 1", updatedSubject)
 			},

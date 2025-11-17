@@ -2905,7 +2905,7 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 		certRequests[i] = &fleet.CertificateRequestSpec{
 			Name:                   certificates[i].Name,
 			Team:                   teamID,
-			CertificateAuthorityId: uint(caID),
+			CertificateAuthorityId: caID,
 			SubjectName:            certificates[i].SubjectName,
 		}
 	}
