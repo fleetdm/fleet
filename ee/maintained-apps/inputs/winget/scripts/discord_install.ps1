@@ -7,10 +7,10 @@ try {
 
 # Add argument to install silently
 # Discord uses Squirrel installer (common for Electron apps)
-# Squirrel uses /S for silent installation
+# Discord uses -s (lowercase) for silent installation
 $processOptions = @{
   FilePath = "$exeFilePath"
-  ArgumentList = "/S"
+  ArgumentList = "-s"
   PassThru = $true
   Wait = $true
 }

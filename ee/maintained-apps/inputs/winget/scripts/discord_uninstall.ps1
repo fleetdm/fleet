@@ -27,7 +27,7 @@ if (-not $uninstall -or -not $uninstall.UninstallString) {
 Stop-Process -Name "Discord" -Force -ErrorAction SilentlyContinue
 
 $uninstallCommand = $uninstall.UninstallString
-$uninstallArgs = "/S"
+$uninstallArgs = "-s"
 
 # Parse the uninstall command to separate executable from existing arguments
 $splitArgs = $uninstallCommand.Split('"')
