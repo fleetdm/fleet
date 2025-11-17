@@ -2,7 +2,7 @@
   "mysql_matrix": [
     "mysql:8.0.36"
   ],
-  "pkg_to_test": "server/service",
-  "tests_to_run": "^TestIntegrationsMDM\\$$",
+  "pkg_to_test": "server/mdm/android/tests",
+  "tests_to_run": "^TestServiceSoftware\\$$",
   "num_tries": 20
 }
