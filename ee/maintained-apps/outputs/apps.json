@@ -331,6 +331,13 @@
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
     },
     {
+      "name": "Rectangle",
+      "slug": "rectangle/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.knollsoft.Rectangle",
+      "description": "Move and resize windows using keyboard shortcuts or snap areas."
+    },
+    {
       "name": "Santa",
       "slug": "santa/darwin",
       "platform": "darwin",
