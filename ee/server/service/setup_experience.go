@@ -95,15 +95,7 @@ func (svc *Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, 
 	return script, content, nil
 }
 
-func (svc *Service) CreateSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
-	return svc.setSetupExperienceScript(ctx, teamID, name, r, false)
-}
-
-func (svc *Service) PutSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
-	return svc.setSetupExperienceScript(ctx, teamID, name, r, true)
-}
-
-func (svc *Service) setSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader, allowUpdate bool) error {
+func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -151,7 +143,7 @@ func (svc *Service) setSetupExperienceScript(ctx context.Context, teamID *uint, 
 		return fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
-	if err := svc.ds.SetSetupExperienceScript(ctx, script, allowUpdate); err != nil {
+	if err := svc.ds.SetSetupExperienceScript(ctx, script); err != nil {
 		var (
 			existsErr fleet.AlreadyExistsError
 			fkErr     fleet.ForeignKeyError

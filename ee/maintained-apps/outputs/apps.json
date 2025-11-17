@@ -16,6 +16,13 @@
       "description": "Password manager that keeps all passwords secure behind one password."
     },
     {
+      "name": "Abstract",
+      "slug": "abstract/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.SweetScape.010Editor",
+      "description": "Abstract is a collaborative design tool with support for Sketch files."
+    },
+    {
       "name": "Adobe Acrobat Reader",
       "slug": "adobe-acrobat-reader/darwin",
       "platform": "darwin",
@@ -72,6 +79,13 @@
       "description": "Anthropic's official Claude AI desktop app."
     },
     {
+      "name": "ClickUp",
+      "slug": "clickup/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.clickup.desktop-app",
+      "description": "ClickUp is a productivity platform for tasks, docs, goals, and chat."
+    },
+    {
       "name": "Cloudflare WARP",
       "slug": "cloudflare-warp/darwin",
       "platform": "darwin",
@@ -114,6 +128,20 @@
       "description": "DCV Viewer is used for connecting to the NICE DCV remote display protocol."
     },
     {
+      "name": "Discord",
+      "slug": "discord/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hnc.Discord",
+      "description": "Discord is voice and text chat software."
+    },
+    {
+      "name": "Discord",
+      "slug": "discord/windows",
+      "platform": "windows",
+      "unique_identifier": "Discord",
+      "description": "Discord is voice and text chat software."
+    },
+    {
       "name": "Docker Desktop",
       "slug": "docker/darwin",
       "platform": "darwin",
@@ -128,11 +156,32 @@
       "description": "Figma is a collaborative design tool for teams to create, prototype, and share designs in real time."
     },
     {
+      "name": "Figma",
+      "slug": "figma/windows",
+      "platform": "windows",
+      "unique_identifier": "Figma",
+      "description": ""
+    },
+    {
       "name": "Mozilla Firefox",
       "slug": "firefox/darwin",
       "platform": "darwin",
       "unique_identifier": "org.mozilla.firefox",
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
+    },
+    {
+      "name": "Mozilla Firefox",
+      "slug": "firefox/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla Firefox (x64 en-US)",
+      "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
+    },
+    {
+      "name": "GitKraken",
+      "slug": "gitkraken/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.axosoft.gitkraken",
+      "description": "GitKraken is a git client focusing on productivity."
     },
     {
       "name": "Google Chrome",
@@ -219,6 +268,13 @@
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
+      "name": "Nudge",
+      "slug": "nudge/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.macadmins.Nudge",
+      "description": "Nudge is an application for enforcing OS updates."
+    },
+    {
       "name": "Omnissa Horizon Client",
       "slug": "omnissa-horizon-client/darwin",
       "platform": "darwin",
@@ -231,6 +287,13 @@
       "platform": "darwin",
       "unique_identifier": "com.perforce.p4v",
       "description": "P4V is an app for accessing and managing Perforce version control repositories via a graphical interface."
+    },
+    {
+      "name": "PhpStorm",
+      "slug": "phpstorm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.PhpStorm",
+      "description": "PHP IDE by JetBrains"
     },
     {
       "name": "Postman",
@@ -247,6 +310,13 @@
       "description": "Privileges is an admin rights switcher for macOS."
     },
     {
+      "name": "Proton Mail",
+      "slug": "proton-mail/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ch.protonmail.desktop",
+      "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
+    },
+    {
       "name": "Santa",
       "slug": "santa/darwin",
       "platform": "darwin",
@@ -258,6 +328,13 @@
       "slug": "slack/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tinyspeck.slackmacgap",
+      "description": "Slack is a team communication and collaboration software for modern workplaces."
+    },
+    {
+      "name": "Slack",
+      "slug": "slack/windows",
+      "platform": "windows",
+      "unique_identifier": "Slack",
       "description": "Slack is a team communication and collaboration software for modern workplaces."
     },
     {
@@ -310,6 +387,13 @@
       "description": ""
     },
     {
+      "name": "Webex",
+      "slug": "webex/darwin",
+      "platform": "darwin",
+      "unique_identifier": "Cisco-Systems.Spark",
+      "description": "Webex is a video communication and virtual meeting platform."
+    },
+    {
       "name": "WhatsApp",
       "slug": "whatsapp/darwin",
       "platform": "darwin",
@@ -328,13 +412,20 @@
       "slug": "yubico-yubikey-manager/darwin",
       "platform": "darwin",
       "unique_identifier": "com.yubico.ykman",
-      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
+      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: \u003ca target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\"\u003ehttps://www.yubico.com/support/download/yubikey-manager\u003c/a\u003e"
     },
     {
       "name": "Zoom",
       "slug": "zoom/darwin",
       "platform": "darwin",
       "unique_identifier": "us.zoom.xos",
+      "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zoom",
+      "slug": "zoom/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom Workplace (X64)",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
     }
   ]

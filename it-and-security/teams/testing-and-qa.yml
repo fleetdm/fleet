@@ -82,6 +82,8 @@ software:
     # macOS apps
     - slug: 010-editor/darwin # 010 Editor for macOS
       self_service: true
+    - slug: abstract/darwin # Abstract for macOS
+      self_service: true
     - slug: 1password/darwin # 1Password for macOS
       self_service: true
     - slug: adobe-acrobat-reader/darwin # Adobe Acrobat Reader for macOS
@@ -96,6 +98,8 @@ software:
       self_service: true
     - slug: claude/darwin # Claude for macOS
       self_service: true
+    - slug: clickup/darwin # ClickUp for macOS
+      self_service: true
     - slug: cloudflare-warp/darwin # Cloudflare WARP for macOS
       self_service: true
     - slug: cursor/darwin # Cursor for macOS
@@ -109,6 +113,8 @@ software:
     - slug: figma/darwin # Figma for macOS
       self_service: true
     - slug: firefox/darwin # Mozilla Firefox for macOS
+      self_service: true
+    - slug: gitkraken/darwin # GitKraken for macOS
       self_service: true
     - slug: google-chrome/darwin # Google Chrome for macOS
       self_service: true
@@ -138,7 +144,11 @@ software:
       self_service: true
     - slug: postman/darwin # Postman for macOS
       self_service: true
+    - slug: phpstorm/darwin # PhpStorm for macOS
+      self_service: true
     - slug: privileges/darwin # Privileges for macOS
+      self_service: true
+    - slug: proton-mail/darwin # Proton Mail for macOS
       self_service: true
     - slug: santa/darwin # Santa for macOS
       self_service: true
@@ -153,6 +163,8 @@ software:
     - slug: visual-studio-code/darwin # Microsoft Visual Studio Code for macOS
       self_service: true
     - slug: vnc-viewer/darwin # VNC Viewer for macOS
+      self_service: true
+    - slug: webex/darwin # Webex for macOS
       self_service: true
     - slug: whatsapp/darwin # WhatsApp for macOS
       self_service: true
@@ -171,9 +183,15 @@ software:
       self_service: true
     - slug: cursor/windows # Cursor for Windows
       self_service: true
+    - slug: firefox/windows # Mozilla Firefox for Windows
+      self_service: true
     - slug: google-chrome/windows # Google Chrome for Windows
+      self_service: true
+    - slug: slack/windows # Slack for Windows
       self_service: true
     - slug: teamviewer/windows # TeamViewer for Windows
       self_service: true
     - slug: visual-studio-code/windows # Microsoft Visual Studio Code for Windows
+      self_service: true
+    - slug: zoom/windows # Zoom for Windows
       self_service: true
