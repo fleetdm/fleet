@@ -6725,7 +6725,7 @@ Set software that will be automatically installed during setup. Software that is
 {}
 ```
 
-### Set setup experience script
+### Update setup experience script
 
 _Available in Fleet Premium_
 
