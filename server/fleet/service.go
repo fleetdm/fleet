@@ -983,10 +983,10 @@ type Service interface {
 	// error can be raised to the user.
 	VerifyMDMWindowsConfigured(ctx context.Context) error
 
-	// VerifyMDMAppleOrWindowsConfigured verifies that the server is configured
-	// for either Apple or Windows MDM. If an error is returned, authorization is
+	// VerifyAnyMDMConfigured verifies that the server is configured for any MDM
+	// (Apple, Windows, or Android). If an error is returned, authorization is
 	// skipped so the error can be raised to the user.
-	VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error
+	VerifyAnyMDMConfigured(ctx context.Context) error
 
 	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error
 
