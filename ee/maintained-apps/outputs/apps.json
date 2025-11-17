@@ -156,6 +156,13 @@
       "description": "Figma is a collaborative design tool for teams to create, prototype, and share designs in real time."
     },
     {
+      "name": "Figma",
+      "slug": "figma/windows",
+      "platform": "windows",
+      "unique_identifier": "Figma",
+      "description": ""
+    },
+    {
       "name": "Mozilla Firefox",
       "slug": "firefox/darwin",
       "platform": "darwin",
