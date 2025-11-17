@@ -22,6 +22,11 @@ func (ds *Datastore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, 
 }
 
 func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint, resetFailedSetupSteps bool) (bool, error) {
+	// NOTE: currently, the Android platform does not use the "enqueue setup experience items" flow as it
+	// doesn't support any on-device UI (such as the screen showing setup progress) nor any
+	// ordering of installs - all software to install is provided as part of the Android policy
+	// when the host enrolls in Fleet.
+
 	stmtClearSetupStatus := `
 DELETE FROM setup_experience_status_results
 WHERE host_uuid = ? AND %s`
