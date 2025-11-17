@@ -128,6 +128,20 @@
       "description": "DCV Viewer is used for connecting to the NICE DCV remote display protocol."
     },
     {
+      "name": "Discord",
+      "slug": "discord/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hnc.Discord",
+      "description": "Discord is voice and text chat software."
+    },
+    {
+      "name": "Discord",
+      "slug": "discord/windows",
+      "platform": "windows",
+      "unique_identifier": "Discord",
+      "description": ""
+    },
+    {
       "name": "Docker Desktop",
       "slug": "docker/darwin",
       "platform": "darwin",
@@ -384,7 +398,7 @@
       "slug": "yubico-yubikey-manager/darwin",
       "platform": "darwin",
       "unique_identifier": "com.yubico.ykman",
-      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
+      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: \u003ca target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\"\u003ehttps://www.yubico.com/support/download/yubikey-manager\u003c/a\u003e"
     },
     {
       "name": "Zoom",
@@ -399,7 +413,6 @@
       "platform": "windows",
       "unique_identifier": "Zoom Workplace (X64)",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
-
     }
   ]
 }
