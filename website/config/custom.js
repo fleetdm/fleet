@@ -252,6 +252,11 @@ module.exports.custom = {
     // 🫧 Bulk operations dashboard
     'ee/bulk-operations-dashboard': 'eashaw',
 
+    // FMA and icons
+    'frontend/pages/SoftwarePage/components/icons': 'allenhouchins',
+    'ee/maintained-apps': 'allenhouchins',
+    'assets/images': 'allenhouchins',
+
     // Other brandfronts
     'README.md': ['mikermcneil', 'mike-j-thomas', 'lukeheath'],//« github brandfront (github.com/fleetdm/fleet)
     'tools/fleetctl-npm/README.md': ['mikermcneil', 'mike-j-thomas', 'lukeheath'],//« brandfront for fleetctl package on npm (npmjs.com/package/fleetctl)
