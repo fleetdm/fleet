@@ -186,7 +186,7 @@ describe("SoftwareNameCell icon rendering", () => {
       await screen.findByText(/2 policies trigger install./i)
     ).toBeInTheDocument();
     expect(
-      await screen.findByText(/End users can reinstall/i)
+      await screen.findByText(/End users can install/i)
     ).toBeInTheDocument();
   });
 
@@ -207,7 +207,7 @@ describe("SoftwareNameCell icon rendering", () => {
       await screen.findByText(/2 policies trigger install./i)
     ).toBeInTheDocument();
     expect(
-      await screen.findByText(/End users can reinstall/i)
+      await screen.findByText(/End users can install/i)
     ).toBeInTheDocument();
   });
 
@@ -228,7 +228,7 @@ describe("SoftwareNameCell icon rendering", () => {
       await screen.findByText(/2 policies trigger install./i)
     ).toBeInTheDocument();
     expect(
-      await screen.findByText(/End users can reinstall/i)
+      await screen.findByText(/End users can install/i)
     ).toBeInTheDocument();
   });
 });

@@ -2538,6 +2538,7 @@ type hostSoftware struct {
 	SoftwareID            *uint      `db:"software_id"`
 	SoftwareSource        *string    `db:"software_source"`
 	SoftwareExtensionFor  *string    `db:"software_extension_for"`
+	UpgradeCode           *string    `db:"upgrade_code"`
 	InstallerID           *uint      `db:"installer_id"`
 	PackageSelfService    *bool      `db:"package_self_service"`
 	PackageName           *string    `db:"package_name"`
@@ -2574,7 +2575,6 @@ type hostSoftware struct {
 }
 
 func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
-	// TODO(jacob)?: software_titles.upgrade_code AS upgrade_code,
 	installedSoftwareStmt := `
 		SELECT
 			software_titles.id AS id,
@@ -2583,7 +2583,8 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 			software.source AS software_source,
 			software.extension_for AS software_extension_for,
 			software.version AS version,
-			software.bundle_identifier AS bundle_identifier
+			software.bundle_identifier AS bundle_identifier,
+			software_titles.upgrade_code AS upgrade_code
 		FROM
 			host_software
 		INNER JOIN
@@ -4078,7 +4079,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 							SELECT
 								COUNT(*) AS count_installer_labels,
 								COUNT(lm.label_id) AS count_host_labels,
-								SUM(CASE WHEN lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
+								SUM(
+									CASE WHEN lbl.label_membership_type <> 1 AND lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1
+									WHEN lbl.label_membership_type = 1 AND lbl.created_at IS NOT NULL THEN 1
+									ELSE 0 END) as count_host_updated_after_labels
 							FROM
 								software_installer_labels sil
 								LEFT OUTER JOIN labels lbl
@@ -5644,7 +5648,7 @@ FROM
 	JOIN in_house_app_software_categories ihasc ON ihasc.in_house_app_id = iha.id
 	JOIN software_categories sc ON ihasc.software_category_id = sc.id
 WHERE
-	st.id IN (?) AND iha.global_or_team_id = ?;
+	st.id IN (?) AND iha.global_or_team_id = ?
 `
 
 	var tmID uint

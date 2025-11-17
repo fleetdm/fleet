@@ -307,7 +307,7 @@ func isDeviceReleasedManually(ctx context.Context, ds fleet.Datastore, host *fle
 		}
 		manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 	} else {
-		tm, err := ds.Team(ctx, *host.TeamID)
+		tm, err := ds.TeamWithExtras(ctx, *host.TeamID)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
 		}

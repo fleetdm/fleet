@@ -821,7 +821,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsPermissions() {
 		},
 	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", editTeam1Spec, http.StatusOK)
-	team1b, err := s.ds.Team(context.Background(), team1.ID)
+	team1b, err := s.ds.TeamWithExtras(context.Background(), team1.ID)
 	require.NoError(t, err)
 	require.Equal(t, *team1b.Config.AgentOptions, agentOpts)
 
@@ -18558,12 +18558,12 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 
 	shScriptPath := filepath.Join(tmpDir, "test-script.sh")
 	shScriptContent := []byte("#!/bin/bash\necho 'Installing...'\n")
-	err := os.WriteFile(shScriptPath, shScriptContent, 0644)
+	err := os.WriteFile(shScriptPath, shScriptContent, 0o644)
 	require.NoError(t, err)
 
 	ps1ScriptPath := filepath.Join(tmpDir, "test-script.ps1")
 	ps1ScriptContent := []byte("Write-Host 'Installing...'\n")
-	err = os.WriteFile(ps1ScriptPath, ps1ScriptContent, 0644)
+	err = os.WriteFile(ps1ScriptPath, ps1ScriptContent, 0o644)
 	require.NoError(t, err)
 
 	t.Run("sh script package ignores unsupported fields", func(t *testing.T) {
@@ -21682,7 +21682,8 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 	}
 	assert.True(t, foundIdpInDetailsById, "Should find IDP user in ID-based host endpoint")
 
-	// Test that IDP accepts any username, even if not a SCIM user
+	// Test that IDP accepts any username, even if not a SCIM user - should replace existing
+	// "scim.user@example.com" idp mapping
 	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
 		putHostDeviceMappingRequest{Email: "any.username@example.com", Source: "idp"},
 		http.StatusOK, &putResp)
@@ -21774,6 +21775,22 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 		}
 	}
 	assert.False(t, foundNonScimInOtherEmails, "Non-SCIM IDP should NOT appear in other_emails")
+
+	// test DELETE
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping/idp", host.ID), deleteHostIDPRequest{}, http.StatusNoContent)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+host.UUID, nil, http.StatusOK, &hostResp)
+	require.Len(t, hostResp.Host.EndUsers, 1, "Should have exactly one end user")
+	endUser = hostResp.Host.EndUsers[0]
+	// Non-SCIM IDP user should now be replaced by user's username
+	assert.Equal(t, "test.user", endUser.IdpUserName)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp2)
+	require.Len(t, hostResp2.Host.EndUsers, 1, "Should have exactly one end user")
+	endUser = hostResp.Host.EndUsers[0]
+
+	// Non-SCIM IDP user should now be replaced by user's username
+	assert.Equal(t, "test.user", endUser.IdpUserName)
 }
 
 func (s *integrationEnterpriseTestSuite) TestAppConfigOktaConditionalAccess() {

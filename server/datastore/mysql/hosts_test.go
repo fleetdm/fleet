@@ -6940,6 +6940,56 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	require.True(t, foundNewIdp, "Should find new IDP mapping")
 	require.False(t, foundOldMdmIdp, "Should NOT find old MDM IDP mapping (replacement behavior)")
 	require.False(t, foundEmptyEmail, "Should NOT find empty email mapping (replaced)")
+
+	// delete the host's IDP device mapping (email), custom mapping should remain
+	err = ds.DeleteHostIDP(ctx, h1.ID)
+	require.NoError(t, err)
+
+	// verify that IdP mapping is gone, custom mapping remains
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	foundIdP := false
+	foundCustom := false
+	for _, mapping := range mappings {
+		if mapping.Email == "new.user@example.com" && mapping.Source == fleet.DeviceMappingIDP {
+			foundIdP = true
+		}
+		if mapping.Email == "custom@example.com" && mapping.Source == fleet.DeviceMappingCustomReplacement {
+			foundCustom = true
+		}
+	}
+	require.False(t, foundIdP, "IdP mapping should be deleted")
+	require.True(t, foundCustom, "Custom mapping should remain")
+
+	// verify delete also removes mdm-sourced idp mappings
+	// Manually add mdm_idp_accounts entry to simulate MDM enrollment
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
+		"mdm.user2@example.com", h1.ID, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+
+	// Verify the mdm_idp_accounts entry exists
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Len(t, mappings, 2)
+	foundMdmIdp = false
+	for _, mapping := range mappings {
+		if mapping.Email == "mdm.user2@example.com" && mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
+			foundMdmIdp = true
+			break
+		}
+	}
+	require.True(t, foundMdmIdp, "Should find MDM IDP mapping")
+
+	// delete the remaining IDP device mapping (email), custom mapping should remain
+	err = ds.DeleteHostIDP(ctx, h1.ID)
+	require.NoError(t, err)
+
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+
+	require.Len(t, mappings, 1)
+	require.Equal(t, mappings[0].Source, fleet.DeviceMappingCustomReplacement)
 }
 
 func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
