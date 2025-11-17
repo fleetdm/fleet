@@ -11,7 +11,7 @@ Fleet’s self-service software lets end users update and install approved apps 
 1. Select the team to which you want to add the software from the dropdown in the upper left corner of the page.
 2. Select **Software** in the main navigation menu.
 3. Select the **Add software** button in the upper right corner of the page.
-4. Pick a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps), [App Store (VPP) app](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet#add-the-app-to-fleet), or upload a [custom package](https://fleetdm.com/guides/deploy-software-packages).
+4. Pick a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps), [App store app](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet#add-the-app-to-fleet), or upload a [custom package](https://fleetdm.com/guides/deploy-software-packages).
 5. Check **Self-service** to make it available for self-service as soon as it's added.
 
 You can also add the software and later make it available in self-service:
@@ -19,33 +19,39 @@ You can also add the software and later make it available in self-service:
 1. Select the team to which you added the software from the dropdown in the upper left corner of the page.
 2. Select **Software** in the main navigation menu.
 3. Select the **All software** dropdown and choose **Available for install.** This filters the results in the table to show only software that can be installed on hosts. If you don’t see your software, page through the results or search for your software's name in the search bar. Once you find the software, select its title.
-4. Select the pencil (edit) icon and check **Self-service** in the **Options** section. You can also assign categories and add a custom icon to your software to customize the end user experience on the **My device > Self-service** page. Custom icons are only available for [custom packages](https://fleetdm.com/guides/deploy-software-packages) and [App Store (VPP) apps](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet).
+4. Select the pencil (edit) icon and check **Self-service** in the **Options** section. You can also assign categories and add a custom icon to your software to customize the end user experience on the **My device > Self-service** page. Custom icons are only available for [custom packages](https://fleetdm.com/guides/deploy-software-packages) and [App store apps](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet).
 5. Select the **Save** button.
 
 If a software item isn't made available in self-service, end users will not see it in **Fleet Desktop > Self-service**. IT admins can still install, update, and uninstall the software from Fleet.
 
 ## iOS and iPadOS setup
 
-To enable self-service software on iOS and iPadOS devices, you need to deploy a configuration profile that creates a home screen app icon. When users tap this icon, they access the self-service software catalog without needing to manually authenticate.
+Install this configuration profile to add the self‑service web app to the home screen on iPhone and iPad. When users open it, they’ll be signed in automatically using the certificate that was installed during enrollment.
 
 ### Prerequisites
 
-- Safari must be installed and not restricted on devices.
-- Your Fleet server must support client certificate authentication.
+- Safari must be installed on the host.
+- Infrastructure: load balancers must forward client certificate information to the server via request headers. Fleet [best practice hosting](https://fleetdm.com/docs/deploy/deploy-fleet) methods do this by default.
 
-> **Note:** Self-service for iOS and iPadOS is not supported on Render-hosted Fleet deployments. Render automatically terminates HTTPS connections, which prevents the certificate authentication required for iOS/iPadOS devices.
+> **Note:** Self‑service won’t work on Fleet deployments hosted on Render. Render terminates HTTPS connections itself, so the server can’t receive the device certificate information needed to authenticate users.
 
-### Deploy the configuration profile
+### Create the self-service configuration profile
 
-Fleet provides a configuration profile that creates a "My Device" icon on iOS/iPadOS home screens. This profile uses the device's Fleet Identity certificate for automatic authentication.
+On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). Create a new profile and add a **Web Clip** payload with these settings:
 
-[Learn how to deploy self-service to iOS and iPadOS](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios)
+#### Under the **General** tab:
 
-The configuration profile:
-- Creates a non-removable home screen icon
-- Opens in full-screen mode
-- Automatically authenticates using the device's enrollment certificate
-- Uses Fleet's `$FLEET_VAR_HOST_UUID` variable for easy deployment to multiple devices
+- **Name**: Friendly name like "iOS self-service".
+- **Identifier and UUID**: You can use default values.
+
+#### Under the **Web Clip** tab:
+
+- **Label:** Type "Self-service". This name will display as the app name on the home screen.
+- **URL:** `<your_server_url>/device/$FLEET_VAR_HOST_UUID/self-service`
+- **Removable:** Uncheck it.
+- **Icon:** Upload square icon that will be displayed as app icon on the home screen.
+- **Full Screen:** Check this field, and **Ignore Web Clip manifest scope**.
+- **Target Application Bundle Identifier:** Select **Choose...**, type "safari" in search box, and select **Safari - com.apple.mobilesafari** 
 
 ## IT admin experience
 
@@ -72,7 +78,7 @@ How to update, install, or uninstall self-service software:
 1. Find the Fleet icon in your menu bar (macOS) or system tray (Windows) and select **Self-service.** This will open your default web browser to the list of self-service software available to update, install, or uninstall.
 
 **iOS and iPadOS:**
-1. Tap the **My Device** icon on your home screen. This opens the self-service software catalog where you can update, install, or uninstall approved apps.
+1. Tap the **Self-service** icon on your home screen. This opens the self-service software catalog where you can update, install, or uninstall approved apps.
 
 If updates are available, end users can update one or all available self-service software. They can also view update progress and error details directly.
 
