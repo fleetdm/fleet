@@ -2851,6 +2851,7 @@ type hostSoftware struct {
 	SoftwareID            *uint      `db:"software_id"`
 	SoftwareSource        *string    `db:"software_source"`
 	SoftwareExtensionFor  *string    `db:"software_extension_for"`
+	UpgradeCode           *string    `db:"upgrade_code"`
 	InstallerID           *uint      `db:"installer_id"`
 	PackageSelfService    *bool      `db:"package_self_service"`
 	PackageName           *string    `db:"package_name"`
@@ -2887,7 +2888,6 @@ type hostSoftware struct {
 }
 
 func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
-	// TODO(jacob)?: software_titles.upgrade_code AS upgrade_code,
 	installedSoftwareStmt := `
 		SELECT
 			software_titles.id AS id,
@@ -2896,7 +2896,8 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 			software.source AS software_source,
 			software.extension_for AS software_extension_for,
 			software.version AS version,
-			software.bundle_identifier AS bundle_identifier
+			software.bundle_identifier AS bundle_identifier,
+			software_titles.upgrade_code AS upgrade_code
 		FROM
 			host_software
 		INNER JOIN

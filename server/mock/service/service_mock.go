@@ -240,6 +240,8 @@ type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.Host
 
 type SetHostDeviceMappingFunc func(ctx context.Context, id uint, email string, source string) ([]*fleet.HostDeviceMapping, error)
 
+type DeleteHostIDPFunc func(ctx context.Context, id uint) error
+
 type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.HostLite, error)
 
 type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error)
@@ -606,7 +608,7 @@ type VerifyMDMAppleConfiguredFunc func(ctx context.Context) error
 
 type VerifyMDMWindowsConfiguredFunc func(ctx context.Context) error
 
-type VerifyMDMAppleOrWindowsConfiguredFunc func(ctx context.Context) error
+type VerifyAnyMDMConfiguredFunc func(ctx context.Context) error
 
 type MDMAppleUploadBootstrapPackageFunc func(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error
 
@@ -788,7 +790,9 @@ type GetOrbitSetupExperienceStatusFunc func(ctx context.Context, orbitNodeKey st
 
 type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, downloadRequested bool) (*fleet.Script, []byte, error)
 
-type SetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, name string, r io.Reader) error
+type CreateSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, name string, r io.Reader) error
+
+type PutSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, name string, r io.Reader) error
 
 type DeleteSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) error
 
@@ -829,6 +833,8 @@ type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurat
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
 
 type ConditionalAccessGetIdPSigningCertFunc func(ctx context.Context) (certPEM []byte, err error)
+
+type ConditionalAccessGetIdPAppleProfileFunc func(ctx context.Context) (profileData []byte, err error)
 
 type ListCertificateAuthoritiesFunc func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error)
 
@@ -1179,6 +1185,9 @@ type Service struct {
 
 	SetHostDeviceMappingFunc        SetHostDeviceMappingFunc
 	SetHostDeviceMappingFuncInvoked bool
+
+	DeleteHostIDPFunc        DeleteHostIDPFunc
+	DeleteHostIDPFuncInvoked bool
 
 	HostLiteByIdentifierFunc        HostLiteByIdentifierFunc
 	HostLiteByIdentifierFuncInvoked bool
@@ -1729,8 +1738,8 @@ type Service struct {
 	VerifyMDMWindowsConfiguredFunc        VerifyMDMWindowsConfiguredFunc
 	VerifyMDMWindowsConfiguredFuncInvoked bool
 
-	VerifyMDMAppleOrWindowsConfiguredFunc        VerifyMDMAppleOrWindowsConfiguredFunc
-	VerifyMDMAppleOrWindowsConfiguredFuncInvoked bool
+	VerifyAnyMDMConfiguredFunc        VerifyAnyMDMConfiguredFunc
+	VerifyAnyMDMConfiguredFuncInvoked bool
 
 	MDMAppleUploadBootstrapPackageFunc        MDMAppleUploadBootstrapPackageFunc
 	MDMAppleUploadBootstrapPackageFuncInvoked bool
@@ -2002,8 +2011,11 @@ type Service struct {
 	GetSetupExperienceScriptFunc        GetSetupExperienceScriptFunc
 	GetSetupExperienceScriptFuncInvoked bool
 
-	SetSetupExperienceScriptFunc        SetSetupExperienceScriptFunc
-	SetSetupExperienceScriptFuncInvoked bool
+	CreateSetupExperienceScriptFunc        CreateSetupExperienceScriptFunc
+	CreateSetupExperienceScriptFuncInvoked bool
+
+	PutSetupExperienceScriptFunc        PutSetupExperienceScriptFunc
+	PutSetupExperienceScriptFuncInvoked bool
 
 	DeleteSetupExperienceScriptFunc        DeleteSetupExperienceScriptFunc
 	DeleteSetupExperienceScriptFuncInvoked bool
@@ -2064,6 +2076,9 @@ type Service struct {
 
 	ConditionalAccessGetIdPSigningCertFunc        ConditionalAccessGetIdPSigningCertFunc
 	ConditionalAccessGetIdPSigningCertFuncInvoked bool
+
+	ConditionalAccessGetIdPAppleProfileFunc        ConditionalAccessGetIdPAppleProfileFunc
+	ConditionalAccessGetIdPAppleProfileFuncInvoked bool
 
 	ListCertificateAuthoritiesFunc        ListCertificateAuthoritiesFunc
 	ListCertificateAuthoritiesFuncInvoked bool
@@ -2867,6 +2882,13 @@ func (s *Service) SetHostDeviceMapping(ctx context.Context, id uint, email strin
 	s.SetHostDeviceMappingFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetHostDeviceMappingFunc(ctx, id, email, source)
+}
+
+func (s *Service) DeleteHostIDP(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteHostIDPFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostIDPFunc(ctx, id)
 }
 
 func (s *Service) HostLiteByIdentifier(ctx context.Context, identifier string) (*fleet.HostLite, error) {
@@ -4150,11 +4172,11 @@ func (s *Service) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	return s.VerifyMDMWindowsConfiguredFunc(ctx)
 }
 
-func (s *Service) VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error {
+func (s *Service) VerifyAnyMDMConfigured(ctx context.Context) error {
 	s.mu.Lock()
-	s.VerifyMDMAppleOrWindowsConfiguredFuncInvoked = true
+	s.VerifyAnyMDMConfiguredFuncInvoked = true
 	s.mu.Unlock()
-	return s.VerifyMDMAppleOrWindowsConfiguredFunc(ctx)
+	return s.VerifyAnyMDMConfiguredFunc(ctx)
 }
 
 func (s *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error {
@@ -4787,11 +4809,18 @@ func (s *Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, do
 	return s.GetSetupExperienceScriptFunc(ctx, teamID, downloadRequested)
 }
 
-func (s *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
+func (s *Service) CreateSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
 	s.mu.Lock()
-	s.SetSetupExperienceScriptFuncInvoked = true
+	s.CreateSetupExperienceScriptFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetSetupExperienceScriptFunc(ctx, teamID, name, r)
+	return s.CreateSetupExperienceScriptFunc(ctx, teamID, name, r)
+}
+
+func (s *Service) PutSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
+	s.mu.Lock()
+	s.PutSetupExperienceScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.PutSetupExperienceScriptFunc(ctx, teamID, name, r)
 }
 
 func (s *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
@@ -4932,6 +4961,13 @@ func (s *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (certP
 	s.ConditionalAccessGetIdPSigningCertFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConditionalAccessGetIdPSigningCertFunc(ctx)
+}
+
+func (s *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (profileData []byte, err error) {
+	s.mu.Lock()
+	s.ConditionalAccessGetIdPAppleProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessGetIdPAppleProfileFunc(ctx)
 }
 
 func (s *Service) ListCertificateAuthorities(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {

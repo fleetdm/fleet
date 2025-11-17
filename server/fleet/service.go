@@ -400,6 +400,7 @@ type Service interface {
 	// The source parameter determines the type: "custom" for manually set
 	// mappings or DeviceMappingIDP for identity provider mappings.
 	SetHostDeviceMapping(ctx context.Context, id uint, email, source string) ([]*HostDeviceMapping, error)
+	DeleteHostIDP(ctx context.Context, id uint) error
 	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
@@ -982,10 +983,10 @@ type Service interface {
 	// error can be raised to the user.
 	VerifyMDMWindowsConfigured(ctx context.Context) error
 
-	// VerifyMDMAppleOrWindowsConfigured verifies that the server is configured
-	// for either Apple or Windows MDM. If an error is returned, authorization is
+	// VerifyAnyMDMConfigured verifies that the server is configured for any MDM
+	// (Apple, Windows, or Android). If an error is returned, authorization is
 	// skipped so the error can be raised to the user.
-	VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error
+	VerifyAnyMDMConfigured(ctx context.Context) error
 
 	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error
 
@@ -1275,8 +1276,13 @@ type Service interface {
 	GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetFailedSetupSteps bool) (*SetupExperienceStatusPayload, error)
 	// GetSetupExperienceScript gets the current setup experience script for the given team.
 	GetSetupExperienceScript(ctx context.Context, teamID *uint, downloadRequested bool) (*Script, []byte, error)
-	// SetSetupExperienceScript sets the setup experience script for the given team.
-	SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error
+	// CreateSetupExperienceScript creates the setup experience script for the given team. An error is returned if a
+	// script already exists for the given team
+	CreateSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error
+	// PutSetupExperienceScript sets the setup experience script for a given team, deleting the existing one if it exists
+	// and is different and replacing it with a new one. Effectively an upsert operation which does nothing if the contents
+	// do not change
+	PutSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error
 	// DeleteSetupExperienceScript deletes the setup experience script for the given team.
 	DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error
 	// SetupExperienceNextStep is a callback that processes the
@@ -1352,6 +1358,9 @@ type Service interface {
 	// ConditionalAccessGetIdPSigningCert returns the Okta IdP signing certificate (public key only)
 	// for administrators to download and configure in Okta.
 	ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error)
+	// ConditionalAccessGetIdPAppleProfile returns the Apple MDM configuration profile
+	// (for user scope) to configure Okta conditional access on the host.
+	ConditionalAccessGetIdPAppleProfile(ctx context.Context) (profileData []byte, err error)
 
 	//////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities
