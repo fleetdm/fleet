@@ -24,7 +24,7 @@ You can also add the software and later make it available in self-service:
 
 If a software item isn't made available in self-service, end users will not see it in **Fleet Desktop > Self-service**. IT admins can still install, update, and uninstall the software from Fleet.
 
-## iOS and iPadOS setup
+## Deploy self-service on iOS and iPadOS
 
 Install this configuration profile to add the self‑service web app to the home screen on iPhone and iPad. When users open it, they’ll be signed in automatically using the certificate that was installed during enrollment.
 
