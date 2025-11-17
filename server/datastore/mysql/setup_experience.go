@@ -585,7 +585,7 @@ WHERE
 	return &script, nil
 }
 
-func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script, allowUpdate bool) error {
+func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 
@@ -596,26 +596,24 @@ func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet
 		}
 		id, _ := scRes.LastInsertId()
 
-		// This clause allows for PUT semantics in some cases. The basic idea is:
+		// This clause allows for PUT semantics. The basic idea is:
 		// - no existing setup script -> go through the usual insert logic
 		// - existing setup script with different content -> delete(with all side effects) and re-insert
 		// - existing setup script with same content -> no-op
-		if allowUpdate {
-			gotSetupExperienceScript, err := ds.getSetupExperienceScript(ctx, tx, script.TeamID)
-			if err != nil && !fleet.IsNotFound(err) {
-				return err
-			}
-			// We will fall through on a notFound err - nothing to do here
-			if err == nil {
-				if gotSetupExperienceScript.ScriptContentID != uint(id) { // nolint:gosec // dismiss G115 - low risk here
-					err = ds.deleteSetupExperienceScript(ctx, tx, script.TeamID)
-					if err != nil {
-						return err
-					}
-				} else {
-					// no change
-					return nil
+		gotSetupExperienceScript, err := ds.getSetupExperienceScript(ctx, tx, script.TeamID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return err
+		}
+		// We will fall through on a notFound err - nothing to do here
+		if err == nil {
+			if gotSetupExperienceScript.ScriptContentID != uint(id) { // nolint:gosec // dismiss G115 - low risk here
+				err = ds.deleteSetupExperienceScript(ctx, tx, script.TeamID)
+				if err != nil {
+					return err
 				}
+			} else {
+				// no change
+				return nil
 			}
 		}
 

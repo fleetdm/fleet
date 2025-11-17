@@ -69,32 +69,17 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	require.Equal(t, int64(len(`echo "hello"`)), res.ContentLength)
 	require.Equal(t, fmt.Sprintf("attachment;filename=\"%s %s\"", time.Now().Format(time.DateOnly), "script42.sh"), res.Header.Get("Content-Disposition"))
 
-	// try to create script with same name, should fail because already exists with this name for this team
+	// try to update script with same name, should not fail because this is allowed
 	body, headers = generateNewScriptMultipartRequest(t,
 		"script42.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
-	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusConflict, headers)
-	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "already exists") // TODO: confirm expected error message with product/frontend
-
-	// try to create with a different name for this team, should fail because another script already exists
-	// for this team
-	body, headers = generateNewScriptMultipartRequest(t,
-		"different.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
-	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusConflict, headers)
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "already exists") // TODO: confirm expected error message with product/frontend
-
-	// try to update script with same name via PUT endpoint, should not fail because this is allowed
-	body, headers = generateNewScriptMultipartRequest(t,
-		"script42.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
-	res = s.DoRawWithHeaders("PUT", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
 
 	// update with a different name and contents via PUT endpoint, should suceed
 	body, headers = generateNewScriptMultipartRequest(t,
 		"different.sh", []byte(`echo "hello2"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
-	res = s.DoRawWithHeaders("PUT", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
 
@@ -1109,10 +1094,10 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
-	// PUT update the script, no changes, it does not get cancelled
+	// update the script but with no actual changes, it does not get cancelled
 	body, headers := generateNewScriptMultipartRequest(t,
 		"script.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
-	s.DoRawWithHeaders("PUT", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
+	s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
 
 	// call the /status endpoint, the software is still running and script should still be pending
 	statusResp = getOrbitSetupExperienceStatusResponse{}
@@ -1131,10 +1116,10 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
 
-	// PUT update the script with changes, see it get cancelled
+	// update the script with changes, see it get cancelled
 	body, headers = generateNewScriptMultipartRequest(t,
 		"script2.sh", []byte(`echo "foobar"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
-	s.DoRawWithHeaders("PUT", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
+	s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
 
 	// call the /status endpoint, software is running, script is removed as it got cancelled by the update
 	statusResp = getOrbitSetupExperienceStatusResponse{}

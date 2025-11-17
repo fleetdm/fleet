@@ -565,7 +565,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	t.Log("h2SelfService", h2SelfService)
 
 	setupExpScript := &fleet.Script{Name: "setup_experience_script", ScriptContents: "setup_experience"}
-	err = ds.SetSetupExperienceScript(ctx, setupExpScript, false)
+	err = ds.SetSetupExperienceScript(ctx, setupExpScript)
 	require.NoError(t, err)
 	ses, err := ds.GetSetupExperienceScript(ctx, h2.TeamID)
 	require.NoError(t, err)
