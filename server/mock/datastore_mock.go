@@ -257,6 +257,8 @@ type SetOrUpdateCustomHostDeviceMappingFunc func(ctx context.Context, hostID uin
 
 type SetOrUpdateIDPHostDeviceMappingFunc func(ctx context.Context, hostID uint, email string) error
 
+type DeleteHostIDPFunc func(ctx context.Context, id uint) error
+
 type SetOrUpdateHostSCIMUserMappingFunc func(ctx context.Context, hostID uint, scimUserID uint) error
 
 type DeleteHostSCIMUserMappingFunc func(ctx context.Context, hostID uint) error
@@ -1373,7 +1375,7 @@ type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) (*flee
 
 type GetSetupExperienceScriptByIDFunc func(ctx context.Context, scriptID uint) (*fleet.Script, error)
 
-type SetSetupExperienceScriptFunc func(ctx context.Context, script *fleet.Script, allowUpdate bool) error
+type SetSetupExperienceScriptFunc func(ctx context.Context, script *fleet.Script) error
 
 type DeleteSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) error
 
@@ -1914,6 +1916,9 @@ type DataStore struct {
 
 	SetOrUpdateIDPHostDeviceMappingFunc        SetOrUpdateIDPHostDeviceMappingFunc
 	SetOrUpdateIDPHostDeviceMappingFuncInvoked bool
+
+	DeleteHostIDPFunc        DeleteHostIDPFunc
+	DeleteHostIDPFuncInvoked bool
 
 	SetOrUpdateHostSCIMUserMappingFunc        SetOrUpdateHostSCIMUserMappingFunc
 	SetOrUpdateHostSCIMUserMappingFuncInvoked bool
@@ -4694,6 +4699,13 @@ func (s *DataStore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID 
 	s.SetOrUpdateIDPHostDeviceMappingFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetOrUpdateIDPHostDeviceMappingFunc(ctx, hostID, email)
+}
+
+func (s *DataStore) DeleteHostIDP(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteHostIDPFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostIDPFunc(ctx, id)
 }
 
 func (s *DataStore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error {
@@ -8602,11 +8614,11 @@ func (s *DataStore) GetSetupExperienceScriptByID(ctx context.Context, scriptID u
 	return s.GetSetupExperienceScriptByIDFunc(ctx, scriptID)
 }
 
-func (s *DataStore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script, allowUpdate bool) error {
+func (s *DataStore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {
 	s.mu.Lock()
 	s.SetSetupExperienceScriptFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetSetupExperienceScriptFunc(ctx, script, allowUpdate)
+	return s.SetSetupExperienceScriptFunc(ctx, script)
 }
 
 func (s *DataStore) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
