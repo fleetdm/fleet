@@ -343,6 +343,7 @@ const DeviceUserPage = ({
   } = dupResponse || {};
   const isPremiumTier = license?.tier === "premium";
   const isAppleHost = isAppleDevice(host?.platform);
+  const isIOSIPadOS = host?.platform === "ios" || host?.platform === "ipados";
   const isSetupExperienceSoftwareEnabledPlatform =
     isLinuxLike(host?.platform || "") ||
     host?.platform === "windows" ||
@@ -595,9 +596,22 @@ const DeviceUserPage = ({
       );
     }
 
-    if (isMobileView) {
+    // iOS/iPadOS devices or narrow screens should show mobile UI
+    const shouldShowMobileUI = isIOSIPadOS || isMobileView;
+
+    if (shouldShowMobileUI) {
+      // Force redirect to self-service route for iOS/iPadOS devices
+      if (
+        isIOSIPadOS &&
+        !location.pathname.includes("/self-service") &&
+        hasSelfService
+      ) {
+        router.replace(PATHS.DEVICE_USER_DETAILS_SELF_SERVICE(deviceAuthToken));
+        return <Spinner />;
+      }
+
       // Render the simplified mobile version
-      // Currently only available for self-service page
+      // For iOS/iPadOS and narrow screen devices
       return (
         <div className={`${baseClass} main-content`}>
           <div className="device-user-mobile">
@@ -612,7 +626,7 @@ const DeviceUserPage = ({
               isHostDetailsPolling={showRefetchSpinner}
               hostSoftwareUpdatedAt={host.software_updated_at}
               hostDisplayName={host?.hostname || ""}
-              isMobileView={isMobileView}
+              isMobileView={shouldShowMobileUI}
             />
           </div>
         </div>
@@ -872,6 +886,7 @@ const DeviceUserPage = ({
           isMobileView={isMobileView}
           isMobileDevice={isMobileDevice}
           isAuthenticationError={!!isAuthenticationError}
+          platform={host?.platform}
         />
       ) : (
         <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
