@@ -51,6 +51,7 @@ export interface IPolicy {
 }
 export interface IPolicySoftwareToInstall {
   name: string;
+  display_name?: string;
   software_title_id: number;
 }
 

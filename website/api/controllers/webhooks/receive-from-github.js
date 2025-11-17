@@ -91,7 +91,6 @@ module.exports = {
       'harrisonravazzolo',
       'tux234',
       'ksykulev',
-      'jmwatts',
       'mason-buettner',
       'iansltx',
       'sgress454',
@@ -118,6 +117,7 @@ module.exports = {
       'maribell-fleetdm',
       'jkatz01',
       'johnjeremiah',
+      'melpike',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)

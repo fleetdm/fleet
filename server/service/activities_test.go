@@ -164,7 +164,7 @@ func Test_logRoleChangeActivities(t *testing.T) {
 func TestActivityWebhooks(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
-	var webhookBody = ActivityWebhookPayload{}
+	var webhookBody = fleet.ActivityWebhookPayload{}
 	webhookChannel := make(chan struct{}, 1)
 	fail429 := false
 	startMockServer := func(t *testing.T) string {
@@ -172,7 +172,7 @@ func TestActivityWebhooks(t *testing.T) {
 		srv := httptest.NewServer(
 			http.HandlerFunc(
 				func(w http.ResponseWriter, r *http.Request) {
-					webhookBody = ActivityWebhookPayload{}
+					webhookBody = fleet.ActivityWebhookPayload{}
 					if r.Method != "POST" {
 						w.WriteHeader(http.StatusMethodNotAllowed)
 						return // don't send the channel signal

@@ -232,7 +232,7 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 		return &appConfig, nil
 	}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &team, nil
 	}
 
@@ -296,5 +296,4 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 
 	err = svc.SetSetupExperienceSoftware(ctx, "darwin", 1, []uint{})
 	require.NoError(t, err)
-
 }

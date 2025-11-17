@@ -2470,7 +2470,7 @@ None.
 - [Update hosts' team by filter](#update-hosts-team-by-filter)
 - [Turn off host's MDM](#turn-off-hosts-mdm)
 - [Batch-delete hosts](#batch-delete-hosts)
-- [Update custom human-device mapping](#update-custom-human-device-mapping)
+- [Update human-device mapping](#update-human-device-mapping)
 - [Get host's device health report](#get-hosts-device-health-report)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) status](#get-mobile-device-management-mdm-status)
@@ -6736,11 +6736,55 @@ Add a script that will automatically run during macOS setup.
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
 | team_id | integer | form | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
-| script | file | form | The ID of software titles to install during macOS setup. |
+| script | file | form | The contents of the script to run during setup. |
 
 #### Example
 
 `POST /api/v1/fleet/setup_experience/script`
+
+##### Default response
+
+`Status: 200`
+
+##### Request headers
+
+```http
+Content-Length: 306
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="team_id"
+
+1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="script"; filename="myscript.sh"
+Content-Type: application/octet-stream
+
+echo "hello"
+--------------------------f02md47480und42y--
+
+```
+
+### Update setup experience script
+
+_Available in Fleet Premium_
+
+Changes the script that will automatically run during macOS setup. Updates the existing script for the team, or for hosts with no team, if one already exists.
+
+`PUT /api/v1/fleet/setup_experience/script`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | form | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
+| script | file | form | The contents of the script to run during setup. |
+
+#### Example
+
+`PUT /api/v1/fleet/setup_experience/script`
 
 ##### Default response
 
@@ -9681,6 +9725,7 @@ Returns a list of all operating systems.
 | platform            | string   | query | Filters the hosts to the specified platform |
 | os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
+| max_vulnerabilities   | integer | query | Limits the number of `vulnerabilities` returned per OS version. (If omitted, returns all vulnerabilities.) |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
 | per_page                | integer | query | Results per page.                                                                                                                                                          |
 | order_key               | string  | query | What to order results by. Allowed fields are: `hosts_count`. Default is `hosts_count` (descending).      |
@@ -9704,6 +9749,7 @@ Returns a list of all operating systems.
       "version": "10.0.22621.1234",
       "platform": "windows",
       "generated_cpes": [],
+      "vulnerabilities_count": 1,
       "vulnerabilities": [
         {
           "cve": "CVE-2022-30190",
@@ -10003,6 +10049,7 @@ Retrieves information about the specified operating system (OS) version.
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The OS version's ID. |
 | team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team".  |
+| max_vulnerabilities   | integer | query | Limits the number of `vulnerabilities` returned. (If omitted, returns all vulnerabilities.) For Linux OS's, doesn't limit the number of vulnerabilities returned in the `kernels` array. |
 
 ##### Default response
 
