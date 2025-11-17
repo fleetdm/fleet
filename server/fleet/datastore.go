@@ -2207,7 +2207,7 @@ type Datastore interface {
 	GetSetupExperienceScriptByID(ctx context.Context, scriptID uint) (*Script, error)
 
 	// SetSetupExperienceScript sets the setup experience script to the given script.
-	SetSetupExperienceScript(ctx context.Context, script *Script, allowUpdate bool) error
+	SetSetupExperienceScript(ctx context.Context, script *Script) error
 
 	// DeleteSetupExperienceScript deletes the setup experience script for the given team.
 	DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error
