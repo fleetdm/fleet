@@ -137,6 +137,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 // except prefix variables
 var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostUUID,
+	fleet.FleetVarHostHardwareSerial,
 	fleet.FleetVarSCEPWindowsCertificateID,
 	fleet.FleetVarHostEndUserIDPUsername,
 	fleet.FleetVarHostEndUserIDPUsernameLocalPart,

@@ -1031,6 +1031,23 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device ID: test-uuid-456</Data></Item></Replace>`,
 		},
 		{
+			name:             "host serial fleet variable",
+			hostUUID:         "test-uuid-456",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: test-serial-456</Data></Item></Replace>`,
+			setup: func() {
+				ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+					require.Equal(t, []string{"test-uuid-456"}, uuids)
+					return []*fleet.Host{
+						{
+							UUID:           "test-uuid-456",
+							HardwareSerial: "test-serial-456",
+						},
+					}, nil
+				}
+			},
+		},
+		{
 			name:             "scep windows certificate id",
 			hostUUID:         "test-host-1234-uuid",
 			profileContents:  `<Replace><Data>SCEP: $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</Data></Replace>`,
