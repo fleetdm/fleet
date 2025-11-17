@@ -213,6 +213,70 @@ func (s *integrationMDMTestSuite) TestAndroidSetupExperienceSoftware() {
 	app2TitleID := addAppResp.TitleID
 
 	require.NotEqual(t, app1TitleID, app2TitleID)
+
+	// add app 1 to Android setup experience
+	var putResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+		Platform: string(fleet.AndroidPlatform),
+		TeamID:   0,
+		TitleIDs: []uint{app1TitleID},
+	}, http.StatusOK, &putResp)
+
+	// verify that the expected activity got created
+	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
+		`{"platform": "android", "team_id": 0, "team_name": ""}`, 0)
+
+	// list the available setup experience software and verify that only app 1 is installed at setup
+	var getResp getSetupExperienceSoftwareResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", nil, http.StatusOK, &getResp,
+		"team_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
+	require.Len(t, getResp.SoftwareTitles, 2)
+	require.Equal(t, app1TitleID, getResp.SoftwareTitles[0].ID)
+	require.Equal(t, app1.Name, getResp.SoftwareTitles[0].Name)
+	require.Equal(t, app1.AdamID, getResp.SoftwareTitles[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getResp.SoftwareTitles[0].AppStoreApp.InstallDuringSetup)
+	require.True(t, *getResp.SoftwareTitles[0].AppStoreApp.InstallDuringSetup)
+	require.Equal(t, app2TitleID, getResp.SoftwareTitles[1].ID)
+	require.Equal(t, app2.Name, getResp.SoftwareTitles[1].Name)
+	require.Equal(t, app2.AdamID, getResp.SoftwareTitles[1].AppStoreApp.AppStoreID)
+	require.NotNil(t, getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
+	require.False(t, *getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
+
+	// set app1 and app2 to be installed at setup
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+		Platform: string(fleet.AndroidPlatform),
+		TeamID:   0,
+		TitleIDs: []uint{app1TitleID, app2TitleID},
+	}, http.StatusOK, &putResp)
+
+	getResp = getSetupExperienceSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", nil, http.StatusOK, &getResp,
+		"team_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
+	require.Len(t, getResp.SoftwareTitles, 2)
+	require.Equal(t, app1TitleID, getResp.SoftwareTitles[0].ID)
+	require.NotNil(t, getResp.SoftwareTitles[0].AppStoreApp.InstallDuringSetup)
+	require.True(t, *getResp.SoftwareTitles[0].AppStoreApp.InstallDuringSetup)
+	require.Equal(t, app2TitleID, getResp.SoftwareTitles[1].ID)
+	require.NotNil(t, getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
+	require.True(t, *getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
+
+	// unset all apps to be installed at setup
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+		Platform: string(fleet.AndroidPlatform),
+		TeamID:   0,
+		TitleIDs: []uint{},
+	}, http.StatusOK, &putResp)
+
+	getResp = getSetupExperienceSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", nil, http.StatusOK, &getResp,
+		"team_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
+	require.Len(t, getResp.SoftwareTitles, 2)
+	require.Equal(t, app1TitleID, getResp.SoftwareTitles[0].ID)
+	require.NotNil(t, getResp.SoftwareTitles[0].AppStoreApp.InstallDuringSetup)
+	require.False(t, *getResp.SoftwareTitles[0].AppStoreApp.InstallDuringSetup)
+	require.Equal(t, app2TitleID, getResp.SoftwareTitles[1].ID)
+	require.NotNil(t, getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
+	require.False(t, *getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
 }
 
 func (s *integrationMDMTestSuite) enableAndroidMDM(t *testing.T) string {
