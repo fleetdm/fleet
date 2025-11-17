@@ -409,6 +409,8 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		switch {
 		case fleetVar == string(fleet.FleetVarHostUUID):
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostUUIDRegexp, result, params.HostUUID)
+		case fleetVar == string(fleet.FleetVarHostPlatform):
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostPlatformRegexp, result, "windows")
 		case fleetVar == string(fleet.FleetVarHostHardwareSerial):
 			serial, err := getHostHardwareSerial(deps.GetContext(), deps.GetDS(), params.ProfileUUID, params.HostUUID)
 			if err != nil {

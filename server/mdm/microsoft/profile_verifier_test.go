@@ -1048,6 +1048,12 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			},
 		},
 		{
+			name:             "host platform fleet variable",
+			hostUUID:         "test-uuid-67",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Platform: $FLEET_VAR_HOST_PLATFORM</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Platform: windows</Data></Item></Replace>`,
+		},
+		{
 			name:             "scep windows certificate id",
 			hostUUID:         "test-host-1234-uuid",
 			profileContents:  `<Replace><Data>SCEP: $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</Data></Replace>`,
