@@ -133,7 +133,7 @@ export interface IAppStoreApp {
   created_at: string;
   icon_url: string;
   self_service: boolean;
-  platform: typeof HOST_APPLE_PLATFORMS[number];
+  platform: typeof HOST_APPLE_PLATFORMS[number] | "android";
   status: ISoftwareAppStoreAppStatus;
   install_during_setup?: boolean;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
@@ -521,6 +521,7 @@ export interface IHostSoftwarePackage {
 
 export interface IHostAppStoreApp {
   app_store_id: string;
+  platform: Platform;
   self_service: boolean;
   icon_url: string;
   version: string;
