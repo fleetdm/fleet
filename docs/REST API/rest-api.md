@@ -6729,7 +6729,7 @@ Set software that will be automatically installed during setup. Software that is
 
 _Available in Fleet Premium_
 
-Set a script that will automatically run during macOS setup. Updates the existing script for the team, or for hosts with no team, if one already exists.
+Set the script that will automatically run during macOS setup. Updates the existing script for the team, or for hosts with no team, if one already exists.
 
 `POST /api/v1/fleet/setup_experience/script`
 
