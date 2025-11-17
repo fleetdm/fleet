@@ -38,7 +38,7 @@ var knownPublicSoftware = []string{
 	"excel", "word", "powerpoint", "outlook", "skype",
 	"java", "node", "nodejs", "rust", "go", "kubectl",
 	"aws", "terraform", "ansible", "jenkins", "jira",
-	"confluence", "postman",
+	"confluence", "postman", "cuda", "geforce", "quadro",
 }
 
 // privateIPRegex matches private IP address ranges:
@@ -322,15 +322,6 @@ func (imp *Importer) shouldImport(name, vendor string) (bool, string) {
 			for _, publicName := range knownPublicSoftware {
 				if strings.Contains(nameLower, publicName) {
 					return true, "known_public"
-				}
-			}
-
-			// Allow public products from the filtered vendor
-			// (e.g., CUDA, drivers, GeForce, Quadro are public products)
-			publicKeywords := []string{"cuda", "driver", "geforce", "quadro"}
-			for _, keyword := range publicKeywords {
-				if strings.Contains(nameLower, keyword) {
-					return true, "public_product"
 				}
 			}
 
