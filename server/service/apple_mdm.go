@@ -83,7 +83,7 @@ var (
 		fleet.FleetVarNDESSCEPChallenge, fleet.FleetVarNDESSCEPProxyURL, fleet.FleetVarHostEndUserEmailIDP,
 		fleet.FleetVarHostHardwareSerial, fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 		fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarHostEndUserIDPDepartment, fleet.FleetVarHostEndUserIDPFullname, fleet.FleetVarSCEPRenewalID,
-		fleet.FleetVarHostUUID,
+		fleet.FleetVarHostUUID, fleet.FleetVarHostPlatform,
 	}
 )
 
@@ -5066,7 +5066,7 @@ func preprocessProfileContents(
 					break initialFleetVarLoop
 				}
 
-			case fleetVar == string(fleet.FleetVarHostEndUserEmailIDP) || fleetVar == string(fleet.FleetVarHostHardwareSerial) ||
+			case fleetVar == string(fleet.FleetVarHostEndUserEmailIDP) || fleetVar == string(fleet.FleetVarHostHardwareSerial) || fleetVar == string(fleet.FleetVarHostPlatform) ||
 				fleetVar == string(fleet.FleetVarHostEndUserIDPUsername) || fleetVar == string(fleet.FleetVarHostEndUserIDPUsernameLocalPart) ||
 				fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) || fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) || fleetVar == string(fleet.FleetVarSCEPRenewalID) ||
 				fleetVar == string(fleet.FleetVarHostEndUserIDPFullname) || fleetVar == string(fleet.FleetVarHostUUID):
@@ -5171,6 +5171,10 @@ func preprocessProfileContents(
 			}
 			// Fetch the host UUID, which may not be the same as the Enrollment ID, from the profile
 			hostUUID := profile.HostUUID
+
+			// some variables need more information about the host; build a skeleton host and hydrate if we need more info
+			hostLite := fleet.Host{UUID: hostUUID}
+
 			profile.CommandUUID = tempCmdUUID
 			profile.VariablesUpdatedAt = variablesUpdatedAt
 
@@ -5326,7 +5330,7 @@ func preprocessProfileContents(
 					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, hostContents, email)
 
 				case fleetVar == string(fleet.FleetVarHostHardwareSerial):
-					hardwareSerial, ok, err := getHostHardwareSerial(ctx, ds, target, hostUUID)
+					hostLite, ok, err = hydrateHost(ctx, ds, target, hostLite)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "getting host hardware serial")
 					}
@@ -5334,8 +5338,23 @@ func preprocessProfileContents(
 						failed = true
 						break fleetVarLoop
 					}
-					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarHostHardwareSerialRegexp, hostContents, hardwareSerial)
+					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarHostHardwareSerialRegexp, hostContents, hostLite.HardwareSerial)
+				case fleetVar == string(fleet.FleetVarHostPlatform):
+					hostLite, ok, err = hydrateHost(ctx, ds, target, hostLite)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "getting host platform")
+					}
+					if !ok {
+						failed = true
+						break fleetVarLoop
+					}
+					platform := hostLite.Platform
+					if platform == "darwin" {
+						platform = "macos"
+					}
 
+					hostContents = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostPlatformRegexp, hostContents, platform)
+					// TODO add test case
 				case fleetVar == string(fleet.FleetVarHostEndUserIDPUsername) || fleetVar == string(fleet.FleetVarHostEndUserIDPUsernameLocalPart) ||
 					fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) || fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) ||
 					fleetVar == string(fleet.FleetVarHostEndUserIDPFullname):
@@ -5366,6 +5385,7 @@ func preprocessProfileContents(
 					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarHostUUIDRegexp, hostContents, hostUUID)
 
 				case strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix)):
+					// TODO make sure test cases exist for serial, add test cases for platform
 					caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix))
 					ca, ok := digiCertCAs[caName]
 					if !ok {
@@ -5377,7 +5397,8 @@ func preprocessProfileContents(
 
 					// Populate Fleet vars in the CA fields
 					caVarsCache := make(map[string]string)
-					ok, err := replaceFleetVarInItem(ctx, ds, target, hostUUID, caVarsCache, &caCopy.CertificateCommonName)
+
+					ok, err := replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateCommonName)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
 					}
@@ -5385,7 +5406,7 @@ func preprocessProfileContents(
 						failed = true
 						break fleetVarLoop
 					}
-					ok, err = replaceFleetVarInItem(ctx, ds, target, hostUUID, caVarsCache, &caCopy.CertificateSeatID)
+					ok, err = replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateSeatID)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
 					}
@@ -5395,7 +5416,7 @@ func preprocessProfileContents(
 					}
 					if len(caCopy.CertificateUserPrincipalNames) > 0 {
 						for i := range caCopy.CertificateUserPrincipalNames {
-							ok, err = replaceFleetVarInItem(ctx, ds, target, hostUUID, caVarsCache, &caCopy.CertificateUserPrincipalNames[i])
+							ok, err = replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateUserPrincipalNames[i])
 							if err != nil {
 								return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
 							}
@@ -5508,7 +5529,7 @@ func getFirstIDPEmail(ctx context.Context, ds fleet.Datastore, target *cmdTarget
 	return emails[0], true, nil
 }
 
-func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string, caVarsCache map[string]string, item *string,
+func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostLite fleet.Host, caVarsCache map[string]string, item *string,
 ) (bool, error) {
 	caFleetVars := variables.Find(*item)
 	for _, caVar := range caFleetVars {
@@ -5517,7 +5538,7 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 			email, ok := caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)]
 			if !ok {
 				var err error
-				email, ok, err = getFirstIDPEmail(ctx, ds, target, hostUUID)
+				email, ok, err = getFirstIDPEmail(ctx, ds, target, hostLite.UUID)
 				if err != nil {
 					return false, ctxerr.Wrap(ctx, err, "getting IDP email")
 				}
@@ -5531,16 +5552,36 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 			hardwareSerial, ok := caVarsCache[string(fleet.FleetVarHostHardwareSerial)]
 			if !ok {
 				var err error
-				hardwareSerial, ok, err = getHostHardwareSerial(ctx, ds, target, hostUUID)
+				hostLite, ok, err = hydrateHost(ctx, ds, target, hostLite)
 				if err != nil {
 					return false, ctxerr.Wrap(ctx, err, "getting host hardware serial")
 				}
 				if !ok {
 					return false, nil
 				}
-				caVarsCache[string(fleet.FleetVarHostHardwareSerial)] = hardwareSerial
+				hardwareSerial = hostLite.HardwareSerial
+				caVarsCache[string(fleet.FleetVarHostHardwareSerial)] = hostLite.HardwareSerial
 			}
 			*item = profiles.ReplaceFleetVariableInXML(fleetVarHostHardwareSerialRegexp, *item, hardwareSerial)
+		case string(fleet.FleetVarHostPlatform):
+			platform, ok := caVarsCache[string(fleet.FleetVarHostPlatform)]
+			if !ok {
+				var err error
+				hostLite, ok, err = hydrateHost(ctx, ds, target, hostLite)
+				if err != nil {
+					return false, ctxerr.Wrap(ctx, err, "getting host hardware serial")
+				}
+				if !ok {
+					return false, nil
+				}
+				platform = hostLite.Platform
+				if platform == "darwin" {
+					platform = "macos"
+				}
+
+				caVarsCache[string(fleet.FleetVarHostPlatform)] = platform
+			}
+			*item = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostPlatformRegexp, *item, platform)
 		default:
 			// We should not reach this since we validated the variables when saving app config
 		}
@@ -5548,28 +5589,31 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 	return true, nil
 }
 
-func getHostHardwareSerial(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string) (string, bool, error) {
-	hosts, err := ds.ListHostsLiteByUUIDs(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}, []string{hostUUID})
+func hydrateHost(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostLite fleet.Host) (fleet.Host, bool, error) {
+	if hostLite.ID != 0 { // already hydrated; return as-is
+		return hostLite, true, nil
+	}
+
+	hosts, err := ds.ListHostsLiteByUUIDs(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}, []string{hostLite.UUID})
 	if err != nil {
-		return "", false, ctxerr.Wrap(ctx, err, "listing hosts")
+		return hostLite, false, ctxerr.Wrap(ctx, err, "listing hosts")
 	}
 	if len(hosts) != 1 {
 		// Something went wrong. Maybe host was deleted, or we have multiple hosts with the same UUID.
 		// Mark the profile as failed with additional detail.
 		err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 			CommandUUID:   target.cmdUUID,
-			HostUUID:      hostUUID,
+			HostUUID:      hostLite.UUID,
 			Status:        &fleet.MDMDeliveryFailed,
-			Detail:        fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s. ", len(hosts), hostUUID),
+			Detail:        fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s. ", len(hosts), hostLite.UUID),
 			OperationType: fleet.MDMOperationTypeInstall,
 		})
 		if err != nil {
-			return "", false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for hardware serial")
+			return hostLite, false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile from host data")
 		}
-		return "", false, nil
+		return hostLite, false, nil
 	}
-	hardwareSerial := hosts[0].HardwareSerial
-	return hardwareSerial, true, nil
+	return *hosts[0], true, nil
 }
 
 func isDigiCertConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
