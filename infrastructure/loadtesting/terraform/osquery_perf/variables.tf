@@ -1,7 +1,6 @@
 variable "git_tag_branch" {
   description = "The tag or git branch to use to build loadtest containers."
   type        = string
-  default     = null
 }
 
 variable "loadtest_containers" {
