@@ -937,7 +937,7 @@ func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := PreprocessWindowsProfileContentsForVerification(deps, ProfilePreprocessParamsForVerify{
+			result := PreprocessWindowsProfileContentsForVerification(deps, ProfilePreprocessParams{
 				HostUUID:    tt.hostUUID,
 				ProfileUUID: uuid.NewString(),
 			}, tt.profileContents)
@@ -1204,16 +1204,14 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 					DataStore:          ds,
 					HostIDForUUIDCache: hostIDForUUIDCache,
 				},
-				AppConfig:     appConfig,
-				CustomSCEPCAs: customSCEPCAs,
+				AppConfig:                  appConfig,
+				CustomSCEPCAs:              customSCEPCAs,
+				ManagedCertificatePayloads: managedCertificates,
 			}
 
-			result, err := PreprocessWindowsProfileContentsForDeployment(deps, ProfilePreprocessParamsForDeploy{
-				ProfilePreprocessParamsForVerify: ProfilePreprocessParamsForVerify{
-					HostUUID:    tt.hostUUID,
-					ProfileUUID: profileUUID,
-				},
-				ManagedCertificatePayloads: managedCertificates,
+			result, err := PreprocessWindowsProfileContentsForDeployment(deps, ProfilePreprocessParams{
+				HostUUID:    tt.hostUUID,
+				ProfileUUID: profileUUID,
 			}, tt.profileContents)
 			if tt.expectError {
 				require.Error(t, err)

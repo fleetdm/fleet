@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
-	"errors"
 	"fmt"
 	"hash/fnv"
 	"io"
@@ -58,7 +57,7 @@ func LoopOverExpectedHostProfiles(
 
 		// Process Fleet variables if present (similar to how it's done during profile deployment)
 		// This ensures we compare what was actually sent to the device
-		processedContent := PreprocessWindowsProfileContentsForVerification(deps, ProfilePreprocessParamsForVerify{
+		processedContent := PreprocessWindowsProfileContentsForVerification(deps, ProfilePreprocessParams{
 			HostUUID:    host.UUID,
 			ProfileUUID: expectedProf.ProfileUUID,
 		}, expanded)
@@ -305,7 +304,7 @@ func IsWin32OrDesktopBridgeADMXCSP(locURI string) bool {
 //
 // This function is similar to PreprocessWindowsProfileContentsForDeployment, but it does not require
 // a datastore or logger since it only replaces certain fleet variables to avoid datastore unnecessary work.
-func PreprocessWindowsProfileContentsForVerification(deps ProfilePreprocessDependenciesForVerify, params ProfilePreprocessParamsForVerify, profileContents string) string {
+func PreprocessWindowsProfileContentsForVerification(deps ProfilePreprocessDependenciesForVerify, params ProfilePreprocessParams, profileContents string) string {
 	replacedContents, _ := preprocessWindowsProfileContents(deps, params, profileContents)
 	// ^ We ignore the error here and rely on the fact that the function will return the original contents if no replacements were made.
 	// So verification fails on the individual profile level, instead of the entire verification failing.
@@ -314,11 +313,7 @@ func PreprocessWindowsProfileContentsForVerification(deps ProfilePreprocessDepen
 
 // PreprocessWindowsProfileContentsForDeployment processes Windows configuration profiles to replace Fleet variables
 // with their actual values for each host during profile deployment.
-func PreprocessWindowsProfileContentsForDeployment(
-	deps ProfilePreprocessDependenciesForDeploy,
-	params ProfilePreprocessParamsForDeploy,
-	profileContents string,
-) (string, error) {
+func PreprocessWindowsProfileContentsForDeployment(deps ProfilePreprocessDependenciesForDeploy, params ProfilePreprocessParams, profileContents string) (string, error) {
 	return preprocessWindowsProfileContents(deps, params, profileContents)
 }
 
@@ -364,31 +359,14 @@ func (p ProfilePreprocessDependenciesForVerify) GetHostIdForUUIDCache() map[stri
 
 type ProfilePreprocessDependenciesForDeploy struct {
 	ProfilePreprocessDependenciesForVerify
-	AppConfig     *fleet.AppConfig
-	CustomSCEPCAs map[string]*fleet.CustomSCEPProxyCA
+	AppConfig                  *fleet.AppConfig
+	CustomSCEPCAs              map[string]*fleet.CustomSCEPProxyCA
+	ManagedCertificatePayloads *[]*fleet.MDMManagedCertificate
 }
 
-type ProfilePreprocessParams interface {
-	GetHostUUID() string
-	GetProfileUUID() string
-}
-
-type ProfilePreprocessParamsForVerify struct {
+type ProfilePreprocessParams struct {
 	HostUUID    string
 	ProfileUUID string
-}
-
-func (p ProfilePreprocessParamsForVerify) GetHostUUID() string {
-	return p.HostUUID
-}
-
-func (p ProfilePreprocessParamsForVerify) GetProfileUUID() string {
-	return p.ProfileUUID
-}
-
-type ProfilePreprocessParamsForDeploy struct {
-	ProfilePreprocessParamsForVerify
-	ManagedCertificatePayloads *[]*fleet.MDMManagedCertificate
 }
 
 // preprocessWindowsProfileContents processes Windows configuration profiles to replace Fleet variables
@@ -413,6 +391,10 @@ type ProfilePreprocessParamsForDeploy struct {
 //     thousands of host profiles. Direct string replacement is more efficient for our use case.
 //  4. XML escaping: We need XML-specific escaping for values, which is simpler to control with direct
 //     string replacement rather than template functions.
+//
+// If you need another dependency that should be reused across profiles, add it to a ProfilePreprocessDependencies
+// implementation and to the interface if it's required for both verification and deployment. For new dependencies that
+// vary profile-to-profile, add them to ProfilePreprocessParams.
 func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params ProfilePreprocessParams, profileContents string) (string, error) {
 	// Check if Fleet variables are present
 	fleetVars := variables.Find(profileContents)
@@ -426,15 +408,15 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 	for _, fleetVar := range fleetVars {
 		switch {
 		case fleetVar == string(fleet.FleetVarHostUUID):
-			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostUUIDRegexp, result, params.GetHostUUID())
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostUUIDRegexp, result, params.HostUUID)
 		case fleetVar == string(fleet.FleetVarHostHardwareSerial):
-			serial, err := getHostHardwareSerial(deps.GetContext(), deps.GetDS(), params.GetProfileUUID(), params.GetHostUUID())
+			serial, err := getHostHardwareSerial(deps.GetContext(), deps.GetDS(), params.ProfileUUID, params.HostUUID)
 			if err != nil {
 				return profileContents, err
 			}
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostHardwareSerialRegexp, result, serial)
 		case slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(fleetVar)):
-			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(deps.GetContext(), deps.GetDS(), fleetVar, result, params.GetHostUUID(), deps.GetHostIdForUUIDCache(), func(errMsg string) error {
+			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(deps.GetContext(), deps.GetDS(), fleetVar, result, params.HostUUID, deps.GetHostIdForUUIDCache(), func(errMsg string) error {
 				return &MicrosoftProfileProcessingError{message: errMsg}
 			})
 			if err != nil {
@@ -447,15 +429,11 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		}
 
 		// We skip some variables during verification to avoid unnecessary datastore calls
-		// or processing that is not needed for verification.
-		params, isForDeploy := params.(ProfilePreprocessParamsForDeploy)
-		if !isForDeploy {
+		// or processing that is not needed for verification. We determine whether to process
+		// or verify based on which set of deps are passed in.
+		deps, forDeploy := deps.(ProfilePreprocessDependenciesForDeploy)
+		if !forDeploy {
 			continue
-		}
-		// We need extra dependencies when deploying profiles; fail if we don't have them
-		deps, hasDepsForDeploy := deps.(ProfilePreprocessDependenciesForDeploy)
-		if !hasDepsForDeploy {
-			return profileContents, errors.New("missing configuration to deploy profiles")
 		}
 
 		switch {
@@ -494,7 +472,7 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 			}
 			result = replacedContents
 
-			*params.ManagedCertificatePayloads = append(*params.ManagedCertificatePayloads, managedCertificate)
+			*deps.ManagedCertificatePayloads = append(*deps.ManagedCertificatePayloads, managedCertificate)
 		}
 
 		// Add other Fleet variables here as they are implemented, identify if it can be skipped for verification.
