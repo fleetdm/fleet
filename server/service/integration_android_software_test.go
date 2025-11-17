@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -26,15 +27,6 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 	appConf.MDM.AndroidEnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
-	s.setVPPTokenForTeam(0)
-
-	t.Cleanup(func() {
-		appConf, err := s.ds.AppConfig(context.Background())
-		require.NoError(s.T(), err)
-		appConf.MDM.AndroidEnabledAndConfigured = true
-		err = s.ds.SaveAppConfig(context.Background(), appConf)
-		require.NoError(s.T(), err)
-	})
 
 	// Adding android app before android MDM is turned on should fail
 	var addAppResp addAppStoreAppResponse
@@ -46,63 +38,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		&addAppResp,
 	)
 
-	EnterpriseID := "LC02k5wxw7"
-	EnterpriseSignupURL := "https://enterprise.google.com/signup/android/email?origin=android&thirdPartyToken=B4D779F1C4DD9A440"
-	s.androidAPIClient.InitCommonMocks()
-
-	s.androidAPIClient.EnterprisesCreateFunc = func(_ context.Context, _ androidmgmt.EnterprisesCreateRequest) (androidmgmt.EnterprisesCreateResponse, error) {
-		return androidmgmt.EnterprisesCreateResponse{
-			EnterpriseName: "enterprises/" + EnterpriseID,
-			TopicName:      "projects/android/topics/ae98ed130-5ce2-4ddb-a90a-191ec76976d5",
-		}, nil
-	}
-	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, _ *androidmanagement.Policy) (*androidmanagement.Policy, error) {
-		assert.Contains(t, policyName, EnterpriseID)
-		return &androidmanagement.Policy{}, nil
-	}
-	s.androidAPIClient.EnterpriseDeleteFunc = func(_ context.Context, enterpriseName string) error {
-		assert.Equal(t, "enterprises/"+EnterpriseID, enterpriseName)
-		return nil
-	}
-
-	s.androidAPIClient.SignupURLsCreateFunc = func(_ context.Context, _, callbackURL string) (*android.SignupDetails, error) {
-		s.proxyCallbackURL = callbackURL
-		return &android.SignupDetails{
-			Url:  EnterpriseSignupURL,
-			Name: "signupUrls/Cb08124d0999c464f",
-		}, nil
-	}
-
-	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
-		return &androidmanagement.Policy{}, nil
-	}
-
-	s.androidAPIClient.EnterprisesDevicesPatchFunc = func(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
-		return &androidmanagement.Device{}, nil
-	}
-
-	// Create enterprise
-	var signupResp android.EnterpriseSignupResponse
-	s.DoJSON("GET", "/api/v1/fleet/android_enterprise/signup_url", nil, http.StatusOK, &signupResp)
-
-	const enterpriseToken = "enterpriseToken"
-
-	// callback URL includes the host, need to extract the path so we can call it with our
-	// HTTP request helpers
-	u, err := url.Parse(s.proxyCallbackURL)
-	require.NoError(t, err)
-	s.Do("GET", u.Path, nil, http.StatusOK, "enterpriseToken", enterpriseToken)
-
-	// Update the LIST mock to return the enterprise after "creation"
-	s.androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
-		return []*androidmanagement.Enterprise{
-			{Name: "enterprises/" + EnterpriseID},
-		}, nil
-	}
-
-	resp := android.GetEnterpriseResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusOK, &resp)
-	assert.Equal(t, EnterpriseID, resp.EnterpriseID)
+	s.enableAndroidMDM(t)
 
 	// Android MDM setup
 	androidApp := &fleet.VPPApp{
@@ -221,4 +157,139 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 	// Should have hit the android API endpoint
 	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 
+}
+
+func (s *integrationMDMTestSuite) TestAndroidSetupExperienceSoftware() {
+	t := s.T()
+	s.enableAndroidMDM(t)
+
+	app1 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.test1",
+				Platform: fleet.AndroidPlatform,
+			},
+		},
+		Name:             "Test1",
+		BundleIdentifier: "com.test1",
+		IconURL:          "https://example.com/1",
+	}
+	app2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.test2",
+				Platform: fleet.AndroidPlatform,
+			},
+		},
+		Name:             "Test2",
+		BundleIdentifier: "com.test2",
+		IconURL:          "https://example.com/2",
+	}
+
+	androidApps := []*fleet.VPPApp{app1, app2}
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		for _, app := range androidApps {
+			if app.AdamID == packageName {
+				return &androidmanagement.Application{IconUrl: app.IconURL, Title: app.Name}, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
+
+	// add Android app 1
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: app1.AdamID,
+		Platform:   fleet.AndroidPlatform,
+	}, http.StatusOK, &addAppResp)
+	app1TitleID := addAppResp.TitleID
+
+	// add Android app 2
+	addAppResp = addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: app2.AdamID,
+		Platform:   fleet.AndroidPlatform,
+	}, http.StatusOK, &addAppResp)
+	app2TitleID := addAppResp.TitleID
+
+	require.NotEqual(t, app1TitleID, app2TitleID)
+}
+
+func (s *integrationMDMTestSuite) enableAndroidMDM(t *testing.T) string {
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+	s.setVPPTokenForTeam(0)
+
+	t.Cleanup(func() {
+		appConf, err := s.ds.AppConfig(context.Background())
+		require.NoError(s.T(), err)
+		appConf.MDM.AndroidEnabledAndConfigured = true
+		err = s.ds.SaveAppConfig(context.Background(), appConf)
+		require.NoError(s.T(), err)
+	})
+
+	enterpriseID := "LC02k5wxw7"
+	enterpriseSignupURL := "https://enterprise.google.com/signup/android/email?origin=android&thirdPartyToken=B4D779F1C4DD9A440"
+	s.androidAPIClient.InitCommonMocks()
+
+	s.androidAPIClient.EnterprisesCreateFunc = func(_ context.Context, _ androidmgmt.EnterprisesCreateRequest) (androidmgmt.EnterprisesCreateResponse, error) {
+		return androidmgmt.EnterprisesCreateResponse{
+			EnterpriseName: "enterprises/" + enterpriseID,
+			TopicName:      "projects/android/topics/ae98ed130-5ce2-4ddb-a90a-191ec76976d5",
+		}, nil
+	}
+
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, _ *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+		assert.Contains(t, policyName, enterpriseID)
+		return &androidmanagement.Policy{}, nil
+	}
+
+	s.androidAPIClient.EnterpriseDeleteFunc = func(_ context.Context, enterpriseName string) error {
+		assert.Equal(t, "enterprises/"+enterpriseID, enterpriseName)
+		return nil
+	}
+
+	s.androidAPIClient.SignupURLsCreateFunc = func(_ context.Context, _, callbackURL string) (*android.SignupDetails, error) {
+		s.proxyCallbackURL = callbackURL
+		return &android.SignupDetails{
+			Url:  enterpriseSignupURL,
+			Name: "signupUrls/Cb08124d0999c464f",
+		}, nil
+	}
+
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{}, nil
+	}
+
+	s.androidAPIClient.EnterprisesDevicesPatchFunc = func(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return &androidmanagement.Device{}, nil
+	}
+
+	// Create enterprise
+	var signupResp android.EnterpriseSignupResponse
+	s.DoJSON("GET", "/api/v1/fleet/android_enterprise/signup_url", nil, http.StatusOK, &signupResp)
+
+	const enterpriseToken = "enterpriseToken"
+
+	// callback URL includes the host, need to extract the path so we can call it with our
+	// HTTP request helpers
+	u, err := url.Parse(s.proxyCallbackURL)
+	require.NoError(t, err)
+	s.Do("GET", u.Path, nil, http.StatusOK, "enterpriseToken", enterpriseToken)
+
+	// Update the LIST mock to return the enterprise after "creation"
+	s.androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{
+			{Name: "enterprises/" + enterpriseID},
+		}, nil
+	}
+
+	resp := android.GetEnterpriseResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusOK, &resp)
+	assert.Equal(t, enterpriseID, resp.EnterpriseID)
+
+	return enterpriseID
 }
