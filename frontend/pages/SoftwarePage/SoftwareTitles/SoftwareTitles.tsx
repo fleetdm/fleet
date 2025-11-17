@@ -98,7 +98,8 @@ const SoftwareTitles = ({
     }
   );
 
-  // For Versions view, request software versions data.
+  // For Versions view, request software versions data. If empty, request titles available for
+  // install to determine empty state copy
 
   const {
     data: versionsData,
@@ -141,7 +142,7 @@ const SoftwareTitles = ({
   // See PR #21118 (issue #21053) for context.
   //
   // The enabled condition ensures this query only fires after the versions query has fully loaded
-  // and confirmed it's actually empty, preventing unnecessary API calls during page transitions.
+  // and confirmed it's actually empty, preventing unnecessary API call delay during page transitions.
   const {
     data: titlesAvailableForInstallResponse,
     isFetching: isTitlesAFIFetching,

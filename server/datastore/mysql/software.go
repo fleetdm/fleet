@@ -1462,8 +1462,6 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 	}
 
 	// Outer query: LEFT JOIN to all necessary tables for the paginated results only.
-	// LEFT JOINs handle eventual consistency where software_host_counts rows may
-	// temporarily exist without corresponding software rows during cleanup.
 	outerSQL := `
 		SELECT
 			s.id,
@@ -1508,7 +1506,8 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 		LEFT JOIN software_cpe scp ON scp.software_id = top.software_id
 	`
 
-	// Join back to software_host_counts to get updated_at (not in covering index)
+	// Join back to software_host_counts to get updated_at.
+	// We do this in the outer query because the updated_at field is not part of the covering index.
 	if opts.WithHostCounts {
 		switch {
 		case opts.TeamID == nil:
@@ -1814,24 +1813,18 @@ func countSoftwareDB(
 	q sqlx.QueryerContext,
 	opts fleet.SoftwareListOptions,
 ) (int, error) {
-	// Optimized count query that queries software_host_counts directly
-	// instead of wrapping the complex selectSoftwareSQL query
-
-	var args []interface{}
-	var whereClauses []string
-
 	if opts.HostID != nil {
-		// For specific host queries, fall back to the old method
+		// For specific host queries, fall back to wrapping the complex selectSoftwareSQL query
 		opts.ListOptions = fleet.ListOptions{
 			MatchQuery: opts.ListOptions.MatchQuery,
 		}
-		sql, sqlArgs, err := selectSoftwareSQL(opts)
+		stmt, sqlArgs, err := selectSoftwareSQL(opts)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "sql build")
 		}
-		sql = `SELECT COUNT(DISTINCT s.id) FROM (` + sql + `) AS s`
+		stmt = `SELECT COUNT(DISTINCT s.id) FROM (` + stmt + `) AS s`
 		var count int
-		if err := sqlx.GetContext(ctx, q, &count, sql, sqlArgs...); err != nil {
+		if err := sqlx.GetContext(ctx, q, &count, stmt, sqlArgs...); err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "count host software")
 		}
 		return count, nil
@@ -1878,6 +1871,8 @@ func countSoftwareDB(
 
 	countSQL += ` WHERE shc.hosts_count > 0`
 
+	var args []interface{}
+	var whereClauses []string
 	// Apply team filtering with global_stats
 	switch {
 	case opts.TeamID == nil:
