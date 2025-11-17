@@ -482,7 +482,7 @@ SELECT 1 FROM certificates WHERE path = '/opt/company/certificate.pem' AND not_v
 
 ## Renewal
 
-Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS) hosts 30 days before expiration. If the entire validity period is less than 30 days (e.g. 20 days), Fleet will automatically renew at half the validity period (e.g 10 days). 
+Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS) hosts 30 days before expiration. If the entire validity period is less than 30 days (e.g. 20 days), Fleet will automatically renew at half the validity period (e.g 10 days). Automatic renewal will only work if the remaining validity is at least 2 days.
 
 If an end user is on vacation (offline for more than 30 days), their certificate might expire, and they'll lose access to Wi-Fi or VPN. To reconnect them, ask your end users to temporarily connect to a different network so that Fleet can deliver a new certificate.
 
