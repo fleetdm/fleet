@@ -43,15 +43,15 @@ if ($uninstallString -match '^"([^"]+)"(.*)') {
     Exit 1
 }
 
-# Build argument list array, preserving existing arguments and adding /S for silent
+# Build argument list array, preserving existing arguments and adding -s for silent
 $argumentList = @()
 if ($arguments -ne '') {
     # Split existing arguments and add them
     $argumentList += $arguments -split '\s+'
 }
-# Add /S for silent uninstall if not already present
-if ($argumentList -notcontains "/S" -and $argumentList -notcontains "/s") {
-    $argumentList += "/S"
+# Add -s for silent uninstall if not already present
+if ($argumentList -notcontains "-s" -and $argumentList -notcontains "--silent") {
+    $argumentList += "-s"
 }
 
 Write-Host "Uninstall executable: $exePath"
