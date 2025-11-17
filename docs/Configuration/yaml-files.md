@@ -382,7 +382,7 @@ controls:
 
 - `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time for hosts on macOS 14 and above, 20:00 UTC for hosts on older macOS versions. (default: `""`).
 - `minimum_version` specifies the minimum required macOS version (default: `""`).
-- `update_new_hosts` - macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](TODO) during macOS Setup Assistant (default: `false`).
+- `update_new_hosts` - macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](TODO) during macOS Setup Assistant. If not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`.
 
 ### ios_updates
 
