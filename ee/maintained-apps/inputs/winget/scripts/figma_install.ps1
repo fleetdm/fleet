@@ -1,7 +1,7 @@
 $softwareName = "figma"
 $arguments = "-s"
 $exeFilePath = "${env:INSTALLER_PATH}"
-$taskName = "fleet-install-$softwareName.msix"
+$taskName = "fleet-install-$softwareName"
 $scriptPath = "$env:PUBLIC\install-$softwareName.ps1"
 $logFile = "$env:PUBLIC\install-output-$softwareName.txt"
 $exitCodeFile = "$env:PUBLIC\install-exitcode-$softwareName.txt"
