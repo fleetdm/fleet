@@ -1,4 +1,7 @@
 .activity-feed-filters {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-medium;
 
   &__dropdown-filters {
       display: flex;

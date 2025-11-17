@@ -4,6 +4,7 @@ import { ACTIVITY_DISPLAY_NAME_MAP, ActivityType } from "interfaces/activity";
 
 import SearchField from "components/forms/fields/SearchField";
 import ActionsDropdown from "components/ActionsDropdown";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 
 const baseClass = "activity-feed-filters";
 
@@ -85,7 +86,7 @@ const ActivityFeedFilters = ({
               typeFilter[0] as ActivityType
             )}`}
             onChange={(value: string) => {
-              setTypeFilter((prev) => {
+              setTypeFilter(() => {
                 // TODO: multiple selections
                 return [value as ActivityType];
               });
@@ -93,15 +94,18 @@ const ActivityFeedFilters = ({
             }}
             isSearchable
           />
-          <ActionsDropdown
+
+          <DropdownWrapper
             className={`${baseClass}__date-filter-dropdown`}
+            iconName="calendar"
+            name="date-filter"
             options={DATE_FILTER_OPTIONS}
-            placeholder={`Date: ${
-              DATE_FILTER_OPTIONS.find((option) => option.value === dateFilter)
+            placeholder={`${DATE_FILTER_OPTIONS.find((option) => option.value === dateFilter)
                 ?.label
-            }`}
-            onChange={(value: string) => {
-              setDateFilter(value);
+              }`}
+            onChange={(value) => {
+              if (value === null) return;
+              setDateFilter(value.value);
               setPageIndex(0); // Reset to first page on sort change
             }}
           />
@@ -109,9 +113,8 @@ const ActivityFeedFilters = ({
         <ActionsDropdown
           className={`${baseClass}__sort-created-at-dropdown`}
           options={SORT_OPTIONS}
-          placeholder={`Sort by: ${
-            createdAtDirection === "asc" ? "Oldest" : "Newest"
-          }`}
+          placeholder={`Sort by: ${createdAtDirection === "asc" ? "Oldest" : "Newest"
+            }`}
           onChange={(value: string) => {
             if (value === createdAtDirection) {
               return; // No change in sort direction
