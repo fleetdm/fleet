@@ -271,7 +271,8 @@ func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.Label, []uint
 ////////////////////////////////////////////////////////////////////////////////
 
 type listLabelsRequest struct {
-	ListOptions fleet.ListOptions `url:"list_options"`
+	ListOptions       fleet.ListOptions `url:"list_options"`
+	IncludeHostCounts *bool             `url:"include_host_counts,optional"`
 }
 
 type listLabelsResponse struct {
@@ -284,7 +285,7 @@ func (r listLabelsResponse) Error() error { return r.Err }
 func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listLabelsRequest)
 
-	labels, err := svc.ListLabels(ctx, req.ListOptions)
+	labels, err := svc.ListLabels(ctx, req.ListOptions, req.IncludeHostCounts)
 	if err != nil {
 		return listLabelsResponse{Err: err}, nil
 	}
@@ -300,15 +301,20 @@ func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	return resp, nil
 }
 
-func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Label, error) {
+func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions, includeHostCounts *bool) ([]*fleet.Label, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return nil, fleet.ErrNoContext
+
+	filter := fleet.TeamFilter{}
+	// Default to including host counts.
+	if includeHostCounts == nil || *includeHostCounts {
+		vc, ok := viewer.FromContext(ctx)
+		if !ok {
+			return nil, fleet.ErrNoContext
+		}
+		filter = fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 	}
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	// TODO(mna): ListLabels doesn't currently return the hostIDs members of the
 	// label, the quick approach would be an N+1 queries endpoint. Leaving like
