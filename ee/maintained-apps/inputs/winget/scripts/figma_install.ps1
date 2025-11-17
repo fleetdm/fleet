@@ -17,6 +17,10 @@ try {
     `$exeFilename = Split-Path `$exeFilePath -leaf
     `$exePath = "`${env:PUBLIC}\`$exeFilename"
     & `$exePath `$arguments
+    `$exitCode = `$LASTEXITCODE
+    if (`$exitCode -eq 0 -or `$exitCode -eq $null) {
+        `$exitCode = 0
+    }
 } catch {
     Write-Host "Error: `$_.Exception.Message"
     `$exitCode = 1
@@ -92,8 +96,17 @@ try {
     }
 
     if (Test-Path $exitCodeFile) {
-        $exitCode = Get-Content $exitCodeFile
-        Write-Host "`nScheduled task exit code: $exitCode"
+        $taskExitCode = Get-Content $exitCodeFile
+        Write-Host "`nScheduled task exit code: $taskExitCode"
+        if ($taskExitCode -ne "0" -and $taskExitCode -ne "") {
+            $exitCode = [int]$taskExitCode
+            throw "Scheduled task failed with exit code: $taskExitCode"
+        }
+        # Wait a moment for registry to update after installation
+        Start-Sleep -Seconds 2
+    } else {
+        Write-Host "`nWarning: Exit code file not found. Installation may have failed."
+        $exitCode = 1
     }
 
 } catch {
