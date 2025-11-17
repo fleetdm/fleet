@@ -32,6 +32,7 @@ func TestHostCertificates(t *testing.T) {
 		{"Update certificate sources isolation", testUpdateHostCertificatesSourcesIsolation},
 		{"Create certificates with long country code", testHostCertificateWithInvalidCountryCode},
 		{"Truncate long certificate fields", testTruncateLongCertificateFields},
+		{"Count matches main query", testListHostCertificatesCountMatches},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -79,7 +80,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", payload))
 
 	// verify that we saved the records correctly
-	certs, _, err := ds.ListHostCertificates(ctx, 1, fleet.ListOptions{OrderKey: "common_name"})
+	certs, meta, err := ds.ListHostCertificates(ctx, 1, fleet.ListOptions{OrderKey: "common_name", IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, certs, 2)
 	require.Equal(t, expected2.Subject.CommonName, certs[0].CommonName)
@@ -88,6 +89,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected1.Subject.CommonName, certs[1].CommonName)
 	require.Equal(t, expected1.Subject.CommonName, certs[1].SubjectCommonName)
 	require.Equal(t, fleet.SystemHostCertificate, certs[1].Source)
+	require.EqualValues(t, 2, meta.TotalResults)
 
 	// order by not_valid_after descending
 	certs, _, err = ds.ListHostCertificates(ctx, 1, fleet.ListOptions{OrderKey: "not_valid_after", OrderDirection: fleet.OrderAscending})
@@ -171,7 +173,7 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	// test that we can update the host_mdm_managed_certificates table when
 	// ingesting the associated certificate from the host
 	ctx := context.Background()
-	initialCP := storeDummyConfigProfilesForTest(t, ds, 1)[0]
+	initialCPs := storeDummyConfigProfilesForTest(t, ds, 2)
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -186,14 +188,25 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 
 	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
-			ProfileUUID:       initialCP.ProfileUUID,
-			ProfileIdentifier: initialCP.Identifier,
-			ProfileName:       initialCP.Name,
+			ProfileUUID:       initialCPs[0].ProfileUUID,
+			ProfileIdentifier: initialCPs[0].Identifier,
+			ProfileName:       initialCPs[0].Name,
 			HostUUID:          host.UUID,
 			Status:            &fleet.MDMDeliveryPending,
 			OperationType:     fleet.MDMOperationTypeInstall,
-			CommandUUID:       "command-uuid",
-			Checksum:          []byte("checksum"),
+			CommandUUID:       "command-uuid-1",
+			Checksum:          []byte("checksum1"),
+			Scope:             fleet.PayloadScopeSystem,
+		},
+		{
+			ProfileUUID:       initialCPs[1].ProfileUUID,
+			ProfileIdentifier: initialCPs[1].Identifier,
+			ProfileName:       initialCPs[1].Name,
+			HostUUID:          host.UUID,
+			Status:            &fleet.MDMDeliveryPending,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			CommandUUID:       "command-uuid-2",
+			Checksum:          []byte("checksum2"),
 			Scope:             fleet.PayloadScopeSystem,
 		},
 	},
@@ -204,11 +217,17 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	challengeRetrievedAt := time.Now().Add(-time.Hour).UTC().Round(time.Microsecond)
 	err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
 		{
+			HostUUID:    host.UUID,
+			ProfileUUID: initialCPs[0].ProfileUUID,
+			Type:        fleet.CAConfigCustomSCEPProxy,
+			CAName:      "custom-ca",
+		},
+		{
 			HostUUID:             host.UUID,
-			ProfileUUID:          initialCP.ProfileUUID,
+			ProfileUUID:          initialCPs[1].ProfileUUID,
 			ChallengeRetrievedAt: &challengeRetrievedAt,
-			Type:                 fleet.CAConfigCustomSCEPProxy,
-			CAName:               "test-ca",
+			Type:                 fleet.CAConfigSmallstep,
+			CAName:               "step-ca",
 		},
 	})
 	require.NoError(t, err)
@@ -216,7 +235,7 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	expected1 := x509.Certificate{
 		Subject: pkix.Name{
 			Country:      []string{"US"},
-			CommonName:   "MYHWSERIAL fleet-" + initialCP.ProfileUUID,
+			CommonName:   "MYHWSERIAL fleet-" + initialCPs[0].ProfileUUID,
 			Organization: []string{"Org 1"},
 
 			OrganizationalUnit: []string{"Engineering"},
@@ -253,9 +272,33 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 		BasicConstraintsValid: true,
 	}
 
+	expected3 := x509.Certificate{
+		Subject: pkix.Name{
+			Country:      []string{"US"},
+			CommonName:   "MYHWSERIAL 2",
+			Organization: []string{"Org 1"},
+
+			OrganizationalUnit: []string{"fleet-" + initialCPs[1].ProfileUUID},
+		},
+		Issuer: pkix.Name{
+			Country:      []string{"US"},
+			CommonName:   "issuer.test.example.com",
+			Organization: []string{"Issuer 1"},
+		},
+		SerialNumber: big.NewInt(1338),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+		NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
+		BasicConstraintsValid: true,
+	}
+
 	payload := []*fleet.HostCertificateRecord{
-		generateTestHostCertificateRecord(t, 1, &expected1),
-		generateTestHostCertificateRecord(t, 1, &expected2),
+		generateTestHostCertificateRecord(t, host.ID, &expected1),
+		generateTestHostCertificateRecord(t, host.ID, &expected2),
+		generateTestHostCertificateRecord(t, host.ID, &expected3),
 	}
 
 	require.NoError(t, ds.UpdateHostCertificates(context.Background(), host.ID, host.UUID, payload))
@@ -263,20 +306,21 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	// verify that we saved the records correctly
 	certs, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{OrderKey: "common_name"})
 	require.NoError(t, err)
-	require.Len(t, certs, 2)
-	require.Equal(t, expected1.Subject.CommonName, certs[0].CommonName)
-	require.Equal(t, expected1.Subject.CommonName, certs[0].SubjectCommonName)
-	require.Equal(t, expected2.Subject.CommonName, certs[1].CommonName)
-	require.Equal(t, expected2.Subject.CommonName, certs[1].SubjectCommonName)
+	require.Len(t, certs, 3)
+	require.Equal(t, expected3.Subject.CommonName, certs[0].CommonName)
+	require.Equal(t, expected3.Subject.CommonName, certs[0].SubjectCommonName)
+	require.Equal(t, expected1.Subject.CommonName, certs[1].CommonName)
+	require.Equal(t, expected1.Subject.CommonName, certs[1].SubjectCommonName)
+	require.Equal(t, expected2.Subject.CommonName, certs[2].CommonName)
+	require.Equal(t, expected2.Subject.CommonName, certs[2].SubjectCommonName)
 
 	// Check that the managed certificate details were updated correctly
-	profile, err := ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+	profile, err := ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCPs[0].ProfileUUID, "custom-ca")
 	require.NoError(t, err)
 	require.NotNil(t, profile)
 	assert.Equal(t, host.UUID, profile.HostUUID)
-	assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
-	require.NotNil(t, profile.ChallengeRetrievedAt)
-	assert.Equal(t, &challengeRetrievedAt, profile.ChallengeRetrievedAt)
+	assert.Equal(t, initialCPs[0].ProfileUUID, profile.ProfileUUID)
+	require.Nil(t, profile.ChallengeRetrievedAt)
 	assert.Equal(t, fleet.CAConfigCustomSCEPProxy, profile.Type)
 	require.NotNil(t, profile.Serial)
 	assert.Equal(t, fmt.Sprintf("%040s", expected1.SerialNumber.Text(16)), *profile.Serial)
@@ -284,24 +328,42 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	assert.Equal(t, expected1.NotBefore, *profile.NotValidBefore)
 	require.NotNil(t, profile.NotValidAfter)
 	assert.Equal(t, expected1.NotAfter, *profile.NotValidAfter)
-	assert.Equal(t, "test-ca", profile.CAName)
+	assert.Equal(t, "custom-ca", profile.CAName)
+
+	// Check that the managed certificate details were updated correctly
+	profile2, err := ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCPs[1].ProfileUUID, "step-ca")
+	require.NoError(t, err)
+	require.NotNil(t, profile2)
+	assert.Equal(t, host.UUID, profile2.HostUUID)
+	assert.Equal(t, initialCPs[1].ProfileUUID, profile2.ProfileUUID)
+	require.NotNil(t, profile2.ChallengeRetrievedAt)
+	assert.Equal(t, &challengeRetrievedAt, profile2.ChallengeRetrievedAt)
+	assert.Equal(t, fleet.CAConfigSmallstep, profile2.Type)
+	require.NotNil(t, profile2.Serial)
+	assert.Equal(t, fmt.Sprintf("%040s", expected3.SerialNumber.Text(16)), *profile2.Serial)
+	require.NotNil(t, profile2.NotValidBefore)
+	assert.Equal(t, expected3.NotBefore, *profile2.NotValidBefore)
+	require.NotNil(t, profile2.NotValidAfter)
+	assert.Equal(t, expected3.NotAfter, *profile2.NotValidAfter)
+	assert.Equal(t, "step-ca", profile2.CAName)
 
 	// simulate removal of a certificate
-	require.NoError(t, ds.UpdateHostCertificates(context.Background(), 1, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[1]}))
-	certs3, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{OrderKey: "common_name"})
+	require.NoError(t, ds.UpdateHostCertificates(context.Background(), host.ID, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[1], payload[2]}))
+	certs3, _, err := ds.ListHostCertificates(context.Background(), host.ID, fleet.ListOptions{OrderKey: "common_name"})
 	require.NoError(t, err)
-	require.Len(t, certs3, 1)
-	require.Equal(t, expected2.Subject.CommonName, certs3[0].CommonName)
-	require.Equal(t, expected2.Subject.CommonName, certs3[0].SubjectCommonName)
+	require.Len(t, certs3, 2)
+	require.Equal(t, expected3.Subject.CommonName, certs3[0].CommonName)
+	require.Equal(t, expected3.Subject.CommonName, certs3[0].SubjectCommonName)
+	require.Equal(t, expected2.Subject.CommonName, certs3[1].CommonName)
+	require.Equal(t, expected2.Subject.CommonName, certs3[1].SubjectCommonName)
 
 	// Check that the managed certificate details were not updated
-	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+	profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCPs[0].ProfileUUID, "custom-ca")
 	require.NoError(t, err)
 	require.NotNil(t, profile)
 	assert.Equal(t, host.UUID, profile.HostUUID)
-	assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
-	require.NotNil(t, profile.ChallengeRetrievedAt)
-	assert.Equal(t, &challengeRetrievedAt, profile.ChallengeRetrievedAt)
+	assert.Equal(t, initialCPs[0].ProfileUUID, profile.ProfileUUID)
+	require.Nil(t, profile.ChallengeRetrievedAt)
 	assert.Equal(t, fleet.CAConfigCustomSCEPProxy, profile.Type)
 	require.NotNil(t, profile.Serial)
 	assert.Equal(t, fmt.Sprintf("%040s", expected1.SerialNumber.Text(16)), *profile.Serial)
@@ -309,7 +371,7 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	assert.Equal(t, expected1.NotBefore, *profile.NotValidBefore)
 	require.NotNil(t, profile.NotValidAfter)
 	assert.Equal(t, expected1.NotAfter, *profile.NotValidAfter)
-	assert.Equal(t, "test-ca", profile.CAName)
+	assert.Equal(t, "custom-ca", profile.CAName)
 }
 
 func generateTestHostCertificateRecord(t *testing.T, hostID uint, template *x509.Certificate) *fleet.HostCertificateRecord {
@@ -727,4 +789,68 @@ func testTruncateLongCertificateFields(t *testing.T, ds *Datastore) {
 	// Verify non-string fields remain unchanged
 	assert.Equal(t, fleet.UserHostCertificate, savedCert.Source, "Source should not be changed")
 	assert.Equal(t, host.ID, savedCert.HostID, "HostID should not be changed")
+}
+
+func testListHostCertificatesCountMatches(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create host
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("count-mismatch-host-osquery-id"),
+		NodeKey:         ptr.String("count-mismatch-host-node-key"),
+		UUID:            "count-mismatch-host-uuid",
+		Hostname:        "count-mismatch-host",
+	})
+	require.NoError(t, err)
+
+	// create a cert template and record
+	certTemplate := x509.Certificate{
+		Subject: pkix.Name{
+			Country:            []string{"US"},
+			CommonName:         "count.example.com",
+			Organization:       []string{"Org"},
+			OrganizationalUnit: []string{"Eng"},
+		},
+		Issuer: pkix.Name{
+			Country:      []string{"US"},
+			CommonName:   "issuer.example.com",
+			Organization: []string{"Issuer"},
+		},
+		SerialNumber: big.NewInt(424242),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+		NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
+		BasicConstraintsValid: true,
+	}
+
+	certRec := generateTestHostCertificateRecord(t, host.ID, &certTemplate)
+
+	// Update using ds.UpdateHostCertificates with two sources: system and user
+	certSys := *certRec
+	certSys.Source = fleet.SystemHostCertificate
+	certSys.Username = ""
+
+	certUser := *certRec
+	certUser.Source = fleet.UserHostCertificate
+	certUser.Username = "alice"
+
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{&certSys, &certUser}))
+
+	// Now list with metadata
+	certs, meta, err := ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+
+	require.NotNil(t, meta)
+
+	// We expect two returned rows (one per source)
+	require.Len(t, certs, 2)
+
+	require.Equal(t, uint(len(certs)), meta.TotalResults, "expected total results to match returned rows")
 }

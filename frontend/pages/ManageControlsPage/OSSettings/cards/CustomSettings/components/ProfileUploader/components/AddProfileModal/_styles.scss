@@ -9,7 +9,6 @@
 
   &__upload-button {
     margin-top: 8px;
-    padding: 0;
   }
 
   &__file-chooser {
@@ -27,7 +26,7 @@
       justify-content: center;
       gap: $pad-small;
       cursor: pointer;
-      height: 38px;
+      height: 36px;
       align-items: center;
     }
   }
@@ -46,7 +45,7 @@
       }
 
       &--platform {
-        font-size: $xx-small;
+        font-size: $x-small;
         color: $ui-fleet-black-75;
       }
     }
@@ -61,6 +60,12 @@
     &--message {
       text-align: center;
       line-height: 20px;
+      color: $ui-fleet-black-50;
+    }
+
+    &--title {
+        color: $ui-fleet-black-75;
+        font-weight: $bold;
     }
   }
 

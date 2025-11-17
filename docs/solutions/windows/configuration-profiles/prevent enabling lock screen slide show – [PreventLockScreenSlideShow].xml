@@ -1,0 +1,13 @@
+<Replace>
+  <!-- Prevent enabling lock screen slide show -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+      <Type>text/plain</Type>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/PreventLockScreenSlideShow</LocURI>
+    </Target>
+    <Data>&lt;enabled/&gt;</Data>
+  </Item>
+</Replace>

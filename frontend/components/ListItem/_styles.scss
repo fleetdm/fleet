@@ -27,6 +27,6 @@
   &__actions {
     display: flex;
     justify-content: flex-end;
-    gap: $pad-medium;
+    gap: $pad-xsmall; // Padding on buttons
   }
 }

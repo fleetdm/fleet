@@ -6,10 +6,8 @@ import formatErrorResponse from "utilities/format_error_response";
 
 // @ts-ignore
 import ForgotPasswordForm from "components/forms/ForgotPasswordForm";
-// @ts-ignore
-import StackedWhiteBoxes from "components/StackedWhiteBoxes";
+import AuthenticationNav from "components/AuthenticationNav";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 
 interface IForgotPasswordPage {
@@ -45,9 +43,7 @@ const ForgotPasswordPage = ({ router }: IForgotPasswordPage) => {
   };
 
   const renderContent = () => {
-    if (isLoading) {
-      return <Spinner />;
-    } else if (email) {
+    if (email) {
       return (
         <div className={`${baseClass}__text-wrapper`}>
           <p className={`${baseClass}__text`}>
@@ -73,15 +69,20 @@ const ForgotPasswordPage = ({ router }: IForgotPasswordPage) => {
         handleSubmit={handleSubmit}
         onChangeFunc={() => setErrors({})}
         serverErrors={errors}
+        isLoading={isLoading}
       />
     );
   };
 
   return (
-    <AuthenticationFormWrapper>
-      <StackedWhiteBoxes previousLocation={PATHS.LOGIN} router={router}>
-        <div className={baseClass}>{renderContent()}</div>
-      </StackedWhiteBoxes>
+    <AuthenticationFormWrapper
+      header="Reset password"
+      headerCta={
+        <AuthenticationNav previousLocation={PATHS.LOGIN} router={router} />
+      }
+      className={baseClass}
+    >
+      {renderContent()}
     </AuthenticationFormWrapper>
   );
 };

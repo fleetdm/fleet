@@ -301,11 +301,11 @@ func TestClearScheduleErrors(t *testing.T) {
 	)
 
 	// First run should return 1 error.
-	s.runAllJobs()
+	s.runAllJobs(t.Context())
 	require.Equal(t, 1, len(s.errors))
 
 	// Second run should return no errors.
-	s.runAllJobs()
+	s.runAllJobs(t.Context())
 	require.Equal(t, 0, len(s.errors))
 }
 

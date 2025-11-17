@@ -24,7 +24,8 @@ parasails.registerComponent('animatedArrowButton', {
   data: function (){
     return {
       type: 'secondary',
-      strokeColor: this.arrowColor ? this.arrowColor : '#FF5C83',
+      strokeColor: this.arrowColor ? this.arrowColor : '#009A7D',
+      // strokeColor: this.arrowColor ? this.arrowColor : '#FF5C83',
       fontColor: this.textColor ? this.textColor : '#192147'
       // FUTURE: support more button types (primary and secondary)
       // type: this.buttonType && this.buttonType === 'primary' ? 'primary' : 'secondary',

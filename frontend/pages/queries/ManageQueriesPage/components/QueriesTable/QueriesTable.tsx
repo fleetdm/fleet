@@ -285,7 +285,7 @@ const QueriesTable = ({
             name: "delete query",
             buttonText: "Delete",
             iconSvg: "trash",
-            variant: "text-icon",
+            variant: "inverse",
             onClick: onDeleteQueryClick,
           }}
           emptyComponent={() => EmptyTable(emptyParams)}

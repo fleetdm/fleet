@@ -14,6 +14,7 @@ import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import Icon from "components/Icon";
 import { IPaginatedListHandle } from "components/PaginatedList";
+import paths from "router/paths";
 import CalendarEventPreviewModal from "../CalendarEventPreviewModal";
 import CalendarPreview from "../../../../../../assets/images/calendar-graphic.png";
 import PoliciesPaginatedList, {
@@ -165,14 +166,20 @@ const CalendarEventsModal = ({
           you must first connect Fleet to your Google Workspace service account.
         </div>
         <div>
-          This can be configured in <b>Settings</b> &gt; <b>Integrations</b>{" "}
-          &gt; <b>Calendars.</b>
+          This can be configured in{" "}
+          <CustomLink
+            url={paths.ADMIN_INTEGRATIONS_CALENDARS}
+            text="Settings &gt; Integrations &gt; Calendars"
+          />
+          .
         </div>
-        <CustomLink
-          url="https://www.fleetdm.com/learn-more-about/calendar-events"
-          text="Learn more"
-          newTab
-        />
+        <div>
+          <CustomLink
+            url="https://www.fleetdm.com/learn-more-about/calendar-events"
+            text="Learn more"
+            newTab
+          />
+        </div>
         <div className="modal-cta-wrap">
           <Button onClick={onExit}>Done</Button>
         </div>
@@ -191,7 +198,8 @@ const CalendarEventsModal = ({
       />
       <Button
         type="button"
-        variant="text-link"
+        variant="inverse"
+        className={`${baseClass}__preview-button`}
         onClick={() => {
           setSelectedPolicyToPreview(undefined);
           togglePreviewCalendarEvent();
@@ -221,8 +229,8 @@ const CalendarEventsModal = ({
           }}
         />
         <Button
-          type="button"
-          variant="text-link"
+          variant="inverse"
+          className={`${baseClass}__preview-button`}
           onClick={() => {
             setSelectedPolicyToPreview(undefined);
             togglePreviewCalendarEvent();
@@ -280,7 +288,7 @@ const CalendarEventsModal = ({
           renderItemRow={(item: IFormPolicy) => {
             return (
               <Button
-                variant="text-icon"
+                variant="inverse"
                 onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                   e.stopPropagation();
                   setSelectedPolicyToPreview(item);

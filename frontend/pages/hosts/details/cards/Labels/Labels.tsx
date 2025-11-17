@@ -7,8 +7,9 @@ import classnames from "classnames";
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import { LABEL_DISPLAY_MAP } from "utilities/constants";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
-const baseClass = "labels-card";
+const baseClass = "host-labels-card";
 
 interface ILabelsProps {
   onLabelClick: (label: ILabel) => void;
@@ -31,9 +32,15 @@ const Labels = ({
           variant="pill"
           className="list__button"
         >
-          {label.label_type === "builtin" && label.name in LABEL_DISPLAY_MAP
-            ? LABEL_DISPLAY_MAP[label.name as keyof typeof LABEL_DISPLAY_MAP]
-            : label.name}
+          <TooltipTruncatedText
+            value={
+              label.label_type === "builtin" && label.name in LABEL_DISPLAY_MAP
+                ? LABEL_DISPLAY_MAP[
+                    label.name as keyof typeof LABEL_DISPLAY_MAP
+                  ]
+                : label.name
+            }
+          />
         </Button>
       </li>
     );
@@ -43,7 +50,6 @@ const Labels = ({
     <Card
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
       className={classNames}
     >
       <CardHeader header="Labels" />

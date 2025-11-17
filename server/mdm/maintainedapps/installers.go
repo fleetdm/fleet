@@ -2,10 +2,7 @@ package maintained_apps
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"mime"
 	"net/http"
 	"net/url"
@@ -93,16 +90,4 @@ func FilenameFromResponse(resp *http.Response) string {
 	}
 
 	return filename
-}
-
-func SHA256FromInstallerFile(installerTFR *fleet.TempFileReader) (string, error) {
-	h := sha256.New()
-	_, _ = io.Copy(h, installerTFR) // writes to a Hash can never fail
-	gotHash := hex.EncodeToString(h.Sum(nil))
-
-	if err := installerTFR.Rewind(); err != nil {
-		return "", fmt.Errorf("rewind installer reader: %w", err)
-	}
-
-	return gotHash, nil
 }

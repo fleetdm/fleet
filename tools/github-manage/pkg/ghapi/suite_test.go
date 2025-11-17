@@ -95,7 +95,7 @@ func BenchmarkSuite(b *testing.B) {
 
 	b.Run("ParseJSONtoProjectItems", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			_, _ = ParseJSONtoProjectItems([]byte(projectItemsJSON), 0)
+			_, _, _ = ParseJSONtoProjectItems([]byte(projectItemsJSON), 0)
 		}
 	})
 

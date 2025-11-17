@@ -8,7 +8,11 @@ import SectionHeader from ".";
 const meta: Meta<typeof SectionHeader> = {
   title: "Components/SectionHeader",
   component: SectionHeader,
-  args: { title: "Section header title" },
+  args: {
+    title: "Section header title",
+    subTitle: "This is a subtitle",
+    details: <>These are details</>,
+  },
 };
 
 export default meta;

@@ -56,7 +56,6 @@ describe("validPassword", () => {
     ];
 
     invalidPasswords.map((test) => {
-      console.log(test.password);
       return expect(validPassword(test.password)).toEqual(
         { isValid: false, error: test.error, error_code: test.error_code },
         `expected ${test.password} to not be valid`

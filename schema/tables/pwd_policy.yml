@@ -17,7 +17,7 @@ columns:
     type: integer
     required: false
     description: |-
-      How many days are left for the expiration of the current password.
+      Synonym for expires_every_n_days (not typically set in macOS 10.15+).
   - name: history_depth
     type: integer
     required: false

@@ -1,11 +1,10 @@
 .calendars-integration {
-  &__page-description {
-    font-size: $x-small;
-    color: $core-fleet-black;
-  }
+  @include vertical-card-layout;
 
-  p {
-    margin: $pad-large 0;
+  &__description {
+    p {
+      margin: 0;
+    }
   }
 
   ui {

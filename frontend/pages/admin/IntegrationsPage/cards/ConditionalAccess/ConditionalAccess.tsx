@@ -40,14 +40,31 @@ const MSETID = "microsoft_entra_tenant_id";
 interface IDeleteConditionalAccessModal {
   toggleDeleteConditionalAccessModal: () => void;
   onDelete: () => void;
-  isUpdating: boolean;
 }
 
 const DeleteConditionalAccessModal = ({
   toggleDeleteConditionalAccessModal,
   onDelete,
-  isUpdating,
 }: IDeleteConditionalAccessModal) => {
+  const { renderFlash } = useContext(NotificationContext);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await conditionalAccessAPI.deleteMicrosoftConditionalAccess();
+      renderFlash("success", "Successfully disconnected from Microsoft Entra.");
+      toggleDeleteConditionalAccessModal();
+      onDelete();
+    } catch {
+      renderFlash(
+        "error",
+        "Could not disconnect from Microsoft Entra, please try again."
+      );
+    }
+    setIsDeleting(false);
+  };
+
   return (
     <Modal
       title="Delete"
@@ -63,14 +80,16 @@ const DeleteConditionalAccessModal = ({
           <Button
             type="button"
             variant="alert"
-            onClick={onDelete}
-            isLoading={isUpdating}
+            onClick={handleDelete}
+            isLoading={isDeleting}
+            disabled={isDeleting}
           >
             Delete
           </Button>
           <Button
             onClick={toggleDeleteConditionalAccessModal}
             variant="inverse-alert"
+            disabled={isDeleting}
           >
             Cancel
           </Button>
@@ -174,7 +193,7 @@ const ConditionalAccess = () => {
     ...DEFAULT_USE_QUERY_OPTIONS,
     // only make this call at the appropriate UI phase
     enabled: phase === Phase.ConfirmingConfigured && isPremiumTier,
-    onSuccess: ({ configuration_completed }) => {
+    onSuccess: ({ configuration_completed, setup_error }) => {
       if (configuration_completed) {
         setPhase(Phase.Configured);
         renderFlash(
@@ -183,10 +202,42 @@ const ConditionalAccess = () => {
         );
       } else {
         setPhase(Phase.Form);
-        renderFlash(
-          "error",
-          "Could not verify conditional access integration. Please try connecting again."
-        );
+
+        if (
+          // IT admin did not complete the consent.
+          !setup_error ||
+          // IT admin clicked "Cancel" in the consent dialog.
+          setup_error.includes(
+            "A Microsoft Entra admin did not consent to the permissions requested by the conditional access integration"
+          )
+        ) {
+          renderFlash(
+            "error",
+            "Couldn't update. Fleet didn't get permissions for Entra. Please try again and accept the permissions."
+          );
+        } else if (
+          setup_error.includes(
+            'No "Fleet conditional access" Entra ID group was found'
+          )
+        ) {
+          renderFlash(
+            "error",
+            `Couldn't connect. The "Fleet conditional access" group doesn't exist in Entra. Please create the group and try again.`
+          );
+        } else {
+          // For other kind of errors we just show a generic error.
+          // We won't render the error as is because the error comes from the MS proxy and they may be too big or unformatted
+          // to display in the banner.
+          //
+          // For troubleshooting:
+          //  - The API response contains the setup_error.
+          //  - The Fleet server logs the error.
+          //  - The MS proxy stores the error in its database.
+          renderFlash(
+            "error",
+            "Couldn't connect. Please contact your Fleet administrator."
+          );
+        }
       }
     },
     onError: () => {
@@ -250,19 +301,8 @@ const ConditionalAccess = () => {
   };
 
   const onDeleteConditionalAccess = async () => {
-    setIsUpdating(true);
-    try {
-      await conditionalAccessAPI.deleteMicrosoftConditionalAccess();
-      renderFlash("success", "Successfully disconnected from Microsoft Entra.");
-      toggleDeleteConditionalAccessModal();
-      refetchConfig();
-    } catch {
-      renderFlash(
-        "error",
-        "Could not disconnect from Microsoft Entra, please try again."
-      );
-      setIsUpdating(false);
-    }
+    setFormData({ [MSETID]: "" });
+    refetchConfig();
   };
 
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
@@ -341,7 +381,7 @@ const ConditionalAccess = () => {
               <TooltipTruncatedText value={formData[MSETID]} />
             </div>
             <Button
-              variant="text-icon"
+              variant="inverse"
               onClick={toggleDeleteConditionalAccessModal}
             >
               Delete
@@ -369,7 +409,6 @@ const ConditionalAccess = () => {
           toggleDeleteConditionalAccessModal={
             toggleDeleteConditionalAccessModal
           }
-          isUpdating={isUpdating}
         />
       )}
     </div>

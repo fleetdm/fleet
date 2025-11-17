@@ -6,8 +6,8 @@ import {
   formatSoftwareType,
   IHostSoftware,
   isIpadOrIphoneSoftwareSource,
-  SoftwareSource,
 } from "interfaces/software";
+import { HostPlatform, isLinuxLike } from "interfaces/platform";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import PATHS from "router/paths";
@@ -18,6 +18,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import InstalledPathCell from "pages/SoftwarePage/components/tables/InstalledPathCell";
 import HashCell from "pages/SoftwarePage/components/tables/HashCell/HashCell";
+import TooltipWrapper from "components/TooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
@@ -40,6 +41,7 @@ interface ISoftwareTableHeadersProps {
   router: InjectedRouter;
   teamId: number;
   onShowInventoryVersions: (software: IHostSoftware) => void;
+  platform: HostPlatform;
 }
 
 // NOTE: cellProps come from react-table
@@ -48,6 +50,7 @@ export const generateSoftwareTableHeaders = ({
   router,
   teamId,
   onShowInventoryVersions,
+  platform,
 }: ISoftwareTableHeadersProps): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -60,9 +63,11 @@ export const generateSoftwareTableHeaders = ({
         const {
           id,
           name,
+          display_name,
           source,
           app_store_app,
           software_package,
+          icon_url,
         } = cellProps.row.original;
 
         const softwareTitleDetailsPath = getPathWithQueryParams(
@@ -76,18 +81,22 @@ export const generateSoftwareTableHeaders = ({
         const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
           cellProps.row.original
         );
+        const isAndroidPlayStoreApp =
+          !!app_store_app && source === "android_apps";
 
         return (
           <SoftwareNameCell
             name={name}
+            display_name={display_name}
             source={source}
-            iconUrl={app_store_app?.icon_url}
+            iconUrl={icon_url}
             path={softwareTitleDetailsPath}
             router={router}
             hasInstaller={hasInstaller}
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetails"
+            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );
       },
@@ -107,21 +116,30 @@ export const generateSoftwareTableHeaders = ({
     {
       Header: "Type",
       disableSortBy: true,
-      accessor: "source",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell
-          value={cellProps.cell.value}
-          formatter={() =>
-            formatSoftwareType({
-              source: cellProps.cell.value as SoftwareSource,
-            })
-          }
-        />
-      ),
+      id: "source",
+      Cell: (cellProps: ITableStringCellProps) => {
+        const { source, extension_for } = cellProps.row.original;
+        const value = formatSoftwareType({ source, extension_for });
+        return <TextCell value={value} />;
+      },
     },
     {
       Header: (): JSX.Element => {
-        return <HeaderCell value="Last opened" disableSortBy />;
+        const lastOpenedHeader = isLinuxLike(platform) ? (
+          <TooltipWrapper
+            tipContent={
+              <>
+                The last time the package was opened by the end user <br />
+                or accessed by any process on the host.
+              </>
+            }
+          >
+            Last opened
+          </TooltipWrapper>
+        ) : (
+          "Last opened"
+        );
+        return <HeaderCell value={lastOpenedHeader} disableSortBy />;
       },
       id: "Last opened",
       disableSortBy: true,

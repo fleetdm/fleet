@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 import {
   createMockHostAppStoreApp,
@@ -115,6 +115,92 @@ describe("getButtonActionState helper function", () => {
 
     expect(result.installDisabled).toBe(false);
     expect(result.uninstallDisabled).toBe(false);
+    expect(result.installTooltip).toBeUndefined();
+    expect(result.uninstallTooltip).toBeUndefined();
+  });
+  it("returns enabled buttons and no tooltips for isMyDevicePage", () => {
+    const result = getActionButtonState({
+      hostScriptsEnabled: false, // ignored when isMyDevicePage
+      status: null,
+      appStoreApp: null,
+      softwareId: 1,
+      softwarePackage: mockSoftwarePackage,
+      hostMDMEnrolled: false,
+      isMyDevicePage: true,
+      installedVersionsDetected: true,
+    });
+    expect(result).toEqual({
+      installDisabled: false,
+      uninstallDisabled: false,
+      moreDisabled: false,
+    });
+  });
+
+  it("disables both buttons and sets tooltips when host scripts are off and package is not IPA/appStore and script versions not detected", () => {
+    const result = getActionButtonState({
+      hostScriptsEnabled: false,
+      status: null,
+      appStoreApp: null,
+      softwareId: 1,
+      softwarePackage: mockSoftwarePackage,
+      hostMDMEnrolled: false,
+      installedVersionsDetected: false,
+    });
+    expect(result).toEqual({
+      installDisabled: true,
+      installTooltip: "To install, turn on host scripts.",
+      uninstallDisabled: true,
+      uninstallTooltip: "To uninstall, turn on host scripts.",
+      moreDisabled: true,
+    });
+  });
+
+  it("disables install button for IPA/appStore if hostMDMEnrolled is false", () => {
+    const result = getActionButtonState({
+      hostScriptsEnabled: true,
+      status: null,
+      appStoreApp: mockAppStoreApp,
+      softwareId: 1,
+      softwarePackage: mockSoftwarePackage,
+      hostMDMEnrolled: false,
+      installedVersionsDetected: true,
+    });
+    expect(result.installDisabled).toBe(true);
+    expect(result.uninstallDisabled).toBe(true);
+    expect(result.installTooltip).toBe(
+      "To install, turn on MDM for this host."
+    );
+  });
+
+  it("returns enabled buttons and no tooltips for non-IPA, scripts enabled", () => {
+    const result = getActionButtonState({
+      hostScriptsEnabled: true,
+      status: null,
+      appStoreApp: null,
+      softwareId: 1,
+      softwarePackage: mockSoftwarePackage,
+      hostMDMEnrolled: true,
+      installedVersionsDetected: true,
+    });
+    expect(result.installDisabled).toBe(false);
+    expect(result.uninstallDisabled).toBe(false);
+    expect(result.installTooltip).toBeUndefined();
+    expect(result.uninstallTooltip).toBeUndefined();
+    expect(result.moreDisabled).toBe(false);
+  });
+
+  it("returns disabled uninstall and enabled install for IPA/appStore app with MDM enrolled", () => {
+    const result = getActionButtonState({
+      hostScriptsEnabled: true,
+      status: null,
+      appStoreApp: mockAppStoreApp,
+      softwareId: 1,
+      softwarePackage: mockSoftwarePackage,
+      hostMDMEnrolled: true,
+      installedVersionsDetected: true,
+    });
+    expect(result.installDisabled).toBe(false);
+    expect(result.uninstallDisabled).toBe(true);
     expect(result.installTooltip).toBeUndefined();
     expect(result.uninstallTooltip).toBeUndefined();
   });
@@ -284,9 +370,11 @@ describe("HostInstallerActionCell component", () => {
     );
     const btn = screen.getByTestId(`${baseClass}__install-button--test`);
     await user.hover(btn);
-    expect(
-      screen.getByText(/To install, turn on MDM for this host/)
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/To install, turn on MDM for this host/)
+      ).toBeInTheDocument();
+    });
   });
 
   it('renders correct retry/reinstall for "failed_install" with installed_versions', () => {

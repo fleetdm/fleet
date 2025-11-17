@@ -1,17 +1,16 @@
 .script-batch-progress {
+  @include vertical-page-layout;
+  font-size: $x-small;
+
   &__status-count {
     font-weight: $bold;
-    margin: $pad-medium 0;
   }
+
   .paginated-list__row {
     padding: 16px 24px;
   }
-  &__row-left {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  &__row-when {
+
+  .list-item__details {
     display: flex;
     align-items: center;
     gap: 4px;
@@ -33,19 +32,10 @@
   }
 
   &__empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    border: 1px solid $ui-fleet-black-10;
-    border-radius: 4px;
-    padding: 40px;
-    gap: 8px;
-    font-size: $small;
-    p {
-      margin: 0;
-      @include help-text;
-    }
+    @include tab-empty-state;
+    gap: $pad-small;
   }
+
   .paginated-list .loading-overlay {
     position: initial;
     top: initial;

@@ -16,9 +16,10 @@ import configAPI from "services/entities/config";
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
-import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
-
+import SettingsSection from "pages/admin/components/SettingsSection";
+import PageDescription from "components/PageDescription";
+import Card from "components/Card";
 import AddIntegrationModal from "./components/AddIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
 import EmptyIntegrationsTable from "./components/EmptyIntegrationsTable";
@@ -291,10 +292,12 @@ const Integrations = (): JSX.Element => {
         }}
         resultsTitle="integrations"
         emptyComponent={() => (
-          <EmptyIntegrationsTable
-            className={noIntegrationsClass}
-            onActionButtonClick={toggleAddIntegrationModal}
-          />
+          <Card borderRadiusSize="small">
+            <EmptyIntegrationsTable
+              className={noIntegrationsClass}
+              onActionButtonClick={toggleAddIntegrationModal}
+            />
+          </Card>
         )}
         showMarkAllPages={false}
         isAllPagesSelected={false}
@@ -304,12 +307,12 @@ const Integrations = (): JSX.Element => {
   };
 
   return (
-    <div className={`${baseClass}`}>
-      <SectionHeader title="Ticket destinations" />
-      <p className={`${baseClass}__page-description`}>
-        Add or edit integrations to create tickets when Fleet detects new
-        vulnerabilities.
-      </p>
+    <SettingsSection title="Ticket destinations" className={baseClass}>
+      <PageDescription
+        content="Add or edit integrations to create tickets when Fleet detects new
+        vulnerabilities."
+        variant="right-panel"
+      />
       {renderTable()}
       {showAddIntegrationModal && (
         <AddIntegrationModal
@@ -332,7 +335,7 @@ const Integrations = (): JSX.Element => {
           isUpdatingIntegration={isUpdatingIntegration}
         />
       )}
-    </div>
+    </SettingsSection>
   );
 };
 

@@ -8,7 +8,6 @@ import { AppContext } from "context/app";
 import sessionsAPI from "services/entities/sessions";
 import local from "utilities/local";
 
-import LoginSuccessfulPage from "pages/LoginSuccessfulPage";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 // @ts-ignore
 import LoginForm from "components/forms/LoginForm";
@@ -59,8 +58,8 @@ const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
   }, []);
 
   return (
-    <AuthenticationFormWrapper>
-      <LoginSuccessfulPage />
+    <AuthenticationFormWrapper header="Login successful">
+      <p>Taking you to the Fleet UI...</p>
       <LoginForm
         handleSubmit={onSubmit}
         isSubmitting={false}

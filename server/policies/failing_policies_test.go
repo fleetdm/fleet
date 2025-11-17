@@ -124,7 +124,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 			},
 		}},
 	}
-	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		tm, ok := teams[id]
 		if !ok {
 			return nil, ctxerr.Wrap(ctx, sql.ErrNoRows)
@@ -183,7 +183,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 		require.NoError(t, err)
 
 		return nil
-	}, false)
+	})
 	require.NoError(t, err)
 
 	wantCalls := []policyAutomation{
@@ -227,7 +227,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 		triggerCalls = append(triggerCalls, policyAutomation{pol.ID, cfg.AutomationType})
 
 		return nil
-	}, false)
+	})
 	require.NoError(t, err)
 
 	// order of calls is undefined
@@ -252,7 +252,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 		require.NoError(t, err)
 
 		return nil
-	}, true) // enablePrimo
+	})
 	require.NoError(t, err)
 
 	wantCalls = []policyAutomation{

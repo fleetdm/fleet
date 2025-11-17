@@ -1,4 +1,6 @@
 .host-queries-card {
+  @include vertical-page-tab-panel-layout;
+
   .table-container__header {
     display: none;
   }
@@ -20,11 +22,19 @@
       }
       tbody {
         tr {
+          .report-updated-cell__view-report {
+            opacity: 0;
+          }
+
           .query_name__cell {
             min-width: $col-lg;
           }
           .last_fetched__cell {
-            display: table-cell;
+            .report-updated-cell {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
           }
           .performance-cell {
             @include cell-with-link;
@@ -35,7 +45,7 @@
           }
 
           &:hover {
-            .report-updated-cell__link-text {
+            .report-updated-cell__view-report {
               opacity: 1;
             }
           }

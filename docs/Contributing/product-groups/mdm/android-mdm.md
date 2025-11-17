@@ -59,7 +59,7 @@ There's also a command-line tool in `tools/android` that can list/delete/etc. en
 ## Known issues and limitations
 - The Fleet server URL must be public for pub/sub to work properly.
 - The Fleet server URL cannot change -- pub/sub is set up with one URL. See issue [Allow Fleet server URL update when using Android](https://github.com/fleetdm/fleet/issues/29878)
-- Network reliability issues may leave the Android enterprise flow in a broken state. For example, if fleetdm.com proxy creates an Android enteprise but Fleet server goes offline and does not receive the secret key.
+- Network reliability issues may leave the Android enterprise flow in a broken state. For example, if fleetdm.com proxy creates an Android enterprise but Fleet server goes offline and does not receive the secret key.
 
 ## Architecture diagrams
 

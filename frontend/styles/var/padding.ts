@@ -7,8 +7,8 @@ export const PADDING = {
   "pad-small": pxToRem(8),
   "pad-icon": pxToRem(14),
   "pad-medium": pxToRem(16),
-  "pad-large": pxToRem(24),
-  "pad-xlarge": pxToRem(32),
+  "pad-large": pxToRem(24), // Vertical main page components gap
+  "pad-xlarge": pxToRem(32), // Vertical page margins
   "pad-xxlarge": pxToRem(40),
   "pad-xxxlarge": pxToRem(80),
 };

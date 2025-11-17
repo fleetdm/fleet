@@ -7,7 +7,7 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import { AxiosResponse } from "axios";
 import { IApiError } from "../../../../../interfaces/errors";
-import { getErrorMessage } from "../ScriptUploader/helpers";
+import { getErrorMessage } from "../ScriptUploadModal/helpers";
 
 const baseClass = "delete-script-modal";
 
@@ -15,7 +15,7 @@ interface IDeleteScriptModalProps {
   scriptName: string;
   scriptId: number;
   onCancel: () => void;
-  onDone: () => void;
+  afterDelete: () => void;
   isHidden?: boolean;
 }
 
@@ -23,7 +23,7 @@ const DeleteScriptModal = ({
   scriptName,
   scriptId,
   onCancel,
-  onDone,
+  afterDelete,
   isHidden = false,
 }: IDeleteScriptModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
@@ -45,7 +45,7 @@ const DeleteScriptModal = ({
       );
     }
     setIsDeleting(false);
-    onDone();
+    afterDelete();
   };
 
   return (
@@ -59,11 +59,14 @@ const DeleteScriptModal = ({
     >
       <>
         <p>
-          The script{" "}
-          <span className={`${baseClass}__script-name`}>{scriptName}</span> will
-          run on pending hosts. After the script runs, its output and exit code
-          will appear in the activity feed.
+          This action will cancel any pending script execution for{" "}
+          <span className={`${baseClass}__script-name`}>{scriptName}</span>
         </p>
+        <p>
+          If the script is currently running on a host it will still complete,
+          but results won&apos;t appear in Fleet.
+        </p>
+        <p>You cannot undo this action.</p>
         <div className="modal-cta-wrap">
           <Button
             type="button"

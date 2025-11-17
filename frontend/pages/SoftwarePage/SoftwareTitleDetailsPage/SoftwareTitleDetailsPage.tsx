@@ -10,7 +10,10 @@ import paths from "router/paths";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { AppContext } from "context/app";
 import { ignoreAxiosError } from "interfaces/errors";
-import { ISoftwareTitleDetails } from "interfaces/software";
+import {
+  ISoftwareTitleDetails,
+  isIpadOrIphoneSoftwareSource,
+} from "interfaces/software";
 import {
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_NO_TEAM_ID,
@@ -145,14 +148,21 @@ const SoftwareTitleDetailsPage = ({
       addedTimestamp,
       status,
       isSelfService,
+      isScriptPackage,
+      source,
     } = getInstallerCardInfo(title);
+
+    const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(source);
 
     return (
       <SoftwareInstallerCard
         softwareTitleName={softwareTitleName}
+        isScriptPackage={isScriptPackage}
+        isIosOrIpadosApp={isIosOrIpadosApp}
         softwareInstaller={softwarePackage}
         name={name}
         version={version}
+        iconUrl={title.icon_url}
         addedTimestamp={addedTimestamp}
         status={status}
         isSelfService={isSelfService}
@@ -177,6 +187,12 @@ const SoftwareTitleDetailsPage = ({
         isAvailableForInstall={isAvailableForInstall}
         isLoading={isSoftwareTitleLoading}
         router={router}
+        refetchSoftwareTitle={refetchSoftwareTitle}
+        softwareInstaller={
+          isAvailableForInstall
+            ? getInstallerCardInfo(title).softwarePackage
+            : undefined
+        }
       />
     );
   };

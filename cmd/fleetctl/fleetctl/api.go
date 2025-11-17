@@ -394,7 +394,8 @@ func parseBodyFlags(flBody []string) (body any, headers map[string]string, err e
 				case '@':
 					// do a multipart file upload
 					if fileWriter, err := multipartWriter.CreateFormFile(k, path.Base(v[1:])); err == nil {
-						if fp, err := os.Open(v[1:]); err == nil {
+						fp, err := os.Open(v[1:])
+						if err == nil {
 							defer fp.Close()
 							_, err = io.Copy(fileWriter, fp)
 							if err != nil {

@@ -1,10 +1,9 @@
 .run-script {
-  &__description {
-    margin: 0;
-  }
+  @include vertical-card-layout;
 
-  &__learn-how-link {
-  margin-bottom: $pad-large;
+  &__description {
+    margin-top: 0;
+    margin-bottom: $pad-large;
   }
 
   &__run-message {

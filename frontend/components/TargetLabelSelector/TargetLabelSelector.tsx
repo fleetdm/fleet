@@ -1,5 +1,4 @@
 import React, { ReactNode } from "react";
-import { Link } from "react-router";
 import classnames from "classnames";
 
 import PATHS from "router/paths";
@@ -12,6 +11,7 @@ import Radio from "components/forms/fields/Radio";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import Checkbox from "components/forms/fields/Checkbox";
+import CustomLink from "components/CustomLink";
 
 const baseClass = "target-label-selector";
 
@@ -121,8 +121,8 @@ const LabelChooser = ({
   if (!labels.length) {
     return (
       <div className={`${baseClass}__no-labels`}>
-        <Link to={PATHS.LABEL_NEW_DYNAMIC}>Add label</Link> to target specific
-        hosts.
+        <CustomLink url={PATHS.LABEL_NEW_DYNAMIC} text="Add label" /> to target
+        specific hosts.
       </div>
     );
   }
