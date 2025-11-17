@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "8.11.18.36",
+      "version": "8.11.18",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = '1Password' AND publisher = 'AgileBits Inc.';"
       },
