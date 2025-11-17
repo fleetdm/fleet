@@ -103,6 +103,28 @@ Sometimes there is a change in the champion within the customer's organization.
 4. Fill out all the required fields making sure to pick "Expansion" in the  "Type" dropdown menu and then click "Save".
 
 
+### Schedule a Fast-track engagement
+
+The purpose of a Fast-track is to translate what your customer is doing with their current soluton over to what they want to be doing in Fleet. This often includes migration from a previous MDM solution, configuration, and training. Fast-tracks can be done on site or virtually, and can tak place over either 3 or 5 days. If your customer has a Fast-track engagement, it will be noted in their contract. Follow the directions below to get a Fast-track set up.
+
+1. When a deal including Fast-track closes, add a TODO on the final page of the kickoff slide deck, to confirm fast-track details and scheduling.
+2. Prior to the Fast-track kickoff, the CSM must collect the following prerequisites during onboardingg meetings:
+    - Your customers critical device management workflows:
+      - Onboarding workflow?
+      - Offboarding workflow?
+      - Automated device enrollment?
+      - Setup experience?
+      - Self-service software?
+    - Your customer's integrations:
+      - IAM?
+      - Logs?
+      - Zendesk?
+      - JIRA?
+      - Others?
+    - Understand which policies and profiles need to be replicated or replaced.
+3. The goal of collecting these prerequisites is so that your trainer can create a plan in advance, and be ready to start working once oncethe Fast-track begins.
+
+
 ### Conduct a health check
 
 Health checks are conducted quarterly or bi-annually, in preparation for a quarterly business review (QBR). The purpose of a health check is to understand what features and functionality the customer is currently using in Fleet. This information will be used to provide guidance to the customer during their QBR. For more information around QBRs, please see the section below, titled "Conduct a quarterly business review".
