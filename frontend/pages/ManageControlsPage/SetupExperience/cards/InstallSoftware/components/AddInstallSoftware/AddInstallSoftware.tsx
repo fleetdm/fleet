@@ -103,7 +103,7 @@ const AddInstallSoftware = ({
 
     const orderTooltip =
       platform === "android"
-        ? "Software order will vary"
+        ? "Software order will vary."
         : "Installation order will depend on software name, starting with 0-9 then A-Z.";
 
     return installSoftwareDuringSetupCount === 0 ? (

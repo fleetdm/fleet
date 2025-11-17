@@ -8,7 +8,6 @@ import { stringToClipboard } from "utilities/copy_text";
 import { internationalTimeFormat } from "utilities/helpers";
 import { addedFromNow } from "utilities/date_format";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 
 import Graphic from "components/Graphic";
@@ -17,11 +16,9 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import CustomLink from "components/CustomLink";
+import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 
 const baseClass = "installer-details-widget";
-
-export const ANDROID_PLAY_STORE_URL =
-  "https://play.google.com/store/apps/details";
 
 interface IInstallerNameProps {
   name: string;
@@ -153,23 +150,9 @@ const InstallerDetailsWidget = ({
 
       if (androidPlayStoreId) {
         versionInfo = (
-          // 2 usages here and selectsoftwaretableconfig, consider making component if more common
-          <TooltipWrapper
-            tipContent={
-              <span>
-                See latest version on the{" "}
-                <CustomLink
-                  text="Play Store"
-                  url={getPathWithQueryParams(ANDROID_PLAY_STORE_URL, {
-                    id: androidPlayStoreId,
-                  })}
-                  newTab
-                />
-              </span>
-            }
-          >
-            <span>Latest</span>
-          </TooltipWrapper>
+          <AndroidLatestVersionWithTooltip
+            androidPlayStoreId={androidPlayStoreId}
+          />
         );
       }
 

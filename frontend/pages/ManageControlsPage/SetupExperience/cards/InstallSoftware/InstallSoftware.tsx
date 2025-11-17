@@ -48,7 +48,7 @@ export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
   "linux",
   "ios",
   "ipados",
-  "macos", // Change to android
+  "android",
 ];
 export interface InstallSoftwareLocation {
   search: string;
