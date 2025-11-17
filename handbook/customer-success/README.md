@@ -105,24 +105,23 @@ Sometimes there is a change in the champion within the customer's organization.
 
 ### Schedule a Fast-track engagement
 
-The purpose of a Fast-track is to translate what your customer is doing with their current soluton over to what they want to be doing in Fleet. This often includes migration from a previous MDM solution, configuration, and training. Fast-tracks can be done on site or virtually, and can tak place over either 3 or 5 days. If your customer has a Fast-track engagement, it will be noted in their contract. Follow the directions below to get a Fast-track set up.
+Fast-track is Fleet's service delivery package for new MDM customers. Check with your team to learn about the options available and the differences between them (virtual vs on site, migration vs no migration). If your customer has a Fast-track engagement, it will be included in their contract. Follow the directions below to get a Fast-track set up and collect the training pre-requisites.
 
-1. When a deal including Fast-track closes, add a TODO on the final page of the kickoff slide deck, to confirm fast-track details and scheduling.
-2. Prior to the Fast-track kickoff, the CSM must collect the following prerequisites during onboardingg meetings:
-    - Your customers critical device management workflows:
-      - Onboarding workflow?
-      - Offboarding workflow?
-      - Automated device enrollment?
-      - Setup experience?
-      - Self-service software?
-    - Your customer's integrations:
-      - IAM?
-      - Logs?
-      - Zendesk?
-      - JIRA?
-      - Others?
-    - Understand which policies and profiles need to be replicated or replaced.
-3. The goal of collecting these prerequisites is so that your trainer can create a plan in advance, and be ready to start working once oncethe Fast-track begins.
+1. When a deal including Fast-track closes, add a TODO on the final page of the partnership kickoff presentation, to confirm the details around their services purchase and to coordinate scheduling. Be sure to make the customer aware that delays in confirming service delivery date can cause the date to move out further.
+2. Prior to the Fast-track kickoff, schedule a Pre-requisite planning meeting with the customer and the assigned CSA to collect the following information:
+- What is the target migration date and when does the previous MDM contract end?
+- Which critical workflows will Fleet be used for?
+  - Onboarding workflow?
+  - Offboarding workflow?
+  - Automated device enrollment (ADE)? Autopilot?
+  - Setup experience?
+  - Self-service software?
+- Which integrations will be required for migration? Which integrations will be required post-migration (no hard timeline)?
+  - IAM?
+  - Log shipping to SIEM?
+  - Zendesk/JIRA?
+  - Others?
+- Gather a list of which policies and profiles need to be replicated or replaced
 
 
 ### Conduct a health check
