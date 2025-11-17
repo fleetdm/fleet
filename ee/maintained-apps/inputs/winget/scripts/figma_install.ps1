@@ -58,7 +58,8 @@ try {
     $action = New-ScheduledTaskAction -Execute "powershell.exe" `
         -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scriptPath`" *> `"$logFile`" 2>&1"
 
-    $trigger = New-ScheduledTaskTrigger -AtLogOn
+    # Create a trigger that runs immediately (one-time trigger)
+    $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date)
 
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
 
@@ -68,8 +69,8 @@ try {
 
     Register-ScheduledTask -TaskName $taskName -InputObject $task -User $userName -Force
 
-    # Start the task
-    Start-ScheduledTask -TaskName $taskName
+    # Start the task immediately
+    Start-ScheduledTask -TaskName $taskName -TaskPath "\"
 
     # Wait for it to start
     $startDate = Get-Date
