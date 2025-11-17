@@ -255,7 +255,7 @@ module.exports.custom = {
     // FMA and icons
     'frontend/pages/SoftwarePage/components/icons': 'allenhouchins',
     'ee/maintained-apps': 'allenhouchins',
-    'assets/images': 'allenhouchins',
+    'website/assets/images': 'allenhouchins',
 
     // Other brandfronts
     'README.md': ['mikermcneil', 'mike-j-thomas', 'lukeheath'],//« github brandfront (github.com/fleetdm/fleet)
