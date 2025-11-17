@@ -46,7 +46,7 @@ type VPPAppTeam struct {
 	// automatically created when a VPP app is added to Fleet. This field should be set after VPP
 	// app creation if AddAutoInstallPolicy is true.
 	AddedAutomaticInstallPolicy *Policy `json:"-"`
-	DisplayName                 string  `json:"-"`
+	DisplayName                 string  `json:"display_name"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,
@@ -102,7 +102,8 @@ type VPPAppStoreApp struct {
 	AddedAt time.Time `db:"added_at" json:"created_at"`
 	// Categories is the list of categories to which this software belongs: e.g. "Productivity",
 	// "Browsers", etc.
-	Categories []string `json:"categories"`
+	Categories  []string `json:"categories"`
+	DisplayName string   `json:"display_name"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.
