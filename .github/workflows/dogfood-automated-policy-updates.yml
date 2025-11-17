@@ -110,6 +110,14 @@ jobs:
             );
             return matchingPRs.map(pr => pr.number);
 
+      - name: Get current date and time
+        if: steps.update-macos.outputs.changed == 'true' || steps.update-1password.outputs.changed == 'true'
+        id: date
+        run: |
+          BRANCH_DATE=$(date +'%y%m%d%H%M')
+          echo "date=$BRANCH_DATE" >> $GITHUB_OUTPUT
+          echo "Generated branch name: update-macos-policy-versions-$BRANCH_DATE"
+
       - name: Create Pull Request
         if: steps.update-macos.outputs.changed == 'true' || steps.update-1password.outputs.changed == 'true'
         id: create-pr
@@ -125,7 +133,7 @@ jobs:
             This PR automatically updates macOS version policies for dogfood.
 
             The changes were generated automatically by the [dogfood-automated-policy-updates workflow](https://github.com/${{ github.repository }}/actions/workflows/dogfood-automated-policy-updates.yml).
-          branch: update-macos-policy-versions-$(date +%s)
+          branch: update-macos-policy-versions-${{ steps.date.outputs.date }}
           delete-branch: true
           assignees: allenhouchins
 
