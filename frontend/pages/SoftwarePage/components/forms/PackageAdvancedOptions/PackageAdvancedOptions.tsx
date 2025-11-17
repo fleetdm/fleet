@@ -218,6 +218,8 @@ const PackageAdvancedOptions = ({
     );
   };
 
+  const requiresAdvancedOptions = ext === "exe" || ext === "tar.gz";
+
   return (
     <div className={baseClass}>
       <RevealButton
@@ -227,12 +229,16 @@ const PackageAdvancedOptions = ({
         hideText="Advanced options"
         caretPosition="after"
         onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-        disabled={!selectedPackage}
+        disabled={!selectedPackage || requiresAdvancedOptions}
         disabledTooltipContent={
-          <>
-            Choose a file to modify <br />
-            advanced options.
-          </>
+          requiresAdvancedOptions ? (
+            <>Install script is required for .{ext} packages.</>
+          ) : (
+            <>
+              Choose a file to modify <br />
+              advanced options.
+            </>
+          )
         }
       />
       {(showAdvancedOptions || ext === "exe" || ext === "tar.gz") &&
