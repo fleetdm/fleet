@@ -233,6 +233,13 @@
       "description": "Software for managing Logitech devices."
     },
     {
+      "name": "Loom",
+      "slug": "loom/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.loom.desktop",
+      "description": "Screen and video recording software."
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
