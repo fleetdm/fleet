@@ -232,7 +232,7 @@ const PackageAdvancedOptions = ({
         disabled={!selectedPackage || requiresAdvancedOptions}
         disabledTooltipContent={
           requiresAdvancedOptions ? (
-            <>Install script is required for .{ext} packages.</>
+            <>Install and uninstall scripts are required for .{ext} packages.</>
           ) : (
             <>
               Choose a file to modify <br />
