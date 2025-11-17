@@ -48,7 +48,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 		if count > 0 {
 			// ios or ipados version of this installer exists
-			err = alreadyExists("In-house app", payload.Filename)
+			return alreadyExists("in-house app", payload.Filename)
 		}
 
 		argsIos := []any{
