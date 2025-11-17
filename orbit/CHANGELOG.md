@@ -5,7 +5,7 @@
 
 * Added support for requiring end-user authentication before enrolling Windows and Linux devices.
 
-* Add `yaml_to_json` table for converting YAML in input to JSON in output.  
+* Added `yaml_to_json` table for converting YAML in input to JSON in output.  
 * Add `file_contents` table for retrieving contents of a file. This table is like `file_lines` but returns the full file contents in a single row rather than a separate row for each line.
 
 * Fixed handling of various parsing bugs that caused the falconctl_options table to fail to load in some circumsatances.
