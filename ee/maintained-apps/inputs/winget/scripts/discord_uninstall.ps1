@@ -26,31 +26,38 @@ if (-not $uninstall -or -not $uninstall.UninstallString) {
 # Kill any running Discord processes before uninstalling
 Stop-Process -Name "Discord" -Force -ErrorAction SilentlyContinue
 
-$uninstallCommand = $uninstall.UninstallString
-$uninstallArgs = "-s"
+$uninstallString = $uninstall.UninstallString
+$exePath = ""
+$arguments = ""
 
-# Parse the uninstall command to separate executable from existing arguments
-$splitArgs = $uninstallCommand.Split('"')
-if ($splitArgs.Length -gt 1) {
-    if ($splitArgs.Length -eq 3) {
-        $existingArgs = $splitArgs[2].Trim()
-        if ($existingArgs -ne '') {
-            $uninstallArgs = "$existingArgs $uninstallArgs"
-        }
-    } elseif ($splitArgs.Length -gt 3) {
-        Write-Host "Error: Uninstall command contains multiple quoted strings"
-        Exit 1
-    }
-    $uninstallCommand = $splitArgs[1]
+# Parse the uninstall string to extract executable path and existing arguments
+# Handles both quoted and unquoted paths
+if ($uninstallString -match '^"([^"]+)"(.*)') {
+    $exePath = $matches[1]
+    $arguments = $matches[2].Trim()
+} elseif ($uninstallString -match '^([^\s]+)(.*)') {
+    $exePath = $matches[1]
+    $arguments = $matches[2].Trim()
+} else {
+    Write-Host "Error: Could not parse uninstall string: $uninstallString"
+    Exit 1
 }
 
-Write-Host "Uninstall command: $uninstallCommand"
-Write-Host "Uninstall args: $uninstallArgs"
+# Build argument list array, preserving existing arguments and adding -s for silent
+$argumentList = @()
+if ($arguments -ne '') {
+    # Split existing arguments and add them
+    $argumentList += $arguments -split '\s+'
+}
+$argumentList += "-s"
+
+Write-Host "Uninstall executable: $exePath"
+Write-Host "Uninstall arguments: $($argumentList -join ' ')"
 
 try {
     $processOptions = @{
-        FilePath = $uninstallCommand
-        ArgumentList = $uninstallArgs
+        FilePath = $exePath
+        ArgumentList = $argumentList
         NoNewWindow = $true
         PassThru = $true
         Wait = $true
