@@ -412,11 +412,13 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		case fleetVar == string(fleet.FleetVarHostPlatform):
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostPlatformRegexp, result, "windows")
 		case fleetVar == string(fleet.FleetVarHostHardwareSerial):
-			serial, err := getHostHardwareSerial(deps.GetContext(), deps.GetDS(), params.HostUUID)
+			hostLite, _, err := profiles.HydrateHost(deps.GetContext(), deps.GetDS(), fleet.Host{UUID: params.HostUUID}, func(hostCount int) error {
+				return &MicrosoftProfileProcessingError{message: fmt.Sprintf("found %d hosts with UUID %s; profile variable substitution for hardware serial number requires exactly one host", hostCount, params.HostUUID)}
+			})
 			if err != nil {
-				return profileContents, &MicrosoftProfileProcessingError{message: err.Error()}
+				return profileContents, err
 			}
-			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostHardwareSerialRegexp, result, serial)
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostHardwareSerialRegexp, result, hostLite.HardwareSerial)
 		case slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(fleetVar)):
 			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(deps.GetContext(), deps.GetDS(), fleetVar, result, params.HostUUID, deps.GetHostIdForUUIDCache(), func(errMsg string) error {
 				return &MicrosoftProfileProcessingError{message: errMsg}

@@ -5339,7 +5339,7 @@ func preprocessProfileContents(
 					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, hostContents, email)
 
 				case fleetVar == string(fleet.FleetVarHostHardwareSerial):
-					hostLite, ok, err = hydrateHost(ctx, ds, hostLite, onMismatchedHostCount)
+					hostLite, ok, err = profiles.HydrateHost(ctx, ds, hostLite, onMismatchedHostCount)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "getting host hardware serial")
 					}
@@ -5349,7 +5349,7 @@ func preprocessProfileContents(
 					}
 					hostContents = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostHardwareSerialRegexp, hostContents, hostLite.HardwareSerial)
 				case fleetVar == string(fleet.FleetVarHostPlatform):
-					hostLite, ok, err = hydrateHost(ctx, ds, hostLite, onMismatchedHostCount)
+					hostLite, ok, err = profiles.HydrateHost(ctx, ds, hostLite, onMismatchedHostCount)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "getting host platform")
 					}
@@ -5558,7 +5558,7 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 			hardwareSerial, ok := caVarsCache[string(fleet.FleetVarHostHardwareSerial)]
 			if !ok {
 				var err error
-				hostLite, ok, err = hydrateHost(ctx, ds, hostLite, onMismatchedHostCount)
+				hostLite, ok, err = profiles.HydrateHost(ctx, ds, hostLite, onMismatchedHostCount)
 				if err != nil {
 					return false, ctxerr.Wrap(ctx, err, "getting host hardware serial")
 				}
@@ -5573,7 +5573,7 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 			platform, ok := caVarsCache[string(fleet.FleetVarHostPlatform)]
 			if !ok {
 				var err error
-				hostLite, ok, err = hydrateHost(ctx, ds, hostLite, onMismatchedHostCount)
+				hostLite, ok, err = profiles.HydrateHost(ctx, ds, hostLite, onMismatchedHostCount)
 				if err != nil {
 					return false, ctxerr.Wrap(ctx, err, "getting host hardware serial")
 				}
@@ -5593,21 +5593,6 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 		}
 	}
 	return true, nil
-}
-
-func hydrateHost(ctx context.Context, ds fleet.Datastore, hostLite fleet.Host, onHostCountMismatch func(int) error) (fleet.Host, bool, error) {
-	if hostLite.ID != 0 { // already hydrated; return as-is
-		return hostLite, true, nil
-	}
-
-	hosts, err := ds.ListHostsLiteByUUIDs(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}, []string{hostLite.UUID})
-	if err != nil {
-		return hostLite, false, ctxerr.Wrap(ctx, err, "listing hosts")
-	}
-	if len(hosts) != 1 {
-		return hostLite, false, onHostCountMismatch(len(hosts))
-	}
-	return *hosts[0], true, nil
 }
 
 func isDigiCertConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
