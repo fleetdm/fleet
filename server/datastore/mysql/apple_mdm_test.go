@@ -4643,7 +4643,7 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 	}
 
 	checkTeamConfig := func(teamID uint, wantURL string) {
-		tm, err := ds.TeamWithExtras(ctx, teamID)
+		tm, err := ds.TeamLite(ctx, teamID)
 		require.NoError(t, err)
 		require.Equal(t, wantURL, tm.Config.MDM.MacOSSetup.BootstrapPackage.Value)
 	}
@@ -4754,7 +4754,7 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 		Enable:         true,
 		DestinationURL: "https://example.com/webhook",
 	}
-	tc.Config.Features.EnableHostUsers = false
+	tc.Config.Features.EnableHostUsers = true
 	savedTeam, err := ds.SaveTeam(ctx, tc)
 	require.NoError(t, err)
 	require.Equal(t, tc.Config, savedTeam.Config)
@@ -4775,14 +4775,14 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 	checkTeamConfig(teamID, "https://example.com/bs.pkg")
 
 	// confirm other team config values are unchanged
-	tc, err = ds.TeamWithExtras(ctx, teamID)
+	teamFromDb, err := ds.TeamWithExtras(ctx, teamID)
 	require.NoError(t, err)
-	require.Equal(t, tc.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value, "/path/to/setupassistant")
-	require.Equal(t, tc.Config.MDM.MacOSUpdates.Deadline.Value, "2024-01-01")
-	require.Equal(t, tc.Config.MDM.MacOSUpdates.MinimumVersion.Value, "10.15.4")
-	require.Equal(t, tc.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL, "https://example.com/webhook")
-	require.Equal(t, tc.Config.WebhookSettings.FailingPoliciesWebhook.Enable, true)
-	require.Equal(t, tc.Config.Features.EnableHostUsers, false)
+	require.Equal(t, teamFromDb.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value, "/path/to/setupassistant")
+	require.Equal(t, teamFromDb.Config.MDM.MacOSUpdates.Deadline.Value, "2024-01-01")
+	require.Equal(t, teamFromDb.Config.MDM.MacOSUpdates.MinimumVersion.Value, "10.15.4")
+	require.Equal(t, teamFromDb.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL, "https://example.com/webhook")
+	require.Equal(t, teamFromDb.Config.WebhookSettings.FailingPoliciesWebhook.Enable, true)
+	require.Equal(t, teamFromDb.Config.Features.EnableHostUsers, true)
 }
 
 func TestHostDEPAssignments(t *testing.T) {
