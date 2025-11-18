@@ -16,13 +16,6 @@
       "description": "Password manager that keeps all passwords secure behind one password."
     },
     {
-      "name": "Adobe Acrobat Pro DC",
-      "slug": "adobe-acrobat-pro/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.adobe.Acrobat.Pro",
-      "description": "Adobe Acrobat Pro is an app to view, create, manipulate, print and manage files in Portable Document Format."
-    },
-    {
       "name": "Abstract",
       "slug": "abstract/darwin",
       "platform": "darwin",
@@ -42,6 +35,13 @@
       "platform": "darwin",
       "unique_identifier": "com.adobe.acc.AdobeCreativeCloud",
       "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
+    },
+    {
+      "name": "Asana",
+      "slug": "asana/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.asana",
+      "description": "Manage team projects and tasks."
     },
     {
       "name": "Beyond Compare",
@@ -77,6 +77,13 @@
       "platform": "windows",
       "unique_identifier": "Brave",
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
+    },
+    {
+      "name": "ChatGPT Desktop",
+      "slug": "chatgpt/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.openai.chat",
+      "description": "OpenAI's official ChatGPT desktop app for macOS, providing seamless access to AI-powered conversations and assistance."
     },
     {
       "name": "Claude",
@@ -154,6 +161,20 @@
       "platform": "darwin",
       "unique_identifier": "com.docker.docker",
       "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
+    },
+    {
+      "name": "draw.io",
+      "slug": "drawio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jgraph.drawio.desktop",
+      "description": "draw.io is a versatile diagramming or whiteboarding application."
+    },
+    {
+      "name": "Dropbox",
+      "slug": "dropbox/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.getdropbox.dropbox",
+      "description": "Dropbox is a client for the Dropbox cloud storage service."
     },
     {
       "name": "Figma",
@@ -275,6 +296,13 @@
       "description": "Microsoft Excel is the industry-standard spreadsheet software, perfect for data analysis, reporting, and visualization."
     },
     {
+      "name": "Microsoft OneNote",
+      "slug": "microsoft-onenote/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.onenote.mac",
+      "description": "Microsoft OneNote is a digital note taking app."
+    },
+    {
       "name": "Microsoft Outlook",
       "slug": "microsoft-outlook/darwin",
       "platform": "darwin",
@@ -301,6 +329,13 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.Word",
       "description": "Microsoft Word is the industry-standard word processor for creating, editing, and sharing professional documents."
+    },
+    {
+      "name": "Miro",
+      "slug": "miro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.realtimeboard",
+      "description": "Online collaborative whiteboard platform"
     },
     {
       "name": "Notion",
@@ -366,6 +401,20 @@
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
     },
     {
+      "name": "PyCharm Community Edition",
+      "slug": "pycharm-ce/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.pycharm.ce",
+      "description": "Jetbrains IDE for Python programming - Community Edition"
+    },
+    {
+      "name": "PyCharm Professional",
+      "slug": "pycharm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.pycharm",
+      "description": "Jetbrain IDE for professional Python development. This version includes advanced features and requires a valid license."
+    },
+    {
       "name": "Rectangle",
       "slug": "rectangle/darwin",
       "platform": "darwin",
@@ -420,6 +469,13 @@
       "platform": "windows",
       "unique_identifier": "TeamViewer",
       "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
+    },
+    {
+      "name": "Thunderbird",
+      "slug": "thunderbird/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.mozilla.thunderbird",
+      "description": "Mozilla Thunderbird is a free and open-source e-mail client."
     },
     {
       "name": "Tunnelblick",
