@@ -184,7 +184,6 @@ const DeviceUserPage = ({
   const [queuedSelfServiceRefetch, setQueuedSelfServiceRefetch] = useState(
     false
   );
-  const [selfServiceRefreshKey, setSelfServiceRefreshKey] = useState(0);
 
   const { data: deviceMacAdminsData } = useQuery(
     ["macadmins", deviceAuthToken],
@@ -280,7 +279,7 @@ const DeviceUserPage = ({
       retry: false,
       onSuccess: ({ host: responseHost }) => {
         // Queued refetch logic to guarantee that install completions are reflected
-        if (queuedSelfServiceRefetch) {
+        if (queuedSelfServiceRefetch && !isRefetching(responseHost)) {
           setQueuedSelfServiceRefetch(false); // Clear the flag
           refetchHostDetails(); // Trigger the queued extra fetch
           console.log("unqueue refetch!");
@@ -312,7 +311,7 @@ const DeviceUserPage = ({
             }
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
-            if (totalElapsedTime < 60000) {
+            if (totalElapsedTime < 180000) {
               if (responseHost.status === "online") {
                 setTimeout(() => {
                   refetchHostDetails();
@@ -492,6 +491,26 @@ const DeviceUserPage = ({
     }
   };
 
+  // Use for any finishing install/uninstall actions
+  const requestRefetch = () => {
+    if (showRefetchSpinner) {
+      setQueuedSelfServiceRefetch(true);
+      console.log("queuedup because there's already a request happening");
+    } else {
+      refetchHostDetails();
+      setRefetchStartTime(Date.now());
+    }
+  };
+
+  useEffect(() => {
+    if (!showRefetchSpinner && queuedSelfServiceRefetch) {
+      setQueuedSelfServiceRefetch(false);
+      console.log("unquee and start refetch");
+      refetchHostDetails();
+      setRefetchStartTime(Date.now());
+    }
+  }, [showRefetchSpinner, queuedSelfServiceRefetch, refetchHostDetails]);
+
   // Updates title that shows up on browser tabs
   useEffect(() => {
     document.title = `My device | ${DOCUMENT_TITLE_SUFFIX}`;
@@ -633,12 +652,11 @@ const DeviceUserPage = ({
               pathname={location.pathname}
               queryParams={parseSelfServiceQueryParams(location.query)}
               router={router}
-              refetchHostDetails={refetchHostDetails}
+              refetchHostDetails={requestRefetch}
               isHostDetailsPolling={showRefetchSpinner}
               hostSoftwareUpdatedAt={host.software_updated_at}
               hostDisplayName={host?.hostname || ""}
               isMobileView={shouldShowMobileUI}
-              setQueuedSelfServiceRefetch={setQueuedSelfServiceRefetch}
             />
           </div>
         </div>
@@ -711,11 +729,10 @@ const DeviceUserPage = ({
                     pathname={location.pathname}
                     queryParams={parseSelfServiceQueryParams(location.query)}
                     router={router}
-                    refetchHostDetails={refetchHostDetails}
+                    refetchHostDetails={requestRefetch}
                     isHostDetailsPolling={showRefetchSpinner}
                     hostSoftwareUpdatedAt={host.software_updated_at}
                     hostDisplayName={host?.hostname || ""}
-                    setQueuedSelfServiceRefetch={setQueuedSelfServiceRefetch}
                   />
                 </TabPanel>
               )}
