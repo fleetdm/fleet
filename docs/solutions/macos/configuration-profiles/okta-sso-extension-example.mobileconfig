@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>ExtensionIdentifier</key>
+			<string>com.okta.mobile.auth-service-extension</string>
+			<key>PayloadDisplayName</key>
+			<string>Extensible Single Sign-On</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.extensiblesso.CE7041AB-13CD-4231-9315-8C9435FF2EC7</string>
+			<key>PayloadType</key>
+			<string>com.apple.extensiblesso</string>
+			<key>PayloadUUID</key>
+			<string>CE7041AB-13CD-4231-9315-8C9435FF2EC7</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PlatformSSO</key>
+			<dict>
+				<key>AccountDisplayName</key>
+				<string>Okta Verify</string>
+				<key>AuthenticationMethod</key>
+				<string>Password</string>
+				<key>UseSharedDeviceKeys</key>
+				<true/>
+			</dict>
+			<key>TeamIdentifier</key>
+			<string>B7F62B65BN</string>
+			<key>Type</key>
+			<string>Redirect</string>
+			<key>URLs</key>
+			<array>
+				<string>https://yourdomain.okta.com/device-access/api/v1/nonce</string>
+				<string>https://yourdomain.okta.com/oauth2/v1/token</string>
+			</array>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>Okta SSO Extension</string>
+	<key>PayloadIdentifier</key>
+	<string>com.okta.device.access.0F08D9EE-1CAE-4AC4-9E24-53B56FA6A2B1</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>0F08D9EE-1CAE-4AC4-9E24-53B56FA6A2B1</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

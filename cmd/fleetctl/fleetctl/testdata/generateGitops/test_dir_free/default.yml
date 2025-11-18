@@ -50,6 +50,11 @@ labels:
   name: Label C
 org_settings:
   certificate_authorities:
+    custom_est_proxy:
+    - name: some-est-name
+      password: # TODO: Add your EST password here
+      url: https://some-est-url.example.com
+      username: some-est-username
     custom_scep_proxy:
     - challenge: # TODO: Add your custom SCEP proxy challenge here
       name: some-custom-scep-proxy-name
@@ -178,7 +183,7 @@ policies:
   critical: false
   description: This is a global policy
   install_software:
-    hash_sha256: ___GITOPS_COMMENT_14___
+    hash_sha256: ___GITOPS_COMMENT_15___
   labels_include_any:
   - Label A
   - Label B

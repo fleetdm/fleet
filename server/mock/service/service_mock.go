@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"io"
+	"net/url"
 	"sync"
 	"time"
 
@@ -85,7 +86,7 @@ type GetUserSettingsFunc func(ctx context.Context, id uint) (settings *fleet.Use
 
 type InitiateSSOFunc func(ctx context.Context, redirectURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
-type InitiateMDMSSOFunc func(ctx context.Context, initiator string, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
+type InitiateMDMSSOFunc func(ctx context.Context, initiator string, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
 type InitSSOCallbackFunc func(ctx context.Context, sessionID string, samlResponse []byte) (auth fleet.Auth, redirectURL string, err error)
 
@@ -147,7 +148,7 @@ type NewLabelFunc func(ctx context.Context, p fleet.LabelPayload) (label *fleet.
 
 type ModifyLabelFunc func(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.Label, []uint, error)
 
-type ListLabelsFunc func(ctx context.Context, opt fleet.ListOptions) (labels []*fleet.Label, err error)
+type ListLabelsFunc func(ctx context.Context, opt fleet.ListOptions, includeHostCounts bool) (labels []*fleet.Label, err error)
 
 type LabelsSummaryFunc func(ctx context.Context) (labels []*fleet.LabelSummary, err error)
 
@@ -205,6 +206,8 @@ type AgentOptionsForHostFunc func(ctx context.Context, hostTeamID *uint, hostPla
 
 type AuthenticateDeviceFunc func(ctx context.Context, authToken string) (host *fleet.Host, debug bool, err error)
 
+type AuthenticateDeviceByCertificateFunc func(ctx context.Context, certSerial uint64, hostUUID string) (host *fleet.Host, debug bool, err error)
+
 type ListHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error)
 
 type GetHostFunc func(ctx context.Context, id uint, opts fleet.HostDetailOptions) (host *fleet.HostDetail, err error)
@@ -221,6 +224,8 @@ type HostByIdentifierFunc func(ctx context.Context, identifier string, opts flee
 
 type RefetchHostFunc func(ctx context.Context, id uint) (err error)
 
+type CleanupExpiredHostsFunc func(ctx context.Context) ([]fleet.DeletedHostDetails, error)
+
 type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
 
 type AddHostsToTeamByFilterFunc func(ctx context.Context, teamID *uint, filter *map[string]interface{}) error
@@ -233,7 +238,9 @@ type SearchHostsFunc func(ctx context.Context, matchQuery string, queryID *uint,
 
 type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
 
-type SetCustomHostDeviceMappingFunc func(ctx context.Context, hostID uint, email string) ([]*fleet.HostDeviceMapping, error)
+type SetHostDeviceMappingFunc func(ctx context.Context, id uint, email string, source string) ([]*fleet.HostDeviceMapping, error)
+
+type DeleteHostIDPFunc func(ctx context.Context, id uint) error
 
 type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.HostLite, error)
 
@@ -265,9 +272,9 @@ type AddLabelsToHostFunc func(ctx context.Context, id uint, labels []string) err
 
 type RemoveLabelsFromHostFunc func(ctx context.Context, id uint, labels []string) error
 
-type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error)
+type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error)
 
-type OSVersionFunc func(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error)
+type OSVersionFunc func(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersion, *time.Time, error)
 
 type ListHostSoftwareFunc func(ctx context.Context, hostID uint, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error)
 
@@ -449,7 +456,11 @@ type GetAppStoreAppsFunc func(ctx context.Context, teamID *uint) ([]*fleet.VPPAp
 
 type AddAppStoreAppFunc func(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (uint, error)
 
-type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string) (*fleet.VPPAppStoreApp, error)
+type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string, displayName string) (*fleet.VPPAppStoreApp, error)
+
+type GetInHouseAppManifestFunc func(ctx context.Context, titleID uint, teamID *uint) ([]byte, error)
+
+type GetInHouseAppPackageFunc func(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error)
 
 type MDMAppleProcessOTAEnrollmentFunc func(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret string, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) ([]byte, error)
 
@@ -535,7 +546,7 @@ type SkipAuthFunc func(ctx context.Context)
 
 type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error)
 
-type GetDeviceMDMAppleEnrollmentProfileFunc func(ctx context.Context) ([]byte, error)
+type GetDeviceMDMAppleEnrollmentProfileFunc func(ctx context.Context) (*url.URL, error)
 
 type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
 
@@ -597,7 +608,7 @@ type VerifyMDMAppleConfiguredFunc func(ctx context.Context) error
 
 type VerifyMDMWindowsConfiguredFunc func(ctx context.Context) error
 
-type VerifyMDMAppleOrWindowsConfiguredFunc func(ctx context.Context) error
+type VerifyAnyMDMConfiguredFunc func(ctx context.Context) error
 
 type MDMAppleUploadBootstrapPackageFunc func(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error
 
@@ -818,6 +829,10 @@ type ConditionalAccessMicrosoftGetFunc func(ctx context.Context) (*fleet.Conditi
 type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurationCompleted bool, setupError string, err error)
 
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
+
+type ConditionalAccessGetIdPSigningCertFunc func(ctx context.Context) (certPEM []byte, err error)
+
+type ConditionalAccessGetIdPAppleProfileFunc func(ctx context.Context) (profileData []byte, err error)
 
 type ListCertificateAuthoritiesFunc func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error)
 
@@ -1118,6 +1133,9 @@ type Service struct {
 	AuthenticateDeviceFunc        AuthenticateDeviceFunc
 	AuthenticateDeviceFuncInvoked bool
 
+	AuthenticateDeviceByCertificateFunc        AuthenticateDeviceByCertificateFunc
+	AuthenticateDeviceByCertificateFuncInvoked bool
+
 	ListHostsFunc        ListHostsFunc
 	ListHostsFuncInvoked bool
 
@@ -1142,6 +1160,9 @@ type Service struct {
 	RefetchHostFunc        RefetchHostFunc
 	RefetchHostFuncInvoked bool
 
+	CleanupExpiredHostsFunc        CleanupExpiredHostsFunc
+	CleanupExpiredHostsFuncInvoked bool
+
 	AddHostsToTeamFunc        AddHostsToTeamFunc
 	AddHostsToTeamFuncInvoked bool
 
@@ -1160,8 +1181,11 @@ type Service struct {
 	ListHostDeviceMappingFunc        ListHostDeviceMappingFunc
 	ListHostDeviceMappingFuncInvoked bool
 
-	SetCustomHostDeviceMappingFunc        SetCustomHostDeviceMappingFunc
-	SetCustomHostDeviceMappingFuncInvoked bool
+	SetHostDeviceMappingFunc        SetHostDeviceMappingFunc
+	SetHostDeviceMappingFuncInvoked bool
+
+	DeleteHostIDPFunc        DeleteHostIDPFunc
+	DeleteHostIDPFuncInvoked bool
 
 	HostLiteByIdentifierFunc        HostLiteByIdentifierFunc
 	HostLiteByIdentifierFuncInvoked bool
@@ -1487,6 +1511,12 @@ type Service struct {
 	UpdateAppStoreAppFunc        UpdateAppStoreAppFunc
 	UpdateAppStoreAppFuncInvoked bool
 
+	GetInHouseAppManifestFunc        GetInHouseAppManifestFunc
+	GetInHouseAppManifestFuncInvoked bool
+
+	GetInHouseAppPackageFunc        GetInHouseAppPackageFunc
+	GetInHouseAppPackageFuncInvoked bool
+
 	MDMAppleProcessOTAEnrollmentFunc        MDMAppleProcessOTAEnrollmentFunc
 	MDMAppleProcessOTAEnrollmentFuncInvoked bool
 
@@ -1706,8 +1736,8 @@ type Service struct {
 	VerifyMDMWindowsConfiguredFunc        VerifyMDMWindowsConfiguredFunc
 	VerifyMDMWindowsConfiguredFuncInvoked bool
 
-	VerifyMDMAppleOrWindowsConfiguredFunc        VerifyMDMAppleOrWindowsConfiguredFunc
-	VerifyMDMAppleOrWindowsConfiguredFuncInvoked bool
+	VerifyAnyMDMConfiguredFunc        VerifyAnyMDMConfiguredFunc
+	VerifyAnyMDMConfiguredFuncInvoked bool
 
 	MDMAppleUploadBootstrapPackageFunc        MDMAppleUploadBootstrapPackageFunc
 	MDMAppleUploadBootstrapPackageFuncInvoked bool
@@ -2039,6 +2069,12 @@ type Service struct {
 	ConditionalAccessMicrosoftDeleteFunc        ConditionalAccessMicrosoftDeleteFunc
 	ConditionalAccessMicrosoftDeleteFuncInvoked bool
 
+	ConditionalAccessGetIdPSigningCertFunc        ConditionalAccessGetIdPSigningCertFunc
+	ConditionalAccessGetIdPSigningCertFuncInvoked bool
+
+	ConditionalAccessGetIdPAppleProfileFunc        ConditionalAccessGetIdPAppleProfileFunc
+	ConditionalAccessGetIdPAppleProfileFuncInvoked bool
+
 	ListCertificateAuthoritiesFunc        ListCertificateAuthoritiesFunc
 	ListCertificateAuthoritiesFuncInvoked bool
 
@@ -2304,11 +2340,11 @@ func (s *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessionI
 	return s.InitiateSSOFunc(ctx, redirectURL)
 }
 
-func (s *Service) InitiateMDMSSO(ctx context.Context, initiator string, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
+func (s *Service) InitiateMDMSSO(ctx context.Context, initiator string, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	s.mu.Lock()
 	s.InitiateMDMSSOFuncInvoked = true
 	s.mu.Unlock()
-	return s.InitiateMDMSSOFunc(ctx, initiator, customOriginalURL)
+	return s.InitiateMDMSSOFunc(ctx, initiator, customOriginalURL, hostUUID)
 }
 
 func (s *Service) InitSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (auth fleet.Auth, redirectURL string, err error) {
@@ -2521,11 +2557,11 @@ func (s *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modify
 	return s.ModifyLabelFunc(ctx, id, payload)
 }
 
-func (s *Service) ListLabels(ctx context.Context, opt fleet.ListOptions) (labels []*fleet.Label, err error) {
+func (s *Service) ListLabels(ctx context.Context, opt fleet.ListOptions, includeHostCounts bool) (labels []*fleet.Label, err error) {
 	s.mu.Lock()
 	s.ListLabelsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListLabelsFunc(ctx, opt)
+	return s.ListLabelsFunc(ctx, opt, includeHostCounts)
 }
 
 func (s *Service) LabelsSummary(ctx context.Context) (labels []*fleet.LabelSummary, err error) {
@@ -2724,6 +2760,13 @@ func (s *Service) AuthenticateDevice(ctx context.Context, authToken string) (hos
 	return s.AuthenticateDeviceFunc(ctx, authToken)
 }
 
+func (s *Service) AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (host *fleet.Host, debug bool, err error) {
+	s.mu.Lock()
+	s.AuthenticateDeviceByCertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.AuthenticateDeviceByCertificateFunc(ctx, certSerial, hostUUID)
+}
+
 func (s *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error) {
 	s.mu.Lock()
 	s.ListHostsFuncInvoked = true
@@ -2780,6 +2823,13 @@ func (s *Service) RefetchHost(ctx context.Context, id uint) (err error) {
 	return s.RefetchHostFunc(ctx, id)
 }
 
+func (s *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+	s.mu.Lock()
+	s.CleanupExpiredHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupExpiredHostsFunc(ctx)
+}
+
 func (s *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
 	s.mu.Lock()
 	s.AddHostsToTeamFuncInvoked = true
@@ -2822,11 +2872,18 @@ func (s *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.
 	return s.ListHostDeviceMappingFunc(ctx, id)
 }
 
-func (s *Service) SetCustomHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*fleet.HostDeviceMapping, error) {
+func (s *Service) SetHostDeviceMapping(ctx context.Context, id uint, email string, source string) ([]*fleet.HostDeviceMapping, error) {
 	s.mu.Lock()
-	s.SetCustomHostDeviceMappingFuncInvoked = true
+	s.SetHostDeviceMappingFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetCustomHostDeviceMappingFunc(ctx, hostID, email)
+	return s.SetHostDeviceMappingFunc(ctx, id, email, source)
+}
+
+func (s *Service) DeleteHostIDP(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteHostIDPFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostIDPFunc(ctx, id)
 }
 
 func (s *Service) HostLiteByIdentifier(ctx context.Context, identifier string) (*fleet.HostLite, error) {
@@ -2934,18 +2991,18 @@ func (s *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labels []st
 	return s.RemoveLabelsFromHostFunc(ctx, id, labels)
 }
 
-func (s *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
+func (s *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.OSVersionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.OSVersionsFunc(ctx, teamID, platform, name, version, opts, includeCVSS)
+	return s.OSVersionsFunc(ctx, teamID, platform, name, version, opts, includeCVSS, maxVulnerabilities)
 }
 
-func (s *Service) OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error) {
+func (s *Service) OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersion, *time.Time, error) {
 	s.mu.Lock()
 	s.OSVersionFuncInvoked = true
 	s.mu.Unlock()
-	return s.OSVersionFunc(ctx, osVersionID, teamID, includeCVSS)
+	return s.OSVersionFunc(ctx, osVersionID, teamID, includeCVSS, maxVulnerabilities)
 }
 
 func (s *Service) ListHostSoftware(ctx context.Context, hostID uint, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
@@ -3578,11 +3635,25 @@ func (s *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appTeam flee
 	return s.AddAppStoreAppFunc(ctx, teamID, appTeam)
 }
 
-func (s *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string) (*fleet.VPPAppStoreApp, error) {
+func (s *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string, displayName string) (*fleet.VPPAppStoreApp, error) {
 	s.mu.Lock()
 	s.UpdateAppStoreAppFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateAppStoreAppFunc(ctx, titleID, teamID, selfService, labelsIncludeAny, labelsExcludeAny, categories)
+	return s.UpdateAppStoreAppFunc(ctx, titleID, teamID, selfService, labelsIncludeAny, labelsExcludeAny, categories, displayName)
+}
+
+func (s *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {
+	s.mu.Lock()
+	s.GetInHouseAppManifestFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetInHouseAppManifestFunc(ctx, titleID, teamID)
+}
+
+func (s *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	s.mu.Lock()
+	s.GetInHouseAppPackageFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetInHouseAppPackageFunc(ctx, titleID, teamID)
 }
 
 func (s *Service) MDMAppleProcessOTAEnrollment(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret string, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) ([]byte, error) {
@@ -3879,7 +3950,7 @@ func (s *Service) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef stri
 	return s.ReconcileMDMAppleEnrollRefFunc(ctx, enrollRef, machineInfo)
 }
 
-func (s *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error) {
+func (s *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error) {
 	s.mu.Lock()
 	s.GetDeviceMDMAppleEnrollmentProfileFuncInvoked = true
 	s.mu.Unlock()
@@ -4096,11 +4167,11 @@ func (s *Service) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	return s.VerifyMDMWindowsConfiguredFunc(ctx)
 }
 
-func (s *Service) VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error {
+func (s *Service) VerifyAnyMDMConfigured(ctx context.Context) error {
 	s.mu.Lock()
-	s.VerifyMDMAppleOrWindowsConfiguredFuncInvoked = true
+	s.VerifyAnyMDMConfiguredFuncInvoked = true
 	s.mu.Unlock()
-	return s.VerifyMDMAppleOrWindowsConfiguredFunc(ctx)
+	return s.VerifyAnyMDMConfiguredFunc(ctx)
 }
 
 func (s *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error {
@@ -4871,6 +4942,20 @@ func (s *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error {
 	s.ConditionalAccessMicrosoftDeleteFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConditionalAccessMicrosoftDeleteFunc(ctx)
+}
+
+func (s *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error) {
+	s.mu.Lock()
+	s.ConditionalAccessGetIdPSigningCertFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessGetIdPSigningCertFunc(ctx)
+}
+
+func (s *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (profileData []byte, err error) {
+	s.mu.Lock()
+	s.ConditionalAccessGetIdPAppleProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessGetIdPAppleProfileFunc(ctx)
 }
 
 func (s *Service) ListCertificateAuthorities(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {

@@ -19,10 +19,10 @@ const generateColumnConfigs = (): ISetupStatusTableConfig[] => [
     disableSortBy: true,
     Cell: (cellProps: ITableCellProps) => {
       const { name, type } = cellProps.row.original;
-      if (type === "software_install" || type === "software_script_run") {
+      if (type === "software_install") {
         return <SetupSoftwareProcessCell name={name || "Unknown software"} />;
       }
-      if (type === "script_run") {
+      if (type === "script_run" || type === "software_script_run") {
         return <SetupScriptProcessCell name={name || "Unknown script"} />;
       }
       return null;
@@ -34,10 +34,10 @@ const generateColumnConfigs = (): ISetupStatusTableConfig[] => [
     disableSortBy: true,
     Cell: (cellProps: ITableCellProps) => {
       const { status, type } = cellProps.row.original;
-      if (type === "software_install" || type === "software_script_run") {
+      if (type === "software_install") {
         return <SetupSoftwareStatusCell status={status || "pending"} />;
       }
-      if (type === "script_run") {
+      if (type === "script_run" || type === "software_script_run") {
         return <SetupScriptStatusCell status={status || "pending"} />;
       }
       return null;

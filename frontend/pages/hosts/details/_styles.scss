@@ -136,6 +136,7 @@
     &__container {
       margin: $pad-xxlarge 0; // Equal padding above and below empty states
       min-height: initial;
+      align-self: center;
     }
   }
 }

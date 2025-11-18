@@ -200,11 +200,20 @@ To configure a script to run during setup experience:
 
 > Once the script is uploaded, you can use the buttons on the script in the web UI to download or delete the script.
 
+### Exiting the setup experience
+
+The Fleet setup experience for macOS will exit if any of the following occurs:
+
+* All setup steps complete successfully.
+* All setup steps complete, including failed installs or script runs, with the "Cancel setup if software install fails" option _not_ enabled (see ["Blocking setup on failed software installs"](https://fleetdm.com/guides/macos-setup-experience#install-software)).
+* The user presses Command (⌘) + Shift + X at any time during the setup process.
+
+
 ## macOS Setup Assistant
 
 When an end user unboxes their new Mac, or starts up a freshly wiped Mac, they're presented with the macOS Setup Assistant. Here they see panes that allow them to configure accessibility, appearance, and more.
 
-In Fleet, you can customize the macOS Setup Assistant by using an automatic enrollment profile. Fleet uses [these options](https://github.com/fleetdm/fleet/blob/cf6343cbd4d02ce92df13339aca78cba2f5b43ff/server/mdm/apple/apple_mdm.go#L96-L126) by default. 
+In Fleet, you can customize the macOS Setup Assistant by using an automatic enrollment profile. Fleet uses [these options](https://github.com/fleetdm/fleet/blob/cf6343cbd4d02ce92df13339aca78cba2f5b43ff/server/mdm/apple/apple_mdm.go#L96-L126) by default. See all options in the [Apple docs](https://developer.apple.com/documentation/devicemanagement/profile).
 
 To customize the macOS Setup Assistant, we will do the following steps:
 

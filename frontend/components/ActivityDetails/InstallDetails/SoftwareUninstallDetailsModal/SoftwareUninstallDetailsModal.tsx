@@ -16,7 +16,7 @@ import {
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
-import Icon from "components/Icon";
+import IconStatusMessage from "components/IconStatusMessage";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Spinner from "components/Spinner";
@@ -90,10 +90,11 @@ export const StatusMessage = ({
     );
   };
   return (
-    <div className={`${baseClass}__status-message`}>
-      <Icon name={INSTALL_DETAILS_STATUS_ICONS[status] ?? "pending-outline"} />
-      {renderStatusCopy()}
-    </div>
+    <IconStatusMessage
+      className={`${baseClass}__status-message`}
+      iconName={INSTALL_DETAILS_STATUS_ICONS[status] ?? "pending-outline"}
+      message={renderStatusCopy()}
+    />
   );
 };
 
@@ -222,6 +223,11 @@ const SoftwareUninstallDetailsModal = ({
       return <DataError description="No data returned." />;
     }
 
+    // Only show details button if there's details to display
+    const showDetailsButton =
+      (!!uninstallResult?.script_contents || !!uninstallResult?.output) &&
+      uninstallStatus !== "pending_uninstall";
+
     return (
       <div className={`${baseClass}__modal-content`}>
         <StatusMessage
@@ -235,7 +241,7 @@ const SoftwareUninstallDetailsModal = ({
           isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
         />
-        {uninstallStatus !== "pending_uninstall" && (
+        {showDetailsButton && (
           <RevealButton
             isShowing={showDetails}
             showText="Details"

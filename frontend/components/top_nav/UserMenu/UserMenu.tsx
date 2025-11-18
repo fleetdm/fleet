@@ -135,7 +135,7 @@ const UserMenu = ({
 
   if (isGlobalAdmin) {
     const manageUserNavItem = {
-      label: "Manage users",
+      label: "Users",
       value: "manage-users",
       onClick: () => onUserMenuItemClick(PATHS.ADMIN_USERS),
     };

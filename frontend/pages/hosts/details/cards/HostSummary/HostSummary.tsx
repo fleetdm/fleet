@@ -12,10 +12,12 @@ import { IAppleDeviceUpdates } from "interfaces/config";
 import {
   DiskEncryptionSupportedPlatform,
   isAndroid,
+  isIPadOrIPhone,
   isDiskEncryptionSupportedLinuxPlatform,
   isOsSettingsDisplayPlatform,
   platformSupportsDiskEncryption,
 } from "interfaces/platform";
+import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
 
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
@@ -144,7 +146,7 @@ const HostSummary = ({
 
   const isAndroidHost = isAndroid(platform);
   const isChromeHost = platform === "chrome";
-  const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
+  const isIosOrIpadosHost = isIPadOrIPhone(platform);
 
   const renderIssues = () => (
     <DataSet
@@ -199,6 +201,8 @@ const HostSummary = ({
           <DiskSpaceIndicator
             gigsDiskSpaceAvailable={summaryData.gigs_disk_space_available}
             percentDiskSpaceAvailable={summaryData.percent_disk_space_available}
+            gigsTotalDiskSpace={summaryData.gigs_total_disk_space}
+            gigsAllDiskSpace={summaryData.gigs_all_disk_space}
             platform={platform}
             tooltipPosition="bottom"
           />
@@ -252,22 +256,23 @@ const HostSummary = ({
   const renderOperatingSystemSummary = () => {
     // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS, Android operating systems
     if (!osVersionRequirement?.minimum_version) {
-      let value = summaryData.os_version;
-      if (
-        value === "Arch Linux rolling" ||
-        value === "Arch Linux ARM rolling" ||
-        value === "Manjaro Linux rolling" ||
-        value === "Manjaro Linux ARM rolling"
-      ) {
-        const archLinuxPrefix = value.slice(0, -8); // removing lowercase "rolling" suffix
-        value = (
-          <>
-            {archLinuxPrefix}&nbsp;
-            <TooltipWrapperArchLinuxRolling />
-          </>
-        );
-      }
-      return <DataSet title="Operating system" value={value} />;
+      const version = summaryData.os_version;
+      const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
+        // wrap a tooltip around the "rolling" suffix
+        <>
+          {version.slice(0, -8)}
+          <TooltipWrapperArchLinuxRolling />
+        </>
+      ) : (
+        version
+      );
+      return (
+        <DataSet
+          title="Operating system"
+          value={versionForRender}
+          className={`${baseClass}__os-data-set`}
+        />
+      );
     }
 
     const osVersionWithoutPrefix = removeOSPrefix(summaryData.os_version);
@@ -441,7 +446,6 @@ const HostSummary = ({
       {isPremiumTier && renderHostTeam()}
       {/* Rendering of OS Settings data */}
       {isOsSettingsDisplayPlatform(platform, os_version) &&
-        isPremiumTier &&
         hostSettings &&
         hostSettings.length > 0 && (
           <DataSet

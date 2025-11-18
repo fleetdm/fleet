@@ -1338,6 +1338,57 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Foo Host", { exact: false })).toBeInTheDocument();
   });
 
+  it("renders a 'deleted_host' type activity for manual deletion", () => {
+    const activity = createMockActivity({
+      type: ActivityType.HostDeleted,
+      details: {
+        host_display_name: "My Host",
+        triggered_by: "manual",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("deleted host", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("My Host", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.queryByText("automatically", { exact: false })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders a 'deleted_host' type activity for automatic deletion due to expiration", () => {
+    const activity = createMockActivity({
+      type: ActivityType.HostDeleted,
+      details: {
+        host_display_name: "Expired Host",
+        triggered_by: "expiration",
+        host_expiry_window: 30,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("automatically deleted host", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Expired Host", { exact: false })
+    ).toBeInTheDocument();
+
+    // Check for "30 days" and "of inactivity" separately since they're in different DOM elements
+    expect(screen.getByText("30 days", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText("of inactivity", { exact: false })
+    ).toBeInTheDocument();
+
+    // Verify tooltip wrapper is present with correct data attributes
+    const tooltipElement = screen
+      .getByText("30 days", { exact: false })
+      .closest("[data-tip]");
+    expect(tooltipElement).toBeInTheDocument();
+    expect(tooltipElement).toHaveAttribute("data-tip", "true");
+  });
+
   it("renders the correct actor for a installed_software activity without self_service", () => {
     const activity = createMockActivity({
       type: ActivityType.InstalledSoftware,
