@@ -49,7 +49,7 @@
 
 ## Adding a new app (Windows)
 
-1. Find the Winget PackageIdentifier in the [winget-pkgs repo](https://github.com/microsoft/winget-pkgs).
+1. Find the Winget PackageIdentifier in the relevant [winget-pkgs repo manifest](https://github.com/microsoft/winget-pkgs/tree/master/manifests).
 
 2. Get the unique identifier that Fleet will use for matching the software with software inventory:
   - On a test Windows host, install the app manually, then run the following PowerShell script that correlates to the defined `installer_scope`:
