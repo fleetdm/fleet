@@ -941,7 +941,7 @@ Returns an Apple configuration profile file with `Content-Type: application/x-ap
 
 ### Delete Microsoft Entra ID
 
-Fleet will be disconnected from Microsoft Entra and will stop blocking end users from logging in with single sign-on.
+Disconnects Fleet from Entra. This won't unblock end users failing policies. Learn how to [unblock end users](https://fleetdm.com/guides/entra-conditional-access-integration#disable).
 
 `DELETE /api/v1/conditional-access/microsoft`
 
