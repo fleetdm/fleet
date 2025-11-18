@@ -642,7 +642,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 
 		// TODO(JK): how do we clean these up if vpp(android) app suddenly disappears
 		// TODO: only do this on android apps (maybe handled by just configuration being nil? check this upstream)
-		if app.Configuration != nil {
+		if app.Configuration != nil && app.Platform == fleet.AndroidPlatform {
 			if err := ds.upsertAndroidAppConfigurationTx(ctx, tx, teamID, app.AdamID, app.Configuration); err != nil {
 				return ctxerr.Wrap(ctx, err, "setting configuration for android app")
 			}

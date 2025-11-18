@@ -43,22 +43,30 @@ func testAndroidAppConfigCrud(t *testing.T, ds *Datastore) {
 
 	// create VPP apps
 	app1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
-		Name:             "android1",
-		BundleIdentifier: "com.app.android1",
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "adam_android_app_1",
-				Platform: fleet.AndroidPlatform},
-			Configuration: json.RawMessage("{}"),
-		},
-	}, &team1.ID)
+		Name: "android1", BundleIdentifier: "android1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "something_android_app_1", Platform: fleet.AndroidPlatform},
+			Configuration: json.RawMessage(`{"ManagedConfiguration": {"DisableShareScreen": true, "DisableComputerAudio": true}}`),
+		}}, &team1.ID)
 	require.NoError(t, err)
 
-	// get no-team app
+	app2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_spaceeee_1", Platform: fleet.IOSPlatform},
+			Configuration: json.RawMessage(`{"ManagedConfiguration": {"ios app shouldn't have configuration": true}}`),
+		}}, &team1.ID)
+	require.NoError(t, err)
+
+	// get android app
 	meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, app1.TitleID)
 	require.NoError(t, err)
 	require.NotZero(t, meta.VPPAppsTeamsID)
-	require.Equal(t, "com.app.android1", meta.BundleIdentifier)
+	require.Equal(t, "android1", meta.BundleIdentifier)
+
+	// get ios app
+	meta2, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, app2.TitleID)
+	require.NoError(t, err)
+	require.NotZero(t, meta2.VPPAppsTeamsID)
+	// require.Equal(t, "{blablabla}", meta.Configuration) TODO(JK): this should return configuration
 
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 		DumpTable(t, tx, "vpp_apps")
@@ -104,7 +112,7 @@ func testAndroidAppConfigValidation(t *testing.T, ds *Datastore) {
 		},
 		{
 			desc:   "valid json, both",
-			config: json.RawMessage(`{"managedConfiguration": {}, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`),
+			config: json.RawMessage(`{"managedConfiguration": {"test": "test"}, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`),
 		},
 	}
 
