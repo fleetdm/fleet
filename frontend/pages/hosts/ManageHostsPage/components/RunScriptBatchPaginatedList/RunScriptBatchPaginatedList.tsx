@@ -1,5 +1,5 @@
-import React, { useCallback } from "react";
-import { useQueryClient } from "react-query";
+import React, { useCallback, useState } from "react";
+import { useQuery } from "react-query";
 
 import scriptAPI, { IScriptsResponse } from "services/entities/scripts";
 
@@ -34,35 +34,26 @@ const RunScriptBatchPaginatedList = ({
   scriptCount,
   setScriptForDetails,
 }: IRunScriptBatchPaginatedList) => {
+  const [pageNumber, setPageNumber] = useState(0);
+
   // Fetch a single page of scripts.
-  const queryClient = useQueryClient();
-
-  const fetchPage = useCallback(
-    (pageNumber: number) => {
-      // scripts not supported for All teams
-      const fetchPromise = queryClient.fetchQuery(
-        [
-          addTeamIdCriteria(
-            {
-              scope: "scripts",
-              page: pageNumber,
-              per_page: SCRIPT_BATCH_PAGE_SIZE,
-            },
-            teamId,
-            isFreeTier
-          ),
-        ],
-        ({ queryKey }) => {
-          return scriptAPI.getScripts(queryKey[0]);
-        }
-      );
-
-      return fetchPromise.then(({ scripts }: IScriptsResponse) => {
-        return scripts || [];
-      });
+  const queryKey = addTeamIdCriteria(
+    {
+      scope: "scripts",
+      page: pageNumber,
+      per_page: SCRIPT_BATCH_PAGE_SIZE,
     },
-    [queryClient, teamId, isFreeTier]
+    teamId,
+    isFreeTier
   );
+
+  const { data, isFetching } = useQuery<
+    IScriptsResponse,
+    Error,
+    IScriptsResponse
+  >([queryKey], () => {
+    return scriptAPI.getScripts(queryKey);
+  });
 
   const onRunScript = useCallback(
     (
@@ -88,7 +79,7 @@ const RunScriptBatchPaginatedList = ({
     <>
       <a>{script.name}</a>
       <Button
-        variant="text-icon"
+        variant="inverse"
         iconStroke={!script.hasRun}
         onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
           e.stopPropagation();
@@ -98,7 +89,7 @@ const RunScriptBatchPaginatedList = ({
         {script.hasRun ? (
           <>
             Run again
-            <Icon name="refresh" color="core-fleet-blue" />
+            <Icon name="refresh" color="ui-fleet-black-75" />
           </>
         ) : (
           <>
@@ -115,13 +106,15 @@ const RunScriptBatchPaginatedList = ({
       <PaginatedList<IPaginatedListScript>
         renderItemRow={renderScriptRow}
         count={scriptCount}
-        fetchPage={fetchPage}
+        data={data?.scripts || []}
+        onChangePage={setPageNumber}
+        currentPage={pageNumber}
         onClickRow={onClickScriptRow}
         setDirtyOnClickRow={false}
         pageSize={SCRIPT_BATCH_PAGE_SIZE}
         disabled={isUpdating}
         useCheckBoxes={false}
-        ancestralUpdating={isUpdating}
+        isLoading={isUpdating || isFetching}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 golang:1.24.6-bullseye@sha256:637f45ef9f8fb4228406268d544df3f1251703cda025f706902c3627fa621c54
+FROM --platform=linux/amd64 golang:1.25.3-bookworm@sha256:ee420c17fa013f71eca6b35c3547b854c838d4f26056a34eb6171bba5bf8ece4
 LABEL maintainer="Fleet Developers"
 
 RUN mkdir -p /usr/src/fleet

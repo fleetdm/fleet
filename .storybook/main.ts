@@ -50,9 +50,7 @@ const config: StorybookConfig = {
   addons: [
     "@storybook/addon-links",
     "@storybook/addon-essentials",
-    "@storybook/addon-mdx-gfm",
     "@storybook/addon-a11y",
-    "@storybook/test-runner",
     "@storybook/addon-designs",
     "@storybook/addon-webpack5-compiler-babel",
   ],

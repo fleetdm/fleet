@@ -10,6 +10,15 @@ import (
 
 type ContextKey string
 
+type ActivityWebhookPayload struct {
+	Timestamp     time.Time        `json:"timestamp"`
+	ActorFullName *string          `json:"actor_full_name"`
+	ActorID       *uint            `json:"actor_id"`
+	ActorEmail    *string          `json:"actor_email"`
+	Type          string           `json:"type"`
+	Details       *json.RawMessage `json:"details"`
+}
+
 // ActivityWebhookContextKey is the context key to indicate that the activity webhook has been processed before saving the activity.
 const ActivityWebhookContextKey = ContextKey("ActivityWebhook")
 
@@ -114,6 +123,7 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeCreatedUser{},
 	ActivityTypeDeletedUser{},
+	ActivityTypeDeletedHost{},
 	ActivityTypeChangedUserGlobalRole{},
 	ActivityTypeDeletedUserGlobalRole{},
 	ActivityTypeChangedUserTeamRole{},
@@ -174,6 +184,10 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDeletedDeclarationProfile{},
 	ActivityTypeEditedDeclarationProfile{},
 
+	ActivityTypeCreatedAndroidProfile{},
+	ActivityTypeDeletedAndroidProfile{},
+	ActivityTypeEditedAndroidProfile{},
+
 	ActivityTypeResentConfigurationProfile{},
 	ActivityTypeResentConfigurationProfileBatch{},
 
@@ -198,6 +212,15 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedDigiCert{},
 	ActivityDeletedDigiCert{},
 	ActivityEditedDigiCert{},
+	ActivityAddedHydrant{},
+	ActivityDeletedHydrant{},
+	ActivityEditedHydrant{},
+	ActivityAddedCustomESTProxy{},
+	ActivityDeletedCustomESTProxy{},
+	ActivityEditedCustomESTProxy{},
+	ActivityAddedSmallstep{},
+	ActivityDeletedSmallstep{},
+	ActivityEditedSmallstep{},
 
 	ActivityTypeEnabledActivityAutomations{},
 	ActivityTypeEditedActivityAutomations{},
@@ -214,6 +237,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
 	ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
+	ActivityTypeAddedConditionalAccessOkta{},
+	ActivityTypeDeletedConditionalAccessOkta{},
 	ActivityTypeEnabledConditionalAccessAutomations{},
 	ActivityTypeDisabledConditionalAccessAutomations{},
 
@@ -221,6 +246,10 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityCreatedCustomVariable{},
 	ActivityDeletedCustomVariable{},
+
+	ActivityEditedSetupExperienceSoftware{},
+
+	ActivityTypeEditedHostIdpData{},
 }
 
 type ActivityDetails interface {
@@ -250,6 +279,16 @@ type AutomatableActivity interface {
 type ActivityHostOnly interface {
 	ActivityDetails
 	HostOnly() bool
+}
+
+// ActivityActivator is the optional additional interface that can be implemented by activities that
+// may require activating the next upcoming activity when it gets created. Most upcoming activities get
+// activated when the result of the previous one completes (such as scripts and software installs), but
+// some can only be activated when the activity gets recorded (such as VPP and in-house apps).
+type ActivityActivator interface {
+	ActivityDetails
+	MustActivateNextUpcomingActivity() bool
+	ActivateNextUpcomingActivityArgs() (hostID uint, cmdUUID string)
 }
 
 type ActivityTypeEnabledActivityAutomations struct {
@@ -819,6 +858,45 @@ func (a ActivityTypeDeletedUser) Documentation() (activity string, details strin
 }`
 }
 
+type ActivityTypeDeletedHost struct {
+	HostID           uint                   `json:"host_id"`
+	HostDisplayName  string                 `json:"host_display_name"`
+	HostSerial       string                 `json:"host_serial"`
+	TriggeredBy      DeletedHostTriggeredBy `json:"triggered_by"`
+	HostExpiryWindow *int                   `json:"host_expiry_window,omitempty"`
+}
+
+type DeletedHostTriggeredBy string
+
+const (
+	DeletedHostTriggeredByManual     DeletedHostTriggeredBy = "manual"
+	DeletedHostTriggeredByExpiration DeletedHostTriggeredBy = "expiration"
+)
+
+func (a ActivityTypeDeletedHost) ActivityName() string {
+	return "deleted_host"
+}
+
+func (a ActivityTypeDeletedHost) WasFromAutomation() bool {
+	return a.TriggeredBy == DeletedHostTriggeredByExpiration
+}
+
+func (a ActivityTypeDeletedHost) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a host is deleted.`,
+		`This activity contains the following fields:
+- "host_id": Unique ID of the deleted host in Fleet.
+- "host_display_name": Display name of the deleted host.
+- "host_serial": Hardware serial number of the deleted host.
+- "triggered_by": How the deletion was triggered. Can be "manual" for manual deletions or "expiration" for automatic deletions due to host expiry settings.
+- "host_expiry_window": (Optional) The number of days configured for host expiry. Only present when "triggered_by" is "expiration".`, `{
+	"host_id": 42,
+	"host_display_name": "USER-WINDOWS",
+	"host_serial": "ABC123",
+	"triggered_by": "expiration",
+	"host_expiry_window": 30
+}`
+}
+
 type ActivityTypeChangedUserGlobalRole struct {
 	UserID    uint   `json:"user_id"`
 	UserName  string `json:"user_name"`
@@ -960,6 +1038,7 @@ type ActivityTypeMDMEnrolled struct {
 	MDMPlatform      string  `json:"mdm_platform"`
 	// EnrollmentID is the unique identifier for the MDM BYOD enrollments. It is nil for other enrollments.
 	EnrollmentID *string `json:"enrollment_id"`
+	Platform     string  `json:"platform"`
 }
 
 func (a ActivityTypeMDMEnrolled) ActivityName() string {
@@ -973,20 +1052,24 @@ func (a ActivityTypeMDMEnrolled) Documentation() (activity string, details strin
 - "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
 - "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
-- "enrollment_id": The unique identifier for MDM BYOD enrollments; null for other enrollments.`, `{
+- "enrollment_id": The unique identifier for MDM BYOD enrollments; null for other enrollments.
+- "platform": The enrolled host's platform`, `{
   "host_serial": "C08VQ2AXHT96",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
-  "mdm_platform": "apple"
-  "enrollment_id": null
+  "mdm_platform": "apple",
+  "enrollment_id": null,
+  "platform": "darwin"
 }`
 }
 
 // TODO(BMAA): Should we add enrollment_id for BYOD unenrollments?
 type ActivityTypeMDMUnenrolled struct {
-	HostSerial       string `json:"host_serial"`
-	HostDisplayName  string `json:"host_display_name"`
-	InstalledFromDEP bool   `json:"installed_from_dep"`
+	HostSerial       string  `json:"host_serial"`
+	EnrollmentID     *string `json:"enrollment_id"`
+	HostDisplayName  string  `json:"host_display_name"`
+	InstalledFromDEP bool    `json:"installed_from_dep"`
+	Platform         string  `json:"platform"`
 }
 
 func (a ActivityTypeMDMUnenrolled) ActivityName() string {
@@ -997,11 +1080,15 @@ func (a ActivityTypeMDMUnenrolled) Documentation() (activity string, details str
 	return `Generated when a host is unenrolled from Fleet's MDM.`,
 		`This activity contains the following fields:
 - "host_serial": Serial number of the host.
+- "enrollment_id": Unique identifier for personal (BYOD) hosts.
 - "host_display_name": Display name of the host.
-- "installed_from_dep": Whether the host was enrolled via DEP.`, `{
+- "installed_from_dep": Whether the host was enrolled via DEP.
+- "platform": The unenrolled host's platform`, `{
   "host_serial": "C08VQ2AXHT96",
+  "enrollment_id": null,
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
-  "installed_from_dep": true
+  "installed_from_dep": true,
+  "platform": "darwin"
 }`
 }
 
@@ -1816,9 +1903,11 @@ type ActivityTypeInstalledSoftware struct {
 	SelfService         bool    `json:"self_service"`
 	InstallUUID         string  `json:"install_uuid"`
 	Status              string  `json:"status"`
+	Source              *string `json:"source,omitempty"`
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
 	FromSetupExperience bool    `json:"-"`
+	CommandUUID         string  `json:"command_uuid,omitempty"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1833,6 +1922,18 @@ func (a ActivityTypeInstalledSoftware) WasFromAutomation() bool {
 	return a.PolicyID != nil || a.FromSetupExperience
 }
 
+func (a ActivityTypeInstalledSoftware) MustActivateNextUpcomingActivity() bool {
+	// for in-house apps, we only activate the next upcoming activity if the
+	// installation failed, because if it succeeded (and in this case, it only
+	// means the command to install succeeded), we only activate the next
+	// activity when we verify the app is actually installed.
+	return a.CommandUUID != "" && a.Status != string(SoftwareInstalled)
+}
+
+func (a ActivityTypeInstalledSoftware) ActivateNextUpcomingActivityArgs() (uint, string) {
+	return a.HostID, a.CommandUUID
+}
+
 func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a Fleet-maintained app or custom package is installed on a host.`,
 		`This activity contains the following fields:
@@ -1843,8 +1944,10 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "status": Status of the software installation.
+- "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
 - "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
+- "command_uuid": ID of the in-house app installation.
 `, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
@@ -1853,18 +1956,20 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "status": "pending",
+  "source": "pkg_packages",
   "policy_id": 1337,
   "policy_name": "Ensure 1Password is installed and up to date"
 }`
 }
 
 type ActivityTypeUninstalledSoftware struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-	SoftwareTitle   string `json:"software_title"`
-	ExecutionID     string `json:"script_execution_id"`
-	SelfService     bool   `json:"self_service"`
-	Status          string `json:"status"`
+	HostID          uint    `json:"host_id"`
+	HostDisplayName string  `json:"host_display_name"`
+	SoftwareTitle   string  `json:"software_title"`
+	ExecutionID     string  `json:"script_execution_id"`
+	SelfService     bool    `json:"self_service"`
+	Status          string  `json:"status"`
+	Source          *string `json:"source,omitempty"`
 }
 
 func (a ActivityTypeUninstalledSoftware) ActivityName() string {
@@ -1883,13 +1988,15 @@ func (a ActivityTypeUninstalledSoftware) Documentation() (activity, details, det
 - "software_title": Name of the software.
 - "script_execution_id": ID of the software uninstall script.
 - "self_service": Whether the uninstallation was initiated by the end user from the My device UI.
-- "status": Status of the software uninstallation.`, `{
+- "status": Status of the software uninstallation.
+- "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
   "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
   "self_service": false,
-  "status": "uninstalled"
+  "status": "uninstalled",
+  "source": "pkg_packages"
 }`
 }
 
@@ -1943,14 +2050,16 @@ func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
 }
 
 type ActivityTypeEditedSoftware struct {
-	SoftwareTitle    string                  `json:"software_title"`
-	SoftwarePackage  *string                 `json:"software_package"`
-	TeamName         *string                 `json:"team_name"`
-	TeamID           *uint                   `json:"team_id"`
-	SelfService      bool                    `json:"self_service"`
-	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
-	SoftwareTitleID  uint                    `json:"software_title_id"`
+	SoftwareTitle       string                  `json:"software_title"`
+	SoftwarePackage     *string                 `json:"software_package"`
+	TeamName            *string                 `json:"team_name"`
+	TeamID              *uint                   `json:"team_id"`
+	SelfService         bool                    `json:"self_service"`
+	SoftwareIconURL     *string                 `json:"software_icon_url"`
+	LabelsIncludeAny    []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny    []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	SoftwareTitleID     uint                    `json:"software_title_id"`
+	SoftwareDisplayName string                  `json:"software_display_name"`
 }
 
 func (a ActivityTypeEditedSoftware) ActivityName() string {
@@ -1966,13 +2075,16 @@ func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
 - "self_service": Whether the software is available for installation by the end user.
 - "software_title_id": ID of the added software title.
 - "labels_include_any": Target hosts that have any label in the array.
-- "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
+- "labels_exclude_any": Target hosts that don't have any label in the array.
+- "software_display_name": Display name of the software title.`, `{
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
   "self_service": true,
   "software_title_id": 2234,
+  "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
+  "software_display_name": "Crowdstrike Falcon",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1992,6 +2104,7 @@ type ActivityTypeDeletedSoftware struct {
 	TeamName         *string                 `json:"team_name"`
 	TeamID           *uint                   `json:"team_id"`
 	SelfService      bool                    `json:"self_service"`
+	SoftwareIconURL  *string                 `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
@@ -2014,6 +2127,7 @@ func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
   "team_name": "Workstations",
   "team_id": 123,
   "self_service": true,
+  "software_icon_url": "",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2139,15 +2253,15 @@ func (a ActivityDisabledVPP) Documentation() (activity string, details string, d
 }
 
 type ActivityAddedAppStoreApp struct {
-	SoftwareTitle    string                  `json:"software_title"`
-	SoftwareTitleId  uint                    `json:"software_title_id"`
-	AppStoreID       string                  `json:"app_store_id"`
-	TeamName         *string                 `json:"team_name"`
-	TeamID           *uint                   `json:"team_id"`
-	Platform         AppleDevicePlatform     `json:"platform"`
-	SelfService      bool                    `json:"self_service"`
-	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	SoftwareTitle    string                    `json:"software_title"`
+	SoftwareTitleId  uint                      `json:"software_title_id"`
+	AppStoreID       string                    `json:"app_store_id"`
+	TeamName         *string                   `json:"team_name"`
+	TeamID           *uint                     `json:"team_id"`
+	Platform         InstallableDevicePlatform `json:"platform"`
+	SelfService      bool                      `json:"self_service"`
+	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
@@ -2186,13 +2300,14 @@ func (a ActivityAddedAppStoreApp) Documentation() (activity string, details stri
 }
 
 type ActivityDeletedAppStoreApp struct {
-	SoftwareTitle    string                  `json:"software_title"`
-	AppStoreID       string                  `json:"app_store_id"`
-	TeamName         *string                 `json:"team_name"`
-	TeamID           *uint                   `json:"team_id"`
-	Platform         AppleDevicePlatform     `json:"platform"`
-	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	SoftwareTitle    string                    `json:"software_title"`
+	AppStoreID       string                    `json:"app_store_id"`
+	TeamName         *string                   `json:"team_name"`
+	TeamID           *uint                     `json:"team_id"`
+	Platform         InstallableDevicePlatform `json:"platform"`
+	SoftwareIconURL  *string                   `json:"software_icon_url"`
+	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityDeletedAppStoreApp) ActivityName() string {
@@ -2213,6 +2328,7 @@ func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details st
   "platform": "darwin",
   "team_name": "Workstations",
   "team_id": 1,
+  "software_icon_url": "",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2251,6 +2367,18 @@ func (a ActivityInstalledAppStoreApp) WasFromAutomation() bool {
 	return a.PolicyID != nil || a.FromSetupExperience
 }
 
+func (a ActivityInstalledAppStoreApp) MustActivateNextUpcomingActivity() bool {
+	// for VPP apps, we only activate the next upcoming activity if the installation
+	// failed, because if it succeeded (and in this case, it only means the command to
+	// install succeeded), we only activate the next activity when we verify the
+	// app is actually installed.
+	return a.Status != string(SoftwareInstalled)
+}
+
+func (a ActivityInstalledAppStoreApp) ActivateNextUpcomingActivityArgs() (uint, string) {
+	return a.HostID, a.CommandUUID
+}
+
 func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 	return "Generated when an App Store app is installed on a device.", `This activity contains the following fields:
 - "host_id": ID of the host on which the app was installed.
@@ -2274,15 +2402,16 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 }
 
 type ActivityEditedAppStoreApp struct {
-	SoftwareTitle    string                  `json:"software_title"`
-	SoftwareTitleID  uint                    `json:"software_title_id"`
-	AppStoreID       string                  `json:"app_store_id"`
-	TeamName         *string                 `json:"team_name"`
-	TeamID           *uint                   `json:"team_id"`
-	Platform         AppleDevicePlatform     `json:"platform"`
-	SelfService      bool                    `json:"self_service"`
-	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	SoftwareTitle    string                    `json:"software_title"`
+	SoftwareTitleID  uint                      `json:"software_title_id"`
+	AppStoreID       string                    `json:"app_store_id"`
+	TeamName         *string                   `json:"team_name"`
+	TeamID           *uint                     `json:"team_id"`
+	Platform         InstallableDevicePlatform `json:"platform"`
+	SelfService      bool                      `json:"self_service"`
+	SoftwareIconURL  *string                   `json:"software_icon_url"`
+	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityEditedAppStoreApp) ActivityName() string {
@@ -2307,6 +2436,7 @@ func (a ActivityEditedAppStoreApp) Documentation() (activity string, details str
   "self_service": true,
   "team_name": "Workstations",
   "team_id": 1,
+  "software_icon_url": "/api/latest/fleet/software/titles/123/icon?team_id=1",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2437,6 +2567,141 @@ func (a ActivityEditedDigiCert) Documentation() (activity string, details string
 	return "Generated when DigiCert certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
 - "name": Name of the certificate authority.`, `{
   "name": "DIGICERT_WIFI"
+}`
+}
+
+type ActivityAddedHydrant struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedHydrant) ActivityName() string {
+	return "added_hydrant"
+}
+
+func (a ActivityAddedHydrant) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Hydrant certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "HYDRANT_WIFI"
+}`
+}
+
+type ActivityDeletedHydrant struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedHydrant) ActivityName() string {
+	return "deleted_hydrant"
+}
+
+func (a ActivityDeletedHydrant) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Hydrant certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "HYDRANT_WIFI"
+}`
+}
+
+type ActivityEditedHydrant struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedHydrant) ActivityName() string {
+	return "edited_hydrant"
+}
+
+func (a ActivityEditedHydrant) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Hydrant certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "HYDRANT_WIFI"
+}`
+}
+
+type ActivityAddedCustomESTProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedCustomESTProxy) ActivityName() string {
+	return "added_custom_est_proxy"
+}
+
+func (a ActivityAddedCustomESTProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a custom EST certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "EST_WIFI"
+}`
+}
+
+type ActivityDeletedCustomESTProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedCustomESTProxy) ActivityName() string {
+	return "deleted_custom_est_proxy"
+}
+
+func (a ActivityDeletedCustomESTProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a custom EST certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "EST_WIFI"
+}`
+}
+
+type ActivityEditedCustomESTProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedCustomESTProxy) ActivityName() string {
+	return "edited_custom_est_proxy"
+}
+
+func (a ActivityEditedCustomESTProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a custom EST certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "EST_WIFI"
+}`
+}
+
+type ActivityAddedSmallstep struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedSmallstep) ActivityName() string {
+	return "added_smallstep"
+}
+
+func (a ActivityAddedSmallstep) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Smallstep certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SMALLSTEP_WIFI"
+}`
+}
+
+type ActivityDeletedSmallstep struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedSmallstep) ActivityName() string {
+	return "deleted_smallstep"
+}
+
+func (a ActivityDeletedSmallstep) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Smallstep certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SMALLSTEP_WIFI"
+}`
+}
+
+type ActivityEditedSmallstep struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedSmallstep) ActivityName() string {
+	return "edited_smallstep"
+}
+
+func (a ActivityEditedSmallstep) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Smallstep certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SMALLSTEP_WIFI"
 }`
 }
 
@@ -2647,7 +2912,7 @@ func (a ActivityTypeAddedConditionalAccessIntegrationMicrosoft) ActivityName() s
 }
 
 func (a ActivityTypeAddedConditionalAccessIntegrationMicrosoft) Documentation() (string, string, string) {
-	return "Generated when Microsoft Entra is connected for conditonal access.",
+	return "Generated when Microsoft Entra is connected for conditional access.",
 		"This activity does not contain any detail fields.", ""
 }
 
@@ -2659,6 +2924,28 @@ func (a ActivityTypeDeletedConditionalAccessIntegrationMicrosoft) ActivityName()
 
 func (a ActivityTypeDeletedConditionalAccessIntegrationMicrosoft) Documentation() (string, string, string) {
 	return "Generated when Microsoft Entra is integration is disconnected.",
+		"This activity does not contain any detail fields.", ""
+}
+
+type ActivityTypeAddedConditionalAccessOkta struct{}
+
+func (a ActivityTypeAddedConditionalAccessOkta) ActivityName() string {
+	return "added_conditional_access_okta"
+}
+
+func (a ActivityTypeAddedConditionalAccessOkta) Documentation() (string, string, string) {
+	return "Generated when Okta is configured or edited for conditional access.",
+		"This activity does not contain any detail fields.", ""
+}
+
+type ActivityTypeDeletedConditionalAccessOkta struct{}
+
+func (a ActivityTypeDeletedConditionalAccessOkta) ActivityName() string {
+	return "deleted_conditional_access_okta"
+}
+
+func (a ActivityTypeDeletedConditionalAccessOkta) Documentation() (string, string, string) {
+	return "Generated when Okta conditional access configuration is removed.",
 		"This activity does not contain any detail fields.", ""
 }
 
@@ -2758,5 +3045,112 @@ func (a ActivityDeletedCustomVariable) Documentation() (activity string, details
 - "custom_variable_name": the name of the custom variable.`, `{
 	"custom_variable_id": 123,
 	"custom_variable_name": "SOME_API_KEY"
+}`
+}
+
+type ActivityEditedSetupExperienceSoftware struct {
+	Platform string `json:"platform"`
+	TeamID   uint   `json:"team_id"`
+	TeamName string `json:"team_name"`
+}
+
+func (a ActivityEditedSetupExperienceSoftware) ActivityName() string {
+	return "edited_setup_experience_software"
+}
+
+func (a ActivityEditedSetupExperienceSoftware) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user edits setup experience software.`,
+		`This activity contains the following fields:
+- "platform": the platform of the host ("darwin", "windows", or "linux").
+- "team_id": the ID of the team associated with the setup experience (0 for "No team").
+- "team_name": the name of the team associated with the setup experience (empty for "No team").`, `{
+	"platform": "darwin",
+	"team_id": 1,
+	"team_name": "Workstations"
+}`
+}
+
+type ActivityTypeCreatedAndroidProfile struct {
+	ProfileName string  `json:"profile_name"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeCreatedAndroidProfile) ActivityName() string {
+	return "created_android_profile"
+}
+
+func (a ActivityTypeCreatedAndroidProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user adds a new Android profile to a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the profile.
+- "team_id": The ID of the team that the profile applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the profile applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "profile_name": "Custom settings 1",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDeletedAndroidProfile struct {
+	ProfileName string  `json:"profile_name"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedAndroidProfile) ActivityName() string {
+	return "deleted_android_profile"
+}
+
+func (a ActivityTypeDeletedAndroidProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user deletes an Android profile from a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the deleted profile.
+- "team_id": The ID of the team that the profile applied to, ` + "`null`" + ` if it applied to devices that are not in a team.
+- "team_name": The name of the team that the profile applied to, ` + "`null`" + ` if it applied to devices that are not in a team.`, `{
+  "profile_name": "Custom settings 1",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEditedAndroidProfile struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEditedAndroidProfile) ActivityName() string {
+	return "edited_android_profile"
+}
+
+func (a ActivityTypeEditedAndroidProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user edits the Android profiles of a team (or no team) via the fleetctl CLI.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEditedHostIdpData struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	HostIdPUsername string `json:"host_idp_username"`
+}
+
+func (a ActivityTypeEditedHostIdpData) ActivityName() string {
+	return "edited_host_idp_data"
+}
+
+func (a ActivityTypeEditedHostIdpData) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user updates a host's IdP data. Currently IdP username can be edited.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_idp_username": The updated IdP username for this host.`, `{
+	"host_id": 1,
+	"host_display_name": "Anna's MacBook Pro",
+	"host_idp_username": "anna.chao@example.com"
 }`
 }

@@ -23,11 +23,7 @@ These flaws are listed here publicly for two reasons. The first is so that peopl
   - I can talk too much.  On video calls, and especially during a screenshare session, I sometimes will keep talking longer than I otherwise would.  If you get lost, or overwhelmed, you can interrupt me or send a chat: "Hold up, I'm feeling out of phase from this conversation."
 
 
-<!--  Cutting back on some content just to make this more readable.  Prioritizing the ones that matter the most. -mike feb 2024.
 
-- I can be inconsistent about how certain I sound about the same topics at different times.  Even when I am probably still certain.  That's because I try to question blind certainty, even my own. The problem is, I don't always remember why I first became certain about every topic.  It is okay to stop and share what you observe: "You seem less sure about this.  What's up?"  If I am waffling, it can be helpful to say "Did we write down a decision on that?  I'll make a GitHub issue." ([Luke](https://fleetdm.com/handbook/engineering#team) is good at this.)
-- I sometimes will keep talking longer than I otherwise would (ESPECIALLY OVER ZOOM AND ESPECIALLY WHILE SCREENSHARING) when it is harder to see faces and pick up on subtle cues. This is exacerbated by me being afraid I’ll forget to come back to the topic, and feeling like I have to get to address it immediately or it will be lost. When you think I am riffing 🎸 /monologuing 🗣️ on a tangential topic that isn’t on the agenda, it's always ok to interrupt and tell me to my face, or send me a direct message.
--->
 
 > If you notice one of these flaws, and especially if you deliver feedback about it and don't feel heard, or you feel hurt, or you feel like I didn't "get it", please send me a link to this section of the handbook, or just interrupt me and give me [feedback in the moment](https://fleetdm.com/handbook/company/communications#performance-feedback).  I will be extremely grateful, and value your bravery in pursuit of what's in the best interest of the company.  (And if I don't, keep trying.  I'll come crawling back.  Promise.)
 
@@ -91,6 +87,38 @@ Departmental page structure:
 - `## Rituals`
 
 
+## Board meeting and OKR planning
+
+The board meeting and OKR planning happen during the first week of the third month of every quarter. Fleet uses the following agenda to prepare, execute, iterate on, and retro its in-person board meetings and quarterly Objective Key Results (OKRs):
+
+**Two weeks prior (virtual):**
+  - The CEO discusses the board meeting with his coach. 
+
+**Day 1 _Prepare_ (in-person):**
+  - Board deck finalization:
+  - The CEO preps keynote on plane, absorbs graphs in the airport, and derives top-level OKRs in the hotel.
+  - T-Group arrives midday.
+  - Last-minute edits with the team in the evening.
+  - OKR brainstorming right after (+async for the E-Group who aren't physically there). 
+
+**Day 2 _Board meeting_ (in-person):**
+  - Mock board meeting
+  - Real board meeting
+  - Closed session
+  - Dinner with the board
+
+**Day 3 _Travel_:**
+  - Leave, catch up with daily work, recover, and think.
+
+**Day 4 _Plan and finalize_ (virtual):**
+  - OKR planning (entire E-Group, over Zoom, everyone comes prepared) for 3.5 hours.
+  - OKR finalization (CEO, EA, Head of People and Head of Digital Workplace & GTM Systems to clean up any details and messaging out to remind/help executives to book time with their teams if it is not booked already for Friday) for 1 hour. 
+
+**Day 5 _Communicate_ (virtual):**
+  - Each manager will work with their team to ratify, understand, and raise any objections or initial edits to the OKRs, all the way down to the ICs.
+  - CEO, EA and Head of People will meet for 1 hour to decide the location of the next board meeting and email board members.
+
+
 ## Key reviews
 
 Every release cycle, each department leader discusses their [key performance indicators (KPIs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) (confidential) with the CEO.  KPIs are numbers measuring results and everyday excellence, usually accompanied by time-bound goals.
@@ -130,7 +158,7 @@ Fleet uses [certain email templates](https://docs.google.com/document/d/1VAMWIH8
 
 At Fleet, we use the contact form and email to communicate with future team members. Community members will often inquire about positions that aren't currently being hired for.  The DRI for receiving applications is Fleet's VP of Customer Success, whose team uses a set of template responses and updates Fleet's HRIS with new applicants.  Fleet's SLA for responding to applicants is 1 business day, though this doesn't necessarily mean that the hiring manager has bandwidth to take further action after that initial reply.  In that initial reply, candidates are encouraged to apply for future positions if they don't hear back further within a few days.
 
-> Recommending someone for an [open position](https://fleetdm.com/handbook/company#open-positions) at Fleet? [Add their info to the spreadsheet](https://fleetdm.com/handbook/people#track-a-fleet-applicant) and leave a Google Doc comment at-mentioning the hiring manager or [Interim Head of People](https://fleetdm.com/handbook/people#team). 
+> Recommending someone for an [open position](https://fleetdm.com/handbook/company#open-positions) at Fleet? [Add their info to the spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) and leave a Google Doc comment @-mentioning the hiring manager or [Head of People](https://fleetdm.com/handbook/people#team). 
 
 Department-specific interviewing instructions:
 - [Engineering](https://fleetdm.com/handbook/engineering#interview-a-developer-candidate)
@@ -187,12 +215,12 @@ Core team members:
 - are paid as part of the standard payroll ritual for the place they work and their employment classification.
 
 
-> _Employment classification isn't what makes someone a fleetie.  Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate employment classification and agreement for any given team member and the place where they work is determined by Interim Head of People during the process of making an offer._
+> _Employment classification isn't what makes someone a fleetie.  Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate employment classification and agreement for any given team member and the place where they work is determined by Head of People during the process of making an offer._
 
 
 ## Creating a new role at Fleet
 
-> Are you making a planned hire (i.e. filling a role that is already in the ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0))? Create a [🛸 Teammate pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=:help-customers&projects=&template=pre-onboarding.md&title=YYYY_MM_DD%20Pre-onboarding:%20TEAM_MEMBER_NAME) 
+> Are you making a planned hire (i.e. filling a role that is already in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0))? Create a [🛸 Teammate pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=:help-customers&projects=&template=pre-onboarding.md&title=YYYY_MM_DD%20Pre-onboarding:%20TEAM_MEMBER_NAME) 
 
 Do you need to create a completely new role at Fleet? Use these steps to open up a completely new position on the core team and hire a [fleetie](https://fleetdm.com/handbook/company/leadership#core-team-members-fleeties) for that role.
 
@@ -241,14 +269,16 @@ A completed open position entry should look something like this:
 > The "living" URL where the new page will eventually exist on fleetdm.com won't ACTUALLY exist until your pull request is merged. A link will be added in the ["Open positions" section](https://fleetdm.com/handbook/company#open-positions) of the company handbook page.
 
 3. **Link to pull request in "Fleeties:"** Include a link to your GitHub pull request in the "Job description" column for the new row you just added in "Fleeties".
-4. **Get it approved and merged:**  When you submit your proposed job description, the Interim Head of People will be automatically tagged for review.  He will work with the CEO, CFO, and the rest of [the E-group](https://fleetdm.com/handbook/company/communications#e-group) to [approve the new position](https://fleetdm.com/handbook/people#approve-a-new-position) or postpone for now.
+4. **Get it approved and merged:**  When you submit your proposed job description, the Head of People will be automatically tagged for review.  He will work with the CEO, CFO, and the rest of [the E-group](https://fleetdm.com/handbook/company/communications#e-group) to [approve the new position](https://fleetdm.com/handbook/people#approve-a-new-position) or postpone for now.
 
 > _**Why bother with approvals?**  We avoid canceling or significantly changing a role after opening it.  It hurts candidates too much.  Instead, get the position approved first, before you start recruiting and interviewing.  This gives you a sounding board and avoids misunderstandings._
 
 
 ## Hiring a new team member
 
-This section is about hiring a new core team member, or fleetie, for an already approved position. 
+Use this section to fill an already approved position.  At Fleet, the [Head of People](https://fleetdm.com/handbook/people) is the DRI for setting the interview process for all open positions. Interview steps vary by role, but before an offer is made, every successful candidate will have interviewed with the Head of People and the CEO.
+
+To start the interview process, the hiring manager will create a copy of the [🛸 Why hire document (internal Google doc)](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/edit?tab=t.d2akkisfwhxy/copy) for each candidate. All feedback will be kept in the cadidate's 🛸 Why hire document as they move through the process. 
 
 > **To move an approved candidate into the final hiring stage**, [create a pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?template=pre-onboarding.md) and complete the hiring manager tasks. This final step includes reference checks and CEO interview, and may influence the final hiring decision.
 
@@ -285,15 +315,12 @@ CEO shadows join all meetings on the [CEO's calendar](https://calendar.google.co
 > Please **DO NOT** add yourself as an attendee to any of the CEO's meetings. The CEO regularly meets with prospects and customers in the community, and without the context of the CEO shadow program, an unknown name on the calendar event could be mistaken for a sales tactic.
 
 
-
-
-
 ## Communicating departures
 
 Although it's sad to see someone go, Fleet understands that not everything is meant to be forever [like open-source is](https://fleetdm.com/handbook/company/why-this-way#why-open-source). There are a few steps that the company needs to take to facilitate a departure. 
 
-1. **Departing team member's manager:** Create a private "#YYYY-offboarding-xxxxxx" Slack channel (replace "xxxxxx" with the Fleetie's name and YYYY with current year) for discussion and invite the CEO and Interim Head of People. Document any context about the departure via "FYI:" in the ["¶ 🗣 E-Group weekly" (confidential Google Doc)](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit). 
-3. **People**: The Interim Head of People will coordinate the team member's last day, offboarding, and exit meeting, then create and begin completing [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/%F0%9F%9A%AA-offboarding-____________.md), to include coordinating team member's last day, offboarding, and exit meeting. At the appropriate time, The Interim Head of People will post in #g-e to inform the E-group of the team member's departure, asking E-group members to inform any other managers on their teams.
+1. **Departing team member's manager:** Create a private "#YYYY-offboarding-xxxxxx" Slack channel (replace "xxxxxx" with the Fleetie's name and YYYY with current year) for discussion and invite the CEO and Head of People. Document any context about the departure via "FYI:" in the ["¶ 🗣 E-Group weekly" (confidential Google Doc)](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit). 
+3. **People**: The Head of People will coordinate the team member's last day, offboarding, and exit meeting, then create and begin completing [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/%F0%9F%9A%AA-offboarding-____________.md), to include coordinating team member's last day, offboarding, and exit meeting. At the appropriate time, The Head of People will post in #g-e to inform the E-group of the team member's departure, asking E-group members to inform any other managers on their teams.
 4. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
 
@@ -301,9 +328,9 @@ Although it's sad to see someone go, Fleet understands that not everything is me
 
 From time to time, someone's job title changes. The hiring manager can use the following steps to change someone's position:
 
-1. Create Slack channel: Create a private "#YYYY-change-title-for-xxxxxx" Slack channel (replace "xxxxxx" with the Fleetie's name and YYYY with current year) for discussion and invite the CEO and Interim Head of People.
-2. `@`mention the Interim Head of People in the new channel with any context regarding the title change and share any related documents. 
-3. After review and approval, the [Interim Head of People](https://fleetdm.com/handbook/people#team) will take the necessary steps to [change the fleetie's job title](https://fleetdm.com/handbook/people#change-a-fleeties-role).
+1. Create Slack channel: Create a private "#YYYY-change-title-for-xxxxxx" Slack channel (replace "xxxxxx" with the Fleetie's name and YYYY with current year) for discussion and invite the CEO and Head of People.
+2. `@`mention the Head of People in the new channel with any context regarding the title change and share any related documents. 
+3. After review and approval, the [Head of People](https://fleetdm.com/handbook/people#team) will take the necessary steps to [change the fleetie's job title](https://fleetdm.com/handbook/people#change-a-fleeties-role).
 
 
 ## Delivering performance feedback

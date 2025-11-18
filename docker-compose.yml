@@ -112,7 +112,7 @@ services:
       - ServerOptions__TlsCertificatePrivateKey=/certs/fleet.key
 
   redis:
-    image: redis:5
+    image: redis:6
     ports:
       - "6379:6379"
 
@@ -151,7 +151,7 @@ services:
       - "4566:4566"
       - "4571:4571"
     environment:
-      - SERVICES=firehose,kinesis,s3,iam,sts
+      - SERVICES=firehose,kinesis,s3,iam,sts,secretsmanager
 
   # s3 compatible object storage (file carving backend)
   minio:

@@ -3,21 +3,24 @@ package scim
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 
 	"github.com/elimity-com/scim"
-	"github.com/elimity-com/scim/errors"
+	scimerrors "github.com/elimity-com/scim/errors"
 	"github.com/elimity-com/scim/optional"
 	"github.com/elimity-com/scim/schema"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -29,7 +32,11 @@ func RegisterSCIM(
 	ds fleet.Datastore,
 	svc fleet.Service,
 	logger kitlog.Logger,
+	fleetConfig *config.FleetConfig,
 ) error {
+	if fleetConfig == nil {
+		return errors.New("fleet config is nil")
+	}
 	config := scim.ServiceProviderConfig{
 		DocumentationURI: optional.NewString("https://fleetdm.com/docs/get-started/why-fleet"),
 		MaxResults:       maxResults,
@@ -209,7 +216,7 @@ func RegisterSCIM(
 		return err
 	}
 
-	// TODO: Add APM/OpenTelemetry tracing and Prometheus middleware
+	// Apply middleware including OTEL instrumentation
 	applyMiddleware := func(prefix string, server http.Handler) http.Handler {
 		handler := http.StripPrefix(prefix, server)
 		handler = AuthorizationMiddleware(authorizer, scimLogger, handler)
@@ -222,9 +229,84 @@ func RegisterSCIM(
 
 	// We cannot use Go URL path pattern like {version} because the http.StripPrefix method
 	// that gets us to the root SCIM path does not support wildcards: https://github.com/golang/go/issues/64909
-	mux.Handle("/api/v1/fleet/scim/", applyMiddleware("/api/v1/fleet/scim", server))
-	mux.Handle("/api/latest/fleet/scim/", applyMiddleware("/api/latest/fleet/scim", server))
+	// Apply OTEL instrumentation at the mux level (outermost)
+	mux.Handle("/api/v1/fleet/scim/", scimOTELMiddleware(applyMiddleware("/api/v1/fleet/scim", server), "/api/v1/fleet/scim", *fleetConfig))
+	mux.Handle("/api/latest/fleet/scim/", scimOTELMiddleware(applyMiddleware("/api/latest/fleet/scim", server), "/api/latest/fleet/scim", *fleetConfig))
 	return nil
+}
+
+// scimOTELMiddleware provides OpenTelemetry instrumentation for SCIM endpoints
+// It creates proper span names without exposing sensitive IDs
+func scimOTELMiddleware(next http.Handler, prefix string, cfg config.FleetConfig) http.Handler {
+	if !cfg.Logging.TracingEnabled || cfg.Logging.TracingType != "opentelemetry" {
+		return next
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Determine the SCIM route pattern based on the path
+		// OTEL is the outermost middleware, so we see the full path including prefix
+		fullPath := r.URL.Path
+
+		// Remove the prefix to get the SCIM-specific path
+		scimPath := strings.TrimPrefix(fullPath, prefix)
+		// Handle both "/Schemas" and "Schemas" by trimming the leading slash
+		scimPath = strings.TrimPrefix(scimPath, "/")
+
+		var route string
+		// Normalize the path to create a route pattern without exposing IDs
+		switch {
+		case strings.HasPrefix(scimPath, "Users"):
+			segments := strings.Split(scimPath, "/")
+			if len(segments) == 1 || (len(segments) == 2 && segments[1] == "") {
+				route = prefix + "/Users"
+			} else {
+				// Individual user operations - don't expose the user ID
+				route = prefix + "/Users/{id}"
+			}
+		case strings.HasPrefix(scimPath, "Groups"):
+			segments := strings.Split(scimPath, "/")
+			if len(segments) == 1 || (len(segments) == 2 && segments[1] == "") {
+				route = prefix + "/Groups"
+			} else {
+				// Individual group operations - don't expose the group ID
+				route = prefix + "/Groups/{id}"
+			}
+		case strings.HasPrefix(scimPath, "Schemas"):
+			segments := strings.Split(scimPath, "/")
+			if len(segments) == 1 || (len(segments) == 2 && segments[1] == "") {
+				route = prefix + "/Schemas"
+			} else {
+				route = prefix + "/Schemas/{id}"
+			}
+		case scimPath == "ServiceProviderConfig" || scimPath == "ServiceProviderConfig/":
+			route = prefix + "/ServiceProviderConfig"
+		case scimPath == "ResourceTypes" || scimPath == "ResourceTypes/":
+			route = prefix + "/ResourceTypes"
+		default:
+			// For any other path, use the full path but check for potential IDs
+			// If the path looks like it might contain an ID (has multiple segments),
+			// we should sanitize it
+			segments := strings.Split(strings.Trim(scimPath, "/"), "/")
+			if len(segments) > 1 {
+				// Might be something like CustomResource/123
+				// Replace the last segment with {id} if it looks like an ID
+				route = prefix + "/" + segments[0] + "/{id}"
+			} else {
+				// Single segment path, use as is
+				route = prefix + "/" + scimPath
+			}
+		}
+
+		// Create the instrumented handler with the proper route
+		instrumentedHandler := otelhttp.NewHandler(
+			otelhttp.WithRouteTag(route, next),
+			"", // Empty operation name - will be set by span name formatter
+			otelhttp.WithSpanNameFormatter(func(operation string, req *http.Request) string {
+				return req.Method + " " + route
+			}),
+		)
+		instrumentedHandler.ServeHTTP(w, r)
+	})
 }
 
 // LastRequestMiddleware saves the details of the last request to SCIM endpoints in the datastore.
@@ -253,13 +335,13 @@ func LastRequestMiddleware(ds fleet.Datastore, logger kitlog.Logger, next http.H
 		case multi.statusCode >= 400:
 			status = "error"
 			// Attempt to parse the response body as a SCIM error.
-			var parsedScimError errors.ScimError
+			var parsedScimError scimerrors.ScimError
 			if err := json.Unmarshal(multi.body.Bytes(), &parsedScimError); err == nil {
 				details = parsedScimError.Detail
 			} else {
 				details = multi.body.String()
 			}
-			if multi.statusCode == errors.ScimErrorInvalidValue.Status && details == errors.ScimErrorInvalidValue.Detail &&
+			if multi.statusCode == scimerrors.ScimErrorInvalidValue.Status && details == scimerrors.ScimErrorInvalidValue.Detail &&
 				strings.Contains(r.URL.Path, "/Users") {
 				// We customize the error message here since we can't do it inside the 3rd party SCIM library.
 				details = `Missing required attributes. "userName", "givenName", and "familyName" are required. Please configure your identity provider to send required attributes to Fleet.`
@@ -294,7 +376,7 @@ func AuthorizationMiddleware(authorizer *authz.Authorizer, logger kitlog.Logger,
 }
 
 func errorHandler(w http.ResponseWriter, logger kitlog.Logger, detail string, status int) {
-	scimErr := errors.ScimError{
+	scimErr := scimerrors.ScimError{
 		Status: status,
 		Detail: detail,
 	}

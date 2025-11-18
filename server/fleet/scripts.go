@@ -284,7 +284,11 @@ func (hsr HostScriptResult) AuthzType() string {
 
 type BatchScriptHost struct {
 	// ID is the host on which the script was executed.
-	ID uint `json:"id" db:"id"`
+	ID             uint   `json:"id" db:"id"`
+	ComputerName   string `json:"-" db:"computer_name"`
+	HostName       string `json:"-" db:"hostname"`
+	HardwareModel  string `json:"-" db:"hardware_model"`
+	HardwareSerial string `json:"-" db:"hardware_serial"`
 	// Display name is the host's display name.
 	DisplayName string `json:"display_name" db:"display_name"`
 	// ExecutionID is a unique identifier for a single execution of the script.
@@ -433,6 +437,9 @@ type SoftwareInstallerPayload struct {
 	// This is to support FMAs
 	Slug          *string        `json:"slug"`
 	MaintainedApp *MaintainedApp `json:"-"`
+
+	IconPath string `json:"-"`
+	IconHash string `json:"-"`
 }
 
 type HostLockWipeStatus struct {
@@ -453,6 +460,9 @@ type HostLockWipeStatus struct {
 	// macOS records the timestamp of the unlock request in the "unlock_ref",
 	// which is then stored here.
 	UnlockRequestedAt time.Time
+	// iOS/iPadOS hosts use an MDM command to unlock
+	UnlockMDMCommand       *MDMCommand
+	UnlockMDMCommandResult *MDMCommandResult
 	// windows and linux hosts use a script to unlock
 	UnlockScript *HostScriptResult
 
@@ -526,10 +536,16 @@ func (s *HostLockWipeStatus) IsPendingLock() bool {
 }
 
 func (s HostLockWipeStatus) IsPendingUnlock() bool {
-	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
-		// Apple MDM does not have a concept of pending unlock.
+	if s.HostFleetPlatform == "darwin" {
+		// MacOS does not have a concept of pending unlock.
 		return false
 	}
+	if s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
+		// pending unlock if an MDM command is queued but no result received yet
+		// since for mobile apple devices we use lost mode.
+		return s.UnlockMDMCommand != nil && s.UnlockMDMCommandResult == nil
+	}
+
 	// pending unlock if script execution request is queued but no result yet and not canceled
 	return s.UnlockScript != nil && s.UnlockScript.ExitCode == nil && !s.UnlockScript.Canceled
 }

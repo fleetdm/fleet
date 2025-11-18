@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -134,7 +135,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamWithExtras(ctx, teamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
 	if err != nil {
 		return nil, err
 	}
@@ -282,6 +283,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if payload.Integrations.ConditionalAccessEnabled.Set {
 			if err := fleet.ValidateConditionalAccessIntegration(ctx,
 				svc,
+				appCfg.ConditionalAccess,
 				team.Config.Integrations.ConditionalAccessEnabled.Value,
 				payload.Integrations.ConditionalAccessEnabled.Value,
 			); err != nil {
@@ -460,7 +462,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 		return nil, err
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamWithExtras(ctx, teamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
 	if err != nil {
 		return nil, err
 	}
@@ -529,7 +531,7 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 		}
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamWithExtras(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -562,7 +564,7 @@ func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fl
 		idMap[user.ID] = true
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamWithExtras(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -587,7 +589,7 @@ func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.Li
 		return nil, err
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamLite(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -645,7 +647,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		return err
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamLite(ctx, teamID)
 	if err != nil {
 		return err
 	}
@@ -741,7 +743,7 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 		return team, nil
 	}
 
-	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken)
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate)
 	if alreadyAuthd {
 		// device-authenticated request can only get the device's team
 		host, ok := hostctx.FromContext(ctx)
@@ -773,7 +775,7 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 		user = vc.User
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamWithExtras(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -854,7 +856,7 @@ func (svc *Service) teamByIDOrName(ctx context.Context, id *uint, name *string) 
 		err error
 	)
 	if id != nil {
-		tm, err = svc.ds.Team(ctx, *id)
+		tm, err = svc.ds.TeamWithExtras(ctx, *id)
 		if err != nil {
 			return nil, err
 		}
@@ -1130,6 +1132,7 @@ func (svc *Service) createTeamFromSpec(
 	}
 	validateTeamCustomSettings(invalid, "macos", macOSSettings.CustomSettings)
 	validateTeamCustomSettings(invalid, "windows", spec.MDM.WindowsSettings.CustomSettings.Value)
+	validateTeamCustomSettings(invalid, "android", spec.MDM.AndroidSettings.CustomSettings.Value)
 
 	var hostExpirySettings fleet.HostExpirySettings
 	if spec.HostExpirySettings != nil {
@@ -1158,6 +1161,7 @@ func (svc *Service) createTeamFromSpec(
 	if spec.Integrations.ConditionalAccessEnabled != nil {
 		if err := fleet.ValidateConditionalAccessIntegration(ctx,
 			svc,
+			appCfg.ConditionalAccess,
 			false,
 			*spec.Integrations.ConditionalAccessEnabled,
 		); err != nil {
@@ -1201,6 +1205,7 @@ func (svc *Service) createTeamFromSpec(
 				MacOSSettings:        macOSSettings,
 				MacOSSetup:           macOSSetup,
 				WindowsSettings:      spec.MDM.WindowsSettings,
+				AndroidSettings:      spec.MDM.AndroidSettings,
 			},
 			HostExpirySettings: hostExpirySettings,
 			WebhookSettings: fleet.TeamWebhookSettings{
@@ -1374,6 +1379,15 @@ func (svc *Service) editTeamFromSpec(
 	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
 
+	didUpdateMacOSRequireAllSoftware := spec.MDM.MacOSSetup.RequireAllSoftware != oldMacOSSetup.RequireAllSoftware
+	if didUpdateMacOSRequireAllSoftware && spec.MDM.MacOSSetup.RequireAllSoftware {
+		if !appCfg.MDM.EnabledAndConfigured {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.require_all_software",
+				`Couldn't update macos_setup.require_all_software because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+		}
+	}
+	team.Config.MDM.MacOSSetup.RequireAllSoftware = spec.MDM.MacOSSetup.RequireAllSoftware
+
 	windowsEnabledAndConfigured := appCfg.MDM.WindowsEnabledAndConfigured
 	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
 		windowsEnabledAndConfigured = opts.DryRunAssumptions.WindowsEnabledAndConfigured.Value
@@ -1383,10 +1397,25 @@ func (svc *Service) editTeamFromSpec(
 			len(spec.MDM.WindowsSettings.CustomSettings.Value) > 0 &&
 			!fleet.MDMProfileSpecsMatch(team.Config.MDM.WindowsSettings.CustomSettings.Value, spec.MDM.WindowsSettings.CustomSettings.Value) {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.custom_settings",
-				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
+				`Couldn’t edit windows_settings.custom_settings. `+fleet.ErrWindowsMDMNotConfigured.Error()))
 		}
 
 		team.Config.MDM.WindowsSettings.CustomSettings = spec.MDM.WindowsSettings.CustomSettings
+	}
+
+	androidEnabledAndConfigured := appCfg.MDM.AndroidEnabledAndConfigured
+	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.AndroidEnabledAndConfigured.Valid {
+		androidEnabledAndConfigured = opts.DryRunAssumptions.AndroidEnabledAndConfigured.Value
+	}
+	if spec.MDM.AndroidSettings.CustomSettings.Set {
+		if !androidEnabledAndConfigured &&
+			len(spec.MDM.AndroidSettings.CustomSettings.Value) > 0 &&
+			!fleet.MDMProfileSpecsMatch(team.Config.MDM.AndroidSettings.CustomSettings.Value, spec.MDM.AndroidSettings.CustomSettings.Value) {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("android_settings.custom_settings",
+				`Couldn’t edit android_settings.custom_settings. `+fleet.ErrAndroidMDMNotConfigured.Error()))
+		}
+
+		team.Config.MDM.AndroidSettings.CustomSettings = spec.MDM.AndroidSettings.CustomSettings
 	}
 
 	if spec.Scripts.Set {
@@ -1424,6 +1453,7 @@ func (svc *Service) editTeamFromSpec(
 
 	validateTeamCustomSettings(invalid, "macos", team.Config.MDM.MacOSSettings.CustomSettings)
 	validateTeamCustomSettings(invalid, "windows", team.Config.MDM.WindowsSettings.CustomSettings.Value)
+	validateTeamCustomSettings(invalid, "android", team.Config.MDM.AndroidSettings.CustomSettings.Value)
 
 	// If host status webhook is not provided, do not change it
 	if spec.WebhookSettings.HostStatusWebhook != nil {
@@ -1448,6 +1478,7 @@ func (svc *Service) editTeamFromSpec(
 	if spec.Integrations.ConditionalAccessEnabled != nil {
 		if err := fleet.ValidateConditionalAccessIntegration(ctx,
 			svc,
+			appCfg.ConditionalAccess,
 			team.Config.Integrations.ConditionalAccessEnabled.Value,
 			*spec.Integrations.ConditionalAccessEnabled,
 		); err != nil {
@@ -1755,8 +1786,33 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		}
 	}
 
+	if payload.RequireAllSoftware != nil && tm.Config.MDM.MacOSSetup.RequireAllSoftware != *payload.RequireAllSoftware {
+		tm.Config.MDM.MacOSSetup.RequireAllSoftware = *payload.RequireAllSoftware
+		didUpdate = true
+	}
+
 	if payload.ManualAgentInstall != nil {
 		if tm.Config.MDM.MacOSSetup.ManualAgentInstall.Value != *payload.ManualAgentInstall {
+			// Try to load the bootstrap package to verify it exists.
+			_, err := svc.GetMDMAppleBootstrapPackageMetadata(ctx, tm.ID, false)
+			// If we got an error other than not found, return it.
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "checking bootstrap package")
+			}
+			// Otherwise if we got a not found error, we can't enable manual agent install.
+			if *payload.ManualAgentInstall && err != nil {
+				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first specify a bootstrap_package."), http.StatusUnprocessableEntity)
+			}
+			sec, err := svc.ds.GetSetupExperienceCount(ctx, string(fleet.MacOSPlatform), &tm.ID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting setup experience information")
+			}
+			if sec.Installers != 0 || sec.VPP != 0 {
+				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first disable setup experience software."), http.StatusUnprocessableEntity)
+			}
+			if sec.Scripts != 0 {
+				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first remove your setup experience script."), http.StatusUnprocessableEntity)
+			}
 			tm.Config.MDM.MacOSSetup.ManualAgentInstall = optjson.SetBool(*payload.ManualAgentInstall)
 			didUpdate = true
 		}
@@ -1826,8 +1882,53 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 		config.WebhookSettings = *payload.WebhookSettings
 	}
 
-	// Apply other team config settings if needed in the future
-	// For now, only webhook settings are supported for default team config
+	// Apply integrations if provided
+	if payload.Integrations != nil {
+		// Note: GoogleCalendar and ConditionalAccessEnabled are currently not supported for "No team"
+		// Reject unsupported fields for "No team"
+		if payload.Integrations.GoogleCalendar != nil ||
+			payload.Integrations.ConditionalAccessEnabled.Set {
+			return nil, fleet.NewInvalidArgumentError("integrations",
+				"google_calendar and conditional_access_enabled are not supported for \"No team\"")
+		}
+
+		// Get app config for integration validation (needed even if clearing integrations)
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if payload.Integrations.Jira != nil || payload.Integrations.Zendesk != nil {
+			// the team integrations must reference an existing global config integration.
+			if _, err := payload.Integrations.MatchWithIntegrations(appCfg.Integrations); err != nil {
+				return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
+			}
+
+			// integrations must be unique
+			if err := payload.Integrations.Validate(); err != nil {
+				return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
+			}
+		}
+
+		// Always update integrations when provided (even if empty arrays to clear them)
+		config.Integrations.Jira = payload.Integrations.Jira
+		config.Integrations.Zendesk = payload.Integrations.Zendesk
+	}
+
+	// Validate mutual exclusivity of automations if either webhooks or integrations were updated
+	if payload.WebhookSettings != nil || payload.Integrations != nil {
+		// must validate that at most only one automation is enabled for each
+		// supported feature - by now the updated payload has been applied to config.
+		invalid := &fleet.InvalidArgumentError{}
+		fleet.ValidateEnabledFailingPoliciesTeamIntegrations(
+			config.WebhookSettings.FailingPoliciesWebhook,
+			config.Integrations,
+			invalid,
+		)
+		if invalid.HasErrors() {
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
+	}
 
 	// Save the configuration
 	if err := svc.ds.SaveDefaultTeamConfig(ctx, config); err != nil {

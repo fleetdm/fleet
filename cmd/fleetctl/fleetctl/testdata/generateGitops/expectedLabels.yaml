@@ -7,8 +7,8 @@
   description: Label B description
   label_membership_type: manual
   hosts:
-    - host1
-    - host2
+    - "1"
+    - "2"
 - name: Label C
   description: Label C description
   label_membership_type: host_vitals

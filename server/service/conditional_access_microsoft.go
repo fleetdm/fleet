@@ -91,55 +91,62 @@ func (svc *Service) ConditionalAccessMicrosoftCreateIntegration(ctx context.Cont
 type conditionalAccessMicrosoftConfirmRequest struct{}
 
 type conditionalAccessMicrosoftConfirmResponse struct {
-	ConfigurationCompleted bool  `json:"configuration_completed"`
-	Err                    error `json:"error,omitempty"`
+	ConfigurationCompleted bool   `json:"configuration_completed"`
+	SetupError             string `json:"setup_error"`
+	Err                    error  `json:"error,omitempty"`
 }
 
 func (r conditionalAccessMicrosoftConfirmResponse) Error() error { return r.Err }
 
 func conditionalAccessMicrosoftConfirmEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	_ = request.(*conditionalAccessMicrosoftConfirmRequest)
-	configurationCompleted, err := svc.ConditionalAccessMicrosoftConfirm(ctx)
+	configurationCompleted, setupError, err := svc.ConditionalAccessMicrosoftConfirm(ctx)
 	if err != nil {
 		return conditionalAccessMicrosoftConfirmResponse{Err: err}, nil
 	}
 	return conditionalAccessMicrosoftConfirmResponse{
 		ConfigurationCompleted: configurationCompleted,
+		SetupError:             setupError,
 	}, nil
 }
 
-func (svc *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, err error) {
+func (svc *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, setupError string, err error) {
 	// Check user is authorized to write integrations.
 	if err := svc.authz.Authorize(ctx, &fleet.ConditionalAccessMicrosoftIntegration{}, fleet.ActionWrite); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "failed to authorize")
+		return false, "", ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
 
 	if !svc.config.MicrosoftCompliancePartner.IsSet() {
-		return false, &fleet.BadRequestError{Message: "microsoft conditional access configuration not set"}
+		return false, "", &fleet.BadRequestError{Message: "microsoft conditional access configuration not set"}
 	}
 
 	// Load current integration.
 	integration, err := svc.ds.ConditionalAccessMicrosoftGet(ctx)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "failed to load the integration")
+		return false, "", ctxerr.Wrap(ctx, err, "failed to load the integration")
 	}
 
 	if integration.SetupDone {
-		return true, nil
+		return true, "", nil
 	}
 
 	getResponse, err := svc.conditionalAccessMicrosoftProxy.Get(ctx, integration.TenantID, integration.ProxyServerSecret)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "failed to get integration settings from proxy", "err", err)
-		return false, nil
+		return false, "", nil
 	}
 
 	if !getResponse.SetupDone {
-		return false, nil
+		var setupError string
+		if getResponse.SetupError != nil {
+			level.Error(svc.logger).Log("msg", "setup is not done", "setup_error", getResponse.SetupError)
+			setupError = *getResponse.SetupError
+		}
+		return false, setupError, nil
 	}
 
 	if err := svc.ds.ConditionalAccessMicrosoftMarkSetupDone(ctx); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "failed to mark setup_done=true")
+		return false, "", ctxerr.Wrap(ctx, err, "failed to mark setup_done=true")
 	}
 
 	if err := svc.NewActivity(
@@ -147,10 +154,10 @@ func (svc *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (conf
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
 	); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "create activity for conditional access integration microsoft")
+		return false, "", ctxerr.Wrap(ctx, err, "create activity for conditional access integration microsoft")
 	}
 
-	return true, nil
+	return true, "", nil
 }
 
 type conditionalAccessMicrosoftDeleteRequest struct{}

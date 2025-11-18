@@ -68,6 +68,10 @@ module.exports.policies = {
   'view-app-details': true,
   'view-meetups': true,
   'view-os-settings': true,
+  'view-scripts': true,
+  'view-script-details': true,
+  'view-command-details': true,
+  'view-mdm-commands': true,
   'view-fleetctl-preview': true,
   'get-llm-generated-configuration-profile': true,
   'account/update-start-cta-visibility': true,
@@ -76,4 +80,5 @@ module.exports.policies = {
   'android-proxy/*': true,
   'microsoft-proxy/view-remediate': true,
   'microsoft-proxy/view-turn-on-mdm': true,
+  'view-okta-conditional-access-error': true,
 };

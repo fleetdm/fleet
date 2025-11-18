@@ -1,11 +1,13 @@
 .form {
+  // Used on login forms
   &__base-error {
     background-color: $ui-error;
     border-radius: 3px;
-    color: $core-white;
+    color: $core-fleet-white;
     font-size: $x-small;
-    margin-top: 10px;
-    padding: 5px 0;
+    height: 16px;
+    margin: -12px 0;
+    padding: $pad-xsmall 0;
     text-align: center;
     width: 100%;
   }

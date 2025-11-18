@@ -80,6 +80,15 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 			ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScripts bool) (*fleet.SoftwareInstaller, error) {
 				return &fleet.SoftwareInstaller{TeamID: tt.teamID}, nil
 			}
+			ds.GetVPPAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
+				if tt.teamID == nil {
+					return &fleet.VPPAppStoreApp{VPPAppsTeamsID: 0}, nil
+				}
+				return &fleet.VPPAppStoreApp{VPPAppsTeamsID: *tt.teamID}, nil
+			}
+			ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+				return &fleet.SoftwareInstaller{TeamID: tt.teamID}, nil
+			}
 
 			ds.DeleteSoftwareInstallerFunc = func(ctx context.Context, installerID uint) error {
 				return nil
@@ -108,9 +117,9 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				return nil
 			}
 
-			ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+			ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 				if tt.teamID != nil {
-					return &fleet.Team{ID: *tt.teamID}, nil
+					return &fleet.TeamLite{ID: *tt.teamID}, nil
 				}
 
 				return nil, nil
@@ -178,7 +187,7 @@ func TestUpgradeCodeMigration(t *testing.T) {
 		return map[uint]string{uint(1): "deadbeef", uint(2): "deadbeef", uint(3): "noexist", uint(4): "noexist"}, nil
 	}
 
-	var updatedInstallerIDs = map[uint]struct{}{}
+	updatedInstallerIDs := map[uint]struct{}{}
 	ds.UpdateInstallerUpgradeCodeFunc = func(ctx context.Context, installerID uint, upgradeCode string) error {
 		updatedInstallerIDs[installerID] = struct{}{}
 		require.Equal(t, "{B681CB20-107E-428A-9B14-2D3C1AFED244}", upgradeCode)

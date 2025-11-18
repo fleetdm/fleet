@@ -69,4 +69,6 @@ export const upcomingActivityComponentMap: Record<
   [ActivityType.InstalledSoftware]: InstalledSoftwareActivityItem,
   [ActivityType.UninstalledSoftware]: InstalledSoftwareActivityItem,
   [ActivityType.InstalledAppStoreApp]: InstalledSoftwareActivityItem,
+  [ActivityType.LockedHost]: LockedHostActivityItem,
+  [ActivityType.UnlockedHost]: UnlockedHostActivityItem,
 };

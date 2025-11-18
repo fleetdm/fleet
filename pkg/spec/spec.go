@@ -33,6 +33,7 @@ type Group struct {
 	EnrollSecret           *fleet.EnrollSecretSpec
 	UsersRoles             *fleet.UsersRoleSpec
 	TeamsDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
+	CertificateAuthorities *fleet.GroupedCertificateAuthorities
 }
 
 // Metadata holds the metadata for a single YAML section/item.
@@ -193,11 +194,10 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 
 	var err *multierror.Error
 	s = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
-
 		switch {
 		case strings.HasPrefix(env, preventEscapingPrefix):
 			return "$" + strings.TrimPrefix(env, preventEscapingPrefix), true
-		case strings.HasPrefix(env, fleet.ServerVarPrefix):
+		case strings.HasPrefix(strings.ToUpper(env), fleet.ServerVarPrefix):
 			// Don't expand fleet vars -- they will be expanded on the server
 			return "", false
 		case strings.HasPrefix(env, fleet.ServerSecretPrefix):

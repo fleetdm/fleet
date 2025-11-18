@@ -7,7 +7,7 @@
     height: 24px;
     border: 1px solid $ui-fleet-black-25;
     border-radius: 12px;
-    background-color: $core-white;
+    background-color: $core-fleet-white;
     position: absolute;
     top: 40px;
     left: -13px;
@@ -106,7 +106,7 @@
 
   &__mdm-required {
     background-color: $core-vibrant-blue;
-    color: $core-white;
+    color: $core-fleet-white;
     font-size: $x-small;
     font-weight: $bold;
     padding: 2px 4px;

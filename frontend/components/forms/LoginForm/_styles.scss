@@ -1,31 +1,8 @@
 .login-form {
-  transition: opacity 300ms ease-in;
-  opacity: 1;
-  width: 516px;
-  align-self: center;
-  border-radius: 10px;
-  align-items: center;
-  background-color: $core-white;
-  min-height: 360px;
-  box-sizing: border-box;
-  padding: $pad-xxlarge;
+  gap: $gap-page-component; // 24px between buttons and form
 
   &--hidden {
     opacity: 0;
-  }
-
-  .login-btn {
-    width: 160px;
-  }
-
-  &__forgot-wrap {
-    text-align: right;
-  }
-
-  &__forgot-link {
-    font-size: $x-small;
-    text-decoration: none;
-    color: $core-vibrant-blue;
   }
 
   &__sso-image {
@@ -40,36 +17,49 @@
     vertical-align: middle;
   }
 
-  &__actions {
-    display: flex;
-    flex-direction: column-reverse;
-    gap: $pad-large;
-  }
-
-  &__login-actions {
+  &__login-actions,
+  &__form {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: $pad-large;
+    gap: $gap-form;
   }
+
+  // Login button styles
+  // Login and SSO button widths will always be equal
+  // Min of 208px with login-button widening if SSO button is wider
+  &__login-actions {
+    max-width: min-content;
+    align-items: center;
+    align-self: center;
+  }
+
+  &__login-btn {
+    min-width: 100%;
+  }
+
+  &__sso-btn.button {
+    min-width: 208px; // Must override form's .button specificity
+    width: max-content;
+    border: 1px solid $core-fleet-black;
+    white-space: nowrap;
+  }
+  // End login button styles
 }
 
 .two-factor-check-email {
-  .stacked-white-boxes__box {
-    align-items: start;
-    gap: $pad-xlarge;
+  align-items: start;
+  gap: $pad-xlarge;
 
-    h1 {
-      font-size: $large;
-      font-weight: $bold;
-      margin: 0;
-    }
+  h1 {
+    font-size: $large;
+    font-weight: $bold;
+    margin: 0;
+  }
 
-    .back-link {
-      svg {
-        path {
-          fill: transparent;
-        }
+  .back-link {
+    svg {
+      path {
+        fill: transparent;
       }
     }
   }

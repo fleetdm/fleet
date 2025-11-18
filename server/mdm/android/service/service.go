@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -20,9 +21,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 )
 
 // Used for overriding the private key validation in testing
@@ -39,8 +42,9 @@ type Service struct {
 	logger           kitlog.Logger
 	authz            *authz.Authorizer
 	ds               fleet.AndroidDatastore
+	fleetDS          fleet.Datastore
 	androidAPIClient androidmgmt.Client
-	fleetSvc         fleet.Service
+	activityModule   activities.ActivityModule
 	serverPrivateKey string
 
 	// SignupSSEInterval can be overwritten in tests.
@@ -53,40 +57,60 @@ func NewService(
 	ctx context.Context,
 	logger kitlog.Logger,
 	ds fleet.AndroidDatastore,
-	fleetSvc fleet.Service,
 	licenseKey string,
 	serverPrivateKey string,
+	fleetDS fleet.Datastore,
+	activityModule activities.ActivityModule,
 ) (android.Service, error) {
-	var client androidmgmt.Client
-	if os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
-		client = androidmgmt.NewGoogleClient(ctx, logger, os.Getenv)
-	} else {
-		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, os.Getenv)
-	}
-	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey)
+	client := newAMAPIClient(ctx, logger, licenseKey)
+	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, activityModule)
 }
 
 func NewServiceWithClient(
 	logger kitlog.Logger,
 	ds fleet.AndroidDatastore,
 	client androidmgmt.Client,
-	fleetSvc fleet.Service,
 	serverPrivateKey string,
+	fleetDS fleet.Datastore,
+	activityModule activities.ActivityModule,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
-	return &Service{
+	svc := &Service{
 		logger:            logger,
 		authz:             authorizer,
 		ds:                ds,
 		androidAPIClient:  client,
-		fleetSvc:          fleetSvc,
 		serverPrivateKey:  serverPrivateKey,
 		SignupSSEInterval: DefaultSignupSSEInterval,
-	}, nil
+		fleetDS:           fleetDS,
+		activityModule:    activityModule,
+	}
+
+	// OK to use background context here because this function is only called during server bootstrap
+	// Setting the secret here ensures that we don't have to configure it in lots of different places
+	// when using the proxy client.
+	ctx := context.Background()
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting client authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+
+	return svc, nil
+}
+
+func newAMAPIClient(ctx context.Context, logger kitlog.Logger, licenseKey string) androidmgmt.Client {
+	var client androidmgmt.Client
+	if os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
+		client = androidmgmt.NewGoogleClient(ctx, logger, os.Getenv)
+	} else {
+		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, os.Getenv)
+	}
+	return client
 }
 
 func newErrResponse(err error) android.DefaultResponse {
@@ -109,6 +133,16 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 	// Check if server private key is configured (required for Android MDM)
 	if err := svc.checkServerPrivateKey(ctx); err != nil {
 		return nil, err
+	}
+
+	// Before checking if Android is already configured, verify if existing enterprise still exists
+	// This ensures we detect enterprise deletion even if user goes directly to signup page
+	if err := svc.verifyExistingEnterpriseIfAny(ctx); err != nil {
+		// If verification returns NotFound (enterprise was deleted), continue with signup
+		// Other errors should be returned as-is
+		if !fleet.IsNotFound(err) {
+			return nil, err
+		}
 	}
 
 	appConfig, err := svc.checkIfAndroidAlreadyConfigured(ctx)
@@ -298,7 +332,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 	}
 
 	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), fmt.Sprintf("%d", defaultAndroidPolicyID))
-	err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
+	_, err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
 		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
 			DeviceSettingsEnabled:        true,
 			MemoryInfoEnabled:            true,
@@ -309,16 +343,12 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 			SystemPropertiesEnabled:      true,
 			SoftwareInfoEnabled:          true, // Android OS version, etc.
 			CommonCriteriaModeEnabled:    true,
-			// Application inventory will likely be a Premium feature.
 			// applicationReports take a lot of space in device status reports. They are not free -- our current cost is $40 per TiB (2025-02-20).
-			// We should disable them for free accounts. To enable them for a server transitioning from Free to Premium, we will need to patch the existing policies.
-			// For server transitioning from Premium to Free, we will need to patch the existing policies to disable software inventory, which could also be done
-			// by the fleetdm.com androidAPIClient or manually. The androidAPIClient could also enforce this report setting.
-			ApplicationReportsEnabled:    false,
+			ApplicationReportsEnabled:    true,
 			ApplicationReportingSettings: nil,
 		},
 	})
-	if err != nil {
+	if err != nil && !androidmgmt.IsNotModifiedError(err) {
 		return ctxerr.Wrapf(ctx, err, "patching %d policy", defaultAndroidPolicyID)
 	}
 
@@ -341,7 +371,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 		return ctxerr.Wrap(ctx, err, "getting user")
 	}
 
-	if err = svc.fleetSvc.NewActivity(ctx, user, fleet.ActivityTypeEnabledAndroidMDM{}); err != nil {
+	if err = svc.activityModule.NewActivity(ctx, user, fleet.ActivityTypeEnabledAndroidMDM{}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for enabled Android MDM")
 	}
 
@@ -375,6 +405,12 @@ func (svc *Service) GetEnterprise(ctx context.Context) (*android.Enterprise, err
 	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err, "getting enterprise")
 	}
+
+	// Verify the enterprise still exists via Google API using shared method
+	if err := svc.verifyEnterpriseExistsWithGoogle(ctx, enterprise); err != nil {
+		return nil, err
+	}
+
 	return enterprise, nil
 }
 
@@ -422,7 +458,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "bulk set android hosts as unenrolled")
 	}
 
-	if err = svc.fleetSvc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDisabledAndroidMDM{}); err != nil {
+	if err = svc.activityModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDisabledAndroidMDM{}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for disabled Android MDM")
 	}
 
@@ -660,4 +696,306 @@ func (svc *Service) signupSSECheck(ctx context.Context, done chan string) bool {
 		return true
 	}
 	return false
+}
+
+// verifyEnterpriseExistsWithGoogle verifies if the given enterprise still exists in Google API.
+// Uses LIST-first approach for efficiency and better error handling.
+// Returns fleet.IsNotFound error if enterprise was deleted, nil if verification passed.
+func (svc *Service) verifyEnterpriseExistsWithGoogle(ctx context.Context, enterprise *android.Enterprise) error {
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting client authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+
+	// Get server URL from app config
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
+	// Use LIST API as primary verification method
+	enterprises, err := svc.androidAPIClient.EnterprisesList(ctx, appConfig.ServerSettings.ServerURL)
+	if err != nil {
+		var gerr *googleapi.Error
+		if errors.As(err, &gerr) {
+			switch gerr.Code {
+			case http.StatusNotFound:
+				// Special case: 404 from proxy with deletion confirmation
+				if strings.Contains(gerr.Message, "PROXY_VERIFIED_DELETED:") {
+					level.Info(svc.logger).Log("msg", "enterprise confirmed deleted by proxy", "enterpriseID", enterprise.EnterpriseID)
+					svc.cleanupDeletedEnterprise(ctx, enterprise, enterprise.EnterpriseID)
+					return fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
+				}
+			case http.StatusBadRequest:
+				// Bad request might indicate missing headers or invalid request format
+				// Don't delete the enterprise in this case
+				level.Error(svc.logger).Log("msg", "bad request when verifying enterprise", "error", err)
+				return fmt.Errorf("verifying enterprise with Google: %s (check request headers and format)", err.Error())
+			case http.StatusUnauthorized, http.StatusForbidden:
+				// Authentication/authorization issues - don't delete the enterprise
+				level.Error(svc.logger).Log("msg", "authentication/authorization error when verifying enterprise", "error", err)
+				return fmt.Errorf("verifying enterprise with Google: authentication error: %w", err)
+			}
+		}
+		// LIST failed - this is likely a technical issue, not deletion
+		// Log the error but don't delete the enterprise
+		level.Error(svc.logger).Log("msg", "failed to list enterprises", "error", err)
+		return fmt.Errorf("verifying enterprise with Google: %s", err.Error())
+	}
+
+	// Check if our enterprise is in the list
+	enterpriseID := strings.TrimPrefix(enterprise.EnterpriseID, "enterprises/")
+	for _, ent := range enterprises {
+		if strings.HasSuffix(ent.Name, enterpriseID) {
+			// Enterprise exists - verification passed
+			return nil
+		}
+	}
+
+	// Enterprise NOT in list - it's deleted - perform cleanup
+	level.Info(svc.logger).Log("msg", "enterprise confirmed deleted via LIST API", "enterpriseID", enterpriseID)
+	svc.cleanupDeletedEnterprise(ctx, enterprise, enterpriseID)
+	return fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
+}
+
+// verifyExistingEnterpriseIfAny checks if there's an existing enterprise in the database
+// and if so, verifies it still exists in Google API. If it doesn't exist, performs cleanup.
+// Returns fleet.IsNotFound error if enterprise was deleted, nil if no enterprise exists or verification passed.
+func (svc *Service) verifyExistingEnterpriseIfAny(ctx context.Context) error {
+	// Check if there's an existing enterprise
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	switch {
+	case fleet.IsNotFound(err):
+		// No enterprise exists - this is fine for signup
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "checking for existing enterprise")
+	}
+
+	// Enterprise exists - verify it using the shared method
+	return svc.verifyEnterpriseExistsWithGoogle(ctx, enterprise)
+}
+
+// cleanupDeletedEnterprise performs the complete cleanup when an enterprise deletion is detected
+func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *android.Enterprise, enterpriseID string) {
+	// Clean up proxy database records by calling proxy DELETE endpoint
+	// This ensures the proxy won't return conflicts when creating new signup URLs
+	if deleteErr := svc.androidAPIClient.EnterpriseDelete(ctx, enterprise.Name()); deleteErr != nil {
+		level.Warn(svc.logger).Log("msg", "failed to delete proxy records after enterprise deletion (may not exist)", "err", deleteErr)
+	}
+
+	// Delete local enterprise records
+	if deleteErr := svc.ds.DeleteAllEnterprises(ctx); deleteErr != nil {
+		level.Error(svc.logger).Log("msg", "failed to delete local enterprise records after deletion", "err", deleteErr)
+	}
+
+	// Turn off Android MDM
+	if setErr := svc.ds.SetAndroidEnabledAndConfigured(ctx, false); setErr != nil {
+		level.Error(svc.logger).Log("msg", "failed to turn off Android MDM after enterprise deletion", "err", setErr)
+	}
+
+	// Unenroll Android hosts
+	if unenrollErr := svc.ds.BulkSetAndroidHostsUnenrolled(ctx); unenrollErr != nil {
+		level.Error(svc.logger).Log("msg", "failed to unenroll Android hosts after enterprise deletion", "err", unenrollErr)
+	}
+}
+
+// Admin-initiated Android unenroll
+// Request decoder for POST /api/_version_/fleet/hosts/{id}/mdm/unenroll
+type androidHostUnenrollRequest struct {
+	HostID uint `url:"id"`
+}
+
+func unenrollAndroidHostEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
+	req := request.(*androidHostUnenrollRequest)
+	err := svc.UnenrollAndroidHost(ctx, req.HostID)
+	return android.DefaultResponse{Err: err}
+}
+
+// UnenrollAndroidHost calls AMAPI to delete the device (work profile) and emits an activity.
+// The actual MDM status flip to Off is performed when Pub/Sub sends DELETED for the device.
+func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error {
+	// Load host and authorize based on team
+	h, err := svc.fleetDS.HostLite(ctx, hostID)
+	if err != nil {
+		return err
+	}
+	if err := svc.authz.Authorize(ctx, h, fleet.ActionWrite); err != nil {
+		return err
+	}
+	if strings.ToLower(h.Platform) != "android" {
+		return &fleet.BadRequestError{Message: "host is not an android device"}
+	}
+
+	// Resolve Android device and enterprise
+	ah, err := svc.ds.AndroidHostLiteByHostUUID(ctx, h.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting android host by uuid")
+	}
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting android enterprise")
+	}
+	if ah.Device == nil || ah.Device.DeviceID == "" || enterprise.EnterpriseID == "" {
+		return &fleet.BadRequestError{Message: "missing android device or enterprise id"}
+	}
+
+	// Authenticate client and call AMAPI delete
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting Android authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+	deviceName := fmt.Sprintf("enterprises/%s/devices/%s", enterprise.EnterpriseID, ah.Device.DeviceID)
+	if err := svc.androidAPIClient.EnterprisesDevicesDelete(ctx, deviceName); err != nil {
+		return ctxerr.Wrap(ctx, err, "amapi delete device")
+	}
+
+	// Emit activity: admin told Fleet to unenroll
+	displayName := fleet.HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
+	if err := svc.activityModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeMDMUnenrolled{
+		HostSerial:       h.HardwareSerial,
+		HostDisplayName:  displayName,
+		InstalledFromDEP: false,
+		Platform:         "android",
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create android unenroll activity")
+	}
+	return nil
+}
+
+func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error) {
+	return svc.androidAPIClient.EnterprisesApplications(ctx, enterpriseName, applicationID)
+}
+
+func (svc *Service) AddAppToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string) error {
+
+	var appPolicies []*androidmanagement.ApplicationPolicy
+	for _, a := range applicationIDs {
+		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
+			PackageName: a,
+			InstallType: "AVAILABLE",
+		})
+	}
+
+	var errs []error
+	for uuid, policyID := range hostUUIDs {
+		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, policyID)
+
+		_, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, appPolicies)
+		if err != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "google api: modify policy applications for host %s", uuid))
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// Then Android MDM isn't setup yet, so no-op
+			level.Info(svc.logger).Log("msg", "skipping android default policy migration, Android MDM is not turned on")
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "getting android enterprise")
+	}
+
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting client authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+
+	policyName := fmt.Sprintf("%s/policies/%d", enterprise.Name(), defaultAndroidPolicyID)
+	_, err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
+		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
+			DeviceSettingsEnabled:        true,
+			MemoryInfoEnabled:            true,
+			NetworkInfoEnabled:           true,
+			DisplayInfoEnabled:           true,
+			PowerManagementEventsEnabled: true,
+			HardwareStatusEnabled:        true,
+			SystemPropertiesEnabled:      true,
+			SoftwareInfoEnabled:          true, // Android OS version, etc.
+			CommonCriteriaModeEnabled:    true,
+			ApplicationReportsEnabled:    true,
+			ApplicationReportingSettings: nil,
+		},
+	})
+	if err != nil && !androidmgmt.IsNotModifiedError(err) {
+		return ctxerr.Wrapf(ctx, err, "enabling app reports on %d default policy", defaultAndroidPolicyID)
+	}
+	return nil
+}
+
+func (svc *Service) PatchDevice(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (skip bool, apiErr error) {
+	deviceRequest, err := newAndroidDeviceRequest(policyID, deviceName, device)
+	if err != nil {
+		return false, ctxerr.Wrapf(ctx, err, "prepare device request %s", deviceName)
+	}
+
+	applied, apiErr := svc.androidAPIClient.EnterprisesDevicesPatch(ctx, deviceName, device)
+	if apiErr != nil {
+		var gerr *googleapi.Error
+		if errors.As(apiErr, &gerr) {
+			deviceRequest.StatusCode = gerr.Code
+		}
+		deviceRequest.ErrorDetails.V = apiErr.Error()
+		deviceRequest.ErrorDetails.Valid = true
+
+		if skip = androidmgmt.IsNotModifiedError(apiErr); skip {
+			apiErr = nil
+		}
+	} else {
+		deviceRequest.StatusCode = http.StatusOK
+		deviceRequest.AppliedPolicyVersion.V = applied.AppliedPolicyVersion
+		deviceRequest.AppliedPolicyVersion.Valid = true
+	}
+
+	if err := svc.fleetDS.NewAndroidPolicyRequest(ctx, deviceRequest); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "save android device request")
+	}
+	return skip, nil
+}
+
+func (svc *Service) PatchPolicy(ctx context.Context, policyID, policyName string,
+	policy *androidmanagement.Policy, metadata map[string]string,
+) (skip bool, err error) {
+	policyRequest, err := newAndroidPolicyRequest(policyID, policyName, policy, metadata)
+	if err != nil {
+		return false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
+	}
+
+	applied, apiErr := svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy)
+	if apiErr != nil {
+		var gerr *googleapi.Error
+		if errors.As(apiErr, &gerr) {
+			policyRequest.StatusCode = gerr.Code
+		}
+		policyRequest.ErrorDetails.V = apiErr.Error()
+		policyRequest.ErrorDetails.Valid = true
+
+		// Note that from my tests, the "not modified" error is not reliable, the
+		// AMAPI happily returned 200 even if the policy was the same (as
+		// confirmed by the same version number being returned), so we do check
+		// for this error, but do not build critical logic on top of it.
+		//
+		// Tests do show that the version number is properly incremented when the
+		// policy changes, though.
+		if skip = androidmgmt.IsNotModifiedError(apiErr); skip {
+			apiErr = nil
+		}
+	} else {
+		policyRequest.StatusCode = http.StatusOK
+		policyRequest.PolicyVersion.V = applied.Version
+		policyRequest.PolicyVersion.Valid = true
+	}
+
+	if err := svc.fleetDS.NewAndroidPolicyRequest(ctx, policyRequest); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "save android policy request")
+	}
+	return skip, nil
 }

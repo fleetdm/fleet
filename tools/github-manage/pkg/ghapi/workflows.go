@@ -1,10 +1,15 @@
 package ghapi
 
-import "fleetdm/gm/pkg/logger"
+import (
+	"strings"
+
+	"fleetdm/gm/pkg/logger"
+)
 
 // ActionType represents the type of action to be performed on an issue.
 type ActionType string
 
+// newworkflow new actions added must have a new actiontype
 const (
 	ATAddLabel               ActionType = "add_label"
 	ATRemoveLabel            ActionType = "remove_label"
@@ -32,6 +37,7 @@ type Status struct {
 	State string `json:"state"`
 }
 
+// newworkflow new workflow 'action builder' functions are here
 // CreateBulkAddLableAction creates actions to add a label to multiple issues.
 func CreateBulkAddLableAction(issues []Issue, label string) []Action {
 	var actions []Action
@@ -125,6 +131,26 @@ func CreateBulkSetSprintAction(issues []Issue, projectID int) []Action {
 	return actions
 }
 
+// CreateBulkMoveToCurrentSprintIfNotReadyQA creates actions to set current sprint for issues whose
+// status does NOT contain "ready" or "qa" (case-insensitive) in the given project.
+func CreateBulkMoveToCurrentSprintIfNotReadyQA(issues []Issue, projectID int) []Action {
+	var filtered []Issue
+	for _, is := range issues {
+		s := strings.ToLower(strings.TrimSpace(is.Status))
+		if s == "" {
+			// No status -> include (move to current sprint)
+			filtered = append(filtered, is)
+			continue
+		}
+		if strings.Contains(s, "ready") || strings.Contains(s, "qa") {
+			// Skip statuses with ready or qa
+			continue
+		}
+		filtered = append(filtered, is)
+	}
+	return CreateBulkSetSprintAction(filtered, projectID)
+}
+
 func CreateBulkSprintKickoffActions(issues []Issue, sourceProjectID, projectID int) []Action {
 	logger.Infof("Creating sprint kickoff actions for %d issues (source project: %d, target project: %d)", len(issues), sourceProjectID, projectID)
 
@@ -177,6 +203,7 @@ func AsyncManager(actions []Action, statusChan chan<- Status) {
 		logger.Infof("Processing action %d/%d: %s for issue #%d", i+1, len(actions), action.Type, action.Issue.Number)
 
 		switch action.Type {
+		// newworkflow new actions must be supported in this switch
 		case ATAddLabel:
 			err := AddLabelToIssue(action.Issue.Number, action.Label)
 			if err != nil {
@@ -254,6 +281,11 @@ func AsyncManager(actions []Action, statusChan chan<- Status) {
 	logger.Info("AsyncManager completed all actions")
 }
 
+//
+// IMPORTANT: TUI workflows should use the Async methods above instead of the synchronous methods below
+//
+
+// These methods are more for testing individual steps w/o tui.
 // BulkAddLabel adds a label to multiple issues.
 func BulkAddLabel(issues []Issue, label string) error {
 	logger.Infof("Adding label '%s' to %d issues", label, len(issues))

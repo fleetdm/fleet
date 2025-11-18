@@ -29,6 +29,9 @@ const PKG_TYPE_TO_ID_TEXT = {
   rpm: "package name",
   msi: "product code",
   exe: "software name",
+  sh: "package name",
+  ps1: "package name",
+  ipa: "software name",
 } as const;
 
 const getInstallScriptTooltip = (pkgType: PackageType) => {
@@ -215,6 +218,8 @@ const PackageAdvancedOptions = ({
     );
   };
 
+  const requiresAdvancedOptions = ext === "exe" || ext === "tar.gz";
+
   return (
     <div className={baseClass}>
       <RevealButton
@@ -224,12 +229,16 @@ const PackageAdvancedOptions = ({
         hideText="Advanced options"
         caretPosition="after"
         onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-        disabled={!selectedPackage}
+        disabled={!selectedPackage || requiresAdvancedOptions}
         disabledTooltipContent={
-          <>
-            Choose a file to modify <br />
-            advanced options.
-          </>
+          requiresAdvancedOptions ? (
+            <>Install and uninstall scripts are required for .{ext} packages.</>
+          ) : (
+            <>
+              Choose a file to modify <br />
+              advanced options.
+            </>
+          )
         }
       />
       {(showAdvancedOptions || ext === "exe" || ext === "tar.gz") &&

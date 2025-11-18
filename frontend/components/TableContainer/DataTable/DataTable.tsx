@@ -80,6 +80,7 @@ interface IDataTableProps {
   renderPagination?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
   onClearSelection?: () => void;
+  suppressHeaderActions?: boolean;
 }
 
 interface IHeaderGroup extends HeaderGroup {
@@ -126,6 +127,7 @@ const DataTable = ({
   renderPagination,
   setExportRows,
   onClearSelection = noop,
+  suppressHeaderActions,
 }: IDataTableProps): JSX.Element => {
   // used to track the initial mount of the component.
   const isInitialRender = useRef(true);
@@ -515,6 +517,64 @@ const DataTable = ({
     "is-observer": isOnlyObserver,
   });
 
+  const renderHeaderWithActions = () => (
+    <thead className="active-selection">
+      <tr {...headerGroups[0].getHeaderGroupProps()}>
+        <th
+          className="active-selection__checkbox"
+          {...headerGroups[0].headers[0].getHeaderProps(
+            headerGroups[0].headers[0].getSortByToggleProps({
+              title: null,
+            })
+          )}
+        >
+          {headerGroups[0].headers[0].render("Header")}
+        </th>
+        <th className="active-selection__container">
+          <div className="active-selection__inner">
+            {renderSelectedCount()}
+            <div className="active-selection__inner-left">
+              {secondarySelectActions && renderSecondarySelectActions()}
+            </div>
+            <div className="active-selection__inner-right">
+              {primarySelectAction && renderPrimarySelectAction()}
+            </div>
+            {toggleAllPagesSelected && renderAreAllSelected()}
+            {shouldRenderToggleAllPages && (
+              <Button
+                onClick={onToggleAllPagesClick}
+                variant="inverse"
+                className="light-text"
+                size="small"
+              >
+                <>Select all matching {resultsTitle}</>
+              </Button>
+            )}
+            <Button
+              onClick={onClearSelectionClick}
+              variant="inverse"
+              size="small"
+            >
+              Clear selection
+            </Button>
+          </div>
+        </th>
+      </tr>
+    </thead>
+  );
+
+  const shouldShowFooter =
+    // footer is not explicitly hidden
+    !hideFooter &&
+    // and any of:
+
+    // table is client-side paginated with more than 1 page of rows
+    ((isClientSidePagination && (canNextPage || canPreviousPage)) ||
+      // table's pagination is externally controlled
+      renderPagination ||
+      // there is help text and at least 1 row of data
+      (renderTableHelpText && !!rows?.length));
+
   return (
     <div className={baseClass}>
       {isLoading && (
@@ -524,46 +584,9 @@ const DataTable = ({
       )}
       <div className="data-table data-table__wrapper">
         <table className={tableStyles}>
-          {Object.keys(selectedRowIds).length !== 0 && (
-            <thead className="active-selection">
-              <tr {...headerGroups[0].getHeaderGroupProps()}>
-                <th
-                  className="active-selection__checkbox"
-                  {...headerGroups[0].headers[0].getHeaderProps(
-                    headerGroups[0].headers[0].getSortByToggleProps({
-                      title: null,
-                    })
-                  )}
-                >
-                  {headerGroups[0].headers[0].render("Header")}
-                </th>
-                <th className="active-selection__container">
-                  <div className="active-selection__inner">
-                    {renderSelectedCount()}
-                    <div className="active-selection__inner-left">
-                      {secondarySelectActions && renderSecondarySelectActions()}
-                    </div>
-                    <div className="active-selection__inner-right">
-                      {primarySelectAction && renderPrimarySelectAction()}
-                    </div>
-                    {toggleAllPagesSelected && renderAreAllSelected()}
-                    {shouldRenderToggleAllPages && (
-                      <Button
-                        onClick={onToggleAllPagesClick}
-                        variant="text-link"
-                        className="light-text"
-                      >
-                        <>Select all matching {resultsTitle}</>
-                      </Button>
-                    )}
-                    <Button onClick={onClearSelectionClick} variant="text-link">
-                      Clear selection
-                    </Button>
-                  </div>
-                </th>
-              </tr>
-            </thead>
-          )}
+          {!suppressHeaderActions &&
+            Object.keys(selectedRowIds).length !== 0 &&
+            renderHeaderWithActions()}
           <thead>
             {headerGroups.map((headerGroup) => (
               <tr {...headerGroup.getHeaderGroupProps()}>
@@ -571,11 +594,24 @@ const DataTable = ({
                   return (
                     <th
                       className={column.id ? `${column.id}__header` : ""}
-                      {...column.getHeaderProps(
-                        column.getSortByToggleProps({ title: null })
-                      )}
+                      {...column.getHeaderProps()}
                     >
-                      {renderColumnHeader(column)}
+                      {column.canSort ? (
+                        <Button
+                          variant="unstyled"
+                          {...column.getSortByToggleProps({ title: null })}
+                          aria-label={`Sort by ${column.Header} ${
+                            column.isSortedDesc ? "descending" : "ascending"
+                          }`}
+                          tabIndex={0}
+                          className="sortable-header"
+                        >
+                          {renderColumnHeader(column)}
+                          {/* add arrow/icon as needed */}
+                        </Button>
+                      ) : (
+                        renderColumnHeader(column)
+                      )}
                     </th>
                   );
                 })}
@@ -647,7 +683,7 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
-      {!hideFooter && (
+      {shouldShowFooter && (
         <div className={`${baseClass}__footer`}>
           {renderTableHelpText && !!rows?.length && (
             <div className={`${baseClass}__table-help-text`}>

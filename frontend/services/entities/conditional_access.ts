@@ -7,6 +7,7 @@ export type TriggerMSConditionalStatusResponse = {
 };
 export type ConfirmMSConditionalAccessResponse = {
   configuration_completed: boolean;
+  setup_error: string;
 };
 
 const conditionalAccessService = {

@@ -67,6 +67,8 @@ by an exit code of zero.`,
 			switch status.StatusCode {
 			case fleet.AllMigrationsCompleted:
 				// only continue if db is considered up-to-date
+			case fleet.NeedsFleetv4732Fix, fleet.UnknownFleetv4732State:
+				migrationError = errors.New("database has misnumbered migrations from v4.73.2")
 			case fleet.NoMigrationsCompleted:
 				migrationError = errors.New("no migrations completed")
 			case fleet.SomeMigrationsCompleted:
@@ -110,7 +112,7 @@ by an exit code of zero.`,
 			}
 			level.Info(logger).Log("msg", "scanning vulnerabilities")
 			start := time.Now()
-			vulnFuncs := getVulnFuncs(ctx, ds, logger, &vulnConfig)
+			vulnFuncs := getVulnFuncs(ds, logger, &vulnConfig)
 			for _, vulnFunc := range vulnFuncs {
 				if err := vulnFunc.VulnFunc(ctx); err != nil {
 					return err
@@ -157,7 +159,7 @@ type NamedVulnFunc struct {
 	VulnFunc func(ctx context.Context) error
 }
 
-func getVulnFuncs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, config *config.VulnerabilitiesConfig) []NamedVulnFunc {
+func getVulnFuncs(ds fleet.Datastore, logger kitlog.Logger, config *config.VulnerabilitiesConfig) []NamedVulnFunc {
 	vulnFuncs := []NamedVulnFunc{
 		{
 			Name: "cron_vulnerabilities",
@@ -172,9 +174,9 @@ func getVulnFuncs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			},
 		},
 		{
-			Name: "cron_reconcile_software_titles",
+			Name: "cron_cleanup_software_titles",
 			VulnFunc: func(ctx context.Context) error {
-				return ds.ReconcileSoftwareTitles(ctx)
+				return ds.CleanupSoftwareTitles(ctx)
 			},
 		},
 		{

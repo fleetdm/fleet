@@ -24,7 +24,7 @@ const (
 	teamName = "Team Test"
 )
 
-func TestGitOpsTeamSofwareInstallers(t *testing.T) {
+func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 	testing_utils.StartSoftwareInstallerServer(t)
 	testing_utils.StartAndServeVPPServer(t)
 
@@ -34,7 +34,7 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 	}{
 		{"testdata/gitops/team_software_installer_not_found.yml", "Please make sure that URLs are reachable from your Fleet server."},
 		{"testdata/gitops/team_software_installer_install_script_secret.yml", "environment variable \"FLEET_SECRET_NAME\" not set"},
-		{"testdata/gitops/team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .deb, .rpm, or .tar.gz."},
+		{"testdata/gitops/team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .deb, .rpm, .tar.gz, .sh, .ipa or .ps1."},
 		// commenting out, results in the process getting killed on CI and on some machines
 		// {"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 3 GB"},
 		{"testdata/gitops/team_software_installer_valid.yml", ""},
@@ -48,6 +48,7 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_uninstall_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_no_url.yml", "at least one of hash_sha256 or url is required for each software package"},
+		{"testdata/gitops/team_software_installer_no_url_multi.yml", "multi_missing_url.yml, list item #1"},
 		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml",
 			"Couldn't edit \"../../fleetctl/testdata/gitops/team_software_installer_invalid_self_service_value.yml\" at \"software.packages.self_service\", expected type bool but got string"},
 		{"testdata/gitops/team_software_installer_invalid_both_include_exclude.yml",
@@ -58,9 +59,14 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 			"Please create the missing labels, or update your settings to not refer to these labels."},
 		// team tests for setup experience software/script
 		{"testdata/gitops/team_setup_software_valid.yml", ""},
+		{"testdata/gitops/team_setup_software_on_package.yml", ""},
+		{"testdata/gitops/team_setup_software_defined_in_conflicting_places.yml", " Setup experience may only be specified directly on software or within macos_setup, but not both."},
+		{"testdata/gitops/team_setup_software_defined_in_conflicting_places_vpp.yml", " Setup experience may only be specified directly on software or within macos_setup, but not both."},
 		{"testdata/gitops/team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
 		{"testdata/gitops/team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that team"},
 		{"testdata/gitops/team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that team"},
+		{"testdata/gitops/team_software_installer_valid_ipa.yml", ""},
+		{"testdata/gitops/team_software_installer_subdir_ipa.yml", ""},
 	}
 	for _, c := range cases {
 		c.file = filepath.Join("../../fleetctl", c.file)
@@ -123,8 +129,8 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 				}
 				return ret, nil
 			}
-			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
-				return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+				return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 			}
 			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 				return []uint{}, nil
@@ -152,11 +158,14 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 		}
 		return nil
 	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
-	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
-		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 	}
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 		return []uint{}, nil
@@ -291,7 +300,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		wantErr    string
 	}{
 		{"testdata/gitops/no_team_software_installer_not_found.yml", "Please make sure that URLs are reachable from your Fleet server."},
-		{"testdata/gitops/no_team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .deb, .rpm, or .tar.gz."},
+		{"testdata/gitops/no_team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .deb, .rpm, .tar.gz, .sh, .ipa or .ps1."},
 		// commenting out, results in the process getting killed on CI and on some machines
 		// {"testdata/gitops/no_team_software_installer_too_large.yml", "The maximum file size is 3 GB"},
 		{"testdata/gitops/no_team_software_installer_valid.yml", ""},
@@ -316,6 +325,8 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
 		{"testdata/gitops/no_team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that team"},
 		{"testdata/gitops/no_team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that team"},
+		{"testdata/gitops/no_team_software_installer_valid_ipa.yml", ""},
+		{"testdata/gitops/no_team_software_installer_subdir_ipa.yml", ""},
 	}
 	for _, c := range cases {
 		c.noTeamFile = filepath.Join("../../fleetctl", c.noTeamFile)
@@ -376,8 +387,8 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 				}
 				return ret, nil
 			}
-			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
-				return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+				return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 			}
 			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 				return []uint{}, nil

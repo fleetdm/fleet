@@ -2,6 +2,9 @@ package android
 
 import (
 	"context"
+	"net/http"
+
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 type Service interface {
@@ -14,6 +17,15 @@ type Service interface {
 	// CreateEnrollmentToken creates an enrollment token for a new Android device.
 	CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string) (*EnrollmentToken, error)
 	ProcessPubSubPush(ctx context.Context, token string, message *PubSubMessage) error
+
+	// UnenrollAndroidHost triggers unenrollment (work profile removal) for the given Android host ID.
+	UnenrollAndroidHost(ctx context.Context, hostID uint) error
+
+	EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error)
+	AddAppToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string) error
+	EnableAppReportsOnDefaultPolicy(ctx context.Context) error
+	PatchDevice(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (skip bool, apiErr error)
+	PatchPolicy(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (skip bool, err error)
 }
 
 // /////////////////////////////////////////////
@@ -24,6 +36,18 @@ type DefaultResponse struct {
 }
 
 func (r DefaultResponse) Error() error { return r.Err }
+
+// StatusCode implements the go-kit http StatusCoder interface to preserve HTTP status codes from errors
+func (r DefaultResponse) StatusCode() int {
+	if r.Err != nil {
+		// Check if the error has a custom status code (like errors created with .WithStatus())
+		if sc, ok := r.Err.(interface{ StatusCode() int }); ok {
+			return sc.StatusCode()
+		}
+	}
+	// Default to 200 OK if no error or no custom status code
+	return http.StatusOK
+}
 
 type GetEnterpriseResponse struct {
 	EnterpriseID string `json:"android_enterprise_id"`

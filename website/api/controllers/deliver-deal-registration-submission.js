@@ -10,11 +10,11 @@ module.exports = {
   inputs: {
     submittersFirstName: {type: 'string'},
     submittersLastName: {type: 'string'},
-    submittersEmailAddress: {type: 'string'},
+    submittersEmailAddress: {type: 'string', isEmail: true,},
     submittersOrganization: {type: 'string'},
     customersFirstName: {type: 'string'},
     customersLastName: {type: 'string'},
-    customersEmailAddress: {type: 'string'},
+    customersEmailAddress: {type: 'string', isEmail: true,},
     linkedinUrl: {type: 'string', defaultsTo: 'N/A'},
     customersOrganization: {type: 'string'},
     customersCurrentMdm: {type: 'string', defaultsTo: 'N/A'},

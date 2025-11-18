@@ -1,6 +1,6 @@
 .input-field {
   line-height: 1.5;
-  background-color: $ui-light-grey;
+  background-color: $core-fleet-white;
   border: solid 1px $ui-fleet-black-10;
   border-radius: $border-radius;
   font-size: $x-small;
@@ -8,7 +8,7 @@
   color: $core-fleet-blue;
   font-family: "Inter", sans-serif;
   box-sizing: border-box;
-  height: 40px;
+  height: 36px;
   transition: border-color 100ms;
   width: 100%;
 
@@ -18,7 +18,7 @@
 
   &:hover:not(.input-field--read-only) {
     box-shadow: none;
-    border: 1px solid $core-vibrant-blue-over;
+    border: 1px solid $ui-fleet-black-75-over;
   }
 
   &:active:not(.input-field--read-only),
@@ -26,7 +26,7 @@
   &:focus-visible:not(.input-field--read-only) {
     box-shadow: none;
     outline: 0;
-    border: 1px solid $core-vibrant-blue-down;
+    border: 1px solid $ui-fleet-black-75-down;
   }
 
   &--disabled {
@@ -46,7 +46,7 @@
 
     &:focus {
       border-color: $ui-error;
-      background-color: $core-white;
+      background-color: $core-fleet-white;
       color: $core-fleet-black;
     }
   }
@@ -92,12 +92,12 @@
   &__copy-wrapper {
     display: flex;
     align-items: center;
-    position: relative;
+    gap: $pad-xxsmall;
     position: absolute;
-    top: 0;
+    top: 6px; // vertically center
     right: 0;
-    margin: $pad-xsmall;
-    background-color: $ui-light-grey;
+    margin: 1px 4px;
+    background-color: $core-fleet-white;
   }
 
   &__input-container.copy-enabled {
@@ -113,7 +113,7 @@
   }
 
   &__copied-confirmation-outside {
-    margin-left: -81px;
+    margin-left: -88px;
   }
 }
 

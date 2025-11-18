@@ -139,6 +139,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
 	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
 	var cachedDS fleet.Datastore
 	if len(opts) > 0 && opts[0].NoCacheDatastore {
 		cachedDS = ds
@@ -178,10 +181,14 @@ func ServeMDMBootstrapPackage(t *testing.T, pkgPath, pkgName string) (*httptest.
 }
 
 func StartSoftwareInstallerServer(t *testing.T) {
-	// start the web server that will serve the installer
+	// load the ruby installer to use as base bytes to repeat for the "too large" case
 	b, err := os.ReadFile(getPathRelative("../../../../server/service/testdata/software-installers/ruby.deb"))
 	require.NoError(t, err)
 
+	// get the base dir of all installers
+	baseDir := getPathRelative("../../../../server/service/testdata/software-installers/")
+
+	// start the web server that will serve the installer
 	srv := httptest.NewServer(
 		http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
@@ -200,9 +207,12 @@ func StartSoftwareInstallerServer(t *testing.T) {
 						n, _ := w.Write(b)
 						sz += n
 					}
-				default:
+				case strings.Contains(r.URL.Path, "other.deb"):
+					// serve same content as ruby.deb
 					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 					_, _ = w.Write(b)
+				default:
+					http.ServeFile(w, r, filepath.Join(baseDir, filepath.Base(r.URL.Path)))
 				}
 			},
 		),
@@ -234,7 +244,8 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	// Mock appConfig
 	savedAppConfig := &fleet.AppConfig{
 		MDM: fleet.MDM{
-			EnabledAndConfigured: true,
+			EnabledAndConfigured:        true,
+			AndroidEnabledAndConfigured: true,
 		},
 	}
 	AddLabelMocks(ds)
@@ -278,7 +289,7 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
-		macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
+		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
@@ -362,10 +373,26 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		return nil, &notFoundError{}
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		for _, tm := range savedTeams {
 			if (*tm).ID == tid {
 				return *tm, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		for _, tm := range savedTeams {
+			if (*tm).ID == tid {
+				teamToCopy := *tm
+				return &fleet.TeamLite{
+					ID:          teamToCopy.ID,
+					Filename:    teamToCopy.Filename,
+					CreatedAt:   teamToCopy.CreatedAt,
+					Name:        teamToCopy.Name,
+					Description: teamToCopy.Description,
+					Config:      teamToCopy.Config.ToLite(),
+				}, nil
 			}
 		}
 		return nil, &notFoundError{}
@@ -397,6 +424,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		return declaration, nil
 	}
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
@@ -446,6 +476,12 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
 		return nil, &notFoundError{} // No existing EULA
+	}
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
+		return nil
+	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
 	}
 
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)

@@ -32,6 +32,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     enable_end_user_authentication: false,
     macos_setup_assistant: null,
     enable_release_device_manually: false,
+    require_all_software_macos: false,
   },
   macos_migration: {
     enable: false,
@@ -152,7 +153,6 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     jira: [],
     zendesk: [],
     google_calendar: [],
-    ndes_scep_proxy: null,
   },
   logging: {
     debug: false,

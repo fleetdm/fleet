@@ -1,5 +1,7 @@
 controls:
+  android_enabled_and_configured: true
   enable_disk_encryption: true
+  enable_turn_on_windows_mdm_manually: false
   ios_updates:
     deadline: "2025-12-31"
     minimum_version: "18.1"

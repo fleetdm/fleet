@@ -27,7 +27,7 @@ import (
 
 var (
 	rxOption       = regexp.MustCompile(`\-\-(\w+)\s`)
-	osqueryVersion = "5.18.1"
+	osqueryVersion = "5.19.0"
 
 	structTpl = template.Must(template.New("struct").Funcs(template.FuncMap{
 		"camelCase": camelCaseOptionName,
@@ -198,7 +198,7 @@ func main() {
 	}
 
 	outputFilePath := os.Args[1]
-	outputFile, err := os.OpenFile(outputFilePath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0o644)
+	outputFile, err := os.OpenFile(outputFilePath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0o644) // nolint:gosec // G302
 	if err != nil {
 		log.Fatalf("open output file %q: %s", outputFilePath, err)
 	}
@@ -237,7 +237,7 @@ func sanitizeArchivePath(d, t string) (string, error) {
 
 // extractTagGz extracts the contents of the provided tar.gz file.
 func extractTarGz(path string) error {
-	tarGzFile, err := os.OpenFile(path, os.O_RDONLY, 0o755)
+	tarGzFile, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("open %q: %w", path, err)
 	}

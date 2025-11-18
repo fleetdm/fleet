@@ -1,3 +1,4 @@
+import { SetupExperiencePlatform } from "interfaces/platform";
 import URL_PREFIX from "./url_prefix";
 
 const INTEGRATIONS_PREFIX = `${URL_PREFIX}/settings/integrations`;
@@ -15,8 +16,9 @@ export default {
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
   CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/setup-experience/end-user-auth`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/setup-experience/bootstrap-package`,
-  CONTROLS_SETUP_ASSITANT: `${URL_PREFIX}/controls/setup-experience/setup-assistant`,
-  CONTROLS_INSTALL_SOFTWARE: `${URL_PREFIX}/controls/setup-experience/install-software`,
+  CONTROLS_SETUP_ASSISTANT: `${URL_PREFIX}/controls/setup-experience/setup-assistant`,
+  CONTROLS_INSTALL_SOFTWARE: (platform: SetupExperiencePlatform) =>
+    `${URL_PREFIX}/controls/setup-experience/install-software/${platform}`,
   CONTROLS_RUN_SCRIPT: `${URL_PREFIX}/controls/setup-experience/run-script`,
   CONTROLS_SCRIPTS: `${URL_PREFIX}/controls/scripts`,
   CONTROLS_SCRIPTS_LIBRARY: `${URL_PREFIX}/controls/scripts/library`,
@@ -61,6 +63,8 @@ export default {
   ADMIN_INTEGRATIONS_VPP: `${INTEGRATIONS_PREFIX}/mdm/vpp`,
   ADMIN_INTEGRATIONS_VPP_SETUP: `${INTEGRATIONS_PREFIX}/vpp/setup`,
   ADMIN_INTEGRATIONS_SSO: `${INTEGRATIONS_PREFIX}/sso`,
+  ADMIN_INTEGRATIONS_SSO_FLEET_USERS: `${INTEGRATIONS_PREFIX}/sso/fleet-users`,
+  ADMIN_INTEGRATIONS_SSO_END_USERS: `${INTEGRATIONS_PREFIX}/sso/end-users`,
   ADMIN_INTEGRATIONS_HOST_STATUS_WEBHOOK: `${INTEGRATIONS_PREFIX}/host-status-webhook`,
 
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
@@ -98,6 +102,7 @@ export default {
   SOFTWARE_ADD_APP_STORE: `${URL_PREFIX}/software/add/app-store`,
 
   // Label pages
+  MANAGE_LABELS: `${URL_PREFIX}/labels/manage`,
   NEW_LABEL: `${URL_PREFIX}/labels/new`,
   // deprecated - now handled by `/new` route
   LABEL_NEW_DYNAMIC: `${URL_PREFIX}/labels/new/dynamic`,

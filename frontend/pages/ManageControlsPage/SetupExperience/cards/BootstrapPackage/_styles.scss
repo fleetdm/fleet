@@ -1,4 +1,6 @@
 .bootstrap-package {
+  @include vertical-card-layout;
+
   &__uploader-container {
     display: flex;
     flex-direction: column;

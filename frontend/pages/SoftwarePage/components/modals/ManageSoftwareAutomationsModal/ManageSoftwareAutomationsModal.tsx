@@ -405,7 +405,7 @@ const ManageAutomationsModal = ({
         {!!selectedIntegration && (
           <Button
             type="button"
-            variant="text-link"
+            variant="inverse"
             onClick={togglePreviewTicketModal}
           >
             Preview ticket
@@ -442,7 +442,7 @@ const ManageAutomationsModal = ({
         />
         <Button
           type="button"
-          variant="text-link"
+          variant="inverse"
           onClick={togglePreviewPayloadModal}
           disabled={!softwareAutomationsEnabled}
         >

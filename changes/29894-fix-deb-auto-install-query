@@ -1,1 +1,0 @@
-* Fixed cases where the default auto-install policy for .deb packages would treat installed-then-uninstalled software as still installed
