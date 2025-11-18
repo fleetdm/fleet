@@ -131,7 +131,7 @@ describe("SoftwareScriptDetailsModal - ModalButtons component", () => {
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Rerun" }));
-    expect(onRerun).toHaveBeenCalledWith(99);
+    expect(onRerun).toHaveBeenCalledWith(99, true);
     expect(onCancel).toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));

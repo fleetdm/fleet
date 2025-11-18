@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -53,6 +54,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestBatchResendProfileToHosts", testBatchResendProfileToHosts},
 		{"TestGetMDMConfigProfileStatus", testGetMDMConfigProfileStatus},
 		{"TestDeleteMDMProfilesCancelsInstalls", testDeleteMDMProfilesCancelsInstalls},
+		{"TestCleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
 	}
 
 	for _, c := range cases {
@@ -9062,5 +9064,125 @@ func forceSetAndroidHostProfileStatus(t *testing.T, ds *Datastore, hostUUID stri
 			`,
 			hostUUID, actualStatus, operation, profile.Name, profile.ProfileUUID)
 		return err
+	})
+}
+
+func testCleanUpMDMManagedCertificates(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host0-osquery-id"),
+		NodeKey:         ptr.String("host0-node-key"),
+		UUID:            "host0-test-mdm-profiles",
+		Hostname:        "hostname0",
+	})
+	require.NoError(t, err)
+
+	t.Run("non matching host profile record", func(t *testing.T) {
+		badProfileUUID := uuid.NewString()
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+			INSERT INTO host_mdm_managed_certificates (host_uuid, profile_uuid) VALUES (?, ?)
+		`, host.UUID, badProfileUUID)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		var uid string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM host_mdm_managed_certificates WHERE profile_uuid = ?`,
+				badProfileUUID)
+		})
+		require.Equal(t, badProfileUUID, uid)
+
+		// Cleanup should delete the above orphaned record
+		err = ds.CleanUpMDMManagedCertificates(ctx)
+		require.NoError(t, err)
+		err = ExecAdhocSQLWithError(ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM host_mdm_managed_certificates WHERE profile_uuid = ?`,
+				badProfileUUID)
+		})
+		require.ErrorIs(t, err, sql.ErrNoRows)
+	})
+
+	t.Run("valid windows record stays", func(t *testing.T) {
+		t.Cleanup(func() {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `
+				DELETE FROM host_mdm_managed_certificates;
+				DELETE FROM host_mdm_windows_profiles;
+				`)
+				return err
+			})
+		})
+		windowsProfileUUID := uuid.NewString()
+		err := ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{{
+			ProfileUUID:   windowsProfileUUID,
+			HostUUID:      host.UUID,
+			Checksum:      []byte("gibberish"),
+			OperationType: fleet.MDMOperationTypeInstall,
+		}})
+		require.NoError(t, err)
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+			INSERT INTO host_mdm_managed_certificates (host_uuid, profile_uuid) VALUES (?, ?)
+		`, host.UUID, windowsProfileUUID)
+			return err
+		})
+
+		// Validate record stays after cleanup
+		err = ds.CleanUpMDMManagedCertificates(ctx)
+		require.NoError(t, err)
+		var uid string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM host_mdm_managed_certificates WHERE profile_uuid = ?`,
+				windowsProfileUUID)
+		})
+		require.Equal(t, windowsProfileUUID, uid)
+	})
+
+	t.Run("valid apple record stays", func(t *testing.T) {
+		t.Cleanup(func() {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `
+				DELETE FROM host_mdm_managed_certificates;
+				DELETE FROM host_mdm_apple_profiles;
+				`)
+				return err
+			})
+		})
+
+		appleProfileUUID := uuid.NewString()
+		err := ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID:   appleProfileUUID,
+			HostUUID:      host.UUID,
+			Checksum:      []byte("gibberish"),
+			Scope:         fleet.PayloadScopeSystem,
+			OperationType: fleet.MDMOperationTypeInstall,
+		}})
+		require.NoError(t, err)
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+			INSERT INTO host_mdm_managed_certificates (host_uuid, profile_uuid) VALUES (?, ?)
+		`, host.UUID, appleProfileUUID)
+			return err
+		})
+
+		// Validate record stays after cleanup
+		err = ds.CleanUpMDMManagedCertificates(ctx)
+		require.NoError(t, err)
+		var uid string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM host_mdm_managed_certificates WHERE profile_uuid = ?`,
+				appleProfileUUID)
+		})
+		require.Equal(t, appleProfileUUID, uid)
 	})
 }

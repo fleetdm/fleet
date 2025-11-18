@@ -426,11 +426,18 @@ elif [[ $ACTION == "release-to-production" ]]; then
 elif [[ $ACTION == "create-fleetd-release-pr" ]]; then
     create_fleetd_release_pr
 elif [[ $ACTION == "update-osquery-schema" ]]; then
-    NODE_VERSION=$(node --version)
-    EXPECTED_NODE_VERSION=$(cat package.json | jq -r .engines.node)
-    if [[ $NODE_VERSION != "v${EXPECTED_NODE_VERSION}" ]]; then
-        echo "Seems your node version is $NODE_VERSION, version must be v${EXPECTED_NODE_VERSION} to generate schemas..."
-        exit 1
+    # Strip leading 'v' from `node --version` and get major
+    NODE_VERSION=$(node --version | sed 's/^v//')
+    NODE_MAJOR=${NODE_VERSION%%.*}
+
+    EXPECTED_NODE_RANGE=$(jq -r '.engines.node' package.json)
+    # Extract the first numeric sequence (major) from the range, e.g., 24 from "^24.10.0"
+    EXPECTED_MAJOR=$(echo "$EXPECTED_NODE_RANGE" | sed -E 's/^[^0-9]*([0-9]+).*/\1/')
+
+    if [[ "$NODE_MAJOR" != "$EXPECTED_MAJOR" ]]; then
+      echo "Your Node.js $NODE_VERSION does not satisfy engines.node ($EXPECTED_NODE_RANGE)."
+      echo "Please use Node $EXPECTED_MAJOR.x (e.g., 24.10.0)."
+      exit 1
     fi
     update_osquery_schema_and_flags "$VERSION"
 else

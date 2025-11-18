@@ -184,5 +184,12 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Value	[]string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	YaraRules	[]fleet.YaraRule
 github.com/fleetdm/fleet/v4/server/fleet/YaraRule	Name	string
 github.com/fleetdm/fleet/v4/server/fleet/YaraRule	Contents	string
+github.com/fleetdm/fleet/v4/server/fleet/AppConfig	ConditionalAccess	*fleet.ConditionalAccessSettings
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	MicrosoftEntraTenantID	string
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	MicrosoftEntraConnectionConfigured	bool
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaIDPID	optjson.String
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaAssertionConsumerServiceURL	optjson.String
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaAudienceURI	optjson.String
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaCertificate	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	strictDecoding	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	didUnmarshalLegacySettings	[]string

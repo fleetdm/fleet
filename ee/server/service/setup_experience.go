@@ -30,7 +30,7 @@ func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform str
 			return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience software. To add software, first disable manual_agent_install."), http.StatusUnprocessableEntity)
 		}
 	} else {
-		team, err := svc.ds.Team(ctx, teamID)
+		team, err := svc.ds.TeamLite(ctx, teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "load team")
 		}
@@ -109,7 +109,7 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 			return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience script. To add script, first disable manual_agent_install."), http.StatusUnprocessableEntity)
 		}
 	} else {
-		team, err := svc.ds.Team(ctx, *teamID)
+		team, err := svc.ds.TeamLite(ctx, *teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "load team")
 		}

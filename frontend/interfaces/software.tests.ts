@@ -35,7 +35,7 @@ describe("formatSoftwareType", () => {
       },
       {
         source: "npm_packages" as const,
-        expected: "Package (NPM)",
+        expected: "Package (npm)",
         description: "NPM packages",
       },
       {

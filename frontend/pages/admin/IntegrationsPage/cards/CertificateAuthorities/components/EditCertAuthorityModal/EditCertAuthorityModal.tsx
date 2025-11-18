@@ -23,6 +23,7 @@ import NDESForm from "../NDESForm";
 import CustomSCEPForm from "../CustomSCEPForm";
 import HydrantForm from "../HydrantForm";
 import SmallstepForm from "../SmallstepForm";
+import CustomESTForm from "../CustomESTForm";
 
 const baseClass = "edit-cert-authority-modal";
 
@@ -75,7 +76,7 @@ const EditCertAuthorityModal = ({
         certAuthority.id,
         editPatchData
       );
-      renderFlash("success", "Successfully edited your certificate authority.");
+      renderFlash("success", "Successfully edited certificate authority.");
       onExit();
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
@@ -84,26 +85,24 @@ const EditCertAuthorityModal = ({
   };
 
   const getFormComponent = () => {
-    if (certAuthority.type === "ndes_scep_proxy") {
-      return NDESForm;
+    switch (certAuthority.type) {
+      case "ndes_scep_proxy":
+        return NDESForm;
+      case "digicert":
+        return DigicertForm;
+      case "hydrant":
+        return HydrantForm;
+      case "smallstep":
+        return SmallstepForm;
+      case "custom_scep_proxy":
+        return CustomSCEPForm;
+      case "custom_est_proxy":
+        return CustomESTForm;
+      default:
+        throw new Error(
+          `Unknown certificate authority type: ${certAuthority.type}`
+        );
     }
-    if (certAuthority.type === "digicert") {
-      return DigicertForm;
-    }
-    if (certAuthority.type === "hydrant") {
-      return HydrantForm;
-    }
-    if (certAuthority.type === "smallstep") {
-      return SmallstepForm;
-    }
-
-    // FIXME: seems like we have some competing patterns in here where we sometimes do switch
-    // statements with a default and sometimes do if or if/else if with a final default return. We
-    // should probably standardize on one or the other. Also, do we really want this to be the
-    // default? Why not have an explicit check for custom_scep_proxy and have the final
-    // else throw an error?
-
-    return CustomSCEPForm;
   };
 
   const renderForm = () => {

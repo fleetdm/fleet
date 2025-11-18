@@ -1,1 +1,0 @@
-* Adjusted log level to "info" instead of "error" when Windows MDM endpoints generate client errors (e.g. empty binary security token).

@@ -265,6 +265,7 @@ module.exports = {
             // eslint-disable-next-line camelcase
             Current_Assignment_Reason__c: 'Inbound Lead',// TODO verify that this matters. if not, do not set it.
             Prospect_Status__c: 'Assigned',// eslint-disable-line camelcase
+            Type: 'Prospect',
 
             Name: enrichmentData.employer.organization,// IFWMIH: We know organization exists
             Website: enrichmentData.employer.emailDomain,

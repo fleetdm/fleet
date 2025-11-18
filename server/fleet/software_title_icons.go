@@ -46,17 +46,18 @@ type SoftwareTitleIconStore interface {
 }
 
 type DetailsForSoftwareIconActivity struct {
-	SoftwareInstallerID *uint                   `db:"software_installer_id"`
-	AdamID              *string                 `db:"adam_id"`
-	VPPAppTeamID        *uint                   `db:"vpp_app_team_id"`
-	VPPIconUrl          *string                 `db:"vpp_icon_url"`
-	SoftwareTitle       string                  `db:"software_title"`
-	Filename            *string                 `db:"filename"`
-	TeamName            *string                 `db:"team_name"`
-	TeamID              uint                    `db:"team_id"`
-	SelfService         bool                    `db:"self_service"`
-	SoftwareTitleID     uint                    `db:"software_title_id"`
-	Platform            *AppleDevicePlatform    `json:"platform"`
-	LabelsIncludeAny    []ActivitySoftwareLabel `db:"-"`
-	LabelsExcludeAny    []ActivitySoftwareLabel `db:"-"`
+	SoftwareInstallerID *uint                      `db:"software_installer_id"`
+	InHouseAppID        *uint                      `db:"in_house_app_id"`
+	AdamID              *string                    `db:"adam_id"`
+	VPPAppTeamID        *uint                      `db:"vpp_app_team_id"`
+	VPPIconUrl          *string                    `db:"vpp_icon_url"`
+	SoftwareTitle       string                     `db:"software_title"`
+	Filename            *string                    `db:"filename"`
+	TeamName            *string                    `db:"team_name"`
+	TeamID              uint                       `db:"team_id"`
+	SelfService         bool                       `db:"self_service"`
+	SoftwareTitleID     uint                       `db:"software_title_id"`
+	Platform            *InstallableDevicePlatform `json:"platform"`
+	LabelsIncludeAny    []ActivitySoftwareLabel    `db:"-"`
+	LabelsExcludeAny    []ActivitySoftwareLabel    `db:"-"`
 }

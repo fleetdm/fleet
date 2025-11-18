@@ -179,9 +179,11 @@ const SoftwareVersionDetailsPage = ({
               className={`${baseClass}__summary-section`}
             >
               <SoftwareDetailsSummary
-                title={`${softwareVersion.name}, ${softwareVersion.version}`}
+                displayName={`${
+                  softwareVersion.display_name || softwareVersion.name
+                }, ${softwareVersion.version}`}
                 type={formatSoftwareType(softwareVersion)}
-                hosts={hostsCount ?? 0}
+                hostCount={hostsCount}
                 queryParams={{
                   software_version_id: softwareVersion.id,
                   team_id: teamIdForApi,

@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
@@ -24,13 +25,14 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 	logger := log.NewLogfmtLogger(os.Stdout)
 	proxy := android_mock.Client{}
 	proxy.InitCommonMocks()
+	activityModule := activities.NewActivityModule(ds, logger)
 	androidSvc, err := android_service.NewServiceWithClient(
 		logger,
 		ds,
 		&proxy,
-		fleetSvc,
 		"test-private-key",
 		ds,
+		activityModule,
 	)
 	require.NoError(t, err)
 	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true

@@ -1,6 +1,5 @@
 import React from "react";
 
-import ReactTooltip from "react-tooltip";
 import { PlacesType } from "react-tooltip-5";
 import NotSupported from "components/NotSupported";
 
@@ -8,11 +7,14 @@ import { COLORS } from "styles/var/colors";
 
 import ProgressBar from "components/ProgressBar";
 import TooltipWrapper from "components/TooltipWrapper";
+import { isLinuxLike } from "interfaces/platform";
 
 const baseClass = "disk-space-indicator";
 interface IDiskSpaceIndicatorProps {
   gigsDiskSpaceAvailable: number | "---";
   percentDiskSpaceAvailable: number;
+  gigsTotalDiskSpace?: number;
+  gigsAllDiskSpace?: number;
   platform: string;
   inTableCell?: boolean;
   tooltipPosition?: PlacesType;
@@ -21,6 +23,8 @@ interface IDiskSpaceIndicatorProps {
 const DiskSpaceIndicator = ({
   gigsDiskSpaceAvailable,
   percentDiskSpaceAvailable,
+  gigsTotalDiskSpace,
+  gigsAllDiskSpace,
   platform,
   inTableCell = false,
   tooltipPosition = "top",
@@ -73,6 +77,31 @@ const DiskSpaceIndicator = ({
     />
   );
 
+  // get disk space tooltip content for Linux hosts
+  const totalDiskSpaceContent = gigsTotalDiskSpace ? (
+    <>
+      System disk space: {gigsTotalDiskSpace} GB
+      <br />
+    </>
+  ) : null;
+  const allPartitionsContent = gigsAllDiskSpace ? (
+    <>All partitions: {gigsAllDiskSpace} GB</>
+  ) : null;
+
+  const copyTootltipContent =
+    totalDiskSpaceContent || allPartitionsContent ? (
+      <>
+        {totalDiskSpaceContent}
+        {allPartitionsContent}
+      </>
+    ) : null;
+
+  const renderCopy = () => (
+    <>
+      {gigsDiskSpaceAvailable} GB{!inTableCell && " available"}
+    </>
+  );
+
   return (
     <span className={baseClass}>
       {diskSpaceTooltipText ? (
@@ -88,7 +117,16 @@ const DiskSpaceIndicator = ({
       ) : (
         renderBar()
       )}
-      {gigsDiskSpaceAvailable} GB{!inTableCell && " available"}
+      {copyTootltipContent && isLinuxLike(platform) ? (
+        <TooltipWrapper
+          tooltipClass="copy-tooltip-content"
+          tipContent={copyTootltipContent}
+        >
+          {renderCopy()}
+        </TooltipWrapper>
+      ) : (
+        renderCopy()
+      )}
     </span>
   );
 };

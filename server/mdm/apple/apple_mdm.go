@@ -908,7 +908,7 @@ func (d *DEPService) processDeviceResponse(
 func (d *DEPService) getProfileUUIDForTeam(ctx context.Context, tmID *uint, abmTokenOrgName string) (string, error) {
 	var appleBMTeam *fleet.Team
 	if tmID != nil {
-		tm, err := d.ds.Team(ctx, *tmID)
+		tm, err := d.ds.TeamWithExtras(ctx, *tmID) // TODO see if we can convert to TeamLite
 		if err != nil && !fleet.IsNotFound(err) {
 			return "", ctxerr.Wrap(ctx, err, "get team")
 		}

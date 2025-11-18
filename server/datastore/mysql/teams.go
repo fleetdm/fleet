@@ -55,12 +55,17 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 	return team, nil
 }
 
-func (ds *Datastore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
+func (ds *Datastore) TeamWithExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
 	return teamDB(ctx, ds.reader(ctx), tid, true)
 }
 
-func (ds *Datastore) TeamWithoutExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
-	return teamDB(ctx, ds.reader(ctx), tid, false)
+func (ds *Datastore) TeamLite(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+	team, err := teamDB(ctx, ds.reader(ctx), tid, false)
+	if team == nil {
+		return nil, err
+	}
+
+	return team.ToTeamLite(), err // re-marshaling this way to avoid more code duplication
 }
 
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras bool) (*fleet.Team, error) {
@@ -119,6 +124,18 @@ func saveTeamSecretsDB(ctx context.Context, q sqlx.ExtContext, team *fleet.Team)
 	return applyEnrollSecretsDB(ctx, q, &team.ID, team.Secrets)
 }
 
+// teamRefs are the tables referenced by teams.
+// These tables are cleared when the team is deleted.
+// Analogous to hostRefs.
+var teamRefs = []string{
+	"mdm_apple_configuration_profiles",
+	"mdm_windows_configuration_profiles",
+	"mdm_apple_declarations",
+	"mdm_android_configuration_profiles",
+	"software_title_icons",
+	"software_title_display_names",
+}
+
 func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Delete team policies first, because policies can have associated installers and scripts
@@ -138,24 +155,11 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for team %d", tid)
 		}
 
-		_, err = tx.ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE team_id=?`, tid)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting mdm_apple_configuration_profiles for team %d", tid)
-		}
-
-		_, err = tx.ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE team_id=?`, tid)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting mdm_windows_configuration_profiles for team %d", tid)
-		}
-
-		_, err = tx.ExecContext(ctx, `DELETE FROM mdm_apple_declarations WHERE team_id=?`, tid)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting mdm_apple_declarations for team %d", tid)
-		}
-
-		_, err = tx.ExecContext(ctx, `DELETE FROM mdm_android_configuration_profiles WHERE team_id=?`, tid)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting mdm_android_configuration_profiles for team %d", tid)
+		for _, table := range teamRefs {
+			_, err = tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE team_id=?`, table), tid)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "deleting %s for team %d", table, tid)
+			}
 		}
 
 		return nil
@@ -571,7 +575,7 @@ func (ds *Datastore) SaveDefaultTeamConfig(ctx context.Context, config *fleet.Te
 	}
 
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO default_team_config_json(id, json_value) VALUES(1, ?) 
+		`INSERT INTO default_team_config_json(id, json_value) VALUES(1, ?)
 		 ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
 		configBytes,
 	)
