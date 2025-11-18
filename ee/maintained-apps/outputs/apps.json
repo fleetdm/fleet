@@ -261,18 +261,18 @@
       "description": "Microsoft Excel is the industry-standard spreadsheet software, perfect for data analysis, reporting, and visualization."
     },
     {
-      "name": "Microsoft PowerPoint",
-      "slug": "microsoft-powerpoint/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.microsoft.Powerpoint",
-      "description": "Microsoft PowerPoint empowers you to create clean slideshow presentations and intricate pitch decks."
-    },
-    {
       "name": "Microsoft Outlook",
       "slug": "microsoft-outlook/darwin",
       "platform": "darwin",
       "unique_identifier": "com.microsoft.Outlook",
       "description": "Microsoft Outlook is an email client."
+    },
+    {
+      "name": "Microsoft PowerPoint",
+      "slug": "microsoft-powerpoint/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.Powerpoint",
+      "description": "Microsoft PowerPoint empowers you to create clean slideshow presentations and intricate pitch decks."
     },
     {
       "name": "Microsoft Teams",
