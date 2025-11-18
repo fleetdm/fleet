@@ -233,7 +233,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		if exists {
 			teamName := fleet.TeamNameNoTeam
 			if payload.TeamID != nil && *payload.TeamID > 0 {
-				tm, err := ds.TeamWithExtras(ctx, *payload.TeamID)
+				tm, err := ds.TeamLite(ctx, *payload.TeamID)
 				if err != nil {
 					return 0, 0, ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
 				}
@@ -929,6 +929,13 @@ WHERE
 	if categories, ok := categoryMap[titleID]; ok {
 		dest.Categories = categories
 	}
+
+	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, titleID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get software title display name")
+	}
+
+	dest.DisplayName = displayName
 
 	if teamID != nil {
 		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, *teamID)
@@ -2191,7 +2198,7 @@ VALUES
 	teamName := fleet.TeamNameNoTeam
 	if tmID != nil {
 		globalOrTeamID = *tmID
-		tm, err := ds.TeamWithExtras(ctx, *tmID)
+		tm, err := ds.TeamLite(ctx, *tmID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "fetch team for batch set software installers")
 		}
