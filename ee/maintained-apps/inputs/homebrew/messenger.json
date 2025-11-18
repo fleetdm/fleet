@@ -1,0 +1,8 @@
+{
+  "name": "Messenger",
+  "unique_identifier": "com.facebook.archon.developerID",
+  "token": "messenger",
+  "installer_format": "dmg",
+  "slug": "messenger/darwin",
+  "default_categories": ["Communication"]
+}
