@@ -182,12 +182,9 @@ As an example, you can create a policy to "block access to Office 365 on macOS d
 
 Make sure to assign the "Fleet conditional access" group to the Entra policy.
 
-### Disabling "Conditional Access" on a team
+## Disable
 
-If you need all your hosts on a team to be marked as "Compliant" (e.g. to unblock access to a resource) go to **Policies > Select team > Automations > Conditional access**, uncheck all policies, and select **Save**. The hosts will be marked as "Compliant" the next time they check in with policy results (within one hour, or by refetching manually).
-
-To disable the "Conditional Access" feature on a team head to **Policies > Select team > Automations > Conditional access > Disable**.
-Once disabled, hosts will not be reporting compliance status to Entra anymore.
+If you're using Entra and you want to unblock all end users, you can disable conditional access by heading to Entra and turning off the ["Conditional Access" Entra policies](#step-6-add-entra-policies).
 
 ## End user experience
 
