@@ -37,6 +37,13 @@
       "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
     },
     {
+      "name": "Asana",
+      "slug": "asana/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.asana",
+      "description": "Manage team projects and tasks."
+    },
+    {
       "name": "Beyond Compare",
       "slug": "beyond-compare/darwin",
       "platform": "darwin",
@@ -160,7 +167,14 @@
       "slug": "drawio/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jgraph.drawio.desktop",
-      "description": "A versatile diagramming or whiteboarding application"
+      "description": "draw.io is a versatile diagramming or whiteboarding application."
+    },
+    {
+      "name": "Dropbox",
+      "slug": "dropbox/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.getdropbox.dropbox",
+      "description": "Dropbox is a client for the Dropbox cloud storage service."
     },
     {
       "name": "Figma",
@@ -310,6 +324,13 @@
       "description": "Microsoft Word is the industry-standard word processor for creating, editing, and sharing professional documents."
     },
     {
+      "name": "Miro",
+      "slug": "miro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.realtimeboard",
+      "description": "Online collaborative whiteboard platform"
+    },
+    {
       "name": "Notion",
       "slug": "notion/darwin",
       "platform": "darwin",
@@ -371,6 +392,13 @@
       "platform": "darwin",
       "unique_identifier": "ch.protonmail.desktop",
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
+    },
+    {
+      "name": "PyCharm Community Edition",
+      "slug": "pycharm-ce/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.pycharm.ce",
+      "description": "Jetbrains IDE for Python programming - Community Edition"
     },
     {
       "name": "Rectangle",
