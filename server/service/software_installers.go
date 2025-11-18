@@ -48,7 +48,7 @@ type updateSoftwareInstallerRequest struct {
 	LabelsIncludeAny  []string
 	LabelsExcludeAny  []string
 	Categories        []string
-	DisplayName       string
+	DisplayName       *string
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -174,10 +174,10 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.Categories = categories
 	}
 
-	displayNameMultiPart := r.MultipartForm.Value["display_name"]
-	if len(displayNameMultiPart) > 0 {
-		decoded.DisplayName = displayNameMultiPart[0]
-		if len(decoded.DisplayName) > fleet.SoftwareTitleDisplayNameMaxLength {
+	displayNameMultiPart, existsDisplayName := r.MultipartForm.Value["display_name"]
+	if existsDisplayName && len(displayNameMultiPart) > 0 {
+		decoded.DisplayName = ptr.String(displayNameMultiPart[0])
+		if len(*decoded.DisplayName) > fleet.SoftwareTitleDisplayNameMaxLength {
 			return nil, &fleet.BadRequestError{
 				Message: "The maximum display name length is 255 characters.",
 			}

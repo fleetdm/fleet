@@ -62,14 +62,14 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		Filename:          "ruby.deb",
 		TitleID:           titleID,
 		TeamID:            &team.ID,
-		DisplayName:       strings.Repeat("a", 256),
+		DisplayName:       ptr.String(strings.Repeat("a", 256)),
 	}, http.StatusBadRequest, "The maximum display name length is 255 characters.")
 
 	// Should update the display name even if no other fields are passed
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:     titleID,
 		TeamID:      &team.ID,
-		DisplayName: "RubyUpdate1",
+		DisplayName: ptr.String("RubyUpdate1"),
 	}, http.StatusOK, "")
 
 	activityData := fmt.Sprintf(`
@@ -102,7 +102,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:     titleID,
 		TeamID:      &team.ID,
-		DisplayName: "RubyUpdate1",
+		DisplayName: ptr.String("RubyUpdate1"),
 		SelfService: ptr.Bool(true),
 	}, http.StatusOK, "")
 
@@ -138,7 +138,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		Filename:          "ruby.deb",
 		TitleID:           titleID,
 		TeamID:            &team.ID,
-		DisplayName:       "",
+		DisplayName:       ptr.String(""),
 	}, http.StatusOK, "")
 
 	// Entity display name is empty
@@ -249,7 +249,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:     titleID,
 		TeamID:      &team.ID,
-		DisplayName: "InHouseAppUpdate",
+		DisplayName: ptr.String("InHouseAppUpdate"),
 	}, http.StatusOK, "")
 
 	// Entity has display name
@@ -268,7 +268,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:     titleID,
 		TeamID:      &team.ID,
-		DisplayName: "InHouseAppUpdate2",
+		DisplayName: ptr.String("InHouseAppUpdate2"),
 	}, http.StatusOK, "")
 
 	// Entity has display name
@@ -287,7 +287,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:     titleID,
 		TeamID:      &team.ID,
-		DisplayName: "",
+		DisplayName: ptr.String(""),
 	}, http.StatusOK, "")
 
 	// Entity has display name
