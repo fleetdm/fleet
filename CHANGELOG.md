@@ -1,8 +1,8 @@
-## Fleet 4.76.1 (Nov 14, 2025)
+## Fleet 4.76.1 (Nov 18, 2025)
 
 ### Bug fixes
 
-* Added an endpoint to allow updating the macOS setup experience script in-place, and modified gitops to utilize it
+- Updated existing /setup_experience/script POST endpoint to allow updating the macOS setup experience script in-place, and modified gitops to remove the DELETE call
 
 ## Fleet 4.76.0 (Nov 7, 2025)
 
