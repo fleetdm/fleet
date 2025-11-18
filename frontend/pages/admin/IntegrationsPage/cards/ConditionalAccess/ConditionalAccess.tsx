@@ -81,7 +81,7 @@ const DeleteConditionalAccessModal = ({
           />
         </p>
         <p>
-          End users failing policies will stay blocked until you do this.
+          If you don't, end users will stay blocked even after deleting Entra.
         </p>
         <div className="modal-cta-wrap">
           <Button
