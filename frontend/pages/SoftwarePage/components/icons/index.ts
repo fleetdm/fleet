@@ -174,6 +174,8 @@ const matchStrictNameSourceToIcon = ({
       return Zoom;
     case name === "zoom":
       return Zoom;
+    case name.startsWith("zoom workplace"):
+      return Zoom;
     default:
       return null;
   }

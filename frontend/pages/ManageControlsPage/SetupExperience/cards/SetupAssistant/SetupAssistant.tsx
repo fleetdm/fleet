@@ -143,7 +143,7 @@ const SetupAssistant = ({
   return (
     <section className={baseClass}>
       <SectionHeader
-        title="Setup assistant"
+        title="macOS Setup Assistant"
         details={
           <CustomLink
             url="https://fleetdm.com/learn-more-about/setup-assistant"

@@ -26,7 +26,7 @@
       "name": "Abstract",
       "slug": "abstract/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.SweetScape.010Editor",
+      "unique_identifier": "com.elasticprojects.abstract-desktop",
       "description": "Abstract is a collaborative design tool with support for Sketch files."
     },
     {
@@ -135,6 +135,20 @@
       "description": "DCV Viewer is used for connecting to the NICE DCV remote display protocol."
     },
     {
+      "name": "Discord",
+      "slug": "discord/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hnc.Discord",
+      "description": "Discord is voice and text chat software."
+    },
+    {
+      "name": "Discord",
+      "slug": "discord/windows",
+      "platform": "windows",
+      "unique_identifier": "Discord",
+      "description": "Discord is voice and text chat software."
+    },
+    {
       "name": "Docker Desktop",
       "slug": "docker/darwin",
       "platform": "darwin",
@@ -147,6 +161,13 @@
       "platform": "darwin",
       "unique_identifier": "com.figma.Desktop",
       "description": "Figma is a collaborative design tool for teams to create, prototype, and share designs in real time."
+    },
+    {
+      "name": "Figma",
+      "slug": "figma/windows",
+      "platform": "windows",
+      "unique_identifier": "Figma",
+      "description": ""
     },
     {
       "name": "Mozilla Firefox",
@@ -170,6 +191,13 @@
       "description": "GitKraken is a git client focusing on productivity."
     },
     {
+      "name": "GoLand",
+      "slug": "goland/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.goland",
+      "description": "Go (golang) IDE by JetBrains"
+    },
+    {
       "name": "Google Chrome",
       "slug": "google-chrome/darwin",
       "platform": "darwin",
@@ -182,6 +210,13 @@
       "platform": "windows",
       "unique_identifier": "Google Chrome",
       "description": "Google Chrome Enterprise is a fast, reliable web browser built for performance and compatibility across platforms."
+    },
+    {
+      "name": "iMazing Profile Editor",
+      "slug": "imazing-profile-editor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.DigiDNA.iMazingProfileEditorMac",
+      "description": "iMazing Profile Editor is an app for creating and editing Apple configuration profiles."
     },
     {
       "name": "Company Portal",
@@ -212,6 +247,13 @@
       "description": "Software for managing Logitech devices."
     },
     {
+      "name": "Loom",
+      "slug": "loom/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.loom.desktop",
+      "description": "Screen and video recording software."
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
@@ -233,6 +275,13 @@
       "description": "Microsoft Outlook is an email client."
     },
     {
+      "name": "Microsoft PowerPoint",
+      "slug": "microsoft-powerpoint/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.Powerpoint",
+      "description": "Microsoft PowerPoint empowers you to create clean slideshow presentations and intricate pitch decks."
+    },
+    {
       "name": "Microsoft Teams",
       "slug": "microsoft-teams/darwin",
       "platform": "darwin",
@@ -252,6 +301,13 @@
       "platform": "darwin",
       "unique_identifier": "notion.id",
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
+    },
+    {
+      "name": "Nudge",
+      "slug": "nudge/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.macadmins.Nudge",
+      "description": "Nudge is an application for enforcing OS updates."
     },
     {
       "name": "Omnissa Horizon Client",
@@ -282,6 +338,13 @@
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
+      "name": "Pritunl",
+      "slug": "pritunl/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.pritunl",
+      "description": "Pritunl is an OpenVPN client."
+    },
+    {
       "name": "Privileges",
       "slug": "privileges/darwin",
       "platform": "darwin",
@@ -294,6 +357,13 @@
       "platform": "darwin",
       "unique_identifier": "ch.protonmail.desktop",
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
+    },
+    {
+      "name": "Rectangle",
+      "slug": "rectangle/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.knollsoft.Rectangle",
+      "description": "Move and resize windows using keyboard shortcuts or snap areas."
     },
     {
       "name": "Santa",
@@ -315,6 +385,13 @@
       "platform": "windows",
       "unique_identifier": "Slack",
       "description": "Slack is a team communication and collaboration software for modern workplaces."
+    },
+    {
+      "name": "Spotify",
+      "slug": "spotify/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.spotify.client",
+      "description": "Spotify is a music streaming app."
     },
     {
       "name": "Sublime Text",
