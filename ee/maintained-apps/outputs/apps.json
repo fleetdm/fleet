@@ -156,6 +156,13 @@
       "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
     },
     {
+      "name": "draw.io",
+      "slug": "drawio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jgraph.drawio.desktop",
+      "description": "A versatile diagramming or whiteboarding application"
+    },
+    {
       "name": "Figma",
       "slug": "figma/darwin",
       "platform": "darwin",
