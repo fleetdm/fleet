@@ -73,8 +73,15 @@ const DeleteConditionalAccessModal = ({
     >
       <>
         <p>
-          Fleet will be disconnected from Microsoft Entra and will stop blocking
-          end users from logging in with single sign-on.
+          Before you delete, first unblock all end users.{" "}
+          <CustomLink
+              text="Learn how"
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/disable-entra-conditional-access`}
+              newTab
+          />    
+        </p>
+        <p>
+          End users failing policies will stay blocked until you do this.
         </p>
         <div className="modal-cta-wrap">
           <Button
