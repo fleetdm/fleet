@@ -177,6 +177,20 @@
       "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
     },
     {
+      "name": "draw.io",
+      "slug": "drawio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jgraph.drawio.desktop",
+      "description": "draw.io is a versatile diagramming or whiteboarding application."
+    },
+    {
+      "name": "Dropbox",
+      "slug": "dropbox/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.getdropbox.dropbox",
+      "description": "Dropbox is a client for the Dropbox cloud storage service."
+    },
+    {
       "name": "Figma",
       "slug": "figma/darwin",
       "platform": "darwin",
@@ -392,6 +406,20 @@
       "platform": "darwin",
       "unique_identifier": "ch.protonmail.desktop",
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
+    },
+    {
+      "name": "PyCharm Professional",
+      "slug": "pycharm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.pycharm",
+      "description": "Jetbrain IDE for professional Python development. This version includes advanced features and requires a valid license."
+    },
+    {
+      "name": "PyCharm Community Edition",
+      "slug": "pycharm-ce/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.pycharm.ce",
+      "description": "Jetbrains IDE for Python programming - Community Edition"
     },
     {
       "name": "Rectangle",
