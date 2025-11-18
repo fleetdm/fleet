@@ -11,7 +11,7 @@ import (
 )
 
 func (ds *Datastore) upsertAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID *uint, adamID string, configuration json.RawMessage) error {
-	err := validateAndroidAppConfiguration(ctx, configuration)
+	err := validateAndroidAppConfiguration(configuration)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating android app configuration")
 	}
@@ -89,11 +89,11 @@ func (ds *Datastore) getAndroidAppConfiguration(ctx context.Context, teamID *uin
 	return cfg, nil
 }
 
-func validateAndroidAppConfiguration(ctx context.Context, configuration json.RawMessage) error {
+func validateAndroidAppConfiguration(configuration json.RawMessage) error {
 	type androidAppConfig struct {
 		// can be anything, doesn't matter to us as long as it's valid
 		// mysql will validate it, so there is no need to do so in Go code
-		ManagedConfiguration []byte `json:"managedConfiguration"`
+		ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
 		// TODO(JK): documentation says workProfileWidgets is an enum
 		// what type do we actually get here?
 		WorkProfileWidgets string `json:"workProfileWidgets"`

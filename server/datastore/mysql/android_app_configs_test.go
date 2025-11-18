@@ -1,12 +1,13 @@
 package mysql
 
 import (
-	"context"
+	// "context"
 	"encoding/json"
+	"fmt"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/test"
+	// "github.com/fleetdm/fleet/v4/server/fleet"
+	// "github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,7 +18,8 @@ func TestAndroidAppConfigs(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"TestAddDeleteAndroidAppConfig", testAndroidAppConfigCrud},
+		{"TestAndroidAppConfigValidation", testAndroidAppConfigValidation},
+		// {"TestAddDeleteAndroidAppConfig", testAndroidAppConfigCrud},
 		// {"TestAddAppWithConfig", testAddAppWithAndroidConfig},
 	}
 	for _, c := range cases {
@@ -28,14 +30,45 @@ func TestAndroidAppConfigs(t *testing.T) {
 	}
 }
 
-func testAndroidAppConfigCrud(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+func testAndroidAppConfigValidation(t *testing.T, ds *Datastore) {
+	// ctx := context.Background()
 
-	// user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	cases := []struct {
+		desc    string
+		config  json.RawMessage
+		wantErr string
+	}{
+		{
+			desc:    "empty",
+			config:  json.RawMessage(""),
+			wantErr: "EOF",
+		},
+		{
+			desc:    "invalid json",
+			config:  json.RawMessage(`{"ManagedConfiguration": {"DisableShareScreen": true, "DisableComputerAudio": true}xyz}`),
+			wantErr: "invalid character 'x' after object key:value pair",
+		},
+		{
+			desc:   "valid json, managed configuration",
+			config: json.RawMessage(`{"ManagedConfiguration": {"DisableShareScreen": true, "DisableComputerAudio": true}}`),
+		},
+		{
+			desc:   "valid json, managed configuration",
+			config: json.RawMessage(`"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"`),
+		},
+	}
 
-	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
-	require.NoError(t, err)
+	// configValidBoth?
 
-	ds.upsertAndroidAppConfigurationTx(ctx, tx, &team.ID, "adamid", json.RawMessage{})
+	// TODO(JK): this needs to be mostly tested with uploading/editing/getting VPP app
+	// as that is the only API to change configurations
+
+	for _, c := range cases {
+		fmt.Println(c.desc)
+		err := validateAndroidAppConfiguration(c.config)
+		if c.wantErr != "" {
+			require.EqualError(t, err, c.wantErr)
+		}
+	}
 
 }
