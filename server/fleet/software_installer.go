@@ -724,6 +724,7 @@ type SoftwarePackageSpec struct {
 	ReferencedYamlPath string   `json:"referenced_yaml_path"`
 	SHA256             string   `json:"hash_sha256"`
 	Categories         []string `json:"categories"`
+	DisplayName        string   `json:"display_name,omitempty"`
 }
 
 func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) SoftwarePackageSpec {

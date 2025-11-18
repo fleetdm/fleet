@@ -1508,6 +1508,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				softwareSpec["categories"] = softwareTitle.SoftwarePackage.Categories
 			}
 
+			if softwareTitle.DisplayName != "" {
+				softwareSpec["display_name"] = softwareTitle.DisplayName
+			}
+
 			// each package is listed once in software, so we can pull icon directly here
 			if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
 				fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
@@ -1534,6 +1538,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 			if softwareTitle.AppStoreApp.Categories != nil {
 				softwareSpec["categories"] = softwareTitle.AppStoreApp.Categories
+			}
+
+			if softwareTitle.DisplayName != "" {
+				softwareSpec["display_name"] = softwareTitle.DisplayName
 			}
 
 			if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
