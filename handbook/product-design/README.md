@@ -9,7 +9,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:---------------------------------|:-------------------------------------------------------------------------------------------------|
 | Head of Product Design           | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_
 | Head of Design, UI, Brand, and Web | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
-| Product Designer                 | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
+| Product Designers                 | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_                                                                                                                                         <br/>[Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_                                                                                                                                          <br/>[Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_                                                                                                                                                           <br/><sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
 
 ## Contact us
@@ -40,7 +40,7 @@ As soon as we've addressed the next quarter's objectives, the Head of Product De
 
 ### Triage new bugs
 
-Product Designers are responsible for [triaging all new reproduced bugs](https://fleetdm.com/handbook/company/product-groups#in-product-drafting).
+Product Designers are responsible for [triaging all new reproduced bugs](https://fleetdm.com/handbook/company/product-groups#inbox).
 
 
 ### Drafting
@@ -188,6 +188,7 @@ Product Designers (PD) review the checkboxes in user stories we shipped but have
 
 If the original request is a customer request, the PD also assigns the relevant Customer Success Manager (CSM) and adds the `#g-unicorns` label to add the customer request to the [🦄 #g-unicorns board](https://github.com/orgs/fleetdm/projects/81). The PD also moved the request to the "🗣️ Ready for feedback" column on the [💝 Customer requests](https://github.com/orgs/fleetdm/projects/82) board.
 
+If the story includes [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration) changes, the PD adds the dogfood issue to the `:help-customers` board, removes it from `:helpd-dogfooding`, and notifies the [SVP of Customer Success](https://fleetdm.com/handbook/customer-success). Up to Customer Success to decide if any changes to the server config in cloud environment is needed.
 
 ### Notify stakeholders when a user story is pushed to the next sprint
 

@@ -3,9 +3,11 @@ import { checkTable } from "./sql_tools";
 describe("checkTable", () => {
   // from https://github.com/fleetdm/fleet/issues/26366
   // and  https://github.com/fleetdm/fleet/issues/30109
+  // and  https://github.com/fleetdm/fleet/issues/34628
   const SQL = `
 WITH extension_safety_hub_menu_notifications AS (
-	SELECT 
+	SELECT
+		1 & 0x2 AS test_bitwise, -- test bitwise AND operator
 		parse_json.key,
 		parse_json.fullkey,
 		parse_json.path,
@@ -65,7 +67,7 @@ WHERE triggering_extension IS NOT NULL AND username NOT LIKE '\\_%' ESCAPE '\\';
     ]);
   });
 
-  it("should return an error if SQL is in valid", () => {
+  it("should return an error if SQL is invalid", () => {
     const result = checkTable("SELECTx * FROM users");
     expect(result.error).not.toBeNull();
   });

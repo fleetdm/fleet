@@ -84,6 +84,18 @@ WHERE
 	}
 	app.Categories = categories
 
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, titleID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get display name for app store app")
+	}
+
+	app.DisplayName = displayName
+
 	if teamID != nil {
 		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, *teamID)
 		if err != nil {
@@ -98,6 +110,7 @@ WHERE
 		if icon != nil {
 			app.IconURL = ptr.String(icon.IconUrl())
 		}
+
 	}
 
 	return &app, nil
@@ -447,7 +460,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 	if len(toAddApps) > 0 {
 		teamName = fleet.TeamNameNoTeam
 		if teamID != nil && *teamID > 0 {
-			tm, err := ds.Team(ctx, *teamID)
+			tm, err := ds.TeamLite(ctx, *teamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
 			}
@@ -465,7 +478,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, toAdd := range toAddApps {
-			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, vppToken.ID)
+			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, &vppToken.ID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
 			}
@@ -563,9 +576,16 @@ WHERE
 }
 
 func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
+	var vppTokenID *uint
 	vppToken, err := ds.GetVPPTokenByTeamID(ctx, teamID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam unable to get VPP Token ID")
+		if !fleet.IsNotFound(err) || app.Platform != fleet.AndroidPlatform {
+			return nil, ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam unable to get VPP Token ID")
+		}
+	}
+
+	if vppToken != nil {
+		vppTokenID = &vppToken.ID
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -580,7 +600,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPApps transaction")
 		}
 
-		vppAppTeamID, err := insertVPPAppTeams(ctx, tx, app.VPPAppTeam, teamID, vppToken.ID)
+		vppAppTeamID, err := insertVPPAppTeams(ctx, tx, app.VPPAppTeam, teamID, vppTokenID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPAppTeams transaction")
 		}
@@ -711,7 +731,7 @@ ON DUPLICATE KEY UPDATE
 	return ctxerr.Wrap(ctx, err, "insert VPP apps")
 }
 
-func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppTeam, teamID *uint, vppTokenID uint) (uint, error) {
+func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppTeam, teamID *uint, vppTokenID *uint) (uint, error) {
 	stmt := `
 INSERT INTO vpp_apps_teams
 	(adam_id, global_or_team_id, team_id, platform, self_service, vpp_token_id, install_during_setup)
@@ -732,12 +752,15 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	res, err := tx.ExecContext(ctx, stmt, appID.AdamID, globalOrTmID, teamID, appID.Platform, appID.SelfService, vppTokenID, appID.InstallDuringSetup, appID.InstallDuringSetup)
-	if IsDuplicate(err) {
-		err = &existsError{
-			Identifier:   fmt.Sprintf("%s %s self_service: %v", appID.AdamID, appID.Platform, appID.SelfService),
-			TeamID:       teamID,
-			ResourceType: "VPPAppID",
+	if err != nil {
+		if IsDuplicate(err) {
+			err = &existsError{
+				Identifier:   fmt.Sprintf("%s %s self_service: %v", appID.AdamID, appID.Platform, appID.SelfService),
+				TeamID:       teamID,
+				ResourceType: "VPPAppID",
+			}
 		}
+		return 0, ctxerr.Wrap(ctx, err, "inserting app store app")
 	}
 
 	var id int64
@@ -780,6 +803,8 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 		source = "ios_apps"
 	case fleet.IPadOSPlatform:
 		source = "ipados_apps"
+	case fleet.AndroidPlatform:
+		source = "android_apps"
 	default:
 		source = "apps"
 	}
@@ -792,6 +817,8 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 	if app.BundleIdentifier != "" {
 		// match by bundle identifier first, or standard matching if we
 		// don't have a bundle identifier match
+		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
+		insertArgs = append(insertArgs, app.BundleIdentifier)
 		switch source {
 		case "ios_apps", "ipados_apps":
 			selectStmt = `
@@ -801,6 +828,13 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 				    ORDER BY bundle_identifier = ? DESC
 				    LIMIT 1`
 			selectArgs = []any{app.BundleIdentifier, source, app.Name, source, app.BundleIdentifier}
+		case "android_apps":
+			selectStmt = `
+				   SELECT id
+				   FROM software_titles
+				   WHERE application_id = ? AND additional_identifier IS NULL AND source = 'android_apps'`
+			selectArgs = []any{app.BundleIdentifier}
+			insertStmt = `INSERT INTO software_titles (name, source, application_id, extension_for) VALUES (?, ?, ?, '')`
 		default:
 			selectStmt = `
 				    SELECT id
@@ -808,8 +842,6 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 				    WHERE bundle_identifier = ? AND additional_identifier = 0`
 			selectArgs = []any{app.BundleIdentifier}
 		}
-		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
-		insertArgs = append(insertArgs, app.BundleIdentifier)
 	}
 
 	titleID, err := ds.optimisticGetOrInsertWithWriter(ctx,
@@ -824,7 +856,7 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 		},
 	)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "optimistic get or insert VPP app")
+		return 0, ctxerr.Wrap(ctx, err, "optimistic get or insert app store app")
 	}
 
 	return titleID, nil
@@ -888,7 +920,7 @@ func (ds *Datastore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppApps
 	return &info, nil
 }
 
-func (ds *Datastore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
+func (ds *Datastore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
 	stmt := `
 	SELECT va.adam_id,
 	 va.bundle_identifier,
@@ -1489,6 +1521,11 @@ func (ds *Datastore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 			return ctxerr.Wrap(ctx, err, "removing policy automations associated with vpp token")
 		}
 
+		_, err = tx.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE vpp_token_id = ?`, tokenID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "removing vpp apps associated with vpp token")
+		}
+
 		_, err = tx.ExecContext(ctx, `DELETE FROM vpp_tokens WHERE id = ?`, tokenID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting vpp token")
@@ -2054,4 +2091,85 @@ WHERE
 	}
 
 	return users, activities, nil
+}
+
+func (ds *Datastore) GetAndroidAppsInScopeForHost(ctx context.Context, hostID uint) (applicationIDs []string, err error) {
+	stmt := `
+SELECT
+	installable_id
+FROM (
+		-- no labels
+		SELECT
+			0 AS count_installer_labels,
+			0 AS count_host_labels,
+			0 AS count_host_updated_after_labels,
+			vpp_apps_teams.adam_id AS installable_id
+			FROM vpp_apps_teams
+			LEFT JOIN vpp_app_team_labels ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
+			WHERE vpp_app_team_labels.id IS NULL AND vpp_apps_teams.platform = 'android'
+
+		UNION
+
+		-- include any
+		SELECT
+			COUNT(*) AS count_installer_labels,
+			COUNT(lm.label_id) AS count_host_labels,
+			0 AS count_host_updated_after_labels,
+			vpp_apps_teams.adam_id AS installable_id
+		FROM
+			vpp_app_team_labels vatl
+			LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
+		LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
+		AND lm.host_id = ?
+		WHERE vatl.exclude = 0 AND vpp_apps_teams.platform = 'android'
+		GROUP BY installable_id
+		HAVING
+			count_installer_labels > 0
+			AND count_host_labels > 0
+
+		UNION
+
+		-- exclude any, ignore software that depends on labels created
+		-- _after_ the label_updated_at timestamp of the host (because
+		-- we don't have results for that label yet, the host may or may
+		-- not be a member).
+		SELECT
+			COUNT(*) AS count_installer_labels,
+			COUNT(lm.label_id) AS count_host_labels,
+			SUM(
+				CASE WHEN lbl.created_at IS NOT NULL
+					AND lbl.label_membership_type = 0
+					AND(
+						SELECT
+							label_updated_at FROM hosts
+						WHERE
+							id = ?) >= lbl.created_at THEN
+					1
+				WHEN lbl.created_at IS NOT NULL
+					AND lbl.label_membership_type = 1 THEN
+					1
+				ELSE
+					0
+				END) AS count_host_updated_after_labels,
+			vpp_apps_teams.adam_id AS installable_id
+		FROM
+			vpp_app_team_labels vatl
+		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
+		LEFT OUTER JOIN labels lbl ON lbl.id = vatl.label_id
+		LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
+			AND lm.host_id = ?
+		WHERE vatl.exclude = 1 AND vpp_apps_teams.platform = 'android'
+		GROUP BY installable_id
+		HAVING
+			count_installer_labels > 0
+			AND count_installer_labels = count_host_updated_after_labels
+			AND count_host_labels = 0) t;
+	`
+
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &applicationIDs, stmt, hostID, hostID, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get in android apps in scope for host")
+	}
+
+	return applicationIDs, err
 }

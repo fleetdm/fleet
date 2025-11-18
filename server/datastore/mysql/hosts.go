@@ -566,6 +566,7 @@ var hostRefs = []string{
 	"host_mdm_commands",
 	"microsoft_compliance_partner_host_statuses",
 	"host_identity_scep_certificates",
+	"conditional_access_scep_certificates",
 	// unlike for host_software_installs, where we use soft-delete so that
 	// existing activities can still access the installation details, this is not
 	// needed for in-house apps as the activity contains the MDM command UUID and
@@ -813,7 +814,7 @@ LIMIT
 		})
 	}
 	if host.TeamID != nil && len(hostTeamQueriesStats) > 0 {
-		team, err := ds.Team(ctx, *host.TeamID)
+		team, err := ds.TeamLite(ctx, *host.TeamID)
 		if err != nil {
 			return nil, err
 		}
@@ -3853,7 +3854,7 @@ func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID
 	)
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// First, delete any existing IDP mappings for this host (both sources)
+		// First, delete any existing IDP mappings for this host from both mdm_idp and idp sources
 		if _, err := tx.ExecContext(ctx, delStmt, hostID, fleet.DeviceMappingIDP); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete existing IDP device mappings")
 		}
@@ -3863,6 +3864,47 @@ func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID
 
 		if _, err := tx.ExecContext(ctx, insStmt, email, hostID, fleet.DeviceMappingIDP); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert IDP device mapping")
+		}
+
+		return nil
+	})
+	return err
+}
+
+func (ds *Datastore) DeleteHostIDP(ctx context.Context, id uint) error {
+	delStmt := `DELETE FROM host_emails WHERE host_id = ? AND source = ?`
+
+	// delete rows from host_emails
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var idpDelRes, mdmIdpDelRes sql.Result
+		// delete where source == "idp"
+		idpDelRes, err := tx.ExecContext(ctx, delStmt, id, fleet.DeviceMappingIDP)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete existing IdP device mappings")
+		}
+		idpRowsAffected, err := idpDelRes.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete existing IdP device mappings - get IdP rows affected")
+		}
+
+		// delete where source == "mdm_idp_accounts"
+		mdmIdpDelRes, err = tx.ExecContext(ctx, delStmt, id, fleet.DeviceMappingMDMIdpAccounts)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete existing MDM IdP device mappings")
+		}
+		mdmIdpRowsAffected, err := mdmIdpDelRes.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete existing IdP device mappings - get mdm IdP rows affected")
+		}
+
+		if idpRowsAffected+mdmIdpRowsAffected == 0 {
+			return fleet.NewInvalidArgumentError("delete host IdP mapping", "no existing IdP mappings for this host")
+		}
+
+		// remove an scim associations, if present. Note that this will not delete the associated row in
+		// scim_users, if it exists
+		if err := deleteHostSCIMUserMapping(ctx, tx, id); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete existing host SCIM user mapping")
 		}
 
 		return nil

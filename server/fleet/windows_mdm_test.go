@@ -613,7 +613,7 @@ func TestValidateUserProvided(t *testing.T) {
 				  </Replace>
 				`),
 			},
-			wantErr: "Only options that have <LocURI> starting with \"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/\" can be added to SCEP profile.",
+			wantErr: "Only options that have <LocURI> starting with \"ClientCertificateInstall/SCEP/\" can be added to SCEP profile.",
 		},
 		{
 			name: "SCEP profile without Exec block",
@@ -626,7 +626,7 @@ func TestValidateUserProvided(t *testing.T) {
 				  </Replace>
 				`),
 			},
-			wantErr: "\"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.",
+			wantErr: "\"ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.",
 		},
 		{
 			name: "SCEP profile with Exec block, but worng LocURI ",
@@ -646,7 +646,7 @@ func TestValidateUserProvided(t *testing.T) {
 				</Exec>
 				`),
 			},
-			wantErr: "Couldn't add. \"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.",
+			wantErr: "Couldn't add. \"ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.",
 		},
 		{
 			name: fmt.Sprintf("SCEP profile with missing $FLEET_VAR_%s after SCEP LocURI", FleetVarSCEPWindowsCertificateID),
@@ -666,7 +666,7 @@ func TestValidateUserProvided(t *testing.T) {
 				</Add>
 				`),
 			},
-			wantErr: fmt.Sprintf("You must use \"$FLEET_VAR_%s\" after \"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/\".", FleetVarSCEPWindowsCertificateID),
+			wantErr: fmt.Sprintf("You must use \"$FLEET_VAR_%s\" after \"ClientCertificateInstall/SCEP/\".", FleetVarSCEPWindowsCertificateID),
 		},
 		{
 			name: "SCEP Profile with missing required LocURI",
@@ -688,7 +688,7 @@ func TestValidateUserProvided(t *testing.T) {
 				</Exec>
 				`),
 			},
-			wantErr: fmt.Sprintf("\"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_%s/Install/CAThumbprint\" is missing.", FleetVarSCEPWindowsCertificateID),
+			wantErr: fmt.Sprintf("\"ClientCertificateInstall/SCEP/$FLEET_VAR_%s/Install/CAThumbprint\" is missing. Please add and try again.", FleetVarSCEPWindowsCertificateID),
 		},
 		{
 			name: "Only SCEP profiles can have Exec elements",
@@ -704,6 +704,28 @@ func TestValidateUserProvided(t *testing.T) {
 				`),
 			},
 			wantErr: "Only SCEP profiles can include <Exec> elements.",
+		},
+		{
+			name: "Either device or user SCEP profiles, not both",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				<Replace>
+					<Item>
+						<Target>
+							<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI>
+						</Target>
+					</Item>
+				</Replace>
+				<Exec>
+					<Item>
+						<Target>
+							<LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll</LocURI>
+						</Target>
+					</Item>
+				</Exec>
+				`),
+			},
+			wantErr: "All <LocURI> elements in the SCEP profile must start either with \"./Device\" or \"./User\".",
 		},
 	}
 

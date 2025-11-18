@@ -1289,7 +1289,7 @@ func TestApplyAsGitOps(t *testing.T) {
 		savedTeam = team
 		return team, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return savedTeam, nil
 	}
 
@@ -2050,7 +2050,7 @@ func TestApplyMacosSetup(t *testing.T) {
 			return team, nil
 		}
 
-		ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 			tm, ok := teamsByID[id]
 			if !ok {
 				return nil, &notFoundError{}
