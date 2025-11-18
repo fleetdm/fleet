@@ -29,11 +29,6 @@ github.com/fleetdm/fleet/v4/server/fleet/TeamIntegrations	ConditionalAccessEnabl
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Value	bool
-github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	Features	fleet.Features
-github.com/fleetdm/fleet/v4/server/fleet/Features	EnableHostUsers	bool
-github.com/fleetdm/fleet/v4/server/fleet/Features	EnableSoftwareInventory	bool
-github.com/fleetdm/fleet/v4/server/fleet/Features	AdditionalQueries	*json.RawMessage
-github.com/fleetdm/fleet/v4/server/fleet/Features	DetailQueryOverrides	map[string]*string
 github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	MDM	fleet.TeamMDM
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	EnableDiskEncryption	bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	RequireBitLockerPIN	bool
@@ -87,6 +82,11 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server
 github.com/fleetdm/fleet/v4/server/fleet/CertificateSpec	Name	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateSpec	CertificateAuthorityName	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateSpec	SubjectName	string
+github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	Features	fleet.Features
+github.com/fleetdm/fleet/v4/server/fleet/Features	EnableHostUsers	bool
+github.com/fleetdm/fleet/v4/server/fleet/Features	EnableSoftwareInventory	bool
+github.com/fleetdm/fleet/v4/server/fleet/Features	AdditionalQueries	*json.RawMessage
+github.com/fleetdm/fleet/v4/server/fleet/Features	DetailQueryOverrides	map[string]*string
 github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	Scripts	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool

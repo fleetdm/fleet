@@ -464,7 +464,7 @@ type GetAppStoreAppsFunc func(ctx context.Context, teamID *uint) ([]*fleet.VPPAp
 
 type AddAppStoreAppFunc func(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (uint, error)
 
-type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string) (*fleet.VPPAppStoreApp, error)
+type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string, displayName string) (*fleet.VPPAppStoreApp, error)
 
 type GetInHouseAppManifestFunc func(ctx context.Context, titleID uint, teamID *uint) ([]byte, error)
 
@@ -616,7 +616,7 @@ type VerifyMDMAppleConfiguredFunc func(ctx context.Context) error
 
 type VerifyMDMWindowsConfiguredFunc func(ctx context.Context) error
 
-type VerifyMDMAppleOrWindowsConfiguredFunc func(ctx context.Context) error
+type VerifyAnyMDMConfiguredFunc func(ctx context.Context) error
 
 type MDMAppleUploadBootstrapPackageFunc func(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error
 
@@ -798,9 +798,7 @@ type GetOrbitSetupExperienceStatusFunc func(ctx context.Context, orbitNodeKey st
 
 type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, downloadRequested bool) (*fleet.Script, []byte, error)
 
-type CreateSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, name string, r io.Reader) error
-
-type PutSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, name string, r io.Reader) error
+type SetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, name string, r io.Reader) error
 
 type DeleteSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) error
 
@@ -841,6 +839,8 @@ type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurat
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
 
 type ConditionalAccessGetIdPSigningCertFunc func(ctx context.Context) (certPEM []byte, err error)
+
+type ConditionalAccessGetIdPAppleProfileFunc func(ctx context.Context) (profileData []byte, err error)
 
 type ListCertificateAuthoritiesFunc func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error)
 
@@ -1756,8 +1756,8 @@ type Service struct {
 	VerifyMDMWindowsConfiguredFunc        VerifyMDMWindowsConfiguredFunc
 	VerifyMDMWindowsConfiguredFuncInvoked bool
 
-	VerifyMDMAppleOrWindowsConfiguredFunc        VerifyMDMAppleOrWindowsConfiguredFunc
-	VerifyMDMAppleOrWindowsConfiguredFuncInvoked bool
+	VerifyAnyMDMConfiguredFunc        VerifyAnyMDMConfiguredFunc
+	VerifyAnyMDMConfiguredFuncInvoked bool
 
 	MDMAppleUploadBootstrapPackageFunc        MDMAppleUploadBootstrapPackageFunc
 	MDMAppleUploadBootstrapPackageFuncInvoked bool
@@ -2029,11 +2029,8 @@ type Service struct {
 	GetSetupExperienceScriptFunc        GetSetupExperienceScriptFunc
 	GetSetupExperienceScriptFuncInvoked bool
 
-	CreateSetupExperienceScriptFunc        CreateSetupExperienceScriptFunc
-	CreateSetupExperienceScriptFuncInvoked bool
-
-	PutSetupExperienceScriptFunc        PutSetupExperienceScriptFunc
-	PutSetupExperienceScriptFuncInvoked bool
+	SetSetupExperienceScriptFunc        SetSetupExperienceScriptFunc
+	SetSetupExperienceScriptFuncInvoked bool
 
 	DeleteSetupExperienceScriptFunc        DeleteSetupExperienceScriptFunc
 	DeleteSetupExperienceScriptFuncInvoked bool
@@ -2094,6 +2091,9 @@ type Service struct {
 
 	ConditionalAccessGetIdPSigningCertFunc        ConditionalAccessGetIdPSigningCertFunc
 	ConditionalAccessGetIdPSigningCertFuncInvoked bool
+
+	ConditionalAccessGetIdPAppleProfileFunc        ConditionalAccessGetIdPAppleProfileFunc
+	ConditionalAccessGetIdPAppleProfileFuncInvoked bool
 
 	ListCertificateAuthoritiesFunc        ListCertificateAuthoritiesFunc
 	ListCertificateAuthoritiesFuncInvoked bool
@@ -3683,11 +3683,11 @@ func (s *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appTeam flee
 	return s.AddAppStoreAppFunc(ctx, teamID, appTeam)
 }
 
-func (s *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string) (*fleet.VPPAppStoreApp, error) {
+func (s *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string, displayName string) (*fleet.VPPAppStoreApp, error) {
 	s.mu.Lock()
 	s.UpdateAppStoreAppFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateAppStoreAppFunc(ctx, titleID, teamID, selfService, labelsIncludeAny, labelsExcludeAny, categories)
+	return s.UpdateAppStoreAppFunc(ctx, titleID, teamID, selfService, labelsIncludeAny, labelsExcludeAny, categories, displayName)
 }
 
 func (s *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {
@@ -4215,11 +4215,11 @@ func (s *Service) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	return s.VerifyMDMWindowsConfiguredFunc(ctx)
 }
 
-func (s *Service) VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error {
+func (s *Service) VerifyAnyMDMConfigured(ctx context.Context) error {
 	s.mu.Lock()
-	s.VerifyMDMAppleOrWindowsConfiguredFuncInvoked = true
+	s.VerifyAnyMDMConfiguredFuncInvoked = true
 	s.mu.Unlock()
-	return s.VerifyMDMAppleOrWindowsConfiguredFunc(ctx)
+	return s.VerifyAnyMDMConfiguredFunc(ctx)
 }
 
 func (s *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error {
@@ -4852,18 +4852,11 @@ func (s *Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, do
 	return s.GetSetupExperienceScriptFunc(ctx, teamID, downloadRequested)
 }
 
-func (s *Service) CreateSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
+func (s *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
 	s.mu.Lock()
-	s.CreateSetupExperienceScriptFuncInvoked = true
+	s.SetSetupExperienceScriptFuncInvoked = true
 	s.mu.Unlock()
-	return s.CreateSetupExperienceScriptFunc(ctx, teamID, name, r)
-}
-
-func (s *Service) PutSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
-	s.mu.Lock()
-	s.PutSetupExperienceScriptFuncInvoked = true
-	s.mu.Unlock()
-	return s.PutSetupExperienceScriptFunc(ctx, teamID, name, r)
+	return s.SetSetupExperienceScriptFunc(ctx, teamID, name, r)
 }
 
 func (s *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
@@ -5004,6 +4997,13 @@ func (s *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (certP
 	s.ConditionalAccessGetIdPSigningCertFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConditionalAccessGetIdPSigningCertFunc(ctx)
+}
+
+func (s *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (profileData []byte, err error) {
+	s.mu.Lock()
+	s.ConditionalAccessGetIdPAppleProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessGetIdPAppleProfileFunc(ctx)
 }
 
 func (s *Service) ListCertificateAuthorities(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
