@@ -41,6 +41,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         version: "1.0.0",
         addedTimestamp: "2021-01-01T00:00:00Z",
         softwareTitleName: "Test Software",
+        source: "apps",
         status: {
           installed: 10,
           pending: 8,
@@ -85,6 +86,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         version: "1.0.1",
         addedTimestamp: "2020-01-01T00:00:00.000Z",
         softwareTitleName: "Test Software",
+        source: "apps",
         status: {
           installed: 10,
           pending: 5,

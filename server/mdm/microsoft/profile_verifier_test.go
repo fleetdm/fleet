@@ -605,6 +605,14 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 						Data: "non related data",
 					},
 				}), 0},
+				{"N2", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb: "Replace",
+						LocURI: `
+						./User/Vendor/MSFT/ClientCertificateInstall/SCEP/bogus-key-value`,
+						Data: "non related data",
+					},
+				}), 0},
 			},
 			existingProfiles: []fleet.HostMDMWindowsProfile{
 				{
@@ -612,8 +620,13 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 					Name:        "N1",
 					Status:      &fleet.MDMDeliveryPending,
 				},
+				{
+					ProfileUUID: "uuid-N2",
+					Name:        "N2",
+					Status:      &fleet.MDMDeliveryPending,
+				},
 			},
-			toVerify: []string{"N1"},
+			toVerify: []string{"N1", "N2"},
 		},
 	}
 
@@ -915,13 +928,19 @@ func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
 		},
 	}
 
-	params := PreprocessingParameters{
+	deps := ProfilePreprocessDependenciesForVerify{
+		Context:            t.Context(),
+		Logger:             log.NewNopLogger(),
+		DataStore:          ds,
 		HostIDForUUIDCache: make(map[string]uint),
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := PreprocessWindowsProfileContentsForVerification(t.Context(), log.NewNopLogger(), ds, tt.hostUUID, uuid.NewString(), tt.profileContents, params)
+			result := PreprocessWindowsProfileContentsForVerification(deps, ProfilePreprocessParams{
+				HostUUID:    tt.hostUUID,
+				ProfileUUID: uuid.NewString(),
+			}, tt.profileContents)
 			require.Equal(t, tt.expectedContents, result)
 		})
 	}
@@ -991,7 +1010,6 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 	tests := []struct {
 		name             string
 		hostUUID         string
-		hostCmdUUID      string
 		profileContents  string
 		expectedContents string
 		expectError      bool
@@ -1015,14 +1033,12 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		{
 			name:             "scep windows certificate id",
 			hostUUID:         "test-host-1234-uuid",
-			hostCmdUUID:      "cmd-uuid-5678",
 			profileContents:  `<Replace><Data>SCEP: $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</Data></Replace>`,
-			expectedContents: `<Replace><Data>SCEP: cmd-uuid-5678</Data></Replace>`,
+			expectedContents: fmt.Sprintf(`<Replace><Data>SCEP: %s</Data></Replace>`, profileUUID),
 		},
 		{
 			name:            "custom scep proxy url not usable in free tier",
 			hostUUID:        "test-host-1234-uuid",
-			hostCmdUUID:     "cmd-uuid-5678",
 			profileContents: `<Replace><Data>CA: $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CERTIFICATE</Data></Replace>`,
 			expectError:     true,
 			processingError: "Custom SCEP integration requires a Fleet Premium license.",
@@ -1031,7 +1047,6 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		{
 			name:            "custom scep proxy url ca not found",
 			hostUUID:        "test-host-1234-uuid",
-			hostCmdUUID:     "cmd-uuid-5678",
 			profileContents: `<Replace><Data>CA: $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CERTIFICATE</Data></Replace>`,
 			expectError:     true,
 			processingError: "Fleet couldn't populate $CUSTOM_SCEP_PROXY_URL_CERTIFICATE because CERTIFICATE certificate authority doesn't exist.",
@@ -1039,7 +1054,6 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		{
 			name:             "custom scep proxy url ca found and replaced",
 			hostUUID:         "test-host-1234-uuid",
-			hostCmdUUID:      "cmd-uuid-5678",
 			profileContents:  `<Replace><Data>     $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CERTIFICATE</Data></Replace>`,
 			expectedContents: `<Replace><Data>https://test-fleet.com/mdm/scep/proxy/test-host-1234-uuid%2C` + profileUUID + `%2CCERTIFICATE%2Csupersecret</Data></Replace>`,
 			setup: func() {
@@ -1067,7 +1081,6 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		{
 			name:            "custom scep challenge not usable in free tier",
 			hostUUID:        "test-host-1234-uuid",
-			hostCmdUUID:     "cmd-uuid-5678",
 			profileContents: `<Replace><Data>CA: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CERTIFICATE</Data></Replace>`,
 			expectError:     true,
 			processingError: "Custom SCEP integration requires a Fleet Premium license.",
@@ -1076,7 +1089,6 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		{
 			name:            "custom scep proxy challenge ca not found",
 			hostUUID:        "test-host-1234-uuid",
-			hostCmdUUID:     "cmd-uuid-5678",
 			profileContents: `<Replace><Data>CA: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CERTIFICATE</Data></Replace>`,
 			expectError:     true,
 			processingError: "Fleet couldn't populate $CUSTOM_SCEP_CHALLENGE_CERTIFICATE because CERTIFICATE certificate authority doesn't exist.",
@@ -1084,7 +1096,6 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		{
 			name:             "custom scep proxy challenge ca found and replaced",
 			hostUUID:         "test-host-1234-uuid",
-			hostCmdUUID:      "cmd-uuid-5678",
 			profileContents:  `<Replace><Data>     $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CERTIFICATE</Data></Replace>`,
 			expectedContents: `<Replace><Data>supersecret</Data></Replace>`,
 			setup: func() {
@@ -1107,7 +1118,6 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		{
 			name:             "all idp variables",
 			hostUUID:         "idp-host-uuid",
-			hostCmdUUID:      "cmd-uuid-5678",
 			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_USERNAME - $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART - $FLEET_VAR_HOST_END_USER_IDP_GROUPS - $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT - $FLEET_VAR_HOST_END_USER_IDP_FULL_NAME</Data></Item></Replace>`,
 			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: test@idp.com - test - Group One,Group Two - Department - First Last</Data></Item></Replace>`,
 		},
@@ -1139,9 +1149,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		},
 	}
 
-	params := PreprocessingParameters{
-		HostIDForUUIDCache: make(map[string]uint),
-	}
+	hostIDForUUIDCache := make(map[string]uint)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1168,9 +1176,26 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
 			require.NoError(t, err)
 
+			customSCEPCAs := groupedCAs.ToCustomSCEPProxyCAMap()
+
 			managedCertificates := &[]*fleet.MDMManagedCertificate{}
 
-			result, err := PreprocessWindowsProfileContentsForDeployment(ctx, log.NewNopLogger(), ds, appConfig, tt.hostUUID, tt.hostCmdUUID, profileUUID, groupedCAs, tt.profileContents, managedCertificates, params)
+			deps := ProfilePreprocessDependenciesForDeploy{
+				ProfilePreprocessDependenciesForVerify: ProfilePreprocessDependenciesForVerify{
+					Context:            ctx,
+					Logger:             log.NewNopLogger(),
+					DataStore:          ds,
+					HostIDForUUIDCache: hostIDForUUIDCache,
+				},
+				AppConfig:                  appConfig,
+				CustomSCEPCAs:              customSCEPCAs,
+				ManagedCertificatePayloads: managedCertificates,
+			}
+
+			result, err := PreprocessWindowsProfileContentsForDeployment(deps, ProfilePreprocessParams{
+				HostUUID:    tt.hostUUID,
+				ProfileUUID: profileUUID,
+			}, tt.profileContents)
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.processingError != "" {

@@ -207,7 +207,7 @@ func makeTeamConfigCache(ds fleet.Datastore, globalIntgs fleet.Integrations) fun
 			return cfg, nil
 		}
 
-		team, err := ds.Team(ctx, teamID)
+		team, err := ds.TeamLite(ctx, teamID)
 		if err != nil {
 			return cfg, ctxerr.Wrapf(ctx, err, "get team: %d", teamID)
 		}

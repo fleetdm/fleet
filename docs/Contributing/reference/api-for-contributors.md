@@ -3266,6 +3266,7 @@ Lists the software installed on the current device.
     {
       "id": 121,
       "name": "Google Chrome.app",
+      "display_name": "Chrome",
       "icon_url": "/api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software/titles/121/icon",
       "software_package": {
         "name": "GoogleChrome.pkg",
@@ -3299,7 +3300,8 @@ Lists the software installed on the current device.
     },
     {
       "id": 143,
-      "name": "Slack.app",
+      "name": "Firefox.app",
+      "display_name": "Firefox",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d1/2f/ff/d12fff5b-fe7b-a41b-e55a-96606c7193b1/electron.png/512x512bb.png",
       "software_package": null,
       "app_store_app": null,
@@ -4973,17 +4975,93 @@ None.
 }
 ```
 
-### Delete Microsoft Entra conditional access
+### Get Okta conditional access SAML IdP metadata
 
-`DELETE /api/v1/conditional-access/microsoft`
+**Note:** This endpoint is unauthenticated and used by Okta to discover Fleet's SAML IdP configuration.
+
+Returns SAML IdP metadata XML for Okta conditional access. This metadata is consumed by Okta to configure Fleet as a SAML identity provider.
+
+`GET /api/fleet/conditional_access/idp/metadata`
 
 #### Parameters
 
 None.
 
+#### Example
+
+`GET /api/fleet/conditional_access/idp/metadata`
+
 ##### Default response
 
 `Status: 200`
+
+Returns SAML IdP metadata XML with `Content-Type: application/xml`.
+
+### Okta conditional access SAML SSO
+
+**Note:** This endpoint requires mTLS authentication at the load balancer level. The regular Fleet load balancer should redirect requests to this endpoint to an mTLS-enabled load balancer that validates client certificates.
+
+Handles SAML authentication requests from Okta for conditional access. This endpoint validates the device's client certificate (via the `X-Client-Cert-Serial` header set by the mTLS load balancer), checks device health policies, and returns a SAML response.
+
+`POST /api/fleet/conditional_access/idp/sso`
+
+#### Parameters
+
+| Name                 | Type   | In     | Description                                                             |
+|----------------------|--------|--------|-------------------------------------------------------------------------|
+| X-Client-Cert-Serial | string | header | **Required.** The serial number of the client certificate (hex format). |
+| SAMLRequest          | string | body   | The SAML authentication request from Okta (URL-encoded).                |
+
+#### Example
+
+`POST /api/fleet/conditional_access/idp/sso`
+
+##### Request header
+
+```http
+X-Client-Cert-Serial: 1A
+```
+
+##### Default response
+
+`Status: 200`
+
+Returns a SAML response (HTML form auto-submit) or redirects to an error page if authentication fails.
+
+### Okta conditional access SCEP enrollment
+
+**Note:** This endpoint implements the SCEP protocol for automatic certificate enrollment. SCEP certificate requests are authenticated using a challenge password, which is a global enroll secret.
+
+Handles Simple Certificate Enrollment Protocol (SCEP) requests for Okta conditional access. Devices use this endpoint to automatically enroll and obtain client certificates.
+
+`GET /api/fleet/conditional_access/scep?operation={operation}`
+`POST /api/fleet/conditional_access/scep?operation={operation}`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                    |
+|-----------|--------|-------|--------------------------------------------------------------------------------|
+| operation | string | query | **Required.** The SCEP operation: `GetCACaps`, `GetCACert`, or `PKIOperation`. |
+
+#### Example
+
+Get CA capabilities:
+
+`GET /api/fleet/conditional_access/scep?operation=GetCACaps`
+
+Get CA certificate:
+
+`GET /api/fleet/conditional_access/scep?operation=GetCACert`
+
+Submit certificate signing request:
+
+`POST /api/fleet/conditional_access/scep?operation=PKIOperation`
+
+##### Default response
+
+`Status: 200`
+
+Response format varies by operation according to the SCEP protocol specification.
 
 ## Android fleetdm.com proxy
 
