@@ -9791,7 +9791,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Delete software icon](#delete-sowftware-icon)
 - [List App Store apps](#list-app-store-apps)
 - [Add app store app](#add-app-store-app)
-- [Modify app store app](#modify-app-store-app)
+- [Update app store app](#update-app-store-app)
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
 - [Add Fleet-maintained app](#add-fleet-maintained-app)
