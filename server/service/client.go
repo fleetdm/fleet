@@ -2875,7 +2875,7 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 	if config.TeamID != nil {
 		teamID = fmt.Sprintf("%d", *config.TeamID)
 	} else {
-		return fmt.Errorf("applying Android certificates: Team ID is required")
+		return errors.New("applying Android certificates: Team ID is required")
 	}
 
 	logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
