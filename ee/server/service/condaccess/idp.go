@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -77,14 +78,35 @@ func RegisterIdP(
 		logger: kitlog.With(logger, "component", "conditional-access-idp"),
 	}
 
-	// Register handlers with OpenTelemetry middleware
-	metadataHandler := otel.WrapHandler(http.HandlerFunc(svc.serveMetadata), idpMetadataPath, *fleetConfig)
-	ssoHandler := otel.WrapHandler(http.HandlerFunc(svc.serveSSO), idpSSOPath, *fleetConfig)
+	// Create logging middleware
+	loggingMiddleware := log.NewLoggingMiddleware(svc.logger)
+
+	// Register handlers with logging and OpenTelemetry middleware
+	// Order: OTEL wraps logging to capture full request lifecycle
+	metadataHandler := loggingMiddleware(http.HandlerFunc(svc.serveMetadata))
+	metadataHandler = otel.WrapHandler(metadataHandler, idpMetadataPath, *fleetConfig)
+
+	ssoHandler := loggingMiddleware(http.HandlerFunc(svc.serveSSO))
+	ssoHandler = otel.WrapHandler(ssoHandler, idpSSOPath, *fleetConfig)
 
 	mux.Handle(idpMetadataPath, metadataHandler)
 	mux.Handle(idpSSOPath, ssoHandler)
 
 	return nil
+}
+
+// handleInternalServerError logs the error, records it in context, and returns HTTP 500.
+// This function should be used whenever returning StatusInternalServerError to ensure
+// consistent error handling across the IdP service.
+// Additional key-value pairs can be passed for logging context (e.g., "host_id", hostID).
+func handleInternalServerError(ctx context.Context, w http.ResponseWriter, logger kitlog.Logger, msg string, err error, keyvals ...any) {
+	// Build the log keyvals starting with msg and err
+	logKeyvals := []any{"msg", msg, "err", err}
+	logKeyvals = append(logKeyvals, keyvals...)
+
+	level.Error(logger).Log(logKeyvals...)
+	ctxerr.Handle(ctx, err)
+	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 }
 
 // serveMetadata handles GET /api/fleet/conditional_access/idp/metadata
@@ -95,8 +117,7 @@ func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
 	// Load AppConfig to get Okta settings
 	appConfig, err := s.ds.AppConfig(ctx)
 	if err != nil {
-		level.Error(s.logger).Log("msg", "failed to load app config", "err", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, s.logger, "failed to load app config", err)
 		return
 	}
 
@@ -116,8 +137,7 @@ func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "IdP not configured", http.StatusNotFound)
 			return
 		}
-		level.Error(s.logger).Log("msg", "failed to build identity provider", "err", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, s.logger, "failed to build identity provider", err)
 		return
 	}
 
@@ -160,8 +180,7 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 			return
 		}
-		level.Error(s.logger).Log("msg", "failed to lookup host by certificate serial", "serial", serial, "err", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, s.logger, "failed to lookup host by certificate serial", err, "serial", serial)
 		return
 	}
 
@@ -170,16 +189,14 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 	// Load AppConfig for IdP configuration
 	appConfig, err := s.ds.AppConfig(ctx)
 	if err != nil {
-		level.Error(s.logger).Log("msg", "failed to load app config", "err", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, s.logger, "failed to load app config", err)
 		return
 	}
 
 	// Get Fleet server URL from config
 	serverURL := appConfig.ServerSettings.ServerURL
 	if serverURL == "" {
-		level.Error(s.logger).Log("msg", "server URL not configured")
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, s.logger, "server URL not configured", errors.New("server URL not configured"))
 		return
 	}
 
@@ -191,8 +208,7 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 			return
 		}
-		level.Error(s.logger).Log("msg", "failed to build identity provider", "err", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, s.logger, "failed to build identity provider", err)
 		return
 	}
 
@@ -205,7 +221,40 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 
 	// ServeSSO handles SAML AuthnRequest parsing, generates assertion, and returns response
 	level.Debug(s.logger).Log("msg", "calling SAML IdP ServeSSO", "host_id", hostID)
-	idp.ServeSSO(w, r)
+
+	// Wrap response writer to intercept 400 errors and redirect to certificate error page
+	wrappedWriter := &statusInterceptingWriter{
+		ResponseWriter: w,
+		ctx:            ctx,
+		logger:         s.logger,
+		r:              r,
+		redirectURL:    certificateErrorURL,
+	}
+	idp.ServeSSO(wrappedWriter, r)
+}
+
+// statusInterceptingWriter wraps http.ResponseWriter to intercept 400 Bad Request responses
+// and redirect to a certificate error page instead.
+type statusInterceptingWriter struct {
+	http.ResponseWriter
+	ctx           context.Context
+	logger        kitlog.Logger
+	r             *http.Request
+	redirectURL   string
+	headerWritten bool
+}
+
+func (w *statusInterceptingWriter) WriteHeader(statusCode int) {
+	if w.headerWritten {
+		return
+	}
+	w.headerWritten = true
+	if statusCode == http.StatusBadRequest {
+		level.Error(w.logger).Log("msg", "SAML IdP returned bad request, redirecting to error page", "status", statusCode)
+		http.Redirect(w.ResponseWriter, w.r, w.redirectURL, http.StatusSeeOther)
+		return
+	}
+	w.ResponseWriter.WriteHeader(statusCode)
 }
 
 // parseSerialNumber parses a certificate serial number from hex string to uint64.
@@ -266,8 +315,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 			http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 			return nil
 		}
-		level.Error(p.logger).Log("msg", "failed to load host", "host_id", p.hostID, "err", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, p.logger, "failed to load host", err, "host_id", p.hostID)
 		return nil
 	}
 
@@ -278,8 +326,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 	}
 	conditionalAccessPolicyIDs, err := p.ds.GetPoliciesForConditionalAccess(ctx, teamID)
 	if err != nil {
-		level.Error(p.logger).Log("msg", "failed to get conditional access policies", "host_id", p.hostID, "err", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, p.logger, "failed to get conditional access policies", err, "host_id", p.hostID)
 		return nil
 	}
 
@@ -299,8 +346,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 	// Get all policies for the host
 	policies, err := p.ds.ListPoliciesForHost(ctx, host)
 	if err != nil {
-		level.Error(p.logger).Log("msg", "failed to list policies for host", "host_id", p.hostID, "err", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, p.logger, "failed to list policies for host", err, "host_id", p.hostID)
 		return nil
 	}
 
@@ -457,7 +503,7 @@ func (s *idpService) buildIdentityProvider(ctx context.Context, serverURL string
 	metadataURL = metadataURL.JoinPath(idpMetadataPath)
 
 	// Build SSO URL (uses okta.* subdomain or dev override)
-	ssoServerURL, err := buildSSOServerURL(serverURL)
+	ssoServerURL, err := s.buildSSOServerURL(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build SSO server URL")
 	}
@@ -485,35 +531,22 @@ func (s *idpService) buildIdentityProvider(ctx context.Context, serverURL string
 	return idp, nil
 }
 
-// buildSSOServerURL builds the SSO server base URL.
-// It checks for FLEET_DEV_OKTA_SSO_SERVER_URL environment variable first.
-// If not set, it transforms the serverURL by prepending "okta." to the hostname.
-// Examples:
-//   - https://bozo.example.com -> https://okta.bozo.example.com
-//   - https://bozo.example.com:8080 -> https://okta.bozo.example.com:8080
-func buildSSOServerURL(serverURL string) (string, error) {
-	// Check for dev override
-	if devURL := os.Getenv("FLEET_DEV_OKTA_SSO_SERVER_URL"); devURL != "" {
-		return devURL, nil
-	}
-
-	// Parse the server URL
-	u, err := url.Parse(serverURL)
+// buildSSOServerURL builds the SSO server base URL from the app config.
+// It delegates to AppConfig.ConditionalAccessIdPSSOURL() for the URL construction logic.
+func (s *idpService) buildSSOServerURL(ctx context.Context) (string, error) {
+	// Load app config
+	appConfig, err := s.ds.AppConfig(ctx)
 	if err != nil {
-		return "", fmt.Errorf("parse server URL: %w", err)
+		return "", ctxerr.Wrap(ctx, err, "load app config")
 	}
 
-	// Prepend "okta." to the hostname
-	if u.Hostname() != "" {
-		// Reconstruct host with port if present
-		newHost := idpSSOPrefix + u.Hostname()
-		if port := u.Port(); port != "" {
-			newHost = newHost + ":" + port
-		}
-		u.Host = newHost
+	// Use the AppConfig method to build the SSO URL
+	ssoURL, err := appConfig.ConditionalAccessIdPSSOURL(os.Getenv)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "build conditional access SSO URL")
 	}
 
-	return u.String(), nil
+	return ssoURL, nil
 }
 
 // parseCertAndKeyBytes parses PEM-encoded certificate and private key from separate byte slices.

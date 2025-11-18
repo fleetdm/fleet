@@ -168,15 +168,6 @@ func (c *Client) deleteMacOSSetupScript(teamID *uint) error {
 }
 
 func (c *Client) uploadMacOSSetupScript(filename string, data []byte, teamID *uint) error {
-	// there is no "replace setup experience script" endpoint, and none was
-	// planned, so to avoid delaying the feature I'm doing DELETE then SET, but
-	// that's not ideal (will always re-create the script when apply/gitops is
-	// run with the same yaml). Note though that we also redo software installers
-	// downloads on each run, so the churn of this one is minor in comparison.
-	if err := c.deleteMacOSSetupScript(teamID); err != nil {
-		return err
-	}
-
 	verb, path := "POST", "/api/latest/fleet/setup_experience/script"
 
 	var b bytes.Buffer

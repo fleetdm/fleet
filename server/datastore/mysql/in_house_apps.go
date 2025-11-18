@@ -48,7 +48,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 		if count > 0 {
 			// ios or ipados version of this installer exists
-			err = alreadyExists("In-house app", payload.Filename)
+			return alreadyExists("in-house app", payload.Filename)
 		}
 
 		argsIos := []any{
@@ -248,6 +248,13 @@ WHERE
 		dest.Categories = categories
 	}
 
+	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, titleID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get in house app display name")
+	}
+
+	dest.DisplayName = displayName
+
 	if teamID != nil {
 		icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, titleID)
 		if err != nil && !fleet.IsNotFound(err) {
@@ -293,6 +300,10 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 			if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, payload.InstallerID, payload.CategoryIDs, softwareTypeInHouseApp); err != nil {
 				return ctxerr.Wrap(ctx, err, "upsert in house app categories")
 			}
+		}
+
+		if err := updateSoftwareTitleDisplayName(ctx, tx, payload.TeamID, payload.TitleID, payload.DisplayName); err != nil {
+			return ctxerr.Wrap(ctx, err, "update in house app display name")
 		}
 
 		return nil

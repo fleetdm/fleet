@@ -85,6 +85,18 @@ WHERE
 	}
 	app.Categories = categories
 
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, titleID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get display name for app store app")
+	}
+
+	app.DisplayName = displayName
+
 	if teamID != nil {
 		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, *teamID)
 		if err != nil {
@@ -99,6 +111,7 @@ WHERE
 		if icon != nil {
 			app.IconURL = ptr.String(icon.IconUrl())
 		}
+
 	}
 
 	return &app, nil
@@ -448,7 +461,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 	if len(toAddApps) > 0 {
 		teamName = fleet.TeamNameNoTeam
 		if teamID != nil && *teamID > 0 {
-			tm, err := ds.TeamWithExtras(ctx, *teamID)
+			tm, err := ds.TeamLite(ctx, *teamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
 			}

@@ -5,10 +5,10 @@ locals {
 
   # Tracing configuration - either OTEL or Elastic APM
   otel_environment_variables = var.enable_otel ? {
-    OTEL_SERVICE_NAME               = terraform.workspace
-    OTEL_EXPORTER_OTLP_ENDPOINT     = "http://${data.terraform_remote_state.signoz[0].outputs.otel_collector_endpoint}"
-    FLEET_LOGGING_TRACING_ENABLED   = "true"
-    FLEET_LOGGING_TRACING_TYPE      = "opentelemetry"
+    OTEL_SERVICE_NAME             = terraform.workspace
+    OTEL_EXPORTER_OTLP_ENDPOINT   = "http://${data.terraform_remote_state.signoz[0].outputs.otel_collector_endpoint}"
+    FLEET_LOGGING_TRACING_ENABLED = "true"
+    FLEET_LOGGING_TRACING_TYPE    = "opentelemetry"
   } : {}
 
   elastic_apm_environment_variables = var.enable_otel ? {} : {
@@ -31,6 +31,10 @@ locals {
       FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING     = "false"
       FLEET_LOGGING_JSON                             = "true"
       FLEET_LOGGING_DEBUG                            = "true"
+      FLEET_OSQUERY_STATUS_LOG_PLUGIN                = "filesystem"
+      FLEET_FILESYSTEM_STATUS_LOG_FILE               = "/dev/null"
+      FLEET_OSQUERY_RESULT_LOG_PLUGIN                = "filesystem"
+      FLEET_FILESYSTEM_RESULT_LOG_FILE               = "/dev/null"
       FLEET_MYSQL_MAX_OPEN_CONNS                     = "10"
       FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS        = "10"
       FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT = "10000"

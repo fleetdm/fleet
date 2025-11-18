@@ -451,8 +451,6 @@ The `macos_setup` section lets you control the out-of-the-box macOS [setup exper
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 - `script` is the path to a custom setup script to run after the host is first set up.
 
-> As of Fleet 4.59.0, there is a known bug in which, if GitOps runs while a new Mac is going through Setup Assistant, the script will not run. Follow the [GitHub issue](https://github.com/fleetdm/fleet/issues/35309) to learn more.
-
 #### Example
 
 `teams/team-name.yml`, or `teams/no-team.yml`
@@ -511,6 +509,7 @@ software:
         - Marketing
       categories:
         - Communication
+      setup_experience: true
   fleet_maintained_apps:
     - slug: slack/darwin
       install_script:
@@ -526,6 +525,7 @@ software:
       categories:
         - Communication
         - Productivity
+      setup_experience: true
 ```
 
 #### self_service, labels, categories, and setup_experience
@@ -586,7 +586,7 @@ You can view the hash for existing software in the software detail page in the F
   + Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
 
-Currently, one app for each of an App Store app's supported platforms are added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet. Specifying specific platforms is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
+Currently, one app for each of an App Store app's supported platforms are added, along with all specified settings (e.g. `self_service`). If software for one platform is deleted in the UI, it will come back when GitOps is re-run. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet. Specifying specific platforms is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
 ### fleet_maintained_apps
 

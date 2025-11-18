@@ -608,7 +608,7 @@ type VerifyMDMAppleConfiguredFunc func(ctx context.Context) error
 
 type VerifyMDMWindowsConfiguredFunc func(ctx context.Context) error
 
-type VerifyMDMAppleOrWindowsConfiguredFunc func(ctx context.Context) error
+type VerifyAnyMDMConfiguredFunc func(ctx context.Context) error
 
 type MDMAppleUploadBootstrapPackageFunc func(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error
 
@@ -831,6 +831,8 @@ type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurat
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
 
 type ConditionalAccessGetIdPSigningCertFunc func(ctx context.Context) (certPEM []byte, err error)
+
+type ConditionalAccessGetIdPAppleProfileFunc func(ctx context.Context) (profileData []byte, err error)
 
 type ListCertificateAuthoritiesFunc func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error)
 
@@ -1734,8 +1736,8 @@ type Service struct {
 	VerifyMDMWindowsConfiguredFunc        VerifyMDMWindowsConfiguredFunc
 	VerifyMDMWindowsConfiguredFuncInvoked bool
 
-	VerifyMDMAppleOrWindowsConfiguredFunc        VerifyMDMAppleOrWindowsConfiguredFunc
-	VerifyMDMAppleOrWindowsConfiguredFuncInvoked bool
+	VerifyAnyMDMConfiguredFunc        VerifyAnyMDMConfiguredFunc
+	VerifyAnyMDMConfiguredFuncInvoked bool
 
 	MDMAppleUploadBootstrapPackageFunc        MDMAppleUploadBootstrapPackageFunc
 	MDMAppleUploadBootstrapPackageFuncInvoked bool
@@ -2069,6 +2071,9 @@ type Service struct {
 
 	ConditionalAccessGetIdPSigningCertFunc        ConditionalAccessGetIdPSigningCertFunc
 	ConditionalAccessGetIdPSigningCertFuncInvoked bool
+
+	ConditionalAccessGetIdPAppleProfileFunc        ConditionalAccessGetIdPAppleProfileFunc
+	ConditionalAccessGetIdPAppleProfileFuncInvoked bool
 
 	ListCertificateAuthoritiesFunc        ListCertificateAuthoritiesFunc
 	ListCertificateAuthoritiesFuncInvoked bool
@@ -4162,11 +4167,11 @@ func (s *Service) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	return s.VerifyMDMWindowsConfiguredFunc(ctx)
 }
 
-func (s *Service) VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error {
+func (s *Service) VerifyAnyMDMConfigured(ctx context.Context) error {
 	s.mu.Lock()
-	s.VerifyMDMAppleOrWindowsConfiguredFuncInvoked = true
+	s.VerifyAnyMDMConfiguredFuncInvoked = true
 	s.mu.Unlock()
-	return s.VerifyMDMAppleOrWindowsConfiguredFunc(ctx)
+	return s.VerifyAnyMDMConfiguredFunc(ctx)
 }
 
 func (s *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error {
@@ -4944,6 +4949,13 @@ func (s *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (certP
 	s.ConditionalAccessGetIdPSigningCertFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConditionalAccessGetIdPSigningCertFunc(ctx)
+}
+
+func (s *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (profileData []byte, err error) {
+	s.mu.Lock()
+	s.ConditionalAccessGetIdPAppleProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessGetIdPAppleProfileFunc(ctx)
 }
 
 func (s *Service) ListCertificateAuthorities(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {

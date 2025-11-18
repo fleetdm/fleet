@@ -106,6 +106,7 @@ type updateAppStoreAppRequest struct {
 	LabelsExcludeAny []string `json:"labels_exclude_any"`
 	Categories       []string `json:"categories"`
 	Configuration    []byte   `json:"configuration"`
+	DisplayName      string   `json:"display_name"`
 }
 
 type updateAppStoreAppResponse struct {
@@ -124,6 +125,7 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 		LabelsExcludeAny: req.LabelsExcludeAny,
 		Categories:       req.Categories,
 		Configuration:    req.Configuration,
+		DisplayName:      req.DisplayName,
 	})
 	if err != nil {
 		return updateAppStoreAppResponse{Err: err}, nil
