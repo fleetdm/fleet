@@ -145,12 +145,16 @@ type CustomSCEPVarsFound struct {
 	urlCA          map[string]struct{}
 	challengeCA    map[string]struct{}
 	renewalIdFound bool
+	// Whether or not presence of renewal ID should be validated.
+	// Currently used for microsoft MDM as it does not support renewal, once it does, this can be reverted.
+	supportsRenewal bool
+	found           bool // Workaround until renewal support, to see if any vars was found in the first place
 }
 
 // Ok makes sure that Challenge is present only if URL is also present in SCEP profile.
 // This allows the Admin to override the SCEP challenge in the profile.
 func (cs *CustomSCEPVarsFound) Ok() bool {
-	if cs == nil {
+	if cs == nil || !cs.found {
 		return true
 	}
 	if len(cs.challengeCA) != len(cs.urlCA) {
@@ -164,11 +168,16 @@ func (cs *CustomSCEPVarsFound) Ok() bool {
 			return false
 		}
 	}
+
+	if !cs.supportsRenewal {
+		return true
+	}
+
 	return cs.renewalIdFound
 }
 
 func (cs *CustomSCEPVarsFound) Found() bool {
-	return cs != nil
+	return cs != nil && cs.found
 }
 
 func (cs *CustomSCEPVarsFound) RenewalOnly() bool {
@@ -190,9 +199,12 @@ func (cs *CustomSCEPVarsFound) ErrorMessage() string {
 	if cs.renewalIdFound && len(cs.challengeCA) == 0 && len(cs.urlCA) == 0 {
 		return fleet.SCEPRenewalIDWithoutURLChallengeErrMsg
 	}
-	if !cs.renewalIdFound || len(cs.challengeCA) == 0 || len(cs.urlCA) == 0 {
+	if !cs.supportsRenewal && (len(cs.challengeCA) == 0 || len(cs.urlCA) == 0) {
+		return fmt.Sprintf("SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_%s<CA_NAME> and $FLEET_VAR_%s<CA_NAME> variables.", fleet.FleetVarCustomSCEPChallengePrefix, fleet.FleetVarCustomSCEPProxyURLPrefix)
+	} else if (!cs.renewalIdFound && cs.supportsRenewal) || len(cs.challengeCA) == 0 || len(cs.urlCA) == 0 {
 		return fmt.Sprintf("SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_%s<CA_NAME>, $FLEET_VAR_%s<CA_NAME>, and $FLEET_VAR_%s variables.", fleet.FleetVarCustomSCEPChallengePrefix, fleet.FleetVarCustomSCEPProxyURLPrefix, fleet.FleetVarSCEPRenewalID)
 	}
+
 	for ca := range cs.challengeCA {
 		if _, ok := cs.urlCA[ca]; !ok {
 			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarCustomSCEPProxyURLPrefix, ca)
@@ -203,40 +215,50 @@ func (cs *CustomSCEPVarsFound) ErrorMessage() string {
 			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarCustomSCEPChallengePrefix, ca)
 		}
 	}
+
 	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s<ca_name> and $FLEET_VAR_%s<ca_name> in the profile.",
 		fleet.FleetVarCustomSCEPProxyURLPrefix, fleet.FleetVarCustomSCEPChallengePrefix)
 }
 
 func (cs *CustomSCEPVarsFound) SetURL(value string) (*CustomSCEPVarsFound, bool) {
 	if cs == nil {
-		cs = &CustomSCEPVarsFound{}
+		cs = &CustomSCEPVarsFound{
+			found: true,
+		}
 	}
 	if cs.urlCA == nil {
 		cs.urlCA = make(map[string]struct{})
 	}
 	_, alreadyPresent := cs.urlCA[value]
 	cs.urlCA[value] = struct{}{}
+	cs.found = true
 	return cs, !alreadyPresent
 }
 
 func (cs *CustomSCEPVarsFound) SetChallenge(value string) (*CustomSCEPVarsFound, bool) {
 	if cs == nil {
-		cs = &CustomSCEPVarsFound{}
+		cs = &CustomSCEPVarsFound{
+			found: true,
+		}
 	}
 	if cs.challengeCA == nil {
 		cs.challengeCA = make(map[string]struct{})
 	}
 	_, alreadyPresent := cs.challengeCA[value]
 	cs.challengeCA[value] = struct{}{}
+	cs.found = true
 	return cs, !alreadyPresent
 }
 
 func (cs *CustomSCEPVarsFound) SetRenewalID() (*CustomSCEPVarsFound, bool) {
 	if cs == nil {
-		cs = &CustomSCEPVarsFound{}
+		cs = &CustomSCEPVarsFound{
+			found: true,
+		}
 	}
 	alreadyPresent := cs.renewalIdFound
 	cs.renewalIdFound = true
+	cs.found = true
 	return cs, !alreadyPresent
 }
 
@@ -346,7 +368,7 @@ func (cs *SmallstepVarsFound) SetRenewalID() (*SmallstepVarsFound, bool) {
 // and that is mapped to a set of CA vars, that can later be used for validation.
 //
 // TODO: Make this function also handle validation across platforms, but due to time I left it in the respective apple and windows mdm flows.
-func validateProfileCertificateAuthorityVariables(profileContents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities,
+func validateProfileCertificateAuthorityVariables(profileContents string, lic *fleet.LicenseInfo, platform string, groupedCAs *fleet.GroupedCertificateAuthorities,
 	additionalDigiCertValidation func(contents string, digicertVars *DigiCertVarsFound) error,
 	additionalCustomSCEPValidation func(contents string, customSCEPVars *CustomSCEPVarsFound) error,
 	additionalNDESValidation func(contents string, ndesVars *NDESVarsFound) error,
@@ -357,18 +379,18 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 		return nil
 	}
 
-	fmt.Println(fleetVars)
-
 	// Check for premium license if the profile contains Fleet variables
 	if lic == nil || !lic.IsPremium() {
 		return fleet.ErrMissingLicense
 	}
 
+	customSCEPVars := &CustomSCEPVarsFound{
+		supportsRenewal: platform == fleet.MDMPlatformApple,
+	}
 	var (
-		digiCertVars   *DigiCertVarsFound
-		customSCEPVars *CustomSCEPVarsFound
-		ndesVars       *NDESVarsFound
-		smallstepVars  *SmallstepVarsFound
+		digiCertVars  *DigiCertVarsFound
+		ndesVars      *NDESVarsFound
+		smallstepVars *SmallstepVarsFound
 	)
 	for _, k := range fleetVars {
 		caFound := false

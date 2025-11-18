@@ -70,8 +70,8 @@ func TestTriggerFailingPolicies(t *testing.T) {
 		return &fleet.Policy{PolicyData: *pd}, nil
 	}
 
-	teams := map[uint]*fleet.Team{
-		1: {ID: 1, Name: "teamA", Config: fleet.TeamConfig{
+	teams := map[uint]*fleet.TeamLite{
+		1: {ID: 1, Name: "teamA", Config: fleet.TeamConfigLite{
 			WebhookSettings: fleet.TeamWebhookSettings{
 				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 					PolicyIDs: []uint{4, 5},
@@ -83,7 +83,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 				},
 			},
 		}},
-		2: {ID: 2, Name: "teamB", Config: fleet.TeamConfig{
+		2: {ID: 2, Name: "teamB", Config: fleet.TeamConfigLite{
 			WebhookSettings: fleet.TeamWebhookSettings{
 				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 					PolicyIDs: []uint{7, 8},
@@ -95,7 +95,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 				},
 			},
 		}},
-		4: {ID: 4, Name: "teamD", Config: fleet.TeamConfig{
+		4: {ID: 4, Name: "teamD", Config: fleet.TeamConfigLite{
 			WebhookSettings: fleet.TeamWebhookSettings{
 				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 					Enable:    true,
@@ -111,7 +111,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 				},
 			},
 		}},
-		5: {ID: 5, Name: "teamE", Config: fleet.TeamConfig{
+		5: {ID: 5, Name: "teamE", Config: fleet.TeamConfigLite{
 			WebhookSettings: fleet.TeamWebhookSettings{
 				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 					PolicyIDs: []uint{15},
@@ -124,7 +124,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 			},
 		}},
 	}
-	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		tm, ok := teams[id]
 		if !ok {
 			return nil, ctxerr.Wrap(ctx, sql.ErrNoRows)

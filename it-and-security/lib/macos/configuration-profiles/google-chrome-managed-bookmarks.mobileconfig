@@ -555,7 +555,7 @@
                         </dict>
                         <dict>
                             <key>name</key>
-                            <string>🎁 Kanban board (~feature fest)</string>
+                            <string>🎁 Feature fest board (~feature fest)</string>
                             <key>url</key>
                             <string>https://github.com/orgs/fleetdm/projects/72</string>
                         </dict>
@@ -595,6 +595,12 @@
                             <string>🌦️ Kanban board (:help-customers)</string>
                             <key>url</key>
                             <string>https://github.com/orgs/fleetdm/projects/79</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Customer codenames</string>
+                            <key>url</key>
+                            <string>https://github.com/fleetdm/confidential/labels?q=customer-</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -656,6 +662,12 @@
                             <string>🦄 Kanban board (#g-unicorns)</string>
                             <key>url</key>
                             <string>https://github.com/orgs/fleetdm/projects/81</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Prospect codenames</string>
+                            <key>url</key>
+                            <string>https://github.com/fleetdm/confidential/labels?q=prospect-</string>
                         </dict>
                         <dict>
                             <key>name</key>

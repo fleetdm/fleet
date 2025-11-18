@@ -123,23 +123,7 @@ To sign the package we need a valid Developer ID Installer certificate:
 
 ## Install software
 
-You can install software during first time macOS, iOS, iPadOS, and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience).
-
-Currently, for macOS, iOS, and iPadOS hosts, software is only installed on hosts that automatically enroll to Fleet via Apple Business Manager (ABM).
-
-If you configure software and/or a script for setup experience, end users on macOS hosts will see a window like this:
-
-![screen shot of Fleet setup experience window](../website/assets/images/articles/install-software-preview-462x364@2x.png)
-
-To see the end user experience on iOS/iPadOS, check out the [iOS video](https://www.youtube.com/shorts/_XXNGrQPqys) and [iPadOS video](https://www.youtube.com/shorts/IIzo4NyUolM).
-
-To replace the Fleet logo with your organization's logo:
-
-1. Go to **Settings** > **Organization settings** > **Organization info**
-2. Add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields
-3. Press **Save**
-
-See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
+You can install software during first time macOS, iOS, iPadOS and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience). Android support is coming soon.
 
 Add setup experience software:
 
@@ -150,13 +134,13 @@ Add setup experience software:
 
 ### Retries
 
-For macOS, Windows, and Linux hosts, software installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. When Fleet reties, IT admins can error messages for all attempts in the **Host details > Activity** card. The end user only sees an error message if the third, and final, attempt fails.
+For macOS, Windows, and Linux hosts, software installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. When Fleet retries, IT admins can see error messages for all attempts in the **Host details > Activity** card. The end user only sees an error message if the third, and final, attempt fails.
 
 Retries only happen for custom packages and Fleet-maintained apps. For App Store (VPP) apps, the MDM command to install the app is sent once and either succeeds or fails. If it fails, the app won’t install no matter how many times Fleet resends the command.
 
-### Block setup on failed software installs
+#### Blocking setup on failed software installs
 
-For macOS hosts, you may additionally configure the setup experience to halt immediately if any software item fails to install. To enable this feature:
+You may additionally configure the setup experience to halt immediately if any software item fails to install. To enable this feature:
 
 1. Click **Show advanced options** on the Install Software screen.
 2. Check the "Cancel setup if software install fails" checkbox.
@@ -174,7 +158,30 @@ To configure a script to run during setup experience:
 
 2. Click **Upload** and select a script (.sh file) from the file picker modal. 
 
-> The setup experience script always runs after setup experience software is installed. Currently, software that [automatically installs](https://fleetdm.com/guides/automatic-software-install-in-fleet) and scripts that [automatically run](https://fleetdm.com/guides/policy-automation-run-script) are also installed and run during Setup Assistant but won't appear in the window. Automatic software and scripts may run before or after setup the experience software/script. They aren't installed/run in any particular order.
+To replace the Fleet logo with your organization's logo:
+
+1. Go to **Settings** > **Organization settings** > **Organization info**
+2. Add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields
+3. Press **Save**
+ 
+> See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
+
+> The setup experience script always runs after setup experience software is installed. Currently, software that [automatically installs](https://fleetdm.com/guides/automatic-software-install-in-fleet) and scripts that [automatically run](https://fleetdm.com/guides/policy-automation-run-script) are also installed and run during Setup Assistant but won't appear in the window. Automatic software and scripts may run before or after the setup experience software/script. They aren't installed/run in any particular order.
+
+### Exiting the setup experience
+
+The Fleet setup experience for macOS will exit if any of the following occurs:
+
+* All setup steps complete successfully.
+* All setup steps complete, including failed installs or script runs, with the "Cancel setup if software install fails" option _not_ enabled (see ["Blocking setup on failed software installs"](https://fleetdm.com/guides/macos-setup-experience#install-software)).
+* The user presses Command (⌘) + Shift + X at any time during the setup process.
+
+
+
+
+
+
+
 
 ## macOS Setup Assistant
 
@@ -226,11 +233,11 @@ Testing requires a test Mac that is present in your Apple Business Manager (ABM)
 
 4. Boot up your test Mac and complete the custom out-of-the-box setup experience.
 
-### Configuring via REST API
+## Configuring via REST API
 
 Fleet also provides a REST API for managing setup experience software and scripts programmatically. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api).
 
-### Configuring via GitOps
+## Configuring via GitOps
 
 To manage setup experience software and script using Fleet's best practice GitOps, check out the `macos_setup` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#macos-setup)
 

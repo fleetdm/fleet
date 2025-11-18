@@ -180,7 +180,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	isEndUserAuthRequired := appConfig.MDM.MacOSSetup.EnableEndUserAuthentication
 	// If the secret is for a team, get the team config as well.
 	if secret.TeamID != nil {
-		team, err := svc.ds.Team(ctx, *secret.TeamID)
+		team, err := svc.ds.TeamLite(ctx, *secret.TeamID)
 		if err != nil {
 			return "", fleet.OrbitError{Message: "failed to get team config: " + err.Error()}
 		}
@@ -197,7 +197,17 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			return "", fleet.OrbitError{Message: "failed to get IdP account: " + err.Error()}
 		}
 		if idpAccount == nil {
-			return "", fleet.NewOrbitIDPAuthRequiredError()
+			// If the Orbit client doesn't support end user auth, complain loudly and let the host enroll.
+			mp, ok := capabilities.FromContext(ctx)
+			//nolint:gocritic // ignore ifElseChain
+			if !ok {
+				level.Error(svc.logger).Log("msg", "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but fleet could not determine whether orbit supports end-user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
+			} else if !mp.Has(fleet.CapabilityEndUserAuth) {
+				level.Error(svc.logger).Log("msg", "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but connected with an orbit version that does not support end user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
+			} else {
+				// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
+				return "", fleet.NewOrbitIDPAuthRequiredError()
+			}
 		}
 	}
 
@@ -551,7 +561,7 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 		}
 		manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 	} else {
-		tm, err := svc.ds.Team(ctx, *host.TeamID)
+		tm, err := svc.ds.TeamLite(ctx, *host.TeamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
 		}

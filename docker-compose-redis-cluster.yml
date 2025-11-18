@@ -2,7 +2,7 @@
 version: "2"
 services:
   redis-cluster-setup:
-    image: redis:5
+    image: redis:6
     command: redis-cli --cluster create 172.20.0.31:7001 172.20.0.32:7002 172.20.0.33:7003 172.20.0.34:7004 172.20.0.35:7005 172.20.0.36:7006 --cluster-yes --cluster-replicas 1
     networks:
       cluster_network:
@@ -16,7 +16,7 @@ services:
       - redis-cluster-6
 
   redis-cluster-1:
-    image: redis:5
+    image: redis:6
     command: redis-server /usr/local/etc/redis/redis.conf
     ports:
       - "7001:7001"
@@ -27,7 +27,7 @@ services:
         ipv4_address: 172.20.0.31
 
   redis-cluster-2:
-    image: redis:5
+    image: redis:6
     command: redis-server /usr/local/etc/redis/redis.conf
     ports:
       - "7002:7002"
@@ -38,7 +38,7 @@ services:
         ipv4_address: 172.20.0.32
 
   redis-cluster-3:
-    image: redis:5
+    image: redis:6
     command: redis-server /usr/local/etc/redis/redis.conf
     ports:
       - "7003:7003"
@@ -49,7 +49,7 @@ services:
         ipv4_address: 172.20.0.33
 
   redis-cluster-4:
-    image: redis:5
+    image: redis:6
     command: redis-server /usr/local/etc/redis/redis.conf
     ports:
       - "7004:7004"
@@ -60,7 +60,7 @@ services:
         ipv4_address: 172.20.0.34
 
   redis-cluster-5:
-    image: redis:5
+    image: redis:6
     command: redis-server /usr/local/etc/redis/redis.conf
     ports:
       - "7005:7005"
@@ -71,7 +71,7 @@ services:
         ipv4_address: 172.20.0.35
 
   redis-cluster-6:
-    image: redis:5
+    image: redis:6
     command: redis-server /usr/local/etc/redis/redis.conf
     ports:
       - "7006:7006"
