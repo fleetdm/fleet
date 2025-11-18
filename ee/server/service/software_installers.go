@@ -139,7 +139,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	var teamName *string
 	if payload.TeamID != nil && *payload.TeamID != 0 {
-		t, err := svc.ds.TeamWithExtras(ctx, *payload.TeamID)
+		t, err := svc.ds.TeamLite(ctx, *payload.TeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting team name on upload software installer")
 		}
@@ -791,7 +791,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 
 	var teamName *string
 	if teamID != nil && *teamID != 0 {
-		t, err := svc.ds.TeamWithExtras(ctx, *teamID)
+		t, err := svc.ds.TeamLite(ctx, *teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting team name for deleted VPP app")
 		}
@@ -841,7 +841,7 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 
 	var teamName *string
 	if meta.TeamID != nil {
-		t, err := svc.ds.TeamWithExtras(ctx, *meta.TeamID)
+		t, err := svc.ds.TeamLite(ctx, *meta.TeamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting team name for deleted software")
 		}

@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "6.6.19875",
+      "version": "6.6.22255",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND publisher = 'Zoom';"
       },
-      "installer_url": "https://zoom.us/client/6.6.6.19875/ZoomInstallerFull.msi?archType=x64",
+      "installer_url": "https://zoom.us/client/6.6.10.22255/ZoomInstallerFull.msi?archType=x64",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "94e215e0",
-      "sha256": "7279fef6b5d312665621d5a9e1fef0b95c1001ee661cf0baefaf11659c054801",
+      "sha256": "53e1eca704589e41a19c061bfe1bb7cd917ef230c21eb9fdd629d963f58926db",
       "default_categories": [
         "Communication"
       ]

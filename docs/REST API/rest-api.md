@@ -893,6 +893,68 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only
 
 ---
 
+## Conditional access
+
+- [Get Okta certificate](#get-okta-certificate)
+- [Get Okta configuration profile](#get-okta-configuration-profile)
+- [Delete Microsoft Entra ID](#disconnect-microsoft-entra-id) 
+
+### Get Okta certificate
+
+Download the SAML IdP signing certificate for Okta conditional access. Okta uses this certificate to verify SAML assertions signed by Fleet.
+
+`GET /api/v1/fleet/conditional_access/idp/signing_cert`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/conditional_access/idp/signing_cert`
+
+##### Default response
+
+`Status: 200`
+
+Returns a PEM-encoded X.509 certificate file with `Content-Type: application/x-pem-file`.
+
+### Get Okta configuration profile
+
+Download the macOS configuration profile (.mobileconfig) for Okta conditional access. This profile configures SCEP enrollment and client certificate authentication on macOS hosts.
+
+`GET /api/v1/fleet/conditional_access/idp/apple/profile`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/conditional_access/idp/apple/profile`
+
+##### Default response
+
+`Status: 200`
+
+Returns an Apple configuration profile file with `Content-Type: application/x-apple-aspen-config`.
+
+### Delete Microsoft Entra ID
+
+Disconnects Fleet from Entra. This won't unblock end users failing policies. Learn how to [unblock end users](https://fleetdm.com/guides/entra-conditional-access-integration#disable).
+
+`DELETE /api/v1/conditional-access/microsoft`
+
+#### Parameters
+
+None.
+
+##### Default response
+
+`Status: 200`
+
+---
+
 ## File carving
 
 - [List carves](#list-carves)
@@ -6725,57 +6787,13 @@ Set software that will be automatically installed during setup. Software that is
 {}
 ```
 
-### Create setup experience script
-
-_Available in Fleet Premium_
-
-Add a script that will automatically run during macOS setup.
-
-`POST /api/v1/fleet/setup_experience/script`
-
-| Name  | Type   | In    | Description                              |
-| ----- | ------ | ----- | ---------------------------------------- |
-| team_id | integer | form | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
-| script | file | form | The contents of the script to run during setup. |
-
-#### Example
-
-`POST /api/v1/fleet/setup_experience/script`
-
-##### Default response
-
-`Status: 200`
-
-##### Request headers
-
-```http
-Content-Length: 306
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
-##### Request body
-
-```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="team_id"
-
-1
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="script"; filename="myscript.sh"
-Content-Type: application/octet-stream
-
-echo "hello"
---------------------------f02md47480und42y--
-
-```
-
 ### Update setup experience script
 
 _Available in Fleet Premium_
 
-Changes the script that will automatically run during macOS setup. Updates the existing script for the team, or for hosts with no team, if one already exists.
+Set the script that will automatically run during macOS setup. Updates the existing script for the team, or for hosts with no team, if one already exists.
 
-`PUT /api/v1/fleet/setup_experience/script`
+`POST /api/v1/fleet/setup_experience/script`
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
@@ -6784,7 +6802,7 @@ Changes the script that will automatically run during macOS setup. Updates the e
 
 #### Example
 
-`PUT /api/v1/fleet/setup_experience/script`
+`POST /api/v1/fleet/setup_experience/script`
 
 ##### Default response
 

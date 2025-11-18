@@ -925,7 +925,7 @@ func (svc *Service) GetQuerySpecs(ctx context.Context, teamID *uint) ([]*fleet.Q
 func (svc *Service) specFromQuery(ctx context.Context, query *fleet.Query) (*fleet.QuerySpec, error) {
 	var teamName string
 	if query.TeamID != nil {
-		team, err := svc.ds.TeamWithExtras(ctx, *query.TeamID)
+		team, err := svc.ds.TeamLite(ctx, *query.TeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get team from id")
 		}
