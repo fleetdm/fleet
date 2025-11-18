@@ -1053,7 +1053,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
 			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
 			expectError:      true,
-			processingError:  "failed to retrieve host for hardware serial number substitution",
+			processingError:  "found 2 hosts with UUID test-uuid-789; profile variable substitution for hardware serial number requires exactly one host",
 			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
 				require.True(t, ds.UpdateOrDeleteHostMDMWindowsProfileFuncInvoked)
 			},

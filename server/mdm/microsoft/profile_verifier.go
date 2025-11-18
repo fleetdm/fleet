@@ -499,9 +499,9 @@ func getHostHardwareSerial(ctx context.Context, ds fleet.Datastore, profileUUID 
 			OperationType: fleet.MDMOperationTypeInstall,
 		})
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "updating host MDM Windows profile for hardware serial")
+			return "", ctxerr.Wrap(ctx, err, "failed to retrieve host for hardware serial number variable substitution")
 		}
-		return "", ctxerr.Errorf(ctx, "failed to retrieve host for hardware serial number substitution")
+		return "", ctxerr.Errorf(ctx, "found %d hosts with UUID %s; profile variable substitution for hardware serial number requires exactly one host", len(hosts), hostUUID)
 	}
 	hardwareSerial := hosts[0].HardwareSerial
 	return hardwareSerial, nil
