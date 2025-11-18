@@ -50,6 +50,16 @@ func TestAndroid(t *testing.T) {
 		{"AndroidBYODDetection", testAndroidBYODDetection},
 		{"SetAndroidHostUnenrolled", testSetAndroidHostUnenrolled},
 		{"BulkSetAndroidHostsUnenrolled", testBulkSetAndroidHostsUnenrolled},
+		{"InsertAndGetAndroidAppConfiguration", testInsertAndGetAndroidAppConfiguration},
+		{"UpdateAndroidAppConfiguration", testUpdateAndroidAppConfiguration},
+		{"DeleteAndroidAppConfiguration", testDeleteAndroidAppConfiguration},
+		{"GetAndroidAppConfiguration_NotFound", testGetAndroidAppConfigurationNotFound},
+		{"UpdateAndroidAppConfiguration_NotFound", testUpdateAndroidAppConfigurationNotFound},
+		{"DeleteAndroidAppConfiguration_NotFound", testDeleteAndroidAppConfigurationNotFound},
+		{"InsertAndroidAppConfiguration_Duplicate", testInsertAndroidAppConfigurationDuplicate},
+		{"AndroidAppConfiguration_CascadeDeleteApp", testAndroidAppConfigurationCascadeDeleteApp},
+		{"AndroidAppConfiguration_CascadeDeleteTeam", testAndroidAppConfigurationCascadeDeleteTeam},
+		{"AndroidAppConfiguration_GlobalVsTeam", testAndroidAppConfigurationGlobalVsTeam},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2300,4 +2310,277 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 		return sqlx.GetContext(testCtx(), q, &androidHostProfileCount, `SELECT COUNT(*) FROM host_mdm_android_profiles`)
 	})
 	assert.Equal(t, 0, androidHostProfileCount)
+}
+
+// setupTestApp creates a test Android app in vpp_apps table
+func setupTestApp(t *testing.T, ds *Datastore, adamID string) {
+	_, err := ds.writer(testCtx()).ExecContext(testCtx(), `
+		INSERT INTO vpp_apps (adam_id, platform, bundle_identifier, name, latest_version, icon_url)
+		VALUES (?, 'android', ?, 'Test App', '1.0', 'http://example.com/icon.png')
+	`, adamID, adamID)
+	require.NoError(t, err)
+}
+
+// setupTestTeam creates a test team
+func setupTestTeam(t *testing.T, ds *Datastore) uint {
+	team, err := ds.NewTeam(testCtx(), &fleet.Team{Name: "Test Team"})
+	require.NoError(t, err)
+	return team.ID
+}
+
+func testInsertAndGetAndroidAppConfiguration(t *testing.T, ds *Datastore) {
+	adamID := "com.example.testapp"
+	setupTestApp(t, ds, adamID)
+
+	config := &fleet.AndroidAppConfiguration{
+		AdamID:         adamID,
+		Platform:       "android",
+		TeamID:         nil,
+		GlobalOrTeamID: 0,
+		Configuration:  json.RawMessage(`{"managedConfiguration": {"key": "value"}}`),
+	}
+
+	// Insert configuration
+	err := ds.InsertAndroidAppConfiguration(testCtx(), config)
+	require.NoError(t, err)
+
+	// Get configuration
+	retrieved, err := ds.GetAndroidAppConfiguration(testCtx(), adamID, 0)
+	require.NoError(t, err)
+	require.NotNil(t, retrieved)
+	require.Equal(t, adamID, retrieved.AdamID)
+	require.Equal(t, "android", retrieved.Platform)
+	require.Nil(t, retrieved.TeamID)
+	require.Equal(t, uint(0), retrieved.GlobalOrTeamID)
+	require.JSONEq(t, string(config.Configuration), string(retrieved.Configuration))
+	require.NotZero(t, retrieved.ID)
+	require.NotZero(t, retrieved.CreatedAt)
+	require.NotZero(t, retrieved.UpdatedAt)
+}
+
+func testUpdateAndroidAppConfiguration(t *testing.T, ds *Datastore) {
+	adamID := "com.example.updateapp"
+	setupTestApp(t, ds, adamID)
+
+	config := &fleet.AndroidAppConfiguration{
+		AdamID:         adamID,
+		Platform:       "android",
+		TeamID:         nil,
+		GlobalOrTeamID: 0,
+		Configuration:  json.RawMessage(`{"managedConfiguration": {"key": "value1"}}`),
+	}
+
+	// Insert initial configuration
+	err := ds.InsertAndroidAppConfiguration(testCtx(), config)
+	require.NoError(t, err)
+
+	// Update configuration
+	newConfig := json.RawMessage(`{"managedConfiguration": {"key": "value2"}, "workProfileWidgets": true}`)
+	config.Configuration = newConfig
+	err = ds.UpdateAndroidAppConfiguration(testCtx(), config)
+	require.NoError(t, err)
+
+	// Verify update
+	retrieved, err := ds.GetAndroidAppConfiguration(testCtx(), adamID, 0)
+	require.NoError(t, err)
+	require.JSONEq(t, string(newConfig), string(retrieved.Configuration))
+}
+
+func testDeleteAndroidAppConfiguration(t *testing.T, ds *Datastore) {
+	adamID := "com.example.deleteapp"
+	setupTestApp(t, ds, adamID)
+
+	config := &fleet.AndroidAppConfiguration{
+		AdamID:         adamID,
+		Platform:       "android",
+		TeamID:         nil,
+		GlobalOrTeamID: 0,
+		Configuration:  json.RawMessage(`{"managedConfiguration": {}}`),
+	}
+
+	// Insert configuration
+	err := ds.InsertAndroidAppConfiguration(testCtx(), config)
+	require.NoError(t, err)
+
+	// Verify it exists
+	_, err = ds.GetAndroidAppConfiguration(testCtx(), adamID, 0)
+	require.NoError(t, err)
+
+	// Delete configuration
+	err = ds.DeleteAndroidAppConfiguration(testCtx(), adamID, 0)
+	require.NoError(t, err)
+
+	// Verify it's deleted
+	_, err = ds.GetAndroidAppConfiguration(testCtx(), adamID, 0)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "not found")
+}
+
+func testGetAndroidAppConfigurationNotFound(t *testing.T, ds *Datastore) {
+	_, err := ds.GetAndroidAppConfiguration(testCtx(), "nonexistent.app", 0)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "not found")
+}
+
+func testUpdateAndroidAppConfigurationNotFound(t *testing.T, ds *Datastore) {
+	config := &fleet.AndroidAppConfiguration{
+		AdamID:         "nonexistent.app",
+		GlobalOrTeamID: 0,
+		Configuration:  json.RawMessage(`{}`),
+	}
+
+	err := ds.UpdateAndroidAppConfiguration(testCtx(), config)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "not found")
+}
+
+func testDeleteAndroidAppConfigurationNotFound(t *testing.T, ds *Datastore) {
+	err := ds.DeleteAndroidAppConfiguration(testCtx(), "nonexistent.app", 0)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "not found")
+}
+
+func testInsertAndroidAppConfigurationDuplicate(t *testing.T, ds *Datastore) {
+	adamID := "com.example.duplicateapp"
+	setupTestApp(t, ds, adamID)
+
+	config := &fleet.AndroidAppConfiguration{
+		AdamID:         adamID,
+		Platform:       "android",
+		TeamID:         nil,
+		GlobalOrTeamID: 0,
+		Configuration:  json.RawMessage(`{"managedConfiguration": {}}`),
+	}
+
+	// Insert first time - should succeed
+	err := ds.InsertAndroidAppConfiguration(testCtx(), config)
+	require.NoError(t, err)
+
+	// Insert duplicate - should fail due to unique constraint
+	err = ds.InsertAndroidAppConfiguration(testCtx(), config)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "Duplicate")
+}
+
+func testAndroidAppConfigurationCascadeDeleteApp(t *testing.T, ds *Datastore) {
+	adamID := "com.example.cascadeapp"
+	setupTestApp(t, ds, adamID)
+
+	config := &fleet.AndroidAppConfiguration{
+		AdamID:         adamID,
+		Platform:       "android",
+		TeamID:         nil,
+		GlobalOrTeamID: 0,
+		Configuration:  json.RawMessage(`{"managedConfiguration": {}}`),
+	}
+
+	// Insert configuration
+	err := ds.InsertAndroidAppConfiguration(testCtx(), config)
+	require.NoError(t, err)
+
+	// Verify it exists
+	_, err = ds.GetAndroidAppConfiguration(testCtx(), adamID, 0)
+	require.NoError(t, err)
+
+	// Delete the app from vpp_apps
+	_, err = ds.writer(testCtx()).ExecContext(testCtx(), `
+		DELETE FROM vpp_apps WHERE adam_id = ? AND platform = 'android'
+	`, adamID)
+	require.NoError(t, err)
+
+	// Verify configuration is also deleted (CASCADE)
+	_, err = ds.GetAndroidAppConfiguration(testCtx(), adamID, 0)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "not found")
+}
+
+func testAndroidAppConfigurationCascadeDeleteTeam(t *testing.T, ds *Datastore) {
+	adamID := "com.example.teamcascadeapp"
+	setupTestApp(t, ds, adamID)
+	teamID := setupTestTeam(t, ds)
+
+	config := &fleet.AndroidAppConfiguration{
+		AdamID:         adamID,
+		Platform:       "android",
+		TeamID:         ptr.Uint(teamID),
+		GlobalOrTeamID: teamID,
+		Configuration:  json.RawMessage(`{"managedConfiguration": {}}`),
+	}
+
+	// Insert configuration
+	err := ds.InsertAndroidAppConfiguration(testCtx(), config)
+	require.NoError(t, err)
+
+	// Verify it exists
+	_, err = ds.GetAndroidAppConfiguration(testCtx(), adamID, teamID)
+	require.NoError(t, err)
+
+	// Delete the team
+	err = ds.DeleteTeam(testCtx(), teamID)
+	require.NoError(t, err)
+
+	// Verify configuration is also deleted (CASCADE)
+	_, err = ds.GetAndroidAppConfiguration(testCtx(), adamID, teamID)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "not found")
+}
+
+func testAndroidAppConfigurationGlobalVsTeam(t *testing.T, ds *Datastore) {
+	adamID := "com.example.globalvsteamapp"
+	setupTestApp(t, ds, adamID)
+	teamID := setupTestTeam(t, ds)
+
+	// Insert global configuration
+	globalConfig := &fleet.AndroidAppConfiguration{
+		AdamID:         adamID,
+		Platform:       "android",
+		TeamID:         nil,
+		GlobalOrTeamID: 0,
+		Configuration:  json.RawMessage(`{"managedConfiguration": {"env": "global"}}`),
+	}
+	err := ds.InsertAndroidAppConfiguration(testCtx(), globalConfig)
+	require.NoError(t, err)
+
+	// Insert team configuration
+	teamConfig := &fleet.AndroidAppConfiguration{
+		AdamID:         adamID,
+		Platform:       "android",
+		TeamID:         ptr.Uint(teamID),
+		GlobalOrTeamID: teamID,
+		Configuration:  json.RawMessage(`{"managedConfiguration": {"env": "team"}}`),
+	}
+	err = ds.InsertAndroidAppConfiguration(testCtx(), teamConfig)
+	require.NoError(t, err)
+
+	// Verify global configuration
+	retrievedGlobal, err := ds.GetAndroidAppConfiguration(testCtx(), adamID, 0)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"managedConfiguration": {"env": "global"}}`, string(retrievedGlobal.Configuration))
+	require.Nil(t, retrievedGlobal.TeamID)
+	require.Equal(t, uint(0), retrievedGlobal.GlobalOrTeamID)
+
+	// Verify team configuration
+	retrievedTeam, err := ds.GetAndroidAppConfiguration(testCtx(), adamID, teamID)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"managedConfiguration": {"env": "team"}}`, string(retrievedTeam.Configuration))
+	require.NotNil(t, retrievedTeam.TeamID)
+	require.Equal(t, teamID, *retrievedTeam.TeamID)
+	require.Equal(t, teamID, retrievedTeam.GlobalOrTeamID)
+}
+
+func TestAndroidAppConfiguration_PlatformConstraint(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer TruncateTables(t, ds)
+
+	adamID := "com.example.platformtest"
+	setupTestApp(t, ds, adamID)
+
+	// Try to insert configuration with non-android platform (should fail CHECK constraint)
+	_, err := ds.writer(testCtx()).ExecContext(testCtx(), `
+		INSERT INTO android_app_configurations
+		(adam_id, platform, team_id, global_or_team_id, configuration)
+		VALUES (?, 'ios', NULL, 0, '{}')
+	`, adamID)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "Check constraint")
 }
