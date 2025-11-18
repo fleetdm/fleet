@@ -24,6 +24,6 @@ software:
       self_service: true
       display_name: "Custom Package Name"
   app_store_apps:
-    - app_store_id: "12345"
+    - app_store_id: "1"
       display_name: "My Custom VPP App"
       self_service: true
