@@ -16,10 +16,17 @@
       "description": "Password manager that keeps all passwords secure behind one password."
     },
     {
+      "name": "Adobe Acrobat Pro DC",
+      "slug": "adobe-acrobat-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adobe.Acrobat.Pro",
+      "description": "Adobe Acrobat Pro is an app to view, create, manipulate, print and manage files in Portable Document Format."
+    },
+    {
       "name": "Abstract",
       "slug": "abstract/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.SweetScape.010Editor",
+      "unique_identifier": "com.elasticprojects.abstract-desktop",
       "description": "Abstract is a collaborative design tool with support for Sketch files."
     },
     {
