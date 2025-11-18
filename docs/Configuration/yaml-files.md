@@ -487,13 +487,16 @@ Can only be configured for all teams (`default.yml`).
 
 The `software` section allows you to configure packages, Apple App Store apps, and Fleet-maintained apps that you want to install on your hosts.
 
-- `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .sh, or .ps1).
+- `packages` is a list of paths to custom packages (.pkg, .ipa, .msi, .exe, .rpm, .deb, or .tar.gz).
+- `packages` is a list of paths to custom packages (.pkg, .ipa, .msi, .exe, .deb, .rpm, .tar.gz, .sh, or .ps1).
 - `app_store_apps` is a list of Apple App Store apps.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
 Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install a custom package or App Store app when a host fails a policy. [Automatic install support for Fleet-maintained apps](https://github.com/fleetdm/fleet/issues/29584) is coming soon.
 
 Currently, Fleet only allows one package, Apple App Store app, or Fleet-maintained app for a specific software. This means, if you specify a Google Chrome for macOS twice in `packages` or once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet.
+
+Currently, when a `.ipa` file is added in `packages`, Fleet adds software for both iOS and iPadOS, along with all specified settings (e.g. `self_service`). If software for one platform is deleted in the UI, it will come back when GitOps is re-run.
 
 #### Example
 
