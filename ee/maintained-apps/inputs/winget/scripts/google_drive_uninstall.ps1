@@ -1,6 +1,6 @@
 $softwareName = "Google Drive"
 
-$uninstallArgs = "--uninstall"
+$uninstallArgs = "--silent --force_stop"
 
 $expectedExitCodes = @()
 
@@ -49,7 +49,7 @@ try {
                 FilePath = $uninstallCommand
                 PassThru = $true
                 Wait = $true
-                ArgumentList = "$uninstallArgs --silent".Split(' ')
+                ArgumentList = "$uninstallArgs".Split(' ')
                 NoNewWindow = $true
             }
 
