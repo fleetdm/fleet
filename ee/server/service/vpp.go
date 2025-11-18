@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -443,6 +444,12 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}
 
 		assetMD := assetMetadata[asset.AdamID]
+
+		// Configuration is an android only feature
+		// TODO(JK): error?
+		if len(appID.Configuration) > 0 {
+			appID.Configuration = nil
+		}
 
 		platforms := getPlatformsFromSupportedDevices(assetMD.SupportedDevices)
 		if _, ok := platforms[appID.Platform]; !ok {

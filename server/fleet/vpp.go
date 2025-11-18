@@ -49,8 +49,8 @@ type VPPAppTeam struct {
 	AddedAutomaticInstallPolicy *Policy `json:"-"`
 	// Configuration is a json file used to customize Android app
 	// behavior/settings. Relevant to Android only.
-	Configuration []byte `json:"configuration"`
-	DisplayName   string `json:"display_name"`
+	Configuration json.RawMessage `json:"configuration"`
+	DisplayName   string          `json:"display_name"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,

@@ -911,6 +911,12 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 		return notFound("VPPApp").WithMessage(fmt.Sprintf("adam id %s platform %s for team id %d", appID.AdamID, appID.Platform,
 			globalOrTeamID))
 	}
+
+	err = ds.deleteAndroidAppConfiguration(ctx, teamID, appID.AdamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting android app configuration")
+	}
+
 	return nil
 }
 
