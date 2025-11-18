@@ -103,6 +103,27 @@ Sometimes there is a change in the champion within the customer's organization.
 4. Fill out all the required fields making sure to pick "Expansion" in the  "Type" dropdown menu and then click "Save".
 
 
+### Schedule a Fast-track engagement
+
+Fast-track is Fleet's service delivery package for new MDM customers. Check with your team to learn about the options available and the differences between them (virtual vs on site, migration vs no migration). If your customer has a Fast-track engagement, it will be included in their contract. Follow the directions below to get a Fast-track set up and collect the training pre-requisites.
+
+1. When a deal including Fast-track closes, add a TODO on the final page of the partnership kickoff presentation, to confirm the details around their services purchase and to coordinate scheduling. Be sure to make the customer aware that delays in confirming service delivery date can cause the date to move out further.
+2. Prior to the Fast-track kickoff, schedule a Pre-requisite planning meeting with the customer and the assigned CSA to collect the following information:
+- What is the target migration date and when does the previous MDM contract end?
+- Which critical workflows will Fleet be used for?
+  - Onboarding workflow?
+  - Offboarding workflow?
+  - Automated device enrollment (ADE)? Autopilot?
+  - Setup experience?
+  - Self-service software?
+- Which integrations will be required for migration? Which integrations will be required post-migration (no hard timeline)?
+  - IAM?
+  - Log shipping to SIEM?
+  - Zendesk/JIRA?
+  - Others?
+- Gather a list of which policies and profiles need to be replicated or replaced
+
+
 ### Conduct a health check
 
 Health checks are conducted quarterly or bi-annually, in preparation for a quarterly business review (QBR). The purpose of a health check is to understand what features and functionality the customer is currently using in Fleet. This information will be used to provide guidance to the customer during their QBR. For more information around QBRs, please see the section below, titled "Conduct a quarterly business review".
