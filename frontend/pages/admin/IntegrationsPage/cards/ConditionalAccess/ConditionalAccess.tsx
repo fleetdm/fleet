@@ -75,10 +75,10 @@ const DeleteConditionalAccessModal = ({
         <p>
           Before you delete, first unblock all end users.{" "}
           <CustomLink
-              text="Learn how"
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/disable-entra-conditional-access`}
-              newTab
-          />    
+            text="Learn how"
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/disable-entra-conditional-access`}
+            newTab
+          />
         </p>
         <p>
           End users failing policies will stay blocked until you do this.
