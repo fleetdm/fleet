@@ -37,6 +37,13 @@
       "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
     },
     {
+      "name": "Asana",
+      "slug": "asana/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.asana",
+      "description": ""
+    },
+    {
       "name": "Beyond Compare",
       "slug": "beyond-compare/darwin",
       "platform": "darwin",
@@ -461,7 +468,7 @@
       "slug": "yubico-yubikey-manager/darwin",
       "platform": "darwin",
       "unique_identifier": "com.yubico.ykman",
-      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
+      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: \u003ca target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\"\u003ehttps://www.yubico.com/support/download/yubikey-manager\u003c/a\u003e"
     },
     {
       "name": "Zoom",
