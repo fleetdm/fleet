@@ -380,6 +380,13 @@
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
     },
     {
+      "name": "PyCharm Community Edition",
+      "slug": "pycharm-ce/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.pycharm.ce",
+      "description": "Jetbrains IDE for Python programming - Community Edition"
+    },
+    {
       "name": "Rectangle",
       "slug": "rectangle/darwin",
       "platform": "darwin",
