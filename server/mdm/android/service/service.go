@@ -33,7 +33,7 @@ var testSetEmptyPrivateKey bool
 
 // We use numbers for policy names for easier mapping/indexing with Fleet DB.
 const (
-	defaultAndroidPolicyID   = 1
+	DefaultAndroidPolicyID   = 1
 	DefaultSignupSSEInterval = 3 * time.Second
 	SignupSSESuccess         = "Android Enterprise successfully connected"
 )
@@ -331,7 +331,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 		return ctxerr.Wrap(ctx, err, "updating enterprise")
 	}
 
-	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), fmt.Sprintf("%d", defaultAndroidPolicyID))
+	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), fmt.Sprintf("%d", DefaultAndroidPolicyID))
 	_, err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
 		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
 			DeviceSettingsEnabled:        true,
@@ -349,7 +349,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 		},
 	})
 	if err != nil && !androidmgmt.IsNotModifiedError(err) {
-		return ctxerr.Wrapf(ctx, err, "patching %d policy", defaultAndroidPolicyID)
+		return ctxerr.Wrapf(ctx, err, "patching %d policy", DefaultAndroidPolicyID)
 	}
 
 	err = svc.ds.DeleteOtherEnterprises(ctx, enterprise.ID)
@@ -587,7 +587,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 
 		AdditionalData:     string(enrollmentTokenRequest),
 		AllowPersonalUsage: "PERSONAL_USAGE_ALLOWED",
-		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), +defaultAndroidPolicyID),
+		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), +DefaultAndroidPolicyID),
 		OneTimeOnly:        true,
 	}
 	token, err = svc.androidAPIClient.EnterprisesEnrollmentTokensCreate(ctx, enterprise.Name(), token)
@@ -909,7 +909,7 @@ func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
 	}
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 
-	policyName := fmt.Sprintf("%s/policies/%d", enterprise.Name(), defaultAndroidPolicyID)
+	policyName := fmt.Sprintf("%s/policies/%d", enterprise.Name(), DefaultAndroidPolicyID)
 	_, err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
 		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
 			DeviceSettingsEnabled:        true,
@@ -926,7 +926,7 @@ func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
 		},
 	})
 	if err != nil && !androidmgmt.IsNotModifiedError(err) {
-		return ctxerr.Wrapf(ctx, err, "enabling app reports on %d default policy", defaultAndroidPolicyID)
+		return ctxerr.Wrapf(ctx, err, "enabling app reports on %d default policy", DefaultAndroidPolicyID)
 	}
 	return nil
 }

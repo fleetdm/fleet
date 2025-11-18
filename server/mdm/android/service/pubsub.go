@@ -410,6 +410,20 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
+
+	if fromEnroll {
+		enterprise, err := svc.ds.GetEnterprise(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get android enterprise")
+		}
+
+		err = worker.QueueRunAndroidSetupExperience(ctx, svc.fleetDS, svc.logger,
+			host.Host.UUID, host.Host.TeamID, enterprise.EnterpriseID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueuing run android setup experience for host job")
+		}
+	}
+
 	// Enrollment activities are intentionally not emitted for Android at this time.
 	return nil
 }
@@ -457,9 +471,8 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 			DeviceID: deviceID,
 		},
 	}
-	policy := ptr.String(fmt.Sprint(defaultAndroidPolicyID))
 	if device.AppliedPolicyName != "" {
-		policy, err = svc.getPolicyID(ctx, device)
+		policy, err := svc.getPolicyID(ctx, device)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting Android policy ID")
 		}
@@ -492,9 +505,10 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
 
-	err = worker.QueueMakeAndroidAppsAvailableForHostJob(ctx, svc.fleetDS, svc.logger, device.HardwareInfo.EnterpriseSpecificId, fleetHost.Host.ID, enterprise.Name(), *policy)
+	err = worker.QueueRunAndroidSetupExperience(ctx, svc.fleetDS, svc.logger,
+		fleetHost.Host.UUID, fleetHost.Host.TeamID, enterprise.EnterpriseID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "enqueuing make android apps available for host job")
+		return ctxerr.Wrap(ctx, err, "enqueuing run android setup experience for host job")
 	}
 
 	return nil
