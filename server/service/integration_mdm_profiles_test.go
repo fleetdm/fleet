@@ -8134,20 +8134,9 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 	// Now simulate the race condition:
 	// we trigger a resend before the acknowledgement comes back
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "mdm_configuration_profile_variables")
-		mysql.DumpTable(t, q, "host_mdm_apple_profiles")
-		return nil
-	})
-
 	// 1. Trigger an IDP variable change by updating SCIM user
 	err = s.ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUserID, UserName: "newuser@example.com"})
 	require.NoError(t, err)
-
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "host_mdm_apple_profiles")
-		return nil
-	})
 
 	// 2. At this point, the profile should be marked for resend (status = NULL)
 	hostProfiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
@@ -8162,7 +8151,12 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 	}
 	require.NotNil(t, testProfile)
 	require.Equal(t, fleet.MDMDeliveryPending, *testProfile.Status) // Should be NULL (pending for the user)
-	// TODO: add Db check for actual null here
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var status *fleet.MDMDeliveryStatus
+		err := sqlx.GetContext(t.Context(), q, &status, `SELECT status FROM host_mdm_apple_profiles WHERE profile_identifier = ?`, testProfile.Identifier)
+		require.Nil(t, status)
+		return err
+	})
 
 	// Acknowledge the original install command now, simulating the device response
 	cmd, err = mdmDevice.Acknowledge(profileCmdID)
@@ -8193,10 +8187,57 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 	require.Nil(t, cmd, "No further commands should be pending after acknowledging install")
 	require.False(t, seenProfile, "No resend install command for TestProfile should be sent due to race condition")
 
-	// Verify the profile is now in verifying status (the race condition)
+	// Verify the profile is still in pending status (null in the DB)
+	// aka. no race condition.
 	hostProfiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 
+	for _, p := range hostProfiles {
+		if p.Identifier == "com.test.profile" {
+			testProfile = &p
+			break
+		}
+	}
+	require.NotNil(t, testProfile)
+	require.Equal(t, fleet.MDMDeliveryPending, *testProfile.Status)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var status *fleet.MDMDeliveryStatus
+		err := sqlx.GetContext(t.Context(), q, &status, `SELECT status FROM host_mdm_apple_profiles WHERE profile_identifier = ?`, testProfile.Identifier)
+		require.Nil(t, status)
+		return err
+	})
+
+	// run reconciler to resend any pending profiles
+	s.awaitTriggerProfileSchedule(t)
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	// Now we should see the resend command
+	seenProfile = false
+	for cmd != nil {
+		if cmd.Command.RequestType != "InstallProfile" {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+			continue
+		}
+		var fullCmd micromdm.CommandPayload
+		err = plist.Unmarshal(cmd.Raw, &fullCmd)
+		require.NoError(t, err)
+		if strings.Contains(string(fullCmd.Command.InstallProfile.Payload), "TestProfile") {
+			seenProfile = true
+			// Acknowledge the resend command
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		} else {
+			// Acknowledge other commands
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+	}
+	require.True(t, seenProfile, "Resend install command for TestProfile should be sent after reconciler runs")
+
+	// And we should now also see the profile being marked as verifying
+	hostProfiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
 	for _, p := range hostProfiles {
 		if p.Identifier == "com.test.profile" {
 			testProfile = &p
