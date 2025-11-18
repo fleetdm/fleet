@@ -8047,9 +8047,7 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 	assert.Equal(t, scepserver.DefaultCACaps, string(body))
 }
 
-// This test is aimed at reproducing the possible issue, that when IDP variable changes it resends the profile,
-// if pending, aka. command sent but no response, we then resend the profile again (set it to null), but before reconciler runs
-// the command result is back moving it to verifying, which skips the actual resend
+// This test verifies that there is no longer a race condition in apple profile resending
 func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 	t := s.T()
 	ctx := context.Background()
