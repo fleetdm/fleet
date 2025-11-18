@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -147,6 +148,6 @@ type VPPAppUpdate struct {
 	LabelsIncludeAny []string
 	LabelsExcludeAny []string
 	Categories       []string
-	Configuration    []byte
+	Configuration    json.RawMessage
 	DisplayName      string
 }

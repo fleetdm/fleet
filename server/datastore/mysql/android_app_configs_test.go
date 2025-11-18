@@ -1,7 +1,10 @@
 package mysql
 
 import (
+	"context"
 	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/test"
 )
 
 func TestAndroidAppConfigs(t *testing.T) {
@@ -11,7 +14,7 @@ func TestAndroidAppConfigs(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		// {"TestAddDeleteAndroidAppConfig", testAddDeleteAndroidAppConfig},
+		{"TestAddDeleteAndroidAppConfig", testAndroidAppConfigCrud},
 		// {"TestAddAppWithConfig", testAddAppWithAndroidConfig},
 	}
 	for _, c := range cases {
@@ -20,4 +23,11 @@ func TestAndroidAppConfigs(t *testing.T) {
 			c.fn(t, ds)
 		})
 	}
+}
+
+func testAndroidAppConfigCrud(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
 }

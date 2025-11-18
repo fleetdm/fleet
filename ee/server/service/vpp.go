@@ -617,7 +617,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		teamName = tm.Name
 	}
 
-	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, labelsIncludeAny, labelsExcludeAny)
+	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating software labels")
 	}
@@ -632,9 +632,9 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 			VPPAppID: fleet.VPPAppID{
 				AdamID: meta.AdamID, Platform: meta.Platform,
 			},
-			SelfService:     selfService,
+			SelfService:     payload.SelfService,
 			ValidatedLabels: validatedLabels,
-			DisplayName:     displayName,
+			DisplayName:     payload.DisplayName,
 		},
 		TeamID:           teamID,
 		TitleID:          titleID,
@@ -646,16 +646,16 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		appToWrite.IconURL = *meta.IconURL
 	}
 
-	categories = server.RemoveDuplicatesFromSlice(categories)
-	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, categories)
+	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
+	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
 	}
 
-	if len(catIDs) != len(categories) {
+	if len(catIDs) != len(payload.Categories) {
 		return nil, &fleet.BadRequestError{
 			Message:     "some or all of the categories provided don't exist",
-			InternalErr: fmt.Errorf("categories provided: %v", categories),
+			InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
 		}
 	}
 
@@ -723,7 +723,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	act := fleet.ActivityEditedAppStoreApp{
 		TeamName:         &teamName,
 		TeamID:           teamID,
-		SelfService:      selfService,
+		SelfService:      payload.SelfService,
 		SoftwareTitleID:  titleID,
 		SoftwareTitle:    meta.Name,
 		AppStoreID:       meta.AdamID,
