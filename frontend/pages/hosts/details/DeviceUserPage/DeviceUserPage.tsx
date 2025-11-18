@@ -28,7 +28,7 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { isAppleDevice, isLinuxLike } from "interfaces/platform";
+import { isAppleDevice, isLinuxLike, isIPadOrIPhone } from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
 
@@ -340,7 +340,7 @@ const DeviceUserPage = ({
   } = dupResponse || {};
   const isPremiumTier = license?.tier === "premium";
   const isAppleHost = isAppleDevice(host?.platform);
-  const isIOSIPadOS = host?.platform === "ios" || host?.platform === "ipados";
+  const isIOSIPadOS = isIPadOrIPhone(host?.platform || "");
   const isSetupExperienceSoftwareEnabledPlatform =
     isLinuxLike(host?.platform || "") ||
     host?.platform === "windows" ||
@@ -604,7 +604,7 @@ const DeviceUserPage = ({
         hasSelfService
       ) {
         router.replace(PATHS.DEVICE_USER_DETAILS_SELF_SERVICE(deviceAuthToken));
-        return <Spinner />;
+        return null;
       }
 
       // Render the simplified mobile version
@@ -883,7 +883,6 @@ const DeviceUserPage = ({
           isMobileView={isMobileView}
           isMobileDevice={isMobileDevice}
           isAuthenticationError={!!isAuthenticationError}
-          platform={host?.platform}
         />
       ) : (
         <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>

@@ -10,20 +10,16 @@ interface IDeviceUserErrorProps {
   /** Modifies error message for iPhone/iPad/Android */
   isMobileDevice?: boolean;
   isAuthenticationError?: boolean;
-  platform?: string;
 }
 
 const DeviceUserError = ({
   isMobileView = false,
   isMobileDevice = false,
   isAuthenticationError = false,
-  platform,
 }: IDeviceUserErrorProps): JSX.Element => {
   const wrapperClassnames = classNames(baseClass, {
     [`${baseClass}__mobile-view`]: isMobileView,
   });
-
-  const isIOSIPadOS = platform === "ios" || platform === "ipados";
 
   // Default: "Something went wrong"
   let headerContent: React.ReactNode = (
