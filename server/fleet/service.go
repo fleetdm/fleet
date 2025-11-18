@@ -1276,7 +1276,9 @@ type Service interface {
 	GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetFailedSetupSteps bool) (*SetupExperienceStatusPayload, error)
 	// GetSetupExperienceScript gets the current setup experience script for the given team.
 	GetSetupExperienceScript(ctx context.Context, teamID *uint, downloadRequested bool) (*Script, []byte, error)
-	// SetSetupExperienceScript sets the setup experience script for the given team.
+	// SetSetupExperienceScript sets the setup experience script for a given team, deleting the existing one if it exists
+	// and is different and replacing it with a new one. Effectively an upsert operation which does nothing if the contents
+	// do not change
 	SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error
 	// DeleteSetupExperienceScript deletes the setup experience script for the given team.
 	DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error
