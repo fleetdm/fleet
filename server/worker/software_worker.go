@@ -207,6 +207,10 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 	}
 
 	// TODO(mna): next we can request install of the setup experience software
+	// if the host has been transferred to another team before it had a chance to install
+	// the enrollment team's setup experience software, do we still run those installs?
+	// my guess is yes (because we don't _uninstall_ on team transfers, so it should be
+	// expected that the original team's software gets installed despite being transferred).
 
 	return nil
 }
