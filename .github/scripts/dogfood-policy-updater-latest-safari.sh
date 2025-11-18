@@ -23,21 +23,28 @@ if [ -z "$response" ] || [[ "$response" == *"Not Found"* ]]; then
     exit 1
 fi
 
-# Extract the query line
-query_line=$(echo "$response" | grep 'query:')
-if [ -z "$query_line" ]; then
-    echo "Error: Could not find the query line in the file."
+# Extract the query section (may be multi-line)
+query_section=$(echo "$response" | sed -n '/^query:/,/^[^ ]/p' | head -n -1)
+
+if [ -z "$query_section" ]; then
+    echo "Error: Could not find the query section in the file."
     exit 1
 fi
 
-# Extract the version number from the query line
-policy_version_number=$(echo "$query_line" | grep -oE "'[0-9]+\.[0-9]+(\.[0-9]+)?'" | sed "s/'//g")
-if [ -z "$policy_version_number" ]; then
-    echo "Error: Failed to extract the policy version number."
+# Extract Safari 18 and Safari 26 version numbers from the query
+# Safari 18 is for macOS 15.x, Safari 26 is for macOS 26.x
+policy_safari_18_version=$(echo "$query_section" | grep -A 5 "version >= '15.0'" | grep "version_compare" | grep -oE "'[0-9]+\.[0-9]+(\.[0-9]+)?'" | sed "s/'//g" | head -n 1)
+policy_safari_26_version=$(echo "$query_section" | grep -A 5 "version >= '26.0'" | grep "version_compare" | grep -oE "'[0-9]+\.[0-9]+(\.[0-9]+)?'" | sed "s/'//g" | head -n 1)
+
+if [ -z "$policy_safari_18_version" ] || [ -z "$policy_safari_26_version" ]; then
+    echo "Error: Failed to extract Safari version numbers from policy."
+    echo "Safari 18 version found: $policy_safari_18_version"
+    echo "Safari 26 version found: $policy_safari_26_version"
     exit 1
 fi
 
-echo "Policy version number: $policy_version_number"
+echo "Policy Safari 18 version: $policy_safari_18_version"
+echo "Policy Safari 26 version: $policy_safari_26_version"
 
 # Fetch the latest Safari version from SOFA feed
 echo "Fetching latest Safari version from SOFA feed..."
@@ -48,44 +55,78 @@ if [ -z "$safari_feed_response" ] || [[ "$safari_feed_response" == *"404"* ]] ||
     exit 1
 fi
 
-# Parse Safari feed - get the latest version from all AppVersions
+# Parse Safari feed - get latest versions for Safari 18 (macOS 15) and Safari 26 (macOS 26)
 # The feed structure has AppVersions array, each with a Latest.ProductVersion
-# We prioritize Safari 18 (most common for macOS 15 Sequoia), then get the highest version overall
-# First try to get Safari 18 latest version
 safari_18_version=$(echo "$safari_feed_response" | jq -r '.AppVersions[] | select(.AppVersion == "Safari 18") | .Latest.ProductVersion' 2>/dev/null | head -n 1)
+safari_26_version=$(echo "$safari_feed_response" | jq -r '.AppVersions[] | select(.AppVersion == "Safari 26") | .Latest.ProductVersion' 2>/dev/null | head -n 1)
 
-# If Safari 18 exists, use it; otherwise get the highest version overall
-if [ -n "$safari_18_version" ] && [ "$safari_18_version" != "null" ]; then
-    latest_safari_version="$safari_18_version"
-else
-    # Fallback: get the highest version across all AppVersions
-    latest_safari_version=$(echo "$safari_feed_response" | jq -r '.AppVersions[] | .Latest.ProductVersion' 2>/dev/null | sort -Vr | head -n 1)
-fi
-
-if [ -z "$latest_safari_version" ] || [ "$latest_safari_version" == "null" ]; then
-    echo "Error: Failed to parse Safari version from SOFA feed."
+if [ -z "$safari_18_version" ] || [ "$safari_18_version" == "null" ]; then
+    echo "Error: Failed to parse Safari 18 version from SOFA feed."
     exit 1
 fi
 
-# Clean up version string (remove any extra whitespace or characters)
-latest_safari_version=$(echo "$latest_safari_version" | xargs)
-
-if [ -z "$latest_safari_version" ]; then
-    echo "Error: Failed to fetch the latest Safari version."
+if [ -z "$safari_26_version" ] || [ "$safari_26_version" == "null" ]; then
+    echo "Error: Failed to parse Safari 26 version from SOFA feed."
     exit 1
 fi
 
-echo "Latest Safari version: $latest_safari_version"
+# Clean up version strings (remove any extra whitespace or characters)
+safari_18_version=$(echo "$safari_18_version" | xargs)
+safari_26_version=$(echo "$safari_26_version" | xargs)
 
-# Compare versions and update the file if needed
-if [ "$policy_version_number" != "$latest_safari_version" ]; then
-    echo "Updating query line with the new version..."
+echo "Safari 18 (macOS 15) latest version: $safari_18_version"
+echo "Safari 26 (macOS 26) latest version: $safari_26_version"
 
-    # Prepare the new query line
-    new_query_line="query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.Safari') OR EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.Safari' AND version_compare(bundle_short_version, '$latest_safari_version') >= 0);"
+# Check if updates are needed
+update_needed=false
+if [ "$policy_safari_18_version" != "$safari_18_version" ]; then
+    echo "Safari 18 version update needed: $policy_safari_18_version -> $safari_18_version"
+    update_needed=true
+fi
 
-    # Update the response
-    updated_response=$(echo "$response" | sed "s/query: .*/$new_query_line/")
+if [ "$policy_safari_26_version" != "$safari_26_version" ]; then
+    echo "Safari 26 version update needed: $policy_safari_26_version -> $safari_26_version"
+    update_needed=true
+fi
+
+# Update the file if needed
+if [ "$update_needed" = true ]; then
+    echo "Updating policy query with new Safari versions..."
+
+    # Prepare the new query section with updated versions
+    new_query_section="query: |
+    SELECT 1 WHERE 
+      NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.Safari')
+      OR (
+        EXISTS (SELECT 1 FROM os_version WHERE version LIKE '26.%')
+        AND EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.Safari' AND version_compare(bundle_short_version, '$safari_26_version') >= 0)
+      )
+      OR (
+        EXISTS (SELECT 1 FROM os_version WHERE version LIKE '15.%')
+        AND EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.Safari' AND version_compare(bundle_short_version, '$safari_18_version') >= 0)
+      );"
+
+    # Replace the query section in the response
+    # Use a more robust approach: find the query section and replace it
+    updated_response=$(echo "$response" | awk -v new_query="$new_query_section" '
+        BEGIN {
+            in_query = 0
+            query_started = 0
+        }
+        /^query:/ {
+            query_started = 1
+            in_query = 1
+            print new_query
+            next
+        }
+        query_started && /^[a-zA-Z-]/ && !/^  / && !/^query:/ {
+            in_query = 0
+            query_started = 0
+        }
+        !in_query {
+            print
+        }
+    ')
     if [ -z "$updated_response" ]; then
         echo "Error: Failed to update the query line."
         exit 1
@@ -110,11 +151,23 @@ if [ "$policy_version_number" != "$latest_safari_version" ]; then
     git checkout -b "$NEW_BRANCH"
     cp "$temp_file" "$FILE_PATH"
     git add "$FILE_PATH"
-    git commit -m "Update Safari version number to $latest_safari_version"
+    commit_message="Update Safari versions: Safari 18 (macOS 15) to $safari_18_version, Safari 26 (macOS 26) to $safari_26_version"
+    if [ "$policy_safari_18_version" != "$safari_18_version" ]; then
+        commit_message="$commit_message
+
+- Updated Safari 18 version from $policy_safari_18_version to $safari_18_version"
+    fi
+    if [ "$policy_safari_26_version" != "$safari_26_version" ]; then
+        commit_message="$commit_message
+- Updated Safari 26 version from $policy_safari_26_version to $safari_26_version"
+    fi
+    
+    git commit -m "$commit_message"
     git push origin "$NEW_BRANCH"
 
     # Create a pull request
-    pr_data=$(jq -n --arg title "Update Safari version number to $latest_safari_version" \
+    pr_title="Update Safari versions: Safari 18 to $safari_18_version, Safari 26 to $safari_26_version"
+    pr_data=$(jq -n --arg title "$pr_title" \
                  --arg head "$NEW_BRANCH" \
                  --arg base "$BRANCH" \
                  '{title: $title, head: $head, base: $base}')
@@ -160,6 +213,6 @@ if [ "$policy_version_number" != "$latest_safari_version" ]; then
     fi
     echo "Reviewers added successfully."
 else
-    echo "No updates needed; the version is the same."
+    echo "No updates needed; Safari versions are current."
 fi
 
