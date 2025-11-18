@@ -28,7 +28,11 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { isAppleDevice, isLinuxLike, isIPadOrIPhone } from "interfaces/platform";
+import {
+  isAppleDevice,
+  isLinuxLike,
+  isIPadOrIPhone,
+} from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
 
