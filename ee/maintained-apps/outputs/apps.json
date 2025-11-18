@@ -303,6 +303,13 @@
       "description": "Microsoft Word is the industry-standard word processor for creating, editing, and sharing professional documents."
     },
     {
+      "name": "Miro",
+      "slug": "miro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.realtimeboard",
+      "description": "Online collaborative whiteboard platform"
+    },
+    {
       "name": "Notion",
       "slug": "notion/darwin",
       "platform": "darwin",
