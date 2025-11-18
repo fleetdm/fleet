@@ -10470,7 +10470,7 @@ Delete a custom icon added via [Update software icon](#update-software-icon). Th
 
 `Status: 204`
 
-### List App Store apps
+### List app store apps
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
