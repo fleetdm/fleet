@@ -394,18 +394,18 @@
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
     },
     {
-      "name": "PyCharm Professional",
-      "slug": "pycharm/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.jetbrains.pycharm",
-      "description": "Jetbrain IDE for professional Python development. This version includes advanced features and requires a valid license."
-    },
-    {
       "name": "PyCharm Community Edition",
       "slug": "pycharm-ce/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.pycharm.ce",
       "description": "Jetbrains IDE for Python programming - Community Edition"
+    },
+    {
+      "name": "PyCharm Professional",
+      "slug": "pycharm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.pycharm",
+      "description": "Jetbrain IDE for professional Python development. This version includes advanced features and requires a valid license."
     },
     {
       "name": "Rectangle",
