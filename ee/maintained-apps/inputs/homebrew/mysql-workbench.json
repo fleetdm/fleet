@@ -1,6 +1,6 @@
 {
   "name": "MySQL Workbench",
-  "slug": "mysqlworkbench/darwin",
+  "slug": "mysql-workbench/darwin",
   "unique_identifier": "com.oracle.workbench.MySQLWorkbench",
   "token": "mysqlworkbench",
   "installer_format": "dmg",
