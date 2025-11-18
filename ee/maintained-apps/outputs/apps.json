@@ -16,18 +16,18 @@
       "description": "Password manager that keeps all passwords secure behind one password."
     },
     {
-      "name": "Adobe Acrobat Pro DC",
-      "slug": "adobe-acrobat-pro/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.adobe.Acrobat.Pro",
-      "description": "Adobe Acrobat Pro is an app to view, create, manipulate, print and manage files in Portable Document Format."
-    },
-    {
       "name": "Abstract",
       "slug": "abstract/darwin",
       "platform": "darwin",
       "unique_identifier": "com.elasticprojects.abstract-desktop",
       "description": "Abstract is a collaborative design tool with support for Sketch files."
+    },
+    {
+      "name": "Adobe Acrobat Pro DC",
+      "slug": "adobe-acrobat-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adobe.Acrobat.Pro",
+      "description": "Adobe Acrobat Pro is an app to view, create, manipulate, print and manage files in Portable Document Format."
     },
     {
       "name": "Adobe Acrobat Reader",
@@ -77,6 +77,13 @@
       "platform": "windows",
       "unique_identifier": "Brave",
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
+    },
+    {
+      "name": "Canva",
+      "slug": "canva/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.canva.CanvaDesktop",
+      "description": "Canva is an popular online graphic design tool."
     },
     {
       "name": "Claude",
@@ -468,7 +475,7 @@
       "slug": "yubico-yubikey-manager/darwin",
       "platform": "darwin",
       "unique_identifier": "com.yubico.ykman",
-      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
+      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: \u003ca target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\"\u003ehttps://www.yubico.com/support/download/yubikey-manager\u003c/a\u003e"
     },
     {
       "name": "Zoom",
