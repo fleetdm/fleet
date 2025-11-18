@@ -178,6 +178,13 @@
     },
     {
       "name": "Google Drive",
+      "slug": "google-drive/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.drivefs",
+      "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
+    },
+    {
+      "name": "Google Drive",
       "slug": "google-drive/windows",
       "platform": "windows",
       "unique_identifier": "Google Drive",
