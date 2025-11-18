@@ -15200,104 +15200,6 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	digiCertServer.certReqMu.Unlock()
 
 	// ////////////////////////////////
-	// Test DigiCert CA with HOST_PLATFORM Fleet variable
-	caPlatform := fleet.DigiCertCA{
-		Name:                          "PlatformVar",
-		URL:                           digiCertServer.server.URL,
-		APIToken:                      "api_token",
-		ProfileID:                     "profile_id",
-		CertificateCommonName:         "$FLEET_VAR_" + string(fleet.FleetVarHostPlatform) + "-device",
-		CertificateUserPrincipalNames: []string{"${FLEET_VAR_" + string(fleet.FleetVarHostPlatform) + "}@example.com"},
-		CertificateSeatID:             "seat_${FLEET_VAR_" + string(fleet.FleetVarHostPlatform) + "}",
-	}
-	certPayload = createCertificateAuthorityRequest{
-		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
-			DigiCert: &caPlatform,
-		},
-	}
-	resPlatform := createCertificateAuthorityResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &resPlatform)
-
-	profilePlatform := digiCertForTest("N5", "I5", "PlatformVar")
-	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-		{Name: "N2", Contents: profile}, // resend the previous profile so it doesn't get removed
-		{Name: "N5", Contents: profilePlatform},
-	}}, http.StatusNoContent)
-	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
-	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(profiles), 2)
-
-	// trigger a profile sync
-	s.awaitTriggerProfileSchedule(t)
-	p = s.assertConfigProfilesByIdentifier(nil, "I5", true)
-	require.Contains(t, string(p.Mobileconfig), "com.fleetdm.pkcs12")
-
-	// Check that status is pending (and not failed)
-	getHostResp = getDeviceHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
-	require.NotNil(t, getHostResp.Host.MDM.Profiles)
-	found = false
-	for _, prof := range *getHostResp.Host.MDM.Profiles {
-		if prof.Name == "N5" {
-			found = true
-			assert.Equal(t, fleet.MDMDeliveryPending, *prof.Status)
-			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
-			assert.Empty(t, prof.Detail)
-			continue
-		}
-	}
-	assert.True(t, found)
-
-	cmd, err = mdmDevice.Idle()
-	require.NoError(t, err)
-	require.NotNil(t, cmd, "Expecting PKCS12 certificate for platform variable")
-	require.Equal(t, "InstallProfile", cmd.Command.RequestType)
-	fullCmd = micromdm.CommandPayload{}
-	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-
-	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-	require.NoError(t, err)
-	assert.Nil(t, cmd)
-
-	require.NotNil(t, fullCmd.Command)
-	require.NotNil(t, fullCmd.Command.InstallProfile)
-	rawProfile = fullCmd.Command.InstallProfile.Payload
-	if !bytes.HasPrefix(rawProfile, []byte("<?xml")) {
-		p7, err := pkcs7.Parse(rawProfile)
-		require.NoError(t, err)
-		require.NoError(t, p7.Verify())
-		rawProfile = p7.Content
-	}
-
-	pkcs12Prof = pkcs12Profile{}
-	require.NoError(t, plist.Unmarshal(rawProfile, &pkcs12Prof))
-	assert.Equal(t, "com.apple.security.pkcs12", pkcs12Prof.PayloadContent[0]["PayloadType"].(string))
-	password = pkcs12Prof.PayloadContent[0]["Password"].(string)
-	data = pkcs12Prof.PayloadContent[0]["PayloadContent"].([]byte)
-	_, certificate, err = pkcs12.Decode(data, password)
-	require.NoError(t, err)
-	// darwin platform should be converted to "macos"
-	assert.Equal(t, "macos-device", certificate.Subject.CommonName)
-
-	// Check request to DigiCert for platform variable replacement
-	digiCertServer.certReqMu.Lock()
-	assert.Equal(t, caPlatform.ProfileID, digiCertServer.certReq.Profile["id"])
-	assert.Equal(t, "seat_macos", digiCertServer.certReq.Seat["seat_id"])
-	assert.Equal(t, "x509", digiCertServer.certReq.DeliveryFormat)
-	assert.Equal(t, "macos-device", digiCertServer.certReq.Attributes["subject"].(map[string]interface{})["common_name"])
-
-	// Need to convert UPNs to string slice since assert.Equal cannot compare string slice and interface slice
-	upnsReceived = digiCertServer.certReq.Attributes["extensions"].(map[string]interface{})["san"].(map[string]interface{})["user_principal_names"].([]interface{})
-	stringSlice = nil
-	for _, item := range upnsReceived {
-		if str, ok := item.(string); ok {
-			stringSlice = append(stringSlice, str)
-		}
-	}
-	assert.Equal(t, []string{"macos@example.com"}, stringSlice)
-	digiCertServer.certReqMu.Unlock()
-
-	// ////////////////////////////////
 	// Test a good profile with 2 DigiCert payloads -- happy path
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N2", Contents: profile},          // resend the previous profile so it doesn't get removed
@@ -15378,6 +15280,156 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	res = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
 	assert.Len(t, res.Integrations.DigiCert.Value, 3)*/
+}
+
+func (s *integrationMDMTestSuite) TestDigiCertIntegrationWithHostPlatform() {
+	t := s.T()
+	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
+	digiCertServer := createMockDigiCertServer(t)
+
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConfig.MDM.MacOSSetup = fleet.MacOSSetup{
+		EnableEndUserAuthentication: false,
+	}
+	err = s.ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
+
+	// Add DigiCert config
+	ca := newMockDigicertCA(digiCertServer.server.URL, "my_CA")
+	ca.APIToken = "api_token0"
+	certPayload := createCertificateAuthorityRequest{
+		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
+			DigiCert: &ca,
+		},
+	}
+	res := createCertificateAuthorityResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &res)
+
+	// Create a host and then enroll to MDM.
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setupPusher(s, t, mdmDevice)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(profiles), 0)
+
+	// Receive enrollment profiles (we are not checking/testing these here)
+	for {
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		if cmd == nil {
+			break
+		}
+		_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// ////////////////////////////////
+	// Test DigiCert CA with HOST_PLATFORM Fleet variable
+	caPlatform := fleet.DigiCertCA{
+		Name:                          "PlatformVar",
+		URL:                           digiCertServer.server.URL,
+		APIToken:                      "api_token",
+		ProfileID:                     "profile_id",
+		CertificateCommonName:         "$FLEET_VAR_" + string(fleet.FleetVarHostPlatform) + "-device",
+		CertificateUserPrincipalNames: []string{"${FLEET_VAR_" + string(fleet.FleetVarHostPlatform) + "}@example.com"},
+		CertificateSeatID:             "seat_${FLEET_VAR_" + string(fleet.FleetVarHostPlatform) + "}",
+	}
+	certPayload = createCertificateAuthorityRequest{
+		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
+			DigiCert: &caPlatform,
+		},
+	}
+	resPlatform := createCertificateAuthorityResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &resPlatform)
+
+	profilePlatform := digiCertForTest("N5", "I5", "PlatformVar")
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N5", Contents: profilePlatform},
+	}}, http.StatusNoContent)
+	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(profiles), 1)
+
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	s.assertConfigProfilesByIdentifier(nil, "I5", true)
+
+	// Check that status is pending (and not failed)
+	getHostResp := getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	found := false
+	for _, prof := range *getHostResp.Host.MDM.Profiles {
+		if prof.Name == "N5" {
+			found = true
+			assert.Equal(t, fleet.MDMDeliveryPending, *prof.Status)
+			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
+			assert.Empty(t, prof.Detail)
+			continue
+		}
+	}
+	assert.True(t, found)
+
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd, "Expecting PKCS12 certificate for platform variable")
+	require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+	fullCmd := micromdm.CommandPayload{}
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
+	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	assert.Nil(t, cmd)
+
+	require.NotNil(t, fullCmd.Command)
+	require.NotNil(t, fullCmd.Command.InstallProfile)
+	rawProfile := fullCmd.Command.InstallProfile.Payload
+	if !bytes.HasPrefix(rawProfile, []byte("<?xml")) {
+		p7, err := pkcs7.Parse(rawProfile)
+		require.NoError(t, err)
+		require.NoError(t, p7.Verify())
+		rawProfile = p7.Content
+	}
+
+	type pkcs12Profile struct {
+		PayloadContent []map[string]interface{} `plist:"PayloadContent"`
+	}
+
+	pkcs12Prof := pkcs12Profile{}
+	require.NoError(t, plist.Unmarshal(rawProfile, &pkcs12Prof))
+	assert.Equal(t, "com.apple.security.pkcs12", pkcs12Prof.PayloadContent[0]["PayloadType"].(string))
+	password := pkcs12Prof.PayloadContent[0]["Password"].(string)
+	data := pkcs12Prof.PayloadContent[0]["PayloadContent"].([]byte)
+	_, certificate, err := pkcs12.Decode(data, password)
+	require.NoError(t, err)
+	// darwin platform should be converted to "macos"
+	assert.Equal(t, "macos-device", certificate.Subject.CommonName)
+
+	// Check request to DigiCert for platform variable replacement
+	digiCertServer.certReqMu.Lock()
+	assert.Equal(t, caPlatform.ProfileID, digiCertServer.certReq.Profile["id"])
+	assert.Equal(t, "seat_macos", digiCertServer.certReq.Seat["seat_id"])
+	assert.Equal(t, "x509", digiCertServer.certReq.DeliveryFormat)
+	assert.Equal(t, "macos-device", digiCertServer.certReq.Attributes["subject"].(map[string]interface{})["common_name"])
+
+	// Need to convert UPNs to string slice since assert.Equal cannot compare string slice and interface slice
+	upnsReceived := digiCertServer.certReq.Attributes["extensions"].(map[string]interface{})["san"].(map[string]interface{})["user_principal_names"].([]interface{})
+	var stringSlice []string
+	for _, item := range upnsReceived {
+		if str, ok := item.(string); ok {
+			stringSlice = append(stringSlice, str)
+		}
+	}
+	assert.Equal(t, []string{"macos@example.com"}, stringSlice)
+	digiCertServer.certReqMu.Unlock()
+
+	// ////////////////////////////////
+	// Modify the CN/UPN/Seat ID of the profile -- DigiCert verification should not happen
+	digiCertServer.server.Close() // so that verify fails if attempted
 }
 
 //go:embed testdata/profiles/digicert.mobileconfig

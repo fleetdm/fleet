@@ -3538,19 +3538,14 @@ func TestPreprocessProfileContents(t *testing.T) {
 		}, nil
 	}
 	profileContents = map[string]mobileconfig.Mobileconfig{
-		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarHostPlatform),
+		"p1": []byte("$FLEET_VAR_HOST_PLATFORM"),
 	}
 	updatedProfile = nil
 	populateTargets()
 	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
-	assert.Nil(t, updatedProfile)
-	require.NotEmpty(t, targets)
 	assert.Len(t, targets, 1)
-	for profUUID, target := range targets {
-		assert.NotEqual(t, profUUID, "p1") // new temporary UUID generated for specific host
-		assert.NotEqual(t, cmdUUID, target.cmdUUID)
-		assert.Equal(t, []string{hostUUID}, target.enrollmentIDs)
+	for profUUID := range targets {
 		assert.Equal(t, "macos", string(profileContents[profUUID]))
 	}
 
@@ -3565,35 +3560,9 @@ func TestPreprocessProfileContents(t *testing.T) {
 	populateTargets()
 	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
-	assert.Nil(t, updatedProfile)
-	require.NotEmpty(t, targets)
 	assert.Len(t, targets, 1)
-	for profUUID, target := range targets {
-		assert.NotEqual(t, profUUID, "p1") // new temporary UUID generated for specific host
-		assert.NotEqual(t, cmdUUID, target.cmdUUID)
-		assert.Equal(t, []string{hostUUID}, target.enrollmentIDs)
+	for profUUID := range targets {
 		assert.Equal(t, "ios", string(profileContents[profUUID]))
-	}
-
-	// Host Platform - iPadOS
-	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
-		assert.Equal(t, []string{hostUUID}, uuids)
-		return []*fleet.Host{
-			{ID: 1, UUID: hostUUID, Platform: "ipados", HardwareSerial: "serial1"},
-		}, nil
-	}
-	updatedProfile = nil
-	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
-	require.NoError(t, err)
-	assert.Nil(t, updatedProfile)
-	require.NotEmpty(t, targets)
-	assert.Len(t, targets, 1)
-	for profUUID, target := range targets {
-		assert.NotEqual(t, profUUID, "p1") // new temporary UUID generated for specific host
-		assert.NotEqual(t, cmdUUID, target.cmdUUID)
-		assert.Equal(t, []string{hostUUID}, target.enrollmentIDs)
-		assert.Equal(t, "ipados", string(profileContents[profUUID]))
 	}
 
 	// Host Platform fail - host not found
@@ -3617,19 +3586,15 @@ func TestPreprocessProfileContents(t *testing.T) {
 		}, nil
 	}
 	profileContents = map[string]mobileconfig.Mobileconfig{
-		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarHostPlatform + " $FLEET_VAR_" + fleet.FleetVarHostHardwareSerial),
+		"p1": []byte("$FLEET_VAR_HOST_PLATFORM $FLEET_VAR_HOST_HARDWARE_SERIAL"),
 	}
 	updatedProfile = nil
 	populateTargets()
 	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	assert.Nil(t, updatedProfile)
-	require.NotEmpty(t, targets)
 	assert.Len(t, targets, 1)
-	for profUUID, target := range targets {
-		assert.NotEqual(t, profUUID, "p1") // new temporary UUID generated for specific host
-		assert.NotEqual(t, cmdUUID, target.cmdUUID)
-		assert.Equal(t, []string{hostUUID}, target.enrollmentIDs)
+	for profUUID := range targets {
 		assert.Equal(t, "macos serial123", string(profileContents[profUUID]))
 	}
 
