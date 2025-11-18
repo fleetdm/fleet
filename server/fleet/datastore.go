@@ -2356,15 +2356,6 @@ type Datastore interface {
 	// It returns a minimal device struct with host and device identifiers.
 	ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error)
 
-	// UpsertAndroidAppConfiguration inserts or updates an app configuration json
-	UpsertAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID *uint, adamID string, configuration json.RawMessage) error
-
-	// DeleteAndroidAppConfiguration deletes an android app configuration
-	DeleteAndroidAppConfiguration(ctx context.Context, teamID *uint, adamID string) error
-
-	// GetAndroidAppConfiguration gets the json configuration for an android app
-	GetAndroidAppConfiguration(ctx context.Context, teamID *uint, adamID string) (cfg json.RawMessage, err error)
-
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
 

@@ -2,9 +2,12 @@ package mysql
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAndroidAppConfigs(t *testing.T) {
@@ -28,6 +31,11 @@ func TestAndroidAppConfigs(t *testing.T) {
 func testAndroidAppConfigCrud(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	// user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	ds.upsertAndroidAppConfigurationTx(ctx, tx, &team.ID, "adamid", json.RawMessage{})
 
 }

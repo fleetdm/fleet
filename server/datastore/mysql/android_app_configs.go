@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) UpsertAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID *uint, adamID string, configuration json.RawMessage) error {
+func (ds *Datastore) upsertAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID *uint, adamID string, configuration json.RawMessage) error {
 	err := validateAndroidAppConfiguration(ctx, configuration)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating android app configuration")
@@ -41,7 +41,7 @@ func (ds *Datastore) UpsertAndroidAppConfigurationTx(ctx context.Context, tx sql
 	return nil
 }
 
-func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, teamID *uint, adamID string) error {
+func (ds *Datastore) deleteAndroidAppConfiguration(ctx context.Context, teamID *uint, adamID string) error {
 	var globalOrTeamID uint
 	if teamID != nil {
 		globalOrTeamID = *teamID
@@ -70,7 +70,7 @@ func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, teamID *
 	return nil
 }
 
-func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, teamID *uint, adamID string) (cfg json.RawMessage, err error) {
+func (ds *Datastore) getAndroidAppConfiguration(ctx context.Context, teamID *uint, adamID string) (cfg json.RawMessage, err error) {
 	var globalOrTeamID uint
 	if teamID != nil {
 		globalOrTeamID = *teamID
