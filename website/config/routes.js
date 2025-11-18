@@ -636,7 +636,7 @@ module.exports.routes = {
   'GET /handbook/product': '/handbook/product-design',
   'GET /handbook/business-operations': '/handbook/finance',
   'GET /handbook/digital-experience':'/handbook/it-and-enablement',
-
+  'GET /guides/entra-conditional-access-integration':'/guides/conditional-access',
   'GET /docs': '/docs/get-started/why-fleet',
   'GET /docs/get-started': '/docs/get-started/why-fleet',
   'GET /docs/rest-api': '/docs/rest-api/rest-api',
