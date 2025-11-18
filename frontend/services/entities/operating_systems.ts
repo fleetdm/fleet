@@ -23,6 +23,7 @@ export interface IGetOSVersionsQueryParams {
   order_direction?: string;
   page?: number;
   per_page?: number;
+  max_vulnerabilities?: number;
 }
 
 export interface IGetOSVersionsQueryKey extends IGetOSVersionsQueryParams {
@@ -41,6 +42,7 @@ export interface IOSVersionsResponse {
 interface IGetOsVersionOptions {
   os_version_id: number;
   teamId?: number;
+  max_vulnerabilities?: number;
 }
 
 export interface IGetOsVersionQueryKey extends IGetOsVersionOptions {
@@ -66,6 +68,7 @@ export const getOSVersions = ({
   order_direction,
   page,
   per_page,
+  max_vulnerabilities = 0,
 }: IGetOSVersionsQueryParams = {}): Promise<IOSVersionsResponse> => {
   const { OS_VERSIONS } = endpoints;
   let path = OS_VERSIONS;
@@ -79,6 +82,7 @@ export const getOSVersions = ({
     order_direction,
     page,
     per_page,
+    max_vulnerabilities,
   };
 
   const queryString = buildQueryStringFromParams(params);
@@ -91,10 +95,14 @@ export const getOSVersions = ({
 const getOSVersion = ({
   os_version_id,
   teamId,
+  max_vulnerabilities,
 }: IGetOsVersionOptions): Promise<IOSVersionResponse> => {
   const endpoint = endpoints.OS_VERSION(os_version_id);
-  const queryString = buildQueryStringFromParams({ team_id: teamId });
-  const path = teamId !== undefined ? `${endpoint}?${queryString}` : endpoint;
+  const queryString = buildQueryStringFromParams({
+    team_id: teamId,
+    max_vulnerabilities,
+  });
+  const path = queryString ? `${endpoint}?${queryString}` : endpoint;
 
   return sendRequest("GET", path);
 };

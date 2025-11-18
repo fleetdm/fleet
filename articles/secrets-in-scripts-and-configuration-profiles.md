@@ -6,8 +6,7 @@
 
 In Fleet you can add variables, in [scripts](https://fleetdm.com/guides/scripts) and [configuration profiles](https://fleetdm.com/guides/custom-os-settings). Variables are hidden when the script or configuration profile is viewed in the Fleet UI or API.
 
-Variables can be defined using [Fleet's YAML (GitOps)](https://fleetdm.com/docs/configuration/yaml-files) or via the UI under `Controls` > `Variables`.
-If you are using GitOps, variables aren't removed on GitOps runs. You can delete them on the `Controls` > `Variables` page.
+Configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/docs/configuration/yaml-files#variables).
 
 ## Add variables
 
@@ -44,6 +43,8 @@ Variables are global, meaning they can be used in scripts and profiles across al
 When GitOps syncs the configuration, it looks for variables in scripts and profiles, extracts the variable's values from the environment, and uploads them to Fleet.
 
 On subsequent GitOps syncs, if a variable is used by an updated configuration profile, the profile will be resent to the host device(s).
+
+Variables aren't removed on GitOps runs. To remove a variable, delete it on the `Controls` > `Variables` page.
 
 > Profiles with variables are not entirely validated during a GitOps dry run because the required variables may not exist or may be incorrect in the database. As a result, these profiles have a higher chance of failing during a non-dry run. Test them by uploading to a small team first.
 

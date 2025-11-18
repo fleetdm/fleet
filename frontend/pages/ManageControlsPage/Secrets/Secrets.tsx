@@ -1,12 +1,6 @@
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 
-import { useQueryClient } from "react-query";
+import { useQuery } from "react-query";
 
 import secretsAPI, { IListSecretsResponse } from "services/entities/secrets";
 import { ISecret } from "interfaces/secrets";
@@ -41,48 +35,18 @@ const Secrets = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [secretToDelete, setSecretToDelete] = useState<ISecret | undefined>();
   const [showAddModal, setShowAddModal] = useState(false);
-
-  const [count, setCount] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-
-  const queryClient = useQueryClient();
+  const [pageNumber, setPageNumber] = useState(0);
 
   const { isGlobalAdmin, isGlobalMaintainer } = useContext(AppContext);
 
   const canEdit = isGlobalAdmin || isGlobalMaintainer;
 
-  // Fetch a single page of secrets.
-  const fetchPage = useCallback(
-    (pageNumber: number) => {
-      setIsLoading(true);
-      const fetchPromise = queryClient.fetchQuery(
-        [
-          {
-            page: pageNumber,
-            per_page: SECRETS_PAGE_SIZE,
-          },
-        ],
-        ({ queryKey }) => {
-          return secretsAPI.getSecrets(queryKey[0]);
-        },
-        {
-          staleTime: 100,
-        }
-      );
-
-      return fetchPromise.then(
-        ({
-          custom_variables: secrets,
-          count: numSecrets,
-        }: IListSecretsResponse) => {
-          setCount(numSecrets);
-          setIsLoading(false);
-          return secrets || [];
-        }
-      );
-    },
-    [queryClient]
-  );
+  const apiParams = { page: pageNumber, per_page: SECRETS_PAGE_SIZE };
+  const { data, isFetching: isLoading, refetch } = useQuery<
+    IListSecretsResponse,
+    Error,
+    IListSecretsResponse
+  >(["secrets", apiParams], () => secretsAPI.getSecrets(apiParams));
 
   const onClickAddSecret = () => {
     setShowAddModal(true);
@@ -90,23 +54,17 @@ const Secrets = () => {
 
   const onSaveSecret = () => {
     setShowAddModal(false);
-    // If we're showing a list right now, tell it to reload.
-    if (paginatedListRef.current) {
-      paginatedListRef.current?.reload();
-    } else {
-      // If we were showing the empty state, fetch the first page
-      // to populate the list.
-      fetchPage(0);
-    }
+    refetch();
+  };
+
+  const onDeleteSecret = () => {
+    setShowDeleteModal(false);
+    refetch();
   };
 
   const onClickDeleteSecret = (secret: ISecret) => {
     setSecretToDelete(secret);
     setShowDeleteModal(true);
-  };
-
-  const reloadList = () => {
-    paginatedListRef.current?.reload();
   };
 
   const getTokenFromSecretName = (secretName: string): string => {
@@ -155,12 +113,11 @@ const Secrets = () => {
               {getTokenFromSecretName(secret.name)}
             </span>
             <Button
-              variant="icon"
+              variant="unstyled"
               className={`${baseClass}__copy-secret-icon`}
               onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
                 onCopySecretName(e, secret.name)
               }
-              iconStroke
             >
               <Icon name="copy" />
             </Button>
@@ -174,31 +131,28 @@ const Secrets = () => {
       />
       {canEdit && (
         <Button
-          variant="icon"
+          variant="text-icon"
           onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation();
             onClickDeleteSecret(secret);
           }}
         >
           <>
-            <Icon name="trash" />
+            <Icon name="trash" color="ui-fleet-black-75" />
           </>
         </Button>
       )}
     </>
   );
 
-  if (count === null && !isLoading) {
-    fetchPage(0);
-  }
-  if (isLoading && count === null) {
+  if (isLoading) {
     return (
       <div className={`${baseClass}__loading`}>
         <Spinner />
       </div>
     );
   }
-  if (count === 0) {
+  if (data?.count === 0) {
     return (
       <>
         <EmptyTable
@@ -221,46 +175,49 @@ const Secrets = () => {
   }
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__page-header`}>
-        <p className={`${baseClass}__description`}>
-          Manage custom variables that will be available in scripts and
-          profiles.{" "}
-          <CustomLink
-            text="Learn more"
-            url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
-            newTab
-          />
-        </p>
-        {canEdit && (
-          <GitOpsModeTooltipWrapper
-            renderChildren={(disableChildren) => (
-              <span>
-                <Button
-                  variant="brand-inverse-icon"
-                  onClick={onClickAddSecret}
-                  disabled={disableChildren}
-                >
-                  <Icon name="plus" color="core-fleet-green" />
-                  <span>Add custom variable</span>
-                </Button>
-              </span>
-            )}
-          />
-        )}
-      </div>
+      <p className={`${baseClass}__description`}>
+        Manage custom variables that will be available in scripts and profiles.{" "}
+        <CustomLink
+          text="Learn more"
+          url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
+          newTab
+        />
+      </p>
       <PaginatedList<ISecret>
         ref={paginatedListRef}
         pageSize={SECRETS_PAGE_SIZE}
         renderItemRow={renderSecretRow}
-        count={count || 0}
-        fetchPage={fetchPage}
+        count={data?.count || 0}
+        data={data?.custom_variables || []}
+        currentPage={pageNumber}
+        onChangePage={setPageNumber}
         onClickRow={(secret) => secret}
-        heading={<div className={`${baseClass}__header`}>Custom variables</div>}
+        heading={
+          <div className={`${baseClass}__header`}>
+            <span>Custom variables</span>
+            {canEdit && (
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <span>
+                    <Button
+                      variant="text-icon"
+                      onClick={onClickAddSecret}
+                      disabled={disableChildren}
+                    >
+                      <Icon name="plus" />
+                      <span>Add custom variable</span>
+                    </Button>
+                  </span>
+                )}
+              />
+            )}
+          </div>
+        }
         helpText={
           <span>
             Profiles can also use any of Fleet&rsquo;s{" "}
             <CustomLink
-              url="https://fleetdm.com/docs/configuration/yaml-files#macos-settings-and-windows-settings"
+              url="https://fleetdm.com/learn-more-about/built-in-variables"
               text="built-in variables"
               newTab
             />
@@ -277,7 +234,7 @@ const Secrets = () => {
         <DeleteSecretModal
           secret={secretToDelete}
           onExit={() => setShowDeleteModal(false)}
-          reloadList={reloadList}
+          onDeleteSecret={onDeleteSecret}
         />
       )}
     </div>

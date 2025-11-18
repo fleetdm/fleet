@@ -1,0 +1,8 @@
+{
+   "name": "PyCharm Professional",
+   "slug": "pycharm/darwin",
+   "unique_identifier": "com.jetbrains.pycharm",
+   "token": "pycharm",
+   "installer_format": "dmg",
+   "default_categories": ["Developer tools"]
+}

@@ -76,6 +76,9 @@ export interface IAppleSetupEnrollmentProfileResponse {
 export interface IMDMSSOParams {
   deviceinfo: string;
   initiator: string;
+  // optional host_uuid to link SSO to a specific host; used in Orbit-initiated
+  // enrollments with end-user authentication.
+  host_uuid?: string;
 }
 
 export interface IMDMAppleEnrollmentProfileParams {

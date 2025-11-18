@@ -1,0 +1,8 @@
+{
+  "name": "Sublime Text",
+  "unique_identifier": "com.sublimetext.4",
+  "token": "sublime-text",
+  "installer_format": "zip",
+  "slug": "sublime-text/darwin",
+  "default_categories": ["Developer tools"]
+}

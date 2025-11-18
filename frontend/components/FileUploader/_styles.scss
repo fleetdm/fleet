@@ -8,7 +8,7 @@
   padding: $pad-xlarge $pad-large;
   font-size: $x-small;
   text-align: center;
-  
+
   .content-wrapper {
     @include content-wrapper();
   }
@@ -42,7 +42,8 @@
     // we handle the padding in the label so the entire button is clickable
     padding: 0;
 
-    label {
+    label,
+    span {
       padding: $pad-small $pad-medium;
       display: flex;
       align-items: center;

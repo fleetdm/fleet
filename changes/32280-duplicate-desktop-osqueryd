@@ -1,1 +1,0 @@
-* Linux/macOS packaging: removed duplicate tar.gz copies of osqueryd and Fleet Desktop from built packages (DEB/RPM/PKG).

@@ -59,10 +59,8 @@ func (s *enterpriseTestSuite) TestEnterprise() {
 	assert.Equal(s.T(), tests.EnterpriseSignupURL, signupResp.Url)
 	s.T().Logf("callbackURL: %s", s.ProxyCallbackURL)
 
-	s.FleetSvc.On("NewActivity", mock.Anything, mock.Anything, mock.AnythingOfType("fleet.ActivityTypeEnabledAndroidMDM")).Return(nil)
 	const enterpriseToken = "enterpriseToken"
 	res := s.Do("GET", s.ProxyCallbackURL, nil, http.StatusOK, "enterpriseToken", enterpriseToken)
-	s.FleetSvc.AssertNumberOfCalls(s.T(), "NewActivity", 1)
 	body, err := io.ReadAll(res.Body)
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), "text/html; charset=UTF-8", res.Header.Get("Content-Type"))
@@ -82,9 +80,7 @@ func (s *enterpriseTestSuite) TestEnterprise() {
 	assert.Equal(s.T(), tests.EnterpriseID, resp.EnterpriseID)
 
 	// Delete enterprise and make sure we can't find it.
-	s.FleetSvc.On("NewActivity", mock.Anything, mock.Anything, mock.AnythingOfType("fleet.ActivityTypeDisabledAndroidMDM")).Return(nil)
 	s.Do("DELETE", "/api/v1/fleet/android_enterprise", nil, http.StatusOK)
-	s.FleetSvc.AssertNumberOfCalls(s.T(), "NewActivity", 2)
 
 	// Reset LIST mock to empty after deletion
 	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {

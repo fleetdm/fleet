@@ -24,7 +24,7 @@ func TestUp_20240730374423(t *testing.T) {
 	// Apply current migration.
 	applyNext(t, db)
 
-	var platform fleet.AppleDevicePlatform
+	var platform fleet.InstallableDevicePlatform
 	require.NoError(t, db.Get(&platform, `SELECT platform FROM vpp_apps WHERE adam_id = ?`, adamID))
 	assert.Equal(t, fleet.MacOSPlatform, platform)
 

@@ -10,13 +10,17 @@
     @include vertical-card-layout;
   }
 
+  &__mobile-installers {
+    @include flex-column-16px-gap;
+    min-height: 300px; // Prevents category dropdown from being cut off from short software list's UI
+  }
+
   &__header-filters {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     gap: $pad-medium;
     align-items: center;
-    margin: 0 0 24px 0;
   }
 
   &__table {

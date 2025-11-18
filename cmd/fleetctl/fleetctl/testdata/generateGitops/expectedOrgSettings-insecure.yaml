@@ -1,4 +1,9 @@
 certificate_authorities:
+  custom_est_proxy:
+  - name: some-est-name
+    password: some-est-password
+    url: https://some-est-url.example.com
+    username: some-est-username
   custom_scep_proxy:
     - challenge: some-custom-scep-proxy-challenge
       name: some-custom-scep-proxy-name

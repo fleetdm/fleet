@@ -6,11 +6,11 @@ terraform {
     }
     docker = {
       source  = "kreuzwerker/docker"
-      version = "~> 2.16.0"
+      version = "~> 3.6.0"
     }
     git = {
-      source  = "paultyng/git"
-      version = "~> 0.1.0"
+      source  = "metio/git"
+      version = "2025.10.10"
     }
   }
   backend "s3" {
