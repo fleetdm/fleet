@@ -14,7 +14,10 @@ import SectionHeader from "components/SectionHeader";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 import Button from "components/buttons/Button";
 import { AppContext } from "context/app";
 import Spinner from "components/Spinner";
@@ -93,8 +96,16 @@ const DeleteConditionalAccessModal = ({
     >
       <>
         <p>
-          Fleet will be disconnected from {providerName} and will stop blocking
-          end users from logging in with single sign-on.
+          Before you delete, first unblock all end users.{" "}
+          <CustomLink
+            text="Learn how"
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/disable-entra-conditional-access`}
+            newTab
+          />
+        </p>
+        <p>
+          If you don&apos;t, end users will stay blocked even after deleting
+          Entra.
         </p>
         <div className="modal-cta-wrap">
           <Button
