@@ -177,8 +177,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				assetMap[asset.AdamID] = struct{}{}
 			}
 
-			fmt.Printf("vppAppTeams: %v\n", vppAppTeams)
-			fmt.Printf("androidApps: %v\n", androidApps)
 			for _, vppAppID := range vppAppTeams {
 				if _, ok := assetMap[vppAppID.AdamID]; !ok {
 					missingAssets = append(missingAssets, vppAppID.AdamID)
