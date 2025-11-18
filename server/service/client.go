@@ -887,6 +887,7 @@ func (c *Client) ApplyGroup(
 					Categories:         app.Categories,
 					IconPath:           app.Icon.Path,
 					IconHash:           iconHash,
+					Platform:           fleet.InstallableDevicePlatform(app.Platform),
 				})
 				// can be referenced by macos_setup.software.app_store_id
 				if tmSoftwareAppsByAppID[tmName] == nil {
@@ -2453,6 +2454,7 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				InstallDuringSetup: &installDuringSetup,
 				IconPath:           vppApp.Icon.Path,
 				IconHash:           iconHash,
+				Platform:           fleet.InstallableDevicePlatform(vppApp.Platform),
 			})
 		}
 	}

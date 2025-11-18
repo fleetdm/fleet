@@ -266,6 +266,7 @@ type TeamSpecAppStoreApp struct {
 	// is not changed, for compatibility with the old fleetctl apply format
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
+	Platform           string                `json:"platform"`
 }
 
 func (spec TeamSpecAppStoreApp) ResolvePaths(baseDir string) TeamSpecAppStoreApp {

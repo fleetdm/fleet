@@ -73,41 +73,41 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	// each list can be sent down a platform-specific implementation for validation
 	// then we merge the lists and
 
-	payloadsWithPlatform := make([]fleet.VPPBatchPayloadWithPlatform, 0, len(payloads))
-	for _, payload := range payloads {
-		// Currently only macOS is supported for self-service. Don't
-		// import vpp apps as self-service for ios or ipados
-		payloadsWithPlatform = append(payloadsWithPlatform, []fleet.VPPBatchPayloadWithPlatform{{
-			AppStoreID:         payload.AppStoreID,
-			SelfService:        payload.SelfService,
-			InstallDuringSetup: payload.InstallDuringSetup,
-			Platform:           fleet.IOSPlatform,
-			LabelsExcludeAny:   payload.LabelsExcludeAny,
-			LabelsIncludeAny:   payload.LabelsIncludeAny,
-			Categories:         payload.Categories,
-		}, {
-			AppStoreID:         payload.AppStoreID,
-			SelfService:        payload.SelfService,
-			InstallDuringSetup: payload.InstallDuringSetup,
-			Platform:           fleet.IPadOSPlatform,
-			LabelsExcludeAny:   payload.LabelsExcludeAny,
-			LabelsIncludeAny:   payload.LabelsIncludeAny,
-			Categories:         payload.Categories,
-		}, {
-			AppStoreID:         payload.AppStoreID,
-			SelfService:        payload.SelfService,
-			Platform:           fleet.MacOSPlatform,
-			InstallDuringSetup: payload.InstallDuringSetup,
-			LabelsExcludeAny:   payload.LabelsExcludeAny,
-			LabelsIncludeAny:   payload.LabelsIncludeAny,
-			Categories:         payload.Categories,
-		}}...)
-	}
+	// payloadsWithPlatform := make([]fleet.VPPBatchPayloadWithPlatform, 0, len(payloads))
+	// for _, payload := range payloads {
+	// 	// Currently only macOS is supported for self-service. Don't
+	// 	// import vpp apps as self-service for ios or ipados
+	// 	payloadsWithPlatform = append(payloadsWithPlatform, []fleet.VPPBatchPayloadWithPlatform{{
+	// 		AppStoreID:         payload.AppStoreID,
+	// 		SelfService:        payload.SelfService,
+	// 		InstallDuringSetup: payload.InstallDuringSetup,
+	// 		Platform:           fleet.IOSPlatform,
+	// 		LabelsExcludeAny:   payload.LabelsExcludeAny,
+	// 		LabelsIncludeAny:   payload.LabelsIncludeAny,
+	// 		Categories:         payload.Categories,
+	// 	}, {
+	// 		AppStoreID:         payload.AppStoreID,
+	// 		SelfService:        payload.SelfService,
+	// 		InstallDuringSetup: payload.InstallDuringSetup,
+	// 		Platform:           fleet.IPadOSPlatform,
+	// 		LabelsExcludeAny:   payload.LabelsExcludeAny,
+	// 		LabelsIncludeAny:   payload.LabelsIncludeAny,
+	// 		Categories:         payload.Categories,
+	// 	}, {
+	// 		AppStoreID:         payload.AppStoreID,
+	// 		SelfService:        payload.SelfService,
+	// 		Platform:           fleet.MacOSPlatform,
+	// 		InstallDuringSetup: payload.InstallDuringSetup,
+	// 		LabelsExcludeAny:   payload.LabelsExcludeAny,
+	// 		LabelsIncludeAny:   payload.LabelsIncludeAny,
+	// 		Categories:         payload.Categories,
+	// 	}}...)
+	// }
 
 	var vppAppTeams, androidApps []fleet.VPPAppTeam
 	// Don't check for token if we're only disassociating assets
 	if len(payloads) > 0 {
-		for _, payload := range payloadsWithPlatform {
+		for _, payload := range payloads {
 			if payload.Platform == "" {
 				payload.Platform = fleet.MacOSPlatform
 			}
@@ -177,6 +177,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				assetMap[asset.AdamID] = struct{}{}
 			}
 
+			fmt.Printf("vppAppTeams: %v\n", vppAppTeams)
+			fmt.Printf("androidApps: %v\n", androidApps)
 			for _, vppAppID := range vppAppTeams {
 				if _, ok := assetMap[vppAppID.AdamID]; !ok {
 					missingAssets = append(missingAssets, vppAppID.AdamID)
@@ -196,6 +198,10 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return nil, nil
 	}
 
+	allPlatformApps := append(vppAppTeams, androidApps...)
+
+	var appStoreApps []*fleet.VPPApp
+
 	if len(vppAppTeams) > 0 {
 		apps, err := getVPPAppsMetadata(ctx, vppAppTeams)
 		if err != nil {
@@ -206,19 +212,47 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				"no valid apps found matching the provided app store IDs and platforms")
 		}
 
-		if err := svc.ds.BatchInsertVPPApps(ctx, apps); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
-		}
-		// Filter out the apps with invalid platforms
-		if len(apps) != len(vppAppTeams) {
-			vppAppTeams = make([]fleet.VPPAppTeam, 0, len(apps))
-			for _, app := range apps {
-				vppAppTeams = append(vppAppTeams, app.VPPAppTeam)
-			}
-		}
+		appStoreApps = append(appStoreApps, apps...)
 
 	}
-	if err := svc.ds.SetTeamVPPApps(ctx, teamID, vppAppTeams); err != nil {
+
+	if len(androidApps) > 0 {
+		for _, a := range androidApps {
+			enterprise, err := svc.ds.GetEnterprise(ctx)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
+			}
+			// TODO(JVE): is there a way to do this in bulk, vs 1 call per app?
+			androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterprise.Name(), a.AdamID)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					return nil, fleet.NewInvalidArgumentError("app_store_id", "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
+				}
+				return nil, ctxerr.Wrap(ctx, err, "bulk add app store apps: check if android app exists")
+			}
+
+			appStoreApps = append(appStoreApps, &fleet.VPPApp{
+				VPPAppTeam:       a,
+				BundleIdentifier: a.AdamID,
+				IconURL:          androidApp.IconUrl,
+				Name:             androidApp.Title,
+				TeamID:           teamID,
+			})
+		}
+	}
+
+	if err := svc.ds.BatchInsertVPPApps(ctx, appStoreApps); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
+	}
+	// Filter out the apps with invalid platforms
+	if len(appStoreApps) != len(allPlatformApps) {
+		allPlatformApps = make([]fleet.VPPAppTeam, 0, len(appStoreApps))
+		for _, app := range appStoreApps {
+			allPlatformApps = append(allPlatformApps, app.VPPAppTeam)
+		}
+	}
+
+	if err := svc.ds.SetTeamVPPApps(ctx, teamID, allPlatformApps); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "no vpp token to set team vpp assets"), http.StatusUnprocessableEntity)
 		}
