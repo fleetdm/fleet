@@ -184,7 +184,7 @@ Make sure to assign the "Fleet conditional access" group to the Entra policy.
 
 ## Disable
 
-If you're using Entra and you want to unblock all end users, you can disable conditional access by heading to Entra and turning off the ["Conditional Access" Entra policies](#step-6-add-entra-policies).
+If you want to unblock all end users, you can disable conditional access by heading to Entra and turning off the ["Conditional Access" Entra policies](#step-6-add-entra-policies).
 
 ## End user experience
 
