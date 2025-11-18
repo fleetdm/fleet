@@ -5173,22 +5173,21 @@ func preprocessProfileContents(
 
 			// some variables need more information about the host; build a skeleton host and hydrate if we need more info
 			hostLite := fleet.Host{UUID: hostUUID}
+			onMismatchedHostCount := func(hostCount int) error {
+				return ctxerr.Wrap(ctx, ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+					CommandUUID:   target.cmdUUID,
+					HostUUID:      hostLite.UUID,
+					Status:        &fleet.MDMDeliveryFailed,
+					Detail:        fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s.", hostCount, hostLite.UUID),
+					OperationType: fleet.MDMOperationTypeInstall,
+				}), "could not retrieve host by UUID for profile variable substitution")
+			}
 
 			profile.CommandUUID = tempCmdUUID
 			profile.VariablesUpdatedAt = variablesUpdatedAt
 
 			hostContents := contentsStr
 			failed := false
-
-			onMismatchedHostCount := func(hostCount int) error {
-				return ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-					CommandUUID:   target.cmdUUID,
-					HostUUID:      hostLite.UUID,
-					Status:        &fleet.MDMDeliveryFailed,
-					Detail:        fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s.", hostCount, hostLite.UUID),
-					OperationType: fleet.MDMOperationTypeInstall,
-				})
-			}
 
 		fleetVarLoop:
 			for _, fleetVar := range fleetVars {
