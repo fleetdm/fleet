@@ -31,7 +31,7 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	var teamID, caID uint
-	var certificates []*fleet.Certificate
+	var certificates []*fleet.CertificateTemplate
 	var err error
 	testCases := []struct {
 		name     string
@@ -43,7 +43,7 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 			func(ds *Datastore) {},
 			func(t *testing.T, ds *Datastore) {
 				// Test with empty slice
-				err = ds.BatchUpsertCertificateTemplates(ctx, []*fleet.Certificate{})
+				err = ds.BatchUpsertCertificateTemplates(ctx, []*fleet.CertificateTemplate{})
 				require.NoError(t, err)
 			},
 		},
@@ -66,7 +66,7 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 				caID = ca.ID
 			},
 			func(t *testing.T, ds *Datastore) {
-				certificates := []*fleet.Certificate{
+				certificates := []*fleet.CertificateTemplate{
 					{
 						Name:                   "Cert1",
 						TeamID:                 teamID,
@@ -109,7 +109,7 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 				caID = ca.ID
 
 				// Insert initial certificates
-				certificate := fleet.Certificate{
+				certificate := fleet.CertificateTemplate{
 					Name:                   "Cert1",
 					TeamID:                 teamID,
 					CertificateAuthorityID: caID,
@@ -123,7 +123,7 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 					certificate.SubjectName,
 				)
 				require.NoError(t, err)
-				certificates = []*fleet.Certificate{&certificate}
+				certificates = []*fleet.CertificateTemplate{&certificate}
 			},
 			func(t *testing.T, ds *Datastore) {
 				var count int

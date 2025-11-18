@@ -388,7 +388,13 @@ type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, execu
 
 type ApplyUserRolesSpecsFunc func(ctx context.Context, specs fleet.UsersRoleSpec) error
 
-type ApplyCertificateSpecsFunc func(ctx context.Context, specs []*fleet.CertificateRequestSpec) error
+type ListCertificateTemplatesFunc func(ctx context.Context, teamID uint, page uint, perPage uint) ([]*fleet.CertificateTemplateResponseSummary, error)
+
+type GetCertificateTemplateFunc func(ctx context.Context, id uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error)
+
+type ApplyCertificateTemplateSpecsFunc func(ctx context.Context, specs []*fleet.CertificateRequestSpec) error
+
+type DeleteCertificateTemplateSpecsFunc func(ctx context.Context, certificateTemplateIDs []uint) error
 
 type GlobalScheduleQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
 
@@ -1408,8 +1414,17 @@ type Service struct {
 	ApplyUserRolesSpecsFunc        ApplyUserRolesSpecsFunc
 	ApplyUserRolesSpecsFuncInvoked bool
 
-	ApplyCertificateSpecsFunc        ApplyCertificateSpecsFunc
-	ApplyCertificateSpecsFuncInvoked bool
+	ListCertificateTemplatesFunc        ListCertificateTemplatesFunc
+	ListCertificateTemplatesFuncInvoked bool
+
+	GetCertificateTemplateFunc        GetCertificateTemplateFunc
+	GetCertificateTemplateFuncInvoked bool
+
+	ApplyCertificateTemplateSpecsFunc        ApplyCertificateTemplateSpecsFunc
+	ApplyCertificateTemplateSpecsFuncInvoked bool
+
+	DeleteCertificateTemplateSpecsFunc        DeleteCertificateTemplateSpecsFunc
+	DeleteCertificateTemplateSpecsFuncInvoked bool
 
 	GlobalScheduleQueryFunc        GlobalScheduleQueryFunc
 	GlobalScheduleQueryFuncInvoked bool
@@ -3402,11 +3417,32 @@ func (s *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRole
 	return s.ApplyUserRolesSpecsFunc(ctx, specs)
 }
 
-func (s *Service) ApplyCertificateSpecs(ctx context.Context, specs []*fleet.CertificateRequestSpec) error {
+func (s *Service) ListCertificateTemplates(ctx context.Context, teamID uint, page uint, perPage uint) ([]*fleet.CertificateTemplateResponseSummary, error) {
 	s.mu.Lock()
-	s.ApplyCertificateSpecsFuncInvoked = true
+	s.ListCertificateTemplatesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ApplyCertificateSpecsFunc(ctx, specs)
+	return s.ListCertificateTemplatesFunc(ctx, teamID, page, perPage)
+}
+
+func (s *Service) GetCertificateTemplate(ctx context.Context, id uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error) {
+	s.mu.Lock()
+	s.GetCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCertificateTemplateFunc(ctx, id, hostUUID)
+}
+
+func (s *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*fleet.CertificateRequestSpec) error {
+	s.mu.Lock()
+	s.ApplyCertificateTemplateSpecsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ApplyCertificateTemplateSpecsFunc(ctx, specs)
+}
+
+func (s *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint) error {
+	s.mu.Lock()
+	s.DeleteCertificateTemplateSpecsFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteCertificateTemplateSpecsFunc(ctx, certificateTemplateIDs)
 }
 
 func (s *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {

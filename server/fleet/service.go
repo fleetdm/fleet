@@ -630,9 +630,12 @@ type Service interface {
 	ApplyUserRolesSpecs(ctx context.Context, specs UsersRoleSpec) error
 
 	// /////////////////////////////////////////////////////////////////////////////
-	// Certificates
+	// Certificate Templates
 
-	ApplyCertificateSpecs(ctx context.Context, specs []*CertificateRequestSpec) error
+	ListCertificateTemplates(ctx context.Context, teamID uint, page uint, perPage uint) ([]*CertificateTemplateResponseSummary, error)
+	GetCertificateTemplate(ctx context.Context, id uint, hostUUID *string) (*CertificateTemplateResponseFull, error)
+	ApplyCertificateTemplateSpecs(ctx context.Context, specs []*CertificateRequestSpec) error
+	DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalScheduleService

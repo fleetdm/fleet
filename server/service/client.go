@@ -2871,35 +2871,38 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 	certificates := androidSettings.Certificates.Value
 	numCerts := len(certificates)
 
-	if dryRun {
-		logFn("[+] would've applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
-		return nil
+	teamID := ""
+	if config.TeamID != nil {
+		teamID = fmt.Sprintf("%d", *config.TeamID)
+	} else {
+		return fmt.Errorf("applying Android certificates: Team ID is required")
 	}
 
-	logFn("[+] applying %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+	logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 
+	// existing certificate templates
+	existingCertificates, err := c.GetCertificateTemplates(teamID)
+	if err != nil {
+		return fmt.Errorf("applying Android certificates: getting existing Android certificates: %w", err)
+	}
+
+	// getting certificate authorities
 	cas, err := c.GetCertificateAuthorities()
 	if err != nil {
 		return fmt.Errorf("getting certificate authorities: %w", err)
 	}
 	caIDsByName := make(map[string]uint)
 	for _, ca := range cas {
-		logFn("---------------Found CA: %s (ID: %d)\n", ca.Name, ca.ID)
 		caIDsByName[ca.Name] = ca.ID
 	}
 
 	certRequests := make([]*fleet.CertificateRequestSpec, len(certificates))
+	certsToBeAdded := make(map[string]struct{})
 	for i := range certificates {
-		logFn("---------------Processing Certificate: %s (CA Name: %s) %s\n", certificates[i].Name, certificates[i].CertificateAuthorityName, certificates[i].SubjectName)
 		caID, ok := caIDsByName[certificates[i].CertificateAuthorityName]
 		if !ok {
 			return fmt.Errorf("certificate authority %q not found for certificate %q",
 				certificates[i].CertificateAuthorityName, certificates[i].Name)
-		}
-
-		teamID := ""
-		if config.TeamID != nil {
-			teamID = fmt.Sprintf("%d", *config.TeamID)
 		}
 
 		certRequests[i] = &fleet.CertificateRequestSpec{
@@ -2908,13 +2911,38 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 			CertificateAuthorityId: caID,
 			SubjectName:            certificates[i].SubjectName,
 		}
+		certsToBeAdded[certificates[i].Name] = struct{}{}
 	}
 
-	if err := c.ApplyCertificateSpecs(certRequests); err != nil {
-		return fmt.Errorf("applying Android certificates: %w", err)
+	var certificatesToDelete []uint
+	for _, cert := range existingCertificates {
+		if cert != nil {
+			if _, ok := certsToBeAdded[cert.Name]; !ok {
+				certificatesToDelete = append(certificatesToDelete, cert.ID)
+			}
+		}
 	}
 
-	logFn("[+] applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+	if len(certificatesToDelete) > 0 {
+		if dryRun {
+			logFn("[-] would've deleted %s\n", numberWithPluralization(len(certificatesToDelete), "Android certificate", "Android certificates"))
+		} else {
+			logFn("[-] deleting %s\n", numberWithPluralization(len(certificatesToDelete), "Android certificate", "Android certificates"))
+			if err := c.DeleteCertificateTemplates(certificatesToDelete); err != nil {
+				return fmt.Errorf("applying Android certificates: deleting existing Android certificates: %w", err)
+			}
+		}
+	}
+
+	if dryRun {
+		logFn("[+] would've applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+	} else {
+		if err := c.ApplyCertificateSpecs(certRequests); err != nil {
+			return fmt.Errorf("applying Android certificates: %w", err)
+		}
+		logFn("[+] applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+	}
+
 	return nil
 }
 

@@ -7,10 +7,48 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certificates []*fleet.Certificate) error {
-	if len(certificates) == 0 {
+func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
+	var template fleet.CertificateTemplateResponseFull
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, `
+		SELECT
+			certificate_templates.id,
+			certificate_templates.name,
+			certificate_templates.certificate_authority_id,
+			certificate_authorities.name AS certificate_authority_name,
+			certificate_templates.subject_name,
+			certificate_templates.created_at
+		FROM certificate_templates
+		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+		WHERE id = ?
+	`, id); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id")
+	}
+	return &template, nil
+}
+
+func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint) ([]*fleet.CertificateTemplateResponseSummary, error) {
+	var templates []*fleet.CertificateTemplateResponseSummary
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &templates, `
+		SELECT
+			certificate_templates.id,
+			certificate_templates.name,
+			certificate_templates.certificate_authority_id,
+			certificate_authorities.name AS certificate_authority_name,
+			certificate_templates.created_at
+		FROM certificate_templates
+		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+		WHERE team_id = ?
+	`, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting certificate_templates by team_id")
+	}
+	return templates, nil
+}
+
+func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certificateTemplates []*fleet.CertificateTemplate) error {
+	if len(certificateTemplates) == 0 {
 		return nil
 	}
 
@@ -31,9 +69,9 @@ func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certif
 	`
 
 	var placeholders strings.Builder
-	args := make([]interface{}, 0, len(certificates)*argsCountInsertCertificate)
+	args := make([]interface{}, 0, len(certificateTemplates)*argsCountInsertCertificate)
 
-	for _, cert := range certificates {
+	for _, cert := range certificateTemplates {
 		args = append(args, cert.Name, cert.TeamID, cert.CertificateAuthorityID, cert.SubjectName)
 		placeholders.WriteString("(?,?,?,?),")
 	}
@@ -42,6 +80,32 @@ func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certif
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "upserting certificate_templates")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) error {
+	if len(certificateTemplateIDs) == 0 {
+		return nil
+	}
+
+	const sqlDeleteCertificateTemplates = `
+		DELETE FROM certificate_templates
+		WHERE id IN (%s)
+	`
+	var placeholders strings.Builder
+	args := make([]interface{}, 0, len(certificateTemplateIDs))
+
+	for _, id := range certificateTemplateIDs {
+		args = append(args, id)
+		placeholders.WriteString("?,")
+	}
+
+	stmt := fmt.Sprintf(sqlDeleteCertificateTemplates, strings.TrimSuffix(placeholders.String(), ","))
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting certificate_templates")
 	}
 
 	return nil
