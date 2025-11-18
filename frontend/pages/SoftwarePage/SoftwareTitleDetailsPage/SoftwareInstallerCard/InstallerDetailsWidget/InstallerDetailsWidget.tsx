@@ -8,6 +8,7 @@ import { stringToClipboard } from "utilities/copy_text";
 import { internationalTimeFormat } from "utilities/helpers";
 import { addedFromNow } from "utilities/date_format";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 
 import Graphic from "components/Graphic";
@@ -18,6 +19,8 @@ import Icon from "components/Icon";
 import CustomLink from "components/CustomLink";
 
 const baseClass = "installer-details-widget";
+
+const ANDROID_PLAY_STORE_URL = "https://play.google.com/store/apps/details";
 
 interface IInstallerNameProps {
   name: string;
@@ -42,9 +45,16 @@ const InstallerName = ({ name }: IInstallerNameProps) => {
   );
 };
 
-const renderInstallerDisplayText = (installerType: string, isFma: boolean) => {
+const renderInstallerDisplayText = (
+  installerType: string,
+  isFma: boolean,
+  androidPlayStoreLink?: string
+) => {
   if (installerType === "package") {
     return isFma ? "Fleet-maintained" : "Custom package";
+  }
+  if (androidPlayStoreLink) {
+    return "Google Play Store";
   }
   return "App Store (VPP)";
 };
@@ -52,12 +62,13 @@ const renderInstallerDisplayText = (installerType: string, isFma: boolean) => {
 interface IInstallerDetailsWidgetProps {
   className?: string;
   softwareName: string;
-  installerType: "package" | "vpp";
+  installerType: "package" | "app-store";
   addedTimestamp?: string;
   version?: string | null;
   sha256?: string | null;
   isFma: boolean;
   isScriptPackage: boolean;
+  androidPlayStoreLink?: string;
 }
 
 const InstallerDetailsWidget = ({
@@ -69,6 +80,7 @@ const InstallerDetailsWidget = ({
   version,
   isFma,
   isScriptPackage,
+  androidPlayStoreLink: androidPlayStoreId,
 }: IInstallerDetailsWidgetProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -88,11 +100,13 @@ const InstallerDetailsWidget = ({
   };
 
   const renderIcon = () => {
-    return installerType === "package" ? (
-      <Graphic name="file-pkg" />
-    ) : (
-      <SoftwareIcon name="appStore" size="medium" />
-    );
+    if (installerType === "app-store") {
+      if (androidPlayStoreId) {
+        return <SoftwareIcon name="androidPlayStore" size="medium" />;
+      }
+      return <SoftwareIcon name="appleAppStore" size="medium" />;
+    }
+    return <Graphic name="file-pkg" />;
   };
 
   const renderDetails = () => {
@@ -103,7 +117,7 @@ const InstallerDetailsWidget = ({
 
       let versionInfo = <span>{version}</span>;
 
-      if (installerType === "vpp") {
+      if (installerType === "app-store") {
         versionInfo = (
           <TooltipWrapper tipContent={<span>Updated every hour.</span>}>
             <span>{version}</span>
@@ -132,6 +146,27 @@ const InstallerDetailsWidget = ({
             }
           >
             <span>Version (unknown)</span>
+          </TooltipWrapper>
+        );
+      }
+
+      if (androidPlayStoreId) {
+        versionInfo = (
+          <TooltipWrapper
+            tipContent={
+              <span>
+                See latest version on the{" "}
+                <CustomLink
+                  text="Play Store"
+                  url={getPathWithQueryParams(ANDROID_PLAY_STORE_URL, {
+                    id: androidPlayStoreId,
+                  })}
+                  newTab
+                />
+              </span>
+            }
+          >
+            <span>Latest</span>
           </TooltipWrapper>
         );
       }
@@ -190,7 +225,7 @@ const InstallerDetailsWidget = ({
 
     return (
       <>
-        {renderInstallerDisplayText(installerType, isFma)}
+        {renderInstallerDisplayText(installerType, isFma, androidPlayStoreId)}
         {renderVersionInfo()}
         {renderTimeStamp()}
         {renderSha256()}

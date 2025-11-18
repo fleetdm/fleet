@@ -190,7 +190,7 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE': 'sampfluger88',
 
     // 💝 Fleet-maintained apps
-    'ee/maintained-apps/inputs': 'mostlikelee',
+    'ee/maintained-apps/inputs': 'allenhouchins',
   },
 
   // FUTURE: Support DRIs for confidential and other repos (except see other note above about a consolidated way to do it, to reduce these 4-6 config keys into one)
@@ -251,6 +251,11 @@ module.exports.custom = {
 
     // 🫧 Bulk operations dashboard
     'ee/bulk-operations-dashboard': 'eashaw',
+
+    // FMA and icons
+    'frontend/pages/SoftwarePage/components/icons': 'allenhouchins',
+    'ee/maintained-apps': 'allenhouchins',
+    'website/assets/images': 'allenhouchins',
 
     // Other brandfronts
     'README.md': ['mikermcneil', 'mike-j-thomas', 'lukeheath'],//« github brandfront (github.com/fleetdm/fleet)

@@ -1,0 +1,8 @@
+{
+  "name": "Microsoft PowerPoint",
+  "unique_identifier": "com.microsoft.Powerpoint",
+  "token": "microsoft-powerpoint",
+  "installer_format": "pkg",
+  "slug": "microsoft-powerpoint/darwin",
+  "default_categories": ["Productivity"]
+}
