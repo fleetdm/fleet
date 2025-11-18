@@ -421,7 +421,7 @@ type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, erro
 
 type TeamWithExtrasFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
 
-type TeamLiteFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
+type TeamLiteFunc func(ctx context.Context, tid uint) (*fleet.TeamLite, error)
 
 type DeleteTeamFunc func(ctx context.Context, tid uint) error
 
@@ -5385,7 +5385,7 @@ func (s *DataStore) TeamWithExtras(ctx context.Context, tid uint) (*fleet.Team, 
 	return s.TeamWithExtrasFunc(ctx, tid)
 }
 
-func (s *DataStore) TeamLite(ctx context.Context, tid uint) (*fleet.Team, error) {
+func (s *DataStore) TeamLite(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 	s.mu.Lock()
 	s.TeamLiteFuncInvoked = true
 	s.mu.Unlock()

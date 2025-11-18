@@ -238,7 +238,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 
 // getTeamConfig gets team config from DB if not provided.
 func (a *AppleMDM) getTeamConfig(ctx context.Context, team *fleet.Team, teamID uint) (*fleet.Team, error) {
-	if team == nil {
+	if team == nil { // TODO see if we can swap this (plus callers) to use TeamLite
 		var err error
 		team, err = a.Datastore.TeamWithExtras(ctx, teamID)
 		if err != nil {
