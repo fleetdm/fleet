@@ -381,6 +381,22 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		}
 		return nil, &notFoundError{}
 	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		for _, tm := range savedTeams {
+			if (*tm).ID == tid {
+				teamToCopy := *tm
+				return &fleet.TeamLite{
+					ID:          teamToCopy.ID,
+					Filename:    teamToCopy.Filename,
+					CreatedAt:   teamToCopy.CreatedAt,
+					Name:        teamToCopy.Name,
+					Description: teamToCopy.Description,
+					Config:      teamToCopy.Config.ToLite(),
+				}, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		for _, tm := range savedTeams {
 			if (*tm).Name == name {
@@ -452,7 +468,7 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
 	}
-	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script, allowUpdate bool) error {
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error {
 		return nil
 	}
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {

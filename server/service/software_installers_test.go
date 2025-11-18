@@ -117,9 +117,9 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				return nil
 			}
 
-			ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+			ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 				if tt.teamID != nil {
-					return &fleet.Team{ID: *tt.teamID}, nil
+					return &fleet.TeamLite{ID: *tt.teamID}, nil
 				}
 
 				return nil, nil

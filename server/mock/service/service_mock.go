@@ -456,7 +456,7 @@ type GetAppStoreAppsFunc func(ctx context.Context, teamID *uint) ([]*fleet.VPPAp
 
 type AddAppStoreAppFunc func(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (uint, error)
 
-type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string) (*fleet.VPPAppStoreApp, error)
+type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string, displayName string) (*fleet.VPPAppStoreApp, error)
 
 type GetInHouseAppManifestFunc func(ctx context.Context, titleID uint, teamID *uint) ([]byte, error)
 
@@ -790,9 +790,7 @@ type GetOrbitSetupExperienceStatusFunc func(ctx context.Context, orbitNodeKey st
 
 type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, downloadRequested bool) (*fleet.Script, []byte, error)
 
-type CreateSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, name string, r io.Reader) error
-
-type PutSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, name string, r io.Reader) error
+type SetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, name string, r io.Reader) error
 
 type DeleteSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) error
 
@@ -2011,11 +2009,8 @@ type Service struct {
 	GetSetupExperienceScriptFunc        GetSetupExperienceScriptFunc
 	GetSetupExperienceScriptFuncInvoked bool
 
-	CreateSetupExperienceScriptFunc        CreateSetupExperienceScriptFunc
-	CreateSetupExperienceScriptFuncInvoked bool
-
-	PutSetupExperienceScriptFunc        PutSetupExperienceScriptFunc
-	PutSetupExperienceScriptFuncInvoked bool
+	SetSetupExperienceScriptFunc        SetSetupExperienceScriptFunc
+	SetSetupExperienceScriptFuncInvoked bool
 
 	DeleteSetupExperienceScriptFunc        DeleteSetupExperienceScriptFunc
 	DeleteSetupExperienceScriptFuncInvoked bool
@@ -3640,11 +3635,11 @@ func (s *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appTeam flee
 	return s.AddAppStoreAppFunc(ctx, teamID, appTeam)
 }
 
-func (s *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string) (*fleet.VPPAppStoreApp, error) {
+func (s *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string, displayName string) (*fleet.VPPAppStoreApp, error) {
 	s.mu.Lock()
 	s.UpdateAppStoreAppFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateAppStoreAppFunc(ctx, titleID, teamID, selfService, labelsIncludeAny, labelsExcludeAny, categories)
+	return s.UpdateAppStoreAppFunc(ctx, titleID, teamID, selfService, labelsIncludeAny, labelsExcludeAny, categories, displayName)
 }
 
 func (s *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {
@@ -4809,18 +4804,11 @@ func (s *Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, do
 	return s.GetSetupExperienceScriptFunc(ctx, teamID, downloadRequested)
 }
 
-func (s *Service) CreateSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
+func (s *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
 	s.mu.Lock()
-	s.CreateSetupExperienceScriptFuncInvoked = true
+	s.SetSetupExperienceScriptFuncInvoked = true
 	s.mu.Unlock()
-	return s.CreateSetupExperienceScriptFunc(ctx, teamID, name, r)
-}
-
-func (s *Service) PutSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
-	s.mu.Lock()
-	s.PutSetupExperienceScriptFuncInvoked = true
-	s.mu.Unlock()
-	return s.PutSetupExperienceScriptFunc(ctx, teamID, name, r)
+	return s.SetSetupExperienceScriptFunc(ctx, teamID, name, r)
 }
 
 func (s *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
