@@ -80,9 +80,7 @@ const DeleteConditionalAccessModal = ({
             newTab
           />
         </p>
-        <p>
-          If you don't, end users will stay blocked even after deleting Entra.
-        </p>
+        <p>If you don't, end users will stay blocked even after deleting Entra.</p>
         <div className="modal-cta-wrap">
           <Button
             type="button"
