@@ -101,3 +101,4 @@ CHANGED_APPS_JSON=$(echo "$ALL_CHANGED_SLUGS" | jq -R -s -c 'split("\n") | map(s
 echo "CHANGED_APPS=$CHANGED_APPS_JSON" >> "$GITHUB_OUTPUT"
 echo "HAS_CHANGES=true" >> "$GITHUB_OUTPUT"
 
+

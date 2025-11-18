@@ -1,6 +1,6 @@
 name: Test Fleet Maintained Apps - Darwin (PR Only)
 
-on: 
+on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
@@ -10,16 +10,16 @@ on:
   workflow_dispatch: # Manual trigger
     inputs:
       log_level:
-        description: 'Log level (debug, info, warn, error)'
+        description: "Log level (debug, info, warn, error)"
         required: false
-        default: 'info'
+        default: "info"
         type: choice
         options:
           - debug
           - info
           - warn
           - error
-  
+
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -31,17 +31,17 @@ jobs:
 
     steps:
       - name: Checkout Fleet
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: fleetdm/fleet
-          fetch-depth: 0  # Need full history to compare with base branch
+          fetch-depth: 0 # Need full history to compare with base branch
           ref: ${{ github.ref }}
           path: fleet
-      
+
       - name: Setup Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5  # v5.5.0
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
-          go-version-file: 'fleet/go.mod'
+          go-version-file: "fleet/go.mod"
 
       - name: Fetch base branch
         working-directory: fleet
@@ -53,7 +53,7 @@ jobs:
         id: detect-changed
         working-directory: fleet
         run: |
-          .github/scripts/detect-changed-apps.sh
+          .github/scripts/detect-new-fmas-in-pr.sh
         shell: bash
 
       - name: Check if there are changes
@@ -78,7 +78,7 @@ jobs:
           sudo cp -r private /
           sudo ln -sf /opt/osquery/lib/osquery.app/Contents/MacOS/osqueryd /usr/local/bin/osqueryi
           sudo ln -sf /opt/osquery/lib/osquery.app/Contents/Resources/osqueryctl /usr/local/bin/osqueryctl
-  
+
       - name: Remove pre-installed google chrome mac
         if: steps.check-changes.outputs.has_changes == 'true'
         run: |
@@ -95,28 +95,27 @@ jobs:
         run: |
           # Filter changed apps to only include darwin platform
           DARWIN_SLUGS=$(echo '${{ steps.detect-changed.outputs.CHANGED_APPS }}' | jq -r '.[] | select(endswith("/darwin"))')
-          
+
           if [ -z "$DARWIN_SLUGS" ]; then
             echo "No darwin apps changed, skipping validation"
             exit 0
           fi
-          
+
           DARWIN_SLUGS_JSON=$(echo "$DARWIN_SLUGS" | jq -R -s -c 'split("\n") | map(select(length > 0))')
-          
+
           # Backup original apps.json
           cp ee/maintained-apps/outputs/apps.json ee/maintained-apps/outputs/apps.json.backup
-          
+
           # Create filtered apps.json
           FILTERED_APPS_JSON=$(mktemp)
           .github/scripts/filter-apps-json.sh "$DARWIN_SLUGS_JSON" "$FILTERED_APPS_JSON"
-          
+
           # Replace apps.json with filtered version
           mv "$FILTERED_APPS_JSON" ee/maintained-apps/outputs/apps.json
-          
+
           # Run validation
           ls /Applications
           sudo -E go run ./cmd/maintained-apps/validate
-          
+
           # Restore original apps.json
           mv ee/maintained-apps/outputs/apps.json.backup ee/maintained-apps/outputs/apps.json
-
