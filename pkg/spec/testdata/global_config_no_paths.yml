@@ -28,6 +28,7 @@ controls: # Controls added to "No team"
     minimum_version: null
   windows_enabled_and_configured: true
   windows_migration_enabled: false
+  enable_turn_on_windows_mdm_manually: false
   windows_updates:
     deadline_days: null
     grace_period_days: null
