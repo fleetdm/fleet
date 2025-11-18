@@ -40,7 +40,8 @@ module.exports = {
       'Philip Chotipradit',
       'Roger Cantrell',
       'Chayce O\'Neal',
-      'David Bodmer'
+      'David Bodmer',
+      'Fiona Skelton',
     ];
 
     // Filter the testimonials by product category
