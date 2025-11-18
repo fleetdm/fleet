@@ -181,6 +181,10 @@ const DeviceUserPage = ({
   const [sortCerts, setSortCerts] = useState<IListSort>({
     ...CERTIFICATES_DEFAULT_SORT,
   });
+  const [queuedSelfServiceRefetch, setQueuedSelfServiceRefetch] = useState(
+    false
+  );
+  const [selfServiceRefreshKey, setSelfServiceRefreshKey] = useState(0);
 
   const { data: deviceMacAdminsData } = useQuery(
     ["macadmins", deviceAuthToken],
@@ -275,6 +279,13 @@ const DeviceUserPage = ({
       refetchOnWindowFocus: false,
       retry: false,
       onSuccess: ({ host: responseHost }) => {
+        // Queued refetch logic to guarantee that install completions are reflected
+        if (queuedSelfServiceRefetch) {
+          setQueuedSelfServiceRefetch(false); // Clear the flag
+          refetchHostDetails(); // Trigger the queued extra fetch
+          console.log("unqueue refetch!");
+        }
+
         // If we're just showing the setup screen,
         // we don't need to refetch or alert on offline hosts.
         if (location.query.setup_only) {
@@ -627,6 +638,7 @@ const DeviceUserPage = ({
               hostSoftwareUpdatedAt={host.software_updated_at}
               hostDisplayName={host?.hostname || ""}
               isMobileView={shouldShowMobileUI}
+              setQueuedSelfServiceRefetch={setQueuedSelfServiceRefetch}
             />
           </div>
         </div>
@@ -703,6 +715,7 @@ const DeviceUserPage = ({
                     isHostDetailsPolling={showRefetchSpinner}
                     hostSoftwareUpdatedAt={host.software_updated_at}
                     hostDisplayName={host?.hostname || ""}
+                    setQueuedSelfServiceRefetch={setQueuedSelfServiceRefetch}
                   />
                 </TabPanel>
               )}

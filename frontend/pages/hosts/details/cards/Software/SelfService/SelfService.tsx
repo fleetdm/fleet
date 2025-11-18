@@ -84,6 +84,8 @@ export interface ISoftwareSelfServiceProps {
   hostSoftwareUpdatedAt?: string | null;
   hostDisplayName: string;
   isMobileView?: boolean;
+  queuedSelfServiceRefetch?: boolean;
+  setQueuedSelfServiceRefetch: (queue: boolean) => void;
 }
 
 export const parseSelfServiceQueryParams = (queryParams: {
@@ -140,6 +142,8 @@ const SoftwareSelfService = ({
   hostSoftwareUpdatedAt,
   hostDisplayName,
   isMobileView = false,
+  queuedSelfServiceRefetch,
+  setQueuedSelfServiceRefetch,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
 
@@ -264,10 +268,32 @@ const SoftwareSelfService = ({
             .map((software) => String(software.id))
         );
 
+        // Compare new set with the previous set
+        const previouslyPending = [...pendingSoftwareSetRef.current];
+        const completedAppIds = previouslyPending.filter(
+          (id) => !newPendingSet.has(id)
+        );
+        if (completedAppIds.length > 0) {
+          // Some pending installs finished during the last refresh
+          // Trigger an additional refetch to ensure UI status is up-to-date
+          // If already refetching, queue another refetch
+          if (isHostDetailsPolling) {
+            setQueuedSelfServiceRefetch(true);
+            console.log("queued refetch!!!");
+          } else {
+            refetchHostDetails();
+          }
+        }
+
         // Refresh host details if the number of pending installs or uninstalls has decreased
         // To update the software library information
         if (newPendingSet.size < pendingSoftwareSetRef.current.size) {
-          refetchHostDetails();
+          if (isHostDetailsPolling) {
+            setQueuedSelfServiceRefetch(true);
+            console.log("queued refetch!!!");
+          } else {
+            refetchHostDetails();
+          }
         }
 
         // Compare new set with the previous set
