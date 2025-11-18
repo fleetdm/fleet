@@ -3529,8 +3529,6 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	} else if info.Platform != "darwin" && r.Type == mdm.Device && !info.InstalledFromDEP {
 		// For manual iOS/iPadOS device enrollments, check the `TokenUpdateTally` so that
 		// we only run the setup experience enqueueing once per device.
-		// TODO -- implement checks for setup experience status in case we want to
-		//         retry failed items on restart.
 		nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(r.Context, r.ID)
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "getting nanomdm enrollment")

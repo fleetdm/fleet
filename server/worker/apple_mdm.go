@@ -119,7 +119,6 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 		// We shouldn't have any setup experience steps if we're not on a premium license,
 		// but best to check anyway plus it saves some db queries.
 		if license.IsPremium(ctx) {
-			// TODO: We likely want to wait for the actual installs to complete not just the commands to be ack'd
 			_, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")

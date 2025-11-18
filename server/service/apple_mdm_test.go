@@ -1588,7 +1588,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 }
 
 func TestMDMTokenUpdateIOS(t *testing.T) {
-	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx := context.Background()
 	ds := new(mock.Store)
 	mdmStorage := &mdmmock.MDMAppleStore{}
 	pushFactory, _ := newMockAPNSPushProviderFactory()
