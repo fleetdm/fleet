@@ -5179,6 +5179,17 @@ func preprocessProfileContents(
 
 			hostContents := contentsStr
 			failed := false
+
+			onMismatchedHostCount := func(hostCount int) error {
+				return ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+					CommandUUID:   target.cmdUUID,
+					HostUUID:      hostLite.UUID,
+					Status:        &fleet.MDMDeliveryFailed,
+					Detail:        fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s.", hostCount, hostLite.UUID),
+					OperationType: fleet.MDMOperationTypeInstall,
+				})
+			}
+
 		fleetVarLoop:
 			for _, fleetVar := range fleetVars {
 				var err error
@@ -5329,7 +5340,7 @@ func preprocessProfileContents(
 					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, hostContents, email)
 
 				case fleetVar == string(fleet.FleetVarHostHardwareSerial):
-					hostLite, ok, err = hydrateHost(ctx, ds, target, hostLite)
+					hostLite, ok, err = hydrateHost(ctx, ds, hostLite, onMismatchedHostCount)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "getting host hardware serial")
 					}
@@ -5339,7 +5350,7 @@ func preprocessProfileContents(
 					}
 					hostContents = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostHardwareSerialRegexp, hostContents, hostLite.HardwareSerial)
 				case fleetVar == string(fleet.FleetVarHostPlatform):
-					hostLite, ok, err = hydrateHost(ctx, ds, target, hostLite)
+					hostLite, ok, err = hydrateHost(ctx, ds, hostLite, onMismatchedHostCount)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "getting host platform")
 					}
@@ -5395,7 +5406,7 @@ func preprocessProfileContents(
 					// Populate Fleet vars in the CA fields
 					caVarsCache := make(map[string]string)
 
-					ok, err := replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateCommonName)
+					ok, err := replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateCommonName, onMismatchedHostCount)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
 					}
@@ -5403,7 +5414,7 @@ func preprocessProfileContents(
 						failed = true
 						break fleetVarLoop
 					}
-					ok, err = replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateSeatID)
+					ok, err = replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateSeatID, onMismatchedHostCount)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
 					}
@@ -5413,7 +5424,7 @@ func preprocessProfileContents(
 					}
 					if len(caCopy.CertificateUserPrincipalNames) > 0 {
 						for i := range caCopy.CertificateUserPrincipalNames {
-							ok, err = replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateUserPrincipalNames[i])
+							ok, err = replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateUserPrincipalNames[i], onMismatchedHostCount)
 							if err != nil {
 								return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
 							}
@@ -5526,8 +5537,7 @@ func getFirstIDPEmail(ctx context.Context, ds fleet.Datastore, target *cmdTarget
 	return emails[0], true, nil
 }
 
-func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostLite fleet.Host, caVarsCache map[string]string, item *string,
-) (bool, error) {
+func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostLite fleet.Host, caVarsCache map[string]string, item *string, onMismatchedHostCount func(int) error) (bool, error) {
 	caFleetVars := variables.Find(*item)
 	for _, caVar := range caFleetVars {
 		switch caVar {
@@ -5549,7 +5559,7 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 			hardwareSerial, ok := caVarsCache[string(fleet.FleetVarHostHardwareSerial)]
 			if !ok {
 				var err error
-				hostLite, ok, err = hydrateHost(ctx, ds, target, hostLite)
+				hostLite, ok, err = hydrateHost(ctx, ds, hostLite, onMismatchedHostCount)
 				if err != nil {
 					return false, ctxerr.Wrap(ctx, err, "getting host hardware serial")
 				}
@@ -5564,7 +5574,7 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 			platform, ok := caVarsCache[string(fleet.FleetVarHostPlatform)]
 			if !ok {
 				var err error
-				hostLite, ok, err = hydrateHost(ctx, ds, target, hostLite)
+				hostLite, ok, err = hydrateHost(ctx, ds, hostLite, onMismatchedHostCount)
 				if err != nil {
 					return false, ctxerr.Wrap(ctx, err, "getting host hardware serial")
 				}
@@ -5586,7 +5596,7 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 	return true, nil
 }
 
-func hydrateHost(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostLite fleet.Host) (fleet.Host, bool, error) {
+func hydrateHost(ctx context.Context, ds fleet.Datastore, hostLite fleet.Host, onHostCountMismatch func(int) error) (fleet.Host, bool, error) {
 	if hostLite.ID != 0 { // already hydrated; return as-is
 		return hostLite, true, nil
 	}
@@ -5596,19 +5606,7 @@ func hydrateHost(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hos
 		return hostLite, false, ctxerr.Wrap(ctx, err, "listing hosts")
 	}
 	if len(hosts) != 1 {
-		// Something went wrong. Maybe host was deleted, or we have multiple hosts with the same UUID.
-		// Mark the profile as failed with additional detail.
-		err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-			CommandUUID:   target.cmdUUID,
-			HostUUID:      hostLite.UUID,
-			Status:        &fleet.MDMDeliveryFailed,
-			Detail:        fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s. ", len(hosts), hostLite.UUID),
-			OperationType: fleet.MDMOperationTypeInstall,
-		})
-		if err != nil {
-			return hostLite, false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile from host data")
-		}
-		return hostLite, false, nil
+		return hostLite, false, onHostCountMismatch(len(hosts))
 	}
 	return *hosts[0], true, nil
 }
