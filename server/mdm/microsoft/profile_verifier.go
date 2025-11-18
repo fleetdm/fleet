@@ -412,7 +412,7 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		case fleetVar == string(fleet.FleetVarHostPlatform):
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostPlatformRegexp, result, "windows")
 		case fleetVar == string(fleet.FleetVarHostHardwareSerial):
-			serial, err := getHostHardwareSerial(deps.GetContext(), deps.GetDS(), params.ProfileUUID, params.HostUUID)
+			serial, err := getHostHardwareSerial(deps.GetContext(), deps.GetDS(), params.HostUUID)
 			if err != nil {
 				return profileContents, &MicrosoftProfileProcessingError{message: err.Error()}
 			}
@@ -483,24 +483,13 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 	return result, nil
 }
 
-func getHostHardwareSerial(ctx context.Context, ds fleet.Datastore, profileUUID string, hostUUID string) (string, error) {
+func getHostHardwareSerial(ctx context.Context, ds fleet.Datastore, hostUUID string) (string, error) {
 	hosts, err := ds.ListHostsLiteByUUIDs(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}, []string{hostUUID})
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "listing hosts")
+		return "", ctxerr.Wrap(ctx, err, "could not retrieve host for profile variable replacement")
 	}
 	if len(hosts) != 1 {
 		// Something went wrong. Maybe host was deleted, or we have multiple hosts with the same UUID.
-		// Mark the profile as failed with additional detail.
-		err := ds.UpdateOrDeleteHostMDMWindowsProfile(ctx, &fleet.HostMDMWindowsProfile{
-			ProfileUUID:   profileUUID,
-			HostUUID:      hostUUID,
-			Status:        &fleet.MDMDeliveryFailed,
-			Detail:        fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s. ", len(hosts), hostUUID),
-			OperationType: fleet.MDMOperationTypeInstall,
-		})
-		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "failed to retrieve host for hardware serial number variable substitution")
-		}
 		return "", ctxerr.Errorf(ctx, "found %d hosts with UUID %s; profile variable substitution for hardware serial number requires exactly one host", len(hosts), hostUUID)
 	}
 	hardwareSerial := hosts[0].HardwareSerial
