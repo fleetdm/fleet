@@ -414,7 +414,7 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		case fleetVar == string(fleet.FleetVarHostHardwareSerial):
 			serial, err := getHostHardwareSerial(deps.GetContext(), deps.GetDS(), params.ProfileUUID, params.HostUUID)
 			if err != nil {
-				return profileContents, err
+				return profileContents, &MicrosoftProfileProcessingError{message: err.Error()}
 			}
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostHardwareSerialRegexp, result, serial)
 		case slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(fleetVar)):

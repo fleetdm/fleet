@@ -1048,6 +1048,35 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			},
 		},
 		{
+			name:             "host serial with multiple hosts matching the same UUID",
+			hostUUID:         "test-uuid-789",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
+			expectError:      true,
+			processingError:  "failed to retrieve host for hardware serial number substitution",
+			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
+				require.True(t, ds.UpdateOrDeleteHostMDMWindowsProfileFuncInvoked)
+			},
+			setup: func() {
+				ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+					require.Equal(t, []string{"test-uuid-789"}, uuids)
+					return []*fleet.Host{
+						{
+							UUID:           "test-uuid-789",
+							HardwareSerial: "test-serial-456",
+						},
+						{
+							UUID:           "test-uuid-789",
+							HardwareSerial: "test-serial-789",
+						},
+					}, nil
+				}
+				ds.UpdateOrDeleteHostMDMWindowsProfileFunc = func(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error {
+					return nil
+				}
+			},
+		},
+		{
 			name:             "host platform fleet variable",
 			hostUUID:         "test-uuid-67",
 			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Platform: $FLEET_VAR_HOST_PLATFORM</Data></Item></Replace>`,
