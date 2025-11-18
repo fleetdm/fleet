@@ -11,7 +11,7 @@ Fleet’s self-service software lets end users update and install approved apps 
 1. Select the team to which you want to add the software from the dropdown in the upper left corner of the page.
 2. Select **Software** in the main navigation menu.
 3. Select the **Add software** button in the upper right corner of the page.
-4. Pick a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps), an [App Store app](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet#add-the-app-to-fleet), or upload a [custom package](https://fleetdm.com/guides/deploy-software-packages).
+4. Select a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps), an [app store app](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet#add-the-app-to-fleet), or upload a [custom package](https://fleetdm.com/guides/deploy-software-packages).
 5. Check **Self-service** to make it available for self-service as soon as it's added.
 
 You can also add the software and later make it available in self-service:
