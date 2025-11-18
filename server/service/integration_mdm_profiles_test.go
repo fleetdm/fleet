@@ -8109,11 +8109,11 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 			seenProfile = true
 			profileCmdID = cmd.CommandUUID
 			break
-		} else {
-			// Acknowledge other commands
-			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-			require.NoError(t, err)
 		}
+
+		// Acknowledge other commands
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
 	}
 	require.True(t, seenProfile, "Expected install command for TestProfile not found")
 
