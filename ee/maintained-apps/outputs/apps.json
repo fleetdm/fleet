@@ -26,8 +26,15 @@
       "name": "Abstract",
       "slug": "abstract/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.SweetScape.010Editor",
+      "unique_identifier": "com.elasticprojects.abstract-desktop",
       "description": "Abstract is a collaborative design tool with support for Sketch files."
+    },
+    {
+      "name": "Adobe Acrobat Pro DC",
+      "slug": "adobe-acrobat-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adobe.Acrobat.Pro",
+      "description": "Adobe Acrobat Pro is an app to view, create, manipulate, print and manage files in Portable Document Format."
     },
     {
       "name": "Adobe Acrobat Reader",
@@ -163,6 +170,13 @@
       "description": "Figma is a collaborative design tool for teams to create, prototype, and share designs in real time."
     },
     {
+      "name": "Figma",
+      "slug": "figma/windows",
+      "platform": "windows",
+      "unique_identifier": "Figma",
+      "description": ""
+    },
+    {
       "name": "Mozilla Firefox",
       "slug": "firefox/darwin",
       "platform": "darwin",
@@ -184,6 +198,13 @@
       "description": "GitKraken is a git client focusing on productivity."
     },
     {
+      "name": "GoLand",
+      "slug": "goland/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.goland",
+      "description": "Go (golang) IDE by JetBrains"
+    },
+    {
       "name": "Google Chrome",
       "slug": "google-chrome/darwin",
       "platform": "darwin",
@@ -196,6 +217,13 @@
       "platform": "windows",
       "unique_identifier": "Google Chrome",
       "description": "Google Chrome Enterprise is a fast, reliable web browser built for performance and compatibility across platforms."
+    },
+    {
+      "name": "iMazing Profile Editor",
+      "slug": "imazing-profile-editor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.DigiDNA.iMazingProfileEditorMac",
+      "description": "iMazing Profile Editor is an app for creating and editing Apple configuration profiles."
     },
     {
       "name": "Company Portal",
@@ -226,6 +254,13 @@
       "description": "Software for managing Logitech devices."
     },
     {
+      "name": "Loom",
+      "slug": "loom/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.loom.desktop",
+      "description": "Screen and video recording software."
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
@@ -245,6 +280,13 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.Outlook",
       "description": "Microsoft Outlook is an email client."
+    },
+    {
+      "name": "Microsoft PowerPoint",
+      "slug": "microsoft-powerpoint/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.Powerpoint",
+      "description": "Microsoft PowerPoint empowers you to create clean slideshow presentations and intricate pitch decks."
     },
     {
       "name": "Microsoft Teams",
@@ -303,6 +345,13 @@
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
+      "name": "Pritunl",
+      "slug": "pritunl/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.pritunl",
+      "description": "Pritunl is an OpenVPN client."
+    },
+    {
       "name": "Privileges",
       "slug": "privileges/darwin",
       "platform": "darwin",
@@ -315,6 +364,13 @@
       "platform": "darwin",
       "unique_identifier": "ch.protonmail.desktop",
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
+    },
+    {
+      "name": "Rectangle",
+      "slug": "rectangle/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.knollsoft.Rectangle",
+      "description": "Move and resize windows using keyboard shortcuts or snap areas."
     },
     {
       "name": "Santa",
@@ -336,6 +392,13 @@
       "platform": "windows",
       "unique_identifier": "Slack",
       "description": "Slack is a team communication and collaboration software for modern workplaces."
+    },
+    {
+      "name": "Spotify",
+      "slug": "spotify/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.spotify.client",
+      "description": "Spotify is a music streaming app."
     },
     {
       "name": "Sublime Text",
@@ -412,7 +475,7 @@
       "slug": "yubico-yubikey-manager/darwin",
       "platform": "darwin",
       "unique_identifier": "com.yubico.ykman",
-      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: \u003ca target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\"\u003ehttps://www.yubico.com/support/download/yubikey-manager\u003c/a\u003e"
+      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
     },
     {
       "name": "Zoom",
