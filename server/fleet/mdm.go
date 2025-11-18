@@ -1052,10 +1052,10 @@ const (
 	AndroidPlatform InstallableDevicePlatform = "android"
 )
 
-var VPPAppsPlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform, AndroidPlatform}
+var AppStoreAppsPlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform, AndroidPlatform}
 
-func (p InstallableDevicePlatform) IsValidInstallableDevicePlatform() bool {
-	return slices.Contains(VPPAppsPlatforms, p)
+func (p InstallableDevicePlatform) SupportsAppStoreApps() bool {
+	return slices.Contains(AppStoreAppsPlatforms, p)
 }
 
 type AppleDevicesToRefetch struct {

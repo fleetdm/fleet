@@ -69,6 +69,10 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	// https://github.com/fleetdm/fleet/issues/19447#issuecomment-2256598681
 	// The code is already here to support individual platforms, so we can easily enable it later.
 
+	// TODO(JVE): Need to create a list per platform "family". So rn we'd have 2 lists: Apple and Android.
+	// each list can be sent down a platform-specific implementation for validation
+	// then we merge the lists and
+
 	payloadsWithPlatform := make([]fleet.VPPBatchPayloadWithPlatform, 0, len(payloads))
 	for _, payload := range payloads {
 		// Currently only macOS is supported for self-service. Don't
@@ -100,28 +104,18 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}}...)
 	}
 
-	var vppAppTeams []fleet.VPPAppTeam
+	var vppAppTeams, androidApps []fleet.VPPAppTeam
 	// Don't check for token if we're only disassociating assets
 	if len(payloads) > 0 {
-		token, err := svc.getVPPToken(ctx, teamID)
-		if err != nil {
-			return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
-		}
-
-		if dryRun {
-			// If we're doing a dry run, we stop here and return no error to avoid making any changes.
-			// That way we validate if a VPP token is available even on dry runs keeping it consistent.
-			return nil, nil
-		}
-
 		for _, payload := range payloadsWithPlatform {
 			if payload.Platform == "" {
 				payload.Platform = fleet.MacOSPlatform
 			}
-			if payload.Platform != fleet.IOSPlatform && payload.Platform != fleet.IPadOSPlatform && payload.Platform != fleet.MacOSPlatform {
+			if !payload.Platform.SupportsAppStoreApps() {
 				return nil, fleet.NewInvalidArgumentError("app_store_apps.platform",
-					fmt.Sprintf("platform must be one of '%s', '%s', or '%s", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform))
+					fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
 			}
+
 			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "validating software labels for batch adding vpp app")
@@ -140,7 +134,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				}
 			}
 
-			vppAppTeams = append(vppAppTeams, fleet.VPPAppTeam{
+			appStoreApp := fleet.VPPAppTeam{
 				VPPAppID: fleet.VPPAppID{
 					AdamID:   payload.AppStoreID,
 					Platform: payload.Platform,
@@ -149,30 +143,50 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				InstallDuringSetup: payload.InstallDuringSetup,
 				ValidatedLabels:    validatedLabels,
 				CategoryIDs:        catIDs,
-			})
-		}
-
-		var missingAssets []string
-
-		assets, err := vpp.GetAssets(ctx, token, nil)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "unable to retrieve assets")
-		}
-
-		assetMap := map[string]struct{}{}
-		for _, asset := range assets {
-			assetMap[asset.AdamID] = struct{}{}
-		}
-
-		for _, vppAppID := range vppAppTeams {
-			if _, ok := assetMap[vppAppID.AdamID]; !ok {
-				missingAssets = append(missingAssets, vppAppID.AdamID)
 			}
+			switch payload.Platform {
+			case fleet.AndroidPlatform:
+				androidApps = append(androidApps, appStoreApp)
+			case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform:
+				vppAppTeams = append(vppAppTeams, appStoreApp)
+			}
+
 		}
 
-		if len(missingAssets) != 0 {
-			reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missingAssets, ","))
-			return nil, fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
+		if len(vppAppTeams) > 0 {
+			token, err := svc.getVPPToken(ctx, teamID)
+			if err != nil {
+				return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
+			}
+
+			if dryRun {
+				// If we're doing a dry run, we stop here and return no error to avoid making any changes.
+				// That way we validate if a VPP token is available even on dry runs keeping it consistent.
+				return nil, nil
+			}
+
+			var missingAssets []string
+
+			assets, err := vpp.GetAssets(ctx, token, nil)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "unable to retrieve assets")
+			}
+
+			assetMap := map[string]struct{}{}
+			for _, asset := range assets {
+				assetMap[asset.AdamID] = struct{}{}
+			}
+
+			for _, vppAppID := range vppAppTeams {
+				if _, ok := assetMap[vppAppID.AdamID]; !ok {
+					missingAssets = append(missingAssets, vppAppID.AdamID)
+				}
+			}
+
+			if len(missingAssets) != 0 {
+				reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missingAssets, ","))
+				return nil, fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
+			}
 		}
 	}
 
@@ -355,7 +369,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		appID.Platform = fleet.MacOSPlatform
 	}
 
-	if !appID.Platform.IsValidInstallableDevicePlatform() {
+	if !appID.Platform.SupportsAppStoreApps() {
 		return 0, fleet.NewInvalidArgumentError("platform",
 			fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
 	}

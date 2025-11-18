@@ -1702,7 +1702,7 @@ func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	for _, platform := range fleet.VPPAppsPlatforms {
+	for _, platform := range fleet.AppStoreAppsPlatforms {
 		for _, tt := range tests {
 			t.Run(fmt.Sprintf("%s_%v", tt.name, platform), func(t *testing.T) {
 				tt.app.Platform = platform
