@@ -1839,11 +1839,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceEndpointsWithPlatform() {
 	res := s.DoRawWithHeaders("PUT", "/api/v1/fleet/setup_experience/software", []byte(`{"platform": "foobar", "team_id": 0}`), http.StatusBadRequest, nil)
 	errMsg := extractServerErrorText(res.Body)
 	require.NoError(t, res.Body.Close())
-	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be \"macos\", \"ios\", \"ipados\", \"windows\", or \"linux\"")
+	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be one of \"macos\", \"ios\", \"ipados\", \"windows\", \"linux\", \"android\"")
 	res = s.DoRawWithHeaders("GET", "/api/v1/fleet/setup_experience/software?platform=foobar&team_id=0", nil, http.StatusBadRequest, nil)
 	errMsg = extractServerErrorText(res.Body)
 	require.NoError(t, res.Body.Close())
-	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be \"macos\", \"ios\", \"ipados\", \"windows\", or \"linux\"")
+	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be one of \"macos\", \"ios\", \"ipados\", \"windows\", \"linux\", \"android\"")
 }
 
 func (s *integrationMDMTestSuite) TestSetupExperienceVPPCRUD() {
