@@ -852,7 +852,7 @@ When the CA is deleted, the issued certificates will remain on existing hosts.
 
 ### Request certificate
 
-Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only supported for the [Hydrant](#integrations-hydrant) certificate authority (CA). DigiCert, NDES, and custom SCEP coming soon.
+Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only supported for the [Hydrant](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#hydrant) certificate authority (CA). DigiCert, NDES, and custom SCEP coming soon.
 
 `POST /api/v1/fleet/certificate_authorities/:id/request_certificate`
 
