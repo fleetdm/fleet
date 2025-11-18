@@ -4,5 +4,6 @@
   "token": "drawio",
   "installer_format": "dmg",
   "slug": "drawio/darwin",
-  "default_categories": ["Productivity"]
+  "default_categories": ["Productivity"],
+  "frozen": true
 }
