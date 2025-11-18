@@ -114,7 +114,7 @@ func TestLabelsAuth(t *testing.T) {
 			_, err = svc.GetLabelSpec(ctx, "abc")
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.ListLabels(ctx, fleet.ListOptions{}, nil)
+			_, err = svc.ListLabels(ctx, fleet.ListOptions{}, true)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.LabelsSummary((ctx))
@@ -145,7 +145,7 @@ func TestListLabelsHostCountOptions(t *testing.T) {
 	}
 
 	// Test explicitly setting include_host_counts to false
-	_, err := svc.ListLabels(ctx, fleet.ListOptions{}, ptr.Bool(false))
+	_, err := svc.ListLabels(ctx, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 
 	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.Label, error) {
@@ -155,11 +155,7 @@ func TestListLabelsHostCountOptions(t *testing.T) {
 	}
 
 	// Test explicitly setting include_host_counts to true
-	_, err = svc.ListLabels(ctx, fleet.ListOptions{}, ptr.Bool(true))
-	require.NoError(t, err)
-
-	// Test default behavior (nil include_host_counts), which should include host counts
-	_, err = svc.ListLabels(ctx, fleet.ListOptions{}, nil)
+	_, err = svc.ListLabels(ctx, fleet.ListOptions{}, true)
 	require.NoError(t, err)
 }
 
@@ -202,7 +198,7 @@ func testLabelsListLabels(t *testing.T, ds *mysql.Datastore) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 	require.NoError(t, ds.MigrateData(context.Background()))
 
-	labels, err := svc.ListLabels(test.UserContext(ctx, test.UserAdmin), fleet.ListOptions{Page: 0, PerPage: 1000}, nil)
+	labels, err := svc.ListLabels(test.UserContext(ctx, test.UserAdmin), fleet.ListOptions{Page: 0, PerPage: 1000}, true)
 	require.NoError(t, err)
 	require.Len(t, labels, 8)
 

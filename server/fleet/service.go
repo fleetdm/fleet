@@ -261,7 +261,7 @@ type Service interface {
 
 	NewLabel(ctx context.Context, p LabelPayload) (label *Label, hostIDs []uint, err error)
 	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, []uint, error)
-	ListLabels(ctx context.Context, opt ListOptions, includeHostCounts *bool) (labels []*Label, err error)
+	ListLabels(ctx context.Context, opt ListOptions, includeHostCounts bool) (labels []*Label, err error)
 	LabelsSummary(ctx context.Context) (labels []*LabelSummary, err error)
 	GetLabel(ctx context.Context, id uint) (label *Label, hostIDs []uint, err error)
 

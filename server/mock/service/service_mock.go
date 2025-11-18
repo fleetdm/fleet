@@ -148,7 +148,7 @@ type NewLabelFunc func(ctx context.Context, p fleet.LabelPayload) (label *fleet.
 
 type ModifyLabelFunc func(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.Label, []uint, error)
 
-type ListLabelsFunc func(ctx context.Context, opt fleet.ListOptions, includeHostCounts *bool) (labels []*fleet.Label, err error)
+type ListLabelsFunc func(ctx context.Context, opt fleet.ListOptions, includeHostCounts bool) (labels []*fleet.Label, err error)
 
 type LabelsSummaryFunc func(ctx context.Context) (labels []*fleet.LabelSummary, err error)
 
@@ -2562,7 +2562,7 @@ func (s *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modify
 	return s.ModifyLabelFunc(ctx, id, payload)
 }
 
-func (s *Service) ListLabels(ctx context.Context, opt fleet.ListOptions, includeHostCounts *bool) (labels []*fleet.Label, err error) {
+func (s *Service) ListLabels(ctx context.Context, opt fleet.ListOptions, includeHostCounts bool) (labels []*fleet.Label, err error) {
 	s.mu.Lock()
 	s.ListLabelsFuncInvoked = true
 	s.mu.Unlock()
