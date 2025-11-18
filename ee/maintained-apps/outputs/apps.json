@@ -37,6 +37,13 @@
       "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
     },
     {
+      "name": "Asana",
+      "slug": "asana/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.asana",
+      "description": "Manage team projects and tasks."
+    },
+    {
       "name": "Beyond Compare",
       "slug": "beyond-compare/darwin",
       "platform": "darwin",
