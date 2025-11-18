@@ -35,6 +35,9 @@ import (
 	"testing"
 	"time"
 
+	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
+	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
+
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
@@ -67,6 +70,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -115,6 +119,8 @@ type integrationMDMTestSuite struct {
 	appleGDMFSrv              *httptest.Server
 	mockedDownloadFleetdmMeta fleetdbase.Metadata
 	scepConfig                *eeservice.SCEPConfigService
+	androidAPIClient          *android_mock.Client
+	proxyCallbackURL          string
 }
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
@@ -191,6 +197,18 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		wlog = kitlog.NewNopLogger()
 	}
+
+	activityModule := activities.NewActivityModule(s.ds, wlog)
+	androidMockClient := &android_mock.Client{}
+	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
+		return nil
+	}
+	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds, activityModule)
+	if err != nil {
+		panic(err)
+	}
+	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true
+
 	macosJob := &worker.MacosSetupAssistant{
 		Datastore:  s.ds,
 		Log:        wlog,
@@ -207,9 +225,14 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		Log:       wlog,
 		Commander: mdmCommander,
 	}
+	softwareWorker := &worker.SoftwareWorker{
+		Datastore:     s.ds,
+		Log:           wlog,
+		AndroidModule: androidSvc,
+	}
 	workr := worker.NewWorker(s.ds, wlog)
 	workr.TestIgnoreUnknownJobs = true
-	workr.Register(macosJob, appleMDMJob, vppVerifyJob)
+	workr.Register(macosJob, appleMDMJob, vppVerifyJob, softwareWorker)
 
 	s.worker = workr
 
@@ -257,6 +280,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		Lq:                    s.lq,
 		SoftwareInstallStore:  softwareInstallerStore,
 		BootstrapPackageStore: bootstrapPackageStore,
+		androidMockClient:     androidMockClient,
+		androidModule:         androidSvc,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
@@ -385,6 +410,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.mdmStorage = mdmStorage
 	s.mdmCommander = mdmCommander
 	s.logger = serverLogger
+	s.androidAPIClient = androidMockClient
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)
@@ -518,9 +544,13 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		// Handle /assets
 		if strings.Contains(r.URL.Path, "assets") {
 			w.Header().Set("Content-Type", "application/json")
-			assets := s.appleVPPConfigSrvConfig.Assets
-			if adamID := r.URL.Query().Get("adamId"); adamID != "" {
-				for _, a := range assets {
+			adamID := r.URL.Query().Get("adamId")
+			var assets []vpp.Asset
+			switch adamID {
+			case "":
+				assets = s.appleVPPConfigSrvConfig.Assets
+			default:
+				for _, a := range s.appleVPPConfigSrvConfig.Assets {
 					if a.AdamID == adamID {
 						assets = []vpp.Asset{a}
 					}
@@ -12133,10 +12163,10 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Insert/deletion flow for iPadOS app
 	addedApp = expectedApps[1]
 	addAppResp = addAppStoreAppResponse{}
-	// No self-service for iPadOS
+	// Accepts self-service for iPadOS
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
 		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID, Platform: addedApp.Platform, SelfService: true},
-		http.StatusBadRequest, &addAppResp)
+		http.StatusOK, &addAppResp)
 	// No auto-install for iPadOS
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
 		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID, Platform: addedApp.Platform, AutomaticInstall: true},
@@ -15740,8 +15770,19 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 
 	// /////////////////////////////////////
 	// Test SCEP traffic being sent by host
+
+	// Invalid profile identifier
+	scepRes := s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"invalid_identifier,p1234-uuid", nil, http.StatusBadRequest, nil, "operation", "GetCACaps")
+	scepResErr := extractServerErrorText(scepRes.Body)
+	require.Contains(t, scepResErr, "invalid profile UUID (only Apple and Windows")
+
+	// Verify Windows profiles is allowed (with dummy values that will fail lookup)
+	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"invalid_identifier,w1234-uuid", nil, http.StatusBadRequest, nil, "operation", "GetCACaps")
+	scepResErr = extractServerErrorText(scepRes.Body)
+	require.Contains(t, scepResErr, "unknown identifier in URL path") // Both invalid host and profile, but it allows it to lookup
+
 	// GetCACaps
-	scepRes := s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation", "GetCACaps")
+	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation", "GetCACaps")
 	body, err := io.ReadAll(scepRes.Body)
 	require.NoError(t, err)
 	assert.Equal(t, scepserver.DefaultCACaps, string(body))

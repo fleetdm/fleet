@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -33,6 +34,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
+	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
@@ -55,6 +59,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2"
 	"github.com/throttled/throttled/v2/store/memstore"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
@@ -232,6 +237,12 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			}
 			softwareInstallStore = store
 		}
+
+		var androidModule android.Service
+		if len(opts) > 0 {
+			androidModule = opts[0].androidModule
+		}
+
 		svc, err = eeservice.NewService(
 			svc,
 			ds,
@@ -250,11 +261,13 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			keyValueStore,
 			scepConfigService,
 			digiCertService,
+			androidModule,
 			estCAService,
 		)
 		if err != nil {
 			panic(err)
 		}
+
 	}
 	return svc, ctx
 }
@@ -392,6 +405,8 @@ type TestServerOpts struct {
 	EnableSCIM                      bool
 	ConditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 	HostIdentity                    *HostIdentity
+	androidMockClient               *android_mock.Client
+	androidModule                   android.Service
 	ConditionalAccess               *ConditionalAccess
 }
 
@@ -424,6 +439,11 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) > 0 && opts[0].Logger != nil {
 		logger = opts[0].Logger
 	}
+
+	if len(opts) > 0 {
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].androidModule))
+	}
+
 	var mdmPusher nanomdm_push.Pusher
 	if len(opts) > 0 && opts[0].MDMPusher != nil {
 		mdmPusher = opts[0].MDMPusher
@@ -511,7 +531,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 
 	if len(opts) > 0 && opts[0].ConditionalAccess != nil {
-		require.NoError(t, condaccess.RegisterSCEP(rootMux, opts[0].ConditionalAccess.SCEPStorage, ds, logger, &cfg))
+		require.NoError(t, condaccess.RegisterSCEP(ctx, rootMux, opts[0].ConditionalAccess.SCEPStorage, ds, logger, &cfg))
+		require.NoError(t, condaccess.RegisterIdP(rootMux, ds, logger, &cfg))
 	}
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, featureRoutes, extra...)
 	rootMux.Handle("/api/", apiHandler)
@@ -1252,5 +1273,57 @@ func getURISchemas() []string {
 		"z39.50",
 		"z39.50r",
 		"z39.50s",
+	}
+}
+
+func createAndroidDeviceID(name string) string {
+	return "enterprises/mock-enterprise-id/devices/" + name
+}
+
+func enrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
+	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
+		EnterpriseSpecificId: enterpriseSpecificID,
+		Brand:                "TestBrand",
+		Model:                "TestModel",
+		SerialNumber:         "test-serial",
+		Hardware:             "test-hardware",
+	}
+	deviceInfo.SoftwareInfo = &androidmanagement.SoftwareInfo{
+		AndroidBuildNumber: "test-build",
+		AndroidVersion:     "1",
+	}
+	deviceInfo.MemoryInfo = &androidmanagement.MemoryInfo{
+		TotalRam:             int64(8 * 1024 * 1024 * 1024),  // 8GB RAM in bytes
+		TotalInternalStorage: int64(64 * 1024 * 1024 * 1024), // 64GB system partition
+	}
+
+	deviceInfo.MemoryEvents = []*androidmanagement.MemoryEvent{
+		{
+			EventType:  "EXTERNAL_STORAGE_DETECTED",
+			ByteCount:  int64(64 * 1024 * 1024 * 1024), // 64GB external/built-in storage total capacity
+			CreateTime: "2024-01-15T09:00:00Z",
+		},
+		{
+			EventType:  "INTERNAL_STORAGE_MEASURED",
+			ByteCount:  int64(10 * 1024 * 1024 * 1024), // 10GB free in system partition
+			CreateTime: "2024-01-15T10:00:00Z",
+		},
+		{
+			EventType:  "EXTERNAL_STORAGE_MEASURED",
+			ByteCount:  int64(25 * 1024 * 1024 * 1024), // 25GB free in external/built-in storage
+			CreateTime: "2024-01-15T10:00:00Z",
+		},
+	}
+
+	data, err := json.Marshal(deviceInfo)
+	require.NoError(t, err)
+
+	encodedData := base64.StdEncoding.EncodeToString(data)
+
+	return &android.PubSubMessage{
+		Attributes: map[string]string{
+			"notificationType": string(android.PubSubEnrollment),
+		},
+		Data: encodedData,
 	}
 }
