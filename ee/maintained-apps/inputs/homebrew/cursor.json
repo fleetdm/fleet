@@ -1,0 +1,8 @@
+{
+  "name": "Cursor",
+  "unique_identifier": "com.todesktop.230313mzl4w4u92",
+  "token": "cursor",
+  "installer_format": "zip",
+  "slug": "cursor/darwin",
+  "default_categories": ["Developer tools"]
+}

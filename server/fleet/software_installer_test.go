@@ -203,10 +203,10 @@ func TestSofwareInstallerSourceFromExtensionAndName(t *testing.T) {
 		{"tar.gz", "archive.tar.gz", "tgz_packages", false},
 
 		// New script extensions
-		{".sh", "script.sh", "scripts", false},
-		{"sh", "setup.sh", "scripts", false},
-		{".ps1", "script.ps1", "scripts", false},
-		{"ps1", "setup.ps1", "scripts", false},
+		{".sh", "script.sh", "sh_packages", false},
+		{"sh", "setup.sh", "sh_packages", false},
+		{".ps1", "script.ps1", "ps1_packages", false},
+		{"ps1", "setup.ps1", "ps1_packages", false},
 
 		// Unsupported extensions
 		{".zip", "archive.zip", "", true},

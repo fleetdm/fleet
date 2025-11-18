@@ -82,7 +82,7 @@ import SoftwareVulnerabilityDetailsPage from "pages/SoftwarePage/SoftwareVulnera
 import SoftwareAddPage from "pages/SoftwarePage/SoftwareAddPage";
 import SoftwareFleetMaintained from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained";
 import SoftwareCustomPackage from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage";
-import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp";
+import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStore";
 import FleetMaintainedAppDetailsPage from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage";
 import ScriptBatchDetailsPage from "pages/ManageControlsPage/Scripts/ScriptBatchDetailsPage";
 
@@ -194,8 +194,16 @@ const routes = (
                   to="integrations/mdm"
                 />
                 <Redirect from="integrations/vpp" to="integrations/mdm" />
+                <Redirect
+                  from="integrations/sso"
+                  to="integrations/sso/fleet-users"
+                />
                 <Route
                   path="integrations/:section"
+                  component={AdminIntegrationsPage}
+                />
+                <Route
+                  path="integrations/sso/:subsection"
                   component={AdminIntegrationsPage}
                 />
                 <Route component={ExcludeInSandboxRoutes}>

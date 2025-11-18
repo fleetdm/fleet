@@ -8,12 +8,14 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -25,8 +27,8 @@ func createAndroidService(t *testing.T) (android.Service, *AndroidMockDS) {
 	androidAPIClient.InitCommonMocks()
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	mockDS := InitCommonDSMocks()
-	fleetSvc := mockService{}
-	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, &fleetSvc, "test-private-key", &mockDS.DataStore)
+	activityModule := activities.NewActivityModule(mockDS, logger)
+	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, "test-private-key", &mockDS.DataStore, activityModule)
 	require.NoError(t, err)
 
 	return svc, mockDS
@@ -141,7 +143,7 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 
 			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
-				return nil, nil // We do not care about return value here
+				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 			}
 
 			enrollmentToken := enrollmentTokenRequest{
@@ -170,7 +172,7 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 
 			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
-				return nil, nil // We do not care about return value here
+				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 			}
 			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
 				return nil
@@ -589,6 +591,8 @@ func TestUpdateHost(t *testing.T) {
 	// verify UUID is set correctly
 	var capturedHost *fleet.AndroidHost
 	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+		// Validate that the update always updates the label updated at value with a recent one
+		require.Greater(t, host.LabelUpdatedAt, time.Now().Add(-5*time.Second))
 		capturedHost = host
 		return nil
 	}
@@ -1036,4 +1040,72 @@ func createStatusReportMessage(t *testing.T, deviceId, name, policyName string, 
 
 func createAndroidDeviceId(name string) string {
 	return "enterprises/mock-enterprise-id/devices/" + name
+}
+
+func TestBuildNonComplianceErrorMessage(t *testing.T) {
+	testCases := []struct {
+		name                 string
+		nonCompliance        []*androidmanagement.NonComplianceDetail
+		expectedErrorMessage string
+	}{
+		{
+			name:                 "nil non-compliance detail",
+			nonCompliance:        nil,
+			expectedErrorMessage: "Settings couldn't apply to a host for unknown reasons.",
+		},
+		{
+			name:                 "no non-compliance detail",
+			nonCompliance:        []*androidmanagement.NonComplianceDetail{},
+			expectedErrorMessage: "Settings couldn't apply to a host for unknown reasons.",
+		},
+		{
+			name: "single non-compliance detail",
+			nonCompliance: []*androidmanagement.NonComplianceDetail{
+				{
+					SettingName:         "bluetoothDisabled",
+					NonComplianceReason: "MANAGEMENT_MODE",
+				},
+			},
+			expectedErrorMessage: "\"bluetoothDisabled\" setting couldn't apply to a host.\nReason: MANAGEMENT_MODE. Other settings are applied.",
+		},
+		{
+			name: "two non-compliance details",
+			nonCompliance: []*androidmanagement.NonComplianceDetail{
+				{
+					SettingName:         "bluetoothDisabled",
+					NonComplianceReason: "MANAGEMENT_MODE",
+				},
+				{
+					SettingName:         "cameraDisabled",
+					NonComplianceReason: "API_LEVEL",
+				},
+			},
+			expectedErrorMessage: "\"bluetoothDisabled\", and \"cameraDisabled\" settings couldn't apply to a host.\nReasons: MANAGEMENT_MODE, and API_LEVEL. Other settings are applied.",
+		},
+		{
+			name: "three non-compliance details",
+			nonCompliance: []*androidmanagement.NonComplianceDetail{
+				{
+					SettingName:         "bluetoothDisabled",
+					NonComplianceReason: "MANAGEMENT_MODE",
+				},
+				{
+					SettingName:         "cameraDisabled",
+					NonComplianceReason: "API_LEVEL",
+				},
+				{
+					SettingName:         "someCoolNewSetting",
+					NonComplianceReason: "UNSUPPORTED",
+				},
+			},
+			expectedErrorMessage: "\"bluetoothDisabled\", \"cameraDisabled\", and \"someCoolNewSetting\" settings couldn't apply to a host.\nReasons: MANAGEMENT_MODE, API_LEVEL, and UNSUPPORTED. Other settings are applied.",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualMessage := buildNonComplianceErrorMessage(tc.nonCompliance)
+			require.Equal(t, tc.expectedErrorMessage, actualMessage)
+		})
+	}
 }

@@ -144,8 +144,8 @@ a.text-danger:hover, a.text-danger:focus {
   }
 
   &.btn-primary {
-    background-color: #ff5c83;
-    border-color: #ff5c83;
+    background-color: @core-vibrant-green;
+    border: none;
     cursor: pointer;
     color: #FFF;
     overflow: hidden;
@@ -175,16 +175,16 @@ a.text-danger:hover, a.text-danger:focus {
     }
     &.disabled, &:disabled {
       color: #fff;
-      background-color: darken(#ff5c83, 10%);
-      border-color: darken(#ff5c83, 10%);
+      background-color: darken(@core-vibrant-green, 10%);
+      border-color: darken(@core-vibrant-green, 10%);
     }
     &:not(:disabled):not(.disabled):active, &:not(:disabled):not(.disabled).active, .show > &.dropdown-toggle {
       color: #fff;
-      background-color: darken(#ff5c83, 10%);
-      border-color: darken(#ff5c83, 10%);
+      background-color: darken(@core-vibrant-green, 10%);
+      border-color: darken(@core-vibrant-green, 10%);
     }
     &:not(:disabled):not(.disabled):active:focus, &:not(:disabled):not(.disabled).active:focus, .show > &.dropdown-toggle:focus {
-      box-shadow: 0 0 0.25rem 0.2rem #ff5c83;
+      box-shadow: none;
     }
   }
 
@@ -338,21 +338,21 @@ a.text-danger:hover, a.text-danger:focus {
 	padding: 8px 16px;
 	font-size: 18px;
 	color: #192147;
-	border: 1px solid #C5C7D1;
+	border: 1px solid @core-fleet-black-10;
 }
 .form-control:focus {
-	border: 1px solid #6a67fe;
+	border: 1px solid @core-fleet-black;
 	box-shadow: unset;
 }
 .form-control.is-invalid:focus {
 	box-shadow: unset;
 }
 .form-control.is-invalid::placeholder {
-  color: #FF5C83;
+  color: @core-vibrant-red;
 }
 .form-control.is-invalid {
-  color: #FF5C83;
-  border: 1px solid #FF5C83;
+  color: @core-vibrant-red;
+  border: 1px solid @core-vibrant-red;
 }
 textarea.form-control {
 	height: 108px;

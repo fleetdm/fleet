@@ -45,6 +45,7 @@ func TestScim(t *testing.T) {
 		{"ScimUsersExist", testScimUsersExist},
 		{"TriggerResendIdPProfiles", testTriggerResendIdPProfiles},
 		{"TriggerResendIdPProfilesOnTeam", testTriggerResendIdPProfilesOnTeam},
+		{"SetOrUpdateHostSCIMUserMapping", testSetOrUpdateHostSCIMUserMapping},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2356,4 +2357,135 @@ func testScimUsersExist(t *testing.T, ds *Datastore) {
 	exist, err = ds.ScimUsersExist(t.Context(), largeExistingIDs)
 	require.NoError(t, err)
 	assert.True(t, exist, "Large batch with only existing users should return true")
+}
+
+func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create test SCIM users
+	user1 := fleet.ScimUser{
+		UserName:   "mapping-test-user1",
+		ExternalID: ptr.String("ext-mapping-123"),
+		GivenName:  ptr.String("Test"),
+		FamilyName: ptr.String("User1"),
+		Active:     ptr.Bool(true),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "user1@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+		Department: ptr.String("Engineering"),
+	}
+
+	user2 := fleet.ScimUser{
+		UserName:   "mapping-test-user2",
+		ExternalID: ptr.String("ext-mapping-456"),
+		GivenName:  ptr.String("Test"),
+		FamilyName: ptr.String("User2"),
+		Active:     ptr.Bool(true),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "user2@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+		Department: ptr.String("Sales"),
+	}
+
+	var err error
+	user1.ID, err = ds.CreateScimUser(ctx, &user1)
+	require.NoError(t, err)
+
+	user2.ID, err = ds.CreateScimUser(ctx, &user2)
+	require.NoError(t, err)
+
+	hostID1 := uint(1)
+	hostID2 := uint(2)
+
+	// Create new host-SCIM user mapping
+	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user1.ID)
+	require.NoError(t, err)
+
+	// Verify the mapping was created
+	var scimUserID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &scimUserID,
+			"SELECT scim_user_id FROM host_scim_user WHERE host_id = ?", hostID1)
+	})
+	assert.Equal(t, user1.ID, scimUserID)
+
+	// Test 2: Update existing host-SCIM user mapping
+	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user2.ID)
+	require.NoError(t, err)
+
+	// Verify the mapping was updated (should now point to user2)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &scimUserID,
+			"SELECT scim_user_id FROM host_scim_user WHERE host_id = ?", hostID1)
+	})
+	assert.Equal(t, user2.ID, scimUserID)
+
+	// Verify there's only one mapping for this host
+	var count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count,
+			"SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?", hostID1)
+	})
+	assert.Equal(t, 1, count)
+
+	// Test 3: Create mapping for a different host
+	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID2, user1.ID)
+	require.NoError(t, err)
+
+	// Verify both hosts have mappings
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &scimUserID,
+			"SELECT scim_user_id FROM host_scim_user WHERE host_id = ?", hostID2)
+	})
+	assert.Equal(t, user1.ID, scimUserID)
+
+	// Verify total mappings
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count,
+			"SELECT COUNT(*) FROM host_scim_user")
+	})
+	assert.Equal(t, 2, count)
+
+	// Update mapping back to original user for hostID1
+	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user1.ID)
+	require.NoError(t, err)
+
+	// Verify hostID1 now maps to user1
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &scimUserID,
+			"SELECT scim_user_id FROM host_scim_user WHERE host_id = ?", hostID1)
+	})
+	assert.Equal(t, user1.ID, scimUserID)
+
+	// Error case - non-existent SCIM user
+	nonExistentUserID := uint(999999)
+	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, nonExistentUserID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "foreign key constraint")
+
+	// Verify that failing update didn't change existing mapping
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &scimUserID,
+			"SELECT scim_user_id FROM host_scim_user WHERE host_id = ?", hostID1)
+	})
+	assert.Equal(t, user1.ID, scimUserID) // Should still be user1
+
+	// Verify the mapping can be queried via ScimUserByHostID
+	result, err := ds.ScimUserByHostID(ctx, hostID1)
+	require.NoError(t, err)
+	assert.Equal(t, user1.ID, result.ID)
+	assert.Equal(t, "mapping-test-user1", result.UserName)
+
+	result, err = ds.ScimUserByHostID(ctx, hostID2)
+	require.NoError(t, err)
+	assert.Equal(t, user1.ID, result.ID)
+	assert.Equal(t, "mapping-test-user1", result.UserName)
 }

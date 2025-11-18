@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>PayloadIdentifier</key>
+            <string>com.fleetdm.managedloginitems</string>
+            <key>PayloadUUID</key>
+            <string>E059D4BC-B486-45AE-818B-B5B2A27E20D4</string>
+            <key>PayloadType</key>
+            <string>com.apple.servicemanagement</string>
+            <key>Rules</key>
+            <array>
+                <dict>
+                    <key>RuleType</key>
+                    <string>TeamIdentifier</string>
+                    <key>RuleValue</key>
+                    <string>8VBZ3948LU</string>
+                    <key>Comment</key>
+                    <string>Fleet Agent</string>
+                </dict>
+            </array>
+        </dict>
+    </array>
+    <key>PayloadDescription</key>
+    <string>Enforces Fleet Desktop login item</string>
+    <key>PayloadDisplayName</key>
+    <string>Managed Login Items</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.managedloginitems</string>
+    <key>PayloadUUID</key>
+    <string>FF6ECF03-8E78-4876-AD97-2E627AD8A237</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadScope</key>
+    <string>System</string>
+</dict>
+</plist>

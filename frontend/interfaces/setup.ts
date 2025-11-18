@@ -1,3 +1,5 @@
+import { SoftwareSource } from "./software";
+
 export const SETUP_STEP_STATUSES = [
   "pending",
   "running",
@@ -11,7 +13,7 @@ export type SetupStepStatus = typeof SETUP_STEP_STATUSES[number];
 /** These type extends onto API returned software steps */
 export const SETUP_STEP_TYPES = [
   "software_install", // API key: software
-  "software_script_run", // API key: software, key: name ending in .sh or .ps1 for now
+  "software_script_run", // API key: software, detected via source === "sh_packages" || "ps1_packages"
   "script_run", // API key: scripts
 ];
 
@@ -22,4 +24,5 @@ export interface ISetupStep {
   status: SetupStepStatus;
   type: SetupStepType;
   error?: string | null;
+  source?: SoftwareSource; // Software source (e.g., "sh_packages", "ps1_packages", "apps")
 }
