@@ -246,6 +246,7 @@
       "unique_identifier": "Google Drive",
       "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
     },
+    {
       "name": "iMazing Profile Editor",
       "slug": "imazing-profile-editor/darwin",
       "platform": "darwin",
