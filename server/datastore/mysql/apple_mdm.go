@@ -3569,13 +3569,13 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 			_, err = tx.ExecContext(ctx, `
           UPDATE host_mdm_apple_profiles
           SET status = ?, operation_type = ?, detail = ?, variables_updated_at = ?
-          WHERE host_uuid = ? AND command_uuid = ? AND status IS NOT NULL
+          WHERE host_uuid = ? AND command_uuid = ?
         `, status, profile.OperationType, detail, profile.VariablesUpdatedAt, profile.HostUUID, profile.CommandUUID)
 		} else {
 			_, err = tx.ExecContext(ctx, `
           UPDATE host_mdm_apple_profiles
           SET status = ?, operation_type = ?, detail = ?
-          WHERE host_uuid = ? AND command_uuid = ? AND status IS NOT NULL
+          WHERE host_uuid = ? AND command_uuid = ?
         `, status, profile.OperationType, detail, profile.HostUUID, profile.CommandUUID)
 		}
 		return err
