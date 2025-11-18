@@ -408,18 +408,18 @@
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
     },
     {
-      "name": "PyCharm Professional",
-      "slug": "pycharm/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.jetbrains.pycharm",
-      "description": "Jetbrain IDE for professional Python development. This version includes advanced features and requires a valid license."
-    },
-    {
       "name": "PyCharm Community Edition",
       "slug": "pycharm-ce/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.pycharm.ce",
       "description": "Jetbrains IDE for Python programming - Community Edition"
+    },
+    {
+      "name": "PyCharm Professional",
+      "slug": "pycharm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.pycharm",
+      "description": "Jetbrain IDE for professional Python development. This version includes advanced features and requires a valid license."
     },
     {
       "name": "Rectangle",
@@ -476,6 +476,13 @@
       "platform": "windows",
       "unique_identifier": "TeamViewer",
       "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
+    },
+    {
+      "name": "Thunderbird",
+      "slug": "thunderbird/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.mozilla.thunderbird",
+      "description": "Mozilla Thunderbird is a free and open-source e-mail client."
     },
     {
       "name": "Tunnelblick",
