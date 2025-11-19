@@ -1048,6 +1048,25 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			},
 		},
 		{
+			name:             "host serial fleet variable with blank serial",
+			hostUUID:         "test-uuid-456",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
+			expectError:      true,
+			processingError:  "the profile includes variable substitution for a hardware serial number, but this host does not have a serial number set",
+			setup: func() {
+				ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+					require.Equal(t, []string{"test-uuid-456"}, uuids)
+					return []*fleet.Host{
+						{
+							UUID: "test-uuid-456",
+							ID:   1234,
+						},
+					}, nil
+				}
+			},
+		},
+		{
 			name:             "host serial with multiple hosts matching the same UUID",
 			hostUUID:         "test-uuid-789",
 			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,

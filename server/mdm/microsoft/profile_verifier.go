@@ -417,6 +417,10 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 			if err != nil {
 				return profileContents, err
 			}
+			if hostLite.HardwareSerial == "" {
+				return profileContents, &MicrosoftProfileProcessingError{message: "the profile includes variable substitution for a hardware serial number, but this host does not have a serial number set"}
+			}
+
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostHardwareSerialRegexp, result, hostLite.HardwareSerial)
 		case slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(fleetVar)):
 			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(deps.GetContext(), deps.GetDS(), fleetVar, result, params.HostUUID, deps.GetHostIdForUUIDCache(), func(errMsg string) error {
