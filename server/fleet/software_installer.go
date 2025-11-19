@@ -513,6 +513,7 @@ type UploadSoftwareInstallerPayload struct {
 	AutomaticInstallQuery string
 	Categories            []string
 	CategoryIDs           []uint
+	DisplayName           string
 	// AddedAutomaticInstallPolicy is the auto-install policy that can be
 	// automatically created when a software installer is added to Fleet. This field should be set
 	// after software installer creation if AutomaticInstall is true.

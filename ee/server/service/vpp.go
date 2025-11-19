@@ -79,6 +79,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			LabelsExcludeAny:   payload.LabelsExcludeAny,
 			LabelsIncludeAny:   payload.LabelsIncludeAny,
 			Categories:         payload.Categories,
+			DisplayName:        payload.DisplayName,
 		}, {
 			AppStoreID:         payload.AppStoreID,
 			SelfService:        payload.SelfService,
@@ -87,6 +88,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			LabelsExcludeAny:   payload.LabelsExcludeAny,
 			LabelsIncludeAny:   payload.LabelsIncludeAny,
 			Categories:         payload.Categories,
+			DisplayName:        payload.DisplayName,
 		}, {
 			AppStoreID:         payload.AppStoreID,
 			SelfService:        payload.SelfService,
@@ -95,6 +97,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			LabelsExcludeAny:   payload.LabelsExcludeAny,
 			LabelsIncludeAny:   payload.LabelsIncludeAny,
 			Categories:         payload.Categories,
+			DisplayName:        payload.DisplayName,
 		}}...)
 	}
 
@@ -147,6 +150,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				InstallDuringSetup: payload.InstallDuringSetup,
 				ValidatedLabels:    validatedLabels,
 				CategoryIDs:        catIDs,
+				DisplayName:        payload.DisplayName,
 			})
 		}
 

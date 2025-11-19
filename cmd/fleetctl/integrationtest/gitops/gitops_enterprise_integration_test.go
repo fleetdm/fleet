@@ -1978,3 +1978,123 @@ labels:
 	// Verify the correct hosts were added to the label
 	require.ElementsMatch(t, labelHostIDs, []uint{host1.ID, host2.ID, host3.ID, host5.ID})
 }
+
+// TestGitOpsSoftwareDisplayName tests that display names for software packages and VPP apps
+// are properly applied via GitOps.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsSoftwareDisplayName() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	const (
+		globalTemplate = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+queries:
+`
+
+		noTeamTemplate = `name: No team
+controls:
+policies:
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+      display_name: Custom Ruby Name
+`
+
+		teamTemplate = `
+controls:
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+      display_name: Team Custom Ruby
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  secrets: [{"secret":"enroll_secret"}]
+`
+	)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(globalTemplate)
+	require.NoError(t, err)
+	err = globalFile.Close()
+	require.NoError(t, err)
+
+	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = noTeamFile.WriteString(noTeamTemplate)
+	require.NoError(t, err)
+	err = noTeamFile.Close()
+	require.NoError(t, err)
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
+	require.NoError(t, err)
+
+	teamName := uuid.NewString()
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(fmt.Sprintf(teamTemplate, teamName))
+	require.NoError(t, err)
+	err = teamFile.Close()
+	require.NoError(t, err)
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.Server.URL)
+	testing_utils.StartSoftwareInstallerServer(t)
+
+	// Apply configs
+	_ = fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"})
+	_ = fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()})
+
+	// get the team ID
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+
+	// Verify display name for no team
+	noTeamTitles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: ptr.Uint(0)},
+		fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, noTeamTitles, 1)
+	require.NotNil(t, noTeamTitles[0].SoftwarePackage)
+	noTeamTitleID := noTeamTitles[0].ID
+
+	// Verify the display name is stored in the database for no team
+	var noTeamDisplayName string
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &noTeamDisplayName,
+			"SELECT display_name FROM software_title_display_names WHERE team_id = ? AND software_title_id = ?",
+			0, noTeamTitleID)
+	})
+	require.Equal(t, "Custom Ruby Name", noTeamDisplayName)
+
+	// Verify display name for team
+	teamTitles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID}, fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, teamTitles, 1)
+	require.NotNil(t, teamTitles[0].SoftwarePackage)
+	teamTitleID := teamTitles[0].ID
+
+	// Verify the display name is stored in the database for team
+	var teamDisplayName string
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &teamDisplayName,
+			"SELECT display_name FROM software_title_display_names WHERE team_id = ? AND software_title_id = ?",
+			team.ID, teamTitleID)
+	})
+	require.Equal(t, "Team Custom Ruby", teamDisplayName)
+}

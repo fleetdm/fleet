@@ -2048,6 +2048,7 @@ func (svc *Service) softwareBatchUpload(
 				LabelsExcludeAny:   p.LabelsExcludeAny,
 				ValidatedLabels:    p.ValidatedLabels,
 				Categories:         p.Categories,
+				DisplayName:        p.DisplayName,
 			}
 
 			p.Categories = server.RemoveDuplicatesFromSlice(p.Categories)
