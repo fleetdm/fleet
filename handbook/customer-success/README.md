@@ -122,6 +122,7 @@ Fast-track is Fleet's service delivery package for new MDM customers. Check with
   - Zendesk/JIRA?
   - Others?
 - Gather a list of which policies and profiles need to be replicated or replaced
+3. For managed cloud customers, send a request to the [:help-customers board](https://github.com/orgs/fleetdm/projects/79/views/1?filterQuery=) requesting that an infrastructure engineer double check the configuration variables to ensure they support the size and scale of the upcoming deployment. For self-hosted customers, schedule a dedicated session with the customer and the assigned CSA to review their server configuration and ensure that it supports the size and scale of the upcoming deployment.
 
 
 ### Conduct a health check

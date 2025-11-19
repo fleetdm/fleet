@@ -1,0 +1,19 @@
+name: "${TEST_TEAM_NAME}"
+team_settings:
+  secrets:
+    - secret: "ABC"
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: true
+    host_expiry_window: 30
+agent_options:
+controls:
+policies:
+queries:
+software:
+  app_store_apps:
+    - app_store_id: "12345"
+      display_name: "This display name is way too long and exceeds the maximum allowed length of 255 characters for the display_name field in the database. This validation is important because the database schema uses VARCHAR(255) and we need to ensure data integrity by catching this error early during YAML parsing before it gets to the database layer where it would cause a database constraint error which is harder to debug"
+      self_service: true

@@ -104,6 +104,7 @@ github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Slug	*string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	ReferencedYamlPath	string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	SHA256	string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Categories	[]string
+github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	DisplayName	string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwareSpec	FleetMaintainedApps	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MaintainedAppSpec]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MaintainedAppSpec]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MaintainedAppSpec]	Valid	bool
@@ -130,3 +131,4 @@ github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	LabelsExcludeAny	[]
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Categories	[]string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	InstallDuringSetup	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Icon	fleet.TeamSpecSoftwareAsset
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	DisplayName	string

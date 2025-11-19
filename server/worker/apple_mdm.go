@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
@@ -113,6 +114,15 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 	if isMacOS(args.Platform) {
 		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+		}
+	} else {
+		// We shouldn't have any setup experience steps if we're not on a premium license,
+		// but best to check anyway plus it saves some db queries.
+		if license.IsPremium(ctx) {
+			_, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
+			}
 		}
 	}
 

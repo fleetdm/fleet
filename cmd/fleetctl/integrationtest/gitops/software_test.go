@@ -57,6 +57,10 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_valid_exclude.yml", ""},
 		{"testdata/gitops/team_software_installer_invalid_unknown_label.yml",
 			"Please create the missing labels, or update your settings to not refer to these labels."},
+		// display_name tests
+		{"testdata/gitops/team_software_installer_with_display_name.yml", ""},
+		{"testdata/gitops/team_software_installer_display_name_too_long.yml", "display_name is too long (max 255 characters)"},
+		{"testdata/gitops/team_software_app_store_display_name_too_long.yml", "display_name is too long (max 255 characters)"},
 		// team tests for setup experience software/script
 		{"testdata/gitops/team_setup_software_valid.yml", ""},
 		{"testdata/gitops/team_setup_software_on_package.yml", ""},
