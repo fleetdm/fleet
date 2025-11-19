@@ -852,7 +852,7 @@ When the CA is deleted, the issued certificates will remain on existing hosts.
 
 ### Request certificate
 
-Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only supported for the [Hydrant](#integrations-hydrant) certificate authority (CA). DigiCert, NDES, and custom SCEP coming soon.
+Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only supported for the [Hydrant](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#hydrant) certificate authority (CA). DigiCert, NDES, and custom SCEP coming soon.
 
 `POST /api/v1/fleet/certificate_authorities/:id/request_certificate`
 
@@ -6787,57 +6787,13 @@ Set software that will be automatically installed during setup. Software that is
 {}
 ```
 
-### Create setup experience script
-
-_Available in Fleet Premium_
-
-Add a script that will automatically run during macOS setup.
-
-`POST /api/v1/fleet/setup_experience/script`
-
-| Name  | Type   | In    | Description                              |
-| ----- | ------ | ----- | ---------------------------------------- |
-| team_id | integer | form | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
-| script | file | form | The contents of the script to run during setup. |
-
-#### Example
-
-`POST /api/v1/fleet/setup_experience/script`
-
-##### Default response
-
-`Status: 200`
-
-##### Request headers
-
-```http
-Content-Length: 306
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
-##### Request body
-
-```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="team_id"
-
-1
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="script"; filename="myscript.sh"
-Content-Type: application/octet-stream
-
-echo "hello"
---------------------------f02md47480und42y--
-
-```
-
 ### Update setup experience script
 
 _Available in Fleet Premium_
 
-Changes the script that will automatically run during macOS setup. Updates the existing script for the team, or for hosts with no team, if one already exists.
+Set the script that will automatically run during macOS setup. Updates the existing script for the team, or for hosts with no team, if one already exists.
 
-`PUT /api/v1/fleet/setup_experience/script`
+`POST /api/v1/fleet/setup_experience/script`
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
@@ -6846,7 +6802,7 @@ Changes the script that will automatically run during macOS setup. Updates the e
 
 #### Example
 
-`PUT /api/v1/fleet/setup_experience/script`
+`POST /api/v1/fleet/setup_experience/script`
 
 ##### Default response
 
