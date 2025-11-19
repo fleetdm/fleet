@@ -44,32 +44,54 @@ if ($uninstallString -match '^"([^"]+)"(.*)') {
 }
 
 # Build argument list array, preserving existing arguments and adding /S for silent (Inno Setup)
-$argumentList = @()
+$baseArgumentList = @()
 if ($arguments -ne '') {
     # Split existing arguments and add them
-    $argumentList += $arguments -split '\s+'
+    $baseArgumentList += $arguments -split '\s+'
 }
-# Inno Setup uses /S for silent uninstall
-$argumentList += "/S"
 
-Write-Host "Uninstall executable: $exePath"
-Write-Host "Uninstall arguments: $($argumentList -join ' ')"
+function Invoke-Uninstall {
+    param(
+        [string]$Executable,
+        [array]$BaseArgs,
+        [array]$ExtraArgs
+    )
 
-try {
-    $processOptions = @{
-        FilePath = $exePath
-        ArgumentList = $argumentList
-        NoNewWindow = $true
-        PassThru = $true
-        Wait = $true
+    $finalArgs = @()
+    if ($BaseArgs) {
+        $finalArgs += $BaseArgs
     }
-    
-    $process = Start-Process @processOptions
-    $exitCode = $process.ExitCode
-    
-    Write-Host "Uninstall exit code: $exitCode"
-    Exit $exitCode
-} catch {
-    Write-Host "Error running uninstaller: $_"
-    Exit 1
+    if ($ExtraArgs) {
+        $finalArgs += $ExtraArgs
+    }
+
+    Write-Host "Uninstall executable: $Executable"
+    Write-Host "Uninstall arguments: $($finalArgs -join ' ')"
+
+    try {
+        $processOptions = @{
+            FilePath = $Executable
+            ArgumentList = $finalArgs
+            NoNewWindow = $true
+            PassThru = $true
+            Wait = $true
+            WorkingDirectory = (Split-Path -Path $Executable -Parent)
+        }
+
+        $process = Start-Process @processOptions
+        return $process.ExitCode
+    } catch {
+        Write-Host "Error running uninstaller: $_"
+        return 1
+    }
 }
+
+$preferredSilentArgs = @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART")
+$exitCode = Invoke-Uninstall -Executable $exePath -BaseArgs $baseArgumentList -ExtraArgs $preferredSilentArgs
+
+if ($exitCode -ne 0) {
+    Write-Host "Preferred silent uninstall failed with exit code $exitCode. Retrying with /S."
+    $exitCode = Invoke-Uninstall -Executable $exePath -BaseArgs $baseArgumentList -ExtraArgs @("/S")
+}
+
+Exit $exitCode
