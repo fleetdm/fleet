@@ -40,6 +40,11 @@ func (n FleetVarName) WithPrefix() string {
 	return fmt.Sprintf("$FLEET_VAR_%s", n)
 }
 
+// Includes ${FLEET_VAR_} braces
+func (n FleetVarName) WithBraces() string {
+	return fmt.Sprintf("${FLEET_VAR_%s}", n)
+}
+
 const (
 	// FleetVarNDESSCEPChallenge and other variables are used as $FLEET_VAR_<VARIABLE_NAME>.
 	// For example: $FLEET_VAR_NDES_SCEP_CHALLENGE
