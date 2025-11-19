@@ -2003,9 +2003,7 @@ _Available in Fleet Premium._
 | okta_audience_uri                   | string  | The audience URI found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
 | okta_certificate                    | string  | The certificate provided by Okta during the **Set Up Authenticator** workflow      |
 
-All `conditional_access` fields must be included in the request to successfully configure conditional access with Okta.
-
-<br/>
+When updating conditional access config, all `conditional_access` fields must either be empty or included in the request.
 
 ##### Example request body
 
