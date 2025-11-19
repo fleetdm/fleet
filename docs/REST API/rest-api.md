@@ -953,6 +953,7 @@ None.
 
 `Status: 200`
 
+
 ---
 
 ## File carving
@@ -1198,7 +1199,12 @@ None.
   },
   "conditional_access": {
     "microsoft_entra_tenant_id": "<TENANT ID>",
-    "microsoft_entra_connection_configured": true
+    "microsoft_entra_connection_configured": true,
+    "okta_idp_id": "<ID>",
+    "okta_assertion_consumer_service_url": "<URL>",
+    "okta_audience_uri": "<URI>",
+    "okta_certificate": "<TODO>",
+    "okta_snooze_enabled": true
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -2552,6 +2558,7 @@ None.
 - [Remove labels from host](#remove-labels-from-host)
 - [Run live query on host (ad-hoc)](#run-live-query-on-host-ad-hoc)
 - [Run live query on host by identifier (ad-hoc)](#run-live-query-on-host-by-identifier-ad-hoc)
+- [Snooze host's conditional access](#snooze-hosts-conditional-access)
 
 #### About host timestamps
 
@@ -5095,6 +5102,21 @@ The live query will stop if the targeted host is offline, or if the query times 
 ```
 
 Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be `null`.
+
+
+## Snooze host's conditional access
+
+Grant a blocked host access for a single login. Requires Okta conditional access configured with `conditional_access.okta_snooze_enabled` configured.
+
+`POST /api/v1/fleet/device/:token/snooze_conditional_access`
+
+#### Parameters
+
+TODO: 1 parameter (device token)
+
+#### Example 
+
+TODO
 
 ---
 
