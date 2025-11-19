@@ -2388,8 +2388,8 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		}
 	}
 
-	// Store list of failed profiles to avoid updating other stuff for that, such as managed certs.
-	failedProfilesUUIDs := make(map[string]bool)
+	// Store list of failed profiles (profile UUID + host UUID to create uniqueness) to avoid updating other stuff for that, such as managed certs.
+	failedProfileHostUUIDs := make(map[string]bool)
 
 	// Since we are not using DB transactions here, there is a small chance that the profile contents don't match
 	// the checksum we retrieved earlier. Update the checksums if needed.
@@ -2399,7 +2399,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		}
 
 		if p.Status != nil && *p.Status == fleet.MDMDeliveryFailed {
-			failedProfilesUUIDs[p.ProfileUUID] = true
+			failedProfileHostUUIDs[p.ProfileUUID+p.HostUUID] = true
 		}
 	}
 
@@ -2417,7 +2417,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 	// Run through managed certs and remove all those that belong to failed profiles
 	filteredManagedCerts := []*fleet.MDMManagedCertificate{}
 	for _, mc := range *managedCertificatePayloads {
-		if _, failed := failedProfilesUUIDs[mc.ProfileUUID]; !failed {
+		if _, failed := failedProfileHostUUIDs[mc.ProfileUUID+mc.HostUUID]; !failed {
 			filteredManagedCerts = append(filteredManagedCerts, mc)
 		}
 	}

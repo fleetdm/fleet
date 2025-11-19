@@ -130,6 +130,9 @@ type SoftwareInstaller struct {
 	Categories []string `json:"categories"`
 
 	BundleIdentifier string `json:"-" db:"bundle_identifier"`
+
+	// DisplayName is an end-user friendly name.
+	DisplayName string `json:"display_name"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -564,7 +567,13 @@ type UpdateSoftwareInstallerPayload struct {
 	Categories      []string
 	CategoryIDs     []uint
 	// DisplayName is an end-user friendly name.
-	DisplayName string
+	DisplayName *string
+}
+
+func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
+	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
+		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
+		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.DisplayName == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.

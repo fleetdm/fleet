@@ -84,6 +84,18 @@ WHERE
 	}
 	app.Categories = categories
 
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, titleID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get display name for app store app")
+	}
+
+	app.DisplayName = displayName
+
 	if teamID != nil {
 		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, *teamID)
 		if err != nil {
@@ -98,6 +110,7 @@ WHERE
 		if icon != nil {
 			app.IconURL = ptr.String(icon.IconUrl())
 		}
+
 	}
 
 	return &app, nil
@@ -616,8 +629,10 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			app.VPPAppTeam.AddedAutomaticInstallPolicy = policy
 		}
 
-		if err := updateSoftwareTitleDisplayName(ctx, tx, teamID, titleID, app.DisplayName); err != nil {
-			return ctxerr.Wrap(ctx, err, "setting software title display name for vpp app")
+		if app.DisplayName != nil {
+			if err := updateSoftwareTitleDisplayName(ctx, tx, teamID, titleID, *app.DisplayName); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting software title display name for vpp app")
+			}
 		}
 
 		return nil

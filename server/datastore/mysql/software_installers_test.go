@@ -3505,7 +3505,7 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	assert.Empty(t, title.DisplayName)
 
 	err = ds.SaveInstallerUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
-		DisplayName:       "update1",
+		DisplayName:       ptr.String("update1"),
 		TitleID:           titleID,
 		InstallerFile:     &fleet.TempFileReader{},
 		InstallScript:     new(string),
@@ -3573,7 +3573,7 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 
 	// Update the display name again, should see the change
 	err = ds.SaveInstallerUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
-		DisplayName:       "update2",
+		DisplayName:       ptr.String("update2"),
 		TitleID:           titleID,
 		InstallerFile:     &fleet.TempFileReader{},
 		InstallScript:     new(string),
@@ -3623,6 +3623,7 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 		PostInstallScript: new(string),
 		SelfService:       ptr.Bool(false),
 		UninstallScript:   new(string),
+		DisplayName:       ptr.String(""),
 	})
 	require.NoError(t, err)
 

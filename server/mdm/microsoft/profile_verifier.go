@@ -73,6 +73,7 @@ func LoopOverExpectedHostProfiles(
 			ref := HashLocURI(expectedProf.Name, locURI)
 			fn(expectedProf, ref, locURI, data)
 		}
+		// We don't do anything to ExecCommands here, as they are not getting verified as they can only exist in SCEP profiles.
 	}
 
 	return nil
@@ -170,11 +171,17 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger kitlog.Logger,
 	}
 
 	err = LoopOverExpectedHostProfiles(ctx, logger, ds, host, func(profile *fleet.ExpectedMDMProfile, ref, locURI, wantData string) {
-		if strings.HasPrefix(strings.TrimSpace(locURI), "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP") {
+		isSCEPLocURI := strings.Contains(strings.TrimSpace(locURI), "/Vendor/MSFT/ClientCertificateInstall/SCEP")
+		existingProfileStatus := windowsProfilesByID[profile.ProfileUUID].Status
+		if isSCEPLocURI &&
+			existingProfileStatus != nil && *existingProfileStatus != fleet.MDMDeliveryFailed { // Don't verify SCEP if it previously failed
+
 			verified[profile.Name] = struct{}{}
 			// We delete here if by some accident it was marked as missing before
 			delete(missing, profile.Name)
 			return
+		} else if isSCEPLocURI && existingProfileStatus != nil && *existingProfileStatus == fleet.MDMDeliveryFailed {
+			return // Just early return here
 		}
 
 		// if we didn't get a status for a LocURI, mark the profile as missing.

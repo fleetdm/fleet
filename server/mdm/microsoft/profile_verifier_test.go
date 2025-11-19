@@ -615,6 +615,42 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			},
 			toVerify: []string{"N1"},
 		},
+		{
+			name: "failed scep profile stays failed",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb: "Replace",
+						LocURI: `
+						./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/bogus-key-value`,
+						Data: "non related data",
+					},
+				}), 0},
+				{"N2", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb: "Replace",
+						LocURI: `
+						./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/bogus-key-value`,
+						Data: "non related data",
+					},
+				}), 2},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      &fleet.MDMDeliveryFailed,
+				},
+				{
+					ProfileUUID: "uuid-N2",
+					Name:        "N2",
+					Status:      &fleet.MDMDeliveryFailed,
+				},
+			},
+			toVerify: []string{},
+			toFail:   []string{},
+			toRetry:  []string{}, // It should not do anything on SCEP profiles.
+		},
 	}
 
 	for _, tt := range cases {
