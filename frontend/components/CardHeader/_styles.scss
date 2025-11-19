@@ -3,6 +3,10 @@
   flex-direction: column;
   gap: $pad-small;
 
+  &--mobile-header {
+    gap: $pad-large;
+  }
+
   &__header {
     font-size: $medium;
     font-weight: $bold;

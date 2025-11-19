@@ -64,7 +64,7 @@
   task: "Prepare Let's get you set up meeting notes"
   startedOn: "2025-05-30"
   frequency: "Weekly"
-  description: "Before each group call, copy the attendees from the Lets get you set up! (group office hours) calendar event and paste them into the correct section of the [Let's get you set up! meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc."
+  description: "Before each group/community demo call, copy the attendees from the Lets get you set up! (group office hours) calendar event and paste them into the correct section of the [Let's get you set up! meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#prepare-lets-get-you-set-up-meeting-notes"
   dri: "irenareedy"
   autoIssue:  

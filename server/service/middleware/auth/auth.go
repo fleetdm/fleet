@@ -3,7 +3,11 @@ package auth
 import (
 	"context"
 	"net/http"
+	"time"
 
+	kithttp "github.com/go-kit/kit/transport/http"
+
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -37,6 +41,22 @@ func AuthenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 				return nil, fleet.ErrPasswordResetRequired
 			}
 
+			return next(ctx, request)
+		}
+
+		requestPath, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
+
+		httpSig, sigOk := httpsig.FromContext(ctx)
+		if sigOk && httpsig.IsSigAuthEndpoint(requestPath) {
+			if time.Now().After(httpSig.NotValidAfter) {
+				return nil, fleet.NewAuthFailedError("host identity certificate expired")
+			}
+			if httpSig.HostID == nil {
+				return nil, fleet.NewAuthFailedError("identity certificate is not linked to a specific host")
+			}
+			if ac, ok := authz.FromContext(ctx); ok {
+				ac.SetAuthnMethod(authz.AuthnHTTPMessageSignature)
+			}
 			return next(ctx, request)
 		}
 

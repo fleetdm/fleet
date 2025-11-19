@@ -1,1 +1,0 @@
-* Added missing "failed" VPP app install activities when installation is canceled due to MDM being turned off for a host.

@@ -12,12 +12,51 @@ Apple uses APNs to authenticate and manage interactions between Fleet and hosts.
 
 To connect Fleet to APNs or renew APNs, head to the **Settings > Integrations > Mobile device management (MDM)** page.
 
-Then click **Turn on** under the Apple (macOS, iOS, iPadOS) MDM section.
+Then select **Turn on** under the Apple (macOS, iOS, iPadOS) MDM section.
 
 > Apple requires that APNs certificates are renewed annually.
 > - The recommended approach is to use a shared admin account to generate the CSR ensuring it can be renewed regardless of individual availability.
 > - If your certificate expires, you will have to turn MDM off and back on for all macOS hosts.
 > - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all macOS hosts.
+
+## Apple Business Manager (ABM)
+
+> Available in Fleet Premium
+
+Connect Fleet to your ABM to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
+
+To connect Fleet to ABM, you have to add an ABM token to Fleet. To add an ABM token:
+
+1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
+2. Under **Automatic enrollment**, select **Add ABM**, and then follow the instructions in the modal to upload an ABM token to Fleet.
+
+When one of your uploaded ABM tokens has expired or is within 30 days of expiring, you will see a warning banner at the top of page reminding you to renew your token.
+
+To renew an ABM token:
+
+1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
+2. Under **Automatic enrollment**, select **Edit**, and then find the token that you want to renew. Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator. Select the **Actions** dropdown for the token and then select **Renew**. Follow the instructions in the modal to download a new token from Apple Business Manager and then upload the new token to Fleet.
+
+After connecting Fleet to ABM, set Fleet to be the MDM for all Macs:
+
+1. Log in to [Apple Business Manager](https://business.apple.com)
+2. Select your profile icon in the bottom left
+3. Select **Preferences**
+4. Select **MDM Server Assignment** and select **Edit** next to **Default Server Assignment**.
+5. Switch **Mac**, **iPhone**, and **iPad** to Fleet.
+
+macOS, iOS, and iPadOS hosts listed in ABM and associated to a Fleet instance with MDM enabled will sync to Fleet and appear in the Hosts view with the **MDM status** label set to "Pending".
+
+Hosts that automatically enroll will be assigned to a default team. You can configure the default team for macOS, iOS, and iPadOS hosts:
+
+1. Create a team, if you have not already, following [this guide](https://fleetdm.com/guides/teams).
+2. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page and select **Edit** under **Automatic enrollment**.
+3. Select the **Actions** dropdown for the ABM token you want to update, and then select **Edit teams**.
+4. Select the default team for each platform, and select **Save** to save your selections.
+
+> If no default team is set for a host platform (macOS, iOS, or iPadOS), then newly enrolled hosts of that platform will be placed in "No team".
+
+> A host can be transferred to a new (not default) team before it enrolls. In the Fleet UI, you can do this under **Settings** > **Teams**.
 
 ## Manual enrollment
 
@@ -29,66 +68,38 @@ End users can start manual enrollment directly from their **My device** page.
 
 If a macOS host is listed in your organization’s ABM:
 
-1. The user will see a **Turn on MDM** banner at the top of their **My device** page.
-2. Clicking **Turn on MDM** opens a modal with a download link for the enrollment profile and
-   step-by-step instructions on how to install the profile on their device.
-3. After completing the installation steps, the device is added to Fleet’s MDM.
+1. The end user will see a **Turn on MDM** banner at the top of their **My device** page.
+2. Clicking **Turn on MDM** opens a modal with a step-by-step instruction on how to turn on MDM on their device.
+3. After completing the steps, the device is added to Fleet’s MDM.
 
 ### Enroll a macOS host that’s **not** in Apple Business Manager
 
 If the host isn’t part of ABM, users can still manually enroll:
 
-1. On the **My device** page, the user sees the same **Turn on MDM** banner.
+1. On the **My device** page, the end user sees the same **Turn on MDM** banner.
 2. Clicking **Turn on MDM** opens a new tab.
-   - If **End user authentication** is turned on (in **Controls > Setup experience > End user authentication**), the user is prompted to sign in with the organization’s identity provider (IdP).
-   - If authentication is successful, or if **End user authentication** is disabled, the user is taken
+   - If **End user authentication** is turned on (in **Controls > Setup experience > End user authentication**), the end user is prompted to sign in with the organization’s identity provider (IdP).
+   - If authentication is successful, or if **End user authentication** is disabled, the end user is taken
      to an enrollment page and shown instructions to download the enrollment profile and install it
      on their macOS device to complete MDM enrollment.
-
-## Apple Business Manager (ABM)
-
-> Available in Fleet Premium
-
-Connect Fleet to your ABM to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
-
-To connect Fleet to ABM, you have to add an ABM token to Fleet. To add an ABM token:
-
-1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
-2. Under "Automatic enrollment", click "Add ABM", and then follow the instructions in the modal to upload an ABM token to Fleet.
-
-When one of your uploaded ABM tokens has expired or is within 30 days of expiring, you will see a warning banner at the top of page reminding you to renew your token.
-
-To renew an ABM token:
-
-1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
-2. Under "Automatic enrollment", click "Edit", and then find the token that you want to renew. Token status is indicated in the "Renew date" column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator. Click the "Actions" dropdown for the token and then click "Renew". Follow the instructions in the modal to download a new token from Apple Business Manager and then upload the new token to Fleet.
-
-After connecting Fleet to ABM, set Fleet to be the MDM for all Macs:
-
-1. Log in to [Apple Business Manager](https://business.apple.com)
-2. Click your profile icon in the bottom left
-3. Click **Preferences**
-4. Click **MDM Server Assignment** and click **Edit** next to **Default Server Assignment**.
-5. Switch **Mac**, **iPhone**, and **iPad** to Fleet.
-
-macOS, iOS, and iPadOS hosts listed in ABM and associated to a Fleet instance with MDM enabled will sync to Fleet and appear in the Hosts view with the **MDM status** label set to "Pending".
-
-Hosts that automatically enroll will be assigned to a default team. You can configure the default team for macOS, iOS, and iPadOS hosts by:
-
-1. Creating teams, if you have not already, following [this guide](https://fleetdm.com/guides/teams#basic-article). Our [best practice](#best-practice) recommendation is to have a team for each device type.
-2. Navigating to the **Settings > Integrations > Mobile device management (MDM)** page and clicking "Edit" under "Automatic enrollment".
-3. Clicking on the "Actions" dropdown for the ABM token you want to update, and then clicking "Edit teams".
-4. Using the dropdowns in the modal to select the default team for each type of host, and clicking "Save" to save your selections.
-
-> If no default team is set for a host platform (macOS, iOS, or iPadOS), then newly enrolled hosts of that platform will be placed in "No team".
-
-> A host can be transferred to a new (not default) team before it enrolls. In the Fleet UI, you can do this under **Settings** > **Teams**.
 
 ## Volume Purchasing Program (VPP)
 
 > Available in Fleet Premium
 
-To connect Fleet to Apple's VPP, follow the instructions in our [VPP guide](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet#prerequisites).
+Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides/install-app-store-apps) to your hosts:
+
+1. In Fleet, select your avatar on the far right of the main navigation menu, and then **Settings > Integrations > Mobile device management (MDM)**
+
+2. In the **Volume Purchasing Program (VPP)** section, select **Add VPP**, and then select **Add VPP** again on the following page. Follow the directions on the modal to get your VPP token from Apple Business Manager, and then select the **Upload** button at the bottom to upload it to Fleet.
+
+3. To assign the VPP token to a specific team, find the token in the table of VPP tokens. Select the **Actions** dropdown, and then select **Edit teams**. Use the picker to select which team(s) this VPP token should be assigned to.
+
+To renew a VPP token:
+
+1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page
+
+2. Under **Volume Purchasing Program (VPP)**, select **Edit** and then find the token that you want to renew. Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator. Select the **Actions** dropdown for the token and then select **Renew**. Follow the instructions in the modal to download a new token from Apple Business Manager and then upload the new token to Fleet.
 
 ## Best practice
 

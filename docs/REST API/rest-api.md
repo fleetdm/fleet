@@ -541,7 +541,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
         "self_service": false,
         "software_title": "zoom.us.app",
         "software_package": "ZoomInstallerIT.pkg",
-	    }
+      }
     },
     {
       "created_at": "2021-07-29T14:40:27Z",
@@ -572,7 +572,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
         "self_service": false,
         "software_title": "zoom.us.app",
         "software_package": "ZoomInstallerIT.pkg",
-	    }
+      }
     }
   ],
   "meta": {
@@ -596,7 +596,8 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 ### Connect certificate authority (CA)
 
-Connect Fleet to a certificate authority (CA). Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), and any custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) or [EST](https://en.wikipedia.org/wiki/Enrollment_over_Secure_Transport) CA.
+Connect Fleet to a certificate authority (CA). Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), [Smallstep](https://smallstep.com/), and any custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) or [EST](https://en.wikipedia.org/wiki/Enrollment_over_Secure_Transport) CA.
+
 
 `POST /api/v1/fleet/certificate_authorities`
 
@@ -670,7 +671,6 @@ Object with the following structure:
 | url       | string  | **Required**. The EST (Enrollment Over Secure Transport) endpoint provided by Hydrant. |
 | client_id | string | **Required**. The client ID provided by Hydrant.|
 | client_secret  | string | **Required**. The client secret provided by Hydrant. |
-
 
 ##### smallstep
 
@@ -946,6 +946,68 @@ Signature-Input: sig1=("@method" "@authority" "@path" "@query" \"content-digest"
   "certificate": "-----BEGIN CERTIFICATE-----\nMIIC5DCCAcwCCQChs1cFRAzRCTANBgkqhkiG9w0BAQsFADA0MTIwMAYDVQQDDClD\ndXN0b21lclVzZXJOZXR3b3JrQWNjZXNzOmJvYkBleGFtcGxlLmNvbTAeFw0yNTA5\nMDgxODM0MzNaFw0yODA2MDUxODM0MzNaMDQxMjAwBgNVBAMMKUN1c3RvbWVyVXNl\nck5ldHdvcmtBY2Nlc3M6Ym9iQGV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEF\nAAOCAQ8AMIIBCgKCAQEAuojcu8UBxTjpz5krPX4KmWNAmWvJ4U7yh8pGXOp6kngz\n1iRmGkBYdr0CQXlkrASejqglbdDfaRt3hz8S4raIlKyiU59gFK6f2Lory54ndzJw\nhVeNGqpLrnW1T763zvjcSKaASfVzdnsa66v6pZQte2fZAk7+q5o9ezyirSQmTuks\ndxXAZ5OiDafFwzXlanGZIvCsHBTJtbi881/QU701aTdFFrxLd+jsiaFhKSoQQcL5\nt0zu96cPS2dJivxpaogZ1f8dispWeRiMbt3njaxfWazm4RqvwvDouTSstqUxTzC8\n28Kbh7bnxPcSiuajnf35q53juhTLmB2CKEf0m1eqEwIDAQABMA0GCSqGSIb3DQEB\nCwUAA4IBAQCp75tK8cxR6A0Sfu3vg7TMPD3MkGrpdgh2giAVoCa4hOxOdHl/nYgu\nfPHodsRUfXi1SXo/77jLldGOLE6Ro447FMgrN94mRkaFUZbuLC5z2VciF9x1fdus\nIFfASIFnb4Zw24F2RDBbbGqXqRrA/1m1fWjHTb20+8rHeZW+FCJmxQrL27OG7n/n\nqDr8QmfNwTm8l72FBvUIz1xisuba5nXNAEc6rxTFw6WhPq5fgtBlVZCm55h87hHd\nQbzDGlkIXf+nypg9kwk3fDQ7VY9hrqc74wAefbIkvUSTk9rNaoncxI5Mod/imyan\ngCioUdMGd7M/dpEDDXKJNyI6lfscpG1D\n-----END CERTIFICATE-----\n"
 }
 ```
+
+---
+
+## Conditional access
+
+- [Get Okta certificate](#get-okta-certificate)
+- [Get Okta configuration profile](#get-okta-configuration-profile)
+- [Delete Microsoft Entra ID](#disconnect-microsoft-entra-id) 
+
+### Get Okta certificate
+
+Download the SAML IdP signing certificate for Okta conditional access. Okta uses this certificate to verify SAML assertions signed by Fleet.
+
+`GET /api/v1/fleet/conditional_access/idp/signing_cert`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/conditional_access/idp/signing_cert`
+
+##### Default response
+
+`Status: 200`
+
+Returns a PEM-encoded X.509 certificate file with `Content-Type: application/x-pem-file`.
+
+### Get Okta configuration profile
+
+Download the macOS configuration profile (.mobileconfig) for Okta conditional access. This profile configures SCEP enrollment and client certificate authentication on macOS hosts.
+
+`GET /api/v1/fleet/conditional_access/idp/apple/profile`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/conditional_access/idp/apple/profile`
+
+##### Default response
+
+`Status: 200`
+
+Returns an Apple configuration profile file with `Content-Type: application/x-apple-aspen-config`.
+
+### Delete Microsoft Entra ID
+
+Disconnects Fleet from Entra. This won't unblock end users failing policies. Learn how to [unblock end users](https://fleetdm.com/guides/entra-conditional-access-integration#disable).
+
+`DELETE /api/v1/conditional-access/microsoft`
+
+#### Parameters
+
+None.
+
+##### Default response
+
+`Status: 200`
 
 ---
 
@@ -1546,7 +1608,7 @@ Modifies the Fleet's configuration with the supplied information.
           "path": "path/to/profile2.json",
           "labels_include_all": ["Label 3", "Label 4"]
         },
-	      {
+        {
           "path": "path/to/profile3.json",
           "labels_include_any": ["Label 5", "Label 6"]
         },
@@ -1683,7 +1745,7 @@ Modifies the Fleet's configuration with the supplied information.
 | org_name                          | string  | The organization name.                                                              |
 | org_logo_url                      | string  | The URL for the organization logo.                                                  |
 | org_logo_url_light_background     | string  | The URL for the organization logo displayed in Fleet on top of light backgrounds.   |
-| contact_url                       | string  | A URL that can be used by end users to contact the organization.                    |
+| contact_url                       | string  | A URL or [file URI](https://en.wikipedia.org/wiki/File_URI_scheme) that can be used by end users to contact the organization.                    |
 
 <br/>
 
@@ -2161,7 +2223,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_end_user_authentication    | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula). |
+| enable_end_user_authentication    | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication). |
 
 <br/>
 
@@ -2526,7 +2588,7 @@ None.
 - [Update hosts' team by filter](#update-hosts-team-by-filter)
 - [Turn off host's MDM](#turn-off-hosts-mdm)
 - [Batch-delete hosts](#batch-delete-hosts)
-- [Update custom human-device mapping](#update-custom-human-device-mapping)
+- [Update human-device mapping](#update-human-device-mapping)
 - [Get host's device health report](#get-hosts-device-health-report)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) status](#get-mobile-device-management-mdm-status)
@@ -3987,11 +4049,11 @@ Request (`filters` is specified and empty, to delete all hosts):
 
 `Status: 200`
 
-### Update custom human-device mapping
+### Update human-device mapping
 
 `PUT /api/v1/fleet/hosts/:id/device_mapping`
 
-Updates the email for the `custom` data source in the human-device mapping. This source can only have one email.
+Updates the email for the data source in the human-device mapping. This source can only have one email.
 
 #### Parameters
 
@@ -3999,6 +4061,7 @@ Updates the email for the `custom` data source in the human-device mapping. This
 | ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
 | id         | integer           | path | **Required**. The host's `id`.                                                |
 | email      | string            | body | **Required**. The custom email.                                               |
+| source     | string            | body | The data source to override. Either `"custom"` or `"idp"`. If `"idp"`, this will update the end user's `"idp_username"`. (Defaults to `"custom"`.)
 
 #### Example
 
@@ -4008,7 +4071,7 @@ Updates the email for the `custom` data source in the human-device mapping. This
 
 ```json
 {
-	"email": "user@example.com"
+  "email": "user@example.com"
 }
 ```
 
@@ -4018,21 +4081,21 @@ Updates the email for the `custom` data source in the human-device mapping. This
 
 ```json
 {
-	"host_id": 1,
-	"device_mapping": [
-	  {
-  		"email": "user@example.com",
-  		"source": "mdm_idp_accounts"
-		},
-		{
-  		"email": "user@example.com",
-  		"source": "google_chrome_profiles"
-		},
-		{
-  		"email": "user@example.com",
-  		"source": "custom"
-		}
-	]
+  "host_id": 1,
+  "device_mapping": [
+    {
+      "email": "user@example.com",
+      "source": "mdm_idp_accounts"
+    },
+    {
+      "email": "user@example.com",
+      "source": "google_chrome_profiles"
+    },
+    {
+      "email": "user@example.com",
+      "source": "custom"
+    }
+  ]
 }
 ```
 
@@ -4663,10 +4726,9 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 _Available in Fleet Premium_
 
-Sends a command to lock the specified macOS, Linux, or Windows host. The host is locked once it comes online.
+Sends a command to lock the specified macOS, iOS, iPadOS, Linux, or Windows host. The host is locked once it comes online.
 
-To lock a macOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
-
+To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). For iOS and iPadOS, this enables Lost Mode.
 
 `POST /api/v1/fleet/hosts/:id/lock`
 
@@ -4677,26 +4739,11 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 | id | integer | path | **Required**. ID of the host to be locked. |
 | view_pin | boolean | query | For macOS hosts, whether to return the unlock PIN. |
 
-#### Example
-
-`POST /api/v1/fleet/hosts/123/lock`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "device_status": "unlocked",
-  "pending_action": "lock"
-}
-```
-
-#### Example
+#### Example with macOS unlock PIN
 
 `POST /api/v1/fleet/hosts/123/lock?view_pin=true`
 
-##### Default response (macOS hosts)
+##### Default response
 
 `Status: 200`
 
@@ -4714,9 +4761,9 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 
 _Available in Fleet Premium_
 
-Sends a command to unlock the specified Windows or Linux host, or retrieves the unlock PIN for a macOS host.
+Sends a command to unlock the specified iOS, iPadOS, Windows, or Linux host, or retrieves the unlock PIN for a macOS host.
 
-To unlock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+To unlock an iOS or iPadOS host, the host must have MDM turned on. To unlock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). For iOS and iPadOS, this disables Lost Mode.
 
 `POST /api/v1/fleet/hosts/:id/unlock`
 
@@ -4730,26 +4777,13 @@ To unlock a Windows or Linux host, the host must have [scripts enabled](https://
 
 `POST /api/v1/fleet/hosts/:id/unlock`
 
-##### Default response (Windows or Linux hosts)
+##### Default response
 
 `Status: 200`
 
 ```json
 {
   "host_id": 8,
-  "device_status": "locked",
-  "pending_action": "unlock"
-}
-```
-
-##### Default response (macOS hosts)
-
-`Status: 200`
-
-```json
-{
-  "host_id": 8,
-  "unlock_pin": "123456",
   "device_status": "locked",
   "pending_action": "unlock"
 }
@@ -6288,7 +6322,7 @@ Deletes the custom MDM setup enrollment profile assigned to a team or no team.
 
 The returned value is a signed `.mobileconfig` OTA enrollment profile (see [Apple enrollment profile docs](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/OTASecurity/OTASecurity.html)). Install this profile on macOS, iOS, or iPadOS hosts to enroll them to a specific team in Fleet and turn on MDM features.
 
-If the team in Fleet has [end user authentication](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication) enabled, the OTA enrollment profile won't work. Use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
+If the team in Fleet has [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) enabled, the OTA enrollment profile won't work. Use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
 
 To enroll macOS hosts, turn on MDM features, and add [human-device mapping](#get-human-device-mapping), use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
 
@@ -6333,7 +6367,7 @@ To enroll macOS hosts, turn on MDM features, and add [human-device mapping](#get
         <string>UDID</string>
         <string>VERSION</string>
         <string>PRODUCT</string>
-	      <string>SERIAL</string>
+        <string>SERIAL</string>
       </array>
     </dict>
     <key>PayloadOrganization</key>
@@ -6565,6 +6599,7 @@ _Available in Fleet Premium_
 | -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
 | team_id                        | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
 | enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
+| require_all_software_macos | boolean | body | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
 | enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
 | manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
 
@@ -6722,7 +6757,7 @@ List software that can be automatically installed during setup. If `install_duri
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| platform | string  | query |   Platform to show compatible software for. Either `"macos"`, `"windows"`, or `"linux"`. Defaults to `"macos`. |
+| platform | string  | query |   Platform to show compatible software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, or `"ipados"`. Defaults to `"macos"`. |
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
@@ -6795,7 +6830,7 @@ Set software that will be automatically installed during setup. Software that is
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| platform | string  | query |  Platform to update software for. Either `"macos"`, `"windows"`, or `"linux"`.  Defaults to `"macos"`. |
+| platform | string  | query |   Platform to install software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, or `"ipados"`. Defaults to `"macos"`. |
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
 | software_title_ids | array | body | The ID of software titles to install during setup. |
 
@@ -6832,11 +6867,55 @@ Add a script that will automatically run during macOS setup.
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
 | team_id | integer | form | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
-| script | file | form | The ID of software titles to install during macOS setup. |
+| script | file | form | The contents of the script to run during setup. |
 
 #### Example
 
 `POST /api/v1/fleet/setup_experience/script`
+
+##### Default response
+
+`Status: 200`
+
+##### Request headers
+
+```http
+Content-Length: 306
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="team_id"
+
+1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="script"; filename="myscript.sh"
+Content-Type: application/octet-stream
+
+echo "hello"
+--------------------------f02md47480und42y--
+
+```
+
+### Update setup experience script
+
+_Available in Fleet Premium_
+
+Changes the script that will automatically run during macOS setup. Updates the existing script for the team, or for hosts with no team, if one already exists.
+
+`PUT /api/v1/fleet/setup_experience/script`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | form | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
+| script | file | form | The contents of the script to run during setup. |
+
+#### Example
+
+`PUT /api/v1/fleet/setup_experience/script`
 
 ##### Default response
 
@@ -9522,6 +9601,7 @@ Get a list of all software.
     {
       "id": 12,
       "name": "Firefox.app",
+      "display_name": "Firefox",
       "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
       "display_name": "",
       "software_package": {
@@ -9638,6 +9718,30 @@ Get a list of all software.
           "vulnerabilities": []
         }
       ]
+    },
+    {
+      "id": 12,
+      "name": "MyCustomApp",
+      "software_package": {
+        "name": "MyCustomApp-1.12.ipa",
+        "platform": "ios",
+        "version": "1.12",
+        "self_service": false,
+        "automatic_install_policies": null,
+        "last_install": null,
+        "last_uninstall": null
+      },
+      "app_store_app": null,
+      "versions_count": 1,
+      "source": "ios_apps",
+      "hosts_count": 48,
+      "versions": [
+        {
+          "id": 123,
+          "version": "1.12",
+          "vulnerabilities": null
+        }
+      ],
     }
   ],
   "meta": {
@@ -9689,6 +9793,7 @@ Get a list of all software versions.
       {
         "id": 1,
         "name": "glibc",
+        "display_name": "",
         "version": "2.12",
         "source": "rpm_packages",
         "release": "1.212.el6",
@@ -9712,6 +9817,7 @@ Get a list of all software versions.
       {
         "id": 2,
         "name": "1Password – Password Manager",
+        "display_name": "",
         "version": "2.10.0",
         "source": "chrome_extensions",
         "browser": "chrome",
@@ -9755,6 +9861,7 @@ Returns a list of all operating systems.
 | platform            | string   | query | Filters the hosts to the specified platform |
 | os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
+| max_vulnerabilities   | integer | query | Limits the number of `vulnerabilities` returned per OS version. (If omitted, returns all vulnerabilities.) |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
 | per_page                | integer | query | Results per page.                                                                                                                                                          |
 | order_key               | string  | query | What to order results by. Allowed fields are: `hosts_count`. Default is `hosts_count` (descending).      |
@@ -9778,6 +9885,7 @@ Returns a list of all operating systems.
       "version": "10.0.22621.1234",
       "platform": "windows",
       "generated_cpes": [],
+      "vulnerabilities_count": 1,
       "vulnerabilities": [
         {
           "cve": "CVE-2022-30190",
@@ -9829,6 +9937,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Falcon.app",
+    "display_name": "Crowdstrike Falcon",
     "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
     "display_name": "",
     "bundle_identifier": "crowdstrike.falcon.Agent",
@@ -9911,6 +10020,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 15,
     "name": "Logic Pro",
+    "display_name": "",
     "icon_url": "/api/latest/fleet/software/titles/15/icon?team_id=3",
     "display_name": "",
     "bundle_identifier": "com.apple.logic10",
@@ -10000,6 +10110,61 @@ Returns information about the specified software. By default, `versions` are sor
 }
 ```
 
+
+#### Example (in-house iOS app)
+
+`GET /api/v1/fleet/software/titles/24?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title": {
+    "id": 12,
+    "name": "MyCustomApp",
+    "software_package": {
+      "name": "MyCustomApp-1.12.ipa",
+      "platform": "ios",
+      "fleet_maintained_id": null,
+      "version": "1.12",
+      "self_service": false,
+      "automatic_install_policies": null,
+      "categories": null,
+      "uploaded_at": "2025-08-15T00:55:03.96954Z",
+      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
+      "title_id": 12,
+      "team_id": 3,
+      "status": {
+        "installed": 0,
+        "pending_install": 0,
+        "failed_install": 0,
+        "pending_uninstall": 0,
+        "failed_uninstall": 0
+      },
+      "installer_id": 332,
+      "install_script": null, 
+      "uninstall_script": null,
+      "post_install_script": null,
+      "pre_install_query": null,
+      "labels_include_any": null,
+      "labels_exclude_any": null,
+    },
+    "app_store_app": null,
+    "versions_count": 1,
+    "source": "ios_apps",
+    "hosts_count": 48,
+    "versions": [
+      {
+        "id": 123,
+        "version": "1.12",
+        "vulnerabilities": null
+      }
+    ]
+  }
+}
+```
 ### Get software version
 
 Returns information about the specified software version.
@@ -10026,6 +10191,7 @@ Returns information about the specified software version.
   "software": {
     "id": 425224,
     "name": "Firefox.app",
+    "display_name": "Firefox",
     "version": "117.0",
     "bundle_identifier": "org.mozilla.firefox",
     "source": "apps",
@@ -10071,6 +10237,7 @@ Retrieves information about the specified operating system (OS) version.
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The OS version's ID. |
 | team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team".  |
+| max_vulnerabilities   | integer | query | Limits the number of `vulnerabilities` returned. (If omitted, returns all vulnerabilities.) For Linux OS's, doesn't limit the number of vulnerabilities returned in the `kernels` array. |
 
 ##### Default response
 
@@ -10174,8 +10341,7 @@ Operating systems other than Windows, macOS, and Linux do not report vulnerabili
 
 _Available in Fleet Premium._
 
-Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
-
+Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple (macOS/iOS/iPadOS), Windows, or Linux hosts.
 
 `POST /api/v1/fleet/software/package`
 
@@ -10243,6 +10409,7 @@ Content-Type: application/octet-stream
     "name": "FalconSensor-6.44.pkg",
     "icon_url": null,
     "categories": null,
+    "display_name": "",
     "version": "6.44",
     "platform": "darwin",
     "fleet_maintained_app_id": 42,
@@ -10506,6 +10673,7 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
   "app_store_apps": [
     {
       "name": "Xcode",
+      "display_name": "",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "latest_version": "15.4",
       "app_store_id": "497799835",
@@ -10513,6 +10681,7 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
     },
     {
       "name": "Logic Pro",
+      "display_name": "",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "latest_version": "2.04",
       "app_store_id": "634148309",
@@ -10520,6 +10689,7 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
     },
     {
       "name": "Logic Pro",
+      "display_name": "",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "latest_version": "2.04",
       "app_store_id": "634148309",
@@ -10597,7 +10767,7 @@ Modify Apple App Store (VPP) or Google Play app's options.
 | team_id       | integer | body | **Required**. The team ID. Edits Apple App Store or Android Play store app from the specified team.  |
 | display_name    | string  | body | Optional override for the default `name`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
-| categories | array | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page (currently only macOS). Software with no categories will still be shown under **All**. |
+| categories | string[] | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
 
@@ -11858,7 +12028,7 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_end_user_authentication  | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula).                                                                                      |
+| enable_end_user_authentication  | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication).                                                                                      |
 
 <br/>
 
