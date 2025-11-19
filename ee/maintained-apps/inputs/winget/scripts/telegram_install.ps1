@@ -58,6 +58,8 @@ try {
         $version = $matches[1]
     }
     
+    Write-Host "Extracted version from filename: $version"
+    
     # Create registry entry so Telegram appears in Add/Remove Programs and can be detected by osquery
     # Use HKCU since this is a user-scope installation
     $registryPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\TelegramDesktop"
@@ -71,8 +73,10 @@ try {
         New-Item -Path $registryPath -Force | Out-Null
         
         # Set registry values
+        # Both Version and DisplayVersion are set for compatibility with different osquery versions
         Set-ItemProperty -Path $registryPath -Name "DisplayName" -Value "Telegram Desktop" -Type String
         Set-ItemProperty -Path $registryPath -Name "Publisher" -Value "Telegram FZ-LLC" -Type String
+        Set-ItemProperty -Path $registryPath -Name "Version" -Value $version -Type String
         Set-ItemProperty -Path $registryPath -Name "DisplayVersion" -Value $version -Type String
         Set-ItemProperty -Path $registryPath -Name "InstallLocation" -Value $installDir -Type String
         Set-ItemProperty -Path $registryPath -Name "UninstallString" -Value "powershell.exe -Command `"& {Remove-Item -Path '$installDir' -Recurse -Force}`"" -Type String
@@ -80,6 +84,9 @@ try {
         Set-ItemProperty -Path $registryPath -Name "NoRepair" -Value 1 -Type DWord
         
         Write-Host "Created registry entry for Telegram Desktop"
+        
+        # Give osquery a moment to refresh its cache
+        Start-Sleep -Seconds 2
     } catch {
         Write-Host "Warning: Could not create registry entry: $_"
         # Don't fail installation if registry creation fails
