@@ -233,6 +233,20 @@
       "description": "Google Chrome Enterprise is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
+      "name": "Google Drive",
+      "slug": "google-drive/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.drivefs",
+      "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
+    },
+    {
+      "name": "Google Drive",
+      "slug": "google-drive/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Drive",
+      "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
+    },
+    {
       "name": "iMazing Profile Editor",
       "slug": "imazing-profile-editor/darwin",
       "platform": "darwin",
