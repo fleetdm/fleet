@@ -516,8 +516,10 @@ then the [app's context](#react-context) should be used.
 
 ### Reading and updating configs
 
-If you are dealing with a page that *updates* any kind of config, you'll want to access that config
-with a fresh API call to be sure you have the updated values. Otherwise, that is, you are dealing
+If you are dealing with a page that *updates* any kind of config, set the local `AppContext.config`
+with the response directly from the `PUT` call to ensure the latest values are represented in the UI
+and to avoid propagation delay issues (a follow-up `GET` may hit a reader database replica which
+doesn't have the updated config yet). Otherwise, that is, you are dealing
 with a page that is only *reading* config values, get them from context.
 
 ### Rendering flash messages
