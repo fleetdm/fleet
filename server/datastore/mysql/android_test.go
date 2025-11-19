@@ -238,6 +238,8 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 }
 
 func testAndroidMDMStats(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
 	const appleMDMURL = "/mdm/apple/mdm"
 	const serverURL = "http://androidmdm.example.com"
 
@@ -682,6 +684,8 @@ func testDeleteMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 }
 
 func testMDMAndroidProfilesSummary(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
 	ctx := context.Background()
 
 	checkMDMProfilesSummary := func(t *testing.T, teamID *uint, expected fleet.MDMProfilesSummary) {
@@ -1066,6 +1070,8 @@ func expectAndroidProfiles(
 }
 
 func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
 	ctx := t.Context()
 
 	// Create some hosts
@@ -1363,6 +1369,8 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 // Base test covers some of this but it's a good area for extra testing in light of
 // https://github.com/fleetdm/fleet/issues/33132
 func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
 	ctx := t.Context()
 
 	// Create some hosts
@@ -1571,6 +1579,8 @@ func testBulkUpsertMDMAndroidHostProfiles3(t *testing.T, ds *Datastore) {
 }
 
 func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSize int) {
+	test.AddBuiltinLabels(t, ds)
+
 	ctx := t.Context()
 
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team"})
@@ -2253,6 +2263,8 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 }
 
 func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
 	// Set a non-empty server URL so initial enrolled row has data to clear
 	appCfg, err := ds.AppConfig(testCtx())
 	require.NoError(t, err)
