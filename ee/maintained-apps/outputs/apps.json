@@ -16,6 +16,13 @@
       "description": "Password manager that keeps all passwords secure behind one password."
     },
     {
+      "name": "Abstract",
+      "slug": "abstract/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.elasticprojects.abstract-desktop",
+      "description": "Abstract is a collaborative design tool with support for Sketch files."
+    },
+    {
       "name": "Adobe Acrobat Reader",
       "slug": "adobe-acrobat-reader/darwin",
       "platform": "darwin",
@@ -28,6 +35,13 @@
       "platform": "darwin",
       "unique_identifier": "com.adobe.acc.AdobeCreativeCloud",
       "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
+    },
+    {
+      "name": "Asana",
+      "slug": "asana/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.asana",
+      "description": "Manage team projects and tasks."
     },
     {
       "name": "Beyond Compare",
@@ -65,11 +79,25 @@
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
+      "name": "ChatGPT Desktop",
+      "slug": "chatgpt/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.openai.chat",
+      "description": "OpenAI's official ChatGPT desktop app for macOS, providing seamless access to AI-powered conversations and assistance."
+    },
+    {
       "name": "Claude",
       "slug": "claude/darwin",
       "platform": "darwin",
       "unique_identifier": "com.anthropic.claudefordesktop",
       "description": "Anthropic's official Claude AI desktop app."
+    },
+    {
+      "name": "ClickUp",
+      "slug": "clickup/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.clickup.desktop-app",
+      "description": "ClickUp is a productivity platform for tasks, docs, goals, and chat."
     },
     {
       "name": "Cloudflare WARP",
@@ -100,11 +128,32 @@
       "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
     },
     {
+      "name": "DataGrip",
+      "slug": "datagrip/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.datagrip",
+      "description": "A powerful cross-platform IDE for relational and NoSQL databases."
+    },
+    {
       "name": "Amazon DCV",
       "slug": "dcv-viewer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.nicesoftware.dcvviewer",
       "description": "DCV Viewer is used for connecting to the NICE DCV remote display protocol."
+    },
+    {
+      "name": "Discord",
+      "slug": "discord/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hnc.Discord",
+      "description": "Discord is voice and text chat software."
+    },
+    {
+      "name": "Discord",
+      "slug": "discord/windows",
+      "platform": "windows",
+      "unique_identifier": "Discord",
+      "description": "Discord is voice and text chat software."
     },
     {
       "name": "Docker Desktop",
@@ -114,6 +163,20 @@
       "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
     },
     {
+      "name": "draw.io",
+      "slug": "drawio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jgraph.drawio.desktop",
+      "description": "draw.io is a versatile diagramming or whiteboarding application."
+    },
+    {
+      "name": "Dropbox",
+      "slug": "dropbox/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.getdropbox.dropbox",
+      "description": "Dropbox is a client for the Dropbox cloud storage service."
+    },
+    {
       "name": "Figma",
       "slug": "figma/darwin",
       "platform": "darwin",
@@ -121,11 +184,39 @@
       "description": "Figma is a collaborative design tool for teams to create, prototype, and share designs in real time."
     },
     {
+      "name": "Figma",
+      "slug": "figma/windows",
+      "platform": "windows",
+      "unique_identifier": "Figma",
+      "description": ""
+    },
+    {
       "name": "Mozilla Firefox",
       "slug": "firefox/darwin",
       "platform": "darwin",
       "unique_identifier": "org.mozilla.firefox",
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
+    },
+    {
+      "name": "Mozilla Firefox",
+      "slug": "firefox/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla Firefox (x64 en-US)",
+      "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
+    },
+    {
+      "name": "GitKraken",
+      "slug": "gitkraken/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.axosoft.gitkraken",
+      "description": "GitKraken is a git client focusing on productivity."
+    },
+    {
+      "name": "GoLand",
+      "slug": "goland/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.goland",
+      "description": "Go (golang) IDE by JetBrains"
     },
     {
       "name": "Google Chrome",
@@ -140,6 +231,13 @@
       "platform": "windows",
       "unique_identifier": "Google Chrome",
       "description": "Google Chrome Enterprise is a fast, reliable web browser built for performance and compatibility across platforms."
+    },
+    {
+      "name": "iMazing Profile Editor",
+      "slug": "imazing-profile-editor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.DigiDNA.iMazingProfileEditorMac",
+      "description": "iMazing Profile Editor is an app for creating and editing Apple configuration profiles."
     },
     {
       "name": "Company Portal",
@@ -163,6 +261,20 @@
       "description": "An app to manage software development and track bugs."
     },
     {
+      "name": "Logi Options+",
+      "slug": "logi-options+/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.logi.optionsplus",
+      "description": "Software for managing Logitech devices."
+    },
+    {
+      "name": "Loom",
+      "slug": "loom/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.loom.desktop",
+      "description": "Screen and video recording software."
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
@@ -175,6 +287,27 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.Excel",
       "description": "Microsoft Excel is the industry-standard spreadsheet software, perfect for data analysis, reporting, and visualization."
+    },
+    {
+      "name": "Microsoft OneNote",
+      "slug": "microsoft-onenote/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.onenote.mac",
+      "description": "Microsoft OneNote is a digital note taking app."
+    },
+    {
+      "name": "Microsoft Outlook",
+      "slug": "microsoft-outlook/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.Outlook",
+      "description": "Microsoft Outlook is an email client."
+    },
+    {
+      "name": "Microsoft PowerPoint",
+      "slug": "microsoft-powerpoint/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.Powerpoint",
+      "description": "Microsoft PowerPoint empowers you to create clean slideshow presentations and intricate pitch decks."
     },
     {
       "name": "Microsoft Teams",
@@ -191,11 +324,25 @@
       "description": "Microsoft Word is the industry-standard word processor for creating, editing, and sharing professional documents."
     },
     {
+      "name": "Miro",
+      "slug": "miro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.realtimeboard",
+      "description": "Online collaborative whiteboard platform"
+    },
+    {
       "name": "Notion",
       "slug": "notion/darwin",
       "platform": "darwin",
       "unique_identifier": "notion.id",
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
+    },
+    {
+      "name": "Nudge",
+      "slug": "nudge/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.macadmins.Nudge",
+      "description": "Nudge is an application for enforcing OS updates."
     },
     {
       "name": "Omnissa Horizon Client",
@@ -212,11 +359,60 @@
       "description": "P4V is an app for accessing and managing Perforce version control repositories via a graphical interface."
     },
     {
+      "name": "PhpStorm",
+      "slug": "phpstorm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.PhpStorm",
+      "description": "PHP IDE by JetBrains"
+    },
+    {
       "name": "Postman",
       "slug": "postman/darwin",
       "platform": "darwin",
       "unique_identifier": "com.postmanlabs.mac",
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
+    },
+    {
+      "name": "Pritunl",
+      "slug": "pritunl/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.pritunl",
+      "description": "Pritunl is an OpenVPN client."
+    },
+    {
+      "name": "Privileges",
+      "slug": "privileges/darwin",
+      "platform": "darwin",
+      "unique_identifier": "corp.sap.privileges",
+      "description": "Privileges is an admin rights switcher for macOS."
+    },
+    {
+      "name": "Proton Mail",
+      "slug": "proton-mail/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ch.protonmail.desktop",
+      "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
+    },
+    {
+      "name": "PyCharm Professional",
+      "slug": "pycharm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.pycharm",
+      "description": "Jetbrain IDE for professional Python development. This version includes advanced features and requires a valid license."
+    },
+    {
+      "name": "PyCharm Community Edition",
+      "slug": "pycharm-ce/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.pycharm.ce",
+      "description": "Jetbrains IDE for Python programming - Community Edition"
+    },
+    {
+      "name": "Rectangle",
+      "slug": "rectangle/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.knollsoft.Rectangle",
+      "description": "Move and resize windows using keyboard shortcuts or snap areas."
     },
     {
       "name": "Santa",
@@ -233,6 +429,27 @@
       "description": "Slack is a team communication and collaboration software for modern workplaces."
     },
     {
+      "name": "Slack",
+      "slug": "slack/windows",
+      "platform": "windows",
+      "unique_identifier": "Slack",
+      "description": "Slack is a team communication and collaboration software for modern workplaces."
+    },
+    {
+      "name": "Spotify",
+      "slug": "spotify/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.spotify.client",
+      "description": "Spotify is a music streaming app."
+    },
+    {
+      "name": "Sublime Text",
+      "slug": "sublime-text/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sublimetext.4",
+      "description": "Sublime Text is a text editor for code, markup, and prose."
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
@@ -245,6 +462,13 @@
       "platform": "windows",
       "unique_identifier": "TeamViewer",
       "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
+    },
+    {
+      "name": "Tunnelblick",
+      "slug": "tunnelblick/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.tunnelblick.tunnelblick",
+      "description": "Tunnelblick is a free and open-source OpenVPN client."
     },
     {
       "name": "Microsoft Visual Studio Code",
@@ -268,11 +492,25 @@
       "description": ""
     },
     {
+      "name": "Webex",
+      "slug": "webex/darwin",
+      "platform": "darwin",
+      "unique_identifier": "Cisco-Systems.Spark",
+      "description": "Webex is a video communication and virtual meeting platform."
+    },
+    {
       "name": "WhatsApp",
       "slug": "whatsapp/darwin",
       "platform": "darwin",
       "unique_identifier": "net.whatsapp.WhatsApp",
       "description": "WhatsApp's native desktop client for seamless messaging and calling on macOS."
+    },
+    {
+      "name": "Windows App",
+      "slug": "windows-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.rdc.macos",
+      "description": "Windows App helps you connect to Windows from your Mac."
     },
     {
       "name": "Yubikey Manager",
@@ -286,6 +524,13 @@
       "slug": "zoom/darwin",
       "platform": "darwin",
       "unique_identifier": "us.zoom.xos",
+      "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zoom",
+      "slug": "zoom/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom Workplace (X64)",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
     }
   ]

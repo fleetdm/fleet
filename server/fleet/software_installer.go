@@ -130,6 +130,9 @@ type SoftwareInstaller struct {
 	Categories []string `json:"categories"`
 
 	BundleIdentifier string `json:"-" db:"bundle_identifier"`
+
+	// DisplayName is an end-user friendly name.
+	DisplayName string `json:"display_name"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -180,7 +183,7 @@ type VPPAppResponse struct {
 	// AppStoreID is the ADAM ID for this app (set when uploading via batch/gitops).
 	AppStoreID string `json:"app_store_id" db:"app_store_id"`
 	// Platform is the platform this title ID corresponds to
-	Platform AppleDevicePlatform `json:"platform" db:"platform"`
+	Platform InstallableDevicePlatform `json:"platform" db:"platform"`
 
 	//// Custom icon fields (blank if not set)
 
@@ -521,17 +524,17 @@ type UploadSoftwareInstallerPayload struct {
 }
 
 type ExistingSoftwareInstaller struct {
-	InstallerID      uint     `db:"installer_id"`
-	TeamID           *uint    `db:"team_id"`
-	Filename         string   `db:"filename"`
-	Extension        string   `db:"extension"`
-	Version          string   `db:"version"`
-	Platform         string   `db:"platform"`
-	Source           string   `db:"source"`
-	BundleIdentifier *string  `db:"bundle_identifier"`
-	Title            string   `db:"title"`
-	PackageIDList    string   `db:"package_ids"`
-	PackageIDs       []string ``
+	InstallerID      uint    `db:"installer_id"`
+	TeamID           *uint   `db:"team_id"`
+	Filename         string  `db:"filename"`
+	Extension        string  `db:"extension"`
+	Version          string  `db:"version"`
+	Platform         string  `db:"platform"`
+	Source           string  `db:"source"`
+	BundleIdentifier *string `db:"bundle_identifier"`
+	Title            string  `db:"title"`
+	PackageIDList    string  `db:"package_ids"`
+	PackageIDs       []string
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -566,6 +569,12 @@ type UpdateSoftwareInstallerPayload struct {
 	CategoryIDs     []uint
 	// DisplayName is an end-user friendly name.
 	DisplayName string
+}
+
+func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
+	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
+		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
+		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.DisplayName == existing.DisplayName
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.

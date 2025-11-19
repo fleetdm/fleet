@@ -101,6 +101,82 @@ func (s *integrationTestSuite) TestSlowOsqueryHost() {
 	assert.Equal(t, http.StatusRequestTimeout, resp.StatusCode)
 }
 
+// TestMDMAnyMiddlewareAccess performs an end-to-end check through the HTTP
+// handler to confirm the new middleware respects each platform toggle.
+func (s *integrationTestSuite) TestMDMAnyMiddlewareAccess() {
+	t := s.T()
+	ctx := context.Background()
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+
+	ensureAppleMDMAssets := func() {
+		assets := []fleet.MDMConfigAsset{
+			{Name: fleet.MDMAssetCACert, Value: []byte("test-ca-cert")},
+			{Name: fleet.MDMAssetCAKey, Value: []byte("test-ca-key")},
+			{Name: fleet.MDMAssetAPNSCert, Value: []byte("test-apns-cert")},
+			{Name: fleet.MDMAssetAPNSKey, Value: []byte("test-apns-key")},
+		}
+		if err := s.ds.InsertMDMConfigAssets(ctx, assets, nil); err != nil && !mysql.IsDuplicate(err) {
+			require.NoError(t, err)
+		}
+	}
+	ensureAppleMDMAssets()
+
+	origMDM := appCfg.MDM
+	defer func(orig fleet.MDM) {
+		appCfg.MDM = orig
+		require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+		require.NoError(t, s.ds.SetAndroidEnabledAndConfigured(ctx, orig.AndroidEnabledAndConfigured))
+	}(origMDM)
+
+	const endpoint = "/api/latest/fleet/configuration_profiles"
+
+	requestProfiles := func() *http.Response {
+		req, err := http.NewRequest("GET", s.server.URL+endpoint, nil)
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+s.token)
+
+		resp, err := fleethttp.NewClient().Do(req)
+		require.NoError(t, err)
+		return resp
+	}
+
+	setConfig := func(apple, windows, android bool) {
+		appCfg.MDM.EnabledAndConfigured = apple
+		appCfg.MDM.WindowsEnabledAndConfigured = windows
+		require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+
+		require.NoError(t, s.ds.SetAndroidEnabledAndConfigured(ctx, android))
+
+		appCfg, err = s.ds.AppConfig(ctx)
+		require.NoError(t, err)
+	}
+
+	setConfig(false, false, false)
+	res := s.Do("GET", endpoint, nil, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+	require.NoError(t, res.Body.Close())
+
+	assertNotMDMNotConfigured := func() {
+		resp := requestProfiles()
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+		require.NotEqual(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotContains(t, string(body), fleet.ErrMDMNotConfigured.Error())
+	}
+
+	setConfig(true, false, false)
+	assertNotMDMNotConfigured()
+
+	setConfig(false, true, false)
+	assertNotMDMNotConfigured()
+
+	setConfig(false, false, true)
+	assertNotMDMNotConfigured()
+}
+
 func (s *integrationTestSuite) TestDistributedReadWithChangedQueries() {
 	t := s.T()
 
@@ -4116,6 +4192,12 @@ func (s *integrationTestSuite) TestHostDeviceMappingIDP() {
 	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
 		putHostDeviceMappingRequest{Email: "idp.user1@example.com", Source: "idp"},
 		http.StatusPaymentRequired, &putResp)
+
+	// Test 6: Delete IDP endpoint rejects request on Fleet Free
+	var delResp deleteHostIDPResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping/idp", host.ID),
+		deleteHostIDPRequest{},
+		http.StatusPaymentRequired, &delResp)
 }
 
 func (s *integrationTestSuite) TestListHostsDeviceMappingSize() {

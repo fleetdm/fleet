@@ -397,7 +397,7 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 		}
 	}
 	for id := range tIDs {
-		var teamConfig fleet.TeamConfig
+		var teamConfig fleet.TeamConfigLite
 		if id == 0 {
 			// Handle "No Team" (team ID 0) - use AppConfig authorization
 			if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
@@ -407,13 +407,13 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 			if err != nil {
 				return err
 			}
-			teamConfig = *defaultConfig
+			teamConfig = defaultConfig.ToLite()
 		} else {
 			// Handle regular teams
 			if err := svc.authz.Authorize(ctx, &fleet.Team{ID: id}, fleet.ActionWrite); err != nil {
 				return err
 			}
-			t, err := svc.ds.Team(ctx, id)
+			t, err := svc.ds.TeamLite(ctx, id)
 			if err != nil {
 				return err
 			}

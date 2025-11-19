@@ -23,7 +23,8 @@ export type PageContext = "deviceUser" | "hostDetails" | "hostDetailsLibrary";
 interface InstallIconTooltip {
   automaticInstallPoliciesCount?: number;
   pageContext?: PageContext;
-  isIosOrIpados?: boolean;
+  isIosOrIpadosApp?: boolean;
+  isAndroidPlayStoreApp?: boolean;
 }
 
 interface InstallIconConfig {
@@ -31,6 +32,8 @@ interface InstallIconConfig {
   tooltip: ({
     automaticInstallPoliciesCount,
     pageContext,
+    isIosOrIpadosApp,
+    isAndroidPlayStoreApp,
   }: InstallIconTooltip) => JSX.Element;
 }
 
@@ -51,8 +54,8 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
   },
   selfService: {
     iconName: "user",
-    tooltip: ({ isIosOrIpados = false }) =>
-      getSelfServiceTooltip(isIosOrIpados),
+    tooltip: ({ isIosOrIpadosApp = false, isAndroidPlayStoreApp = false }) =>
+      getSelfServiceTooltip(isIosOrIpadosApp, isAndroidPlayStoreApp),
   },
   automatic: {
     iconName: "refresh",
@@ -62,13 +65,15 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
   },
   automaticSelfService: {
     iconName: "automatic-self-service",
-    tooltip: ({ automaticInstallPoliciesCount = 0 }) => (
+    tooltip: ({
+      automaticInstallPoliciesCount = 0,
+      isIosOrIpadosApp = false,
+      isAndroidPlayStoreApp = false,
+    }) => (
       <>
         {getPolicyTooltip(automaticInstallPoliciesCount)}
         <br />
-        End users can reinstall from
-        <br />
-        <b>Fleet Desktop {">"} Self-service</b>.
+        {getSelfServiceTooltip(isIosOrIpadosApp, isAndroidPlayStoreApp)}
       </>
     ),
   },
@@ -78,7 +83,8 @@ interface IInstallIconWithTooltipProps {
   isSelfService: boolean;
   automaticInstallPoliciesCount?: number;
   pageContext?: PageContext;
-  isIosOrIpados?: boolean;
+  isIosOrIpadosApp: boolean;
+  isAndroidPlayStoreApp: boolean;
 }
 
 const getInstallIconType = (
@@ -95,7 +101,8 @@ const InstallIconWithTooltip = ({
   isSelfService,
   automaticInstallPoliciesCount,
   pageContext,
-  isIosOrIpados = false,
+  isIosOrIpadosApp,
+  isAndroidPlayStoreApp,
 }: IInstallIconWithTooltipProps) => {
   const iconType = getInstallIconType(
     isSelfService,
@@ -111,7 +118,8 @@ const InstallIconWithTooltip = ({
   const tipContent = tooltip({
     automaticInstallPoliciesCount,
     pageContext,
-    isIosOrIpados,
+    isIosOrIpadosApp,
+    isAndroidPlayStoreApp,
   });
 
   return (
@@ -148,6 +156,8 @@ interface ISoftwareNameCellProps {
   automaticInstallPoliciesCount?: number;
   /** e.g. custom icons & app_store_app's override default icons with URLs */
   iconUrl?: string | null;
+  isIosOrIpadosApp?: boolean;
+  isAndroidPlayStoreApp?: boolean;
 }
 
 const SoftwareNameCell = ({
@@ -161,6 +171,8 @@ const SoftwareNameCell = ({
   isSelfService = false,
   automaticInstallPoliciesCount,
   iconUrl,
+  isIosOrIpadosApp = false,
+  isAndroidPlayStoreApp = false,
 }: ISoftwareNameCellProps) => {
   const icon = <SoftwareIcon name={name} source={source} url={iconUrl} />;
   // My device page > Software fake link as entire row opens a modal
@@ -203,6 +215,8 @@ const SoftwareNameCell = ({
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext={pageContext}
+            isIosOrIpadosApp={isIosOrIpadosApp}
+            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         ) : undefined
       }

@@ -264,7 +264,7 @@ module.exports = {
               plan: 'standard',
               runtime: 'docker',
               disk: {
-                sizeGB: 1,
+                sizeGB: 5,
                 name: 'mysql',
                 mountPath: '/var/lib/mysql',
               },

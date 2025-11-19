@@ -821,7 +821,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsPermissions() {
 		},
 	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", editTeam1Spec, http.StatusOK)
-	team1b, err := s.ds.Team(context.Background(), team1.ID)
+	team1b, err := s.ds.TeamLite(context.Background(), team1.ID)
 	require.NoError(t, err)
 	require.Equal(t, *team1b.Config.AgentOptions, agentOpts)
 
@@ -18558,12 +18558,12 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 
 	shScriptPath := filepath.Join(tmpDir, "test-script.sh")
 	shScriptContent := []byte("#!/bin/bash\necho 'Installing...'\n")
-	err := os.WriteFile(shScriptPath, shScriptContent, 0644)
+	err := os.WriteFile(shScriptPath, shScriptContent, 0o644)
 	require.NoError(t, err)
 
 	ps1ScriptPath := filepath.Join(tmpDir, "test-script.ps1")
 	ps1ScriptContent := []byte("Write-Host 'Installing...'\n")
-	err = os.WriteFile(ps1ScriptPath, ps1ScriptContent, 0644)
+	err = os.WriteFile(ps1ScriptPath, ps1ScriptContent, 0o644)
 	require.NoError(t, err)
 
 	t.Run("sh script package ignores unsupported fields", func(t *testing.T) {
@@ -21682,7 +21682,8 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 	}
 	assert.True(t, foundIdpInDetailsById, "Should find IDP user in ID-based host endpoint")
 
-	// Test that IDP accepts any username, even if not a SCIM user
+	// Test that IDP accepts any username, even if not a SCIM user - should replace existing
+	// "scim.user@example.com" idp mapping
 	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
 		putHostDeviceMappingRequest{Email: "any.username@example.com", Source: "idp"},
 		http.StatusOK, &putResp)
@@ -21774,6 +21775,22 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 		}
 	}
 	assert.False(t, foundNonScimInOtherEmails, "Non-SCIM IDP should NOT appear in other_emails")
+
+	// test DELETE
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping/idp", host.ID), deleteHostIDPRequest{}, http.StatusNoContent)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+host.UUID, nil, http.StatusOK, &hostResp)
+	require.Len(t, hostResp.Host.EndUsers, 1, "Should have exactly one end user")
+	endUser = hostResp.Host.EndUsers[0]
+	// Non-SCIM IDP user should now be replaced by user's username
+	assert.Equal(t, "test.user", endUser.IdpUserName)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp2)
+	require.Len(t, hostResp2.Host.EndUsers, 1, "Should have exactly one end user")
+	endUser = hostResp.Host.EndUsers[0]
+
+	// Non-SCIM IDP user should now be replaced by user's username
+	assert.Equal(t, "test.user", endUser.IdpUserName)
 }
 
 func (s *integrationEnterpriseTestSuite) TestAppConfigOktaConditionalAccess() {
@@ -22256,5 +22273,82 @@ func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
 		// Attempt to use token auth (no cert header) - should be rejected
 		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosToken), nil, http.StatusUnauthorized)
 		res.Body.Close()
+	})
+}
+
+func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
+	t := s.T()
+	ctx := context.Background()
+
+	t.Run("upload update delete in-house app", func(t *testing.T) {
+		var createTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+			Name: t.Name(),
+		}, http.StatusOK, &createTeamResp)
+		require.NotZero(t, createTeamResp.Team.ID)
+
+		var labelResp createLabelResponse
+		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+			Name:  "iha_label",
+			Query: "select 1",
+		}}, http.StatusOK, &labelResp)
+		require.NotZero(t, labelResp.Label.ID)
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			TeamID:      &createTeamResp.Team.ID,
+			Filename:    "ipa_test.ipa",
+			Version:     "1.0.0",
+			StorageID:   uuid.New().String(),
+			SelfService: true,
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		var titleID uint
+		var installerID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			require.NoError(t, sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM in_house_apps WHERE filename = ?`, payload.Filename))
+			require.NoError(t, sqlx.GetContext(ctx, q, &installerID, `SELECT title_id FROM in_house_apps WHERE filename = ?`, payload.Filename))
+			return nil
+		})
+
+		// check activity
+		activityData := fmt.Sprintf(
+			`{"software_title": "ipa_test", "software_package": "ipa_test.ipa", "team_name": "%s", "team_id": %d, "self_service": true, "software_title_id": %d}`,
+			createTeamResp.Team.Name,
+			createTeamResp.Team.ID,
+			titleID+1, // iOS title is created first and returned, so the latest title is the iPadOS one
+		)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
+
+		// upload again fails
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
+
+		// patch the in house app to change labels, categories
+		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":            {fmt.Sprintf("%d", createTeamResp.Team.ID)},
+			"labels_exclude_any": {"iha_label"},
+			"categories":         {"Productivity", "Browsers"},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+		expectedPayload := *payload
+		expectedPayload.LabelsExcludeAny = []string{labelResp.Label.Name}
+		expectedPayload.Categories = []string{"Productivity", "Browsers"}
+
+		meta, err := s.ds.GetInHouseAppMetadataByTeamAndTitleID(context.Background(), &createTeamResp.Team.ID, installerID)
+		require.NoError(t, err)
+		require.Equal(t, expectedPayload.Filename, meta.Name)
+		require.Equal(t, expectedPayload.LabelsExcludeAny[0], meta.LabelsExcludeAny[0].LabelName)
+		require.Equal(t, expectedPayload.Categories, meta.Categories)
+
+		// delete the installer
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(),
+			fmt.Sprintf(`{"labels_exclude_any":  [{"id": %d, "name": "%s"}], "software_title": "ipa_test", "software_package": "ipa_test.ipa", "software_icon_url": null, "team_name": "%s", "team_id": %d, "self_service": true}`,
+				labelResp.Label.ID, labelResp.Label.Name, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
+
+		// download the installer, not found anymore
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 	})
 }

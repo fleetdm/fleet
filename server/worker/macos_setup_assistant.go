@@ -348,7 +348,7 @@ func (m *MacosSetupAssistant) runUpdateProfile(ctx context.Context, args macosSe
 func (m *MacosSetupAssistant) getTeamNoTeam(ctx context.Context, tmID *uint) (*fleet.Team, error) {
 	var team *fleet.Team
 	if tmID != nil {
-		tm, err := m.Datastore.Team(ctx, *tmID)
+		tm, err := m.Datastore.TeamWithExtras(ctx, *tmID) // TODO see if we can convert this workflow to TeamLite
 		if err != nil {
 			return nil, err
 		}
