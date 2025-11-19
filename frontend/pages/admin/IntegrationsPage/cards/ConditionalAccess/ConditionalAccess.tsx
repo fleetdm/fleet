@@ -88,12 +88,8 @@ const DeleteConditionalAccessModal = ({
     setIsDeleting(false);
   };
 
-  return (
-    <Modal
-      title="Delete"
-      onExit={toggleDeleteConditionalAccessModal}
-      onEnter={handleDelete}
-    >
+  const copy =
+    provider === "microsoft-entra" ? (
       <>
         <p>
           Before you delete, first unblock all end users.{" "}
@@ -107,6 +103,22 @@ const DeleteConditionalAccessModal = ({
           If you don&apos;t, end users will stay blocked even after deleting
           Entra.
         </p>
+      </>
+    ) : (
+      <p>
+        Fleet will be disconnected from Okta and will stop blocking end users
+        from logging in with single sign-on.
+      </p>
+    );
+
+  return (
+    <Modal
+      title="Delete"
+      onExit={toggleDeleteConditionalAccessModal}
+      onEnter={handleDelete}
+    >
+      <>
+        {copy}
         <div className="modal-cta-wrap">
           <Button
             type="button"
