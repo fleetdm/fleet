@@ -79,6 +79,13 @@
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
+      "name": "Canva",
+      "slug": "canva/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.canva.CanvaDesktop",
+      "description": "Canva is a popular online graphic design tool."
+    },
+    {
       "name": "ChatGPT Desktop",
       "slug": "chatgpt/darwin",
       "platform": "darwin",
