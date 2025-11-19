@@ -8,7 +8,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	"github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
@@ -124,7 +123,7 @@ func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, lo
 
 func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, hostUUID string, hostID uint, enterpriseName, policyID string) error {
 
-	if policyID == fmt.Sprint(service.DefaultAndroidPolicyID) {
+	if policyID == fmt.Sprint(android.DefaultAndroidPolicyID) {
 		var policy androidmanagement.Policy
 
 		policy.StatusReportingSettings = &androidmanagement.StatusReportingSettings{
@@ -198,7 +197,7 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 	// first step is to make the apps available for self-service available on the host
 	// we do this first because it also takes care of assigning the host-specific policy
 	// to the host if necessary.
-	policyID := fmt.Sprint(service.DefaultAndroidPolicyID)
+	policyID := fmt.Sprint(android.DefaultAndroidPolicyID)
 	if host.AppliedPolicyID != nil {
 		policyID = *host.AppliedPolicyID
 	}

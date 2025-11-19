@@ -4,6 +4,8 @@ import (
 	"time"
 )
 
+const DefaultAndroidPolicyID = 1
+
 type SignupDetails struct {
 	Url  string
 	Name string
