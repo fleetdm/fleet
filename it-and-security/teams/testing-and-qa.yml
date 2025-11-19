@@ -174,6 +174,50 @@ software:
       self_service: true
     - slug: zoom/darwin # Zoom for macOS
       self_service: true
+    - slug: asana/darwin # Asana for macOS
+      self_service: true
+    - slug: canva/darwin # Canva for macOS
+      self_service: true
+    - slug: chatgpt/darwin # ChatGPT Desktop for macOS
+      self_service: true
+    - slug: discord/darwin # Discord for macOS
+      self_service: true
+    - slug: drawio/darwin # draw.io for macOS
+      self_service: true
+    - slug: dropbox/darwin # Dropbox for macOS
+      self_service: true
+    - slug: goland/darwin # GoLand for macOS
+      self_service: true
+    - slug: google-drive/darwin # Google Drive for macOS
+      self_service: true
+    - slug: imazing-profile-editor/darwin # iMazing Profile Editor for macOS
+      self_service: true
+    - slug: loom/darwin # Loom for macOS
+      self_service: true
+    - slug: microsoft-onenote/darwin # Microsoft OneNote for macOS
+      self_service: true
+    - slug: microsoft-powerpoint/darwin # Microsoft PowerPoint for macOS
+      self_service: true
+    - slug: miro/darwin # Miro for macOS
+      self_service: true
+    - slug: nudge/darwin # Nudge for macOS
+      self_service: true
+    - slug: opera/darwin # Opera for macOS
+      self_service: true
+    - slug: pritunl/darwin # Pritunl for macOS
+      self_service: true
+    - slug: pycharm-ce/darwin # PyCharm Community Edition for macOS
+      self_service: true
+    - slug: pycharm/darwin # PyCharm Professional for macOS
+      self_service: true
+    - slug: rectangle/darwin # Rectangle for macOS
+      self_service: true
+    - slug: signal/darwin # Signal for macOS
+      self_service: true
+    - slug: spotify/darwin # Spotify for macOS
+      self_service: true
+    - slug: thunderbird/darwin # Thunderbird for macOS
+      self_service: true
     # Windows apps
     - slug: box-drive/windows # Box Drive for Windows
       self_service: true
@@ -194,4 +238,10 @@ software:
     - slug: visual-studio-code/windows # Microsoft Visual Studio Code for Windows
       self_service: true
     - slug: zoom/windows # Zoom for Windows
+      self_service: true
+    - slug: discord/windows # Discord for Windows
+      self_service: true
+    - slug: figma/windows # Figma for Windows
+      self_service: true
+    - slug: google-drive/windows # Google Drive for Windows
       self_service: true
