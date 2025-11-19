@@ -32,7 +32,6 @@ func TestAndroidAppConfigs(t *testing.T) {
 }
 
 func testAndroidAppConfigCrud(t *testing.T, ds *Datastore) {
-	fmt.Println(".")
 	ctx := context.Background()
 
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
@@ -42,17 +41,18 @@ func testAndroidAppConfigCrud(t *testing.T, ds *Datastore) {
 
 	// test cases: ios app, ios app with config, android app with no config, android app with config
 
+	testConfig := json.RawMessage(`{"ManagedConfiguration": {"DisableShareScreen": true, "DisableComputerAudio": true}}`)
 	// Create android and VPP apps
 	app1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "android1", BundleIdentifier: "android1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "something_android_app_1", Platform: fleet.AndroidPlatform},
-			Configuration: json.RawMessage(`{"ManagedConfiguration": {"DisableShareScreen": true, "DisableComputerAudio": true}}`),
+			Configuration: testConfig,
 		}}, &team1.ID)
 	require.NoError(t, err)
 
 	app2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_spaceeee_1", Platform: fleet.IOSPlatform},
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_forapple_1", Platform: fleet.IOSPlatform},
 			Configuration: json.RawMessage(`{"ManagedConfiguration": {"ios app shouldn't have configuration": true}}`),
 		}}, &team1.ID)
 	require.NoError(t, err)
@@ -68,16 +68,16 @@ func testAndroidAppConfigCrud(t *testing.T, ds *Datastore) {
 	require.NotZero(t, meta.VPPAppsTeamsID)
 	require.NotZero(t, meta.Configuration)
 	require.Equal(t, "android1", meta.BundleIdentifier)
+	require.Equal(t, testConfig, meta.Configuration)
 
 	// Get ios app
 	meta2, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, app2.TitleID)
 	require.NoError(t, err)
 	require.NotZero(t, meta2.VPPAppsTeamsID)
-	// require.Equal(t, "{blablabla}", meta.Configuration) TODO(JK): this should return configuration
 
 	// Edit android app
-	newCfg := json.RawMessage(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
-	app1.VPPAppTeam.Configuration = newCfg
+	newConfig := json.RawMessage(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
+	app1.VPPAppTeam.Configuration = newConfig
 	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
 	require.NoError(t, err)
 
@@ -85,13 +85,19 @@ func testAndroidAppConfigCrud(t *testing.T, ds *Datastore) {
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, app1.TitleID)
 	require.NoError(t, err)
 	require.NotZero(t, meta.VPPAppsTeamsID)
-	require.Equal(t, newCfg, meta.Configuration)
+	require.Equal(t, newConfig, meta.Configuration)
 
-	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		DumpTable(t, tx, "vpp_apps")
-		DumpTable(t, tx, "android_app_configurations")
-		return nil
-	})
+	// Add invalid configuration
+	badConfig := json.RawMessage(`"-": "-"`)
+	app1.VPPAppTeam.Configuration = badConfig
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	require.Error(t, err)
+
+	require.NoError(t, ds.DeleteVPPAppFromTeam(ctx, &team1.ID, app1.VPPAppID))
+	_, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, app1.TitleID)
+	require.ErrorContains(t, err, "not found")
+	_, err = ds.GetAndroidAppConfiguration(ctx, app1.AdamID, team1.ID)
+	require.ErrorContains(t, err, "not found")
 }
 
 func testAndroidAppConfigValidation(t *testing.T, ds *Datastore) {

@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) updateAndroidAppConfiguration(ctx context.Context, tx sqlx.ExtContext, teamID *uint, adamID string, configuration json.RawMessage) error {
+func (ds *Datastore) updateAndroidAppConfiguration(ctx context.Context, tx sqlx.ExtContext, teamID *uint, adamID string, platform fleet.InstallableDevicePlatform, configuration json.RawMessage) error {
 	err := validateAndroidAppConfiguration(configuration)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating android app configuration")
@@ -28,15 +28,15 @@ func (ds *Datastore) updateAndroidAppConfiguration(ctx context.Context, tx sqlx.
 
 	stmt := `
 		INSERT INTO 
-			android_app_configurations (adam_id, team_id, global_or_team_id, configuration)
-		VALUES (?, ?, ?, ?) 
+			android_app_configurations (adam_id, team_id, global_or_team_id, platform, configuration)
+		VALUES (?, ?, ?, ?, ?) 
 		ON DUPLICATE KEY UPDATE 
 			configuration = VALUES(configuration)
 	`
 
-	_, err = tx.ExecContext(ctx, stmt, adamID, tid, globalOrTeamID, configuration)
+	_, err = tx.ExecContext(ctx, stmt, adamID, tid, globalOrTeamID, platform, configuration)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "UpsertAndroidAppConfiguration")
+		return ctxerr.Wrap(ctx, err, "updateAndroidAppConfiguration")
 	}
 	return nil
 }
@@ -51,9 +51,6 @@ func validateAndroidAppConfiguration(configuration json.RawMessage) error {
 	if err := fleet.JSONStrictDecode(bytes.NewReader(configuration), &res); err != nil {
 		return err
 	}
-
-	// TODO(JK): validate both fields for appropriate types
-	// handle nil (should be unreachable, right?)
 
 	return nil
 }
