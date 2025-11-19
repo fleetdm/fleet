@@ -30,7 +30,7 @@ import (
 func TestMDMShared(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
-	cases := []struct {
+	cases := []struct{
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
@@ -7916,6 +7916,7 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 }
 
 func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
 	ctx := context.Background()
 
 	// create some "exclude" labels
@@ -8497,6 +8498,7 @@ func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {
 }
 
 func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
 	ctx := t.Context()
 
 	// create a team
