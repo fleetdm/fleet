@@ -106,8 +106,8 @@ module "free" {
     family              = local.customer_free
     security_group_name = local.customer_free
     autoscaling = {
-      min_capacity = 2
-      max_capacity = 5
+      min_capacity                 = 2
+      max_capacity                 = 5
       cpu_tracking_target_value    = 70
       memory_tracking_target_value = 70
     }
@@ -187,9 +187,9 @@ resource "aws_route53_record" "free" {
 }
 
 module "ses-free" {
-  source  = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.0"
-  zone_id = aws_route53_zone.free.zone_id
-  domain  = "free.fleetdm.com"
+  source            = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.0"
+  zone_id           = aws_route53_zone.free.zone_id
+  domain            = "free.fleetdm.com"
   extra_txt_records = []
   custom_mail_from = {
     enabled       = true

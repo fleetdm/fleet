@@ -90,8 +90,8 @@ module "loadtest" {
       container_port   = 8080
     }]
     autoscaling = {
-      min_capacity = var.fleet_task_count
-      max_capacity = var.fleet_task_count
+      min_capacity                 = var.fleet_task_count
+      max_capacity                 = var.fleet_task_count
       cpu_tracking_target_value    = 70
       memory_tracking_target_value = 70
     }

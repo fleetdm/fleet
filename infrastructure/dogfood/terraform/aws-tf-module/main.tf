@@ -172,8 +172,8 @@ module "main" {
     mem      = 4096
     pid_mode = "task"
     autoscaling = {
-      min_capacity = 2
-      max_capacity = 5
+      min_capacity                 = 2
+      max_capacity                 = 5
       cpu_tracking_target_value    = 70
       memory_tracking_target_value = 70
     }
@@ -631,9 +631,9 @@ module "notify_slack_p2" {
 }
 
 module "ses" {
-  source  = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.0"
-  zone_id = aws_route53_zone.main.zone_id
-  domain  = "dogfood.fleetdm.com"
+  source            = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.0"
+  zone_id           = aws_route53_zone.main.zone_id
+  domain            = "dogfood.fleetdm.com"
   extra_txt_records = []
   custom_mail_from = {
     enabled       = true
