@@ -513,9 +513,11 @@ func numberWithPluralization(n int, singular string, plural string) string {
 	return fmt.Sprintf("%d %s", n, plural)
 }
 
-const dryRunAppliedFormat = "[+] would've applied %s\n"
-const appliedFormat = "[+] applied %s\n"
-const applyingTeamFormat = "[+] applying %s for team %s\n"
+const (
+	dryRunAppliedFormat = "[+] would've applied %s\n"
+	appliedFormat       = "[+] applied %s\n"
+	applyingTeamFormat  = "[+] applying %s for team %s\n"
+)
 
 // ApplyGroup applies the given spec group to Fleet.
 func (c *Client) ApplyGroup(
@@ -1988,6 +1990,11 @@ func (c *Client) DoGitOps(
 		mdmAppConfig["windows_migration_enabled"] = incoming.Controls.WindowsMigrationEnabled
 		if incoming.Controls.WindowsMigrationEnabled == nil {
 			mdmAppConfig["windows_migration_enabled"] = false
+		}
+		// Put in default values for enable_turn_on_windows_mdm_manually
+		mdmAppConfig["enable_turn_on_windows_mdm_manually"] = incoming.Controls.EnableTurnOnWindowsMDMManually
+		if incoming.Controls.EnableTurnOnWindowsMDMManually == nil {
+			mdmAppConfig["enable_turn_on_windows_mdm_manually"] = false
 		}
 		if windowsEnabledAndConfiguredAssumption, ok := mdmAppConfig["windows_enabled_and_configured"].(bool); ok {
 			teamAssumptions = &fleet.TeamSpecsDryRunAssumptions{

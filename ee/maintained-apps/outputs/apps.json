@@ -48,7 +48,7 @@
       "slug": "beyond-compare/darwin",
       "platform": "darwin",
       "unique_identifier": "com.scootersoftware.BeyondCompare",
-      "description": ""
+      "description": "Beyond Compare is an app used to compare files and folders."
     },
     {
       "name": "Box Drive",
@@ -77,6 +77,13 @@
       "platform": "windows",
       "unique_identifier": "Brave",
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
+    },
+    {
+      "name": "Canva",
+      "slug": "canva/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.canva.CanvaDesktop",
+      "description": "Canva is a popular online graphic design tool."
     },
     {
       "name": "ChatGPT Desktop",
@@ -163,11 +170,18 @@
       "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
     },
     {
+      "name": "draw.io",
+      "slug": "drawio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jgraph.drawio.desktop",
+      "description": "draw.io is a versatile diagramming or whiteboarding application."
+    },
+    {
       "name": "Dropbox",
       "slug": "dropbox/darwin",
       "platform": "darwin",
       "unique_identifier": "com.getdropbox.dropbox",
-      "description": "Client for the Dropbox cloud storage service."
+      "description": "Dropbox is a client for the Dropbox cloud storage service."
     },
     {
       "name": "Figma",
@@ -181,7 +195,7 @@
       "slug": "figma/windows",
       "platform": "windows",
       "unique_identifier": "Figma",
-      "description": ""
+      "description": "Figma is a collaborative design tool for teams to create, prototype, and share designs in real time."
     },
     {
       "name": "Mozilla Firefox",
@@ -224,6 +238,20 @@
       "platform": "windows",
       "unique_identifier": "Google Chrome",
       "description": "Google Chrome Enterprise is a fast, reliable web browser built for performance and compatibility across platforms."
+    },
+    {
+      "name": "Google Drive",
+      "slug": "google-drive/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.drivefs",
+      "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
+    },
+    {
+      "name": "Google Drive",
+      "slug": "google-drive/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Drive",
+      "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
     },
     {
       "name": "iMazing Profile Editor",
@@ -345,6 +373,13 @@
       "description": "Omnissa Horizon Client is a tool end users use to access remote virtual desktops."
     },
     {
+      "name": "Opera",
+      "slug": "opera/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.operasoftware.Opera",
+      "description": "Opera is a web browser."
+    },
+    {
       "name": "P4V",
       "slug": "p4v/darwin",
       "platform": "darwin",
@@ -387,18 +422,18 @@
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
     },
     {
-      "name": "PyCharm Professional",
-      "slug": "pycharm/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.jetbrains.pycharm",
-      "description": "Jetbrain IDE for professional Python development. This version includes advanced features and requires a valid license."
-    },
-    {
       "name": "PyCharm Community Edition",
       "slug": "pycharm-ce/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.pycharm.ce",
       "description": "Jetbrains IDE for Python programming - Community Edition"
+    },
+    {
+      "name": "PyCharm Professional",
+      "slug": "pycharm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.pycharm",
+      "description": "Jetbrain IDE for professional Python development. This version includes advanced features and requires a valid license."
     },
     {
       "name": "Rectangle",
@@ -413,6 +448,13 @@
       "platform": "darwin",
       "unique_identifier": "com.northpolesec.santa",
       "description": "Santa is a binary authorization system for macOS."
+    },
+    {
+      "name": "Signal",
+      "slug": "signal/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.whispersystems.signal-desktop",
+      "description": "Signal is an instant messaging application focusing on security."
     },
     {
       "name": "Slack",
@@ -457,6 +499,13 @@
       "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
     },
     {
+      "name": "Thunderbird",
+      "slug": "thunderbird/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.mozilla.thunderbird",
+      "description": "Mozilla Thunderbird is a free and open-source e-mail client."
+    },
+    {
       "name": "Tunnelblick",
       "slug": "tunnelblick/darwin",
       "platform": "darwin",
@@ -482,7 +531,7 @@
       "slug": "vnc-viewer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.realvnc.vncviewer",
-      "description": ""
+      "description": "VNC Viewer is a remote desktop application focusing on security."
     },
     {
       "name": "Webex",
