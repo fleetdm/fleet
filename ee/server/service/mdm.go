@@ -289,6 +289,11 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 		return err
 	}
 
+	// If anything besides enable_end_user_authentication is being updated, ensure MDM is
+	if (payload.RequireAllSoftware != nil || payload.EnableReleaseDeviceManually != nil || payload.ManualAgentInstall != nil) && !ac.MDM.EnabledAndConfigured {
+		return fleet.ErrMDMNotConfigured
+	}
+
 	if payload.EnableEndUserAuthentication != nil && *payload.EnableEndUserAuthentication {
 		if ac.MDM.EndUserAuthentication.IsEmpty() {
 			// TODO: update this error message to include steps to resolve the issue once docs for IdP
