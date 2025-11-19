@@ -88,7 +88,8 @@ const EndUserAuthentication = ({
     if (
       !(
         mdmConfig.enabled_and_configured ||
-        mdmConfig.android_enabled_and_configured
+        mdmConfig.android_enabled_and_configured ||
+        mdmConfig.windows_enabled_and_configured
       )
     ) {
       return (
