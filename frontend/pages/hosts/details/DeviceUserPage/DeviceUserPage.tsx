@@ -468,7 +468,6 @@ const DeviceUserPage = ({
 
   // User-initiated refetch always starts a new timer!
   const onRefetchHost = useCallback(async () => {
-    console.log("onRefetchHost called");
     if (!host) return;
     setShowRefetchSpinner(true);
     try {
@@ -493,7 +492,6 @@ const DeviceUserPage = ({
   // Handles the queue: If there's a queued refetch and not actively refetching, run refetch
   useEffect(() => {
     if (queuedSelfServiceRefetch && !showRefetchSpinner) {
-      console.log("unqueue refetch from queued effect");
       setQueuedSelfServiceRefetch(false);
       onRefetchHost();
     }
@@ -504,11 +502,9 @@ const DeviceUserPage = ({
     // If a refetch is already happening, queue this refetch
     if (showRefetchSpinner) {
       setQueuedSelfServiceRefetch(true);
-      console.log("queue refetch");
     } else {
       // Otherwise, run it now
       onRefetchHost();
-      console.log("direct refetch from requestRefetch");
     }
   };
 
