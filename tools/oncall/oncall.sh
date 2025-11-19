@@ -36,7 +36,7 @@ issues() {
 
 	gh issue list --repo fleetdm/fleet --json id,title,author,url,createdAt,labels --limit 100 |
 		jq -r --argjson members "$members" \
-			'map(select(.author.login as $in | $members | index($in) | not)) | sort_by(.createdAt) | reverse'
+			'map(select(.author.login as $in | $members | index($in) | not)) | sort_by(.createdAt) | reverse | .[] | [(.url | split("/") | last), .createdAt, .author.login, .title] | @tsv'
 }
 
 prs() {
@@ -47,12 +47,12 @@ prs() {
 	username="$(echo "${auth_status}" | sed -n -r 's/^.* Logged in to github.com account ([^[:space:]]+).*/\1/p')"
 	token="$(echo "${auth_status}" | sed -n -r 's/^.*Token: ([a-zA-Z0-9_]*)/\1/p')"
 
-	members="$(curl -s -u "${username}:${token}" https://api.github.com/orgs/fleetdm/members?per_page=100 | jq -r 'map(.login)' | jq '. += ["app/dependabot"]')"
+	members="$(curl -s -u "${username}:${token}" https://api.github.com/orgs/fleetdm/members?per_page=100 | jq -r 'map(.login) + ["app/dependabot"]')"
 
 	# defaults to listing open prs
 	gh pr list --limit 1000 --repo fleetdm/fleet --json id,title,author,url,createdAt,isDraft |
 		jq -r --argjson members "$members" \
-			'map(select((.author.login as $login | ($members | index($login)) == null) and .isDraft == false)) | sort_by(.createdAt) | reverse'
+			'map(select((.author.login as $login | ($members | index($login)) == null) and .isDraft == false)) | sort_by(.createdAt) | reverse | .[] | [(.url | split("/") | last), .createdAt, .author.login, .title] | @tsv'
 }
 
 # main script
