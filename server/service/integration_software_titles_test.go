@@ -104,6 +104,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		TeamID:      &team.ID,
 		DisplayName: ptr.String("RubyUpdate1"),
 		SelfService: ptr.Bool(true),
+		Categories:  []string{"Developer tools", "Browsers"},
 	}, http.StatusOK, "")
 
 	activityData = fmt.Sprintf(`
@@ -131,7 +132,6 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	// Set display name to be empty
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
-		SelfService:       ptr.Bool(true),
 		InstallScript:     ptr.String("some install script"),
 		PreInstallQuery:   ptr.String("some pre install query"),
 		PostInstallScript: ptr.String("some post install script"),
@@ -144,6 +144,9 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	// Entity display name is empty
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Empty(stResp.SoftwareTitle.DisplayName)
+	// PATCH semantics, so we shouldn't overwrite self service
+	s.Assert().True(stResp.SoftwareTitle.SoftwarePackage.SelfService)
+	s.Assert().ElementsMatch([]string{"Developer tools", "Browsers"}, stResp.SoftwareTitle.SoftwarePackage.Categories)
 
 	// List software titles display name is empty
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
@@ -185,7 +188,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	macOSTitleID := addAppResp.TitleID
 
-	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, DisplayName: ptr.String("MacOSAppStoreAppUpdated1")}
+	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated1")}
 	var updateAppResp updateAppStoreAppResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK, &updateAppResp)
 
@@ -203,7 +206,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		}
 	}
 
-	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, DisplayName: ptr.String("MacOSAppStoreAppUpdated2")}
+	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated2")}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK, &updateAppResp)
 
 	s.Assert().Equal(*updateAppReq.DisplayName, updateAppResp.AppStoreApp.DisplayName)
@@ -223,7 +226,11 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	existingDisplayName := *updateAppReq.DisplayName
 
 	// Omitting the field is a no-op
-	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: true}
+	updateAppReq = &updateAppStoreAppRequest{
+		TeamID:      &team.ID,
+		SelfService: ptr.Bool(true),
+		Categories:  []string{"Developer tools", "Browsers"},
+	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK, &updateAppResp)
 
 	s.Assert().Equal(existingDisplayName, updateAppResp.AppStoreApp.DisplayName)
@@ -240,7 +247,10 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		}
 	}
 
-	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, DisplayName: ptr.String("")}
+	updateAppReq = &updateAppStoreAppRequest{
+		TeamID:      &team.ID,
+		DisplayName: ptr.String(""),
+	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK, &updateAppResp)
 
 	s.Assert().Equal(*updateAppReq.DisplayName, updateAppResp.AppStoreApp.DisplayName)
@@ -248,12 +258,17 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	stResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", macOSTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Empty(stResp.SoftwareTitle.DisplayName)
+	// PATCH semantics, so we shouldn't overwrite self service or categories
+	s.Assert().True(stResp.SoftwareTitle.AppStoreApp.SelfService)
+	s.Assert().ElementsMatch([]string{"Developer tools", "Browsers"}, stResp.SoftwareTitle.AppStoreApp.Categories)
 
 	// List software titles has display name
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID), "query", includeAnyApp.Name)
 	for _, a := range resp.SoftwareTitles {
 		if a.ID == macOSTitleID {
 			s.Assert().Empty(a.DisplayName)
+			// PATCH semantics, so we shouldn't overwrite self service
+			s.Assert().True(*a.AppStoreApp.SelfService)
 		}
 	}
 
@@ -289,6 +304,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		TitleID:     titleID,
 		TeamID:      &team.ID,
 		DisplayName: ptr.String("InHouseAppUpdate2"),
+		SelfService: ptr.Bool(true),
+		Categories:  []string{"Developer tools", "Browsers"},
 	}, http.StatusOK, "")
 
 	// Entity has display name
@@ -306,14 +323,16 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	// Omitting the field is a no-op
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
-		TitleID:     titleID,
-		TeamID:      &team.ID,
-		SelfService: ptr.Bool(true),
+		TitleID: titleID,
+		TeamID:  &team.ID,
 	}, http.StatusOK, "")
 
 	// Entity has display name
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal("InHouseAppUpdate2", stResp.SoftwareTitle.DisplayName)
+	// PATCH semantics, so we shouldn't overwrite self service or categories
+	s.Assert().True(stResp.SoftwareTitle.SoftwarePackage.SelfService)
+	s.Assert().ElementsMatch([]string{"Developer tools", "Browsers"}, stResp.SoftwareTitle.SoftwarePackage.Categories)
 
 	// List software titles has display name
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
@@ -321,6 +340,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	for _, t := range resp.SoftwareTitles {
 		if t.ID == titleID {
 			s.Assert().Equal("InHouseAppUpdate2", t.DisplayName)
+			// PATCH semantics, so we shouldn't overwrite self service
+			s.Assert().True(*t.SoftwarePackage.SelfService)
 		}
 	}
 
