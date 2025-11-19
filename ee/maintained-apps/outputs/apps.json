@@ -373,6 +373,13 @@
       "description": "Omnissa Horizon Client is a tool end users use to access remote virtual desktops."
     },
     {
+      "name": "Opera",
+      "slug": "opera/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.operasoftware.Opera",
+      "description": "Opera is a web browser."
+    },
+    {
       "name": "P4V",
       "slug": "p4v/darwin",
       "platform": "darwin",
