@@ -210,7 +210,7 @@ This dashboard is the first iteration of a tracking website that monitors perfor
 
 #### **Simple Summary**
 
-The Website Traffic Dashboard provides a comprehensive view of how users interact with the FleetDM website. It tracks overall health metrics, such as **Total Users**, **Bounce Rate**, and **Sessions per user**, alongside detailed breakdowns of **traffic sources** and **conversion performance**. It is a critical tool for measuring the effectiveness of our organic and paid strategies, identifying high-performing content, and spotting trends in user behavior and goal completion.
+The Website Traffic Dashboard provides a comprehensive view of how users interact with the Fleet website. It tracks overall health metrics, such as **Total Users**, **Bounce Rate**, and **Sessions per user**, alongside detailed breakdowns of **traffic sources** and **conversion performance**. It is a critical tool for measuring the effectiveness of our organic and paid strategies, identifying high-performing content, and spotting trends in user behavior and goal completion.
 
 #### **Key Views Description**
 
