@@ -29,7 +29,7 @@ module.exports = {
     let thisPage = _.find(sails.config.builtStaticContent.markdownPages, { title: '📜 Fleet privacy policy' });
 
     if(!thisPage) {
-      throw new Error(`When a user visited the /legal/privacy page, the "📜 Fleet privacy policy" markdown file was not found in the website's builtStaticContent.markdownPages configuration.`)
+      throw new Error(`When a user visited the /legal/privacy page, the "📜 Fleet privacy policy" markdown file was not found in the website's builtStaticContent.markdownPages configuration.`);
     }
     // All done.
     return {
