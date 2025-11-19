@@ -188,6 +188,7 @@ func TestHosts(t *testing.T) {
 		{"ListHostsByProfileUUIDAndStatus", testListHostsProfileUUIDAndStatus},
 		{"SetOrUpdateHostDiskTpmPIN", testSetOrUpdateHostDiskTpmPIN},
 		{"TestMaybeAssociateHostWithScimUser", testMaybeAssociateHostWithScimUser},
+		{"GetHostsLockWipeStatusBatch", testGetHostsLockWipeStatusBatch},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -12194,4 +12195,157 @@ func testMaybeAssociateHostWithScimUser(t *testing.T, ds *Datastore) {
 		err := ds.MaybeAssociateHostWithScimUser(ctx, host.ID)
 		require.NoError(t, err)
 	})
+}
+
+func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create test hosts
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "uuid-1",
+		Hostname:        "host1.local",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("2"),
+		UUID:            "uuid-2",
+		Hostname:        "host2.local",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	h3, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("3"),
+		UUID:            "uuid-3",
+		Hostname:        "host3.local",
+		Platform:        "ios",
+	})
+	require.NoError(t, err)
+
+	h4, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("4"),
+		UUID:            "uuid-4",
+		Hostname:        "host4.local",
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+
+	hosts := []*fleet.Host{h1, h2, h3, h4}
+
+	// Test with no MDM actions
+	statusMap, err := ds.GetHostsLockWipeStatusBatch(ctx, hosts)
+	require.NoError(t, err)
+	require.Len(t, statusMap, 4)
+	for _, host := range hosts {
+		status := statusMap[host.ID]
+		require.NotNil(t, status)
+		require.Equal(t, fleet.DeviceStatusUnlocked, status.DeviceStatus())
+		require.Equal(t, fleet.PendingActionNone, status.PendingAction())
+	}
+
+	// Add a lock command for h1 (macOS)
+	lockCmdUUID := "lock-cmd-uuid-1"
+	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{
+			ProfileUUID:       "test-profile",
+			HostUUID:          h1.UUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &fleet.MDMDeliveryPending,
+			CommandUUID:       lockCmdUUID,
+			ProfileIdentifier: "test",
+			ProfileName:       "test",
+		},
+	})
+	require.NoError(t, err)
+
+	// Insert lock MDM command for h1
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO nano_commands (command_uuid, request_type, command) VALUES (?, 'DeviceLock', 'test')`, lockCmdUUID)
+		return err
+	})
+
+	// Insert host_mdm_actions for h1
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_actions (host_id, lock_ref, fleet_platform) VALUES (?, ?, 'darwin')`, h1.ID, lockCmdUUID)
+		return err
+	})
+
+	// Test with lock command pending
+	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, hosts)
+	require.NoError(t, err)
+	h1Status := statusMap[h1.ID]
+	require.NotNil(t, h1Status)
+	require.Equal(t, fleet.PendingActionLock, h1Status.PendingAction())
+	require.Equal(t, fleet.DeviceStatusUnlocked, h1Status.DeviceStatus()) // Still unlocked, command pending
+
+	// Add result for lock command (acknowledged)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, 'Acknowledged', '')`, h1.UUID, lockCmdUUID)
+		return err
+	})
+
+	// Test with lock command acknowledged
+	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, hosts)
+	require.NoError(t, err)
+	h1Status = statusMap[h1.ID]
+	require.NotNil(t, h1Status)
+	require.Equal(t, fleet.DeviceStatusLocked, h1Status.DeviceStatus())
+	require.Equal(t, fleet.PendingActionUnlock, h1Status.PendingAction())
+
+	// Add a wipe command for h2 (Windows)
+	wipeCmdUUID := "wipe-cmd-uuid-2"
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_commands (command_uuid, target_loc_uri, raw_command) VALUES (?, './Vendor/MSFT/RemoteWipe/doWipe', '')`, wipeCmdUUID)
+		return err
+	})
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_actions (host_id, wipe_ref, fleet_platform) VALUES (?, ?, 'windows')`, h2.ID, wipeCmdUUID)
+		return err
+	})
+
+	// Test with wipe command pending
+	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, hosts)
+	require.NoError(t, err)
+	h2Status := statusMap[h2.ID]
+	require.NotNil(t, h2Status)
+	require.Equal(t, fleet.PendingActionWipe, h2Status.PendingAction())
+
+	// Add result for wipe command
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, status_code) VALUES (?, ?, '200')`, h2.UUID, wipeCmdUUID)
+		return err
+	})
+
+	// Test with wipe command completed
+	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, hosts)
+	require.NoError(t, err)
+	h2Status = statusMap[h2.ID]
+	require.NotNil(t, h2Status)
+	require.Equal(t, fleet.DeviceStatusWiped, h2Status.DeviceStatus())
+	require.Equal(t, fleet.PendingActionNone, h2Status.PendingAction())
+
+	// Test with empty host list
+	emptyStatusMap, err := ds.GetHostsLockWipeStatusBatch(ctx, []*fleet.Host{})
+	require.NoError(t, err)
+	require.Empty(t, emptyStatusMap)
 }

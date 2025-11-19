@@ -1498,6 +1498,438 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 	return status, nil
 }
 
+// GetHostsLockWipeStatusBatch gets the lock/unlock and wipe status for multiple hosts efficiently.
+func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+	if len(hosts) == 0 {
+		return make(map[uint]*fleet.HostLockWipeStatus), nil
+	}
+
+	// Build map of host ID to host for lookups
+	hostMap := make(map[uint]*fleet.Host, len(hosts))
+	hostIDs := make([]uint, 0, len(hosts))
+	for _, host := range hosts {
+		hostMap[host.ID] = host
+		hostIDs = append(hostIDs, host.ID)
+	}
+
+	// Query all host_mdm_actions for these hosts
+	stmt := `
+		SELECT
+			host_id,
+			lock_ref,
+			wipe_ref,
+			unlock_ref,
+			unlock_pin,
+			fleet_platform
+		FROM
+			host_mdm_actions
+		WHERE
+			host_id IN (?)
+	`
+	query, args, err := sqlx.In(stmt, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build IN query for host_mdm_actions")
+	}
+
+	var mdmActionsRows []struct {
+		HostID        uint    `db:"host_id"`
+		LockRef       *string `db:"lock_ref"`
+		WipeRef       *string `db:"wipe_ref"`
+		UnlockRef     *string `db:"unlock_ref"`
+		UnlockPIN     *string `db:"unlock_pin"`
+		FleetPlatform string  `db:"fleet_platform"`
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &mdmActionsRows, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host_mdm_actions batch")
+	}
+
+	// Collect all command/script UUIDs that need to be queried, organized by type and platform
+	type refKey struct {
+		uuid     string
+		hostUUID string
+		hostID   uint
+		refType  string // "lock", "unlock", "wipe"
+	}
+
+	appleCommandRefs := make([]refKey, 0)
+	windowsCommandRefs := make([]refKey, 0)
+	scriptRefs := make([]refKey, 0)
+
+	// Build initial status map with platform info
+	statusMap := make(map[uint]*fleet.HostLockWipeStatus, len(hosts))
+	mdmActionsMap := make(map[uint]*struct {
+		LockRef       *string
+		WipeRef       *string
+		UnlockRef     *string
+		UnlockPIN     *string
+		FleetPlatform string
+	})
+
+	for _, row := range mdmActionsRows {
+		mdmActionsMap[row.HostID] = &struct {
+			LockRef       *string
+			WipeRef       *string
+			UnlockRef     *string
+			UnlockPIN     *string
+			FleetPlatform string
+		}{
+			LockRef:       row.LockRef,
+			WipeRef:       row.WipeRef,
+			UnlockRef:     row.UnlockRef,
+			UnlockPIN:     row.UnlockPIN,
+			FleetPlatform: row.FleetPlatform,
+		}
+	}
+
+	// Initialize status for all hosts and collect refs to query
+	for _, host := range hosts {
+		fleetPlatform := host.FleetPlatform()
+		status := &fleet.HostLockWipeStatus{
+			HostFleetPlatform: fleetPlatform,
+		}
+
+		mdmActions, hasMDMActions := mdmActionsMap[host.ID]
+		if hasMDMActions {
+			// Use stored platform if available
+			if mdmActions.FleetPlatform != "" {
+				fleetPlatform = mdmActions.FleetPlatform
+				status.HostFleetPlatform = fleetPlatform
+			}
+
+			// Handle macOS unlock PIN (darwin only)
+			if mdmActions.UnlockPIN != nil && fleetPlatform == "darwin" {
+				status.UnlockPIN = *mdmActions.UnlockPIN
+			}
+
+			// Collect command/script references based on platform
+			switch fleetPlatform {
+			case "darwin", "ios", "ipados":
+				// Apple platforms use MDM commands for lock, unlock (ios/ipados only), and wipe
+				if mdmActions.LockRef != nil {
+					appleCommandRefs = append(appleCommandRefs, refKey{
+						uuid:     *mdmActions.LockRef,
+						hostUUID: host.UUID,
+						hostID:   host.ID,
+						refType:  "lock",
+					})
+				}
+				if mdmActions.UnlockRef != nil && fleetPlatform != "darwin" {
+					// iOS/iPadOS use MDM command for unlock, darwin uses timestamp
+					appleCommandRefs = append(appleCommandRefs, refKey{
+						uuid:     *mdmActions.UnlockRef,
+						hostUUID: host.UUID,
+						hostID:   host.ID,
+						refType:  "unlock",
+					})
+				} else if mdmActions.UnlockRef != nil && fleetPlatform == "darwin" {
+					// For macOS, unlock_ref is a timestamp, parse it here
+					unlockTime, err := time.Parse(time.DateTime, *mdmActions.UnlockRef)
+					if err != nil {
+						// Use current time if format is unexpected
+						unlockTime = time.Now().UTC()
+					}
+					status.UnlockRequestedAt = unlockTime
+				}
+				if mdmActions.WipeRef != nil {
+					appleCommandRefs = append(appleCommandRefs, refKey{
+						uuid:     *mdmActions.WipeRef,
+						hostUUID: host.UUID,
+						hostID:   host.ID,
+						refType:  "wipe",
+					})
+				}
+
+			case "windows":
+				// Windows uses scripts for lock/unlock, MDM command for wipe
+				if mdmActions.LockRef != nil {
+					scriptRefs = append(scriptRefs, refKey{
+						uuid:    *mdmActions.LockRef,
+						hostID:  host.ID,
+						refType: "lock",
+					})
+				}
+				if mdmActions.UnlockRef != nil {
+					scriptRefs = append(scriptRefs, refKey{
+						uuid:    *mdmActions.UnlockRef,
+						hostID:  host.ID,
+						refType: "unlock",
+					})
+				}
+				if mdmActions.WipeRef != nil {
+					windowsCommandRefs = append(windowsCommandRefs, refKey{
+						uuid:     *mdmActions.WipeRef,
+						hostUUID: host.UUID,
+						hostID:   host.ID,
+						refType:  "wipe",
+					})
+				}
+
+			case "linux":
+				// Linux uses scripts for lock, unlock, and wipe
+				if mdmActions.LockRef != nil {
+					scriptRefs = append(scriptRefs, refKey{
+						uuid:    *mdmActions.LockRef,
+						hostID:  host.ID,
+						refType: "lock",
+					})
+				}
+				if mdmActions.UnlockRef != nil {
+					scriptRefs = append(scriptRefs, refKey{
+						uuid:    *mdmActions.UnlockRef,
+						hostID:  host.ID,
+						refType: "unlock",
+					})
+				}
+				if mdmActions.WipeRef != nil {
+					scriptRefs = append(scriptRefs, refKey{
+						uuid:    *mdmActions.WipeRef,
+						hostID:  host.ID,
+						refType: "wipe",
+					})
+				}
+			}
+		}
+
+		statusMap[host.ID] = status
+	}
+
+	// Batch query Apple MDM commands
+	if len(appleCommandRefs) > 0 {
+		cmdUUIDs := make([]string, 0, len(appleCommandRefs))
+		cmdUUIDMap := make(map[string][]refKey)
+		for _, ref := range appleCommandRefs {
+			if _, exists := cmdUUIDMap[ref.uuid]; !exists {
+				cmdUUIDs = append(cmdUUIDs, ref.uuid)
+			}
+			cmdUUIDMap[ref.uuid] = append(cmdUUIDMap[ref.uuid], ref)
+		}
+
+		// Query commands
+		cmdStmt := `SELECT command_uuid, request_type FROM nano_commands WHERE command_uuid IN (?)`
+		cmdQuery, cmdArgs, err := sqlx.In(cmdStmt, cmdUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build IN query for apple commands")
+		}
+
+		var commands []struct {
+			CommandUUID string `db:"command_uuid"`
+			RequestType string `db:"request_type"`
+		}
+
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, cmdQuery, cmdArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select apple mdm commands batch")
+		}
+
+		commandMap := make(map[string]*fleet.MDMCommand)
+		for _, cmd := range commands {
+			commandMap[cmd.CommandUUID] = &fleet.MDMCommand{
+				CommandUUID: cmd.CommandUUID,
+				RequestType: cmd.RequestType,
+			}
+		}
+
+		// Query command results
+		resultStmt := `SELECT command_uuid, id, status FROM nano_command_results WHERE command_uuid IN (?)`
+		resultQuery, resultArgs, err := sqlx.In(resultStmt, cmdUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build IN query for apple command results")
+		}
+
+		var results []struct {
+			CommandUUID string `db:"command_uuid"`
+			ID          string `db:"id"`
+			Status      string `db:"status"`
+		}
+
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, resultQuery, resultArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select apple mdm command results batch")
+		}
+
+		// Build map of command_uuid -> host_uuid -> result
+		resultMap := make(map[string]map[string]*fleet.MDMCommandResult)
+		for _, res := range results {
+			if resultMap[res.CommandUUID] == nil {
+				resultMap[res.CommandUUID] = make(map[string]*fleet.MDMCommandResult)
+			}
+			// Only keep terminal statuses
+			if res.Status == fleet.MDMAppleStatusAcknowledged || res.Status == fleet.MDMAppleStatusError || res.Status == fleet.MDMAppleStatusCommandFormatError {
+				resultMap[res.CommandUUID][res.ID] = &fleet.MDMCommandResult{
+					CommandUUID: res.CommandUUID,
+					Status:      res.Status,
+					HostUUID:    res.ID,
+				}
+			}
+		}
+
+		// Assign commands and results to status objects
+		for cmdUUID, refs := range cmdUUIDMap {
+			cmd := commandMap[cmdUUID]
+			for _, ref := range refs {
+				status := statusMap[ref.hostID]
+				var cmdRes *fleet.MDMCommandResult
+				if resultMap[cmdUUID] != nil {
+					cmdRes = resultMap[cmdUUID][ref.hostUUID]
+				}
+
+				switch ref.refType {
+				case "lock":
+					status.LockMDMCommand = cmd
+					status.LockMDMCommandResult = cmdRes
+				case "unlock":
+					status.UnlockMDMCommand = cmd
+					status.UnlockMDMCommandResult = cmdRes
+				case "wipe":
+					status.WipeMDMCommand = cmd
+					status.WipeMDMCommandResult = cmdRes
+				}
+			}
+		}
+	}
+
+	// Batch query Windows MDM commands
+	if len(windowsCommandRefs) > 0 {
+		cmdUUIDs := make([]string, 0, len(windowsCommandRefs))
+		cmdUUIDMap := make(map[string][]refKey)
+		for _, ref := range windowsCommandRefs {
+			if _, exists := cmdUUIDMap[ref.uuid]; !exists {
+				cmdUUIDs = append(cmdUUIDs, ref.uuid)
+			}
+			cmdUUIDMap[ref.uuid] = append(cmdUUIDMap[ref.uuid], ref)
+		}
+
+		// Query commands
+		cmdStmt := `SELECT command_uuid, target_loc_uri FROM windows_mdm_commands WHERE command_uuid IN (?)`
+		cmdQuery, cmdArgs, err := sqlx.In(cmdStmt, cmdUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build IN query for windows commands")
+		}
+
+		var commands []struct {
+			CommandUUID  string `db:"command_uuid"`
+			TargetLocURI string `db:"target_loc_uri"`
+		}
+
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, cmdQuery, cmdArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select windows mdm commands batch")
+		}
+
+		commandMap := make(map[string]*fleet.MDMCommand)
+		for _, cmd := range commands {
+			commandMap[cmd.CommandUUID] = &fleet.MDMCommand{
+				CommandUUID: cmd.CommandUUID,
+				RequestType: cmd.TargetLocURI,
+			}
+		}
+
+		// Query command results
+		resultStmt := `SELECT command_uuid, enrollment_id, status_code FROM windows_mdm_command_results WHERE command_uuid IN (?)`
+		resultQuery, resultArgs, err := sqlx.In(resultStmt, cmdUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build IN query for windows command results")
+		}
+
+		var results []struct {
+			CommandUUID  string `db:"command_uuid"`
+			EnrollmentID string `db:"enrollment_id"`
+			StatusCode   string `db:"status_code"`
+		}
+
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, resultQuery, resultArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select windows mdm command results batch")
+		}
+
+		// Build map of command_uuid -> host_uuid -> result
+		resultMap := make(map[string]map[string]*fleet.MDMCommandResult)
+		for _, res := range results {
+			if resultMap[res.CommandUUID] == nil {
+				resultMap[res.CommandUUID] = make(map[string]*fleet.MDMCommandResult)
+			}
+			resultMap[res.CommandUUID][res.EnrollmentID] = &fleet.MDMCommandResult{
+				CommandUUID: res.CommandUUID,
+				Status:      res.StatusCode,
+				HostUUID:    res.EnrollmentID,
+			}
+		}
+
+		// Assign commands and results to status objects
+		for cmdUUID, refs := range cmdUUIDMap {
+			cmd := commandMap[cmdUUID]
+			for _, ref := range refs {
+				status := statusMap[ref.hostID]
+				var cmdRes *fleet.MDMCommandResult
+				if resultMap[cmdUUID] != nil {
+					cmdRes = resultMap[cmdUUID][ref.hostUUID]
+				}
+
+				status.WipeMDMCommand = cmd
+				status.WipeMDMCommandResult = cmdRes
+			}
+		}
+	}
+
+	// Batch query script results
+	if len(scriptRefs) > 0 {
+		execIDs := make([]string, 0, len(scriptRefs))
+		execIDMap := make(map[string]refKey)
+		for _, ref := range scriptRefs {
+			execIDs = append(execIDs, ref.uuid)
+			execIDMap[ref.uuid] = ref
+		}
+
+		scriptStmt := `
+			SELECT
+				execution_id,
+				exit_code,
+				canceled
+			FROM
+				host_script_results
+			WHERE
+				execution_id IN (?)
+		`
+		scriptQuery, scriptArgs, err := sqlx.In(scriptStmt, execIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build IN query for script results")
+		}
+
+		var scriptResults []struct {
+			ExecutionID string `db:"execution_id"`
+			ExitCode    *int64 `db:"exit_code"`
+			Canceled    bool   `db:"canceled"`
+		}
+
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &scriptResults, scriptQuery, scriptArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select script results batch")
+		}
+
+		scriptResultMap := make(map[string]*fleet.HostScriptResult)
+		for _, sr := range scriptResults {
+			scriptResultMap[sr.ExecutionID] = &fleet.HostScriptResult{
+				ExecutionID: sr.ExecutionID,
+				ExitCode:    sr.ExitCode,
+				Canceled:    sr.Canceled,
+			}
+		}
+
+		// Assign script results to status objects
+		for execID, ref := range execIDMap {
+			status := statusMap[ref.hostID]
+			scriptResult := scriptResultMap[execID]
+
+			switch ref.refType {
+			case "lock":
+				status.LockScript = scriptResult
+			case "unlock":
+				status.UnlockScript = scriptResult
+			case "wipe":
+				status.WipeScript = scriptResult
+			}
+		}
+	}
+
+	return statusMap, nil
+}
+
 func (ds *Datastore) getHostMDMWindowsCommand(ctx context.Context, cmdUUID, hostUUID string) (*fleet.MDMCommand, *fleet.MDMCommandResult, error) {
 	cmd, err := ds.getMDMCommand(ctx, ds.reader(ctx), cmdUUID)
 	if err != nil {
