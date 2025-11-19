@@ -611,6 +611,13 @@ func TestValidateUserProvided(t *testing.T) {
 				      <LocURI>Custom/URI</LocURI>
 				    </Target>
 				  </Replace>
+				  <Exec>
+				    <Item>
+				      <Target>
+				        <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll</LocURI>
+				      </Target>
+				    </Item>
+				  </Exec>
 				`),
 			},
 			wantErr: "Only options that have <LocURI> starting with \"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/\" can be added to SCEP profile.",
@@ -629,7 +636,7 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: "\"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.",
 		},
 		{
-			name: "SCEP profile with Exec block, but worng LocURI ",
+			name: "SCEP profile with Exec block, but wrong LocURI ",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`
 				<Replace>
@@ -646,7 +653,34 @@ func TestValidateUserProvided(t *testing.T) {
 				</Exec>
 				`),
 			},
-			wantErr: "Couldn't add. \"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.",
+			wantErr: "ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.",
+		},
+		{
+			name: "SCEP profile with multiple Exec blocks, but one has wrong loc URI",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				<Replace>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI>
+					</Target>
+				</Replace>
+				<Exec>
+					<Item>
+						<Target>
+							<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll</LocURI>
+						</Target>
+					</Item>
+				</Exec>
+				<Exec>
+					<Item>
+						<Target>
+							<LocURI>./Device/Test</LocURI>
+						</Target>
+					</Item>
+				</Exec>
+				`),
+			},
+			wantErr: "SCEP profiles must include exactly one <Exec> element.",
 		},
 		{
 			name: fmt.Sprintf("SCEP profile with missing $FLEET_VAR_%s after SCEP LocURI", FleetVarSCEPWindowsCertificateID),

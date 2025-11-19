@@ -247,20 +247,26 @@ func newWindowsSCEPProfileValidator() *windowsSCEPProfileValidator {
 	}
 }
 
+func (v windowsSCEPProfileValidator) normalizeSCEPLocURI(locURI string) string {
+	trimmed := strings.TrimSpace(locURI)
+	// Accept braces version of the Fleet Var, and normalize it to the non-braces for validation.
+	return strings.ReplaceAll(trimmed, FleetVarSCEPWindowsCertificateID.WithBraces(), FleetVarSCEPWindowsCertificateID.WithPrefix())
+}
+
 func (v *windowsSCEPProfileValidator) isSCEPProfile() bool {
 	return len(v.foundLocURIs) > 0 || (v.totalExecLocURIs > 0 && len(v.foundExecLocURIs) > 0)
 }
 
 func (v *windowsSCEPProfileValidator) validateLocURI(locURI string) error {
-	sanitizedLocURI := strings.TrimSpace(locURI)
+	normalizedLocURI := v.normalizeSCEPLocURI(locURI)
 
 	// If we see a LocURI with SCEP prefix, but no Fleet Var we fail early.
-	if v.isSCEPLocURIWithoutFleetVar(sanitizedLocURI) {
+	if v.isSCEPLocURIWithoutFleetVar(normalizedLocURI) {
 		return fmt.Errorf("You must use %q after \"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/\".", FleetVarSCEPWindowsCertificateID.WithPrefix())
 	}
 
-	if slices.Contains(validSCEPProfileLocURIs, sanitizedLocURI) {
-		v.foundLocURIs[sanitizedLocURI] = true
+	if slices.Contains(validSCEPProfileLocURIs, normalizedLocURI) {
+		v.foundLocURIs[normalizedLocURI] = true
 	}
 
 	v.totalLocURIs++
@@ -268,15 +274,15 @@ func (v *windowsSCEPProfileValidator) validateLocURI(locURI string) error {
 }
 
 func (v *windowsSCEPProfileValidator) validateExecLocURI(locURI string) error {
-	sanitizedLocURI := strings.TrimSpace(locURI)
+	normalizedLocURI := v.normalizeSCEPLocURI(locURI)
 
 	// If we see a LocURI with SCEP prefix, but no Fleet Var we fail early.
-	if v.isSCEPLocURIWithoutFleetVar(sanitizedLocURI) {
+	if v.isSCEPLocURIWithoutFleetVar(normalizedLocURI) {
 		return fmt.Errorf("You must use %q after \"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/\".", FleetVarSCEPWindowsCertificateID.WithPrefix())
 	}
 
-	if slices.Contains(validExecSCEPProfileLocURIs, sanitizedLocURI) {
-		v.foundExecLocURIs[sanitizedLocURI] = true
+	if slices.Contains(validExecSCEPProfileLocURIs, normalizedLocURI) {
+		v.foundExecLocURIs[normalizedLocURI] = true
 	}
 
 	v.totalExecLocURIs++
@@ -288,7 +294,8 @@ func (v *windowsSCEPProfileValidator) validateExecLocURI(locURI string) error {
 // Skips any locURI that does not start with the SCEP prefix.
 func (v windowsSCEPProfileValidator) isSCEPLocURIWithoutFleetVar(locURI string) bool {
 	if strings.HasPrefix(locURI, "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/") &&
-		!strings.HasPrefix(locURI, fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s", FleetVarSCEPWindowsCertificateID.WithPrefix())) {
+		!strings.HasPrefix(locURI, fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s", FleetVarSCEPWindowsCertificateID.WithPrefix())) &&
+		!strings.HasPrefix(locURI, fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s", FleetVarSCEPWindowsCertificateID.WithBraces())) {
 		return true
 	}
 	return false
@@ -303,14 +310,18 @@ func (v *windowsSCEPProfileValidator) finalizeValidation() error {
 		return nil // Not a SCEP profile, nothing to validate here.
 	}
 
-	// Verify that we do not have any non-scep loc URIs present
-	if v.totalLocURIs != len(v.foundLocURIs) {
-		return errors.New("Only options that have <LocURI> starting with \"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/\" can be added to SCEP profile.")
-	}
-
 	// Check that at least one Exec LocURI is present and it matches the only one we have in the array.
 	if len(v.foundExecLocURIs) != 1 && !v.foundExecLocURIs[validExecSCEPProfileLocURIs[0]] {
 		return errors.New("Couldn't add. \"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.")
+	}
+
+	if v.totalExecLocURIs != 1 {
+		return errors.New("SCEP profiles must include exactly one <Exec> element.")
+	}
+
+	// Verify that we do not have any non-scep loc URIs present
+	if v.totalLocURIs != len(v.foundLocURIs) {
+		return errors.New("Only options that have <LocURI> starting with \"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/\" can be added to SCEP profile.")
 	}
 
 	// Check that all required LocURIs are present
