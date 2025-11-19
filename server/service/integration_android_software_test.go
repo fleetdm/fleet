@@ -251,7 +251,29 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		&addAppResp,
 	)
 
-	// TODO(JK): edit app
+	var getAppsResp getAppStoreAppsResponse
+	s.DoJSON(
+		"GET",
+		"/api/latest/fleet/software/app_store_apps",
+		&getAppStoreAppsRequest{},
+		http.StatusOK,
+		&getAppsResp,
+		"team_id",
+		"0",
+	)
+	fmt.Printf("%+v\n\n", getAppsResp.AppStoreApps[0].AdamID)
+
+	// Edit app without changing configuration
+	s.DoJSON(
+		"POST",
+		"/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{
+			AppStoreID: androidAppWithConfig.AdamID,
+			Platform:   androidAppWithConfig.VPPAppID.Platform,
+		},
+		http.StatusOK,
+		&addAppResp,
+	)
 
 	// Configuration is shown
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
