@@ -999,3 +999,52 @@ func (svc *Service) PatchPolicy(ctx context.Context, policyID, policyName string
 	}
 	return skip, nil
 }
+
+func (svc *Service) MigrateToPerDevicePolicy(ctx context.Context) error {
+	// if policyID == "1" {
+	// 	var policy androidmanagement.Policy
+
+	// 	policy.StatusReportingSettings = &androidmanagement.StatusReportingSettings{
+	// 		DeviceSettingsEnabled:        true,
+	// 		MemoryInfoEnabled:            true,
+	// 		NetworkInfoEnabled:           true,
+	// 		DisplayInfoEnabled:           true,
+	// 		PowerManagementEventsEnabled: true,
+	// 		HardwareStatusEnabled:        true,
+	// 		SystemPropertiesEnabled:      true,
+	// 		SoftwareInfoEnabled:          true,
+	// 		CommonCriteriaModeEnabled:    true,
+	// 		ApplicationReportsEnabled:    true,
+	// 		ApplicationReportingSettings: nil, // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
+	// 	}
+
+	// 	policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, hostUUID)
+	// 	_, err := v.AndroidModule.PatchPolicy(ctx, hostUUID, policyName, &policy, nil)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	device := &androidmanagement.Device{
+	// 		PolicyName: policyName,
+	// 		// State must be specified when updating a device, otherwise it fails with
+	// 		// "Illegal state transition from ACTIVE to DEVICE_STATE_UNSPECIFIED"
+	// 		//
+	// 		// > Note that when calling enterprises.devices.patch, ACTIVE and
+	// 		// > DISABLED are the only allowable values.
+
+	// 		// TODO(ap): should we send whatever the previous state was? If it was DISABLED,
+	// 		// we probably don't want to re-enable it by accident. Those are the only
+	// 		// 2 valid states when patching a device.
+	// 		State: "ACTIVE",
+	// 	}
+	// 	androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
+	// 	if err != nil {
+	// 		return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
+	// 	}
+	// 	deviceName := fmt.Sprintf("%s/devices/%s", enterpriseName, androidHost.DeviceID)
+	// 	_, err = v.AndroidModule.PatchDevice(ctx, hostUUID, deviceName, device)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
+	return nil
+}
