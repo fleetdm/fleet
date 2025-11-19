@@ -3801,21 +3801,21 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		UUID:     "uuid1",
 		Hostname: "host1",
 		Platform: "darwin",
-		MDM:      &fleet.HostMDM{},
+		MDM:      fleet.MDMHostData{},
 	}
 	host2 := &fleet.Host{
 		ID:       2,
 		UUID:     "uuid2",
 		Hostname: "host2",
 		Platform: "windows",
-		MDM:      &fleet.HostMDM{},
+		MDM:      fleet.MDMHostData{},
 	}
 	host3 := &fleet.Host{
 		ID:       3,
 		UUID:     "uuid3",
 		Hostname: "host3",
 		Platform: "darwin",
-		MDM:      &fleet.HostMDM{},
+		MDM:      fleet.MDMHostData{},
 	}
 	host4 := &fleet.Host{
 		ID:       4,
