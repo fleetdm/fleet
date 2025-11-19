@@ -10,10 +10,8 @@ import {
 import createMockConfig from "__mocks__/configMock";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import Button from "components/buttons/Button";
 
 import ConditionalAccess from "./ConditionalAccess";
-import SectionCard from "../MdmSettings/components/SectionCard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
