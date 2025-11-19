@@ -1044,7 +1044,7 @@ If no team (id or name) is provided, the profiles are applied for all hosts (for
 
 `204`
 
-### Initiate SSO during DEP or Account Driven MDM enrollment
+### Initiate SSO for end-user authentication during macOS, Windows or Linux setup
 
 This endpoint initiates the SSO flow, the response contains an URL that the client can use to redirect the user to initiate the SSO flow in the configured IdP.
 
@@ -1056,7 +1056,9 @@ A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that ne
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| initiator | string | body | Used to differentiate between account driven enrollment and DEP or other flows for SSO callback purposes. The callback will use the Account Driven Enrollment behavior if `account_driven_enroll` is passed as the value of this parameter |
+| initiator | string | body | Used to differentiate between account driven enrollment and DEP or other flows for SSO callback purposes. The callback will use the Account Driven Enrollment behavior if `account_driven_enroll` is passed as the value of this parameter. Use `setup_experience` to initiate a web-based SSO login outside of the DEP flow. |
+| user_identifier | string | body | Passed by Apple for account-driven enrollment.
+| host_uuid | string | body | The hardware UUID of the device to enroll when using the `setup_experience` value for `initiator`.
 
 #### Example
 
@@ -3286,6 +3288,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     {
       "id": 121,
       "name": "Google Chrome.app",
+      "display_name": "Chrome",
       "icon_url": "/api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software/titles/121/icon",
       "software_package": {
         "name": "GoogleChrome.pkg",
@@ -3319,7 +3322,8 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     },
     {
       "id": 143,
-      "name": "Slack.app",
+      "name": "Firefox.app",
+      "display_name": "Firefox",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d1/2f/ff/d12fff5b-fe7b-a41b-e55a-96606c7193b1/electron.png/512x512bb.png",
       "software_package": null,
       "app_store_app": null,
@@ -3737,7 +3741,9 @@ Redirects to the transparency URL.
 
 #### Download device's MDM manual enrollment profile
 
-Downloads the Mobile Device Management (MDM) enrollment profile to install on the device for a manual enrollment into Fleet MDM.
+Returns the URL to open to provide installation instructions and allow a user to download a manual enrollment profile 
+for a device. A user may be required to complete SSO authenticaton if configured on the team before being presented
+with the download option.
 
 `GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`
 
@@ -3755,12 +3761,10 @@ Downloads the Mobile Device Management (MDM) enrollment profile to install on th
 
 `Status: 200`
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<!-- ... -->
-</plist>
+```json
+{
+  "enroll_url": "https://your-fleet-server-url.com/enroll?enroll_secret=ABCzmPbtEECxZhHlFlz9uTWApZmXsCND"
+}
 ```
 
 ---
@@ -4285,6 +4289,7 @@ Returns `enabled` set to `true` if items (e.g. software) for the setup experienc
 | install_script_output         | string | body | The output from the install script.                     |
 | post_install_script_exit_code | number | body | The exit code from the post-install script.             |
 | post_install_script_output    | string | body | The output from the post-install script.                |
+| retries_remaining             | number | body | The number of retries remaining for this installation. When > 0, the server treats this as an intermediate failure. |
 
 ##### Example
 
@@ -4301,7 +4306,8 @@ Returns `enabled` set to `true` if items (e.g. software) for the setup experienc
   "install_script_exit_code ": 0,
   "install_script_output ": "software installed",
   "post_install_script_exit_code ": 1,
-  "post_install_script_output ": "error: post-install script failed"
+  "post_install_script_output ": "error: post-install script failed",
+  "retries_remaining": 0
 }
 ```
 
@@ -4385,6 +4391,7 @@ Body: <blob>
   "uninstall_script": "sudo run-uninstaller",
   "post_install_script": "echo done",
   "self_service": true,
+  "max_retries": 2,
   "installer_url": {
     "url": "https://d1nsa5964r3p4i.cloudfront.net/software-installers/98330e7e6db3507b444d576dc437a9ac4d82333a88a6bb6ef36a91fe3d85fa92?Expires=1736178766&Signature=HpcpyniNSBkS695mZhkZRjXo6UQ5JtXQ2sk0poLEMDMeF063IjsBj2O56rruzk3lomYFjqoxc3BdnFqEjrEXQSieSALiCufZ2LjTfWffs7f7qnNVZwlkg-upZd5KBfrCHSIyzMYSPhgWFPOpNRVqOc4NFXx8fxRLagK7NBKFAEfCAwo0~KMCSJiof0zWOdY0a8p0NNAbBn0uLqK7vZLwSttVpoK6ytWRaJlnemofWNvLaa~Et3p5wJJRfYGv73AK-pe4FMb8dc9vqGNSZaDAqw2SOdXrLhrpvSMjNmMO3OvTcGS9hVHMtJvBmgqvCMAWmHBK6v5C9BobSh4TCNLIuA__&Key-Pair-Id=K1HFGXOMBB6TFF",
     "filename": "my-installer.pkg"
@@ -5030,17 +5037,93 @@ None.
 }
 ```
 
-### Delete Microsoft Entra conditional access
+### Get Okta conditional access SAML IdP metadata
 
-`DELETE /api/v1/conditional-access/microsoft`
+**Note:** This endpoint is unauthenticated and used by Okta to discover Fleet's SAML IdP configuration.
+
+Returns SAML IdP metadata XML for Okta conditional access. This metadata is consumed by Okta to configure Fleet as a SAML identity provider.
+
+`GET /api/fleet/conditional_access/idp/metadata`
 
 #### Parameters
 
 None.
 
+#### Example
+
+`GET /api/fleet/conditional_access/idp/metadata`
+
 ##### Default response
 
 `Status: 200`
+
+Returns SAML IdP metadata XML with `Content-Type: application/xml`.
+
+### Okta conditional access SAML SSO
+
+**Note:** This endpoint requires mTLS authentication at the load balancer level. The regular Fleet load balancer should redirect requests to this endpoint to an mTLS-enabled load balancer that validates client certificates.
+
+Handles SAML authentication requests from Okta for conditional access. This endpoint validates the device's client certificate (via the `X-Client-Cert-Serial` header set by the mTLS load balancer), checks device health policies, and returns a SAML response.
+
+`POST /api/fleet/conditional_access/idp/sso`
+
+#### Parameters
+
+| Name                 | Type   | In     | Description                                                             |
+|----------------------|--------|--------|-------------------------------------------------------------------------|
+| X-Client-Cert-Serial | string | header | **Required.** The serial number of the client certificate (hex format). |
+| SAMLRequest          | string | body   | The SAML authentication request from Okta (URL-encoded).                |
+
+#### Example
+
+`POST /api/fleet/conditional_access/idp/sso`
+
+##### Request header
+
+```http
+X-Client-Cert-Serial: 1A
+```
+
+##### Default response
+
+`Status: 200`
+
+Returns a SAML response (HTML form auto-submit) or redirects to an error page if authentication fails.
+
+### Okta conditional access SCEP enrollment
+
+**Note:** This endpoint implements the SCEP protocol for automatic certificate enrollment. SCEP certificate requests are authenticated using a challenge password, which is a global enroll secret.
+
+Handles Simple Certificate Enrollment Protocol (SCEP) requests for Okta conditional access. Devices use this endpoint to automatically enroll and obtain client certificates.
+
+`GET /api/fleet/conditional_access/scep?operation={operation}`
+`POST /api/fleet/conditional_access/scep?operation={operation}`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                    |
+|-----------|--------|-------|--------------------------------------------------------------------------------|
+| operation | string | query | **Required.** The SCEP operation: `GetCACaps`, `GetCACert`, or `PKIOperation`. |
+
+#### Example
+
+Get CA capabilities:
+
+`GET /api/fleet/conditional_access/scep?operation=GetCACaps`
+
+Get CA certificate:
+
+`GET /api/fleet/conditional_access/scep?operation=GetCACert`
+
+Submit certificate signing request:
+
+`POST /api/fleet/conditional_access/scep?operation=PKIOperation`
+
+##### Default response
+
+`Status: 200`
+
+Response format varies by operation according to the SCEP protocol specification.
 
 ## Android fleetdm.com proxy
 

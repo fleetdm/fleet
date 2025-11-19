@@ -24,7 +24,8 @@ import Zoom from "./Zoom";
 import ChromeOS from "./ChromeOS";
 import LinuxOS from "./LinuxOS";
 import Falcon from "./Falcon";
-import AppStore from "./AppStore";
+import AppleAppStore from "./AppleAppStore";
+import AndroidPlayStore from "./AndroidPlayStore";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
 import AndroidApp from "./AndroidApp";
@@ -55,9 +56,11 @@ import WindowsAppRemote from "./WindowsAppRemote";
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
 export const SOFTWARE_NAME_TO_ICON_MAP = {
-  appStore: AppStore,
+  appleAppStore: AppleAppStore,
+  androidPlayStore: AndroidPlayStore,
   "adobe acrobat reader": AcrobatReader,
   "adobe creative cloud": CreativeCloud,
+  code: VisualStudioCode,
   "microsoft excel": Excel,
   falcon: Falcon,
   firefox: Firefox,
@@ -133,6 +136,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   chocolatey_packages: Package,
   pkg_packages: Package,
   vscode_extensions: Extension,
+  jetbrains_plugins: Extension,
 } as const;
 
 /**
@@ -170,6 +174,8 @@ const matchStrictNameSourceToIcon = ({
       return Zoom;
     case name === "zoom":
       return Zoom;
+    case name.startsWith("zoom workplace"):
+      return Zoom;
     default:
       return null;
   }
@@ -184,6 +190,8 @@ export const getMatchedSoftwareIcon = ({
   name = "",
   source = "",
 }: Pick<ISoftware, "name" | "source">) => {
+  // Strip non-ascii, and non-printable characters
+  name = name.replace(/[^\x20-\x7E]/g, "");
   // first, try strict matching on name and source
   let Icon = matchStrictNameSourceToIcon({
     name,

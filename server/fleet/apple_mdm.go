@@ -22,6 +22,8 @@ type MDMAppleCommandIssuer interface {
 	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error
 	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
 	DeviceLock(ctx context.Context, host *Host, uuid string) (unlockPIN string, err error)
+	EnableLostMode(ctx context.Context, host *Host, commandUUID string, orgName string) error
+	DisableLostMode(ctx context.Context, host *Host, commandUUID string) error
 	EraseDevice(ctx context.Context, host *Host, uuid string) error
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
@@ -279,7 +281,7 @@ func ValidateNoSecretsInProfileName(xmlContent []byte) error {
 	return nil
 }
 
-func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
+func (cp MDMAppleConfigProfile) ValidateUserProvided(allowCustomOSUpdatesAndFileVault bool) error {
 	// first screen the top-level object for reserved identifiers and names
 	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
 		return fmt.Errorf("payload identifier %s is not allowed", cp.Identifier)
@@ -290,7 +292,7 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 	}
 
 	// then screen the payload content for reserved identifiers, names, and types
-	return cp.Mobileconfig.ScreenPayloads()
+	return cp.Mobileconfig.ScreenPayloads(allowCustomOSUpdatesAndFileVault)
 }
 
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
@@ -713,12 +715,14 @@ var ForbiddenDeclTypes = map[string]struct{}{
 	"com.apple.configuration.watch.enrollment":             {},
 }
 
-func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
+func (r *MDMAppleRawDeclaration) ValidateUserProvided(allowCustomOSUpdatesAndFileVault bool) error {
 	var err error
 
 	// Check against types we don't allow
 	if r.Type == `com.apple.configuration.softwareupdate.enforcement.specific` {
-		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
+		if !allowCustomOSUpdatesAndFileVault {
+			return NewInvalidArgumentError(r.Type, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
+		}
 	}
 
 	if _, forbidden := ForbiddenDeclTypes[r.Type]; forbidden {
@@ -1101,4 +1105,12 @@ type MDMAppleEnrolledDeviceInfo struct {
 	Authenticate string `db:"authenticate"`
 	Platform     string `db:"platform"`
 	EnrollTeamID *uint  `db:"enroll_team_id"`
+}
+
+type AppleMDMVPPInstaller interface {
+	// GetVPPTokenIfCanInstallVPPApps returns the host team's VPP token if the host can be a target for VPP apps
+	GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) (string, error)
+
+	// InstallVPPAppPostValidation installs a VPP app, assuming that GetVPPTokenIfCanInstallVPPApps has passed and provided a VPP token
+	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
 }

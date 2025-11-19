@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
@@ -43,7 +44,7 @@ type Service struct {
 	ds               fleet.AndroidDatastore
 	fleetDS          fleet.Datastore
 	androidAPIClient androidmgmt.Client
-	fleetSvc         fleet.Service
+	activityModule   activities.ActivityModule
 	serverPrivateKey string
 
 	// SignupSSEInterval can be overwritten in tests.
@@ -56,38 +57,50 @@ func NewService(
 	ctx context.Context,
 	logger kitlog.Logger,
 	ds fleet.AndroidDatastore,
-	fleetSvc fleet.Service,
 	licenseKey string,
 	serverPrivateKey string,
 	fleetDS fleet.Datastore,
+	activityModule activities.ActivityModule,
 ) (android.Service, error) {
 	client := newAMAPIClient(ctx, logger, licenseKey)
-	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey, fleetDS)
+	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, activityModule)
 }
 
 func NewServiceWithClient(
 	logger kitlog.Logger,
 	ds fleet.AndroidDatastore,
 	client androidmgmt.Client,
-	fleetSvc fleet.Service,
 	serverPrivateKey string,
 	fleetDS fleet.Datastore,
+	activityModule activities.ActivityModule,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
-	return &Service{
+	svc := &Service{
 		logger:            logger,
 		authz:             authorizer,
 		ds:                ds,
 		androidAPIClient:  client,
-		fleetSvc:          fleetSvc,
 		serverPrivateKey:  serverPrivateKey,
 		SignupSSEInterval: DefaultSignupSSEInterval,
 		fleetDS:           fleetDS,
-	}, nil
+		activityModule:    activityModule,
+	}
+
+	// OK to use background context here because this function is only called during server bootstrap
+	// Setting the secret here ensures that we don't have to configure it in lots of different places
+	// when using the proxy client.
+	ctx := context.Background()
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting client authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+
+	return svc, nil
 }
 
 func newAMAPIClient(ctx context.Context, logger kitlog.Logger, licenseKey string) androidmgmt.Client {
@@ -330,12 +343,8 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 			SystemPropertiesEnabled:      true,
 			SoftwareInfoEnabled:          true, // Android OS version, etc.
 			CommonCriteriaModeEnabled:    true,
-			// Application inventory will likely be a Premium feature.
 			// applicationReports take a lot of space in device status reports. They are not free -- our current cost is $40 per TiB (2025-02-20).
-			// We should disable them for free accounts. To enable them for a server transitioning from Free to Premium, we will need to patch the existing policies.
-			// For server transitioning from Premium to Free, we will need to patch the existing policies to disable software inventory, which could also be done
-			// by the fleetdm.com androidAPIClient or manually. The androidAPIClient could also enforce this report setting.
-			ApplicationReportsEnabled:    false,
+			ApplicationReportsEnabled:    true,
 			ApplicationReportingSettings: nil,
 		},
 	})
@@ -362,7 +371,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 		return ctxerr.Wrap(ctx, err, "getting user")
 	}
 
-	if err = svc.fleetSvc.NewActivity(ctx, user, fleet.ActivityTypeEnabledAndroidMDM{}); err != nil {
+	if err = svc.activityModule.NewActivity(ctx, user, fleet.ActivityTypeEnabledAndroidMDM{}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for enabled Android MDM")
 	}
 
@@ -449,7 +458,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "bulk set android hosts as unenrolled")
 	}
 
-	if err = svc.fleetSvc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDisabledAndroidMDM{}); err != nil {
+	if err = svc.activityModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDisabledAndroidMDM{}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for disabled Android MDM")
 	}
 
@@ -808,7 +817,7 @@ func unenrollAndroidHostEndpoint(ctx context.Context, request interface{}, svc a
 // The actual MDM status flip to Off is performed when Pub/Sub sends DELETED for the device.
 func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error {
 	// Load host and authorize based on team
-	h, err := svc.fleetSvc.GetHostLite(ctx, hostID)
+	h, err := svc.fleetDS.HostLite(ctx, hostID)
 	if err != nil {
 		return err
 	}
@@ -845,13 +854,148 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 
 	// Emit activity: admin told Fleet to unenroll
 	displayName := fleet.HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
-	if err := svc.fleetSvc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeMDMUnenrolled{
+	if err := svc.activityModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeMDMUnenrolled{
 		HostSerial:       h.HardwareSerial,
 		HostDisplayName:  displayName,
 		InstalledFromDEP: false,
-		Platform:         h.Platform,
+		Platform:         "android",
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create android unenroll activity")
 	}
 	return nil
+}
+
+func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error) {
+	return svc.androidAPIClient.EnterprisesApplications(ctx, enterpriseName, applicationID)
+}
+
+func (svc *Service) AddAppToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string) error {
+
+	var appPolicies []*androidmanagement.ApplicationPolicy
+	for _, a := range applicationIDs {
+		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
+			PackageName: a,
+			InstallType: "AVAILABLE",
+		})
+	}
+
+	var errs []error
+	for uuid, policyID := range hostUUIDs {
+		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, policyID)
+
+		_, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, appPolicies)
+		if err != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "google api: modify policy applications for host %s", uuid))
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// Then Android MDM isn't setup yet, so no-op
+			level.Info(svc.logger).Log("msg", "skipping android default policy migration, Android MDM is not turned on")
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "getting android enterprise")
+	}
+
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting client authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+
+	policyName := fmt.Sprintf("%s/policies/%d", enterprise.Name(), defaultAndroidPolicyID)
+	_, err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
+		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
+			DeviceSettingsEnabled:        true,
+			MemoryInfoEnabled:            true,
+			NetworkInfoEnabled:           true,
+			DisplayInfoEnabled:           true,
+			PowerManagementEventsEnabled: true,
+			HardwareStatusEnabled:        true,
+			SystemPropertiesEnabled:      true,
+			SoftwareInfoEnabled:          true, // Android OS version, etc.
+			CommonCriteriaModeEnabled:    true,
+			ApplicationReportsEnabled:    true,
+			ApplicationReportingSettings: nil,
+		},
+	})
+	if err != nil && !androidmgmt.IsNotModifiedError(err) {
+		return ctxerr.Wrapf(ctx, err, "enabling app reports on %d default policy", defaultAndroidPolicyID)
+	}
+	return nil
+}
+
+func (svc *Service) PatchDevice(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (skip bool, apiErr error) {
+	deviceRequest, err := newAndroidDeviceRequest(policyID, deviceName, device)
+	if err != nil {
+		return false, ctxerr.Wrapf(ctx, err, "prepare device request %s", deviceName)
+	}
+
+	applied, apiErr := svc.androidAPIClient.EnterprisesDevicesPatch(ctx, deviceName, device)
+	if apiErr != nil {
+		var gerr *googleapi.Error
+		if errors.As(apiErr, &gerr) {
+			deviceRequest.StatusCode = gerr.Code
+		}
+		deviceRequest.ErrorDetails.V = apiErr.Error()
+		deviceRequest.ErrorDetails.Valid = true
+
+		if skip = androidmgmt.IsNotModifiedError(apiErr); skip {
+			apiErr = nil
+		}
+	} else {
+		deviceRequest.StatusCode = http.StatusOK
+		deviceRequest.AppliedPolicyVersion.V = applied.AppliedPolicyVersion
+		deviceRequest.AppliedPolicyVersion.Valid = true
+	}
+
+	if err := svc.fleetDS.NewAndroidPolicyRequest(ctx, deviceRequest); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "save android device request")
+	}
+	return skip, nil
+}
+
+func (svc *Service) PatchPolicy(ctx context.Context, policyID, policyName string,
+	policy *androidmanagement.Policy, metadata map[string]string,
+) (skip bool, err error) {
+	policyRequest, err := newAndroidPolicyRequest(policyID, policyName, policy, metadata)
+	if err != nil {
+		return false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
+	}
+
+	applied, apiErr := svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy)
+	if apiErr != nil {
+		var gerr *googleapi.Error
+		if errors.As(apiErr, &gerr) {
+			policyRequest.StatusCode = gerr.Code
+		}
+		policyRequest.ErrorDetails.V = apiErr.Error()
+		policyRequest.ErrorDetails.Valid = true
+
+		// Note that from my tests, the "not modified" error is not reliable, the
+		// AMAPI happily returned 200 even if the policy was the same (as
+		// confirmed by the same version number being returned), so we do check
+		// for this error, but do not build critical logic on top of it.
+		//
+		// Tests do show that the version number is properly incremented when the
+		// policy changes, though.
+		if skip = androidmgmt.IsNotModifiedError(apiErr); skip {
+			apiErr = nil
+		}
+	} else {
+		policyRequest.StatusCode = http.StatusOK
+		policyRequest.PolicyVersion.V = applied.Version
+		policyRequest.PolicyVersion.Valid = true
+	}
+
+	if err := svc.fleetDS.NewAndroidPolicyRequest(ctx, policyRequest); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "save android policy request")
+	}
+	return skip, nil
 }

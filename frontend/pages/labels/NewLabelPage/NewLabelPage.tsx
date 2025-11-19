@@ -567,7 +567,7 @@ const NewLabelPage = ({
       <>
         <MainContent className={baseClass}>
           <div className={`${baseClass}__header`}>
-            <h1>New label</h1>
+            <h1 className="page-header">New label</h1>
             <p className={`${baseClass}__page-description`}>
               Create a new label for targeting and filtering hosts.
             </p>

@@ -16,7 +16,10 @@ module.exports = {
 
 
   exits: {
-    success: { description: 'An Android enterprise was successfully deleted.' }
+    success: { description: 'An Android enterprise was successfully deleted.' },
+    missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
+    unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
+    notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
   },
 
 
@@ -29,7 +32,7 @@ module.exports = {
     if (authHeader && authHeader.startsWith('Bearer')) {
       fleetServerSecret = authHeader.replace('Bearer', '').trim();
     } else {
-      return this.res.unauthorized('Authorization header with Bearer token is required');
+      throw 'missingAuthHeader';
     }
 
     // Look up the database record for this Android enterprise
@@ -39,12 +42,12 @@ module.exports = {
 
     // Return a 404 response if no records are found.
     if(!thisAndroidEnterprise) {
-      return this.res.notFound();
+      throw 'notFound';
     }
 
     // Return an unauthorized response if the provided secret does not match.
     if(thisAndroidEnterprise.fleetServerSecret !== fleetServerSecret) {
-      return this.res.unauthorized();
+      throw 'unauthorized';
     }
 
     // Delete the Android enterprise from Google (if it still exists)
@@ -80,8 +83,12 @@ module.exports = {
           subscription: thisAndroidEnterprise.pubsubSubscriptionName,
         });
         return;
+      }).intercept({status: 429}, (err)=>{
+        // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
+        sails.log.warn(`p1: Android management API rate limit exceeded! Error: ${require('util').inspect(err)}`);
+        return new Error(`When attempting to delete android enterprise from Google (${androidEnterpriseId}), an error occurred. Error: ${err}`);
       }).intercept((err)=>{
-        throw new Error(`When attempting to delete android enterprise from Google (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+        return new Error(`When attempting to delete android enterprise from Google (${androidEnterpriseId}), an error occurred. Error: ${err}`);
       });
     } catch (unusedErr) {
       // If Google API deletion fails (e.g., enterprise already deleted), continue with proxy cleanup

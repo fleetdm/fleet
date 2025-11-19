@@ -3,7 +3,7 @@
   "version": "0.99.99",
   "description": "The premier osquery fleet manager.",
   "engines": {
-    "node": "20.18.1",
+    "node": "^24.10.0",
     "yarn": ">=1.22.21"
   },
   "private": true,
@@ -58,7 +58,7 @@
     "sockjs-client": "1.6.1",
     "use-debounce": "9.0.4",
     "uuid": "8.3.2",
-    "validator": "13.11.0",
+    "validator": "13.15.20",
     "when": "3.7.8"
   },
   "devDependencies": {

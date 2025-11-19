@@ -79,6 +79,7 @@ export const MACADMINS_EXTENSION_TABLES: Record<string, QueryablePlatform[]> = {
   mdm: ["darwin"],
   munki_info: ["darwin"],
   munki_install: ["darwin"],
+  crowdstrike_falcon: ["darwin", "linux"],
   // network_quality: ["darwin"], // TODO: add this table if/when it is incorporated into orbit
   puppet_info: ["darwin", "linux", "windows"],
   puppet_logs: ["darwin", "linux", "windows"],
@@ -109,6 +110,7 @@ export const HOST_LINUX_PLATFORMS = [
   "nixos",
   "endeavouros",
   "manjaro",
+  "manjaro-arm",
   "opensuse-leap",
   "opensuse-tumbleweed",
   "tuxedo",
@@ -144,6 +146,12 @@ export const isAppleDevice = (platform = "") => {
   );
 };
 
+export const isWindows = (platform: string | HostPlatform) =>
+  platform === "windows";
+
+export const isMacOS = (platform: string | HostPlatform) =>
+  platform === "darwin";
+
 export const isIPadOrIPhone = (platform: string | HostPlatform) =>
   ["ios", "ipados"].includes(platform);
 
@@ -163,6 +171,7 @@ export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "arch", // Arch Linux
   "archarm", // Arch Linux ARM
   "manjaro",
+  "manjaro-arm",
 ] as const;
 
 export const isDiskEncryptionSupportedLinuxPlatform = (

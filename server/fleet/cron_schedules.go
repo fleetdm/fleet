@@ -39,6 +39,9 @@ const (
 	CronHostVitalsLabelMembership      CronScheduleName = "host_vitals_label_membership"
 	CronBatchActivityCompletionChecker CronScheduleName = "batch_activity_completion_checker"
 	CronScheduledBatchActivities       CronScheduleName = "scheduled_batch_activities"
+	// CronEnableAndroidAppReportsOnDefaultPolicy enables applications reports on the default Android MDM policy (profile).
+	// This job only runs once after upgrading to v4.76.0.
+	CronEnableAndroidAppReportsOnDefaultPolicy CronScheduleName = "enable_android_app_reports_on_default_policy"
 )
 
 type CronSchedulesService interface {

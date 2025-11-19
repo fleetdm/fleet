@@ -31,6 +31,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />
@@ -68,6 +70,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />
@@ -80,12 +84,6 @@ describe("InstallStatusCell - component", () => {
 
     await user.hover(screen.getByText("Installed"));
 
-    // TODO: Confirm with design if there is a tooltip
-    // expect(
-    //   screen.getByText(/Software was installed/i)
-    // ).toBeInTheDocument();
-
-    // There SHOULD be a button with this label
     expect(
       screen.queryByRole("button", { name: /installed/i })
     ).toBeInTheDocument();
@@ -103,6 +101,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
         isHostOnline
@@ -125,6 +125,40 @@ describe("InstallStatusCell - component", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("renders 'Ran' status for a payload-free package", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "installed",
+            software_package: createMockHostSoftwarePackage({
+              name: "mock software.sh",
+            }),
+            source: "sh_packages",
+          }),
+          ui_status: "ran_script",
+        }}
+        onShowUpdateDetails={noop}
+        onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
+        onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /ran/i })).toBeInTheDocument();
+    expect(screen.getByTestId("success-icon")).toBeInTheDocument();
+
+    await user.hover(screen.getByText(/ran/i));
+
+    // No tooltip on install status
+    expect(screen.queryByText(/The script ran/i)).not.toBeInTheDocument();
+
+    // There SHOULD be a button with this label
+    expect(screen.queryByRole("button", { name: /ran/i })).toBeInTheDocument();
+  });
+
   it("renders 'Install (pending)' status with tooltip if host is offline", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
@@ -137,6 +171,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />
@@ -151,6 +187,81 @@ describe("InstallStatusCell - component", () => {
     await waitFor(() => {
       expect(
         screen.getByText(/Fleet will install software/i)
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("renders 'Running...' status for a payload-free package with tooltip if host is online", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "pending_install",
+            software_package: createMockHostSoftwarePackage({
+              last_uninstall: {
+                script_execution_id: "123-abc",
+                uninstalled_at: "2022-01-01T12:00:00Z",
+              },
+            }),
+          }),
+          source: "sh_packages",
+          ui_status: "running_script",
+        }}
+        onShowUpdateDetails={noop}
+        onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
+        onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
+        isHostOnline
+      />
+    );
+
+    expect(screen.getByText("Running...")).toBeInTheDocument();
+    expect(screen.getByTestId("spinner")).toBeInTheDocument();
+
+    await user.hover(screen.getByText("Running..."));
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Fleet is running the script./i)
+      ).toBeInTheDocument();
+    });
+
+    // Not clickable
+    expect(
+      screen.queryByRole("button", { name: /running/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders 'Run (pending)' for a payload-free package with tooltip if host is offline", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "pending_install",
+            software_package: testSoftwarePackage,
+            source: "sh_packages",
+          }),
+          ui_status: "pending_script",
+        }}
+        onShowUpdateDetails={noop}
+        onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
+        onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Run \(pending\)/i })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("pending-outline-icon")).toBeInTheDocument();
+
+    await user.hover(screen.getByText("Run (pending)"));
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Fleet will run the script/i)
       ).toBeInTheDocument();
     });
   });
@@ -172,6 +283,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
         isHostOnline
@@ -211,6 +324,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />
@@ -241,6 +356,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />
@@ -254,6 +371,35 @@ describe("InstallStatusCell - component", () => {
       expect(
         screen.getByText(/Software failed to install/i)
       ).toBeInTheDocument();
+    });
+  });
+
+  it("renders 'Failed' for a payload-free package that failed to run", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_install",
+            software_package: testSoftwarePackage,
+            source: "sh_packages",
+          }),
+          ui_status: "failed_script",
+        }}
+        onShowUpdateDetails={noop}
+        onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
+        onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /Failed/i })).toBeInTheDocument();
+    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
+
+    await user.hover(screen.getByText(/Failed/));
+    await waitFor(() => {
+      expect(screen.getByText(/The script failed to run/i)).toBeInTheDocument();
     });
   });
 
@@ -274,6 +420,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />
@@ -304,6 +452,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />
@@ -334,6 +484,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />
@@ -361,6 +513,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />
@@ -390,6 +544,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
         isHostOnline
@@ -421,6 +577,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />
@@ -451,6 +609,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />
@@ -460,7 +620,8 @@ describe("InstallStatusCell - component", () => {
 
     await user.hover(screen.getByText("---"));
     await waitFor(() => {
-      expect(screen.getByText(/can be installed/i)).toBeInTheDocument();
+      expect(screen.getByText(/can be/i)).toBeInTheDocument();
+      expect(screen.getByText(/installed/i)).toBeInTheDocument();
     });
 
     // Not clickable
@@ -479,6 +640,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />
@@ -488,7 +651,40 @@ describe("InstallStatusCell - component", () => {
 
     await user.hover(screen.getByText("---"));
     await waitFor(() => {
-      expect(screen.getByText(/can be installed/i)).toBeInTheDocument();
+      expect(screen.getByText(/can be/i)).toBeInTheDocument();
+      expect(screen.getByText(/installed/i)).toBeInTheDocument();
+    });
+
+    // Not clickable
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("renders '---' for a payload-free package available for run", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: null,
+            software_package: testSoftwarePackage,
+            source: "sh_packages",
+          }),
+          ui_status: "never_ran_script",
+        }}
+        onShowUpdateDetails={noop}
+        onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
+        onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
+      />
+    );
+
+    expect(screen.getByText("---")).toBeInTheDocument();
+
+    await user.hover(screen.getByText("---"));
+    await waitFor(() => {
+      expect(screen.getByText(/can be/i)).toBeInTheDocument();
+      expect(screen.getByText(/ran/i)).toBeInTheDocument();
     });
 
     // Not clickable
@@ -511,6 +707,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />
@@ -520,7 +718,8 @@ describe("InstallStatusCell - component", () => {
 
     await user.hover(screen.getAllByText("---")[0]);
     await waitFor(() => {
-      expect(screen.getByText(/can be installed/i)).toBeInTheDocument();
+      expect(screen.getByText(/can be/i)).toBeInTheDocument();
+      expect(screen.getByText(/installed/i)).toBeInTheDocument();
     });
 
     // Not clickable
@@ -539,6 +738,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />
@@ -570,6 +771,8 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />

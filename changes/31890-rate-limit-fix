@@ -1,1 +1,0 @@
-* Added new rate limiting implementation for Fleet Desktop API endpoints to support all/many hosts of a deployment behind NAT (single IP).

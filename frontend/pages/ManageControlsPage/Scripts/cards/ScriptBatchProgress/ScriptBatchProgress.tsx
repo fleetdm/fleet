@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useQueryClient } from "react-query";
+import { useQuery } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import PATHS from "router/paths";
 
-import scriptsAPI, { IScriptBatchSummaryV2 } from "services/entities/scripts";
+import scriptsAPI, {
+  IScriptBatchSummaryV2,
+  IScriptBatchSummariesResponse,
+} from "services/entities/scripts";
 
 import { isValidScriptBatchStatus, ScriptBatchStatus } from "interfaces/script";
 
@@ -54,8 +57,7 @@ const ScriptBatchProgress = ({
   router,
   teamId,
 }: IScriptBatchProgressProps) => {
-  const [batchCount, setBatchCount] = useState<number | null>(null);
-  const [updating, setUpdating] = useState(false);
+  const [pageNumber, setPageNumber] = useState(0);
 
   const paginatedListRef = useRef<IPaginatedListHandle<IScriptBatchSummaryV2>>(
     null
@@ -65,39 +67,22 @@ const ScriptBatchProgress = ({
 
   const selectedStatus = statusParam as ScriptBatchStatus;
 
-  const queryClient = useQueryClient();
   const DEFAULT_PAGE_SIZE = 10;
 
-  const fetchPage = useCallback(
-    (pageNumber: number) => {
-      setUpdating(true);
-      return queryClient.fetchQuery(
-        [
-          {
-            team_id: teamId,
-            status: selectedStatus,
-            page: pageNumber,
-            per_page: DEFAULT_PAGE_SIZE,
-          },
-        ],
-        ({ queryKey }) => {
-          return scriptsAPI
-            .getRunScriptBatchSummaries(queryKey[0])
-            .then((r) => {
-              setBatchCount(r.count);
-              return r.batch_executions ?? [];
-            })
-            .finally(() => {
-              setUpdating(false);
-            });
-        },
-        {
-          staleTime: 100,
-        }
-      );
-    },
-    [queryClient, selectedStatus, teamId]
-  );
+  const queryKey = {
+    team_id: teamId,
+    status: selectedStatus,
+    page: pageNumber,
+    per_page: DEFAULT_PAGE_SIZE,
+  };
+
+  const { data, isFetching: updating } = useQuery<
+    IScriptBatchSummariesResponse,
+    Error,
+    IScriptBatchSummariesResponse
+  >([queryKey], () => scriptsAPI.getRunScriptBatchSummaries(queryKey), {
+    keepPreviousData: true,
+  });
 
   const handleTabChange = useCallback(
     (index: number) => {
@@ -112,9 +97,7 @@ const ScriptBatchProgress = ({
           newQuery ? `?${newQuery}` : ""
         )
       );
-
-      setBatchCount(null);
-      setUpdating(false);
+      setPageNumber(0);
     },
     [location?.search, router]
   );
@@ -175,13 +158,6 @@ const ScriptBatchProgress = ({
     );
   };
 
-  // Fetch the first page of the list when first visiting a tab.
-  useEffect(() => {
-    if (batchCount === null && !updating) {
-      fetchPage(0);
-    }
-  }, [batchCount, updating, fetchPage]);
-
   // Reset to first tab if status is invalid.
   useEffect(() => {
     if (!isValidScriptBatchStatus(statusParam)) {
@@ -192,7 +168,7 @@ const ScriptBatchProgress = ({
   const renderTabContent = (status: ScriptBatchStatus) => {
     // If we're switching to a new tab, show the loading spinner
     // while we get the first page and # of results.
-    if (updating && batchCount === null) {
+    if (updating) {
       return (
         <div className={`${baseClass}__loading`}>
           <Spinner />
@@ -200,21 +176,28 @@ const ScriptBatchProgress = ({
       );
     }
 
-    if (batchCount === 0) {
+    const count = data?.count || 0;
+    const rows = data?.batch_executions || [];
+
+    if (count === 0) {
       return getEmptyState(status);
     }
 
     return (
       <div className={`${baseClass}__tab-content`}>
-        {!updating && batchCount && (
+        {!updating && count && (
           <div className={`${baseClass}__status-count`}>
-            {batchCount} batch script{batchCount > 1 ? "s" : ""}
+            {count} batch script{count > 1 ? "s" : ""}
           </div>
         )}
         <PaginatedList<IScriptBatchSummaryV2>
           ref={paginatedListRef}
-          count={batchCount || 0}
-          fetchPage={fetchPage}
+          count={count}
+          data={rows}
+          pageSize={DEFAULT_PAGE_SIZE}
+          currentPage={pageNumber}
+          onChangePage={setPageNumber}
+          isLoading={updating}
           onClickRow={onClickRow}
           renderItemRow={renderRow}
           useCheckBoxes={false}

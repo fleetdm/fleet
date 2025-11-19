@@ -204,6 +204,7 @@ const TeamsDropdown = ({
       paddingLeft: 0,
       paddingRight: "8px",
       margin: 0,
+      fontWeight: "600",
       // omit grid-column-end for automatic width
       gridArea: "1/1/2",
     }),

@@ -4,6 +4,7 @@ package table
 
 import (
 	"fmt"
+
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/bitlocker_key_protectors"
 	cisaudit "github.com/fleetdm/fleet/v4/orbit/pkg/table/cis_audit"
 	mdmbridge "github.com/fleetdm/fleet/v4/orbit/pkg/table/mdm"

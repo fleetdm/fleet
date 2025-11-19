@@ -362,7 +362,9 @@ docker-compose exec redis redis-cli
 
 ## Testing SSO
 
-Fleet's `docker-compose` file includes a SAML identity provider (IdP) for testing SAML-based SSO locally.
+For end-to-end testing including advanced use cases (e.g. SCIM), [Okta](https://developer.okta.com/signup/) has an Integrator Free Plan available that you can develop against.
+
+For simpler use cases, Fleet's `docker-compose` file includes a SAML identity provider (IdP) for testing SAML-based SSO locally.
 
 ### Configuration
 
@@ -424,6 +426,42 @@ http://127.0.0.1:9080/simplesaml/saml2/idp/SSOService.php?spentityid=sso.test.co
 After login, SimpleSAML should redirect the user to Fleet.
 
 <meta name="pageOrderInSection" value="200">
+
+## Testing End-User Authentication
+
+The SimpleSAML identity provider can also be used to test end-user authentication during the device setup experience.
+
+### Configuration
+
+To test devices on the same network, the easiest method is:
+
+1. Start your local Fleet instance using the server cert and key from `/tools/osquery`, e.g.
+
+```
+fleet serve --server_cert ./tools/osquery/fleet.crt --server_key ./tools/osquery/fleet.key ...etc...
+```
+
+This allows devices to connect using `host.docker.internal` as the server address.
+
+
+2. Add an entry in the candidate device's `/etc/hosts` (or for Windows, `\WINDOWS\system32\drivers\etc\hosts`) pointing `host.docker.internal` to the IP address of the computer running your Fleet instance.
+
+3. Configure End-User Authentication on the **Integration settings -> Single Sign On -> End Users** page with the following:
+
+```
+Identity Provider Name: SimpleSAML
+Entity ID: mdm.host.docker.internal
+Metadata URL: http://host.docker.internal:9080/simplesaml/saml2/idp/metadata.php
+```
+
+4. Configure the Fleet server address in **Settings -> Organization settings -> Fleet web address** to:
+
+```
+https://host.docker.internal:8080
+```
+
+5. Make sure the Orbit running on your host devices uses the same `fleet.crt` certificate and `https://host.docker.internal:8080` as the Fleet address, either by building a package using `--fleet-certificate` and `--fleet-url` or running Orbit from source using those same options.
+
 
 ## Testing Kinesis logging
 

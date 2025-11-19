@@ -44,6 +44,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam", testListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam},
 		{"ListSoftwareTitlesPackagesOnly", testSoftwareTitlesPackagesOnly},
 		{"SoftwareTitleByIDHostCount", testSoftwareTitleHostCount},
+		{"ListSoftwareTitlesInHouseApps", testListSoftwareTitlesInHouseApps},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -92,7 +93,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	globalOpts := fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
@@ -113,7 +114,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	globalCounts = listSoftwareTitlesCheckCount(t, ds, 1, 1, globalOpts)
@@ -179,7 +180,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 
 	// after a call to Calculate, the global counts are updated and the team counts appear
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	globalCounts = listSoftwareTitlesCheckCount(t, ds, 2, 2, globalOpts)
@@ -217,7 +218,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host4.ID, software4)
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	globalCounts = listSoftwareTitlesCheckCount(t, ds, 1, 1, globalOpts)
@@ -245,7 +246,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host4.ID, software4)
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 	listSoftwareTitlesCheckCount(t, ds, 0, 0, team2Opts)
 
@@ -254,7 +255,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 
 	// this call will remove team2 from the software host counts table
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	globalCounts = listSoftwareTitlesCheckCount(t, ds, 1, 1, globalOpts)
@@ -351,7 +352,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	// primary sort is "hosts_count DESC", followed by "name ASC, source ASC, extension_for ASC"
@@ -691,7 +692,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	// Testing the global user (for "All teams")
@@ -940,7 +941,7 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	require.True(t, titles[2].CountsUpdatedAt.IsZero())
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	// match installer1 name
@@ -1065,7 +1066,7 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	// without filter returns all software
@@ -1298,7 +1299,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 
 	// Simulate vulnerabilities cron
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	// List software titles for "All teams", should only return the host software titles
@@ -1598,7 +1599,7 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	globalUser := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
@@ -1867,7 +1868,7 @@ func testListSoftwareTitlesDoesnotIncludeDuplicates(t *testing.T, ds *Datastore)
 	require.Len(t, swt, 1)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
@@ -2135,7 +2136,7 @@ func testSoftwareTitlesPackagesOnly(t *testing.T, ds *Datastore) {
 
 	// Sync and reconcile
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	t.Run("packages_only=false no team_id", func(t *testing.T) {
@@ -2216,7 +2217,7 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 	}
 
 	// install software on host
-	updateSw, err := fleet.SoftwareFromOsqueryRow("foo", "1.0", "apps", "", "", "", "", "com.foo.installer", "", "", "")
+	updateSw, err := fleet.SoftwareFromOsqueryRow("foo", "1.0", "apps", "", "", "", "", "com.foo.installer", "", "", "", "")
 	require.NoError(t, err)
 
 	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installers[0], fleet.HostSoftwareInstallOptions{})
@@ -2233,7 +2234,7 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	// test GetSoftwareTitleID
@@ -2253,4 +2254,260 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(1), title.HostsCount)
 	require.Equal(t, uint(1), title.VersionsCount)
 	require.Equal(t, ptr.Uint(1), title.Versions[0].HostsCount)
+}
+
+func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host.ID})))
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "1.0.0", Source: "deb_packages"},
+		{Name: "bar", Version: "2.0.0", Source: "apps"},
+		{Name: "baz", Version: "3.0.0", Source: "rpm_packages"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	// create a software package that matches foo
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "foo",
+		Source:          "deb_packages",
+		InstallScript:   "echo foo",
+		Filename:        "foo.pkg",
+		UserID:          user.ID,
+		TeamID:          &team1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		Platform:        string(fleet.MacOSPlatform),
+	})
+	require.NoError(t, err)
+
+	// create a VPP app
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IPadOSPlatform}},
+	}, &team1.ID)
+	require.NoError(t, err)
+
+	// create a couple in-house apps (they always create both ios and ipados entries)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "in-house1",
+		Filename:         "in-house1.ipa",
+		BundleIdentifier: "in-house1",
+		Extension:        "ipa",
+		UserID:           user.ID,
+		TeamID:           &team1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "in-house2",
+		Filename:         "in-house2.ipa",
+		BundleIdentifier: "in-house2",
+		Extension:        "ipa",
+		UserID:           user.ID,
+		TeamID:           &team1.ID,
+		SelfService:      true,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Sync and reconcile
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	pluckNames := func(titles []fleet.SoftwareTitleListResult) []string {
+		var out []string
+		for _, t := range titles {
+			out = append(out, t.Name)
+		}
+		return out
+	}
+
+	assertInstallers := func(t *testing.T, got []fleet.SoftwareTitleListResult, want []*fleet.SoftwarePackageOrApp) {
+		require.Len(t, got, len(want))
+		for i, sw := range got {
+			switch {
+			case want[i] == nil:
+				require.Nil(t, sw.SoftwarePackage)
+				require.Nil(t, sw.AppStoreApp)
+			case want[i].AppStoreID != "":
+				require.Nil(t, sw.SoftwarePackage)
+				require.NotNil(t, sw.AppStoreApp)
+				require.Equal(t, want[i], sw.AppStoreApp)
+			default:
+				require.Nil(t, sw.AppStoreApp)
+				require.NotNil(t, sw.SoftwarePackage)
+				require.Equal(t, want[i], sw.SoftwarePackage)
+			}
+		}
+	}
+
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+
+	cases := []struct {
+		desc           string
+		opts           fleet.SoftwareTitleListOptions
+		wantCount      int
+		wantNames      []string
+		wantInstallers []*fleet.SoftwarePackageOrApp
+	}{
+		{
+			desc: "all",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey:              "name",
+					OrderDirection:        fleet.OrderAscending,
+					TestSecondaryOrderKey: "in_house_app_platform",
+				},
+				TeamID: &team1.ID,
+			},
+			wantCount: 8,
+			wantNames: []string{"bar", "baz", "foo", "in-house1", "in-house1", "in-house2", "in-house2", "vpp1"},
+			wantInstallers: []*fleet.SoftwarePackageOrApp{
+				nil,
+				nil,
+				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
+				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
+			},
+		},
+		{
+			desc: "packages only",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey:              "name",
+					OrderDirection:        fleet.OrderAscending,
+					TestSecondaryOrderKey: "in_house_app_platform",
+				},
+				TeamID:       &team1.ID,
+				PackagesOnly: true, // should include in-house, not VPP
+			},
+			wantCount: 5,
+			wantNames: []string{"foo", "in-house1", "in-house1", "in-house2", "in-house2"},
+			wantInstallers: []*fleet.SoftwarePackageOrApp{
+				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
+			},
+		},
+		{
+			desc: "available for install",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey:              "name",
+					OrderDirection:        fleet.OrderAscending,
+					TestSecondaryOrderKey: "in_house_app_platform",
+				},
+				TeamID:              &team1.ID,
+				AvailableForInstall: true,
+			},
+			wantCount: 6,
+			wantNames: []string{"foo", "in-house1", "in-house1", "in-house2", "in-house2", "vpp1"},
+			wantInstallers: []*fleet.SoftwarePackageOrApp{
+				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
+				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
+			},
+		},
+		{
+			desc: "self-service only",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey:              "name",
+					OrderDirection:        fleet.OrderAscending,
+					TestSecondaryOrderKey: "in_house_app_platform",
+				},
+				TeamID:          &team1.ID,
+				SelfServiceOnly: true,
+			},
+			wantCount: 2,
+			wantNames: []string{"in-house2", "in-house2"},
+			wantInstallers: []*fleet.SoftwarePackageOrApp{
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
+			},
+		},
+		{
+			desc: "macos only",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey:              "name",
+					OrderDirection:        fleet.OrderAscending,
+					TestSecondaryOrderKey: "in_house_app_platform",
+				},
+				TeamID:   &team1.ID,
+				Platform: "macos",
+			},
+			wantCount: 1,
+			wantNames: []string{"foo"},
+			wantInstallers: []*fleet.SoftwarePackageOrApp{
+				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
+			},
+		},
+		{
+			desc: "iOS only",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey:              "name",
+					OrderDirection:        fleet.OrderAscending,
+					TestSecondaryOrderKey: "in_house_app_platform",
+				},
+				TeamID:   &team1.ID,
+				Platform: "ios",
+			},
+			wantCount: 2,
+			wantNames: []string{"in-house1", "in-house2"},
+			wantInstallers: []*fleet.SoftwarePackageOrApp{
+				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+			},
+		},
+		{
+			desc: "iOS and IPadOS",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey:              "name",
+					OrderDirection:        fleet.OrderAscending,
+					TestSecondaryOrderKey: "in_house_app_platform",
+				},
+				TeamID:   &team1.ID,
+				Platform: "ios,ipados",
+			},
+			wantCount: 5,
+			wantNames: []string{"in-house1", "in-house1", "in-house2", "in-house2", "vpp1"},
+			wantInstallers: []*fleet.SoftwarePackageOrApp{
+				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
+				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			titles, counts, _, err := ds.ListSoftwareTitles(ctx, c.opts, adminFilter)
+			require.NoError(t, err)
+			require.Equal(t, c.wantCount, counts)
+
+			require.Equal(t, c.wantNames, pluckNames(titles))
+			assertInstallers(t, titles, c.wantInstallers)
+		})
+	}
 }

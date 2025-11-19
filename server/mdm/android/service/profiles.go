@@ -38,6 +38,15 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	}
 
 	client := newAMAPIClient(ctx, logger, licenseKey)
+	authSecret, err := getClientAuthenticationSecret(ctx, ds)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting Android client authentication secret for profile reconciler")
+	}
+	err = client.SetAuthenticationSecret(authSecret)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "setting Android client authentication secret for profile reconciler")
+	}
+
 	reconciler := &profileReconciler{
 		DS:         ds,
 		Enterprise: enterprise,
@@ -52,6 +61,17 @@ type profileReconciler struct {
 	DS         fleet.Datastore
 	Enterprise *android.Enterprise
 	Client     androidmgmt.Client
+}
+
+func getClientAuthenticationSecret(ctx context.Context, ds fleet.Datastore) (string, error) {
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidFleetServerSecret}, nil)
+	switch {
+	case fleet.IsNotFound(err):
+		return "", nil
+	case err != nil:
+		return "", ctxerr.Wrap(ctx, err, "getting Android authentication secret")
+	}
+	return string(assets[fleet.MDMAssetAndroidFleetServerSecret].Value), nil
 }
 
 func (r *profileReconciler) ReconcileProfiles(ctx context.Context) error {

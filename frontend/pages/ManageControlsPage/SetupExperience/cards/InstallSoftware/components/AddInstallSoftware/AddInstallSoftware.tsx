@@ -3,15 +3,12 @@ import { capitalize } from "lodash";
 
 import PATHS from "router/paths";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-
 import { SetupExperiencePlatform } from "interfaces/platform";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import mdmAPI from "services/entities/mdm";
 import Button from "components/buttons/Button";
-import CustomLink from "components/CustomLink";
 import { ISoftwareTitle } from "interfaces/software";
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkWithContext from "components/LinkWithContext";
@@ -110,7 +107,7 @@ const AddInstallSoftware = ({
       <>
         {installSoftwareDuringSetupCount} software item
         {installSoftwareDuringSetupCount > 1 && "s"} will be{" "}
-        <TooltipWrapper tipContent="Software order will vary.">
+        <TooltipWrapper tipContent="Installation order will depend on software name, starting with 0-9 then A-Z.">
           installed during setup.
         </TooltipWrapper>
       </>
@@ -132,11 +129,6 @@ const AddInstallSoftware = ({
         <p className={`${baseClass}__description`}>
           Install software on hosts that automatically enroll to Fleet.
         </p>
-        <CustomLink
-          newTab
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-assistant`}
-          text="Learn how"
-        />
       </div>
       <span className={`${baseClass}__added-text`}>{addedText}</span>
       {!noSoftwareUploaded && (

@@ -14,57 +14,67 @@ import { INDESFormData } from "../NDESForm/NDESForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
+import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
+
+const UNCHANGED_PASSWORD_API_RESPONSE = "********";
 
 export const generateDefaultFormData = (
   certAuthority: ICertificateAuthority
 ): ICertFormData => {
-  if (certAuthority.type === "ndes_scep_proxy") {
-    return {
-      scepURL: certAuthority.url,
-      adminURL: certAuthority.admin_url,
-      username: certAuthority.username,
-      password: certAuthority.password,
-    };
-  } else if (certAuthority.type === "digicert") {
-    return {
-      name: certAuthority.name,
-      url: certAuthority.url,
-      apiToken: certAuthority.api_token,
-      profileId: certAuthority.profile_id,
-      commonName: certAuthority.certificate_common_name,
-      userPrincipalName:
-        certAuthority.certificate_user_principal_names?.[0] ?? "",
-      certificateSeatId: certAuthority.certificate_seat_id,
-    };
-  } else if (certAuthority.type === "hydrant") {
-    return {
-      name: certAuthority.name,
-      url: certAuthority.url,
-      clientId: certAuthority.client_id,
-      clientSecret: certAuthority.client_secret,
-    };
-  } else if (certAuthority.type === "smallstep") {
-    return {
-      name: certAuthority.name,
-      scepURL: certAuthority.url,
-      challengeURL: certAuthority.challenge_url,
-      username: certAuthority.username,
-      password: certAuthority.password,
-    };
+  switch (certAuthority.type) {
+    case "ndes_scep_proxy":
+      return {
+        scepURL: certAuthority.url,
+        adminURL: certAuthority.admin_url,
+        username: certAuthority.username,
+        password: certAuthority.password,
+      };
+    case "digicert":
+      return {
+        name: certAuthority.name,
+        url: certAuthority.url,
+        apiToken: certAuthority.api_token,
+        profileId: certAuthority.profile_id,
+        commonName: certAuthority.certificate_common_name,
+        userPrincipalName:
+          certAuthority.certificate_user_principal_names?.[0] ?? "",
+        certificateSeatId: certAuthority.certificate_seat_id,
+      };
+    case "hydrant":
+      return {
+        name: certAuthority.name,
+        url: certAuthority.url,
+        clientId: certAuthority.client_id,
+        clientSecret: certAuthority.client_secret,
+      };
+    case "smallstep":
+      return {
+        name: certAuthority.name,
+        scepURL: certAuthority.url,
+        challengeURL: certAuthority.challenge_url,
+        username: certAuthority.username,
+        password: certAuthority.password,
+      };
+    case "custom_scep_proxy": {
+      const customSCEPcert = certAuthority as ICertificatesCustomSCEP;
+      return {
+        name: customSCEPcert.name,
+        scepURL: customSCEPcert.url,
+        challenge: customSCEPcert.challenge,
+      };
+    }
+    case "custom_est_proxy":
+      return {
+        name: certAuthority.name,
+        url: certAuthority.url,
+        username: certAuthority.username,
+        password: certAuthority.password,
+      };
+    default:
+      throw new Error(
+        `Unknown certificate authority type: ${certAuthority.type}`
+      );
   }
-
-  // FIXME: seems like we have some competing patterns in here where we sometimes do switch
-  // statements with a default and sometimes do if or if/else if with a final default return. We
-  // should probably standardize on one or the other. Also, do we really want this to be the
-  // default? Why not have an explicit check for custom_scep_proxy and have the final
-  // else throw an error?
-
-  const customSCEPcert = certAuthority as ICertificatesCustomSCEP;
-  return {
-    name: customSCEPcert.name,
-    scepURL: customSCEPcert.url,
-    challenge: customSCEPcert.challenge,
-  };
 };
 
 export const generateEditCertAuthorityData = (
@@ -76,8 +86,7 @@ export const generateEditCertAuthorityData = (
   delete certAuthWithoutType.id;
 
   switch (certAuthority.type) {
-    case "ndes_scep_proxy":
-      // eslint-disable-next-line no-case-declarations
+    case "ndes_scep_proxy": {
       const {
         scepURL,
         adminURL,
@@ -95,8 +104,8 @@ export const generateEditCertAuthorityData = (
           certAuthWithoutType
         ),
       };
-    case "digicert":
-      // eslint-disable-next-line no-case-declarations
+    }
+    case "digicert": {
       const {
         name,
         url: digicertUrl,
@@ -120,8 +129,8 @@ export const generateEditCertAuthorityData = (
           certAuthWithoutType
         ),
       };
-    case "hydrant":
-      // eslint-disable-next-line no-case-declarations
+    }
+    case "hydrant": {
       const {
         name: hydrantName,
         url: hydrantUrl,
@@ -139,8 +148,8 @@ export const generateEditCertAuthorityData = (
           certAuthWithoutType
         ),
       };
-    case "smallstep":
-      // eslint-disable-next-line no-case-declarations
+    }
+    case "smallstep": {
       const {
         name: smallstepName,
         scepURL: smallstepURL,
@@ -160,12 +169,8 @@ export const generateEditCertAuthorityData = (
           certAuthWithoutType
         ),
       };
-
-    // FIXME: do we really want this to be the default? why not have an explicit case for
-    // custom_scep_proxy and have the default throw an error?
-    default:
-      // custom_scep_proxy
-      // eslint-disable-next-line no-case-declarations
+    }
+    case "custom_scep_proxy": {
       const {
         name: customSCEPName,
         scepURL: customSCEPUrl,
@@ -181,6 +186,30 @@ export const generateEditCertAuthorityData = (
           certAuthWithoutType
         ),
       };
+    }
+    case "custom_est_proxy": {
+      const {
+        name: customESTName,
+        scepURL: customESTUrl,
+        username: customESTUsername,
+        password: customESTPassword,
+      } = formData as ISmallstepFormData;
+      return {
+        custom_est_proxy: deepDifference(
+          {
+            name: customESTName,
+            url: customESTUrl,
+            username: customESTUsername,
+            password: customESTPassword,
+          },
+          certAuthWithoutType
+        ),
+      };
+    }
+    default:
+      throw new Error(
+        `Unknown certificate authority type: ${certAuthority.type}`
+      );
   }
 };
 
@@ -191,69 +220,114 @@ export const updateFormData = (
 ) => {
   const newData = { ...prevFormData, [update.name]: update.value };
 
-  // for some inputs that change we want to reset one of the other inputs
-  // and force users to re-enter it. we only want to clear these values if it
+  // for some inputs that change we want to reset one or more of the other inputs
+  // and force users to re-enter them. we only want to clear these values if it
   // has not been updated. The characters "********" is the value the API sends
-  // back so we check for that value to determine if its been changed or not.
-  if (certAuthority.type === "digicert") {
-    const formData = prevFormData as IDigicertFormData;
-    if (
-      update.name === "name" ||
-      update.name === "url" ||
-      update.name === "profileId"
-    ) {
-      return {
-        ...newData,
-        apiToken: formData.apiToken === "********" ? "" : formData.apiToken,
-      };
+  // back so we check for that value to determine if it's been changed or not.
+  switch (certAuthority.type) {
+    case "digicert": {
+      const formData = prevFormData as IDigicertFormData;
+      if (
+        update.name === "name" ||
+        update.name === "url" ||
+        update.name === "profileId"
+      ) {
+        return {
+          ...newData,
+          apiToken:
+            formData.apiToken === UNCHANGED_PASSWORD_API_RESPONSE
+              ? ""
+              : formData.apiToken,
+        };
+      }
+      break;
     }
-  } else if (certAuthority.type === "ndes_scep_proxy") {
-    const formData = prevFormData as INDESFormData;
-    if (update.name === "adminURL" || update.name === "username") {
-      return {
-        ...newData,
-        password: formData.password === "********" ? "" : formData.password,
-      };
+    case "ndes_scep_proxy": {
+      const formData = prevFormData as INDESFormData;
+      if (update.name === "adminURL" || update.name === "username") {
+        return {
+          ...newData,
+          password:
+            formData.password === UNCHANGED_PASSWORD_API_RESPONSE
+              ? ""
+              : formData.password,
+        };
+      }
+      break;
     }
-  } else if (certAuthority.type === "custom_scep_proxy") {
-    const formData = prevFormData as ICustomSCEPFormData;
-    if (update.name === "name" || update.name === "scepURL") {
-      return {
-        ...newData,
-        challenge: formData.challenge === "********" ? "" : formData.challenge,
-      };
+    case "custom_scep_proxy": {
+      const formData = prevFormData as ICustomSCEPFormData;
+      if (update.name === "name" || update.name === "scepURL") {
+        return {
+          ...newData,
+          challenge:
+            formData.challenge === UNCHANGED_PASSWORD_API_RESPONSE
+              ? ""
+              : formData.challenge,
+        };
+      }
+      break;
     }
-  } else if (certAuthority.type === "hydrant") {
-    // for Hydrant, we reset clientId and clientSecret if name or url changes
-    // and the fields have not been updated. We do this to force users to send
-    // the correct clientId and clientSecret for the new name or url.
-    const formData = prevFormData as IHydrantFormData;
-    if (update.name === "name" || update.name === "url") {
-      return {
-        ...newData,
-        clientId:
-          formData.clientId === certAuthority.client_id
-            ? ""
-            : formData.clientId,
-        clientSecret:
-          formData.clientSecret === "********" ? "" : formData.clientSecret,
-      };
+    case "hydrant": {
+      // for Hydrant, we reset clientId and clientSecret if name or url changes
+      // and the fields have not been updated. We do this to force users to send
+      // the correct clientId and clientSecret for the new name or url.
+      const formData = prevFormData as IHydrantFormData;
+      if (update.name === "name" || update.name === "url") {
+        return {
+          ...newData,
+          clientId:
+            formData.clientId === certAuthority.client_id
+              ? ""
+              : formData.clientId,
+          clientSecret:
+            formData.clientSecret === UNCHANGED_PASSWORD_API_RESPONSE
+              ? ""
+              : formData.clientSecret,
+        };
+      }
+      break;
     }
-  } else if (certAuthority.type === "smallstep") {
-    const formData = prevFormData as ISmallstepFormData;
-    if (
-      update.name === "name" ||
-      update.name === "scepURL" ||
-      update.name === "challengeURL" ||
-      update.name === "username"
-    ) {
-      return {
-        ...newData,
-        password: formData.password === "********" ? "" : formData.password,
-      };
+    case "smallstep": {
+      const formData = prevFormData as ISmallstepFormData;
+      if (
+        update.name === "name" ||
+        update.name === "scepURL" ||
+        update.name === "challengeURL" ||
+        update.name === "username"
+      ) {
+        return {
+          ...newData,
+          password:
+            formData.password === UNCHANGED_PASSWORD_API_RESPONSE
+              ? ""
+              : formData.password,
+        };
+      }
+      break;
     }
+    case "custom_est_proxy": {
+      const formData = prevFormData as ICustomESTFormData;
+      if (update.name === "url") {
+        return {
+          ...newData,
+          username:
+            formData.username === certAuthority.username
+              ? ""
+              : formData.username,
+          password:
+            formData.password === UNCHANGED_PASSWORD_API_RESPONSE
+              ? ""
+              : formData.password,
+        };
+      }
+      break;
+    }
+    default:
+      throw new Error(
+        `Unknown certificate authority type: ${certAuthority.type}`
+      );
   }
-
   return newData;
 };
 

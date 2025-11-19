@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -71,6 +74,10 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided() error {
 		if errMsg, ok := AndroidForbiddenJSONKeys[key]; ok {
 			return errors.New(errMsg)
 		}
+
+		if !IsAndroidPolicyFieldValid(key) {
+			return fmt.Errorf("Invalid JSON payload. Unknown key %q", key)
+		}
 	}
 
 	return nil
@@ -133,4 +140,35 @@ type AndroidPolicyRequestPayload struct {
 
 type AndroidPolicyRequestPayloadMetadata struct {
 	SettingsOrigin map[string]string `json:"settings_origin"` // Map of policy setting name, to profile uuid.
+}
+
+var (
+	policyFieldsCache map[string]bool
+	policyFieldsOnce  sync.Once
+)
+
+// Initialize the cache once, lazily, with only JSON tag names.
+// Since we take in the JSON value.
+func initPolicyFieldsCache() {
+	policyFieldsCache = make(map[string]bool)
+	policyType := reflect.TypeOf(androidmanagement.Policy{})
+
+	for i := 0; i < policyType.NumField(); i++ {
+		field := policyType.Field(i)
+
+		// Add JSON tag name if it exists
+		jsonTag := field.Tag.Get("json")
+		if jsonTag != "" {
+			tagName := strings.Split(jsonTag, ",")[0]
+			if tagName != "" && tagName != "-" {
+				policyFieldsCache[tagName] = true
+			}
+		}
+	}
+}
+
+// Fast lookup using cached field names
+func IsAndroidPolicyFieldValid(fieldName string) bool {
+	policyFieldsOnce.Do(initPolicyFieldsCache)
+	return policyFieldsCache[fieldName]
 }
