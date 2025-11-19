@@ -9603,6 +9603,7 @@ Get a list of all software.
       "name": "Firefox.app",
       "display_name": "Firefox",
       "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
+      "display_name": "",
       "software_package": {
         "platform": "darwin",
         "fleet_maintained_app_id": 42,
@@ -9643,7 +9644,8 @@ Get a list of all software.
     {
       "id": 22,
       "name": "Google Chrome.app",
-      "display_name": "Chrome",
+      "icon_url": null,
+      "display_name": "",
       "software_package": null,
       "app_store_app": null,
       "versions_count": 5,
@@ -9676,6 +9678,7 @@ Get a list of all software.
     {
       "id": 32,
       "name": "1Password – Password Manager",
+      "icon_url": null,
       "display_name": "",
       "software_package": null,
       "app_store_app": null,
@@ -9695,6 +9698,8 @@ Get a list of all software.
     {
       "id": 77,
       "name": "Prettier",
+      "icon_url": null,
+      "display_name": "",
       "software_package": null,
       "app_store_app": null,
       "versions_count": 2,
@@ -9934,6 +9939,7 @@ Returns information about the specified software. By default, `versions` are sor
     "name": "Falcon.app",
     "display_name": "Crowdstrike Falcon",
     "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
+    "display_name": "",
     "bundle_identifier": "crowdstrike.falcon.Agent",
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
@@ -10016,6 +10022,7 @@ Returns information about the specified software. By default, `versions` are sor
     "name": "Logic Pro",
     "display_name": "",
     "icon_url": "/api/latest/fleet/software/titles/15/icon?team_id=3",
+    "display_name": "",
     "bundle_identifier": "com.apple.logic10",
     "software_package": null,
     "app_store_app": {
@@ -10066,6 +10073,8 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 16,
     "name": "Zoom Workplace",
+    "icon_url": null,
+    "display_name": "",
     "application_id": "us.zoom.videomeetings",
     "counts_updated_at": "2025-08-29T10:23:48Z",
     "software_package": null,
@@ -10398,6 +10407,8 @@ Content-Type: application/octet-stream
   "software_package": {
     "title_id": 123,
     "name": "FalconSensor-6.44.pkg",
+    "icon_url": null,
+    "categories": null,
     "display_name": "",
     "version": "6.44",
     "platform": "darwin",
@@ -10474,6 +10485,9 @@ Content-Disposition: form-data; name="team_id"
 Content-Disposition: form-data; name="self_service"
 true
 --------------------------d8c247122f594ba0
+Content-Disposition: form-data; display_name="CrowdStrike agent"
+true
+--------------------------d8c247122f594ba0
 Content-Disposition: form-data; name="install_script"
 sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /
 --------------------------d8c247122f594ba0
@@ -10495,10 +10509,11 @@ Content-Type: application/octet-stream
 
 ```json
 {
-  "software_package": {
+  "software_installer": {
     "name": "FalconSensor-6.44.pkg",
-    "display_name": "",
-    "categories": [],
+    "display_name": "CrowdStrike agent",
+    "icon_url": null,
+    "categories": null,
     "version": "6.44",
     "platform": "darwin",
     "fleet_maintained_app_id": 42,
@@ -10749,8 +10764,8 @@ Modify Apple App Store (VPP) or Google Play app's options.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| team_id       | integer | body | **Required**. The team ID. Edits Apple App Store or Android Play store apps from the specified team.  |
-| display_name    | string  | form | Optional override for the default `name`. |
+| team_id       | integer | body | **Required**. The team ID. Edits Apple App Store or Android Play store app from the specified team.  |
+| display_name    | string  | body | Optional override for the default `name`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
 | categories | string[] | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
@@ -10785,6 +10800,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
   "app_store_app": {
     "name": "Logic Pro",
     "display_name": "",
+    "icon_url" null,
     "app_store_id": 1091189122,
     "categories": ["Browser"],
     "latest_version": "2.04",
