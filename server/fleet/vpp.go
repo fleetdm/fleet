@@ -46,7 +46,7 @@ type VPPAppTeam struct {
 	// automatically created when a VPP app is added to Fleet. This field should be set after VPP
 	// app creation if AddAutoInstallPolicy is true.
 	AddedAutomaticInstallPolicy *Policy `json:"-"`
-	DisplayName                 string  `json:"display_name"`
+	DisplayName                 *string `json:"display_name"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,

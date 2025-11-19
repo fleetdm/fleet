@@ -48,7 +48,7 @@
       "slug": "beyond-compare/darwin",
       "platform": "darwin",
       "unique_identifier": "com.scootersoftware.BeyondCompare",
-      "description": ""
+      "description": "Beyond Compare is an app used to compare files and folders."
     },
     {
       "name": "Box Drive",
@@ -77,6 +77,13 @@
       "platform": "windows",
       "unique_identifier": "Brave",
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
+    },
+    {
+      "name": "Canva",
+      "slug": "canva/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.canva.CanvaDesktop",
+      "description": "Canva is a popular online graphic design tool."
     },
     {
       "name": "ChatGPT Desktop",
@@ -188,7 +195,7 @@
       "slug": "figma/windows",
       "platform": "windows",
       "unique_identifier": "Figma",
-      "description": ""
+      "description": "Figma is a collaborative design tool for teams to create, prototype, and share designs in real time."
     },
     {
       "name": "Mozilla Firefox",
@@ -231,6 +238,20 @@
       "platform": "windows",
       "unique_identifier": "Google Chrome",
       "description": "Google Chrome Enterprise is a fast, reliable web browser built for performance and compatibility across platforms."
+    },
+    {
+      "name": "Google Drive",
+      "slug": "google-drive/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.drivefs",
+      "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
+    },
+    {
+      "name": "Google Drive",
+      "slug": "google-drive/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Drive",
+      "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
     },
     {
       "name": "iMazing Profile Editor",
@@ -352,6 +373,13 @@
       "description": "Omnissa Horizon Client is a tool end users use to access remote virtual desktops."
     },
     {
+      "name": "Opera",
+      "slug": "opera/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.operasoftware.Opera",
+      "description": "Opera is a web browser."
+    },
+    {
       "name": "P4V",
       "slug": "p4v/darwin",
       "platform": "darwin",
@@ -420,6 +448,13 @@
       "platform": "darwin",
       "unique_identifier": "com.northpolesec.santa",
       "description": "Santa is a binary authorization system for macOS."
+    },
+    {
+      "name": "Signal",
+      "slug": "signal/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.whispersystems.signal-desktop",
+      "description": "Signal is an instant messaging application focusing on security."
     },
     {
       "name": "Slack",
@@ -496,7 +531,7 @@
       "slug": "vnc-viewer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.realvnc.vncviewer",
-      "description": ""
+      "description": "VNC Viewer is a remote desktop application focusing on security."
     },
     {
       "name": "Webex",
