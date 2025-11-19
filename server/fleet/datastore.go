@@ -2356,6 +2356,10 @@ type Datastore interface {
 	// It returns a minimal device struct with host and device identifiers.
 	ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error)
 
+	// GetAndroidAppConfiguration retrieves the configuration for an Android app
+	// identified by adam_id and global_or_team_id.
+	GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*AndroidAppConfiguration, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
 

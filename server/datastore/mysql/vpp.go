@@ -96,9 +96,12 @@ WHERE
 
 	app.DisplayName = displayName
 
-	configuration, err := ds.GetAndroidAppConfiguration(ctx, app.AdamID, tmID)
+	configuration, err := ds.GetAndroidAppConfiguration(ctx, app.AdamID, tmID) // tmID can be used as globalOrTeamID
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get android configuration for app store app")
+	}
+	if configuration != nil {
+		app.Configuration = configuration.Configuration
 	}
 
 	if teamID != nil {
@@ -645,7 +648,8 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			return ctxerr.Wrap(ctx, err, "setting software title display name for vpp app")
 		}
 
-		// TODO(JK): how do we clean these up if vpp(android) app suddenly disappears
+		// TODO(JK): how do we clean these up if vpp(android) app or team suddenly disappears
+		// Foreign key constraints should handle this?
 		// TODO: only do this on android apps (maybe handled by just configuration being nil? check this upstream)
 		if app.Configuration != nil && app.Platform == fleet.AndroidPlatform {
 			if err := ds.updateAndroidAppConfiguration(ctx, tx, teamID, app.AdamID, app.Configuration); err != nil {

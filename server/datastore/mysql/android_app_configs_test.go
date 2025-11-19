@@ -32,6 +32,7 @@ func TestAndroidAppConfigs(t *testing.T) {
 }
 
 func testAndroidAppConfigCrud(t *testing.T, ds *Datastore) {
+	fmt.Println(".")
 	ctx := context.Background()
 
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
@@ -41,7 +42,7 @@ func testAndroidAppConfigCrud(t *testing.T, ds *Datastore) {
 
 	// test cases: ios app, ios app with config, android app with no config, android app with config
 
-	// create VPP apps
+	// Create android and VPP apps
 	app1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "android1", BundleIdentifier: "android1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "something_android_app_1", Platform: fleet.AndroidPlatform},
@@ -56,17 +57,35 @@ func testAndroidAppConfigCrud(t *testing.T, ds *Datastore) {
 		}}, &team1.ID)
 	require.NoError(t, err)
 
-	// get android app
+	// Get android app without team
 	meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, app1.TitleID)
 	require.NoError(t, err)
+	require.Zero(t, meta.Configuration)
+
+	// Get android app and configuration
+	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, app1.TitleID)
+	require.NoError(t, err)
 	require.NotZero(t, meta.VPPAppsTeamsID)
+	require.NotZero(t, meta.Configuration)
 	require.Equal(t, "android1", meta.BundleIdentifier)
 
-	// get ios app
+	// Get ios app
 	meta2, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, app2.TitleID)
 	require.NoError(t, err)
 	require.NotZero(t, meta2.VPPAppsTeamsID)
 	// require.Equal(t, "{blablabla}", meta.Configuration) TODO(JK): this should return configuration
+
+	// Edit android app
+	newCfg := json.RawMessage(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
+	app1.VPPAppTeam.Configuration = newCfg
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	require.NoError(t, err)
+
+	// Check that configuration was changed
+	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, app1.TitleID)
+	require.NoError(t, err)
+	require.NotZero(t, meta.VPPAppsTeamsID)
+	require.Equal(t, newCfg, meta.Configuration)
 
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 		DumpTable(t, tx, "vpp_apps")
@@ -90,12 +109,17 @@ func testAndroidAppConfigValidation(t *testing.T, ds *Datastore) {
 		{
 			desc:   "empty tree",
 			config: json.RawMessage("{}"),
-			// wantErr: "this probably should give an error",
+			// wantErr: "this probably should give an error", or just be treated as a delete
 		},
 		{
 			desc:    "invalid json",
 			config:  json.RawMessage(`{"ManagedConfiguration": {"DisableShareScreen": true, "DisableComputerAudio": true}xyz}`),
 			wantErr: "invalid character 'x' after object key:value pair",
+		},
+		{
+			desc:    "invalid json, with key work profile widgets",
+			config:  json.RawMessage(`"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"`),
+			wantErr: "json: cannot unmarshal string into Go value of type mysql.androidAppConfig",
 		},
 		{
 			desc:    "valid json, unknown key",
@@ -108,7 +132,7 @@ func testAndroidAppConfigValidation(t *testing.T, ds *Datastore) {
 		},
 		{
 			desc:   "valid json, work profile widgets",
-			config: json.RawMessage(`"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"`),
+			config: json.RawMessage(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`),
 		},
 		{
 			desc:   "valid json, both",
@@ -122,7 +146,7 @@ func testAndroidAppConfigValidation(t *testing.T, ds *Datastore) {
 	// as that is the only API to change configurations
 
 	for _, c := range cases {
-		fmt.Println(c.desc)
+		t.Log("Running test case ", c.desc)
 		err := validateAndroidAppConfiguration(c.config)
 		if c.wantErr != "" {
 			require.EqualError(t, err, c.wantErr)
