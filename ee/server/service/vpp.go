@@ -215,11 +215,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	}
 
 	if len(androidApps) > 0 {
+		enterprise, err := svc.ds.GetEnterprise(ctx)
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
+		}
+
 		for _, a := range androidApps {
-			enterprise, err := svc.ds.GetEnterprise(ctx)
-			if err != nil {
-				return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
-			}
 			// TODO(JVE): is there a way to do this in bulk, vs 1 call per app?
 			androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterprise.Name(), a.AdamID)
 			if err != nil {
