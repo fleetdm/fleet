@@ -59,7 +59,7 @@ type addAppStoreAppRequest struct {
 	LabelsIncludeAny []string                        `json:"labels_include_any"`
 	LabelsExcludeAny []string                        `json:"labels_exclude_any"`
 	Categories       []string                        `json:"categories"`
-	Configuration    []byte                          `json:"configuration"`
+	Configuration    json.RawMessage                 `json:"configuration,omitempty"` // TODO(JK): []byte instead?
 }
 
 type addAppStoreAppResponse struct {
@@ -106,7 +106,7 @@ type updateAppStoreAppRequest struct {
 	LabelsIncludeAny []string        `json:"labels_include_any"`
 	LabelsExcludeAny []string        `json:"labels_exclude_any"`
 	Categories       []string        `json:"categories"`
-	Configuration    json.RawMessage `json:"configuration"`
+	Configuration    json.RawMessage `json:"configuration,omitempty"`
 	DisplayName      *string         `json:"display_name"`
 }
 

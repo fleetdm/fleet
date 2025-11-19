@@ -107,9 +107,14 @@ func testAndroidAppConfigValidation(t *testing.T, ds *Datastore) {
 		wantErr string
 	}{
 		{
-			desc:    "null",
+			desc:    "empty string",
 			config:  json.RawMessage(""),
 			wantErr: "EOF",
+		},
+		{
+			desc:   "json null",
+			config: json.RawMessage("null"),
+			// this isn't an error but ideally shouldn't happen
 		},
 		{
 			desc:   "empty tree",

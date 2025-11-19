@@ -636,6 +636,8 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting vpp app metadata")
 	}
 
+	// TODO(JK): check that configuration doesnt have any nil errors
+
 	appToWrite := &fleet.VPPApp{
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID: fleet.VPPAppID{
@@ -644,6 +646,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 			SelfService:     payload.SelfService,
 			ValidatedLabels: validatedLabels,
 			DisplayName:     payload.DisplayName,
+			Configuration:   payload.Configuration,
 		},
 		TeamID:           teamID,
 		TitleID:          titleID,

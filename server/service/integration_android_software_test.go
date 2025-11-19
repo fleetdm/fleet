@@ -2,16 +2,19 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
@@ -221,4 +224,40 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 	// Should have hit the android API endpoint
 	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 
+	// Android app with configuration
+	androidAppWithConfig := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.fooooooo",
+				Platform: fleet.AndroidPlatform,
+			},
+			Configuration: json.RawMessage(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`),
+		},
+		Name:             "foo",
+		BundleIdentifier: "com.fooooooo",
+		IconURL:          "https://example.com/images/2",
+	}
+
+	// Add Android app
+	s.DoJSON(
+		"POST",
+		"/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{
+			AppStoreID:    androidAppWithConfig.AdamID,
+			Platform:      androidAppWithConfig.VPPAppID.Platform,
+			Configuration: androidAppWithConfig.Configuration,
+		},
+		http.StatusOK,
+		&addAppResp,
+	)
+
+	// TODO(JK): edit app
+
+	// Configuration is shown
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "vpp_apps")
+		mysql.DumpTable(t, q, "vpp_apps_teams")
+		mysql.DumpTable(t, q, "android_app_configurations")
+		return nil
+	})
 }
