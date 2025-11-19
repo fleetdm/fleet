@@ -2305,6 +2305,10 @@ func (c *Client) DoGitOps(
 	// Apply Android certificates if present
 	err = c.doGitOpsAndroidCertificates(incoming, logFn, dryRun)
 	if err != nil {
+		var gitOpsErr *gitOpsValidationError
+		if errors.As(err, &gitOpsErr) {
+			return nil, nil, gitOpsErr.WithFileContext(baseDir, filename)
+		}
 		return nil, nil, err
 	}
 
@@ -2904,6 +2908,12 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 	certRequests := make([]*fleet.CertificateRequestSpec, len(certificates))
 	certsToBeAdded := make(map[string]struct{})
 	for i := range certificates {
+		if !certificates[i].NameValid() {
+			return newGitOpsValidationError(
+				`Invalid characters in "name" field. Only letters, numbers, spaces, dashes, and underscores allowed.`,
+			)
+		}
+
 		caID, ok := caIDsByName[certificates[i].CertificateAuthorityName]
 		if !ok {
 			return fmt.Errorf("certificate authority %q not found for certificate %q",
@@ -2916,6 +2926,15 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 			CertificateAuthorityId: caID,
 			SubjectName:            certificates[i].SubjectName,
 		}
+		if _, ok := certsToBeAdded[certificates[i].Name]; ok {
+			return newGitOpsValidationError(
+				fmt.Sprintf(
+					`The name %q is already used by another certificate. Please choose a different name and try again.`,
+					certificates[i].Name,
+				),
+			)
+		}
+
 		certsToBeAdded[certificates[i].Name] = struct{}{}
 	}
 

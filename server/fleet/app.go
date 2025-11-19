@@ -1620,11 +1620,18 @@ func (ws AndroidSettings) GetMDMProfileSpecs() []MDMProfileSpec {
 // Compile-time interface check
 var _ WithMDMProfileSpecs = AndroidSettings{}
 
+// only letters, numbers, spaces, dashes, and underscores
+var certificateNamePattern = regexp.MustCompile(`^[\w\s-]+$`)
+
 // CertificateSpec defines a certificate to be deployed to devices.
 type CertificateSpec struct {
 	Name                     string `json:"name"`
 	CertificateAuthorityName string `json:"certificate_authority_name"`
 	SubjectName              string `json:"subject_name"`
+}
+
+func (c CertificateSpec) NameValid() bool {
+	return certificateNamePattern.MatchString(c.Name)
 }
 
 type YaraRuleSpec struct {
