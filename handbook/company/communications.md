@@ -23,10 +23,10 @@ The "[¶ 🗣 E-Group weekly [no shadows]](https://docs.google.com/document/d/13
 You can read background about how Fleet reached its positioning and product strategy in ["🎐 Why Fleet?" (private Google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#). You can read about Fleet's Go-To-Market (GTM) strategy on our [Go-To-Market groups page](https://fleetdm.com/handbook/company/go-to-market-groups).
 
 You can find all planned events in the ["Events" (private Google doc)](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1931288160#gid=1931288160).  And in the [OKRs (private Google doc)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=1846478041), you can read about:
-- current and upcoming quarterly goals, and the company's progress towards them
-- planned marketing campaigns
-- upcoming content
-- marketing budgets
+- Current and upcoming quarterly goals, and the company's progress towards them
+- Planned marketing campaigns
+- Upcoming content
+- Marketing budgets
 
 The ambition of Fleet's product roadmap is to reach [product maturity](http://fleetdm.com/handbook/company/product-maturity-assessment) across every stage of the computing lifecycle, implemented in a way that delights customers by delivering on our core brand promises: openness, flexibility, accessibility, and clarity.  The priority of features is [weighed (private Google doc)](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=1189480063#gid=1189480063) against this framework while taking into account the timelines of customers as well as the competitive landscape.  At the start of every quarter, Fleet publishes a blog post and video about the roadmap for the next 3 months.
 
