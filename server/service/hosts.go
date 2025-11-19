@@ -257,15 +257,14 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 		}
 
 		for _, host := range hosts {
-			if host.MDM != nil {
-				if status, ok := statusMap[host.ID]; ok {
-					host.MDM.DeviceStatus = ptr.String(string(status.DeviceStatus()))
-					host.MDM.PendingAction = ptr.String(string(status.PendingAction()))
-				} else {
-					// Host has no MDM actions, set defaults
-					host.MDM.DeviceStatus = ptr.String(string(fleet.DeviceStatusUnlocked))
-					host.MDM.PendingAction = ptr.String(string(fleet.PendingActionNone))
-				}
+			// MDM is a struct (not a pointer), so it's always present
+			if status, ok := statusMap[host.ID]; ok {
+				host.MDM.DeviceStatus = ptr.String(string(status.DeviceStatus()))
+				host.MDM.PendingAction = ptr.String(string(status.PendingAction()))
+			} else {
+				// Host has no MDM actions, set defaults
+				host.MDM.DeviceStatus = ptr.String(string(fleet.DeviceStatusUnlocked))
+				host.MDM.PendingAction = ptr.String(string(fleet.PendingActionNone))
 			}
 		}
 	}
