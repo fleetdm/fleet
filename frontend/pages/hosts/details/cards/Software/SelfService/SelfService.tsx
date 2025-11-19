@@ -175,12 +175,20 @@ const SoftwareSelfService = ({
   const [showOpenInstructionsModal, setShowOpenInstructionsModal] = useState(
     false
   );
+  const [recentlyUpdatedIds, setRecentlyUpdatedIds] = useState<Set<number>>(
+    new Set()
+  );
 
   const enhancedSoftware: IDeviceSoftwareWithUiStatus[] = useMemo(() => {
     if (!selfServiceData) return [];
     return selfServiceData.software.map((software) => ({
       ...software,
-      ui_status: getUiStatus(software, true, hostSoftwareUpdatedAt),
+      ui_status: getUiStatus(
+        software,
+        true,
+        hostSoftwareUpdatedAt,
+        recentlyUpdatedIds
+      ),
     }));
   }, [selfServiceData, hostSoftwareUpdatedAt]);
 
@@ -360,6 +368,27 @@ const SoftwareSelfService = ({
     }
   }, [selfServiceData, startPollingForPendingInstallsOrUninstalls]);
 
+  // Call this whenever an update is triggered (click or updateAll)
+  // This is used if a host refetch finishes AFTER the install/update/uninstall finished
+  // but the refetch might not include the latest software data yet due to race condition.
+  // In such cases, still show "recently updated/installed/uninstalled" state for 2 minutes to
+  // avoid incorrectly rendering the same action button again
+  const addRecentlyUpdated = useCallback((softwareId: number) => {
+    setRecentlyUpdatedIds((prev) => {
+      const next = new Set(prev);
+      next.add(softwareId);
+      return next;
+    });
+    // Remove after 2 minutes (to avoid permanent "recently_updated")
+    setTimeout(() => {
+      setRecentlyUpdatedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(softwareId);
+        return next;
+      });
+    }, 120000);
+  }, []);
+
   const onInstallOrUninstall = useCallback(() => {
     refetchForPendingInstallsOrUninstalls();
   }, [refetchForPendingInstallsOrUninstalls]);
@@ -378,6 +407,7 @@ const SoftwareSelfService = ({
         await deviceApi.installSelfServiceSoftware(deviceToken, softwareId);
         if (isMountedRef.current) {
           onInstallOrUninstall();
+          addRecentlyUpdated(softwareId);
         }
       } catch (error) {
         // We only show toast message if API returns an error
@@ -387,7 +417,7 @@ const SoftwareSelfService = ({
         );
       }
     },
-    [deviceToken, onInstallOrUninstall, renderFlash]
+    [deviceToken, onInstallOrUninstall, addRecentlyUpdated, renderFlash]
   );
 
   const onClickUninstallAction = useCallback(
@@ -420,13 +450,14 @@ const SoftwareSelfService = ({
     async (id: number) => {
       try {
         await deviceApi.installSelfServiceSoftware(deviceToken, id);
+        addRecentlyUpdated(id);
         onInstallOrUninstall();
       } catch (error) {
         // Only show toast message if API returns an error
         renderFlash("error", "Couldn't update software. Please try again.");
       }
     },
-    [deviceToken, onInstallOrUninstall, renderFlash]
+    [deviceToken, addRecentlyUpdated, onInstallOrUninstall, renderFlash]
   );
 
   const onClickUpdateAll = useCallback(async () => {
@@ -436,6 +467,8 @@ const SoftwareSelfService = ({
         software.ui_status === "failed_install_update_available" ||
         software.ui_status === "failed_uninstall_update_available"
     );
+
+    const ids = updateAvailableSoftware.map((software) => software.id);
 
     // This should not happen
     if (!updateAvailableSoftware.length) {
@@ -474,12 +507,14 @@ const SoftwareSelfService = ({
     }
 
     // Refresh the data after updates triggered
+    ids.forEach(addRecentlyUpdated);
     onInstallOrUninstall();
   }, [
     deviceToken,
     renderFlash,
     renderMultiFlash,
     enhancedSoftware,
+    addRecentlyUpdated,
     onInstallOrUninstall,
   ]);
 

@@ -151,8 +151,6 @@ const DeviceUserPage = ({
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
   const [enrollUrlError, setEnrollUrlError] = useState<string | null>(null);
-  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
-  const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -184,6 +182,8 @@ const DeviceUserPage = ({
   const [queuedSelfServiceRefetch, setQueuedSelfServiceRefetch] = useState(
     false
   );
+  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
+  const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
 
   const { data: deviceMacAdminsData } = useQuery(
     ["macadmins", deviceAuthToken],
@@ -278,13 +278,6 @@ const DeviceUserPage = ({
       refetchOnWindowFocus: false,
       retry: false,
       onSuccess: ({ host: responseHost }) => {
-        // Queued refetch logic to guarantee that install completions are reflected
-        if (queuedSelfServiceRefetch && !isRefetching(responseHost)) {
-          setQueuedSelfServiceRefetch(false); // Clear the flag
-          refetchHostDetails(); // Trigger the queued extra fetch
-          console.log("unqueue refetch!");
-        }
-
         // If we're just showing the setup screen,
         // we don't need to refetch or alert on offline hosts.
         if (location.query.setup_only) {
@@ -474,42 +467,50 @@ const DeviceUserPage = ({
   }, [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]);
 
   // User-initiated refetch always starts a new timer!
-  const onRefetchHost = async () => {
-    if (host) {
-      setShowRefetchSpinner(true);
-      try {
-        await deviceUserAPI.refetch(deviceAuthToken);
-        setRefetchStartTime(Date.now()); // Always reset on user action
-        setTimeout(() => {
-          refetchHostDetails();
-          refetchExtensions();
-        }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
-      } catch (error) {
-        renderFlash("error", getErrorMessage(error, host.display_name));
-        resetHostRefetchStates();
-      }
+  const onRefetchHost = useCallback(async () => {
+    console.log("onRefetchHost called");
+    if (!host) return;
+    setShowRefetchSpinner(true);
+    try {
+      await deviceUserAPI.refetch(deviceAuthToken);
+      setRefetchStartTime(Date.now());
+      setTimeout(() => {
+        refetchHostDetails();
+        refetchExtensions();
+      }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
+    } catch (error) {
+      renderFlash("error", getErrorMessage(error, host.display_name));
+      resetHostRefetchStates();
     }
-  };
+  }, [
+    host,
+    deviceAuthToken,
+    refetchHostDetails,
+    refetchExtensions,
+    renderFlash,
+  ]);
 
-  // Use for any finishing install/uninstall actions
+  // Handles the queue: If there's a queued refetch and not actively refetching, run refetch
+  useEffect(() => {
+    if (queuedSelfServiceRefetch && !showRefetchSpinner) {
+      console.log("unqueue refetch from queued effect");
+      setQueuedSelfServiceRefetch(false);
+      onRefetchHost();
+    }
+  }, [queuedSelfServiceRefetch, showRefetchSpinner, onRefetchHost]);
+
+  // Triggered when a software update finishes and a refetch might be busy
   const requestRefetch = () => {
+    // If a refetch is already happening, queue this refetch
     if (showRefetchSpinner) {
       setQueuedSelfServiceRefetch(true);
-      console.log("queuedup because there's already a request happening");
+      console.log("queue refetch");
     } else {
-      refetchHostDetails();
-      setRefetchStartTime(Date.now());
+      // Otherwise, run it now
+      onRefetchHost();
+      console.log("direct refetch from requestRefetch");
     }
   };
-
-  useEffect(() => {
-    if (!showRefetchSpinner && queuedSelfServiceRefetch) {
-      setQueuedSelfServiceRefetch(false);
-      console.log("unquee and start refetch");
-      refetchHostDetails();
-      setRefetchStartTime(Date.now());
-    }
-  }, [showRefetchSpinner, queuedSelfServiceRefetch, refetchHostDetails]);
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
