@@ -92,6 +92,8 @@ module "loadtest" {
     autoscaling = {
       min_capacity = var.fleet_task_count
       max_capacity = var.fleet_task_count
+      cpu_tracking_target_value    = 70
+      memory_tracking_target_value = 70
     }
     awslogs = {
       name      = local.customer

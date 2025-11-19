@@ -108,6 +108,8 @@ module "free" {
     autoscaling = {
       min_capacity = 2
       max_capacity = 5
+      cpu_tracking_target_value    = 70
+      memory_tracking_target_value = 70
     }
     awslogs = {
       name      = local.customer_free
@@ -199,7 +201,7 @@ module "migrations_free" {
   depends_on = [
     module.geolite2
   ]
-  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.1.0"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.2.1"
   ecs_cluster              = module.free.byo-db.byo-ecs.service.cluster
   task_definition          = module.free.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.free.byo-db.byo-ecs.task_definition.revision
@@ -208,4 +210,5 @@ module "migrations_free" {
   ecs_service              = module.free.byo-db.byo-ecs.service.name
   desired_count            = module.free.byo-db.byo-ecs.appautoscaling_target.min_capacity
   min_capacity             = module.free.byo-db.byo-ecs.appautoscaling_target.min_capacity
+  max_capacity             = module.free.byo-db.byo-ecs.appautoscaling_target.max_capacity
 }
