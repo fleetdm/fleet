@@ -5124,7 +5124,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 	require.Contains(t, errMsg, `Couldn't update macos_setup because MDM features aren't turned on in Fleet.`)
 
 	// setting end-user auth does NOT require MDM
-	res = s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableEndUserAuthentication: ptr.Bool(false)}, http.StatusNoContent)
+	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableEndUserAuthentication: ptr.Bool(false)}, http.StatusNoContent)
 }
 
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
