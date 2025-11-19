@@ -1806,6 +1806,15 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		return fmt.Errorf("%s %v", error_tag, err)
 	}
 
+	reqNotInOOBE := false
+	notInOOBEStr, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemNotInOobe)
+	if err != nil {
+		return fmt.Errorf("%s %v", error_tag, err)
+	}
+	if notInOOBEStr == "true" {
+		reqNotInOOBE = true
+	}
+
 	// Getting the Windows Enrolled Device Information
 	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            reqDeviceID,
@@ -1817,7 +1826,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		MDMEnrollUserID:        userID, // This could be Host UUID or UPN email
 		MDMEnrollProtoVersion:  reqEnrollVersion,
 		MDMEnrollClientVersion: reqAppVersion,
-		MDMNotInOOBE:           false,
+		MDMNotInOOBE:           reqNotInOOBE,
 		HostUUID:               hostUUID,
 	}
 

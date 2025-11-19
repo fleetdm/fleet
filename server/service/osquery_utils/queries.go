@@ -2381,7 +2381,12 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 			// NOTE: We intentionally nest this condition to eliminate `enrolled == false && automatic == true`
 			// as a possible status for Windows hosts (which would be otherwise be categorized as
 			// "Pending"). Currently, the "Pending" status is supported only for macOS hosts.
+			// We also must check the MDM Enrollment information on the fleet side here. If the host set the NotInOobe
+			// flag during enrollment, the enrollment is considered manual as it was user-initiated via the Settings app.
 			automatic = true
+			windowsDevice, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, host.UUID)
+			if err != nil && !fleet.IsNotFound(err) {
+			}
 		}
 	}
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
