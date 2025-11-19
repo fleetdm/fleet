@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251114121506, Down_20251114121506)
+	MigrationClient.AddMigration(Up_20251118204450, Down_20251118204450)
 }
 
-func Up_20251114121506(tx *sql.Tx) error {
+func Up_20251118204450(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS certificate_templates (
 			id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -28,6 +28,6 @@ func Up_20251114121506(tx *sql.Tx) error {
 	return err
 }
 
-func Down_20251114121506(tx *sql.Tx) error {
+func Down_20251118204450(tx *sql.Tx) error {
 	return nil
 }

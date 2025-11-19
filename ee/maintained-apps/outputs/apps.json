@@ -163,6 +163,20 @@
       "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
     },
     {
+      "name": "draw.io",
+      "slug": "drawio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jgraph.drawio.desktop",
+      "description": "draw.io is a versatile diagramming or whiteboarding application."
+    },
+    {
+      "name": "Dropbox",
+      "slug": "dropbox/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.getdropbox.dropbox",
+      "description": "Dropbox is a client for the Dropbox cloud storage service."
+    },
+    {
       "name": "Figma",
       "slug": "figma/darwin",
       "platform": "darwin",
@@ -217,6 +231,20 @@
       "platform": "windows",
       "unique_identifier": "Google Chrome",
       "description": "Google Chrome Enterprise is a fast, reliable web browser built for performance and compatibility across platforms."
+    },
+    {
+      "name": "Google Drive",
+      "slug": "google-drive/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.drivefs",
+      "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
+    },
+    {
+      "name": "Google Drive",
+      "slug": "google-drive/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Drive",
+      "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
     },
     {
       "name": "iMazing Profile Editor",
@@ -380,6 +408,20 @@
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
     },
     {
+      "name": "PyCharm Community Edition",
+      "slug": "pycharm-ce/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.pycharm.ce",
+      "description": "Jetbrains IDE for Python programming - Community Edition"
+    },
+    {
+      "name": "PyCharm Professional",
+      "slug": "pycharm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.pycharm",
+      "description": "Jetbrain IDE for professional Python development. This version includes advanced features and requires a valid license."
+    },
+    {
       "name": "Rectangle",
       "slug": "rectangle/darwin",
       "platform": "darwin",
@@ -434,6 +476,13 @@
       "platform": "windows",
       "unique_identifier": "TeamViewer",
       "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
+    },
+    {
+      "name": "Thunderbird",
+      "slug": "thunderbird/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.mozilla.thunderbird",
+      "description": "Mozilla Thunderbird is a free and open-source e-mail client."
     },
     {
       "name": "Tunnelblick",
