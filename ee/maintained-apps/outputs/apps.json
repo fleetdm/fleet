@@ -48,7 +48,7 @@
       "slug": "beyond-compare/darwin",
       "platform": "darwin",
       "unique_identifier": "com.scootersoftware.BeyondCompare",
-      "description": ""
+      "description": "Beyond Compare is an app used to compare files and folders."
     },
     {
       "name": "Box Drive",
@@ -195,7 +195,7 @@
       "slug": "figma/windows",
       "platform": "windows",
       "unique_identifier": "Figma",
-      "description": ""
+      "description": "Figma is a collaborative design tool for teams to create, prototype, and share designs in real time."
     },
     {
       "name": "Mozilla Firefox",
@@ -517,7 +517,7 @@
       "slug": "vnc-viewer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.realvnc.vncviewer",
-      "description": ""
+      "description": "VNC Viewer is a remote desktop application focusing on security."
     },
     {
       "name": "Webex",
