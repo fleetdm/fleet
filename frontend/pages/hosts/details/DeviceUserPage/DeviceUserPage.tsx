@@ -497,7 +497,7 @@ const DeviceUserPage = ({
     }
   }, [queuedSelfServiceRefetch, showRefetchSpinner, onRefetchHost]);
 
-  // Triggered when a software update finishes and a refetch might be busy
+  // Triggered when a software update finishes
   const requestRefetch = () => {
     // If a refetch is already happening, queue this refetch
     if (showRefetchSpinner) {

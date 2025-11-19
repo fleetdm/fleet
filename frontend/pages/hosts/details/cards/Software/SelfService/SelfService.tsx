@@ -143,7 +143,9 @@ const SoftwareSelfService = ({
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
 
+  /** Used to track software IDs for which the user has initiated an action (install/uninstall) */
   const userActionIdsRef = useRef<Set<number>>(new Set());
+  /** Registers a software ID as user-initiated action */
   const registerUserAction = useCallback((id: number) => {
     userActionIdsRef.current.add(id);
   }, []);
@@ -195,7 +197,7 @@ const SoftwareSelfService = ({
         recentlyUpdatedIds
       ),
     }));
-  }, [selfServiceData, hostSoftwareUpdatedAt]);
+  }, [selfServiceData, recentlyUpdatedIds, hostSoftwareUpdatedAt]);
 
   const selectedSoftwareForUninstall = useRef<{
     softwareId: number;
@@ -295,7 +297,9 @@ const SoftwareSelfService = ({
                 next.add(id);
                 // Remove from the userActionIdsRef
                 userActionIdsRef.current.delete(id);
-                // Also schedule auto‑removal after 2 minutes
+                // Schedule auto‑removal after 2 minutes so the "recently updated" status is not permanent
+                // It's only surfaced to user as a ui_status if this action completed prior to a
+                // host details refresh but may not be reflected in host details data returned
                 setTimeout(() => {
                   setRecentlyUpdatedIds((latest) => {
                     const cleared = new Set(latest);

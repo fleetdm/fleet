@@ -174,16 +174,15 @@ export const getUiStatus = (
   hostSoftwareUpdatedAt?: string | null,
   recentlyUpdatedIds?: Set<number>
 ): IHostSoftwareUiStatus => {
-  console.log(
-    "Recently updated IDs used for getUiStatus to show recent update instead of Update button",
-    recentlyUpdatedIds
-  );
   const { status, installed_versions, source } = software;
 
   const lastInstallDate = getLastInstall(software)?.installed_at;
   const lastUninstallDate = getLastUninstall(software)?.uninstalled_at;
   const installerVersion = getInstallerVersion(software);
   const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(source);
+  /** True if a recent user-initiated action (install/uninstall) was detected for this software */
+  const recentUserActionDetected =
+    recentlyUpdatedIds && recentlyUpdatedIds.has(software.id);
 
   // 0. Script Packages states
   if (isScriptPackage) {
@@ -252,10 +251,7 @@ export const getUiStatus = (
   // **Recently_uninstalled check comes BEFORE update_available**
   if (software.status === null && lastUninstallDate && hostSoftwareUpdatedAt) {
     const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastUninstallDate);
-    if (
-      newerDate === lastUninstallDate ||
-      recentlyUpdatedIds?.has(software.id)
-    ) {
+    if (newerDate === lastUninstallDate || recentUserActionDetected) {
       return "recently_uninstalled";
     }
   }
@@ -274,8 +270,7 @@ export const getUiStatus = (
     const newerDate = hostSoftwareUpdatedAt
       ? getNewerDate(hostSoftwareUpdatedAt, lastInstallDate)
       : lastInstallDate;
-    return newerDate === lastInstallDate ||
-      (recentlyUpdatedIds && recentlyUpdatedIds.has(software.id))
+    return newerDate === lastInstallDate || recentUserActionDetected
       ? "recently_updated"
       : "update_available";
   }
@@ -287,10 +282,7 @@ export const getUiStatus = (
     hostSoftwareUpdatedAt
   ) {
     const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastInstallDate);
-    if (
-      newerDate === lastInstallDate ||
-      (recentlyUpdatedIds && recentlyUpdatedIds.has(software.id))
-    ) {
+    if (newerDate === lastInstallDate || recentUserActionDetected) {
       return "recently_installed";
     }
   }
