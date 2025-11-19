@@ -292,17 +292,17 @@ func TestGetExclusionZones(t *testing.T) {
 		{
 			[]string{"testdata", "global_config_no_paths.yml"},
 			map[[2]int]string{
-				{866, 949}:   "    description: Collect osquery performance stats directly from osquery\n    query:", //
-				{1754, 1818}: "    description: This policy should always fail.\n    resolution:",                    //
-				{1803, 1869}: "    resolution: There is no resolution for this policy.\n    query:",                  //
-				{1986, 2050}: "    description: This policy should always pass.\n    resolution:",                    //
-				{2035, 2101}: "    resolution: There is no resolution for this policy.\n    query:",                  //
-				{2394, 2458}: "    description: This policy should always fail.\n    resolution:",                    //
-				{2443, 2509}: "    resolution: There is no resolution for this policy.\n    query:",                  //
-				{2613, 2677}: "    description: This policy should always fail.\n    resolution:",                    //
-				{2662, 3035}: "    resolution: |\n      Automated method:\n      Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n      cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n    query:",
-				{6102, 6149}: "    description: A cool global label\n    query:", //
-				{6246, 6292}: "    description: A fly global label\n    hosts:",  //
+				{911, 994}:   "    description: Collect osquery performance stats directly from osquery\n    query:", //
+				{1799, 1863}: "    description: This policy should always fail.\n    resolution:",                    //
+				{1848, 1914}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				{2031, 2095}: "    description: This policy should always pass.\n    resolution:",                    //
+				{2080, 2146}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				{2439, 2503}: "    description: This policy should always fail.\n    resolution:",                    //
+				{2488, 2554}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				{2658, 2722}: "    description: This policy should always fail.\n    resolution:",                    //
+				{2707, 3080}: "    resolution: |\n      Automated method:\n      Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n      cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n    query:",
+				{6147, 6194}: "    description: A cool global label\n    query:", //
+				{6291, 6337}: "    description: A fly global label\n    hosts:",  //
 			},
 		},
 	}
@@ -319,8 +319,8 @@ func TestGetExclusionZones(t *testing.T) {
 			require.Equal(t, len(tC.expected), len(actual))
 
 			for pos, text := range tC.expected {
-				require.Contains(t, actual, pos)
-				require.Equal(t, contents[pos[0]:pos[1]], text, pos)
+				assert.Contains(t, actual, pos)
+				assert.Equal(t, contents[pos[0]:pos[1]], text, pos)
 			}
 		})
 	}

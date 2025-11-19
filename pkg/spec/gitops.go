@@ -98,10 +98,11 @@ type GitOpsControls struct {
 	MacOSSetup     *fleet.MacOSSetup `json:"macos_setup"`
 	MacOSMigration interface{}       `json:"macos_migration"`
 
-	WindowsUpdates              interface{} `json:"windows_updates"`
-	WindowsSettings             interface{} `json:"windows_settings"`
-	WindowsEnabledAndConfigured interface{} `json:"windows_enabled_and_configured"`
-	WindowsMigrationEnabled     interface{} `json:"windows_migration_enabled"`
+	WindowsUpdates                 interface{} `json:"windows_updates"`
+	WindowsSettings                interface{} `json:"windows_settings"`
+	WindowsEnabledAndConfigured    interface{} `json:"windows_enabled_and_configured"`
+	WindowsMigrationEnabled        interface{} `json:"windows_migration_enabled"`
+	EnableTurnOnWindowsMDMManually interface{} `json:"enable_turn_on_windows_mdm_manually"`
 
 	AndroidEnabledAndConfigured interface{} `json:"android_enabled_and_configured"`
 	AndroidSettings             interface{} `json:"android_settings"`
