@@ -867,13 +867,13 @@ func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName,
 	return svc.androidAPIClient.EnterprisesApplications(ctx, enterpriseName, applicationID)
 }
 
-func (svc *Service) AddAppToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string) error {
+func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string, installType string) error {
 
 	var appPolicies []*androidmanagement.ApplicationPolicy
 	for _, a := range applicationIDs {
 		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
 			PackageName: a,
-			InstallType: "AVAILABLE",
+			InstallType: installType,
 		})
 	}
 

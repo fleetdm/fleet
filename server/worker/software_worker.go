@@ -96,7 +96,7 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 	}
 
 	// Update Android MDM policy to include the app in self service
-	err = v.AndroidModule.AddAppToAndroidPolicy(ctx, enterpriseName, []string{applicationID}, hosts)
+	err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, []string{applicationID}, hosts, "AVAILABLE")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 	}
@@ -178,7 +178,7 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return nil
 	}
 
-	err = v.AndroidModule.AddAppToAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{hostUUID: hostUUID})
+	err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{hostUUID: hostUUID}, "AVAILABLE")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 	}
@@ -201,6 +201,11 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 	if host.AppliedPolicyID != nil {
 		policyID = *host.AppliedPolicyID
 	}
+
+	// TODO(mna): obviously it would be ideal to define a single policy at enroll time with
+	// everything it needs at once (instead of that call to add self-service app, and the subsequent
+	// one to install setup experience apps). I'll keep this as a follow-up optimization if we
+	// have a bit of time at the end of this story - it will require a somewhat significant refactor.
 	if err := v.makeAndroidAppsAvailableForHost(ctx, hostUUID, host.Host.ID, enterpriseName, policyID); err != nil {
 		return ctxerr.Wrapf(ctx, err, "making android apps available for host %s", hostUUID)
 	}
