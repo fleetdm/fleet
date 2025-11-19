@@ -663,6 +663,7 @@ func newWorkerIntegrationsSchedule(
 	commander *apple_mdm.MDMAppleCommander,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	vppInstaller fleet.AppleMDMVPPInstaller,
+	androidModule android.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -726,7 +727,12 @@ func newWorkerIntegrationsSchedule(
 		Datastore: ds,
 		Log:       logger,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify)
+	softwareWorker := &worker.SoftwareWorker{
+		Datastore:     ds,
+		Log:           logger,
+		AndroidModule: androidModule,
+	}
+	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify, softwareWorker)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -1048,6 +1054,17 @@ func newCleanupsAndAggregationSchedule(
 			)
 			_, err := ds.CleanupWorkerJobs(ctx, failedSince, completedSince)
 			return err
+		}),
+		schedule.WithJob("revoke_old_conditional_access_certs", func(ctx context.Context) error {
+			const gracePeriod = 1 * time.Hour
+			count, err := ds.RevokeOldConditionalAccessCerts(ctx, gracePeriod)
+			if err != nil {
+				return err
+			}
+			if count > 0 {
+				level.Info(logger).Log("msg", "revoked old conditional access certificates", "count", count)
+			}
+			return nil
 		}),
 	)
 

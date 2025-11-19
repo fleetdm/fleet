@@ -10,7 +10,10 @@
     <div purpose="docs-template" class="container-fluid p-0">
       <h1 purpose="page-title" class="d-flex d-lg-none py-4 m-0"><%= thisPage.title %></h1>
       <div purpose="edit-button-container">
-          <a purpose="edit-button" :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath" target="_blank" no-icon>
+          <a purpose="edit-button" :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath" target="_blank" no-icon v-if="!thisPage.title.includes('FAQ')">
+            <i class="fa fa-pencil"></i>Edit page
+          </a>
+          <a purpose="faq-edit-button" :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath" target="_blank" no-icon v-else>
             <i class="fa fa-pencil"></i>Edit page
           </a>
       </div>
