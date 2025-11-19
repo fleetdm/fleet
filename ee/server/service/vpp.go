@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -447,9 +446,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		// Configuration is an android only feature
 		// TODO(JK): error?
-		if len(appID.Configuration) > 0 {
-			appID.Configuration = nil
-		}
+		appID.Configuration = nil
 
 		platforms := getPlatformsFromSupportedDevices(assetMD.SupportedDevices)
 		if _, ok := platforms[appID.Platform]; !ok {
@@ -514,6 +511,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		SelfService:      app.SelfService,
 		LabelsIncludeAny: actLabelsIncl,
 		LabelsExcludeAny: actLabelsExcl,
+		Configuration:    app.Configuration,
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
@@ -738,6 +736,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		LabelsIncludeAny: actLabelsIncl,
 		LabelsExcludeAny: actLabelsExcl,
 		SoftwareIconURL:  meta.IconURL,
+		Configuration:    meta.Configuration,
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for update app store app")

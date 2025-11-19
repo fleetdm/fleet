@@ -106,8 +106,9 @@ type VPPAppStoreApp struct {
 	AddedAt time.Time `db:"added_at" json:"created_at"`
 	// Categories is the list of categories to which this software belongs: e.g. "Productivity",
 	// "Browsers", etc.
-	Categories  []string `json:"categories"`
-	DisplayName string   `json:"display_name"`
+	Categories    []string        `json:"categories"`
+	Configuration json.RawMessage `json:"configuration"`
+	DisplayName   string          `json:"display_name"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.
