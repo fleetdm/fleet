@@ -59,8 +59,7 @@
                 "--dev",
                 "--logging_debug",
                 "--dev_license"
-            ],
-            "envFile": "${workspaceFolder}/.env"
+            ]
         },
         {
             "name": "Fleet vuln_processing (licensed)",
