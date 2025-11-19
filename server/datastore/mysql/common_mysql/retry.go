@@ -77,10 +77,10 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) 
 	return backoff.Retry(operation, bo)
 }
 
-// retryableError determines whether a MySQL error can be retried. By default
+// RetryableError determines whether a MySQL error can be retried. By default
 // errors are considered non-retryable. Only errors that we know have a
 // possibility of succeeding on a retry should return true in this function.
-func retryableError(err error) bool {
+func RetryableError(err error) bool {
 	base := ctxerr.Cause(err)
 	if b, ok := base.(*mysql.MySQLError); ok {
 		switch b.Number {
@@ -94,4 +94,10 @@ func retryableError(err error) bool {
 	}
 
 	return false
+}
+
+// retryableError is the internal (non-exported) version that calls RetryableError.
+// Kept for backwards compatibility with existing callers in this package.
+func retryableError(err error) bool {
+	return RetryableError(err)
 }

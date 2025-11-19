@@ -39,7 +39,7 @@ Once the installer has been created, you can bring it over to the host you want 
 
 ## Generate the installer
 
-You can generate an osquery installer using `fleetctl` for Windows, macOS, and Linux distributions. For this article, we will assume you are enrolling a Linux device. To generate an osquery installer for a different OS, check out the guides for [macOS](https://fleetdm.com//guides/how-to-install-osquery-and-enroll-macos-devices-into-fleet) and [Windows](https://fleetdm.com//guides/how-to-install-osquery-and-enroll-windows-devices-into-fleet).
+You can generate an osquery installer using `fleetctl` for Windows, macOS, and Linux distributions. For this article, we will assume you are enrolling a Linux device. To generate an osquery installer for a different OS, check out the guides for [macOS](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-macos-devices-into-fleet) and [Windows](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-windows-devices-into-fleet).
 
 Installers are generated using the fleetctl package command. The full command looks like this:
 

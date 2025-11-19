@@ -865,10 +865,39 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("order by hosts_count", func(t *testing.T) {
-		software := listSoftwareCheckCount(t, ds, 5, 5, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}, WithHostCounts: true}, false)
+		softwareDESC := listSoftwareCheckCount(t, ds, 5, 5, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}, WithHostCounts: true}, false)
 		// ordered by counts descending, so foo003 is first
-		assert.Equal(t, foo003.Name, software[0].Name)
-		assert.Equal(t, 2, software[0].HostsCount)
+		assert.Equal(t, foo003.Name, softwareDESC[0].Name)
+		assert.Equal(t, 2, softwareDESC[0].HostsCount)
+
+		// Test that ASC exactly reverses DESC ordering
+		softwareASC := listSoftwareCheckCount(t, ds, 5, 5, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderAscending}, WithHostCounts: true}, false)
+		require.Len(t, softwareASC, 5)
+		require.Len(t, softwareDESC, 5)
+
+		// Verify at least 2 software items have the same host count (to test secondary sort)
+		countMap := make(map[int]int)
+		for _, s := range softwareDESC {
+			countMap[s.HostsCount]++
+		}
+		hasMultipleWithSameCount := false
+		for _, count := range countMap {
+			if count >= 2 {
+				hasMultipleWithSameCount = true
+				break
+			}
+		}
+		require.True(t, hasMultipleWithSameCount, "test requires at least 2 software items with the same host count")
+
+		// ASC should be exact reverse of DESC
+		for i := range softwareASC {
+			expectedIdx := len(softwareDESC) - 1 - i
+			assert.Equal(t, softwareDESC[expectedIdx].ID, softwareASC[i].ID,
+				"ASC[%d] should equal DESC[%d], ASC=%s %s (id=%d), DESC=%s %s (id=%d)",
+				i, expectedIdx,
+				softwareASC[i].Name, softwareASC[i].Version, softwareASC[i].ID,
+				softwareDESC[expectedIdx].Name, softwareDESC[expectedIdx].Version, softwareDESC[expectedIdx].ID)
+		}
 	})
 
 	t.Run("order by epss_probability", func(t *testing.T) {
