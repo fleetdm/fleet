@@ -10473,7 +10473,7 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | id | integer | path | ID of the software title being updated. |
-| software        | file    | form | Installer package file. Supported packages are .pkg, .ipa, .msi, .exe, .deb, .rpm, .tar.gz, and .ipa   |
+| software        | file    | form | Installer package file. Supported packages are .pkg, .ipa, .msi, .exe, .deb, .rpm, and .tar.gz   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
 | display_name    | string  | form | Optional override for the default `name`. |
 | categories        | string[] | form | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
