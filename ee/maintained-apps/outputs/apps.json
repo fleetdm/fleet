@@ -450,6 +450,13 @@
       "description": "Santa is a binary authorization system for macOS."
     },
     {
+      "name": "Signal",
+      "slug": "signal/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.whispersystems.signal-desktop",
+      "description": "Signal is an instant messaging application focusing on security."
+    },
+    {
       "name": "Slack",
       "slug": "slack/darwin",
       "platform": "darwin",
