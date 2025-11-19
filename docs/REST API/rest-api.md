@@ -3645,7 +3645,9 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 Returns a subset of information about the host specified by `token`. To get all information about a host, use the ["Get host"](#get-host) endpoint.
 
-This is the API route used by the **My device** page in Fleet desktop to display information about the host to the end user.
+This is the API route used by the **My device** page in Fleet Desktop to display information about the host to the end user.
+
+This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). On iOS and iPadOS, authentication requires the Fleet identity SCEP certificate. This certificate is deployed to iOS/iPadOS hosts when they enroll to Fleet.
 
 `GET /api/v1/fleet/device/:token`
 
@@ -3653,7 +3655,17 @@ This is the API route used by the **My device** page in Fleet desktop to display
 
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+| token | string | path | The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For macOS, Windows, and Linux, this is a random UUID that rotates hourly. For iOS and iPadOS, this is the host's hardware UUID. |
+
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
 
 ##### Example
 
@@ -10740,7 +10752,7 @@ Add Apple App Store (VPP) app purchased in Apple Business Manager or the Google 
 | app_store_id   | string | body | **Required.** The ID of the Apple App Store or Google Play app. |
 | team_id       | integer | body | **Required**. The team ID. Adds app from the store to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, or `android`). Default is `darwin`. |
-| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
+| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
 | ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |

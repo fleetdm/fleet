@@ -423,7 +423,7 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. F
 | `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` | macOS, iOS, iPadOS, Windows | Local part of the email (e.g. john from john@example.com). When this changes, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`              | macOS, iOS, iPadOS, Windows | Comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`          | macOS, iOS, iPadOS, Windows | Host's IdP department. When this changes, Fleet will automatically resend the profile. |
-| `$FLEET_VAR_HOST_UUID`                             | Windows | Host's hardware UUID. (Equivalent of Apple's built-in `%HardwareUUID%`.) |
+| `$FLEET_VAR_HOST_UUID`                             | macOS, iOS, iPadOS, Windows | Host's hardware UUID. |
 | `$FLEET_VAR_HOST_HARDWARE_SERIAL`                  | macOS, iOS, iPadOS | Host's hardware serial number. |
 | `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`       | macOS, iOS, iPadOS, Windows | Fleet-managed one-time challenge password used during SCEP certificate configuration profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [scep_proxy](#scep-proxy). |
 | `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`       | macOS, iOS, iPadOS, Windows | Fleet-managed SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
@@ -530,8 +530,8 @@ software:
 ```
 
 #### self_service, labels, categories, and setup_experience
-
-- `self_service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`). Currently, for App Store apps, this setting only applies to macOS and is ignored on other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be available in self_service on macOS workstations but not on iPhones or iPads.
+  
+- `self-service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`) on macOS or [self-service web app](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) on iOS/iPadOS.
 - `labels_include_any` targets hosts that have **any** of the specified labels. `labels_exclude_any` targets hosts that have **none** of the specified labels. Only one of these fields can be set. If neither is set, all hosts are targeted.
 - `categories` groups self-service software on your end users' **Fleet Desktop > My device** page. If none are set, Fleet-maintained apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs) and all other software only appears in the **All** group. Supported values:
   - `Browsers`: shown as **🌎 Browsers**
