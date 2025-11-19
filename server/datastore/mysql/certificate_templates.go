@@ -22,7 +22,7 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 			certificate_templates.created_at
 		FROM certificate_templates
 		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
-		WHERE id = ?
+		WHERE certificate_templates.id = ?
 	`, id); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id")
 	}
