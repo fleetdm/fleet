@@ -132,7 +132,6 @@ func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
 		Host: &fleet.Host{
 			Hostname:       "hostname",
 			ComputerName:   "computer_name",
-			Platform:       "android",
 			OSVersion:      "Android 14",
 			Build:          "build",
 			Memory:         1024,
@@ -2334,7 +2333,6 @@ func testInsertAndGetAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 
 	config := &fleet.AndroidAppConfiguration{
 		AdamID:         adamID,
-		Platform:       "android",
 		TeamID:         nil,
 		GlobalOrTeamID: 0,
 		Configuration:  json.RawMessage(`{"managedConfiguration": {"key": "value"}}`),
@@ -2349,7 +2347,6 @@ func testInsertAndGetAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, retrieved)
 	require.Equal(t, adamID, retrieved.AdamID)
-	require.Equal(t, "android", retrieved.Platform)
 	require.Nil(t, retrieved.TeamID)
 	require.Equal(t, uint(0), retrieved.GlobalOrTeamID)
 	require.JSONEq(t, string(config.Configuration), string(retrieved.Configuration))
@@ -2364,7 +2361,6 @@ func testUpdateAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 
 	config := &fleet.AndroidAppConfiguration{
 		AdamID:         adamID,
-		Platform:       "android",
 		TeamID:         nil,
 		GlobalOrTeamID: 0,
 		Configuration:  json.RawMessage(`{"managedConfiguration": {"key": "value1"}}`),
@@ -2392,7 +2388,6 @@ func testDeleteAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 
 	config := &fleet.AndroidAppConfiguration{
 		AdamID:         adamID,
-		Platform:       "android",
 		TeamID:         nil,
 		GlobalOrTeamID: 0,
 		Configuration:  json.RawMessage(`{"managedConfiguration": {}}`),
@@ -2446,7 +2441,6 @@ func testInsertAndroidAppConfigurationDuplicate(t *testing.T, ds *Datastore) {
 
 	config := &fleet.AndroidAppConfiguration{
 		AdamID:         adamID,
-		Platform:       "android",
 		TeamID:         nil,
 		GlobalOrTeamID: 0,
 		Configuration:  json.RawMessage(`{"managedConfiguration": {}}`),
@@ -2468,7 +2462,6 @@ func testAndroidAppConfigurationCascadeDeleteApp(t *testing.T, ds *Datastore) {
 
 	config := &fleet.AndroidAppConfiguration{
 		AdamID:         adamID,
-		Platform:       "android",
 		TeamID:         nil,
 		GlobalOrTeamID: 0,
 		Configuration:  json.RawMessage(`{"managedConfiguration": {}}`),
@@ -2501,7 +2494,6 @@ func testAndroidAppConfigurationCascadeDeleteTeam(t *testing.T, ds *Datastore) {
 
 	config := &fleet.AndroidAppConfiguration{
 		AdamID:         adamID,
-		Platform:       "android",
 		TeamID:         ptr.Uint(teamID),
 		GlobalOrTeamID: teamID,
 		Configuration:  json.RawMessage(`{"managedConfiguration": {}}`),
@@ -2533,7 +2525,6 @@ func testAndroidAppConfigurationGlobalVsTeam(t *testing.T, ds *Datastore) {
 	// Insert global configuration
 	globalConfig := &fleet.AndroidAppConfiguration{
 		AdamID:         adamID,
-		Platform:       "android",
 		TeamID:         nil,
 		GlobalOrTeamID: 0,
 		Configuration:  json.RawMessage(`{"managedConfiguration": {"env": "global"}}`),
@@ -2544,7 +2535,6 @@ func testAndroidAppConfigurationGlobalVsTeam(t *testing.T, ds *Datastore) {
 	// Insert team configuration
 	teamConfig := &fleet.AndroidAppConfiguration{
 		AdamID:         adamID,
-		Platform:       "android",
 		TeamID:         ptr.Uint(teamID),
 		GlobalOrTeamID: teamID,
 		Configuration:  json.RawMessage(`{"managedConfiguration": {"env": "team"}}`),
@@ -2568,19 +2558,3 @@ func testAndroidAppConfigurationGlobalVsTeam(t *testing.T, ds *Datastore) {
 	require.Equal(t, teamID, retrievedTeam.GlobalOrTeamID)
 }
 
-func TestAndroidAppConfiguration_PlatformConstraint(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer TruncateTables(t, ds)
-
-	adamID := "com.example.platformtest"
-	setupTestApp(t, ds, adamID)
-
-	// Try to insert configuration with non-android platform (should fail CHECK constraint)
-	_, err := ds.writer(testCtx()).ExecContext(testCtx(), `
-		INSERT INTO android_app_configurations
-		(adam_id, platform, team_id, global_or_team_id, configuration)
-		VALUES (?, 'ios', NULL, 0, '{}')
-	`, adamID)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "Check constraint")
-}

@@ -61,19 +61,17 @@ CREATE TABLE `aggregated_stats` (
 CREATE TABLE `android_app_configurations` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `adam_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `platform` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'android',
   `team_id` int unsigned DEFAULT NULL,
   `global_or_team_id` int NOT NULL DEFAULT '0',
   `configuration` json NOT NULL,
   `created_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_global_or_team_id_adam_id_platform` (`global_or_team_id`,`adam_id`,`platform`),
-  KEY `adam_id` (`adam_id`,`platform`),
+  UNIQUE KEY `idx_global_or_team_id_adam_id` (`global_or_team_id`,`adam_id`),
+  KEY `adam_id` (`adam_id`),
   KEY `team_id` (`team_id`),
-  CONSTRAINT `android_app_configurations_ibfk_1` FOREIGN KEY (`adam_id`, `platform`) REFERENCES `vpp_apps` (`adam_id`, `platform`) ON DELETE CASCADE,
-  CONSTRAINT `android_app_configurations_ibfk_2` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `android_app_configurations_chk_1` CHECK ((`platform` = _utf8mb4'android'))
+  CONSTRAINT `android_app_configurations_ibfk_1` FOREIGN KEY (`adam_id`) REFERENCES `vpp_apps` (`adam_id`) ON DELETE CASCADE,
+  CONSTRAINT `android_app_configurations_ibfk_2` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

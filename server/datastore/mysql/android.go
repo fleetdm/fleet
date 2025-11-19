@@ -1539,7 +1539,6 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID stri
 		SELECT
 			id,
 			adam_id,
-			platform,
 			team_id,
 			global_or_team_id,
 			configuration,
@@ -1565,8 +1564,8 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID stri
 func (ds *Datastore) InsertAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
 	stmt := `
 		INSERT INTO android_app_configurations
-		(adam_id, platform, team_id, global_or_team_id, configuration)
-		VALUES (?, 'android', ?, ?, ?)
+		(adam_id, team_id, global_or_team_id, configuration)
+		VALUES (?, ?, ?, ?)
 	`
 
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, config.AdamID, config.TeamID, config.GlobalOrTeamID, config.Configuration)
