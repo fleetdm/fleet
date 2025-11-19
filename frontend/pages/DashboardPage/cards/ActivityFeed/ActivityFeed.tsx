@@ -9,6 +9,7 @@ import activitiesAPI, {
   IActivitiesResponse,
 } from "services/entities/activities";
 
+import { isAndroid } from "interfaces/platform";
 import {
   resolveUninstallStatus,
   SoftwareInstallUninstallStatus,
@@ -36,7 +37,7 @@ import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
 import SoftwareDetailsModal from "./components/LibrarySoftwareDetailsModal";
-import VppDetailsModal from "./components/VPPDetailsModal";
+import AppStoreDetailsModal from "./components/AppStoreDetailsModal/AppStoreDetailsModal";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
@@ -60,7 +61,7 @@ const ActivityFeed = ({
   const [
     packageInstallDetails,
     setPackageInstallDetails,
-  ] = useState<IActivityDetails | null>(null);
+  ] = useState<IActivityDetails | null>(null); // Also includes Android Play Store installs
   const [
     scriptPackageDetails,
     setScriptPackageDetails,
@@ -85,7 +86,10 @@ const ActivityFeed = ({
     softwareDetails,
     setSoftwareDetails,
   ] = useState<IActivityDetails | null>(null);
-  const [vppDetails, setVppDetails] = useState<IActivityDetails | null>(null);
+  const [
+    appStoreDetails,
+    setAppStoreDetails,
+  ] = useState<IActivityDetails | null>(null);
 
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
@@ -165,7 +169,9 @@ const ActivityFeed = ({
         });
         break;
       case ActivityType.InstalledAppStoreApp:
-        setVppInstallDetails({ ...details });
+        isAndroid(details?.platform || "")
+          ? setPackageInstallDetails({ ...details }) // Android Play Store installs
+          : setVppInstallDetails({ ...details }); // Apple VPP installs
         break;
       case ActivityType.EnabledActivityAutomations:
       case ActivityType.EditedActivityAutomations:
@@ -179,7 +185,7 @@ const ActivityFeed = ({
       case ActivityType.AddedAppStoreApp:
       case ActivityType.EditedAppStoreApp:
       case ActivityType.DeletedAppStoreApp:
-        setVppDetails({ ...details });
+        setAppStoreDetails({ ...details });
         break;
       case ActivityType.RanScriptBatch:
       case ActivityType.CanceledScriptBatch:
@@ -329,10 +335,10 @@ const ActivityFeed = ({
           onCancel={() => setSoftwareDetails(null)}
         />
       )}
-      {vppDetails && (
-        <VppDetailsModal
-          details={vppDetails}
-          onCancel={() => setVppDetails(null)}
+      {appStoreDetails && (
+        <AppStoreDetailsModal
+          details={appStoreDetails}
+          onCancel={() => setAppStoreDetails(null)}
         />
       )}
     </div>

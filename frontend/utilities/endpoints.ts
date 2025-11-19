@@ -18,6 +18,8 @@ export default {
   // Conditional access
   CONDITIONAL_ACCESS_MICROSOFT: `/${API_VERSION}/fleet/conditional-access/microsoft`,
   CONDITIONAL_ACCESS_MICROSOFT_CONFIRM: `/${API_VERSION}/fleet/conditional-access/microsoft/confirm`,
+  CONDITIONAL_ACCESS_IDP_SIGNING_CERT: `/${API_VERSION}/fleet/conditional_access/idp/signing_cert`,
+  CONDITIONAL_ACCESS_IDP_APPLE_PROFILE: `/${API_VERSION}/fleet/conditional_access/idp/apple/profile`,
 
   CONFIG: `/${API_VERSION}/fleet/config`,
   CONFIRM_EMAIL_CHANGE: (token: string): string => {
@@ -139,7 +141,6 @@ export default {
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
   MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`, // TODO: Deprecated?
   MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
-  MDM_APPLE_VPP_APPS: `/${API_VERSION}/fleet/software/app_store_apps`,
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
 
   // Apple VPP endpoints
@@ -218,8 +219,9 @@ export default {
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
   EDIT_SOFTWARE_PACKAGE: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/package`,
-  EDIT_SOFTWARE_VPP: (id: number) =>
-    `/${API_VERSION}/fleet/software/titles/${id}/app_store_app`,
+  SOFTWARE_APP_STORE_APPS: `/${API_VERSION}/fleet/software/app_store_apps`, // VPP apps and Google Play apps
+  EDIT_SOFTWARE_APP_STORE_APP: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/app_store_app`, // VPP apps and Google Play apps
   SOFTWARE_ICON: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/icon`,
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,

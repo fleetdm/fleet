@@ -1,0 +1,8 @@
+{
+  "name": "Asana",
+  "unique_identifier": "com.electron.asana",
+  "token": "asana",
+  "installer_format": "zip",
+  "slug": "asana/darwin",
+  "default_categories": ["Productivity"]
+}

@@ -1,7 +1,10 @@
 /** For payload-free packages (e.g. software source is sh_packages or ps1_packages)
  * we use SoftwareScriptDetailsModal
  * For iOS/iPadOS packages (e.g. .ipa packages software source is ios_apps or ipados_apps)
- * we use SoftwareIpaInstallDetailsModal with the command_uuid */
+ * we use SoftwareIpaInstallDetailsModal with the command_uuid
+ * For VPP iOS/iPadOS packages, we use VppInstallDetailsModal
+ * For Android Google Play Store apps, we also use THIS modal
+ * For all other apps, we use THIS modal */
 
 import React, { useState } from "react";
 import { useQuery } from "react-query";

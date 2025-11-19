@@ -1401,7 +1401,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	h, err := s.ds.Host(ctx, mdmHost.ID)
 	require.NoError(t, err)
 	require.NotNil(t, h.TeamID)
-	tm1, err := s.ds.TeamWithExtras(ctx, *h.TeamID)
+	tm1, err := s.ds.TeamLite(ctx, *h.TeamID)
 	require.NoError(t, err)
 	require.Equal(t, "g1", tm1.Name)
 	require.True(t, tm1.Config.MDM.EnableDiskEncryption)
@@ -1508,11 +1508,12 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NoError(t, err)
 	require.NotNil(t, h.TeamID)
 	require.Equal(t, tm2.ID, *h.TeamID)
-	// tm2 still has disk encryption and release device manually disabled
-	tm2, err = s.ds.TeamWithExtras(ctx, *h.TeamID)
+
+	// tmLite2 still has disk encryption and release device manually disabled
+	tmLite2, err := s.ds.TeamLite(ctx, *h.TeamID)
 	require.NoError(t, err)
-	require.False(t, tm2.Config.MDM.EnableDiskEncryption)
-	require.False(t, tm2.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
+	require.False(t, tmLite2.Config.MDM.EnableDiskEncryption)
+	require.False(t, tmLite2.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 
 	// the host's profiles are:
 	// - the same as the team's and are pending (prof1 + prof4)
@@ -1545,7 +1546,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 
 	// make it part of team 2
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
-		addHostsToTeamRequest{TeamID: &tm2.ID, HostIDs: []uint{mdmHost2.ID}}, http.StatusOK)
+		addHostsToTeamRequest{TeamID: &tmLite2.ID, HostIDs: []uint{mdmHost2.ID}}, http.StatusOK)
 
 	// simulate having its profiles installed
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1556,16 +1557,16 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	})
 
 	// preassign the MDM host using "g1" and "g4", should match existing
-	// team tm2, and nothing be done since the host is already in tm2
+	// team tmLite2, and nothing be done since the host is already in tmLite2
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "mdm2", HostUUID: mdmHost2.UUID, Profile: prof1, Group: "g1"}}, http.StatusNoContent)
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "mdm2", HostUUID: mdmHost2.UUID, Profile: prof4, Group: "g4"}}, http.StatusNoContent)
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentRequest{ExternalHostIdentifier: "mdm2"}, http.StatusNoContent)
 
-	// the host is still part of tm2
+	// the host is still part of tmLite2
 	h, err = s.ds.Host(ctx, mdmHost2.ID)
 	require.NoError(t, err)
 	require.NotNil(t, h.TeamID)
-	require.Equal(t, tm2.ID, *h.TeamID)
+	require.Equal(t, tmLite2.ID, *h.TeamID)
 
 	// and its profiles have been left untouched
 	s.awaitTriggerProfileSchedule(t)
