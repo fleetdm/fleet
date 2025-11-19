@@ -39,14 +39,13 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		selfService = *payload.SelfService
 	}
 	activity := fleet.ActivityTypeEditedSoftware{
-		SoftwareTitle:       existingInstaller.SoftwareTitle,
-		TeamName:            teamName,
-		TeamID:              actTeamID,
-		SoftwarePackage:     &existingInstaller.Name,
-		SoftwareTitleID:     payload.TitleID,
-		SoftwareIconURL:     existingInstaller.IconUrl,
-		SelfService:         selfService,
-		SoftwareDisplayName: payload.DisplayName,
+		SoftwareTitle:   existingInstaller.SoftwareTitle,
+		TeamName:        teamName,
+		TeamID:          actTeamID,
+		SoftwarePackage: &existingInstaller.Name,
+		SoftwareTitleID: payload.TitleID,
+		SoftwareIconURL: existingInstaller.IconUrl,
+		SelfService:     selfService,
 	}
 
 	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload
@@ -123,6 +122,10 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	activity.LabelsExcludeAny = actLabelsExcl
 	if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating activity for edited in house app")
+	}
+
+	if payload.DisplayName != nil {
+		activity.SoftwareDisplayName = *payload.DisplayName
 	}
 
 	// re-pull installer from database to ensure any side effects are accounted for; may be able to optimize this out later

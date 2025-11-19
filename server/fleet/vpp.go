@@ -50,7 +50,7 @@ type VPPAppTeam struct {
 	// Configuration is a json file used to customize Android app
 	// behavior/settings. Relevant to Android only.
 	Configuration json.RawMessage `json:"configuration"`
-	DisplayName   string          `json:"display_name"`
+	DisplayName   *string         `json:"display_name"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,
@@ -150,5 +150,5 @@ type VPPAppUpdate struct {
 	LabelsExcludeAny []string
 	Categories       []string
 	Configuration    json.RawMessage
-	DisplayName      string
+	DisplayName      *string
 }

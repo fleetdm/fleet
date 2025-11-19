@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -99,14 +100,14 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppT
 //////////////////////////////////////////////////////////////////////////////
 
 type updateAppStoreAppRequest struct {
-	TitleID          uint     `url:"title_id"`
-	TeamID           *uint    `json:"team_id"`
-	SelfService      bool     `json:"self_service"`
-	LabelsIncludeAny []string `json:"labels_include_any"`
-	LabelsExcludeAny []string `json:"labels_exclude_any"`
-	Categories       []string `json:"categories"`
-	Configuration    []byte   `json:"configuration"`
-	DisplayName      string   `json:"display_name"`
+	TitleID          uint            `url:"title_id"`
+	TeamID           *uint           `json:"team_id"`
+	SelfService      bool            `json:"self_service"`
+	LabelsIncludeAny []string        `json:"labels_include_any"`
+	LabelsExcludeAny []string        `json:"labels_exclude_any"`
+	Categories       []string        `json:"categories"`
+	Configuration    json.RawMessage `json:"configuration"`
+	DisplayName      *string         `json:"display_name"`
 }
 
 type updateAppStoreAppResponse struct {
