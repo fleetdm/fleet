@@ -5,6 +5,7 @@ import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import { isAndroid } from "interfaces/platform";
 import {
   ISoftwarePackage,
   IAppStoreApp,
@@ -12,7 +13,7 @@ import {
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
-import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
+import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
 
 import Card from "components/Card";
 
@@ -23,7 +24,6 @@ import Button from "components/buttons/Button";
 
 import endpoints from "utilities/endpoints";
 import URL_PREFIX from "router/url_prefix";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import CustomLink from "components/CustomLink";
 import InstallerDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget";
 
@@ -32,6 +32,7 @@ import EditSoftwareModal from "../EditSoftwareModal";
 import ViewYamlModal from "../ViewYamlModal";
 
 import {
+  ANDROID_PLAY_STORE_APP_ACTION_OPTIONS,
   APP_STORE_APP_ACTION_OPTIONS,
   SOFTWARE_PACKAGE_ACTION_OPTIONS,
   downloadFile,
@@ -48,13 +49,14 @@ interface IStatusDisplayOption {
 }
 
 interface IActionsDropdownProps {
-  installerType: "package" | "vpp";
+  installerType: "package" | "app-store";
   onDownloadClick: () => void;
   onDeleteClick: () => void;
   onEditSoftwareClick: () => void;
   gitOpsModeEnabled?: boolean;
   repoURL?: string;
   isFMA?: boolean;
+  isAndroidPlayStoreApp?: boolean;
 }
 
 export const SoftwareActionButtons = ({
@@ -65,11 +67,15 @@ export const SoftwareActionButtons = ({
   gitOpsModeEnabled,
   repoURL,
   isFMA,
+  isAndroidPlayStoreApp,
 }: IActionsDropdownProps) => {
-  let options =
-    installerType === "package"
-      ? [...SOFTWARE_PACKAGE_ACTION_OPTIONS]
+  let options = [...SOFTWARE_PACKAGE_ACTION_OPTIONS];
+
+  if (installerType === "app-store") {
+    options = isAndroidPlayStoreApp
+      ? [...ANDROID_PLAY_STORE_APP_ACTION_OPTIONS]
       : [...APP_STORE_APP_ACTION_OPTIONS];
+  }
 
   if (gitOpsModeEnabled) {
     const tooltipContent = (
@@ -93,8 +99,8 @@ export const SoftwareActionButtons = ({
       // edit is disabled in gitOpsMode for VPP only
       // delete is disabled in gitOpsMode for software types that can't be added in GitOps mode (FMA, VPP)
       if (
-        (option.value === "edit" && installerType === "vpp") ||
-        (option.value === "delete" && (installerType === "vpp" || isFMA))
+        (option.value === "edit" && installerType === "app-store") ||
+        (option.value === "delete" && (installerType === "app-store" || isFMA))
       ) {
         return {
           ...option,
@@ -150,6 +156,7 @@ export const SoftwareActionButtons = ({
 interface ISoftwareInstallerCardProps {
   softwareTitleName: string;
   isScriptPackage?: boolean;
+  isIosOrIpadosApp?: boolean;
   name: string;
   version: string | null;
   addedTimestamp: string;
@@ -177,6 +184,7 @@ interface ISoftwareInstallerCardProps {
 const SoftwareInstallerCard = ({
   softwareTitleName,
   isScriptPackage = false,
+  isIosOrIpadosApp = false,
   name,
   version,
   addedTimestamp,
@@ -195,7 +203,9 @@ const SoftwareInstallerCard = ({
 }: ISoftwareInstallerCardProps) => {
   const installerType = isSoftwarePackage(softwareInstaller)
     ? "package"
-    : "vpp";
+    : "app-store";
+  const isAndroidPlayStoreApp =
+    "platform" in softwareInstaller && isAndroid(softwareInstaller.platform);
   const isFleetMaintainedApp =
     "fleet_maintained_app_id" in softwareInstaller &&
     !!softwareInstaller.fleet_maintained_app_id;
@@ -303,7 +313,10 @@ const SoftwareInstallerCard = ({
                 <TooltipWrapper
                   showArrow
                   position="top"
-                  tipContent={SELF_SERVICE_TOOLTIP}
+                  tipContent={getSelfServiceTooltip(
+                    isIosOrIpadosApp,
+                    isAndroidPlayStoreApp
+                  )}
                   underline={false}
                 >
                   <Tag icon="user" text="Self-service" />
@@ -321,6 +334,7 @@ const SoftwareInstallerCard = ({
                 gitOpsModeEnabled={gitOpsModeEnabled}
                 repoURL={repoURL}
                 isFMA={isFleetMaintainedApp}
+                isAndroidPlayStoreApp={isAndroidPlayStoreApp}
               />
             )}
           </div>
@@ -362,6 +376,7 @@ const SoftwareInstallerCard = ({
           refetchSoftwareTitle={refetchSoftwareTitle}
           installerType={installerType}
           openViewYamlModal={onToggleViewYaml}
+          isIosOrIpadosApp={isIosOrIpadosApp}
         />
       )}
       {showDeleteModal && (
@@ -383,6 +398,7 @@ const SoftwareInstallerCard = ({
           softwarePackage={softwareInstaller as ISoftwarePackage}
           onExit={onToggleViewYaml}
           isScriptPackage={isScriptPackage}
+          isIosOrIpadosApp={isIosOrIpadosApp}
         />
       )}
     </Card>

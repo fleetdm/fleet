@@ -10,6 +10,7 @@ module.exports = {
   inputs: {
     emailAddress: {
       type: 'string',
+      isEmail: true,
       required: true,
     },
 

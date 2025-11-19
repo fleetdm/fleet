@@ -1,7 +1,10 @@
 /** For payload-free packages (e.g. software source is sh_packages or ps1_packages)
  * we use SoftwareScriptDetailsModal
  * For iOS/iPadOS packages (e.g. .ipa packages software source is ios_apps or ipados_apps)
- * we use SoftwareIpaInstallDetailsModal with the command_uuid */
+ * we use SoftwareIpaInstallDetailsModal with the command_uuid
+ * For VPP iOS/iPadOS packages, we use VppInstallDetailsModal
+ * For Android Google Play Store apps, we also use THIS modal
+ * For all other apps, we use THIS modal */
 
 import React, { useState } from "react";
 import { useQuery } from "react-query";
@@ -261,6 +264,10 @@ export const SoftwareInstallDetailsModal = ({
   const renderInstallDetailsSection = () => {
     const outputs = [
       {
+        label: "Pre-install query output:",
+        value: swInstallResult?.pre_install_query_output,
+      },
+      {
         label: "Install script output:",
         value: swInstallResult?.output,
       },
@@ -273,7 +280,8 @@ export const SoftwareInstallDetailsModal = ({
     // Only show details button if there's details to display
     const showDetailsButton =
       (!!swInstallResult?.post_install_script_output ||
-        !!swInstallResult?.output) &&
+        !!swInstallResult?.output ||
+        !!swInstallResult?.pre_install_query_output) &&
       swInstallResult?.status !== "pending_install";
 
     return (
@@ -366,7 +374,9 @@ export const SoftwareInstallDetailsModal = ({
       <div className={`${baseClass}__modal-content`}>
         <StatusMessage
           installResult={installResultWithHostDisplayName}
-          softwareName={hostSoftware?.name || "Software"} // will always be defined at this point
+          softwareName={
+            hostSoftware?.display_name || hostSoftware?.name || "Software"
+          } // will always be defined at this point
           isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
         />

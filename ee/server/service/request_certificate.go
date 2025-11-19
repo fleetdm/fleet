@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -21,9 +22,18 @@ import (
 
 // This code largely adapted from fleet/website/api/controllers/get-est-device-certificate.js
 func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCertificatePayload) (*string, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.RequestCertificatePayload{}, fleet.ActionWrite); err != nil {
+	auth, authOk := authz.FromContext(ctx)
+	if !authOk {
+		// This shouldn't be possible
+		return nil, &fleet.BadRequestError{Message: "Missing authentication authorization context"}
+	}
+	if auth.AuthnMethod() == authz.AuthnHTTPMessageSignature {
+		// Message Signature auth is not granular, device already checked and authorized in middleware
+		svc.authz.SkipAuthorization(ctx)
+	} else if err := svc.authz.Authorize(ctx, &fleet.RequestCertificatePayload{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
+
 	ca, err := svc.ds.GetCertificateAuthorityByID(ctx, p.ID, true)
 	if err != nil {
 		return nil, err

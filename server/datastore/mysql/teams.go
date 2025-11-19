@@ -55,12 +55,17 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 	return team, nil
 }
 
-func (ds *Datastore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
+func (ds *Datastore) TeamWithExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
 	return teamDB(ctx, ds.reader(ctx), tid, true)
 }
 
-func (ds *Datastore) TeamWithoutExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
-	return teamDB(ctx, ds.reader(ctx), tid, false)
+func (ds *Datastore) TeamLite(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+	team, err := teamDB(ctx, ds.reader(ctx), tid, false)
+	if team == nil {
+		return nil, err
+	}
+
+	return team.ToTeamLite(), err // re-marshaling this way to avoid more code duplication
 }
 
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras bool) (*fleet.Team, error) {

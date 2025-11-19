@@ -46,6 +46,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsProfileLabels", testMDMWindowsProfileLabels},
 		{"TestMDMWindowsSaveResponse", testSaveResponse},
 		{"TestSetMDMWindowsProfilesWithVariables", testSetMDMWindowsProfilesWithVariables},
+		{"TestWindowsMDMManagedSCEPCertificates", testWindowsMDMManagedSCEPCertificates},
 	}
 
 	for _, c := range cases {
@@ -538,7 +539,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team"})
 			require.NoError(t, err)
 
-			tm, err := ds.Team(ctx, team.ID)
+			tm, err := ds.TeamWithExtras(ctx, team.ID)
 			require.NoError(t, err)
 			require.NotNil(t, tm)
 			require.False(t, tm.Config.MDM.EnableDiskEncryption) // disk encryption is not enabled for team
@@ -2310,7 +2311,8 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	u := uuid.New().String()
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
+		// Set this slightly in the past to test dynamic label exclusion
+		LabelUpdatedAt:  time.Now().Add(-5 * time.Second),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         &u,
@@ -2358,7 +2360,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// exclude-all labels
+	// exclude-any labels
 	l6, err := ds.NewLabel(ctx, &fleet.Label{
 		Name:        "exclude-any-label6",
 		Description: "desc",
@@ -2367,9 +2369,9 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	l7, err := ds.NewLabel(ctx, &fleet.Label{
-		Name:        "exclude-any-label7",
-		Description: "desc",
-		Query:       "select 1;",
+		Name:                "exclude-any-label7",
+		Description:         "desc",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
 	})
 	require.NoError(t, err)
 
@@ -2396,25 +2398,31 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	checksum = md5.Sum(includeAllProf.SyncML) // nolint:gosec // used only to hash for efficient comparisons
 	profileChecksums[includeAllProf.ProfileUUID] = checksum[:]
 
-	// Create a profile with "exclude-all" with l6 and l7
-	excludeAllProf, err := ds.NewMDMWindowsConfigProfile(
+	// Create a profile with "exclude-any" with l6 and l7
+	excludeAnyProf, err := ds.NewMDMWindowsConfigProfile(
 		ctx,
 		*windowsConfigProfileForTest(t, "prof-exclude-any", "./Foo/Bar", l6, l7),
 		nil,
 	)
 	require.NoError(t, err)
-	checksum = md5.Sum(excludeAllProf.SyncML) // nolint:gosec // used only to hash for efficient comparisons
-	profileChecksums[excludeAllProf.ProfileUUID] = checksum[:]
+	checksum = md5.Sum(excludeAnyProf.SyncML) // nolint:gosec // used only to hash for efficient comparisons
+	profileChecksums[excludeAnyProf.ProfileUUID] = checksum[:]
+
+	// Create a profile with "exclude-any" with l7 only since it is a manual label
+	excludeAnyManualProf, err := ds.NewMDMWindowsConfigProfile(
+		ctx,
+		*windowsConfigProfileForTest(t, "prof-exclude-any-manual", "./Foo/Bar", l7),
+		nil,
+	)
+	require.NoError(t, err)
+	checksum = md5.Sum(excludeAnyManualProf.SyncML) // nolint:gosec // used only to hash for efficient comparisons
+	profileChecksums[excludeAnyManualProf.ProfileUUID] = checksum[:]
 
 	// Connect the host and l1, l4, l5
 	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l1.ID, host.ID}, {l4.ID, host.ID}, {l5.ID, host.ID}})
 	require.NoError(t, err)
 
-	host.LabelUpdatedAt = time.Now()
-	err = ds.UpdateHost(ctx, host)
-	require.NoError(t, err)
-
-	// We should see all 3  profiles in the "to install" list
+	// We should see 3 profiles in the "to install" list
 	profilesToInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
@@ -2427,8 +2435,34 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 			Checksum: profileChecksums[includeAnyProf.ProfileUUID],
 		},
 		{
-			ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID,
-			Checksum: profileChecksums[excludeAllProf.ProfileUUID],
+			ProfileUUID: excludeAnyManualProf.ProfileUUID, ProfileName: excludeAnyManualProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyManualProf.ProfileUUID],
+		},
+	}, profilesToInstall)
+
+	host.LabelUpdatedAt = time.Now().Add(1 * time.Second)
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+
+	// We should see all 4  profiles in the "to install" list
+	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
+		{
+			ProfileUUID: includeAllProf.ProfileUUID, ProfileName: includeAllProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[includeAllProf.ProfileUUID],
+		},
+		{
+			ProfileUUID: includeAnyProf.ProfileUUID, ProfileName: includeAnyProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[includeAnyProf.ProfileUUID],
+		},
+		{
+			ProfileUUID: excludeAnyProf.ProfileUUID, ProfileName: excludeAnyProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyProf.ProfileUUID],
+		},
+		{
+			ProfileUUID: excludeAnyManualProf.ProfileUUID, ProfileName: excludeAnyManualProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyManualProf.ProfileUUID],
 		},
 	}, profilesToInstall)
 
@@ -2452,8 +2486,12 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 			Checksum: profileChecksums[includeAnyProf.ProfileUUID],
 		},
 		{
-			ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID,
-			Checksum: profileChecksums[excludeAllProf.ProfileUUID],
+			ProfileUUID: excludeAnyProf.ProfileUUID, ProfileName: excludeAnyProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyProf.ProfileUUID],
+		},
+		{
+			ProfileUUID: excludeAnyManualProf.ProfileUUID, ProfileName: excludeAnyManualProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyManualProf.ProfileUUID],
 		},
 	}, profilesToInstall)
 
@@ -2470,8 +2508,12 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 			Checksum: profileChecksums[includeAllProf.ProfileUUID],
 		},
 		{
-			ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID,
-			Checksum: profileChecksums[excludeAllProf.ProfileUUID],
+			ProfileUUID: excludeAnyProf.ProfileUUID, ProfileName: excludeAnyProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyProf.ProfileUUID],
+		},
+		{
+			ProfileUUID: excludeAnyManualProf.ProfileUUID, ProfileName: excludeAnyManualProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyManualProf.ProfileUUID],
 		},
 	}, profilesToInstall)
 
@@ -2484,18 +2526,28 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
 		{
-			ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID,
-			Checksum: profileChecksums[excludeAllProf.ProfileUUID],
+			ProfileUUID: excludeAnyProf.ProfileUUID, ProfileName: excludeAnyProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyProf.ProfileUUID],
+		},
+		{
+			ProfileUUID: excludeAnyManualProf.ProfileUUID, ProfileName: excludeAnyManualProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyManualProf.ProfileUUID],
 		},
 	}, profilesToInstall)
 
-	// Add a l6<->host relationship. The exclude-any profile should be gone now.
+	// Add a l6<->host relationship. The exclude-any profile with l6 and l7 should be gone now with only
+	// the exclude-any-manual profile remaining.
 	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l6.ID, host.ID}})
 	require.NoError(t, err)
 
 	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
 	require.NoError(t, err)
-	require.Empty(t, profilesToInstall)
+	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
+		{
+			ProfileUUID: excludeAnyManualProf.ProfileUUID, ProfileName: excludeAnyManualProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyManualProf.ProfileUUID],
+		},
+	}, profilesToInstall)
 }
 
 func expectWindowsProfiles(
@@ -2923,4 +2975,367 @@ func testSetMDMWindowsProfilesWithVariables(t *testing.T, ds *Datastore) {
 
 	checkProfileVariables(globalProfiles[0], 0, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarDigiCertDataPrefix})
 	checkProfileVariables(globalProfiles[1], 0, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
+}
+
+func testWindowsMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	testCases := []struct {
+		name                 string
+		caName               string
+		caType               fleet.CAConfigAssetType
+		challengeRetrievedAt *time.Time
+	}{
+		/* 		{
+			name:                 "NDES",
+			caName:               "ndes",
+			caType:               fleet.CAConfigNDES,
+			challengeRetrievedAt: ptr.Time(time.Now().Add(-time.Hour).UTC().Round(time.Microsecond)),
+		}, */
+		{
+			name:                 "Custom SCEP",
+			caName:               "test-ca",
+			caType:               fleet.CAConfigCustomSCEPProxy,
+			challengeRetrievedAt: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			caName := tc.caName
+			caType := tc.caType
+			challengeRetrievedAt := tc.challengeRetrievedAt
+
+			profileUUID := uuid.NewString()
+			dummySyncML := generateDummyWindowsProfile(profileUUID)
+			dummyCP := fleet.MDMWindowsConfigProfile{
+				Name:   tc.caName,
+				SyncML: dummySyncML,
+			}
+			initialCP, err := ds.NewMDMWindowsConfigProfile(ctx, dummyCP, nil)
+			require.NoError(t, err)
+
+			host, err := ds.NewHost(ctx, &fleet.Host{
+				DetailUpdatedAt: time.Now(),
+				LabelUpdatedAt:  time.Now(),
+				PolicyUpdatedAt: time.Now(),
+				SeenTime:        time.Now(),
+				OsqueryHostID:   ptr.String("host0-osquery-id" + tc.caName),
+				NodeKey:         ptr.String("host0-node-key" + tc.caName),
+				UUID:            "host0-test-mdm-profiles" + tc.caName,
+				Hostname:        "hostname0",
+			})
+			require.NoError(t, err)
+
+			// Host and profile are not linked
+			profile, err := ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+			require.NoError(t, err)
+			assert.Nil(t, profile)
+
+			err = ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+				{
+					ProfileUUID:   initialCP.ProfileUUID,
+					ProfileName:   initialCP.Name,
+					HostUUID:      host.UUID,
+					Status:        &fleet.MDMDeliveryPending,
+					OperationType: fleet.MDMOperationTypeInstall,
+					CommandUUID:   "command-uuid",
+					Checksum:      []byte("checksum"),
+				},
+			},
+			)
+			require.NoError(t, err)
+
+			// Host and profile do not have certificate metadata
+			profile, err = ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+			require.NoError(t, err)
+			assert.Nil(t, profile)
+
+			// Initial certificate state where a host has been requested to install but we have no metadata
+			err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+				{
+					HostUUID:             host.UUID,
+					ProfileUUID:          initialCP.ProfileUUID,
+					ChallengeRetrievedAt: challengeRetrievedAt,
+					Type:                 caType,
+					CAName:               caName,
+				},
+			})
+			require.NoError(t, err)
+
+			// Check that the managed certificate was inserted correctly
+			profile, err = ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+			require.NoError(t, err)
+			require.NotNil(t, profile)
+			assert.Equal(t, host.UUID, profile.HostUUID)
+			assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
+			assert.Equal(t, challengeRetrievedAt, profile.ChallengeRetrievedAt)
+			assert.Equal(t, caType, profile.Type)
+			assert.Nil(t, profile.Serial)
+			assert.Nil(t, profile.NotValidBefore)
+			assert.Nil(t, profile.NotValidAfter)
+			assert.Equal(t, caName, profile.CAName)
+
+			// Renew should not do anything yet
+			/*
+				TODO: See comment below
+				err = ds.RenewMDMManagedCertificates(ctx)
+				require.NoError(t, err)
+				profile, err = ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				require.NoError(t, err)
+				require.NotNil(t, profile.Status)
+				assert.Equal(t, fleet.MDMDeliveryPending, *profile.Status) */
+
+			// Cleanup should do nothing
+			err = ds.CleanUpMDMManagedCertificates(ctx)
+			require.NoError(t, err)
+			profile, err = ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+			require.NoError(t, err)
+			require.NotNil(t, profile)
+
+			/*
+						TODO: Uncomment when adding renewal logic for Custom SCEP on Windows.
+
+						serial := "8ABADCAFEF684D6348F5EC95AEFF468F237A9D75"
+
+						t.Run("Non renewal scenario 1 - validity window > 30 days but not yet time to renew", func(t *testing.T) {
+							// Set not_valid_before to 1 day in the past and not_valid_after to 31 days in the future so
+							// teh validity window is 32 days of which there are 31 left which should not trigger renewal
+							notValidAfter := time.Now().Add(31 * 24 * time.Hour).UTC().Round(time.Microsecond)
+							notValidBefore := time.Now().Add(-1 * 24 * time.Hour).UTC().Round(time.Microsecond)
+							err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+								{
+									HostUUID:             host.UUID,
+									ProfileUUID:          initialCP.ProfileUUID,
+									ChallengeRetrievedAt: challengeRetrievedAt,
+									NotValidBefore:       &notValidBefore,
+									NotValidAfter:        &notValidAfter,
+									Type:                 caType,
+									CAName:               caName,
+									Serial:               &serial,
+								},
+							})
+							ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+								_, err := q.ExecContext(ctx, `
+						UPDATE host_mdm_windows_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?
+					`, fleet.MDMDeliveryVerified, host.UUID, initialCP.ProfileUUID)
+								if err != nil {
+									return err
+								}
+								return nil
+							})
+
+							// Verify the policy is not currently marked for resend and that the upsert executed correctly
+							profile, err = ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+							require.NoError(t, err)
+							require.NotNil(t, profile.Status)
+							assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
+
+							assert.Equal(t, host.UUID, profile.HostUUID)
+							assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
+							assert.Equal(t, challengeRetrievedAt, profile.ChallengeRetrievedAt)
+							assert.Equal(t, &notValidBefore, profile.NotValidBefore)
+							assert.Equal(t, &notValidAfter, profile.NotValidAfter)
+							assert.Equal(t, caType, profile.Type)
+							require.NotNil(t, profile.Serial)
+							assert.Equal(t, serial, *profile.Serial)
+							assert.Equal(t, caName, profile.CAName)
+
+							// Renew should not change the MDM delivery status
+							err = ds.RenewMDMManagedCertificates(ctx)
+							require.NoError(t, err)
+							profile, err = ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+							require.NoError(t, err)
+							require.NotNil(t, profile.Status)
+							assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
+
+							// Cleanup should do nothing
+							err = ds.CleanUpMDMManagedCertificates(ctx)
+							require.NoError(t, err)
+							profile, err = ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+							require.NoError(t, err)
+							require.NotNil(t, profile)
+						})
+
+						t.Run("Non renewal scenario 2 - validity window < 30 days but not yet time to renew", func(t *testing.T) {
+							// Set not_valid_before to 13 days in the past and not_valid_after to 15 days in the future so
+							// the validity window is 28 days of which there are 15 left which should not trigger renewal
+							notValidAfter := time.Now().Add(15 * 24 * time.Hour).UTC().Round(time.Microsecond)
+							notValidBefore := time.Now().Add(-13 * 24 * time.Hour).UTC().Round(time.Microsecond)
+							err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+								{
+									HostUUID:             host.UUID,
+									ProfileUUID:          initialCP.ProfileUUID,
+									ChallengeRetrievedAt: challengeRetrievedAt,
+									NotValidBefore:       &notValidBefore,
+									NotValidAfter:        &notValidAfter,
+									Type:                 caType,
+									CAName:               caName,
+									Serial:               &serial,
+								},
+							})
+							ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+								_, err := q.ExecContext(ctx, `
+						UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?
+					`, fleet.MDMDeliveryVerified, host.UUID, initialCP.ProfileUUID)
+								if err != nil {
+									return err
+								}
+								return nil
+							})
+
+							// Verify the policy is not currently marked for resend and that the upsert executed correctly
+							profile, err = ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+							require.NoError(t, err)
+							require.NotNil(t, profile.Status)
+							assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
+
+							assert.Equal(t, host.UUID, profile.HostUUID)
+							assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
+							assert.Equal(t, challengeRetrievedAt, profile.ChallengeRetrievedAt)
+							assert.Equal(t, &notValidBefore, profile.NotValidBefore)
+							assert.Equal(t, &notValidAfter, profile.NotValidAfter)
+							assert.Equal(t, caType, profile.Type)
+							require.NotNil(t, profile.Serial)
+							assert.Equal(t, serial, *profile.Serial)
+							assert.Equal(t, caName, profile.CAName)
+
+							// Renew should not change the MDM delivery status
+							err = ds.RenewMDMManagedCertificates(ctx)
+							require.NoError(t, err)
+							profile, err = ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+							require.NoError(t, err)
+							require.NotNil(t, profile.Status)
+							assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
+
+							// Cleanup should do nothing
+							err = ds.CleanUpMDMManagedCertificates(ctx)
+							require.NoError(t, err)
+							profile, err = ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+							require.NoError(t, err)
+							require.NotNil(t, profile)
+						})
+
+						t.Run("Renew scenario 1 - validity window > 30 days", func(t *testing.T) {
+							// Set not_valid_before to 31 days in the past the validity window becomes 60 days, of which there are
+							// 29 left which should trigger the first renewal scenario(window > 30 days, renew when < 30
+							// days left)
+							notValidAfter := time.Now().Add(29 * 24 * time.Hour).UTC().Round(time.Microsecond)
+							notValidBefore := time.Now().Add(-31 * 24 * time.Hour).UTC().Round(time.Microsecond)
+							err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+								{
+									HostUUID:             host.UUID,
+									ProfileUUID:          initialCP.ProfileUUID,
+									ChallengeRetrievedAt: challengeRetrievedAt,
+									NotValidBefore:       &notValidBefore,
+									NotValidAfter:        &notValidAfter,
+									Type:                 caType,
+									CAName:               caName,
+									Serial:               &serial,
+								},
+							})
+							ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+								_, err := q.ExecContext(ctx, `
+						UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?
+					`, fleet.MDMDeliveryVerified, host.UUID, initialCP.ProfileUUID)
+								if err != nil {
+									return err
+								}
+								return nil
+							})
+
+							// Verify the policy is not currently marked for resend and that the upsert executed correctly
+							profile, err = ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+							require.NoError(t, err)
+							require.NotNil(t, profile.Status)
+							assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
+
+							assert.Equal(t, host.UUID, profile.HostUUID)
+							assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
+							assert.Equal(t, challengeRetrievedAt, profile.ChallengeRetrievedAt)
+							assert.Equal(t, &notValidBefore, profile.NotValidBefore)
+							assert.Equal(t, &notValidAfter, profile.NotValidAfter)
+							assert.Equal(t, caType, profile.Type)
+							require.NotNil(t, profile.Serial)
+							assert.Equal(t, serial, *profile.Serial)
+							assert.Equal(t, caName, profile.CAName)
+
+							// Renew should set the MDM delivery status to "null" so the profile gets resent and the certificate renewed
+							err = ds.RenewMDMManagedCertificates(ctx)
+							require.NoError(t, err)
+							profile, err = ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+							require.NoError(t, err)
+							require.Nil(t, profile.Status)
+
+							// Cleanup should do nothing
+							err = ds.CleanUpMDMManagedCertificates(ctx)
+							require.NoError(t, err)
+							profile, err = ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+							require.NoError(t, err)
+							require.NotNil(t, profile)
+						})
+
+						t.Run("Renew scenario 2 - validity window < 30 days", func(t *testing.T) {
+							// Set not_valid_before to 15 days in the past and not_valid_after to 14 days in the future so the
+							// validity window becomes 29 days, of which there are 14 left which should trigger the second
+							// renewal scenario(window < 30 days, renew when there is half that time left)
+							notValidBefore := time.Now().Add(-15 * 24 * time.Hour).UTC().Round(time.Microsecond)
+							notValidAfter := time.Now().Add(14 * 24 * time.Hour).UTC().Round(time.Microsecond)
+							err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+								{
+									HostUUID:             host.UUID,
+									ProfileUUID:          initialCP.ProfileUUID,
+									ChallengeRetrievedAt: challengeRetrievedAt,
+									NotValidBefore:       &notValidBefore,
+									NotValidAfter:        &notValidAfter,
+									Type:                 caType,
+									CAName:               caName,
+									Serial:               &serial,
+								},
+							})
+							require.NoError(t, err)
+
+							ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+								_, err := q.ExecContext(ctx, `
+					UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?
+				`, fleet.MDMDeliveryVerified, host.UUID, initialCP.ProfileUUID)
+								if err != nil {
+									return err
+								}
+								return nil
+							})
+							require.NoError(t, err)
+
+							// Verify the policy is not currently marked for resend and that the upsert executed correctly
+							profile, err = ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+							require.NoError(t, err)
+							require.NotNil(t, profile.Status)
+							assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
+
+							assert.Equal(t, host.UUID, profile.HostUUID)
+							assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
+							assert.Equal(t, challengeRetrievedAt, profile.ChallengeRetrievedAt)
+							assert.Equal(t, &notValidBefore, profile.NotValidBefore)
+							assert.Equal(t, &notValidAfter, profile.NotValidAfter)
+							assert.Equal(t, caType, profile.Type)
+							require.NotNil(t, profile.Serial)
+							assert.Equal(t, serial, *profile.Serial)
+							assert.Equal(t, caName, profile.CAName)
+
+							// Renew should set the MDM delivery status to "null" so the profile gets resent and the certificate renewed
+							err = ds.RenewMDMManagedCertificates(ctx)
+							require.NoError(t, err)
+							profile, err = ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+							require.NoError(t, err)
+							require.Nil(t, profile.Status)
+
+							// Cleanup should do nothing
+							err = ds.CleanUpMDMManagedCertificates(ctx)
+							require.NoError(t, err)
+							profile, err = ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+							require.NoError(t, err)
+							require.NotNil(t, profile)
+						}) */
+		})
+	}
 }

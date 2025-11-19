@@ -31,6 +31,7 @@ func TestSetupExperience(t *testing.T) {
 		{"SetupExperienceScriptCRUD", testSetupExperienceScriptCRUD},
 		{"TestHostInSetupExperience", testHostInSetupExperience},
 		{"TestGetSetupExperienceScriptByID", testGetSetupExperienceScriptByID},
+		{"TestUpdateSetupExperienceScriptWhileEnqueued", testUpdateSetupExperienceScriptWhileEnqueued},
 	}
 
 	for _, c := range cases {
@@ -679,6 +680,35 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), sec.Installers)
 	require.Equal(t, uint(0), sec.VPP)
 	require.Equal(t, uint(0), sec.Scripts)
+
+	// add an ipa installer and check that it isn't listed for setup experience
+	payload := fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team1.ID,
+		UserID:           user1.ID,
+		Title:            "ipa_test",
+		Filename:         "ipa_test.ipa",
+		BundleIdentifier: "com.ipa_test",
+		StorageID:        "testingtesting123",
+		Platform:         "ios",
+		Extension:        "ipa",
+		Version:          "1.2.3",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	}
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+	require.NoError(t, err)
+
+	// definitely not listed for darwin
+	titles, _, _, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 2)
+	require.Equal(t, "file1", titles[0].Name)
+	require.Equal(t, "vpp_app_1", titles[1].Name)
+
+	// but also not listed for ios
+	titles, _, _, err = ds.ListSetupExperienceSoftwareTitles(ctx, "ios", team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 1)
+	require.Equal(t, "vpp_app_2", titles[0].Name)
 }
 
 func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
@@ -1110,16 +1140,13 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, wantScriptNoTeam.ScriptContents, string(b))
 
-	// try to create another with name "script" and no team id
-	var existsErr fleet.AlreadyExistsError
+	// try to create another with name "script" and no team id. Should succeed
 	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script", ScriptContents: "echo baz"})
-	require.Error(t, err)
-	require.ErrorAs(t, err, &existsErr)
+	require.NoError(t, err)
 
-	// try to create another script with no team id and a different name
+	// try to create another script with no team id and a different name. Should succeed
 	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script2", ScriptContents: "echo baz"})
-	require.Error(t, err)
-	require.ErrorAs(t, err, &existsErr)
+	require.NoError(t, err)
 
 	// try to add a script for a team that doesn't exist
 	var fkErr fleet.ForeignKeyError
@@ -1144,7 +1171,7 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 	err = ds.DeleteSetupExperienceScript(ctx, ptr.Uint(42))
 	require.NoError(t, err) // TODO: confirm if we want to return not found on deletes
 
-	// add same script for team1 again
+	// add same script for team1 again(even though there will be no update since it doesn't exist)
 	err = ds.SetSetupExperienceScript(ctx, wantScript1)
 	require.NoError(t, err)
 
@@ -1159,6 +1186,138 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 	// script contents are deleted by CleanupUnusedScriptContents not by DeleteSetupExperienceScript
 	// so the content id should be the same as the old
 	require.Equal(t, oldScript1.ScriptContentID, newScript1.ScriptContentID)
+
+	// add same script for team1 again
+	err = ds.SetSetupExperienceScript(ctx, wantScript1)
+	require.NoError(t, err)
+
+	// Verify that the script contents remained the same
+	newScript1, err = ds.GetSetupExperienceScript(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.NotNil(t, newScript1)
+	require.Equal(t, wantScript1.Name, newScript1.Name)
+	require.Equal(t, wantScript1.TeamID, newScript1.TeamID)
+	require.NotZero(t, newScript1.ScriptContentID)
+	// script contents are deleted by CleanupUnusedScriptContents not by DeleteSetupExperienceScript
+	// so the content id should be the same as the old
+	require.Equal(t, oldScript1.ScriptContentID, newScript1.ScriptContentID)
+}
+
+func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	// create scripts for team1 and team2
+	initialScript1 := &fleet.Script{
+		Name:           "script",
+		TeamID:         &team1.ID,
+		ScriptContents: "echo foo",
+	}
+
+	initialScript2 := &fleet.Script{
+		Name:           "script",
+		TeamID:         &team2.ID,
+		ScriptContents: "echo bar",
+	}
+
+	// and an "updated" script for team1
+	updatedScript1 := &fleet.Script{
+		Name:           "script",
+		TeamID:         &team1.ID,
+		ScriptContents: "echo updated foo",
+	}
+
+	err = ds.SetSetupExperienceScript(ctx, initialScript1)
+	require.NoError(t, err)
+	team1OriginalScript, err := ds.GetSetupExperienceScript(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.NotNil(t, team1OriginalScript)
+
+	err = ds.SetSetupExperienceScript(ctx, initialScript2)
+	require.NoError(t, err)
+	team2OriginalScript, err := ds.GetSetupExperienceScript(ctx, &team2.ID)
+	require.NoError(t, err)
+	require.NotNil(t, team2OriginalScript)
+
+	hostTeam1UUID := "123"
+	hostTeam2UUID := "456"
+
+	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam1UUID, team1.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued)
+
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam2UUID, team2.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued)
+
+	host1OriginalItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID)
+	require.NoError(t, err)
+	require.Len(t, host1OriginalItems, 1)
+	require.Equal(t, fleet.SetupExperienceStatusPending, host1OriginalItems[0].Status)
+	require.NotNil(t, host1OriginalItems[0].SetupExperienceScriptID)
+	require.Equal(t, team1OriginalScript.ID, *host1OriginalItems[0].SetupExperienceScriptID)
+
+	host2OriginalItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam2UUID)
+	require.NoError(t, err)
+	require.Len(t, host2OriginalItems, 1)
+	require.Equal(t, fleet.SetupExperienceStatusPending, host2OriginalItems[0].Status)
+	require.NotNil(t, host2OriginalItems[0].SetupExperienceScriptID)
+	require.Equal(t, team2OriginalScript.ID, *host2OriginalItems[0].SetupExperienceScriptID)
+
+	// "Update" the script for team1 with its original contents which should cause no change to the enqueued execution
+	err = ds.SetSetupExperienceScript(ctx, initialScript1)
+	require.NoError(t, err)
+
+	team1UpdatedScript, err := ds.GetSetupExperienceScript(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.NotNil(t, team1UpdatedScript)
+	require.Equal(t, team1OriginalScript.ScriptContentID, team1UpdatedScript.ScriptContentID)
+	require.Equal(t, team1OriginalScript.ID, team1UpdatedScript.ID)
+
+	host1NewItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID)
+	require.NoError(t, err)
+	require.Len(t, host1NewItems, 1)
+	require.Equal(t, team1OriginalScript.ID, *host1NewItems[0].SetupExperienceScriptID)
+
+	// Should not have perturbed Host 2's enqueued execution either
+	host2NewItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam2UUID)
+	require.NoError(t, err)
+	require.Len(t, host2NewItems, 1)
+	require.Equal(t, team2OriginalScript.ID, *host2NewItems[0].SetupExperienceScriptID)
+
+	// update script for team1 which should delete the enqueued execution
+	err = ds.SetSetupExperienceScript(ctx, updatedScript1)
+	require.NoError(t, err)
+
+	team1UpdatedScript, err = ds.GetSetupExperienceScript(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.NotNil(t, team1UpdatedScript)
+	require.NotEqual(t, team1OriginalScript.ScriptContentID, team1UpdatedScript.ScriptContentID)
+	require.NotEqual(t, team1OriginalScript.ID, team1UpdatedScript.ID)
+
+	host1NewItems, err = ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID)
+	require.NoError(t, err)
+	require.Len(t, host1NewItems, 0)
+
+	// Should not have affected host 2's enqueued execution
+	host2NewItems, err = ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam2UUID)
+	require.NoError(t, err)
+	require.Len(t, host2NewItems, 1)
+	require.Equal(t, team2OriginalScript.ID, *host2NewItems[0].SetupExperienceScriptID)
+
+	// re-enqueue items for host 1, should enqueue the updated script
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam1UUID, team1.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued)
+
+	host1NewItems, err = ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID)
+	require.NoError(t, err)
+	require.Len(t, host1NewItems, 1)
+	require.Equal(t, team1UpdatedScript.ID, *host1NewItems[0].SetupExperienceScriptID)
 }
 
 func testHostInSetupExperience(t *testing.T, ds *Datastore) {

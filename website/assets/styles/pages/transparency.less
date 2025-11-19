@@ -266,7 +266,61 @@
     border: 1px solid @core-vibrant-blue-15;
     box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.1);
     border-radius: 16px;
-
+  }
+  [purpose='video-button'] {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    cursor: pointer;
+    color: #192147;
+    text-decoration: none;
+    img {
+      height: 32px;
+      margin-right: 8px;
+    }
+    span {
+      margin-left: 4px;
+      display: inline-block;
+      color: #8B8FA2;
+      font-size: 12px;
+      margin-top: 2px;
+      font-weight: 400;
+    }
+  }
+  [purpose='video-modal'] {
+    [purpose='modal-dialog'] {
+      width: 100%;
+      max-width: 100%;
+      padding-left: 24px;
+      padding-right: 24px;
+    }
+    [purpose='modal-content'] {
+      max-width: 1140px;
+      height: 641px;
+      background-color: transparent;
+      box-shadow: none;
+      border: none;
+      padding: 0px;
+      margin-top: 150px;
+      margin-left: auto;
+      margin-right: auto;
+      [purpose='modal-close-button'] {
+        top: -40px;
+        right: 0px;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        padding: 0px 0px 4px 0px;
+        background-color: #192147;
+        color: #FFF;
+        opacity: 1;
+      }
+    }
+    iframe {
+      border-radius: 16px;
+      width: auto;
+      height: 641px;
+    }
   }
 
   @media (max-width: 1199px) {
@@ -301,6 +355,20 @@
     [purpose='hero-text'] {
       text-align: center;
       margin-bottom: 0px;
+    }
+    [purpose='video-modal'] {
+      [purpose='modal-dialog'] {
+        width: 100%;
+        max-width: 100%;
+      }
+      [purpose='modal-content'] {
+        max-width: 720px;
+        height: 405px;
+      }
+      iframe {
+        width: 720px;
+        height: 405px;
+      }
     }
 
   }
@@ -343,7 +411,21 @@
     [purpose='page-content'] {
       max-width: @page-container-max-width-md;
     }
-
+    [purpose='video-modal'] {
+      [purpose='modal-dialog'] {
+        max-width: 97vw;
+        padding-left: 0px;
+        padding-right: 0px;
+      }
+      [purpose='modal-content'] {
+        max-width: 540px;
+        height: 304px;
+      }
+      iframe {
+        width: 540px;
+        height: 304px;
+      }
+    }
   }
 
   @media (max-width: 575px) {
@@ -390,6 +472,16 @@
       padding: 32px 16px;
       h2 {
         font-size: 24px;
+      }
+    }
+    [purpose='video-modal'] {
+      [purpose='modal-content'] {
+        width: 95vw;
+        height: calc(~'9/16 * 95vw');
+      }
+      iframe {
+        width: 95vw;
+        height: calc(~'9/16 * 95vw');
       }
     }
   }

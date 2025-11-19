@@ -1,0 +1,8 @@
+{
+  "name": "PhpStorm",
+  "unique_identifier": "com.jetbrains.PhpStorm",
+  "token": "phpstorm",
+  "installer_format": "dmg",
+  "slug": "phpstorm/darwin",
+  "default_categories": ["Developer tools"]
+}

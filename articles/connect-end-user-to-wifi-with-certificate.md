@@ -4,7 +4,7 @@ _Available in Fleet Premium_
 
 Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates from your certificate authority (CA). Fleet currently supports [DigiCert](#digicert), [Microsoft NDES](#microsoft-ndes),[Smallstep](#smallstep), [Hydrant](#hydrant), and a custom [SCEP](#custom-scep-simple-certificate-enrollment-protocol) or [EST](#custom-est-enrollment-over-secure-transport) server.
 
-Fleet will automatically renew certificates before expiration. Learn more in the [Renewal section](#renewal).
+Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS) hosts before expiration. Learn more in the [Renewal section](#renewal).
 
 
 ## DigiCert
@@ -167,6 +167,95 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
                     </array>
              <key>URL</key>
              <string>$FLEET_VAR_NDES_SCEP_PROXY_URL</string>
+          </dict>
+          <key>PayloadDisplayName</key>
+          <string>WIFI SCEP</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.security.scep.9DCC35A5-72F9-42B7-9A98-7AD9A9CCA3AC</string>
+          <key>PayloadType</key>
+          <string>com.apple.security.scep</string>
+          <key>PayloadUUID</key>
+          <string>9DCC35A5-72F9-42B7-9A98-7AD9A9CCA3AC</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+       </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>SCEP proxy cert</string>
+    <key>PayloadIdentifier</key>
+    <string>Fleet.WiFi</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>4CD1BD65-1D2C-4E9E-9E18-9BCD400CDEDC</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>
+```
+
+## Custom SCEP server
+
+The following steps show how to connect end users to Wi-Fi or VPN with a custom SCEP server.
+
+
+### Step 1: Connect Fleet to a custom SCEP server
+
+1. In Fleet, head to **Settings > **Integrations > Certificates**.
+2. Select the **Add CA** button and select **Custom** in the dropdown.
+3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (for example, "WIFI_AUTHENTICATION"). This name will be used later as a variable name in a configuration profile.
+4. Add your **SCEP URL** and **Challenge**.
+6. Select **Add CA**. Your custom SCEP certificate authority (CA) should appear in the list in Fleet.
+
+### Step 2: Add SCEP configuration profile to Fleet
+
+1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`. For, `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
+
+2. Replace the `<CA_NAME>` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_PASSWORD_WIFI_AUTHENTICATION` and `FLEET_VAR_CUSTOM_SCEP_DIGICERT_DATA_WIFI_AUTHENTICATION`.
+
+3. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with [end user authentication](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping) enabled. You can also use any of [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
+
+4. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
+
+When the profile is delivered to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
+
+#### Example configuration profile
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+       <dict>
+          <key>PayloadContent</key>
+          <dict>
+             <key>Challenge</key>
+             <string>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CA_NAME</string>
+             <key>Key Type</key>
+             <string>RSA</string>
+             <key>Key Usage</key>
+             <integer>5</integer>
+             <key>Keysize</key>
+             <integer>2048</integer>
+             <key>Subject</key>
+                    <array>
+                        <array>
+                          <array>
+                            <string>CN</string>
+                            <string>%SerialNumber% WIFI</string>
+                          </array>
+                        </array>
+                        <array>
+                          <array>
+                            <string>OU</string>
+                            <string>$FLEET_VAR_SCEP_RENEWAL_ID</string>
+                          </array>
+                        </array>
+                    </array>
+             <key>URL</key>
+             <string>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CA_NAME</string>
           </dict>
           <key>PayloadDisplayName</key>
           <string>WIFI SCEP</string>
@@ -805,13 +894,6 @@ Custom SCEP proxy:
     to the host with a new passcode if the host requests a certificate after the passcode has expired.
   - The static challenge configured for the custom SCEP server remains in the SCEP profile.
 
-<meta name="articleTitle" value="Connect end users to Wi-Fi or VPN with a certificate (DigiCert, NDES, or custom SCEP)">
-<meta name="authorFullName" value="Victor Lyuboslavsky">
-<meta name="authorGitHubUsername" value="getvictor">
-<meta name="category" value="guides">
-<meta name="publishedOn" value="2024-10-30">
-<meta name="description" value="Learn how to automatically connect a device to a Wi-Fi by adding your certificate authority and issuing a certificate from it.">
-
 ### How to get the CAThumbprint for Windows SCEP profiles
 
 Steps to get CAThumbrint from your SCEP server:
@@ -822,3 +904,10 @@ Steps to get CAThumbrint from your SCEP server:
     2. **PowerShell (Windows)** -> `$cert = Get-PfxCertificate -FilePath "Z:\scep (1).cer";$cert.Thumbprint`
 3. It will return the SHA1 Thumbprint without colons and text. Copy this.
 4. Use the copied value for `./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/CAThumbprint` option.
+
+<meta name="articleTitle" value="Connect end users to Wi-Fi or VPN with a certificate (DigiCert, NDES, or custom SCEP)">
+<meta name="authorFullName" value="Victor Lyuboslavsky">
+<meta name="authorGitHubUsername" value="getvictor">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2024-10-30">
+<meta name="description" value="Learn how to automatically connect a device to a Wi-Fi by adding your certificate authority and issuing a certificate from it.">
