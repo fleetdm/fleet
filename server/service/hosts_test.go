@@ -3847,17 +3847,12 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, hosts, 4)
 
-		// Hosts 1-3 have MDM info, should get default values
-		for _, h := range hosts[:3] {
-			require.NotNil(t, h.MDM)
-			require.NotNil(t, h.MDM.DeviceStatus)
-			require.Equal(t, string(fleet.DeviceStatusUnlocked), *h.MDM.DeviceStatus)
-			require.NotNil(t, h.MDM.PendingAction)
-			require.Equal(t, string(fleet.PendingActionNone), *h.MDM.PendingAction)
+		// All hosts have no MDM actions (empty statusMap), so device_status and pending_action should be nil
+		for _, h := range hosts {
+			require.NotNil(t, h.MDM) // MDM is a struct, not a pointer
+			require.Nil(t, h.MDM.DeviceStatus)
+			require.Nil(t, h.MDM.PendingAction)
 		}
-
-		// Host 4 has no MDM info, should not have device status set
-		require.Nil(t, hosts[3].MDM)
 	})
 
 	t.Run("lock pending", func(t *testing.T) {
