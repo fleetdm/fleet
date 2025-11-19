@@ -3,12 +3,10 @@ package mysql
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -93,6 +91,7 @@ func testAndroidAppConfigCrud(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
 	require.Error(t, err)
 
+	// Delete app, should delete configuration
 	require.NoError(t, ds.DeleteVPPAppFromTeam(ctx, &team1.ID, app1.VPPAppID))
 	_, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, app1.TitleID)
 	require.ErrorContains(t, err, "not found")
@@ -108,7 +107,7 @@ func testAndroidAppConfigValidation(t *testing.T, ds *Datastore) {
 		wantErr string
 	}{
 		{
-			desc:    "empty",
+			desc:    "null",
 			config:  json.RawMessage(""),
 			wantErr: "EOF",
 		},
