@@ -439,6 +439,8 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	}
 
 	// PHASE 2: Main transaction for host-specific operations
+	// We do not retry the transaction here because we do not want to overwhelm the DB.
+	// The transaction will be retried naturally when the agent refreshes (or IT admin requests a refresh).
 	err = ds.withTx(
 		ctx, func(tx sqlx.ExtContext) error {
 			deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
@@ -470,9 +472,16 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		},
 	)
 	if err != nil {
+		// Check if this is a retryable error (e.g., deadlock, lock timeout)
+		if common_mysql.RetryableError(err) {
+			// Log the retryable error and return the current state without changes.
+			// The transaction rolled back, so Deleted and Inserted will be empty.
+			level.Info(ds.logger).Log("msg", "retryable error during software update, will retry on next agent refresh", "err", err, "host_id", hostID)
+			return r, nil
+		}
 		return nil, err
 	}
-	return r, err
+	return r, nil
 }
 
 func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, deleted []fleet.Software, inserted []fleet.Software,
@@ -1419,7 +1428,221 @@ type softwareCVE struct {
 	CreatedAt *time.Time `db:"created_at"`
 }
 
+// canUseOptimizedListQuery determines if we can use the fast path query
+// that starts FROM software_host_counts instead of software.
+func canUseOptimizedListQuery(opts fleet.SoftwareListOptions) bool {
+	// Determine the effective order key
+	orderKey := opts.ListOptions.OrderKey
+	if orderKey == "" {
+		orderKey = "hosts_count"
+	}
+
+	// Only optimize if:
+	// 1. We're listing all software (not filtering by HostID)
+	// 2. We're ordering by hosts_count only (covering index requirement)
+	// 3. We're not filtering by CVE fields
+	// 4. We're not searching (which requires CVE join)
+	// 5. We're not using multi-column sorts (e.g., "name,id")
+	//
+	// The covering index optimization only works when ordering by hosts_count
+	// because the inner query uses a covering index scan that only includes
+	// (team_id, global_stats, hosts_count DESC, software_id). This dramatically
+	// improves performance.
+	return opts.HostID == nil &&
+		!opts.VulnerableOnly &&
+		opts.MinimumCVSS == 0 &&
+		opts.MaximumCVSS == 0 &&
+		!opts.KnownExploit &&
+		opts.ListOptions.MatchQuery == "" &&
+		orderKey == "hosts_count" &&
+		!isMultiColumnSort(opts.ListOptions.OrderKey)
+}
+
+// isMultiColumnSort checks if the order key contains multiple columns (comma-separated)
+func isMultiColumnSort(orderKey string) bool {
+	return strings.Contains(orderKey, ",")
+}
+
+// buildOptimizedListSoftwareSQL builds an optimized query for listing software
+// that uses a covering index scan.
+//
+// This optimization uses a two-stage query approach:
+//  1. Inner query: Covering index scan on software_host_counts that only selects
+//     indexed columns (software_id, hosts_count). This allows MySQL to read
+//     directly from the index without accessing the table.
+//  2. Outer query: LEFT JOINs to all necessary tables (software, software_cpe,
+//     software_host_counts, software_cve, cve_meta) for only the paginated results.
+//
+// Eventual consistency: During the hourly SyncHostsSoftware cron job, there's a
+// ~50-200ms window where orphaned software_host_counts rows may exist (between
+// deleting software entries and deleting orphaned count rows). The LEFT JOIN to
+// software with WHERE s.id IS NOT NULL handles this gracefully by filtering out
+// any software_ids that don't have matching software rows during this window.
+func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, error) {
+	var args []interface{}
+
+	// Determine sort direction. Default is descending for hosts_count.
+	// For efficient index usage with ASC queries, reverse both columns in ORDER BY
+	// to enable full backward index scan. The index is (team_id, global_stats, hosts_count DESC, software_id).
+	// - DESC query: ORDER BY hosts_count DESC, software_id ASC (forward scan, matches index)
+	// - ASC query:  ORDER BY hosts_count ASC, software_id DESC (backward scan, full reversal)
+	direction := "DESC"
+	secondaryDirection := "ASC"
+	if opts.ListOptions.OrderDirection == fleet.OrderAscending {
+		direction = "ASC"
+		secondaryDirection = "DESC"
+	}
+
+	// Inner query: covering index scan that only selects indexed columns
+	// This allows MySQL to read from the index without accessing the table,
+	// which is critical for performance.
+	// IMPORTANT: Update this query if modifying idx_software_host_counts_team_global_hosts_desc index.
+	// PERFORMANCE ISSUE: The hosts_count > 0 filter causes ASC queries to read the entire index
+	// instead of stopping after LIMIT rows like DESC queries do. While both ASC and DESC
+	// use the index, DESC can stop early but ASC with a range condition must read all matching rows.
+	// RECOMMENDED SOLUTION: Eliminate zero-count rows from this table entirely.
+	// This would allow removing the hosts_count > 0 filter, making ASC queries as fast as DESC
+	// without requiring a second index. Related issue: https://github.com/fleetdm/fleet/issues/35805
+	innerSQL := `
+		SELECT
+			shc.software_id,
+			shc.hosts_count
+		FROM software_host_counts shc
+		WHERE shc.hosts_count > 0
+	`
+
+	// Apply team filtering with global_stats
+	switch {
+	case opts.TeamID == nil:
+		innerSQL += " AND shc.team_id = 0 AND shc.global_stats = 1"
+	case *opts.TeamID == 0:
+		innerSQL += " AND shc.team_id = 0 AND shc.global_stats = 0"
+	default:
+		innerSQL += " AND shc.team_id = ? AND shc.global_stats = 0"
+		args = append(args, *opts.TeamID)
+	}
+
+	// software_id is the secondary key to make ordering deterministic
+	innerSQL += " ORDER BY shc.hosts_count " + direction + ", shc.software_id " + secondaryDirection
+
+	// Apply pagination
+	perPage := opts.ListOptions.PerPage
+	if perPage == 0 {
+		perPage = defaultSelectLimit
+	}
+
+	offset := perPage * opts.ListOptions.Page
+
+	// Request one extra row to determine if there are more results (only if pagination metadata is requested)
+	if opts.ListOptions.IncludeMetadata {
+		perPage++
+	}
+
+	innerSQL += " LIMIT ?"
+	args = append(args, perPage)
+
+	if offset > 0 {
+		innerSQL += " OFFSET ?"
+		args = append(args, offset)
+	}
+
+	// Outer query: LEFT JOIN to all necessary tables for the paginated results only.
+	outerSQL := `
+		SELECT
+			s.id,
+			s.name,
+			s.version,
+			s.source,
+			s.bundle_identifier,
+			s.extension_id,
+			s.extension_for,
+			s.release,
+			s.vendor,
+			s.arch,
+			s.application_id,
+			s.title_id,
+			s.upgrade_code,
+			COALESCE(scp.cpe, '') AS generated_cpe,
+			scv.cve,
+			scv.created_at
+	`
+
+	if opts.IncludeCVEScores {
+		outerSQL += `,
+			c.cvss_score,
+			c.epss_probability,
+			c.cisa_known_exploit,
+			c.description,
+			c.published AS cve_published,
+			scv.resolved_in_version
+		`
+	}
+
+	if opts.WithHostCounts {
+		outerSQL += `,
+			top.hosts_count,
+			shc.updated_at AS counts_updated_at
+		`
+	}
+
+	outerSQL += `
+		FROM (` + innerSQL + `) AS top
+		LEFT JOIN software s ON s.id = top.software_id
+		LEFT JOIN software_cpe scp ON scp.software_id = top.software_id
+	`
+
+	// Join back to software_host_counts to get updated_at.
+	// We do this in the outer query because the updated_at field is not part of the covering index.
+	if opts.WithHostCounts {
+		switch {
+		case opts.TeamID == nil:
+			outerSQL += `
+		LEFT JOIN software_host_counts shc ON shc.software_id = top.software_id
+			AND shc.team_id = 0 AND shc.global_stats = 1
+			`
+		case *opts.TeamID == 0:
+			outerSQL += `
+		LEFT JOIN software_host_counts shc ON shc.software_id = top.software_id
+			AND shc.team_id = 0 AND shc.global_stats = 0
+			`
+		default:
+			outerSQL += `
+		LEFT JOIN software_host_counts shc ON shc.software_id = top.software_id
+			AND shc.team_id = ? AND shc.global_stats = 0
+			`
+			args = append(args, *opts.TeamID)
+		}
+	}
+
+	outerSQL += `
+		LEFT JOIN software_cve scv ON scv.software_id = top.software_id
+	`
+
+	if opts.IncludeCVEScores {
+		outerSQL += `
+		LEFT JOIN cve_meta c ON c.cve = scv.cve
+		`
+	}
+
+	// Filter out any orphaned software_ids (eventual consistency handling)
+	outerSQL += `
+		WHERE s.id IS NOT NULL
+	`
+
+	// software_id is the secondary key to make ordering deterministic
+	outerSQL += " ORDER BY top.hosts_count " + direction + ", top.software_id " + secondaryDirection
+
+	return outerSQL, args, nil
+}
+
 func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, error) {
+	// Fast path: optimized query for the common case of listing all software
+	// without CVE filters/ordering.
+	if canUseOptimizedListQuery(opts) {
+		return buildOptimizedListSoftwareSQL(opts)
+	}
+
+	// Fallback to the original goqu-based query builder for complex cases
 	ds := dialect.
 		From(goqu.I("software").As("s")).
 		Select(
@@ -1675,20 +1898,105 @@ func countSoftwareDB(
 	q sqlx.QueryerContext,
 	opts fleet.SoftwareListOptions,
 ) (int, error) {
-	opts.ListOptions = fleet.ListOptions{
-		MatchQuery: opts.ListOptions.MatchQuery,
+	if opts.HostID != nil {
+		// For specific host queries, fall back to wrapping the complex selectSoftwareSQL query
+		opts.ListOptions = fleet.ListOptions{
+			MatchQuery: opts.ListOptions.MatchQuery,
+		}
+		stmt, sqlArgs, err := selectSoftwareSQL(opts)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "sql build")
+		}
+		stmt = `SELECT COUNT(DISTINCT s.id) FROM (` + stmt + `) AS s`
+		var count int
+		if err := sqlx.GetContext(ctx, q, &count, stmt, sqlArgs...); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "count host software")
+		}
+		return count, nil
 	}
 
-	sql, args, err := selectSoftwareSQL(opts)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "sql build")
+	// For listing all software, use optimized query starting from software_host_counts
+	// Add joins only if needed for filtering
+	needsSoftwareJoin := opts.ListOptions.MatchQuery != ""
+	needsCVEJoin := opts.VulnerableOnly || opts.ListOptions.MatchQuery != ""
+	needsCVEMetaJoin := opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0
+
+	// Ensure CVE join exists if we need to join cve_meta
+	if needsCVEMetaJoin {
+		needsCVEJoin = true
 	}
 
-	sql = `SELECT COUNT(DISTINCT s.id) FROM (` + sql + `) AS s`
+	// Use COUNT(*) when no joins are needed (faster since primary key guarantees uniqueness)
+	// Use COUNT(DISTINCT) when joins could create duplicate rows
+	countFunc := "COUNT(*)"
+	if needsSoftwareJoin || needsCVEJoin {
+		countFunc = "COUNT(DISTINCT shc.software_id)"
+	}
+
+	countSQL := fmt.Sprintf(`
+		SELECT %s
+		FROM software_host_counts shc
+	`, countFunc)
+
+	if needsSoftwareJoin {
+		countSQL += ` INNER JOIN software s ON s.id = shc.software_id`
+	}
+
+	if needsCVEJoin {
+		if opts.VulnerableOnly {
+			countSQL += ` INNER JOIN software_cve scv ON scv.software_id = shc.software_id`
+		} else {
+			countSQL += ` LEFT JOIN software_cve scv ON scv.software_id = shc.software_id`
+		}
+	}
+
+	if needsCVEMetaJoin {
+		countSQL += ` INNER JOIN cve_meta c ON c.cve = scv.cve`
+	}
+
+	countSQL += ` WHERE shc.hosts_count > 0`
+
+	var args []interface{}
+	var whereClauses []string
+	// Apply team filtering with global_stats
+	switch {
+	case opts.TeamID == nil:
+		whereClauses = append(whereClauses, "shc.team_id = 0", "shc.global_stats = 1")
+	case *opts.TeamID == 0:
+		whereClauses = append(whereClauses, "shc.team_id = 0", "shc.global_stats = 0")
+	default:
+		whereClauses = append(whereClauses, "shc.team_id = ?", "shc.global_stats = 0")
+		args = append(args, *opts.TeamID)
+	}
+
+	// Apply CVE filtering
+	if opts.KnownExploit {
+		whereClauses = append(whereClauses, "c.cisa_known_exploit = 1")
+	}
+	if opts.MinimumCVSS > 0 {
+		whereClauses = append(whereClauses, "c.cvss_score >= ?")
+		args = append(args, opts.MinimumCVSS)
+	}
+	if opts.MaximumCVSS > 0 {
+		whereClauses = append(whereClauses, "c.cvss_score <= ?")
+		args = append(args, opts.MaximumCVSS)
+	}
+
+	// Apply search filter
+	if match := opts.ListOptions.MatchQuery; match != "" {
+		match = likePattern(match)
+		whereClauses = append(whereClauses, "(s.name LIKE ? OR s.version LIKE ? OR scv.cve LIKE ?)")
+		args = append(args, match, match, match)
+	}
+
+	// Add all WHERE clauses
+	for _, clause := range whereClauses {
+		countSQL += " AND " + clause
+	}
 
 	var count int
-	if err := sqlx.GetContext(ctx, q, &count, sql, args...); err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "count host software")
+	if err := sqlx.GetContext(ctx, q, &count, countSQL, args...); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count software")
 	}
 
 	return count, nil
