@@ -245,6 +245,6 @@ func CreateNamedMySQLDS(t *testing.T, name string) *mysql.Datastore {
 	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
 		t.Skip("MySQL tests are disabled")
 	}
-	// use the standard Fleet datastore for Android integration tests
-	return mysql.CreateMySQLDS(t)
+	// Use a named Fleet datastore for Android integration tests to ensure the expected database exists
+	return mysql.CreateNamedMySQLDS(t, name)
 }
