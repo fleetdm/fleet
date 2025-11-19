@@ -81,6 +81,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			LabelsExcludeAny:   payload.LabelsExcludeAny,
 			LabelsIncludeAny:   payload.LabelsIncludeAny,
 			Categories:         payload.Categories,
+			DisplayName:        payload.DisplayName,
 		}, {
 			AppStoreID:         payload.AppStoreID,
 			SelfService:        payload.SelfService,
@@ -89,6 +90,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			LabelsExcludeAny:   payload.LabelsExcludeAny,
 			LabelsIncludeAny:   payload.LabelsIncludeAny,
 			Categories:         payload.Categories,
+			DisplayName:        payload.DisplayName,
 		}, {
 			AppStoreID:         payload.AppStoreID,
 			SelfService:        payload.SelfService,
@@ -97,6 +99,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			LabelsExcludeAny:   payload.LabelsExcludeAny,
 			LabelsIncludeAny:   payload.LabelsIncludeAny,
 			Categories:         payload.Categories,
+			DisplayName:        payload.DisplayName,
 		}}...)
 	}
 
@@ -149,6 +152,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				InstallDuringSetup: payload.InstallDuringSetup,
 				ValidatedLabels:    validatedLabels,
 				CategoryIDs:        catIDs,
+				DisplayName:        &payload.DisplayName,
 			})
 		}
 
@@ -599,7 +603,7 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	return apps, nil
 }
 
-func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string, displayName string) (*fleet.VPPAppStoreApp, error) {
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string, displayName *string) (*fleet.VPPAppStoreApp, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
