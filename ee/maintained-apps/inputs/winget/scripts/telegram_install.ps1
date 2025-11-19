@@ -84,9 +84,23 @@ try {
         Set-ItemProperty -Path $registryPath -Name "NoRepair" -Value 1 -Type DWord
         
         Write-Host "Created registry entry for Telegram Desktop"
+        Write-Host "Registry path: $registryPath"
+        Write-Host "DisplayName: Telegram Desktop"
+        Write-Host "Publisher: Telegram FZ-LLC"
+        Write-Host "Version: $version"
+        Write-Host "DisplayVersion: $version"
+        Write-Host "InstallLocation: $installDir"
+        
+        # Verify registry entry was created
+        $regCheck = Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue
+        if ($regCheck) {
+            Write-Host "Registry entry verified - DisplayName: $($regCheck.DisplayName), Version: $($regCheck.Version), DisplayVersion: $($regCheck.DisplayVersion)"
+        } else {
+            Write-Host "Warning: Could not verify registry entry was created"
+        }
         
         # Give osquery a moment to refresh its cache
-        Start-Sleep -Seconds 2
+        Start-Sleep -Seconds 3
     } catch {
         Write-Host "Warning: Could not create registry entry: $_"
         # Don't fail installation if registry creation fails
