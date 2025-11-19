@@ -514,7 +514,7 @@ software:
       setup_experience: true
   fleet_maintained_apps:
     - slug: slack/darwin
-      automatic_update: false
+      pin_version: "4.47.59"
       install_script:
         path: ../lib/software/slack-install-script.sh
       uninstall_script:
