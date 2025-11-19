@@ -1610,6 +1610,15 @@ func TestGetQuery(t *testing.T) {
 		}
 		return nil, &notFoundError{}
 	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		if tid == 1 {
+			return &fleet.TeamLite{
+				ID:   tid,
+				Name: "Foobar",
+			}, nil
+		}
+		return nil, &notFoundError{}
+	}
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		if teamID == nil {
 			if name != "globalQuery1" {

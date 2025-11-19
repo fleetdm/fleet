@@ -139,7 +139,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	var teamName *string
 	if payload.TeamID != nil && *payload.TeamID != 0 {
-		t, err := svc.ds.TeamWithExtras(ctx, *payload.TeamID)
+		t, err := svc.ds.TeamLite(ctx, *payload.TeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting team name on upload software installer")
 		}
@@ -366,7 +366,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	payload.InstallerID = existingInstaller.InstallerID
 
-	if software.DisplayName != payload.DisplayName {
+	if payload.DisplayName != nil && *payload.DisplayName != software.DisplayName {
 		dirty["DisplayName"] = true
 	}
 
@@ -389,14 +389,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		actTeamID = payload.TeamID
 	}
 	activity := fleet.ActivityTypeEditedSoftware{
-		SoftwareTitle:       existingInstaller.SoftwareTitle,
-		TeamName:            teamName,
-		TeamID:              actTeamID,
-		SelfService:         existingInstaller.SelfService,
-		SoftwarePackage:     &existingInstaller.Name,
-		SoftwareTitleID:     payload.TitleID,
-		SoftwareIconURL:     existingInstaller.IconUrl,
-		SoftwareDisplayName: payload.DisplayName,
+		SoftwareTitle:   existingInstaller.SoftwareTitle,
+		TeamName:        teamName,
+		TeamID:          actTeamID,
+		SelfService:     existingInstaller.SelfService,
+		SoftwarePackage: &existingInstaller.Name,
+		SoftwareTitleID: payload.TitleID,
+		SoftwareIconURL: existingInstaller.IconUrl,
 	}
 
 	if payload.SelfService != nil && *payload.SelfService != existingInstaller.SelfService {
@@ -645,6 +644,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		if payload.SelfService != nil {
 			activity.SelfService = *payload.SelfService
 		}
+		if payload.DisplayName != nil {
+			activity.SoftwareDisplayName = *payload.DisplayName
+		}
 		if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "creating activity for edited software")
 		}
@@ -791,7 +793,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 
 	var teamName *string
 	if teamID != nil && *teamID != 0 {
-		t, err := svc.ds.TeamWithExtras(ctx, *teamID)
+		t, err := svc.ds.TeamLite(ctx, *teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting team name for deleted VPP app")
 		}
@@ -841,7 +843,7 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 
 	var teamName *string
 	if meta.TeamID != nil {
-		t, err := svc.ds.TeamWithExtras(ctx, *meta.TeamID)
+		t, err := svc.ds.TeamLite(ctx, *meta.TeamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting team name for deleted software")
 		}

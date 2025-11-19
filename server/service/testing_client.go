@@ -816,7 +816,9 @@ func (ts *withServer) updateSoftwareInstaller(
 			require.NoError(t, w.WriteField("categories", c))
 		}
 	}
-	require.NoError(t, w.WriteField("display_name", payload.DisplayName))
+	if payload.DisplayName != nil {
+		require.NoError(t, w.WriteField("display_name", *payload.DisplayName))
+	}
 
 	w.Close()
 
@@ -841,5 +843,7 @@ func (ts *withServer) updateSoftwareInstaller(
 	var resp getSoftwareInstallerResponse
 	require.NoError(t, json.Unmarshal(bodyBytes, &resp))
 
-	assert.Equal(t, payload.DisplayName, resp.SoftwareInstaller.DisplayName)
+	if payload.DisplayName != nil {
+		assert.Equal(t, *payload.DisplayName, resp.SoftwareInstaller.DisplayName)
+	}
 }
