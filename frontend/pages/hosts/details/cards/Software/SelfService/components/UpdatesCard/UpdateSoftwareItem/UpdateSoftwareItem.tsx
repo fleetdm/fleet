@@ -61,6 +61,7 @@ interface IInstallerInfoProps {
 const InstallerInfo = ({ software }: IInstallerInfoProps) => {
   const {
     name,
+    display_name,
     source,
     icon_url: iconUrl,
     software_package: installerPackage,
@@ -73,7 +74,9 @@ const InstallerInfo = ({ software }: IInstallerInfoProps) => {
       </div>
       <div className={`${baseClass}__item-name-version`}>
         <div className={`${baseClass}__item-name`}>
-          <TooltipTruncatedText value={name || installerPackage?.name} />
+          <TooltipTruncatedText
+            value={display_name || name || installerPackage?.name}
+          />
         </div>
         <div className={`${baseClass}__item-version`}>
           {installerPackage?.version || vppApp?.version || ""}
