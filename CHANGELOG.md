@@ -1,3 +1,9 @@
+## Fleet 4.76.1 (Nov 14, 2025)
+
+### Bug fixes
+
+* Added an endpoint to allow updating the macOS setup experience script in-place, and modified gitops to utilize it
+
 ## Fleet 4.76.0 (Nov 7, 2025)
 
 ### Security Engineers
@@ -225,6 +231,13 @@
 - Fixed banner link colors in UI. 
 - Fixed an alignment issue on the My device page.
 - Fix deadlocks when updating automations for 10+ policies at one time.
+
+## Fleet 4.73.4 (Sep 30, 2025)
+
+### Bug fixes
+
+- Added logic to detect and fix migration issues caused by improperly published Fleet v4.73.2 Linux binary
+- Removing the software renaming fix introduced in 4.73.3 due to MySQL DB performance issues.
 
 ## Fleet 4.73.3 (Sep 26, 2025)
 

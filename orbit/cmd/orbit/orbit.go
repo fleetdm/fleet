@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -55,7 +56,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
-	"github.com/fleetdm/fleet/v4/pkg/open"
 	retrypkg "github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1123,7 +1123,7 @@ func main() {
 		// Set the function that will be called to open the SSO window if an enroll
 		// request returns an "end user authentication required" error.
 		orbitClient.SetOpenSSOWindowFunc(func() error {
-			err = open.Browser(fleetURL + "/mdm/sso?initiator=setup_experience&host_uuid=" + orbitHostInfo.HardwareUUID)
+			err = openBrowserWindow(fleetURL + "/mdm/sso?initiator=setup_experience&host_uuid=" + orbitHostInfo.HardwareUUID)
 			if err != nil {
 				return fmt.Errorf("opening browser: %w", err)
 			}
@@ -1529,45 +1529,7 @@ func main() {
 			}
 			// My Device page
 			browserURL := deviceClient.BrowserDeviceURL(token)
-
-			switch runtime.GOOS {
-			case "linux":
-				loggedInUser, err := user.UserLoggedInViaGui()
-				if err != nil {
-					return fmt.Errorf("get logged in user: %w", err)
-				}
-
-				if loggedInUser == nil {
-					return errors.New("no user logged in")
-				}
-
-				browserBin := "/usr/bin/xdg-open"
-				firefoxBin := "/usr/bin/firefox"
-				if _, err := os.Stat(firefoxBin); err == nil {
-					browserBin = firefoxBin
-				}
-
-				var opts []execuser.Option
-				opts = append(opts, execuser.WithUser(*loggedInUser))
-				opts = append(opts, execuser.WithArg(browserURL, ""))
-				log.Debug().Str("browser", browserBin).Str("url", browserURL).Str("user", *loggedInUser).Msg("opening browser for setup experience")
-				if _, err := execuser.Run(browserBin, opts...); err != nil {
-					return fmt.Errorf("opening browser with %s: %w", browserBin, err)
-				}
-			case "windows":
-				cmdLine := fmt.Sprintf("/c start %s", browserURL)
-				opts := []execuser.Option{
-					execuser.WithArg(cmdLine, ""),
-				}
-				if _, err := execuser.Run("cmd.exe", opts...); err != nil {
-					return fmt.Errorf("opening windows browser: %w", err)
-				}
-			default:
-				log.Debug().Msg("could not open browser, unsupported OS: " + runtime.GOOS)
-				return errors.New("opening setup experience browser page not supported on " + runtime.GOOS)
-			}
-
-			return nil
+			return openBrowserWindow(browserURL)
 		}
 
 		if runSetupExperience {
@@ -2486,5 +2448,47 @@ func executeFleetDesktopWithPermanentError(desktopPath string, errorMessage stri
 	// We give enough time to display the permanent error.
 	time.Sleep(5 * time.Minute)
 
+	return nil
+}
+
+func openBrowserWindow(browserURL string) error {
+	switch runtime.GOOS {
+	case "linux":
+		loggedInUser, err := user.UserLoggedInViaGui()
+		if err != nil {
+			return fmt.Errorf("get logged in user: %w", err)
+		}
+
+		if loggedInUser == nil {
+			return errors.New("no user logged in")
+		}
+
+		browserBin := "/usr/bin/xdg-open"
+		firefoxBin := "/usr/bin/firefox"
+		if _, err := os.Stat(firefoxBin); err == nil {
+			browserBin = firefoxBin
+		}
+
+		var opts []execuser.Option
+		opts = append(opts, execuser.WithUser(*loggedInUser))
+		opts = append(opts, execuser.WithArg(browserURL, ""))
+		log.Debug().Str("browser", browserBin).Str("url", browserURL).Str("user", *loggedInUser).Msg("opening browser for setup experience")
+		if _, err := execuser.Run(browserBin, opts...); err != nil {
+			return fmt.Errorf("opening browser with %s: %w", browserBin, err)
+		}
+	case "windows":
+		unescapedAmpsRegex := regexp.MustCompile(`([^\\^])&`)
+		browserURL = unescapedAmpsRegex.ReplaceAllString(browserURL, "${1}^&")
+		cmdLine := fmt.Sprintf("/c start %s", browserURL)
+		opts := []execuser.Option{
+			execuser.WithArg(cmdLine, ""),
+		}
+		if _, err := execuser.Run("cmd.exe", opts...); err != nil {
+			return fmt.Errorf("opening windows browser: %w", err)
+		}
+	default:
+		log.Debug().Msg("could not open browser, unsupported OS: " + runtime.GOOS)
+		return errors.New("opening setup experience browser page not supported on " + runtime.GOOS)
+	}
 	return nil
 }
