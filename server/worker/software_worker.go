@@ -96,7 +96,7 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 	}
 
 	// Update Android MDM policy to include the app in self service
-	err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, []string{applicationID}, hosts, "AVAILABLE")
+	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, []string{applicationID}, hosts, "AVAILABLE")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 	}
@@ -178,7 +178,7 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return nil
 	}
 
-	err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{hostUUID: hostUUID}, "AVAILABLE")
+	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{hostUUID: hostUUID}, "AVAILABLE")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 	}
@@ -206,12 +206,14 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 	// everything it needs at once (instead of that call to add self-service app, and the subsequent
 	// one to install setup experience apps). I'll keep this as a follow-up optimization if we
 	// have a bit of time at the end of this story - it will require a somewhat significant refactor.
+	// Also, this may be more API-efficient, but less portable to our ordered, unified queue framework
+	// that eventually Android apps will have to fit into
+	// (see https://github.com/fleetdm/fleet/issues/33761#issuecomment-3553434984).
 	if err := v.makeAndroidAppsAvailableForHost(ctx, hostUUID, host.Host.ID, enterpriseName, policyID); err != nil {
 		return ctxerr.Wrapf(ctx, err, "making android apps available for host %s", hostUUID)
 	}
 
-	// TODO(mna): next we can request install of the setup experience software
-	// if the host has been transferred to another team before it had a chance to install
+	// TODO(mna): if the host has been transferred to another team before it had a chance to install
 	// the enrollment team's setup experience software, do we still run those installs?
 	// my guess is yes (because we don't _uninstall_ on team transfers, so it should be
 	// expected that the original team's software gets installed despite being transferred).
@@ -219,7 +221,16 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "getting vpp apps to install during setup experience for team %d", hostEnrollTeamID)
 	}
-	_ = appIDs
+	// assign those apps to the host's Android policy
+	hostToPolicyVersion, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{hostUUID: hostUUID}, "FORCE_INSTALLED")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
+	}
+	_ = hostToPolicyVersion
+
+	// TODO(mna): insert each app install into host_vpp_software_installs with status pending,
+	// and store the policy version in associated_event_id (? or a new column?) to track for
+	// install verification.
 
 	return nil
 }

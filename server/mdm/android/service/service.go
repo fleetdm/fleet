@@ -867,7 +867,9 @@ func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName,
 	return svc.androidAPIClient.EnterprisesApplications(ctx, enterpriseName, applicationID)
 }
 
-func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string, installType string) error {
+// Adds the specified apps to the host-specific Android policy of the provided hosts, and
+// returns a map of host UUID to the version of their updated policy on success.
+func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string, installType string) (map[string]int64, error) {
 
 	var appPolicies []*androidmanagement.ApplicationPolicy
 	for _, a := range applicationIDs {
@@ -878,16 +880,19 @@ func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName s
 	}
 
 	var errs []error
+	hostToPolicyVersion := make(map[string]int64, len(hostUUIDs))
 	for uuid, policyID := range hostUUIDs {
 		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, policyID)
 
-		_, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, appPolicies)
+		policy, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, appPolicies)
 		if err != nil {
 			errs = append(errs, ctxerr.Wrapf(ctx, err, "google api: modify policy applications for host %s", uuid))
+			continue
 		}
+		hostToPolicyVersion[uuid] = policy.Version
 	}
 
-	return errors.Join(errs...)
+	return hostToPolicyVersion, errors.Join(errs...)
 }
 
 func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
