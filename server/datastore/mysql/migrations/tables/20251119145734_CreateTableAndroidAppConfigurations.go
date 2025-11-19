@@ -21,7 +21,6 @@ func Up_20251119145734(tx *sql.Tx) error {
 		updated_at timestamp(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 
 		PRIMARY KEY (id),
-		FOREIGN KEY (adam_id) REFERENCES vpp_apps (adam_id) ON DELETE CASCADE,
 		FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE,
 		UNIQUE KEY idx_global_or_team_id_adam_id (global_or_team_id, adam_id)
 	) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci`)

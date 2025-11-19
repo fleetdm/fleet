@@ -57,7 +57,6 @@ func TestAndroid(t *testing.T) {
 		{"UpdateAndroidAppConfiguration_NotFound", testUpdateAndroidAppConfigurationNotFound},
 		{"DeleteAndroidAppConfiguration_NotFound", testDeleteAndroidAppConfigurationNotFound},
 		{"InsertAndroidAppConfiguration_Duplicate", testInsertAndroidAppConfigurationDuplicate},
-		{"AndroidAppConfiguration_CascadeDeleteApp", testAndroidAppConfigurationCascadeDeleteApp},
 		{"AndroidAppConfiguration_CascadeDeleteTeam", testAndroidAppConfigurationCascadeDeleteTeam},
 		{"AndroidAppConfiguration_GlobalVsTeam", testAndroidAppConfigurationGlobalVsTeam},
 	}
@@ -2454,37 +2453,6 @@ func testInsertAndroidAppConfigurationDuplicate(t *testing.T, ds *Datastore) {
 	err = ds.InsertAndroidAppConfiguration(testCtx(), config)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "Duplicate")
-}
-
-func testAndroidAppConfigurationCascadeDeleteApp(t *testing.T, ds *Datastore) {
-	adamID := "com.example.cascadeapp"
-	setupTestApp(t, ds, adamID)
-
-	config := &fleet.AndroidAppConfiguration{
-		AdamID:         adamID,
-		TeamID:         nil,
-		GlobalOrTeamID: 0,
-		Configuration:  json.RawMessage(`{"managedConfiguration": {}}`),
-	}
-
-	// Insert configuration
-	err := ds.InsertAndroidAppConfiguration(testCtx(), config)
-	require.NoError(t, err)
-
-	// Verify it exists
-	_, err = ds.GetAndroidAppConfiguration(testCtx(), adamID, 0)
-	require.NoError(t, err)
-
-	// Delete the app from vpp_apps
-	_, err = ds.writer(testCtx()).ExecContext(testCtx(), `
-		DELETE FROM vpp_apps WHERE adam_id = ? AND platform = 'android'
-	`, adamID)
-	require.NoError(t, err)
-
-	// Verify configuration is also deleted (CASCADE)
-	_, err = ds.GetAndroidAppConfiguration(testCtx(), adamID, 0)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "not found")
 }
 
 func testAndroidAppConfigurationCascadeDeleteTeam(t *testing.T, ds *Datastore) {

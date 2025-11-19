@@ -68,10 +68,8 @@ CREATE TABLE `android_app_configurations` (
   `updated_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_global_or_team_id_adam_id` (`global_or_team_id`,`adam_id`),
-  KEY `adam_id` (`adam_id`),
   KEY `team_id` (`team_id`),
-  CONSTRAINT `android_app_configurations_ibfk_1` FOREIGN KEY (`adam_id`) REFERENCES `vpp_apps` (`adam_id`) ON DELETE CASCADE,
-  CONSTRAINT `android_app_configurations_ibfk_2` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE
+  CONSTRAINT `android_app_configurations_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
