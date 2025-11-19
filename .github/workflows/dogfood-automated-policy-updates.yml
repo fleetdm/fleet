@@ -43,3 +43,12 @@ jobs:
           DOGFOOD_AUTOMATION_TOKEN: ${{ secrets.DOGFOOD_AUTOMATION_TOKEN }}
           DOGFOOD_AUTOMATION_USER_NAME: ${{ secrets.DOGFOOD_AUTOMATION_USER_NAME }}
           DOGFOOD_AUTOMATION_USER_EMAIL: ${{ secrets.DOGFOOD_AUTOMATION_USER_EMAIL }}
+
+      - name: Run Safari version update script
+        run: |
+          chmod +x ./.github/scripts/dogfood-policy-updater-latest-safari.sh
+          ./.github/scripts/dogfood-policy-updater-latest-safari.sh
+        env:
+          DOGFOOD_AUTOMATION_TOKEN: ${{ secrets.DOGFOOD_AUTOMATION_TOKEN }}
+          DOGFOOD_AUTOMATION_USER_NAME: ${{ secrets.DOGFOOD_AUTOMATION_USER_NAME }}
+          DOGFOOD_AUTOMATION_USER_EMAIL: ${{ secrets.DOGFOOD_AUTOMATION_USER_EMAIL }}
