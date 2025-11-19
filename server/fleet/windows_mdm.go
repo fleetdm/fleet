@@ -393,17 +393,19 @@ func (v *windowsSCEPProfileValidator) finalizeValidation() error {
 		return errors.New("Internal error validating SCEP profile LocURIs.")
 	}
 
-	// ADD CODE HERE
+	// Check that at least one Exec LocURI is present and it matches the only one we have in the array.
+	validExecLocURIs := *v.validExecSCEPProfileLocURIs
+	if len(v.foundExecLocURIs) != 1 && !v.foundExecLocURIs[validExecLocURIs[0]] {
+		return errors.New("Couldn't Add. \"ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.")
+	}
+
+	if v.totalExecLocURIs != 1 {
+		return errors.New("SCEP profiles must include exactly one <Exec> element.")
+	}
 
 	// Verify that we do not have any non-scep loc URIs present
 	if v.totalLocURIs != len(v.foundLocURIs) {
 		return errors.New("Only options that have <LocURI> starting with \"ClientCertificateInstall/SCEP/\" can be added to SCEP profile.")
-	}
-
-	// Check that at least one Exec LocURI is present and it matches the only one we have in the array.
-	validExecLocURIs := *v.validExecSCEPProfileLocURIs
-	if len(v.foundExecLocURIs) != 1 && !v.foundExecLocURIs[validExecLocURIs[0]] {
-		return errors.New("\"ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.")
 	}
 
 	// Check that all required LocURIs are present
