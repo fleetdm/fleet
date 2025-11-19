@@ -103,7 +103,7 @@ type updateAppStoreAppRequest struct {
 	LabelsIncludeAny []string `json:"labels_include_any"`
 	LabelsExcludeAny []string `json:"labels_exclude_any"`
 	Categories       []string `json:"categories"`
-	DisplayName      string   `json:"display_name"`
+	DisplayName      *string  `json:"display_name"`
 }
 
 type updateAppStoreAppResponse struct {
@@ -124,7 +124,7 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 	return updateAppStoreAppResponse{AppStoreApp: updatedApp}, nil
 }
 
-func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string, displayName string) (*fleet.VPPAppStoreApp, error) {
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string, displayName *string) (*fleet.VPPAppStoreApp, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

@@ -702,8 +702,10 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 			}
 		}
 
-		if err := updateSoftwareTitleDisplayName(ctx, tx, payload.TeamID, payload.TitleID, payload.DisplayName); err != nil {
-			return ctxerr.Wrap(ctx, err, "update software title display name")
+		if payload.DisplayName != nil {
+			if err := updateSoftwareTitleDisplayName(ctx, tx, payload.TeamID, payload.TitleID, *payload.DisplayName); err != nil {
+				return ctxerr.Wrap(ctx, err, "update software title display name")
+			}
 		}
 
 		return nil
