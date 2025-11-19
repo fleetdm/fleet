@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251113153403, Down_20251113153403)
+	MigrationClient.AddMigration(Up_20251119145734, Down_20251119145734)
 }
 
-func Up_20251113153403(tx *sql.Tx) error {
+func Up_20251119145734(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 	CREATE TABLE android_app_configurations (
 		id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -31,6 +31,6 @@ func Up_20251113153403(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20251113153403(tx *sql.Tx) error {
+func Down_20251119145734(tx *sql.Tx) error {
 	return nil
 }

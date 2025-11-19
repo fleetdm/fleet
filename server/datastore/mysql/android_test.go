@@ -2557,4 +2557,3 @@ func testAndroidAppConfigurationGlobalVsTeam(t *testing.T, ds *Datastore) {
 	require.Equal(t, teamID, *retrievedTeam.TeamID)
 	require.Equal(t, teamID, retrievedTeam.GlobalOrTeamID)
 }
-
