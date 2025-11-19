@@ -248,6 +248,28 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 		}
 	}
 
+	// Populate device_status and pending_action for hosts with MDM info
+	// This is done for all hosts to match the behavior of the single-host endpoint
+	if len(hosts) > 0 {
+		statusMap, err := svc.ds.GetHostsLockWipeStatusBatch(ctx, hosts)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get hosts lock/wipe status batch")
+		}
+
+		for _, host := range hosts {
+			if host.MDM != nil {
+				if status, ok := statusMap[host.ID]; ok {
+					host.MDM.DeviceStatus = ptr.String(string(status.DeviceStatus()))
+					host.MDM.PendingAction = ptr.String(string(status.PendingAction()))
+				} else {
+					// Host has no MDM actions, set defaults
+					host.MDM.DeviceStatus = ptr.String(string(fleet.DeviceStatusUnlocked))
+					host.MDM.PendingAction = ptr.String(string(fleet.PendingActionNone))
+				}
+			}
+		}
+	}
+
 	return hosts, nil
 }
 
