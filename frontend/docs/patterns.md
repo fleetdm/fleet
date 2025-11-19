@@ -204,6 +204,7 @@ export default PackComposerPage;
 
 ## Forms
 
+
 ### Form submission
 
 When building a React-controlled form:
@@ -216,7 +217,14 @@ handler's logic.
   - does nothing (e.g., returns `null`) if the form is in an invalid state, preventing submission by any means.
 - Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`)
 
-### Data validation
+### Form UX - Rendering inside modals
+
+- When rendering a form inside a modal, the first field of that form should have `autofocus` set so
+  that the user can immediately edit the form.
+
+
+### Form UX - Validation
+*there is an updated validation paradigm, this is out of date as of 11/19/25*
 
 #### How to validate
 
