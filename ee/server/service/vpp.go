@@ -152,7 +152,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				InstallDuringSetup: payload.InstallDuringSetup,
 				ValidatedLabels:    validatedLabels,
 				CategoryIDs:        catIDs,
-				DisplayName:        payload.DisplayName,
+				DisplayName:        &payload.DisplayName,
 			})
 		}
 
