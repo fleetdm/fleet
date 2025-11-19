@@ -17,7 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/admx"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/wlanxml"
 	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -483,17 +482,4 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 	}
 
 	return result, nil
-}
-
-func getHostHardwareSerial(ctx context.Context, ds fleet.Datastore, hostUUID string) (string, error) {
-	hosts, err := ds.ListHostsLiteByUUIDs(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}, []string{hostUUID})
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "could not retrieve host for profile variable replacement")
-	}
-	if len(hosts) != 1 {
-		// Something went wrong. Maybe host was deleted, or we have multiple hosts with the same UUID.
-		return "", ctxerr.Errorf(ctx, "found %d hosts with UUID %s; profile variable substitution for hardware serial number requires exactly one host", len(hosts), hostUUID)
-	}
-	hardwareSerial := hosts[0].HardwareSerial
-	return hardwareSerial, nil
 }
