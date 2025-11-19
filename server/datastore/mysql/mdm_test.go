@@ -30,7 +30,7 @@ import (
 func TestMDMShared(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
-	cases := []struct{
+	cases := []struct {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
