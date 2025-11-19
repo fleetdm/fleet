@@ -50,6 +50,41 @@ try {
         Exit 1
     }
     
+    # Extract version from ZIP filename (format: tportable-x64.VERSION.zip)
+    $version = "0.0.0"
+    if ($zipFilePath -match 'tportable-x64\.(\d+\.\d+\.\d+)\.zip') {
+        $version = $matches[1]
+    } elseif ($zipFilePath -match '\.(\d+\.\d+\.\d+)\.zip') {
+        $version = $matches[1]
+    }
+    
+    # Create registry entry so Telegram appears in Add/Remove Programs and can be detected by osquery
+    # Use HKCU since this is a user-scope installation
+    $registryPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\TelegramDesktop"
+    try {
+        # Remove existing entry if it exists
+        if (Test-Path $registryPath) {
+            Remove-Item -Path $registryPath -Force -ErrorAction SilentlyContinue
+        }
+        
+        # Create new registry entry
+        New-Item -Path $registryPath -Force | Out-Null
+        
+        # Set registry values
+        Set-ItemProperty -Path $registryPath -Name "DisplayName" -Value "Telegram Desktop" -Type String
+        Set-ItemProperty -Path $registryPath -Name "Publisher" -Value "Telegram FZ-LLC" -Type String
+        Set-ItemProperty -Path $registryPath -Name "DisplayVersion" -Value $version -Type String
+        Set-ItemProperty -Path $registryPath -Name "InstallLocation" -Value $installDir -Type String
+        Set-ItemProperty -Path $registryPath -Name "UninstallString" -Value "powershell.exe -Command `"& {Remove-Item -Path '$installDir' -Recurse -Force}`"" -Type String
+        Set-ItemProperty -Path $registryPath -Name "NoModify" -Value 1 -Type DWord
+        Set-ItemProperty -Path $registryPath -Name "NoRepair" -Value 1 -Type DWord
+        
+        Write-Host "Created registry entry for Telegram Desktop"
+    } catch {
+        Write-Host "Warning: Could not create registry entry: $_"
+        # Don't fail installation if registry creation fails
+    }
+    
     Write-Host "Telegram Desktop installed successfully to: $installDir"
     Exit 0
     
