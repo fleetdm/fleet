@@ -359,7 +359,7 @@ Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up 
 
 Follow these steps to perform quarterly reporting for Fleet's investors:
 1. Login to Chronograph and upload our profit and loss statement (P&L), balance sheet and cash flow statements for CRV (all in one book saved in [Google Drive](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM).
-2. Provide updated metrics for the following items using Fleet's [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+2. Provide updated metrics for the following items using Fleet's [Operating model (Confidential)](https://docs.google.com/spreadsheets/d/1CgMAad-vzBoVS_FfovglX0XbqVKlaD-ssjGTL3ayxMw/edit?gid=86625913#gid=86625913).
     - Headcount at end of the previous quarter.
     - Starting ARR for the previous quarter.
     - Total new ARR for the previous quarter.
@@ -369,11 +369,8 @@ Follow these steps to perform quarterly reporting for Fleet's investors:
     - Starting number of customers, churned customers, and the number of new customers Fleet gained during the previous quarter.
     - Total amount of Fleet customers at the end of the previous quarter.
     - Gross margin % 
-      - How to calculate: (total revenue for the quarter - cost of goods sold for the quarter)/total revenue for the quarter (these metrics can be found in our books from Pilot). Chronograph will automatically conver this number to a %.
     - Net dollar retention rate
-      - How to calculate: (starting ARR + new subscriptions and expansions - churn)/starting ARR. 
     - Cash burn
-      - How to calculate: start of quarter runway - end of quarter runway. 
 
 
 ### Deliver annual report for venture line
