@@ -222,6 +222,15 @@ handler's logic.
 - When rendering a form inside a modal, the first field of that form should have `autofocus` set so
   that the user can immediately edit the form.
 
+### Form UX - Styling
+- Fleet form styles defined in `frontend/styles/global/_global.scss`:
+  -  `form, .form {...}` defines the overall form styles, while `form-field {...}` defines styles
+     for specific form fields. To have these styles automatically target your form, ensure the
+     warpper is either an actual `form` element or that it contains the `.form` classname (TODO:
+     write a `Form` wrapper that encapsulates this), and that
+     each form field contains the `.form-field` class (by using our form field components e.g.
+     `InputField`, this is likely already taken care of).
+
 
 ### Form UX - Validation
 *there is an updated validation paradigm, this is out of date as of 11/19/25*
