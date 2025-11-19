@@ -5399,6 +5399,7 @@ Returns a list of all the labels in Fleet.
 
 | Name            | Type    | In    | Description   |
 | --------------- | ------- | ----- |------------------------------------- |
+| include_host_counts | boolean | query | Whether or not to add calculate host counts for each label. Default is `true`. See "additional notes" for more information.
 | order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                  |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 
@@ -5493,6 +5494,11 @@ Returns a list of all the labels in Fleet.
   ]
 }
 ```
+
+###### Additional notes
+
+When `include_host_counts` is `true` (or omitted), `host_count` will only be included for `labels` that are in use by one or more hosts, but `count` will always be included, even if it is `0`. When `include_host_counts` is `false`, `host_count` will always be omitted, and `count` will be returned as `0` for each label. Setting `include_host_counts=false` will improve API performance, especially on deployments with large numbers of hosts and labels.
+
 
 ### List label's hosts
 
