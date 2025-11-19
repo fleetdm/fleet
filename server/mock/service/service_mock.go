@@ -148,7 +148,7 @@ type NewLabelFunc func(ctx context.Context, p fleet.LabelPayload) (label *fleet.
 
 type ModifyLabelFunc func(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.Label, []uint, error)
 
-type ListLabelsFunc func(ctx context.Context, opt fleet.ListOptions) (labels []*fleet.Label, err error)
+type ListLabelsFunc func(ctx context.Context, opt fleet.ListOptions, includeHostCounts bool) (labels []*fleet.Label, err error)
 
 type LabelsSummaryFunc func(ctx context.Context) (labels []*fleet.LabelSummary, err error)
 
@@ -456,7 +456,7 @@ type GetAppStoreAppsFunc func(ctx context.Context, teamID *uint) ([]*fleet.VPPAp
 
 type AddAppStoreAppFunc func(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (uint, error)
 
-type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string) (*fleet.VPPAppStoreApp, error)
+type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string, displayName *string) (*fleet.VPPAppStoreApp, error)
 
 type GetInHouseAppManifestFunc func(ctx context.Context, titleID uint, teamID *uint) ([]byte, error)
 
@@ -608,7 +608,7 @@ type VerifyMDMAppleConfiguredFunc func(ctx context.Context) error
 
 type VerifyMDMWindowsConfiguredFunc func(ctx context.Context) error
 
-type VerifyMDMAppleOrWindowsConfiguredFunc func(ctx context.Context) error
+type VerifyAnyMDMConfiguredFunc func(ctx context.Context) error
 
 type MDMAppleUploadBootstrapPackageFunc func(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error
 
@@ -831,6 +831,8 @@ type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurat
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
 
 type ConditionalAccessGetIdPSigningCertFunc func(ctx context.Context) (certPEM []byte, err error)
+
+type ConditionalAccessGetIdPAppleProfileFunc func(ctx context.Context) (profileData []byte, err error)
 
 type ListCertificateAuthoritiesFunc func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error)
 
@@ -1734,8 +1736,8 @@ type Service struct {
 	VerifyMDMWindowsConfiguredFunc        VerifyMDMWindowsConfiguredFunc
 	VerifyMDMWindowsConfiguredFuncInvoked bool
 
-	VerifyMDMAppleOrWindowsConfiguredFunc        VerifyMDMAppleOrWindowsConfiguredFunc
-	VerifyMDMAppleOrWindowsConfiguredFuncInvoked bool
+	VerifyAnyMDMConfiguredFunc        VerifyAnyMDMConfiguredFunc
+	VerifyAnyMDMConfiguredFuncInvoked bool
 
 	MDMAppleUploadBootstrapPackageFunc        MDMAppleUploadBootstrapPackageFunc
 	MDMAppleUploadBootstrapPackageFuncInvoked bool
@@ -2069,6 +2071,9 @@ type Service struct {
 
 	ConditionalAccessGetIdPSigningCertFunc        ConditionalAccessGetIdPSigningCertFunc
 	ConditionalAccessGetIdPSigningCertFuncInvoked bool
+
+	ConditionalAccessGetIdPAppleProfileFunc        ConditionalAccessGetIdPAppleProfileFunc
+	ConditionalAccessGetIdPAppleProfileFuncInvoked bool
 
 	ListCertificateAuthoritiesFunc        ListCertificateAuthoritiesFunc
 	ListCertificateAuthoritiesFuncInvoked bool
@@ -2552,11 +2557,11 @@ func (s *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modify
 	return s.ModifyLabelFunc(ctx, id, payload)
 }
 
-func (s *Service) ListLabels(ctx context.Context, opt fleet.ListOptions) (labels []*fleet.Label, err error) {
+func (s *Service) ListLabels(ctx context.Context, opt fleet.ListOptions, includeHostCounts bool) (labels []*fleet.Label, err error) {
 	s.mu.Lock()
 	s.ListLabelsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListLabelsFunc(ctx, opt)
+	return s.ListLabelsFunc(ctx, opt, includeHostCounts)
 }
 
 func (s *Service) LabelsSummary(ctx context.Context) (labels []*fleet.LabelSummary, err error) {
@@ -3630,11 +3635,11 @@ func (s *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appTeam flee
 	return s.AddAppStoreAppFunc(ctx, teamID, appTeam)
 }
 
-func (s *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string) (*fleet.VPPAppStoreApp, error) {
+func (s *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string, displayName *string) (*fleet.VPPAppStoreApp, error) {
 	s.mu.Lock()
 	s.UpdateAppStoreAppFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateAppStoreAppFunc(ctx, titleID, teamID, selfService, labelsIncludeAny, labelsExcludeAny, categories)
+	return s.UpdateAppStoreAppFunc(ctx, titleID, teamID, selfService, labelsIncludeAny, labelsExcludeAny, categories, displayName)
 }
 
 func (s *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {
@@ -4162,11 +4167,11 @@ func (s *Service) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	return s.VerifyMDMWindowsConfiguredFunc(ctx)
 }
 
-func (s *Service) VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error {
+func (s *Service) VerifyAnyMDMConfigured(ctx context.Context) error {
 	s.mu.Lock()
-	s.VerifyMDMAppleOrWindowsConfiguredFuncInvoked = true
+	s.VerifyAnyMDMConfiguredFuncInvoked = true
 	s.mu.Unlock()
-	return s.VerifyMDMAppleOrWindowsConfiguredFunc(ctx)
+	return s.VerifyAnyMDMConfiguredFunc(ctx)
 }
 
 func (s *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error {
@@ -4944,6 +4949,13 @@ func (s *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (certP
 	s.ConditionalAccessGetIdPSigningCertFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConditionalAccessGetIdPSigningCertFunc(ctx)
+}
+
+func (s *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (profileData []byte, err error) {
+	s.mu.Lock()
+	s.ConditionalAccessGetIdPAppleProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessGetIdPAppleProfileFunc(ctx)
 }
 
 func (s *Service) ListCertificateAuthorities(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {

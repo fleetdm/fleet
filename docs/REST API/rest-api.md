@@ -852,7 +852,7 @@ When the CA is deleted, the issued certificates will remain on existing hosts.
 
 ### Request certificate
 
-Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only supported for the [Hydrant](#integrations-hydrant) certificate authority (CA). DigiCert, NDES, and custom SCEP coming soon.
+Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only supported for the [Hydrant](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#hydrant) certificate authority (CA). DigiCert, NDES, and custom SCEP coming soon.
 
 `POST /api/v1/fleet/certificate_authorities/:id/request_certificate`
 
@@ -890,6 +890,68 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only
   "certificate": "c3Viamdlkjfid098)d8f2k34jl;Yy4iLCBPVSA9IE1hbmFnZWQgTGludXgsIENOID0gQ2lzY29Vc2VyTmV0d29ya0FjY2Vzcwppc3N1ZXI9TyA9IENpc2NvLCBPVSA9IEVyaWRhbnVzLCBDTiA9IENpc2NvTmV0d29ya0FjY2VzcwotLS0tLUJFR0lOIENFUlRJRklDQVRFLS0tLS0KTUlJRkpUQ0NCQTJnQXdJQkFnSVVlSjdhYlBKd29QL0tXRlhvOXE4RmVrQlVqN293RFFZSktvWklodmNOQVFFTApCUUF3UURFT01Bd0dBMVVFQ2hNRlEybHpZMjh4RVRBUEJnTlZCQXNUQ0VWeWFXUmhiblZ6TVJzd0dRWURWUVFECkV4SkRhWE5qYjA1bGRIalskdjf098)DFj23lk4jRVMldoY05NalV3TnpJME1UYzAKTlRVMldqQlhNUnd3R2dZRFZRUUtEQk5EYVhOamJ5QlRlWE4wWlcxekxDQkpibU11TVJZd0ZBWURWUVFMREExTgpZVzVoWjJWa0lFeHBiblY0TVI4d0hRWURWUVFEREJaRGFYTmpiMVZ6WlhKT1pYUjNiM0pyUVdOalpYTnpNSUlCCklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF4dFZmWE1xaVMyelRPTEI4WE1ESFBEZmEKMjZIY2ZBdHpmOUVmMk1rQkdrL1VHNVJaTGFrZU0rTDltc0NXaWV0Wllkdf098DSlk23n34,nxo0dfQVdkRHpDbjM0MG1iaUFhS1lIb3JIczVYWW1uSmlrRkYyQgpsQThWWWpTZFZPNGVEN2QvVytwaGo2a2FZQ212dDcwL2tUaDFYL0QzZmM1U0Z4T09OSnZHeVY2MzlvVm9Qd0lECkFRQUJvNElCL2pDQ0Fmb3dEQVlEVlIwVEFRSC9CQUl3QURBZkJnTlZIU01FR0RBV2dCUmpwK2lwUENWTHJXWnkKTlIxdnBDc0owd2Y5WURDQmdnWUlLd1lCQlFVSEFRRUVkakIwTUVNR0NDc0dBUVVGQnpBQ2hqZG9kSFJ3T2k4dgpZM0pzTG1sdWRHVnlibUZzYUc5emRHNWhiV1Z6TG1OdmJTOURhWE5qYjA1bGRIZHZjbXRCWTJObGMzTXVZM0owCk1DMEdDQ3NHQVFVRkJ6QUJoaUZvZEhSd09pOHZiMk56Y0M1cGJuUmxjbTVoYkdodmMzUnVZVzFsY3k1amIyMHcKZ1p3R0ExVWRFUVNCbERDQmtZSVdRMmx6WTI5VmMyVnlUbVYwZDI5eWEwRmpZMlZ6YzRJSlkybHpZMjh1WTI5dApnUkp5WVdocGJXWjBaRUJqYVhOamJ5NWpiMjJnSWdZS0t3WUJCQUdDTnhRQ0E2QVVEQkp5WVdocGJXWjBaRUJqCmFYTmpieTVqYjIyR05FbEVPa1pzWldWMFJFMDZSMVZKUkRwa05XVmtOamMwWXkweU5XTXpMVEV4WWpJdFlUZzEKWXkxalpXTm1NVGc1WVRneFpUSXdGd1lEVlIwZ0JCQXdEakFNQmdvckJnRUVBUWtWQVNvQk1CTUdBMVVkSlFRTQpNQW9HQ0NzR0FRVUZCd01DTUVnR0ExVWRId1JCTUQ4d1BhQTdvRG1HTjJoMGRIQTZMeTlqY213dWFXNTBaWEp1CllXeG9iM04wYm1GdFpYTXVZMjl0TDBOcGMyTnZUbVYwZDI5eWEwRmpZMlZ6Y3k1amNtd3dIUVlEVlIwT0JCWUUKRkF0NjBHd0FwbVoyUkUrNFZsbkxEYkZhZGErTE1BNEdBMVVkRHdFQi93UUVBd0lGb0RBTkJna3Foa2lHOXcwQgpBUXNGQUFPQ0FRRUFsdnRseFJUaVlOVEQvWGpldkswT1BsaVhOdUtjVWlRcW5VSDlIZXowa0d6aWpHUkxrZ1VvCnRLbEJDRTB5QjNyOGhJd3dKbDRPS1cvUzdITXFnY2FNanJTaHIwamlsNDQwNXdOaHBGbzZHRkQwSTFzWjE5eFoKL21BMndsUkY0QkZoZ2QraUE5ZnpRNmNxdVFuV3JlemQxcUxNV0hpOGR5QUJ1c1VBQVZ1OUZORFU4N3BZa0Y4MgpsTjJVSTRLSUZlRDJnTDBXeFpzOVlWTGJlZG1MY0FhZk9HcmtuUDZvVlZMNGxzV1VYQlYxR2tydlkxNWUySnVkCkhVSVEvOTVKTWlkbm1EQVZCbjg1MjA2eDkxbXM3S1lYSmI0aW0yOFBtc1BrN1JJVnJNb2w5dkFlU2ppbHQ1eS8KVitacFBwSmtwWWRyNVpEeWI3WDcwMjR0ZU42QUxmZWRjZz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0KCg=="
 }
 ```
+
+---
+
+## Conditional access
+
+- [Get Okta certificate](#get-okta-certificate)
+- [Get Okta configuration profile](#get-okta-configuration-profile)
+- [Delete Microsoft Entra ID](#disconnect-microsoft-entra-id) 
+
+### Get Okta certificate
+
+Download the SAML IdP signing certificate for Okta conditional access. Okta uses this certificate to verify SAML assertions signed by Fleet.
+
+`GET /api/v1/fleet/conditional_access/idp/signing_cert`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/conditional_access/idp/signing_cert`
+
+##### Default response
+
+`Status: 200`
+
+Returns a PEM-encoded X.509 certificate file with `Content-Type: application/x-pem-file`.
+
+### Get Okta configuration profile
+
+Download the macOS configuration profile (.mobileconfig) for Okta conditional access. This profile configures SCEP enrollment and client certificate authentication on macOS hosts.
+
+`GET /api/v1/fleet/conditional_access/idp/apple/profile`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/conditional_access/idp/apple/profile`
+
+##### Default response
+
+`Status: 200`
+
+Returns an Apple configuration profile file with `Content-Type: application/x-apple-aspen-config`.
+
+### Delete Microsoft Entra ID
+
+Disconnects Fleet from Entra. This won't unblock end users failing policies. Learn how to [unblock end users](https://fleetdm.com/guides/entra-conditional-access-integration#disable).
+
+`DELETE /api/v1/conditional-access/microsoft`
+
+#### Parameters
+
+None.
+
+##### Default response
+
+`Status: 200`
 
 ---
 
@@ -2470,7 +2532,7 @@ None.
 - [Update hosts' team by filter](#update-hosts-team-by-filter)
 - [Turn off host's MDM](#turn-off-hosts-mdm)
 - [Batch-delete hosts](#batch-delete-hosts)
-- [Update custom human-device mapping](#update-custom-human-device-mapping)
+- [Update human-device mapping](#update-human-device-mapping)
 - [Get host's device health report](#get-hosts-device-health-report)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) status](#get-mobile-device-management-mdm-status)
@@ -6725,18 +6787,18 @@ Set software that will be automatically installed during setup. Software that is
 {}
 ```
 
-### Create setup experience script
+### Update setup experience script
 
 _Available in Fleet Premium_
 
-Add a script that will automatically run during macOS setup.
+Set the script that will automatically run during macOS setup. Updates the existing script for the team, or for hosts with no team, if one already exists.
 
 `POST /api/v1/fleet/setup_experience/script`
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
 | team_id | integer | form | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
-| script | file | form | The ID of software titles to install during macOS setup. |
+| script | file | form | The contents of the script to run during setup. |
 
 #### Example
 
@@ -9681,6 +9743,7 @@ Returns a list of all operating systems.
 | platform            | string   | query | Filters the hosts to the specified platform |
 | os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
+| max_vulnerabilities   | integer | query | Limits the number of `vulnerabilities` returned per OS version. (If omitted, returns all vulnerabilities.) |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
 | per_page                | integer | query | Results per page.                                                                                                                                                          |
 | order_key               | string  | query | What to order results by. Allowed fields are: `hosts_count`. Default is `hosts_count` (descending).      |
@@ -9704,6 +9767,7 @@ Returns a list of all operating systems.
       "version": "10.0.22621.1234",
       "platform": "windows",
       "generated_cpes": [],
+      "vulnerabilities_count": 1,
       "vulnerabilities": [
         {
           "cve": "CVE-2022-30190",
@@ -10003,6 +10067,7 @@ Retrieves information about the specified operating system (OS) version.
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The OS version's ID. |
 | team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team".  |
+| max_vulnerabilities   | integer | query | Limits the number of `vulnerabilities` returned. (If omitted, returns all vulnerabilities.) For Linux OS's, doesn't limit the number of vulnerabilities returned in the `kernels` array. |
 
 ##### Default response
 

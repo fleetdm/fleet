@@ -1,0 +1,12 @@
+{
+  "name": "Discord",
+  "slug": "discord/windows",
+  "package_identifier": "Discord.Discord",
+  "unique_identifier": "Discord",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/discord_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/discord_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Communication"]
+}

@@ -8,8 +8,8 @@ import (
 type VPPAppID struct {
 	// AdamID is a unique identifier assigned to each app in
 	// the App Store, this value is managed by Apple.
-	AdamID   string              `db:"adam_id" json:"app_store_id"`
-	Platform AppleDevicePlatform `db:"platform" json:"platform"`
+	AdamID   string                    `db:"adam_id" json:"app_store_id"`
+	Platform InstallableDevicePlatform `db:"platform" json:"platform"`
 }
 
 // VPPAppTeam contains extra metadata injected by fleet
@@ -46,7 +46,7 @@ type VPPAppTeam struct {
 	// automatically created when a VPP app is added to Fleet. This field should be set after VPP
 	// app creation if AddAutoInstallPolicy is true.
 	AddedAutomaticInstallPolicy *Policy `json:"-"`
-	DisplayName                 string  `json:"-"`
+	DisplayName                 *string `json:"display_name"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,
@@ -102,7 +102,8 @@ type VPPAppStoreApp struct {
 	AddedAt time.Time `db:"added_at" json:"created_at"`
 	// Categories is the list of categories to which this software belongs: e.g. "Productivity",
 	// "Browsers", etc.
-	Categories []string `json:"categories"`
+	Categories  []string `json:"categories"`
+	DisplayName string   `json:"display_name"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.

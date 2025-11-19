@@ -35,6 +35,9 @@ import (
 	"testing"
 	"time"
 
+	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
+	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
+
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
@@ -67,6 +70,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -115,6 +119,8 @@ type integrationMDMTestSuite struct {
 	appleGDMFSrv              *httptest.Server
 	mockedDownloadFleetdmMeta fleetdbase.Metadata
 	scepConfig                *eeservice.SCEPConfigService
+	androidAPIClient          *android_mock.Client
+	proxyCallbackURL          string
 }
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
@@ -191,6 +197,18 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		wlog = kitlog.NewNopLogger()
 	}
+
+	activityModule := activities.NewActivityModule(s.ds, wlog)
+	androidMockClient := &android_mock.Client{}
+	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
+		return nil
+	}
+	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds, activityModule)
+	if err != nil {
+		panic(err)
+	}
+	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true
+
 	macosJob := &worker.MacosSetupAssistant{
 		Datastore:  s.ds,
 		Log:        wlog,
@@ -207,9 +225,14 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		Log:       wlog,
 		Commander: mdmCommander,
 	}
+	softwareWorker := &worker.SoftwareWorker{
+		Datastore:     s.ds,
+		Log:           wlog,
+		AndroidModule: androidSvc,
+	}
 	workr := worker.NewWorker(s.ds, wlog)
 	workr.TestIgnoreUnknownJobs = true
-	workr.Register(macosJob, appleMDMJob, vppVerifyJob)
+	workr.Register(macosJob, appleMDMJob, vppVerifyJob, softwareWorker)
 
 	s.worker = workr
 
@@ -257,6 +280,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		Lq:                    s.lq,
 		SoftwareInstallStore:  softwareInstallerStore,
 		BootstrapPackageStore: bootstrapPackageStore,
+		androidMockClient:     androidMockClient,
+		androidModule:         androidSvc,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
@@ -385,6 +410,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.mdmStorage = mdmStorage
 	s.mdmCommander = mdmCommander
 	s.logger = serverLogger
+	s.androidAPIClient = androidMockClient
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)
@@ -518,9 +544,13 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		// Handle /assets
 		if strings.Contains(r.URL.Path, "assets") {
 			w.Header().Set("Content-Type", "application/json")
-			assets := s.appleVPPConfigSrvConfig.Assets
-			if adamID := r.URL.Query().Get("adamId"); adamID != "" {
-				for _, a := range assets {
+			adamID := r.URL.Query().Get("adamId")
+			var assets []vpp.Asset
+			switch adamID {
+			case "":
+				assets = s.appleVPPConfigSrvConfig.Assets
+			default:
+				for _, a := range s.appleVPPConfigSrvConfig.Assets {
 					if a.AdamID == adamID {
 						assets = []vpp.Asset{a}
 					}

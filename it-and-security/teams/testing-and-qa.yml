@@ -27,6 +27,13 @@ agent_options:
     orbit: edge
     desktop: edge
 controls:
+  macos_setup:
+    bootstrap_package: ""
+    enable_end_user_authentication: true
+    macos_setup_assistant: 
+  macos_updates:
+    deadline:
+    minimum_version:
   enable_disk_encryption: true
   scripts:
     # macOS scripts
@@ -73,6 +80,10 @@ software:
         - "RPM-based Linux hosts"
   fleet_maintained_apps:
     # macOS apps
+    - slug: 010-editor/darwin # 010 Editor for macOS
+      self_service: true
+    - slug: abstract/darwin # Abstract for macOS
+      self_service: true
     - slug: 1password/darwin # 1Password for macOS
       self_service: true
     - slug: adobe-acrobat-reader/darwin # Adobe Acrobat Reader for macOS
@@ -85,9 +96,15 @@ software:
       self_service: true
     - slug: brave-browser/darwin # Brave for macOS
       self_service: true
+    - slug: claude/darwin # Claude for macOS
+      self_service: true
+    - slug: clickup/darwin # ClickUp for macOS
+      self_service: true
     - slug: cloudflare-warp/darwin # Cloudflare WARP for macOS
       self_service: true
     - slug: cursor/darwin # Cursor for macOS
+      self_service: true
+    - slug: datagrip/darwin # DataGrip for macOS
       self_service: true
     - slug: dcv-viewer/darwin # Amazon DCV for macOS
       self_service: true
@@ -97,15 +114,23 @@ software:
       self_service: true
     - slug: firefox/darwin # Mozilla Firefox for macOS
       self_service: true
+    - slug: gitkraken/darwin # GitKraken for macOS
+      self_service: true
     - slug: google-chrome/darwin # Google Chrome for macOS
       self_service: true
     - slug: intune-company-portal/darwin # Company Portal for macOS
       self_service: true
     - slug: iterm2/darwin # iTerm2 for macOS
       self_service: true
+    - slug: linear-linear/darwin # Linear for macOS
+      self_service: true
+    - slug: logi-options+/darwin # Logi Options+ for macOS
+      self_service: true
     - slug: microsoft-edge/darwin # Microsoft Edge for macOS
       self_service: true
     - slug: microsoft-excel/darwin # Microsoft Excel for macOS
+      self_service: true
+    - slug: microsoft-outlook/darwin # Microsoft Outlook for macOS
       self_service: true
     - slug: microsoft-teams/darwin # Microsoft Teams for macOS
       self_service: true
@@ -119,21 +144,79 @@ software:
       self_service: true
     - slug: postman/darwin # Postman for macOS
       self_service: true
+    - slug: phpstorm/darwin # PhpStorm for macOS
+      self_service: true
+    - slug: privileges/darwin # Privileges for macOS
+      self_service: true
+    - slug: proton-mail/darwin # Proton Mail for macOS
+      self_service: true
     - slug: santa/darwin # Santa for macOS
       self_service: true
     - slug: slack/darwin # Slack for macOS
       self_service: true
+    - slug: sublime-text/darwin # Sublime Text for macOS
+      self_service: true
     - slug: teamviewer/darwin # TeamViewer for macOS
+      self_service: true
+    - slug: tunnelblick/darwin # Tunnelblick for macOS
       self_service: true
     - slug: visual-studio-code/darwin # Microsoft Visual Studio Code for macOS
       self_service: true
     - slug: vnc-viewer/darwin # VNC Viewer for macOS
       self_service: true
+    - slug: webex/darwin # Webex for macOS
+      self_service: true
     - slug: whatsapp/darwin # WhatsApp for macOS
+      self_service: true
+    - slug: windows-app/darwin # Windows App for macOS
       self_service: true
     - slug: yubico-yubikey-manager/darwin # Yubikey Manager for macOS
       self_service: true
     - slug: zoom/darwin # Zoom for macOS
+      self_service: true
+    - slug: asana/darwin # Asana for macOS
+      self_service: true
+    - slug: canva/darwin # Canva for macOS
+      self_service: true
+    - slug: chatgpt/darwin # ChatGPT Desktop for macOS
+      self_service: true
+    - slug: discord/darwin # Discord for macOS
+      self_service: true
+    - slug: drawio/darwin # draw.io for macOS
+      self_service: true
+    - slug: dropbox/darwin # Dropbox for macOS
+      self_service: true
+    - slug: goland/darwin # GoLand for macOS
+      self_service: true
+    - slug: google-drive/darwin # Google Drive for macOS
+      self_service: true
+    - slug: imazing-profile-editor/darwin # iMazing Profile Editor for macOS
+      self_service: true
+    - slug: loom/darwin # Loom for macOS
+      self_service: true
+    - slug: microsoft-onenote/darwin # Microsoft OneNote for macOS
+      self_service: true
+    - slug: microsoft-powerpoint/darwin # Microsoft PowerPoint for macOS
+      self_service: true
+    - slug: miro/darwin # Miro for macOS
+      self_service: true
+    - slug: nudge/darwin # Nudge for macOS
+      self_service: true
+    - slug: opera/darwin # Opera for macOS
+      self_service: true
+    - slug: pritunl/darwin # Pritunl for macOS
+      self_service: true
+    - slug: pycharm-ce/darwin # PyCharm Community Edition for macOS
+      self_service: true
+    - slug: pycharm/darwin # PyCharm Professional for macOS
+      self_service: true
+    - slug: rectangle/darwin # Rectangle for macOS
+      self_service: true
+    - slug: signal/darwin # Signal for macOS
+      self_service: true
+    - slug: spotify/darwin # Spotify for macOS
+      self_service: true
+    - slug: thunderbird/darwin # Thunderbird for macOS
       self_service: true
     # Windows apps
     - slug: box-drive/windows # Box Drive for Windows
@@ -144,9 +227,21 @@ software:
       self_service: true
     - slug: cursor/windows # Cursor for Windows
       self_service: true
+    - slug: firefox/windows # Mozilla Firefox for Windows
+      self_service: true
     - slug: google-chrome/windows # Google Chrome for Windows
+      self_service: true
+    - slug: slack/windows # Slack for Windows
       self_service: true
     - slug: teamviewer/windows # TeamViewer for Windows
       self_service: true
     - slug: visual-studio-code/windows # Microsoft Visual Studio Code for Windows
+      self_service: true
+    - slug: zoom/windows # Zoom for Windows
+      self_service: true
+    - slug: discord/windows # Discord for Windows
+      self_service: true
+    - slug: figma/windows # Figma for Windows
+      self_service: true
+    - slug: google-drive/windows # Google Drive for Windows
       self_service: true

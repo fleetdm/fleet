@@ -96,7 +96,7 @@ func (s *SetupExperienceStatusResult) VPPAppID() (*VPPAppID, error) {
 
 	return &VPPAppID{
 		AdamID:   *s.VPPAppAdamID,
-		Platform: AppleDevicePlatform(*s.VPPAppPlatform),
+		Platform: InstallableDevicePlatform(*s.VPPAppPlatform),
 	}, nil
 }
 
