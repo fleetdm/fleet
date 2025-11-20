@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"time"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
@@ -38,6 +39,11 @@ type FleetVarName string
 // Includes $FLEET_VAR prefix
 func (n FleetVarName) WithPrefix() string {
 	return fmt.Sprintf("$FLEET_VAR_%s", n)
+}
+
+// Includes ${FLEET_VAR_} braces
+func (n FleetVarName) WithBraces() string {
+	return fmt.Sprintf("${FLEET_VAR_%s}", n)
 }
 
 const (
@@ -1042,15 +1048,20 @@ const (
 	IPadOS
 )
 
-type AppleDevicePlatform string
+type InstallableDevicePlatform string
 
 const (
-	MacOSPlatform  AppleDevicePlatform = "darwin"
-	IOSPlatform    AppleDevicePlatform = "ios"
-	IPadOSPlatform AppleDevicePlatform = "ipados"
+	MacOSPlatform   InstallableDevicePlatform = "darwin"
+	IOSPlatform     InstallableDevicePlatform = "ios"
+	IPadOSPlatform  InstallableDevicePlatform = "ipados"
+	AndroidPlatform InstallableDevicePlatform = "android"
 )
 
-var VPPAppsPlatforms = []AppleDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform}
+var VPPAppsPlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform, AndroidPlatform}
+
+func (p InstallableDevicePlatform) IsValidInstallableDevicePlatform() bool {
+	return slices.Contains(VPPAppsPlatforms, p)
+}
 
 type AppleDevicesToRefetch struct {
 	HostID              uint                   `db:"host_id"`

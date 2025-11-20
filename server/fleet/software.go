@@ -636,22 +636,24 @@ type VPPBatchPayload struct {
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories []string `json:"categories"`
-	IconPath   string   `json:"-"`
-	IconHash   string   `json:"-"`
+	Categories  []string `json:"categories"`
+	DisplayName string   `json:"display_name"`
+	IconPath    string   `json:"-"`
+	IconHash    string   `json:"-"`
 }
 
 type VPPBatchPayloadWithPlatform struct {
-	AppStoreID         string              `json:"app_store_id"`
-	SelfService        bool                `json:"self_service"`
-	Platform           AppleDevicePlatform `json:"platform"`
-	InstallDuringSetup *bool               `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
-	LabelsExcludeAny   []string            `json:"labels_exclude_any"`
-	LabelsIncludeAny   []string            `json:"labels_include_any"`
+	AppStoreID         string                    `json:"app_store_id"`
+	SelfService        bool                      `json:"self_service"`
+	Platform           InstallableDevicePlatform `json:"platform"`
+	InstallDuringSetup *bool                     `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
+	LabelsExcludeAny   []string                  `json:"labels_exclude_any"`
+	LabelsIncludeAny   []string                  `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
 	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
 	CategoryIDs []uint `json:"-"`
+	DisplayName string `json:"display_name"`
 }
 
 type SoftwareCategory struct {

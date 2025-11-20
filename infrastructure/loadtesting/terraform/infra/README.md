@@ -131,7 +131,7 @@ terraform workspace delete <workspace_name>
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.20.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.21.0 |
 | <a name="provider_docker"></a> [docker](#provider\_docker) | 2.16.0 |
 | <a name="provider_git"></a> [git](#provider\_git) | 2025.10.10 |
 | <a name="provider_random"></a> [random](#provider\_random) | 3.7.2 |
@@ -144,10 +144,9 @@ terraform workspace delete <workspace_name>
 |------|--------|---------|
 | <a name="module_acm"></a> [acm](#module\_acm) | terraform-aws-modules/acm/aws | 4.3.1 |
 | <a name="module_loadtest"></a> [loadtest](#module\_loadtest) | github.com/fleetdm/fleet-terraform//byo-vpc | tf-mod-root-v1.18.3 |
-| <a name="module_logging_alb"></a> [logging\_alb](#module\_logging\_alb) | github.com/fleetdm/fleet-terraform//addons/logging-alb | tf-mod-addon-logging-alb-v1.6.1 |
-| <a name="module_logging_firehose"></a> [logging\_firehose](#module\_logging\_firehose) | github.com/fleetdm/fleet-terraform//addons/logging-destination-firehose | tf-mod-addon-logging-destination-firehose-v1.2.4 |
+| <a name="module_logging_alb"></a> [logging\_alb](#module\_logging\_alb) | github.com/fleetdm/fleet-terraform//addons/logging-alb | tf-mod-addon-logging-alb-v1.6.2 |
 | <a name="module_mdm"></a> [mdm](#module\_mdm) | github.com/fleetdm/fleet-terraform/addons/mdm?depth=1&ref=tf-mod-addon-mdm-v2.0.0 | n/a |
-| <a name="module_migrations"></a> [migrations](#module\_migrations) | github.com/fleetdm/fleet-terraform//addons/migrations | tf-mod-addon-migrations-v2.1.0 |
+| <a name="module_migrations"></a> [migrations](#module\_migrations) | github.com/fleetdm/fleet-terraform//addons/migrations | tf-mod-addon-migrations-v2.2.1 |
 | <a name="module_osquery-carve"></a> [osquery-carve](#module\_osquery-carve) | github.com/fleetdm/fleet-terraform//addons/osquery-carve | tf-mod-addon-osquery-carve-v1.1.1 |
 | <a name="module_ses"></a> [ses](#module\_ses) | github.com/fleetdm/fleet-terraform//addons/ses | tf-mod-addon-ses-v1.4.0 |
 | <a name="module_vuln-processing"></a> [vuln-processing](#module\_vuln-processing) | github.com/fleetdm/fleet-terraform//addons/external-vuln-scans | tf-mod-addon-external-vuln-scans-v2.3.0 |
@@ -201,7 +200,7 @@ terraform workspace delete <workspace_name>
 | <a name="input_fleet_task_memory"></a> [fleet\_task\_memory](#input\_fleet\_task\_memory) | The memory configuration for Fleet containers | `number` | `4096` | no |
 | <a name="input_redis_instance_count"></a> [redis\_instance\_count](#input\_redis\_instance\_count) | The number of Elasticache nodes | `number` | `3` | no |
 | <a name="input_redis_instance_size"></a> [redis\_instance\_size](#input\_redis\_instance\_size) | The instance size for Elasticache nodes | `string` | `"cache.t4g.micro"` | no |
-| <a name="input_tag"></a> [tag](#input\_tag) | The tag to deploy. This would be the same as the branch name | `string` | `"v4.75.1"` | no |
+| <a name="input_tag"></a> [tag](#input\_tag) | The tag to deploy. This would be the same as the branch name | `string` | `"v4.76.1"` | no |
 
 ## Outputs
 

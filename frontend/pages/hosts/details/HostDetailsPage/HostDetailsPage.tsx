@@ -55,12 +55,7 @@ import {
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 
-import {
-  isAndroid,
-  isAppleDevice,
-  isIPadOrIPhone,
-  isLinuxLike,
-} from "interfaces/platform";
+import { isAndroid, isIPadOrIPhone, isLinuxLike } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
@@ -127,14 +122,9 @@ import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { getErrorMessage } from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
-import AddEndUserModal from "../cards/User/components/AddEndUserModal";
-import {
-  generateChromeProfilesValues,
-  generateOtherEmailsValues,
-  generateUsernameValues,
-} from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
+import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
 
 const baseClass = "host-details";
 
@@ -195,6 +185,7 @@ const HostDetailsPage = ({
     isGlobalAdmin = false,
     isGlobalMaintainer,
     isGlobalObserver,
+    isTeamMaintainerOrTeamAdmin,
     isPremiumTier = false,
     isOnlyObserver,
     filteredHostsPath,
@@ -218,6 +209,10 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
+  const [showUpdateEndUserModal, setShowUpdateEndUserModal] = useState(false);
+
+  // General-use updating state
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Used in activities to show run script details modal
   const [scriptExecutionId, setScriptExecutiontId] = useState("");
@@ -245,7 +240,6 @@ const HostDetailsPage = ({
     setActivityVPPInstallDetails,
   ] = useState<IVppInstallDetails | null>(null);
 
-  const [isUpdatingHost, setIsUpdatingHost] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [schedule, setSchedule] = useState<IQueryStats[]>();
@@ -282,7 +276,6 @@ const HostDetailsPage = ({
   const [sortCerts, setSortCerts] = useState<IListSort>({
     ...CERTIFICATES_DEFAULT_SORT,
   });
-  const [showAddEndUserModal, setShowAddEndUserModal] = useState(false);
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
@@ -634,7 +627,7 @@ const HostDetailsPage = ({
 
   const onDestroyHost = async () => {
     if (host) {
-      setIsUpdatingHost(true);
+      setIsUpdating(true);
       try {
         await hostAPI.destroy(host);
         router.push(PATHS.MANAGE_HOSTS);
@@ -650,7 +643,7 @@ const HostDetailsPage = ({
         );
       } finally {
         setShowDeleteHostModal(false);
-        setIsUpdatingHost(false);
+        setIsUpdating(false);
       }
     }
   };
@@ -700,7 +693,7 @@ const HostDetailsPage = ({
               fleetInstallStatus: details?.status as SoftwareInstallUninstallStatus,
               hostDisplayName:
                 host?.display_name || details?.host_display_name || "",
-              appName: details?.name || "",
+              appName: details.software_display_name || details?.name || "", // TODO: Confirm correct field
               commandUuid: details?.command_uuid,
             });
           } else if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
@@ -726,7 +719,8 @@ const HostDetailsPage = ({
         case "uninstalled_software":
           setPackageUninstallDetails({
             ...details,
-            softwareName: details?.software_title || "",
+            softwareName:
+              details?.software_display_name || details?.software_title || "",
             uninstallStatus: resolveUninstallStatus(details?.status),
             scriptExecutionId: details?.script_execution_id || "",
             hostDisplayName: host?.display_name || details?.host_display_name,
@@ -734,7 +728,8 @@ const HostDetailsPage = ({
           break;
         case "installed_app_store_app":
           setActivityVPPInstallDetails({
-            appName: details?.software_title || "",
+            appName:
+              details?.software_display_name || details?.software_title || "",
             fleetInstallStatus: (details?.status ||
               "pending_install") as SoftwareInstallUninstallStatus,
             commandUuid: details?.command_uuid || "",
@@ -790,7 +785,7 @@ const HostDetailsPage = ({
   }, []);
 
   const onTransferHostSubmit = async (team: ITeam) => {
-    setIsUpdatingHost(true);
+    setIsUpdating(true);
 
     const teamId = typeof team.id === "number" ? team.id : null;
 
@@ -806,10 +801,9 @@ const HostDetailsPage = ({
       refetchHostDetails(); // Note: it is not necessary to `refetchExtensions` here because only team has changed
       setShowTransferHostModal(false);
     } catch (error) {
-      console.log(error);
       renderFlash("error", "Could not transfer host. Please try again.");
     } finally {
-      setIsUpdatingHost(false);
+      setIsUpdating(false);
     }
   };
 
@@ -898,6 +892,25 @@ const HostDetailsPage = ({
       (host.platform === "windows" || isLinuxLike(host.platform))
     ) {
       refetchHostDetails();
+    }
+  };
+
+  const onUpdateEndUser = async (username: string) => {
+    setIsUpdating(true);
+    try {
+      if (username === "") {
+        await hostAPI.deleteHostIdp(hostIdFromURL);
+        renderFlash("success", "Removed end user.");
+      } else {
+        await hostAPI.updateHostIdp(hostIdFromURL, username);
+        renderFlash("success", "Updated end user.");
+      }
+      setShowUpdateEndUserModal(false);
+      refetchHostDetails();
+    } catch (e) {
+      renderFlash("error", "Could not update end user. Please try again.");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -1007,13 +1020,15 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
 
+  const canResendProfiles =
+    isDarwinHost &&
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isHostTeamAdmin ||
+      isHostTeamMaintainer);
+
   const showSoftwareLibraryTab = isPremiumTier;
 
-  const showUsersCard =
-    isAppleDevice(host.platform) ||
-    isAndroidHost ||
-    generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
-    generateOtherEmailsValues(host.end_users ?? []).length > 0;
   const showActivityCard = !isAndroidHost;
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
@@ -1204,25 +1219,21 @@ const HostDetailsPage = ({
                   className={fullWidthCardClass}
                 />
                 <AboutCard
-                  className={
-                    showUsersCard ? defaultCardClass : fullWidthCardClass
-                  }
+                  className={defaultCardClass}
                   aboutData={aboutData}
                   munki={macadmins?.munki}
                   mdm={mdm}
                 />
-                {showUsersCard && (
-                  <UserCard
-                    className={defaultCardClass}
-                    platform={host.platform}
-                    endUsers={host.end_users ?? []}
-                    enableAddEndUser={
-                      isDarwinHost &&
-                      generateUsernameValues(host.end_users ?? []).length === 0
-                    }
-                    onAddEndUser={() => setShowAddEndUserModal(true)}
-                  />
-                )}
+                <UserCard
+                  className={defaultCardClass}
+                  endUsers={host.end_users ?? []}
+                  canWriteEndUser={
+                    isTeamMaintainerOrTeamAdmin ||
+                    isGlobalAdmin ||
+                    isGlobalMaintainer
+                  }
+                  onClickUpdateUser={() => setShowUpdateEndUserModal(true)}
+                />
                 {showActivityCard && (
                   <ActivityCard
                     className={
@@ -1350,7 +1361,7 @@ const HostDetailsPage = ({
               onCancel={() => setShowDeleteHostModal(false)}
               onSubmit={onDestroyHost}
               hostName={host?.display_name}
-              isUpdating={isUpdatingHost}
+              isUpdating={isUpdating}
             />
           )}
           {showSelectQueryModal && host && (
@@ -1377,7 +1388,7 @@ const HostDetailsPage = ({
               onSubmit={onTransferHostSubmit}
               teams={teams || []}
               isGlobalAdmin={isGlobalAdmin as boolean}
-              isUpdating={isUpdatingHost}
+              isUpdating={isUpdating}
             />
           )}
           {!!host && showPolicyDetailsModal && (
@@ -1388,7 +1399,7 @@ const HostDetailsPage = ({
           )}
           {showOSSettingsModal && (
             <OSSettingsModal
-              canResendProfiles={host.platform === "darwin"}
+              canResendProfiles={canResendProfiles}
               platform={host.platform}
               hostMDMData={host.mdm}
               onClose={toggleOSSettingsModal}
@@ -1515,8 +1526,14 @@ const HostDetailsPage = ({
             />
           )}
         </>
-        {showAddEndUserModal && (
-          <AddEndUserModal onExit={() => setShowAddEndUserModal(false)} />
+        {showUpdateEndUserModal && (
+          <UpdateEndUserModal
+            isPremiumTier={isPremiumTier}
+            endUsers={host.end_users ?? []}
+            onUpdate={onUpdateEndUser}
+            isUpdating={isUpdating}
+            onExit={() => setShowUpdateEndUserModal(false)}
+          />
         )}
       </>
     );

@@ -17,9 +17,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		return nil, ctxerr.Wrap(ctx, err, "getting existing installer")
 	}
 
-	if payload.SelfService == nil && payload.InstallerFile == nil && payload.PreInstallQuery == nil &&
-		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil &&
-		payload.LabelsIncludeAny == nil && payload.LabelsExcludeAny == nil {
+	if payload.IsNoopPayload(software) {
 		return existingInstaller, nil // no payload, noop
 	}
 
@@ -124,6 +122,10 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	activity.LabelsExcludeAny = actLabelsExcl
 	if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating activity for edited in house app")
+	}
+
+	if payload.DisplayName != nil {
+		activity.SoftwareDisplayName = *payload.DisplayName
 	}
 
 	// re-pull installer from database to ensure any side effects are accounted for; may be able to optimize this out later

@@ -7,6 +7,7 @@ import { IDynamicLabelFormData } from "pages/labels/components/DynamicLabelForm/
 import { IManualLabelFormData } from "pages/labels/components/ManualLabelForm/ManualLabelForm";
 import { IHost } from "interfaces/host";
 import { INewLabelFormData } from "pages/labels/NewLabelPage/NewLabelPage";
+import { buildQueryStringFromParams } from "utilities/url";
 
 export interface ILabelsResponse {
   labels: ILabel[];
@@ -109,12 +110,18 @@ export default {
 
     return sendRequest("DELETE", path);
   },
-  // TODO: confirm this still works
-  loadAll: async (): Promise<ILabelsResponse> => {
+  loadAll: async (includeHostCounts = false): Promise<ILabelsResponse> => {
     const { LABELS } = endpoints;
 
+    const queryStringParams = {
+      include_host_counts: includeHostCounts,
+    };
+
+    const queryString = buildQueryStringFromParams(queryStringParams);
+    const path = `${LABELS}?${queryString}`;
+
     try {
-      const response = await sendRequest("GET", LABELS);
+      const response = await sendRequest("GET", path);
       return Promise.resolve({ labels: helpers.formatLabelResponse(response) });
     } catch (error) {
       console.error(error);

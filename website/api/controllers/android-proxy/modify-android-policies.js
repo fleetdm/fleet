@@ -79,6 +79,7 @@ module.exports = {
       let patchPoliciesResponse = await androidmanagement.enterprises.policies.patch({
         name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
         requestBody: this.req.body,
+        updateMask: this.req.param('updateMask') // Pass the update mask to avoid overwriting applications
       });
       return patchPoliciesResponse.data;
     }).intercept({status: 429}, (err)=>{
