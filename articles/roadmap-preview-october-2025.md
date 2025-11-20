@@ -14,7 +14,7 @@ In the next 3 months, Fleet will ship...
 - 🤖 Manage personal (BYOD) Android: enforce OS settings and manage software in work profiles
 - 📦 Self-service software for BYOD iOS/iPadOS & Android
 - 🧪 Deploy your proprietary in-house iOS apps to the entire company
-- 🛡️ Integration with Okta for conditional access on macOS
+- ~~🛡️ Integration with Okta for conditional access on macOS~~ †
 - 👨‍💻 More Windows Fleet-maintained apps: Mozilla Firefox, Slack, and Zoom
 - ⬇️ Download signed installers in one click with no Terminal or certificates required
 
