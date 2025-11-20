@@ -29,8 +29,13 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 	return &template, nil
 }
 
-func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint) ([]*fleet.CertificateTemplateResponseSummary, error) {
+func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, page, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 	var templates []*fleet.CertificateTemplateResponseSummary
+
+	if perPage <= 0 {
+		perPage = 20
+	}
+
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &templates, `
 		SELECT
 			certificate_templates.id,
@@ -41,10 +46,22 @@ func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID
 		FROM certificate_templates
 		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
 		WHERE team_id = ?
-	`, teamID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting certificate_templates by team_id")
+		ORDER BY certificate_templates.id ASC
+		LIMIT ? OFFSET ?
+	`, teamID, perPage+1, perPage*page,
+	); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "getting certificate_templates by team_id")
 	}
-	return templates, nil
+
+	paginationMetaData := &fleet.PaginationMetadata{
+		HasPreviousResults: page > 0,
+	}
+	if len(templates) > perPage {
+		templates = templates[:perPage]
+		paginationMetaData.HasNextResults = true
+	}
+
+	return templates, paginationMetaData, nil
 }
 
 func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certificateTemplates []*fleet.CertificateTemplate) error {

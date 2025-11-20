@@ -7959,6 +7959,59 @@ func (s *integrationTestSuite) TestQuerySpecs() {
 	assert.Equal(t, uint(3), delBatchResp.Deleted)
 }
 
+func (s *integrationTestSuite) TestCertificatesSpecs() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
+	require.NoError(t, err)
+
+	// Create a test certificate authority
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("Test SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+
+	// apply certificate templates
+	var applyResp applyCertificateTemplateSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Template 1",
+				Team:                   fmt.Sprint(team.ID),
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			},
+			{
+				Name:                   "Template 2",
+				Team:                   fmt.Sprint(team.ID),
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// list specs
+	var listCertifcatesResp listCertificateTemplatesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
+	require.Len(t, listCertifcatesResp.Certificates, 2)
+	assert.ElementsMatch(t, []string{"Template 1", "Template 2"}, []string{listCertifcatesResp.Certificates[0].Name, listCertifcatesResp.Certificates[1].Name})
+
+	// batch delete certificate templates
+	var delBatchResp deleteCertificateTemplateSpecsResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
+		"ids": []uint{listCertifcatesResp.Certificates[0].ID, listCertifcatesResp.Certificates[1].ID},
+	}, http.StatusOK, &delBatchResp)
+
+	// list specs
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
+	require.Len(t, listCertifcatesResp.Certificates, 0)
+}
+
 func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	t := s.T()
 

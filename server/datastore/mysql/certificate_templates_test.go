@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -117,7 +118,7 @@ func testGetCertificateTemplatesByTeamID(t *testing.T, ds *Datastore) {
 			"No existing certificate templates for team",
 			func(ds *Datastore) {},
 			func(t *testing.T, ds *Datastore) {
-				templates, err := ds.GetCertificateTemplatesByTeamID(ctx, 1)
+				templates, _, err := ds.GetCertificateTemplatesByTeamID(ctx, 1, 0, 10)
 				require.NoError(t, err)
 				require.Len(t, templates, 0)
 			},
@@ -172,9 +173,68 @@ func testGetCertificateTemplatesByTeamID(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 			},
 			func(t *testing.T, ds *Datastore) {
-				templates, err := ds.GetCertificateTemplatesByTeamID(ctx, teamID)
+				templates, _, err := ds.GetCertificateTemplatesByTeamID(ctx, teamID, 0, 10)
 				require.NoError(t, err)
 				require.Len(t, templates, 2)
+			},
+		},
+		{
+			"Pagination works",
+			func(ds *Datastore) {
+				// Create a test team
+				team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
+				require.NoError(t, err)
+				teamID = team.ID
+
+				// Create a test certificate authority
+				ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+					Type:      string(fleet.CATypeCustomSCEPProxy),
+					Name:      ptr.String("Test SCEP CA"),
+					URL:       ptr.String("http://localhost:8080/scep"),
+					Challenge: ptr.String("test-challenge"),
+				})
+				require.NoError(t, err)
+				caID = ca.ID
+
+				// Insert initial certificates
+				for i := 1; i <= 5; i++ {
+					certificateTemplate := fleet.CertificateTemplate{
+						Name:                   fmt.Sprintf("Cert%d", i),
+						TeamID:                 teamID,
+						CertificateAuthorityID: caID,
+						SubjectName:            fmt.Sprintf("CN=Test Subject %d", i),
+					}
+					_, err = ds.writer(ctx).ExecContext(ctx,
+						"INSERT INTO certificate_templates (name, team_id, certificate_authority_id, subject_name) VALUES (?, ?, ?, ?)",
+						certificateTemplate.Name,
+						certificateTemplate.TeamID,
+						certificateTemplate.CertificateAuthorityID,
+						certificateTemplate.SubjectName,
+					)
+					require.NoError(t, err)
+				}
+			},
+			func(t *testing.T, ds *Datastore) {
+				// First page
+				templates, meta, err := ds.GetCertificateTemplatesByTeamID(ctx, teamID, 0, 2)
+				require.NoError(t, err)
+				require.Len(t, templates, 2)
+				require.False(t, meta.HasPreviousResults)
+				require.True(t, meta.HasNextResults)
+
+				// Second page
+				templates, meta, err = ds.GetCertificateTemplatesByTeamID(ctx, teamID, 1, 2)
+				require.NoError(t, err)
+				require.Len(t, templates, 2)
+				require.True(t, meta.HasPreviousResults)
+				require.True(t, meta.HasNextResults)
+
+				// Third page
+				templates, meta, err = ds.GetCertificateTemplatesByTeamID(ctx, teamID, 2, 2)
+				require.NoError(t, err)
+				require.Len(t, templates, 1)
+				require.True(t, meta.HasPreviousResults)
+				require.False(t, meta.HasNextResults)
 			},
 		},
 	}

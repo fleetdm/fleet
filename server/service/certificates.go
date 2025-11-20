@@ -11,8 +11,8 @@ import (
 
 type listCertificateTemplatesRequest struct {
 	TeamID  uint `query:"team_id"`
-	Page    uint `query:"page,optional"`
-	PerPage uint `query:"per_page,optional"`
+	Page    int  `query:"page,optional"`
+	PerPage int  `query:"per_page,optional"`
 }
 
 type listCertificateTemplatesResponse struct {
@@ -25,24 +25,24 @@ func (r listCertificateTemplatesResponse) Error() error { return r.Err }
 
 func listCertificateTemplatesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listCertificateTemplatesRequest)
-	certificates, err := svc.ListCertificateTemplates(ctx, req.TeamID, req.Page, req.PerPage)
+	certificates, paginationMetaData, err := svc.ListCertificateTemplates(ctx, req.TeamID, req.Page, req.PerPage)
 	if err != nil {
 		return listCertificateTemplatesResponse{Err: err}, nil
 	}
-	return listCertificateTemplatesResponse{Certificates: certificates}, nil
+	return listCertificateTemplatesResponse{Certificates: certificates, Meta: paginationMetaData}, nil
 }
 
-func (svc *Service) ListCertificateTemplates(ctx context.Context, teamID uint, page uint, perPage uint) ([]*fleet.CertificateTemplateResponseSummary, error) {
+func (svc *Service) ListCertificateTemplates(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	certificates, err := svc.ds.GetCertificateTemplatesByTeamID(ctx, teamID)
+	certificates, paginationMetaData, err := svc.ds.GetCertificateTemplatesByTeamID(ctx, teamID, page, perPage)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return certificates, nil
+	return certificates, paginationMetaData, nil
 }
 
 type getCertificateTemplateRequest struct {
