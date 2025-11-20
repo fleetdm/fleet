@@ -132,14 +132,13 @@ jobs:
       - name: Run instrumented tests
         uses: reactivecircus/android-emulator-runner@f0d1ed2dcad93c7479e8b2f2226c83af54494915 # v2.32.0
         with:
-          working-directory: android
           api-level: 33
           target: google_apis
           arch: x86_64
-          force-avd-creation: false
+          profile: Nexus 6
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: ./gradlew connectedDebugAndroidTest --console=plain
+          script: cd android && ./gradlew connectedDebugAndroidTest --console=plain
 
       - name: Upload instrumented test reports
         if: always()
