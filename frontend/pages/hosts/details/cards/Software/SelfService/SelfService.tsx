@@ -192,11 +192,12 @@ const SoftwareSelfService = ({
     Set<number>
   >(new Set());
 
+  // Cleanup on unmount
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
-      // Clean up all recently updated timeouts
+      // Clean up timeouts for "recently updated"
       Object.values(recentlyUpdatedTimeouts.current).forEach(clearTimeout);
       recentlyUpdatedTimeouts.current = {};
       // Clean up polling timeout
@@ -204,6 +205,8 @@ const SoftwareSelfService = ({
         clearTimeout(pollingTimeoutIdRef.current);
         pollingTimeoutIdRef.current = null;
       }
+      // Reset pending IDs
+      pendingSoftwareIdsRef.current = new Set();
     };
   }, []);
 
@@ -406,17 +409,6 @@ const SoftwareSelfService = ({
     },
     [refetchForPendingInstallsOrUninstalls]
   );
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      pendingSoftwareIdsRef.current = new Set();
-      if (pollingTimeoutIdRef.current) {
-        clearTimeout(pollingTimeoutIdRef.current);
-        pollingTimeoutIdRef.current = null;
-      }
-    };
-  }, []);
 
   // On initial load or data change, check for pending installs/uninstalls
   useEffect(() => {
