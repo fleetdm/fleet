@@ -241,6 +241,13 @@
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
+      "name": "GitHub Desktop",
+      "slug": "github/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.GitHubClient",
+      "description": "GitHub Desktop is a desktop client for GitHub repositories."
+    },
+    {
       "name": "GitKraken",
       "slug": "gitkraken/darwin",
       "platform": "darwin",
