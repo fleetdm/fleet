@@ -8479,7 +8479,6 @@ Creates a global query or team query.
 | logging                         | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
 | discard_data                    | boolean | body | Whether to skip saving the latest query results for each host. Default: `false`. |
 | host_vital                    | boolean | body | Whether to save this as a custom host vital. This surfaces the first column of a host's first result in host details. Default: `false`. |
-| host_vital_label              | string  | body | Label for data surfaced as a custom host vital. Required if `host_vital` is `true`. |
 
 
 #### Example
@@ -8532,7 +8531,6 @@ Creates a global query or team query.
     "discard_data": false,
     "packs": [],
     "host_vital": false,
-    "host_vital_label": "",
     "labels_include_any": [
       "Hosts with Docker installed"
     ]
