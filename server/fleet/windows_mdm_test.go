@@ -633,7 +633,7 @@ func TestValidateUserProvided(t *testing.T) {
 				  </Replace>
 				`),
 			},
-			wantErr: "\"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.",
+			wantErr: "\"ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.",
 		},
 		{
 			name: "SCEP profile with Exec block, but wrong LocURI ",
