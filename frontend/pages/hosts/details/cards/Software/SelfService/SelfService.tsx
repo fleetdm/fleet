@@ -143,12 +143,18 @@ const SoftwareSelfService = ({
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
 
-  /** Used to track software IDs for which the user has initiated an action (install/uninstall) */
+  /** Guards against setState/side-effects after unmount */
+  const isMountedRef = useRef(false);
+  /** Stores software IDs for which the user has initiated an action (install/uninstall) */
   const userActionIdsRef = useRef<Set<number>>(new Set());
-  /** Registers a software ID as user-initiated action */
-  const registerUserAction = useCallback((id: number) => {
-    userActionIdsRef.current.add(id);
-  }, []);
+  /** Stores timeout handles for each “recently updated” status for proper clear/removal on unmount */
+  const recentlyUpdatedTimeouts = useRef<{ [key: number]: NodeJS.Timeout }>({});
+  /** Stores the set of pending install/uninstall software IDs for polling */
+  const pendingSoftwareIdsRef = useRef<Set<string>>(new Set());
+  /** Stores polling timeout for regularly checking API */
+  const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+  /** Detects parent/host polling completion status to trigger self-update sync */
+  const isAwaitingHostDetailsPolling = useRef(isHostDetailsPolling);
 
   const [selfServiceData, setSelfServiceData] = useState<
     IGetDeviceSoftwareResponse | undefined
@@ -182,9 +188,45 @@ const SoftwareSelfService = ({
   const [showOpenInstructionsModal, setShowOpenInstructionsModal] = useState(
     false
   );
-  const [recentlyUpdatedIds, setRecentlyUpdatedIds] = useState<Set<number>>(
-    new Set()
-  );
+  const [recentlyUpdatedSoftwareIds, setRecentlyUpdatedSoftwareIds] = useState<
+    Set<number>
+  >(new Set());
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      // Clean up all recently updated timeouts
+      Object.values(recentlyUpdatedTimeouts.current).forEach(clearTimeout);
+      recentlyUpdatedTimeouts.current = {};
+      // Clean up polling timeout
+      if (pollingTimeoutIdRef.current) {
+        clearTimeout(pollingTimeoutIdRef.current);
+        pollingTimeoutIdRef.current = null;
+      }
+    };
+  }, []);
+
+  /** Registers a software ID as user-initiated action */
+  const registerUserSoftwareAction = useCallback((id: number) => {
+    userActionIdsRef.current.add(id);
+    // Prevent double timeouts
+    if (recentlyUpdatedTimeouts.current[id]) {
+      clearTimeout(recentlyUpdatedTimeouts.current[id]);
+      delete recentlyUpdatedTimeouts.current[id];
+    }
+    // Schedule removal of "recently updated" after 2 minutes
+    recentlyUpdatedTimeouts.current[id] = setTimeout(() => {
+      if (isMountedRef.current) {
+        setRecentlyUpdatedSoftwareIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+      delete recentlyUpdatedTimeouts.current[id];
+    }, 120000); // 2 minutes
+  }, []);
 
   const enhancedSoftware: IDeviceSoftwareWithUiStatus[] = useMemo(() => {
     if (!selfServiceData) return [];
@@ -194,10 +236,10 @@ const SoftwareSelfService = ({
         software,
         true,
         hostSoftwareUpdatedAt,
-        recentlyUpdatedIds
+        recentlyUpdatedSoftwareIds
       ),
     }));
-  }, [selfServiceData, recentlyUpdatedIds, hostSoftwareUpdatedAt]);
+  }, [selfServiceData, recentlyUpdatedSoftwareIds, hostSoftwareUpdatedAt]);
 
   const selectedSoftwareForUninstall = useRef<{
     softwareId: number;
@@ -210,10 +252,6 @@ const SoftwareSelfService = ({
     softwareName: string;
     softwareSource: string;
   } | null>(null);
-
-  const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
-  const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
-  const isAwaitingHostDetailsPolling = useRef(isHostDetailsPolling);
 
   const queryKey = useMemo<IDeviceSoftwareQueryKey[]>(() => {
     return [
@@ -280,7 +318,7 @@ const SoftwareSelfService = ({
         );
 
         // Compare new set with the previous set
-        const previouslyPending = [...pendingSoftwareSetRef.current];
+        const previouslyPending = [...pendingSoftwareIdsRef.current];
         const completedAppIds = previouslyPending.filter(
           (id) => !newPendingSet.has(id)
         );
@@ -289,24 +327,15 @@ const SoftwareSelfService = ({
           // Mark as recently updated if the user actually initiated the action
           // so the UI shows the "recently updated" status instead of "update available"
           // or similar for install/uninstall
-          setRecentlyUpdatedIds((prev) => {
+          setRecentlyUpdatedSoftwareIds((prev) => {
             const next = new Set(prev);
             completedAppIds.forEach((idStr) => {
               const id = Number(idStr);
               if (userActionIdsRef.current.has(id)) {
                 next.add(id);
-                // Remove from the userActionIdsRef
                 userActionIdsRef.current.delete(id);
-                // Schedule auto‑removal after 2 minutes so the "recently updated" status is not permanent
-                // It's only surfaced to user as a ui_status if this action completed prior to a
-                // host details refresh but may not be reflected in host details data returned
-                setTimeout(() => {
-                  setRecentlyUpdatedIds((latest) => {
-                    const cleared = new Set(latest);
-                    cleared.delete(id);
-                    return cleared;
-                  });
-                }, 120000);
+                // Register a timeout for this id (for cleanup and removal)
+                registerUserSoftwareAction(id);
               }
             });
             return next;
@@ -320,15 +349,15 @@ const SoftwareSelfService = ({
 
         // Compare new set with the previous set
         const setsAreEqual =
-          newPendingSet.size === pendingSoftwareSetRef.current.size &&
+          newPendingSet.size === pendingSoftwareIdsRef.current.size &&
           [...newPendingSet].every((id) =>
-            pendingSoftwareSetRef.current.has(id)
+            pendingSoftwareIdsRef.current.has(id)
           );
 
         if (newPendingSet.size > 0) {
           // If the set changed, update and continue polling
           if (!setsAreEqual) {
-            pendingSoftwareSetRef.current = newPendingSet;
+            pendingSoftwareIdsRef.current = newPendingSet;
             setSelfServiceData(response);
           }
 
@@ -341,7 +370,7 @@ const SoftwareSelfService = ({
           }, 5000);
         } else {
           // No pending installs nor pending uninstalls, stop polling and refresh data
-          pendingSoftwareSetRef.current = new Set();
+          pendingSoftwareIdsRef.current = new Set();
           if (pollingTimeoutIdRef.current) {
             clearTimeout(pollingTimeoutIdRef.current);
             pollingTimeoutIdRef.current = null;
@@ -350,7 +379,7 @@ const SoftwareSelfService = ({
         }
       },
       onError: () => {
-        pendingSoftwareSetRef.current = new Set();
+        pendingSoftwareIdsRef.current = new Set();
         renderFlash(
           "error",
           "We're having trouble checking pending installs. Please refresh the page."
@@ -363,10 +392,10 @@ const SoftwareSelfService = ({
     (pendingIds: string[]) => {
       const newSet = new Set(pendingIds);
       const setsAreEqual =
-        newSet.size === pendingSoftwareSetRef.current.size &&
-        [...newSet].every((id) => pendingSoftwareSetRef.current.has(id));
+        newSet.size === pendingSoftwareIdsRef.current.size &&
+        [...newSet].every((id) => pendingSoftwareIdsRef.current.has(id));
       if (!setsAreEqual) {
-        pendingSoftwareSetRef.current = newSet;
+        pendingSoftwareIdsRef.current = newSet;
 
         // Clear any existing timeout to avoid overlap
         if (pollingTimeoutIdRef.current) {
@@ -381,7 +410,7 @@ const SoftwareSelfService = ({
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      pendingSoftwareSetRef.current = new Set();
+      pendingSoftwareIdsRef.current = new Set();
       if (pollingTimeoutIdRef.current) {
         clearTimeout(pollingTimeoutIdRef.current);
         pollingTimeoutIdRef.current = null;
@@ -406,21 +435,13 @@ const SoftwareSelfService = ({
     refetchForPendingInstallsOrUninstalls();
   }, [refetchForPendingInstallsOrUninstalls]);
 
-  const isMountedRef = useRef(false);
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
   const onClickInstallAction = useCallback(
     async (softwareId: number, isScriptPackage = false) => {
       try {
         await deviceApi.installSelfServiceSoftware(deviceToken, softwareId);
         if (isMountedRef.current) {
           onInstallOrUninstall();
-          registerUserAction(softwareId);
+          registerUserSoftwareAction(softwareId);
         }
       } catch (error) {
         // We only show toast message if API returns an error
@@ -430,7 +451,7 @@ const SoftwareSelfService = ({
         );
       }
     },
-    [deviceToken, onInstallOrUninstall, registerUserAction, renderFlash]
+    [deviceToken, onInstallOrUninstall, registerUserSoftwareAction, renderFlash]
   );
 
   const onClickUninstallAction = useCallback(
@@ -463,14 +484,14 @@ const SoftwareSelfService = ({
     async (id: number) => {
       try {
         await deviceApi.installSelfServiceSoftware(deviceToken, id);
-        registerUserAction(id);
+        registerUserSoftwareAction(id);
         onInstallOrUninstall();
       } catch (error) {
         // Only show toast message if API returns an error
         renderFlash("error", "Couldn't update software. Please try again.");
       }
     },
-    [deviceToken, registerUserAction, onInstallOrUninstall, renderFlash]
+    [deviceToken, registerUserSoftwareAction, onInstallOrUninstall, renderFlash]
   );
 
   const onClickUpdateAll = useCallback(async () => {
@@ -520,7 +541,7 @@ const SoftwareSelfService = ({
     // Only register success IDs for follow‑up “recently updated” handling
     results.forEach((result, idx) => {
       if (result.status === "fulfilled") {
-        registerUserAction(updateAvailableSoftware[idx].id);
+        registerUserSoftwareAction(updateAvailableSoftware[idx].id);
       }
     });
     // Refresh data after update is triggered
@@ -530,7 +551,7 @@ const SoftwareSelfService = ({
     renderFlash,
     renderMultiFlash,
     enhancedSoftware,
-    registerUserAction,
+    registerUserSoftwareAction,
     onInstallOrUninstall,
   ]);
 
