@@ -8,17 +8,18 @@ The Fleet roadmap is set for winter 2026. Watch the video above for a walkthroug
 
 In the next 3 months, Fleet will ship...
 
-- 🔧 Self-service scripts on macOS
-- 📄 Simple certificate deployment for Wi-Fi and VPN on company-owned Linux computers
+- 🛡️ Integration with Okta for conditional access on macOS
 - 🤖 Manage company-owned (fully managed) Android
-- 👨‍💻 More Windows Fleet-maintained apps
 - 🎡 One queue for MDM commands, software, and scripts
-- 📡 SCEP certificate deployment with dynamic challenge handling
-- 🔐 Easy EJBCA certificate deployment
-- 🪟 Better Windows configuration profiles
-- 🧪 Test policy automations locally or in CI/CD before applying them in Fleet
-- 🛠️ Fleet-maintained developer tools on macOS (via Homebrew formulas)
+- 🔧 Self-service scripts on macOS
+- 📡 Okta SCEP certificate deployment with dynamic challenge handling
+- 👨‍💻 More Windows Fleet-maintained apps
+- 🛠️ Fleet-maintained developer tools on macOS
 - 🎯 Smarter patching: Fleet auto-fills minimum version numbers in your policies
+- 🪟 Better Windows configuration profiles
+- 📄 Simple certificate deployment for Wi-Fi and VPN on company-owned Linux computers
+- 🔐 Easy EJBCA certificate deployment
+- 🧪 Test policy automations locally or in CI/CD before applying them in Fleet
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 
