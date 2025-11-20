@@ -15,7 +15,7 @@ func Up_20251119180952(tx *sql.Tx) error {
 			team_id INT UNSIGNED NOT NULL,
 			certificate_authority_id INT NOT NULL,
 			name VARCHAR(255) NOT NULL,
-			subject_name VARCHAR(255) NOT NULL,
+			subject_name text NOT NULL,
 			created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 

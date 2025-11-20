@@ -255,7 +255,7 @@ CREATE TABLE `certificate_templates` (
   `team_id` int unsigned NOT NULL,
   `certificate_authority_id` int NOT NULL,
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `subject_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject_name` text COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
