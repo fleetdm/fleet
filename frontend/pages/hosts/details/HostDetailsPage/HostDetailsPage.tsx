@@ -1225,7 +1225,14 @@ const HostDetailsPage = ({
                     isGlobalAdmin ||
                     isGlobalMaintainer
                   }
-                  onClickUpdateUser={() => setShowUpdateEndUserModal(true)}
+                  onClickUpdateUser={(
+                    e:
+                      | React.MouseEvent<HTMLButtonElement>
+                      | React.KeyboardEvent<HTMLButtonElement>
+                  ) => {
+                    e.preventDefault();
+                    setShowUpdateEndUserModal(true);
+                  }}
                 />
                 {showActivityCard && (
                   <ActivityCard
