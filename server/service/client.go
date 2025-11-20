@@ -2305,14 +2305,16 @@ func (c *Client) DoGitOps(
 		return nil, nil, err
 	}
 
-	// Apply Android certificates if present
-	err = c.doGitOpsAndroidCertificates(incoming, logFn, dryRun)
-	if err != nil {
-		var gitOpsErr *gitOpsValidationError
-		if errors.As(err, &gitOpsErr) {
-			return nil, nil, gitOpsErr.WithFileContext(baseDir, filename)
+	if !incoming.IsNoTeam() {
+		// Apply Android certificates if present
+		err = c.doGitOpsAndroidCertificates(incoming, logFn, dryRun)
+		if err != nil {
+			var gitOpsErr *gitOpsValidationError
+			if errors.As(err, &gitOpsErr) {
+				return nil, nil, gitOpsErr.WithFileContext(baseDir, filename)
+			}
+			return nil, nil, err
 		}
-		return nil, nil, err
 	}
 
 	// apply icon changes from software installers and VPP apps
