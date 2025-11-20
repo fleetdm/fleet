@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.spotless)
+    alias(libs.plugins.detekt)
 }
 
 android {
@@ -23,7 +25,7 @@ android {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }
@@ -31,11 +33,44 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
     buildFeatures {
         compose = true
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+    }
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    allRules = false
+    config.setFrom("$projectDir/detekt.yml")
+}
+
+// Option 3 (Hybrid): Don't run Detekt automatically in local builds, only in CI
+tasks.named("check") {
+    setDependsOn(dependsOn.filterNot { it.toString().contains("detekt") })
+}
+
+spotless {
+    kotlin {
+        target("**/*.kt")
+        targetExclude("**/build/**/*.kt")
+        ktlint().editorConfigOverride(
+            mapOf(
+                // Jetpack Compose requires Composable functions to start with uppercase (PascalCase)
+                "ktlint_standard_function-naming" to "disabled",
+                // Android conventionally uses uppercase TAG constants for logging
+                "ktlint_standard_property-naming" to "disabled",
+            ),
+        )
+    }
+    kotlinGradle {
+        target("*.gradle.kts")
+        ktlint()
     }
 }
 
