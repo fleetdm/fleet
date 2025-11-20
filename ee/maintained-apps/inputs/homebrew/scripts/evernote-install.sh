@@ -43,7 +43,7 @@ APPDIR="/Applications"
 
 quit_application "com.evernote.Evernote"
 
-MOUNT_POINT="$(hdiutil attach -nobrowse -readonly "$INSTALLER_PATH" | awk '/\/Volumes\//{print $3; exit}')"
+MOUNT_POINT="$(yes | hdiutil attach -nobrowse -readonly "$INSTALLER_PATH" 2>/dev/null | awk '/\/Volumes\//{print $3; exit}')"
 [[ -n "$MOUNT_POINT" ]] || { echo "failed to mount dmg"; exit 1; }
 
 if [[ -d "$MOUNT_POINT/Evernote.app" ]]; then
