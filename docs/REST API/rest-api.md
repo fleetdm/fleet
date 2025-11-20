@@ -883,7 +883,7 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only
 | Name     | Type    | In   | Description                                 |
 | -------- | ------- | ---- | ------------------------------------------- |
 | id   | integer | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
-| csr       | string | body |**Required (if not Android)** The signed certificate signing request (CSR).    |
+| csr       | string | body |**Required** The signed certificate signing request (CSR).    |
 | idp_oauth_url | string | body | OAuth introspection URL from your identity provider (IdP). Required if `idp_token` is specified. |
 | idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
 | idp_client_id | string | body | Client ID for which the token was issued from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
