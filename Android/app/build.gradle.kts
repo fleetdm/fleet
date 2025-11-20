@@ -6,9 +6,7 @@ plugins {
 
 android {
     namespace = "com.fleetdm.agent"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.fleetdm.agent"
