@@ -100,6 +100,7 @@
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
+      
       "name": "Canva",
       "slug": "canva/darwin",
       "platform": "darwin",
@@ -114,6 +115,13 @@
       "description": "OpenAI's official ChatGPT desktop app for macOS, providing seamless access to AI-powered conversations and assistance."
     },
     {
+      "name": "Cisco Jabber",
+      "slug": "cisco-jabber/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.cisco.jabber",
+      "description": "Cisco Jabber is a collaboration and communication app."
+    },
+    {
       "name": "Claude",
       "slug": "claude/darwin",
       "platform": "darwin",
@@ -126,6 +134,13 @@
       "platform": "darwin",
       "unique_identifier": "com.clickup.desktop-app",
       "description": "ClickUp is a productivity platform for tasks, docs, goals, and chat."
+    },
+    {
+      "name": "CLion",
+      "slug": "clion/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.CLion",
+      "description": "Clion is a JetBrains IDE for C and C++."
     },
     {
       "name": "Cloudflare WARP",
@@ -287,6 +302,13 @@
       "platform": "darwin",
       "unique_identifier": "com.DigiDNA.iMazingProfileEditorMac",
       "description": "iMazing Profile Editor is an app for creating and editing Apple configuration profiles."
+    },
+    {
+      "name": "Insomnia",
+      "slug": "insomnia/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.insomnia.app",
+      "description": "Open-source, cross-platform API client primarily used for designing, testing, and debugging REST APIs"
     },
     {
       "name": "IntelliJ IDEA CE",
