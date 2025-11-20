@@ -35,11 +35,11 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 
 	titleIDipad, err := ds.getOrGenerateInHouseAppTitleID(ctx, payload.Title, payload.BundleID, "ipados_apps")
 	if err != nil {
-		return 0, 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
+		return 0, 0, ctxerr.Wrap(ctx, err, "generating software title")
 	}
 	titleIDios, err := ds.getOrGenerateInHouseAppTitleID(ctx, payload.Title, payload.BundleID, "ios_apps")
 	if err != nil {
-		return 0, 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
+		return 0, 0, ctxerr.Wrap(ctx, err, "generating software title")
 	}
 
 	var installerID uint
@@ -54,28 +54,8 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 			return alreadyExists("in-house app", payload.Filename)
 		}
 
-		argsIos := []any{
-			tid,
-			globalOrTeamID,
-			payload.Filename,
-			payload.StorageID,
-			payload.Version,
-			payload.BundleID,
-			titleIDios,
-			"ios",
-			payload.SelfService,
-		}
-		argsIpad := []any{
-			tid,
-			globalOrTeamID,
-			payload.Filename,
-			payload.StorageID,
-			payload.Version,
-			payload.BundleID,
-			titleIDipad,
-			"ipados",
-			payload.SelfService,
-		}
+		argsIos := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDios, "ios", payload.SelfService}
+		argsIpad := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDipad, "ipados", payload.SelfService}
 
 		_, err := ds.insertInHouseAppDB(ctx, tx, payload, argsIpad)
 		if err != nil {
@@ -94,8 +74,8 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 }
 
 func (ds *Datastore) getOrGenerateInHouseAppTitleID(ctx context.Context, name string, bundleID string, source string) (uint, error) {
-	selectStmt := `SELECT id FROM software_titles WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ?)`
-	selectArgs := []any{bundleID, source, name, source}
+	selectStmt := `SELECT id FROM software_titles WHERE (bundle_identifier = ? AND source = ?) ORDER BY bundle_identifier = ? DESC LIMIT 1`
+	selectArgs := []any{bundleID, source, bundleID}
 	insertStmt := `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
 	insertArgs := []any{name, source, bundleID}
 
