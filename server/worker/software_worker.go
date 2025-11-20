@@ -104,6 +104,12 @@ func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, lo
 func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, hostUUID string, hostID uint, enterpriseName, policyID string) error {
 
 	if policyID == "1" {
+		// Get the host once for both enroll secret and device patching
+		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
+		}
+
 		var policy androidmanagement.Policy
 
 		policy.StatusReportingSettings = &androidmanagement.StatusReportingSettings{
@@ -121,10 +127,31 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		}
 
 		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, hostUUID)
-		_, err := v.AndroidModule.PatchPolicy(ctx, hostUUID, policyName, &policy, nil)
+		_, err = v.AndroidModule.PatchPolicy(ctx, hostUUID, policyName, &policy, nil)
 		if err != nil {
 			return err
 		}
+
+		// Get enroll secrets for the host's team (nil means global/no team)
+		enrollSecrets, err := v.Datastore.GetEnrollSecrets(ctx, androidHost.Host.TeamID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "get enroll secrets for team %v", androidHost.Host.TeamID)
+		}
+		if len(enrollSecrets) == 0 {
+			return ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
+		}
+		// Use the first enroll secret
+		enrollSecret := enrollSecrets[0].Secret
+		err = v.AndroidModule.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, map[string]android.AgentManagedConfiguration{
+			hostUUID: {
+				HostUUID:     hostUUID,
+				EnrollSecret: enrollSecret,
+			},
+		})
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "add fleet agent to android policy for host %s", hostUUID)
+		}
+
 		device := &androidmanagement.Device{
 			PolicyName: policyName,
 			// State must be specified when updating a device, otherwise it fails with
@@ -137,10 +164,6 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 			// we probably don't want to re-enable it by accident. Those are the only
 			// 2 valid states when patching a device.
 			State: "ACTIVE",
-		}
-		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
 		}
 		deviceName := fmt.Sprintf("%s/devices/%s", enterpriseName, androidHost.DeviceID)
 		_, err = v.AndroidModule.PatchDevice(ctx, hostUUID, deviceName, device)

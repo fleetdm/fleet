@@ -892,6 +892,41 @@ func (svc *Service) AddAppToAndroidPolicy(ctx context.Context, enterpriseName st
 	return errors.Join(errs...)
 }
 
+// AddFleetAgentToAndroidPolicy adds the Fleet Agent to the Android policy for the given enterprise.
+// hostConfigs maps host UUIDs to managed configurations for the Fleet Agent.
+// The UUID is BOTH the hostUUID and the policyID. We assume that the host UUID is the same as the policy ID.
+func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterpriseName string,
+	hostConfigs map[string]android.AgentManagedConfiguration) error {
+
+	var errs []error
+	if packageName := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE"); packageName != "" {
+		for uuid, managedConfig := range hostConfigs {
+			policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, uuid)
+
+			// Marshal managed configuration to JSON
+			managedConfigJSON, err := json.Marshal(managedConfig)
+			if err != nil {
+				errs = append(errs, ctxerr.Wrapf(ctx, err, "marshal managed configuration for host %s", uuid))
+				continue
+			}
+
+			fleetAgentApp := &androidmanagement.ApplicationPolicy{
+				PackageName:             packageName,
+				InstallType:             "FORCE_INSTALLED",
+				DefaultPermissionPolicy: "GRANT",
+				DelegatedScopes:         []string{"CERT_INSTALL"},
+				ManagedConfiguration:    managedConfigJSON,
+			}
+			_, err = svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName,
+				[]*androidmanagement.ApplicationPolicy{fleetAgentApp})
+			if err != nil {
+				errs = append(errs, ctxerr.Wrapf(ctx, err, "google api: modify fleet agent application for host %s", uuid))
+			}
+		}
+	}
+	return errors.Join(errs...)
+}
+
 func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
 	enterprise, err := svc.ds.GetEnterprise(ctx)
 	if err != nil {
