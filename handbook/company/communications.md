@@ -302,7 +302,7 @@ To make our docs as helpful as possible, the Community team gathers these questi
 
 Fleet's goal is to answer every question with a link to the docs and/or result in a documentation update.
 
-> Fleet's philosophy on how to write useful documentation is public and open-source: ["Why read documentation?"](https://fleetdm.com/handbook/company/why-this-way#why-read-documentation)
+> Fleet's philosophy on how to write useful documentation is public and open-source. Check out the ["Why read documentation?"](https://fleetdm.com/handbook/company/why-this-way#why-read-documentation) section.
 
 The docs are separated into four categories:
 
