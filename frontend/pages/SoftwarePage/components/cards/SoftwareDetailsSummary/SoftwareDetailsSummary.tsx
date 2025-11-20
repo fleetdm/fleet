@@ -110,16 +110,18 @@ const SoftwareDetailsSummary = ({
           renderSoftwareIcon()
         )}
         <dl className={`${baseClass}__info`}>
-          <h1>
-            {ROLLING_ARCH_LINUX_VERSIONS.includes(displayName) ? (
-              // wrap a tooltip around the "rolling" suffix
-              <>
-                {displayName.slice(0, -8)}
-                <TooltipWrapperArchLinuxRolling />
-              </>
-            ) : (
-              <TooltipTruncatedText value={displayName} />
-            )}
+          <div className={`${baseClass}__title-edit-icon`}>
+            <h1>
+              {ROLLING_ARCH_LINUX_VERSIONS.includes(displayName) ? (
+                // wrap a tooltip around the "rolling" suffix
+                <>
+                  {displayName.slice(0, -8)}
+                  <TooltipWrapperArchLinuxRolling />
+                </>
+              ) : (
+                <TooltipTruncatedText value={displayName} />
+              )}
+            </h1>
             {onClickEditIcon && (
               <div className={`${baseClass}__edit-icon`}>
                 <Button
@@ -131,7 +133,7 @@ const SoftwareDetailsSummary = ({
                 </Button>
               </div>
             )}
-          </h1>
+          </div>
           <dl className={`${baseClass}__description-list`}>
             {!!type && <DataSet title="Type" value={type} />}
 

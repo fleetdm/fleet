@@ -589,7 +589,7 @@ const EditIconModal = ({
         helpText={
           <>
             Optional. If left blank, Fleet will use{" "}
-            <strong>{previewInfo.name}</strong>.
+            <strong>{software.name}</strong>.
           </>
         }
         autofocus
@@ -740,7 +740,7 @@ const EditIconModal = ({
   return (
     <Modal
       className={baseClass}
-      title={isSoftwarePackage ? "Edit package" : "Edit app"}
+      title="Edit software"
       onExit={onExitEditIconModal}
     >
       <>
