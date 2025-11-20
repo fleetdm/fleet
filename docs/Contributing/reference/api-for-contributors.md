@@ -16,6 +16,7 @@ These API endpoints in this document are only used when contributing to Fleet. T
 - [Setup](#setup)
 - [Scripts](#scripts)
 - [Software](#software)
+- [Certificates](#certificates)
 - [Users](#users)
 - [Conditional access](#conditional-access)
 - [Host identity](#host-identity)
@@ -4810,6 +4811,72 @@ Body: <blob>
 ```
 
 ---
+
+## Certificates
+
+### Batch-apply certificate templates
+
+_Available in Fleet Premium_
+
+`POST /api/latest/fleet/certificates/batch`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| team_id | integer | query | The ID of the team to add the certificate template to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`.
+| team_name | string | query | The name of the team to add the certificate template to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`.
+| dry_run   | bool   | query | Validate the provided certificate templates and return any validation errors, but do not apply the changes.                                                                         |
+| certificates  | array  | body  | An array of objects with the certificate templates. Each item must contain `name` with the certificate template name, `certificate_authority_name` with the certificate authority name, and `subject_name` with the certificate's subject name.   |
+
+If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error.
+If no `team_name` or `team_id` is provided, certificate templates are applied for hosts that are not assigned to any team.
+
+> Any existing certificate template that is not included in the list will be removed, and existing templates with the same name as the new template will be edited. Providing an empty list of certificate templates will remove existing scripts.
+
+#### Example
+
+`POST /api/latest/fleet/certificates/batch`
+
+##### Request body
+
+```json
+{
+  "certificates": [
+    {
+      "name": "WIFI_CERTIFICATE",
+      "certificate_authority_name": "WIFI_CERTIFICATE_CA_PROD",
+      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+    },
+    {
+      "name": "WIFI_CERTIFICATE_TEST",
+      "certificate_authority_name": "WIFI_CERTIFICATE_CA_STAGING",
+      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+    },
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scripts": [
+    {
+      "team_id": 3,
+      "id": 6690,
+      "name": "Ensure shields are up"
+    },
+    {
+      "team_id": 3,
+      "id": 10412,
+      "name": "Ensure flux capacitor is charged"
+    }
+  ]
+}
+```
 
 ## Users
 
