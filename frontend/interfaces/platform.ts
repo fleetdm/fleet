@@ -146,6 +146,9 @@ export const isAppleDevice = (platform = "") => {
   );
 };
 
+export const isWindows = (platform: string | HostPlatform) =>
+  platform === "windows";
+
 export const isMacOS = (platform: string | HostPlatform) =>
   platform === "darwin";
 
