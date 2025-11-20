@@ -282,6 +282,13 @@
       "description": "iMazing Profile Editor is an app for creating and editing Apple configuration profiles."
     },
     {
+      "name": "Insomnia",
+      "slug": "insomnia/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.insomnia.app",
+      "description": "Open-source, cross-platform API client primarily used for designing, testing, and debugging REST APIs"
+    },
+    {
       "name": "IntelliJ IDEA CE",
       "slug": "intellij-idea-ce/darwin",
       "platform": "darwin",
