@@ -705,7 +705,7 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 					},
 					AndroidSettings: fleet.AndroidSettings{
 						CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
-						Certificates:   optjson.Slice[fleet.CertificateSpec]{Set: true, Value: []fleet.CertificateSpec{}},
+						Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 					},
 				},
 			},
@@ -744,7 +744,7 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 			},
 			AndroidSettings: fleet.AndroidSettings{
 				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
-				Certificates:   optjson.Slice[fleet.CertificateSpec]{Set: true, Value: []fleet.CertificateSpec{}},
+				Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 			},
 		}, mdm)
 	})

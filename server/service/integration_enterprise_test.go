@@ -283,7 +283,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		},
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			Certificates:   optjson.Slice[fleet.CertificateSpec]{Set: true, Value: []fleet.CertificateSpec{}},
+			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
 	}, team.Config.MDM)
 
@@ -389,7 +389,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		},
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			Certificates:   optjson.Slice[fleet.CertificateSpec]{Set: true, Value: []fleet.CertificateSpec{}},
+			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
 	}, team.Config.MDM)
 
@@ -426,7 +426,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		},
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			Certificates:   optjson.Slice[fleet.CertificateSpec]{Set: true, Value: []fleet.CertificateSpec{}},
+			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
 	}, getTmResp.Team.Config.MDM)
 
@@ -465,7 +465,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		},
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			Certificates:   optjson.Slice[fleet.CertificateSpec]{Set: true, Value: []fleet.CertificateSpec{}},
+			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
 	}, listTmResp.Teams[0].Config.MDM)
 
@@ -2687,7 +2687,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 		},
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			Certificates:   optjson.Slice[fleet.CertificateSpec]{Set: true, Value: []fleet.CertificateSpec{}},
+			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
 	}, getTmResp.Team.Config.MDM)
 
