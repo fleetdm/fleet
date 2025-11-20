@@ -222,16 +222,65 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	}
 
 	if u.Script.IsOther {
-		// for supported FMAs, this is a map with "executable" as the script path and "sudo" with sudo set to true
+		// for supported FMAs, this is a map with "executable" as the script path,
+		// optional "args" array, optional "sudo" boolean, and optional "must_succeed" boolean
 		addUserVar()
-		if u.Script.Other["args"] != nil {
-			panic("Args found in Homebrew uninstall script; not yet implemented in ingester")
-		}
-		if u.Script.Other["sudo"] != true {
-			panic("sudo not found or something other than true")
+		executable, ok := u.Script.Other["executable"].(string)
+		if !ok {
+			panic("executable not found or not a string in script")
 		}
 
-		sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo '%s')`, u.Script.Other["executable"])
+		// Build the command with arguments if present
+		var cmdParts []string
+		cmdParts = append(cmdParts, fmt.Sprintf("'%s'", executable))
+
+		// Handle args if present
+		if argsVal, hasArgs := u.Script.Other["args"]; hasArgs {
+			args, ok := argsVal.([]interface{})
+			if !ok {
+				panic("args must be an array in script")
+			}
+			for _, arg := range args {
+				argStr, ok := arg.(string)
+				if !ok {
+					panic("all args must be strings")
+				}
+				cmdParts = append(cmdParts, fmt.Sprintf("'%s'", argStr))
+			}
+		}
+
+		cmd := strings.Join(cmdParts, " ")
+
+		// Handle must_succeed - if false, we can ignore errors
+		mustSucceed := true
+		if mustSucceedVal, hasMustSucceed := u.Script.Other["must_succeed"]; hasMustSucceed {
+			if ms, ok := mustSucceedVal.(bool); ok {
+				mustSucceed = ms
+			}
+		}
+
+		// Handle sudo - check if sudo is required (defaults to false if not specified)
+		needsSudo := false
+		if sudoVal, hasSudo := u.Script.Other["sudo"]; hasSudo {
+			if sudo, ok := sudoVal.(bool); ok && sudo {
+				needsSudo = true
+			}
+		}
+
+		// Build the command execution
+		if needsSudo {
+			if mustSucceed {
+				sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo %s)`, cmd)
+			} else {
+				sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo %s) || true`, cmd)
+			}
+		} else {
+			if mustSucceed {
+				sb.Writef(`(cd /Users/$LOGGED_IN_USER && %s)`, cmd)
+			} else {
+				sb.Writef(`(cd /Users/$LOGGED_IN_USER && %s) || true`, cmd)
+			}
+		}
 	} else if len(u.Script.String) > 0 {
 		addUserVar()
 		sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" '%s')`, u.Script.String)

@@ -415,11 +415,18 @@
       "description": "P4V is an app for accessing and managing Perforce version control repositories via a graphical interface."
     },
     {
+      "name": "Parallels Desktop",
+      "slug": "parallels/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.parallels.desktop.console",
+      "description": "Parallels Desktop is virtualization software."
+    },
+    {
       "name": "PhpStorm",
       "slug": "phpstorm/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.PhpStorm",
-      "description": "PHP IDE by JetBrains"
+      "description": "PhpStorm is a PHP IDE by JetBrains."
     },
     {
       "name": "Postman",
