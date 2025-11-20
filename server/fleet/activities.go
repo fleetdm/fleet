@@ -2262,7 +2262,7 @@ type ActivityAddedAppStoreApp struct {
 	SelfService      bool                      `json:"self_service"`
 	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
-	Configuration    json.RawMessage           `json:"configuration"`
+	Configuration    json.RawMessage           `json:"configuration,omitempty"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
@@ -2413,7 +2413,7 @@ type ActivityEditedAppStoreApp struct {
 	SoftwareIconURL  *string                   `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
-	Configuration    json.RawMessage           `json:"configuration"`
+	Configuration    json.RawMessage           `json:"configuration,omitempty"`
 	DisplayName      string                    `json:"display_name"`
 }
 
