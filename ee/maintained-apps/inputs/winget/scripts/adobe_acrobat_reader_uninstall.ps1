@@ -57,6 +57,17 @@ try {
     $exitCode = $process.ExitCode
 
     Write-Host "Uninstall exit code: $exitCode"
+
+    # Wait for any remaining MsiExec processes to complete
+    # MsiExec can return before the uninstall is fully complete
+    $timeout = 60
+    $elapsed = 0
+    while ((Get-Process -Name "msiexec" -ErrorAction SilentlyContinue) -and ($elapsed -lt $timeout)) {
+        Start-Sleep -Seconds 2
+        $elapsed += 2
+        Write-Host "Waiting for MsiExec to complete... ($elapsed seconds)"
+    }
+
     Exit $exitCode
 } catch {
     Write-Host "Error running uninstaller: $_"
