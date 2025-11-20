@@ -6,6 +6,7 @@
 - [File carving](#file-carving)
 - [Hosts](#hosts)
 - [Labels](#labels)
+
 - [Mobile device management (MDM)](#mobile-device-management-mdm)
 - [Policies](#policies)
 - [Queries](#queries)
