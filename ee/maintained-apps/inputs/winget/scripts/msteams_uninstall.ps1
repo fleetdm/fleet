@@ -19,7 +19,7 @@ try {
     Write-Host "Error: `$_.Exception.Message"
     `$exitCode = 1
 } finally {
-    Set-Content -Path `$exitCodeFile -Value `$
+    Set-Content -Path `$exitCodeFile -Value `$exitCode
 }
 
 Stop-Transcript
