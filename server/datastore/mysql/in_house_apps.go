@@ -29,12 +29,15 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 	}
 
-	titleName, _ := strings.CutSuffix(payload.Filename, ".ipa")
-	titleIDipad, err := ds.getOrGenerateInHouseAppTitleID(ctx, titleName, payload.BundleID, "ipados_apps")
+	if payload.Title == "" {
+		payload.Title, _ = strings.CutSuffix(payload.Filename, ".ipa")
+	}
+
+	titleIDipad, err := ds.getOrGenerateInHouseAppTitleID(ctx, payload.Title, payload.BundleID, "ipados_apps")
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
 	}
-	titleIDios, err := ds.getOrGenerateInHouseAppTitleID(ctx, titleName, payload.BundleID, "ios_apps")
+	titleIDios, err := ds.getOrGenerateInHouseAppTitleID(ctx, payload.Title, payload.BundleID, "ios_apps")
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
 	}

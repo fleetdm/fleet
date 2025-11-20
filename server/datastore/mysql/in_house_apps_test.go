@@ -250,6 +250,42 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, payload2.Title, installer2.SoftwareTitle)
 	require.True(t, installer2.SelfService)
+
+	// Test that app name is correct
+	payloadNoTitle := fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team.ID,
+		UserID:           user1.ID,
+		Filename:         "foo_app_nameless.ipa",
+		BundleIdentifier: "com.foo_app_nameless",
+		StorageID:        "testingtesting123",
+		Platform:         "ios",
+		Extension:        "ipa",
+		Version:          "1.0.0",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	}
+	_, titleIDNoTitle, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payloadNoTitle)
+	require.NoError(t, err)
+	installerNoTitle, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleIDNoTitle)
+	require.NoError(t, err)
+	require.Equal(t, "foo_app_nameless", installerNoTitle.SoftwareTitle)
+
+	payloadWithTitle := fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team.ID,
+		UserID:           user1.ID,
+		Title:            "New Title Not Filename",
+		Filename:         "foo_app.ipa",
+		BundleIdentifier: "com.foo_app",
+		StorageID:        "testingtesting123",
+		Platform:         "ios",
+		Extension:        "ipa",
+		Version:          "1.0.0",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	}
+	_, titleIDWithTitle, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payloadWithTitle)
+	require.NoError(t, err)
+	installerWithTitle, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleIDWithTitle)
+	require.NoError(t, err)
+	require.Equal(t, payloadWithTitle.Title, installerWithTitle.SoftwareTitle)
 }
 
 func testInHouseAppsMultipleTeams(t *testing.T, ds *Datastore) {
