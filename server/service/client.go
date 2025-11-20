@@ -887,6 +887,7 @@ func (c *Client) ApplyGroup(
 					LabelsExcludeAny:   app.LabelsExcludeAny,
 					LabelsIncludeAny:   app.LabelsIncludeAny,
 					Categories:         app.Categories,
+					DisplayName:        app.DisplayName,
 					IconPath:           app.Icon.Path,
 					IconHash:           iconHash,
 				})
@@ -1239,6 +1240,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			LabelsExcludeAny:   si.LabelsExcludeAny,
 			SHA256:             si.SHA256,
 			Categories:         si.Categories,
+			DisplayName:        si.DisplayName,
 			IconPath:           si.Icon.Path,
 			IconHash:           iconHash,
 		}
@@ -2468,6 +2470,7 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				AppStoreID:         vppApp.AppStoreID,
 				SelfService:        vppApp.SelfService,
 				InstallDuringSetup: &installDuringSetup,
+				DisplayName:        vppApp.DisplayName,
 				IconPath:           vppApp.Icon.Path,
 				IconHash:           iconHash,
 			})

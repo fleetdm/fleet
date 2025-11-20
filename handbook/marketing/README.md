@@ -230,5 +230,5 @@ Please see [handbook/company/communications#video](https://fleetdm.com/handbook/
 
 
 
-<meta name="maintainedBy" value="sampfluger88">
+<meta name="maintainedBy" value="akuthiala">
 <meta name="title" value="🫧 Marketing">
