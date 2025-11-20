@@ -804,7 +804,7 @@ Get details of the certificate authority.
 }
 ```
 
-### Get certificate
+### Get certificate template
 
 Get details of the certificate added to Fleet.
 
