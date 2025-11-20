@@ -8,7 +8,6 @@ import { getErrorReason } from "interfaces/errors";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner";
-import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 
 const baseClass = "delete-software-modal";
 
