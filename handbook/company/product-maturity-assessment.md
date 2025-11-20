@@ -40,8 +40,8 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Work Profile enrollment (Android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | Automatic Device Enrollment (Android) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | Linux enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| iOS/iPadOS profile-based enrollment | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Account Driven User Enrollment (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| iOS/iPadOS profile-based enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Account Driven User Enrollment (Apple) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Account Driven Device Enrollment (Apple) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | ChromeOS enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 
