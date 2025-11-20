@@ -25,9 +25,9 @@ func (c *Client) ApplyCertificateSpecs(specs []*fleet.CertificateRequestSpec) er
 }
 
 // DeleteCertificateTemplates sends a list of certificate template IDs to be deleted.
-func (c *Client) DeleteCertificateTemplates(certificateTemplateIDs []uint) error {
+func (c *Client) DeleteCertificateTemplates(certificateTemplateIDs []uint, teamID uint) error {
 	verb, path := "DELETE", "/api/latest/fleet/spec/certificates"
-	req := deleteCertificateTemplateSpecsRequest{IDs: certificateTemplateIDs}
+	req := deleteCertificateTemplateSpecsRequest{IDs: certificateTemplateIDs, TeamID: teamID}
 	var responseBody deleteCertificateTemplateSpecsResponse
 	return c.authenticatedRequest(req, verb, path, &responseBody)
 }

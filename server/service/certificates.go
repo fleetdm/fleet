@@ -33,7 +33,7 @@ func listCertificateTemplatesEndpoint(ctx context.Context, request interface{}, 
 }
 
 func (svc *Service) ListCertificateTemplates(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, nil, err
 	}
 
@@ -67,12 +67,12 @@ func getCertificateTemplateEndpoint(ctx context.Context, request interface{}, sv
 }
 
 func (svc *Service) GetCertificateTemplate(ctx context.Context, id uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+	certificate, err := svc.ds.GetCertificateTemplateById(ctx, id)
+	if err != nil {
 		return nil, err
 	}
 
-	certificate, err := svc.ds.GetCertificateTemplateById(ctx, id)
-	if err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: certificate.TeamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -111,10 +111,31 @@ func applyCertificateTemplateSpecsEndpoint(ctx context.Context, request interfac
 	return applyCertificateTemplateSpecsResponse{}, nil
 }
 
+func (svc *Service) checkCertificateTemplateSpecAuthorization(ctx context.Context, specs []*fleet.CertificateRequestSpec) error {
+	teamIDs := make(map[uint]bool)
+	for _, spec := range specs {
+		var teamID uint
+		if spec.Team != "" {
+			parsed, err := strconv.ParseUint(spec.Team, 10, 0)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "parsing team ID")
+			}
+			teamID = uint(parsed)
+		}
+		teamIDs[teamID] = true
+	}
+
+	for teamID := range teamIDs {
+		if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: teamID}, fleet.ActionWrite); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*fleet.CertificateRequestSpec) error {
-	// TODO: What is the right authorization here?
-	// svc.authz.Authorize(ctx, &fleet.Certificate{TeamID: tmID}, fleet.ActionWrite) ?
-	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
+	if err := svc.checkCertificateTemplateSpecAuthorization(ctx, specs); err != nil {
 		return err
 	}
 
@@ -124,7 +145,7 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 		if spec.Team != "" {
 			parsed, err := strconv.ParseUint(spec.Team, 10, 0)
 			if err != nil {
-				return err
+				return ctxerr.Wrap(ctx, err, "parsing team ID")
 			}
 			teamID = uint(parsed)
 		}
@@ -135,6 +156,7 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 			SubjectName:            spec.SubjectName,
 			TeamID:                 teamID,
 		}
+
 		certificates = append(certificates, cert)
 	}
 
@@ -142,8 +164,8 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 }
 
 type deleteCertificateTemplateSpecsRequest struct {
-	IDs []uint `json:"ids"`
-	// TeamID uint   `json:"team_id"` ??
+	IDs    []uint `json:"ids"`
+	TeamID uint   `json:"team_id"`
 }
 
 type deleteCertificateTemplateSpecsResponse struct {
@@ -154,15 +176,15 @@ func (r deleteCertificateTemplateSpecsResponse) Error() error { return r.Err }
 
 func deleteCertificateTemplateSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteCertificateTemplateSpecsRequest)
-	err := svc.DeleteCertificateTemplateSpecs(ctx, req.IDs)
+	err := svc.DeleteCertificateTemplateSpecs(ctx, req.IDs, req.TeamID)
 	if err != nil {
 		return deleteCertificateTemplateSpecsResponse{Err: err}, nil
 	}
 	return deleteCertificateTemplateSpecsResponse{}, nil
 }
 
-func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
+func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 	return svc.ds.BatchDeleteCertificateTemplates(ctx, certificateTemplateIDs)

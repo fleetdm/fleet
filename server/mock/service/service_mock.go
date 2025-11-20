@@ -394,7 +394,7 @@ type GetCertificateTemplateFunc func(ctx context.Context, id uint, hostUUID *str
 
 type ApplyCertificateTemplateSpecsFunc func(ctx context.Context, specs []*fleet.CertificateRequestSpec) error
 
-type DeleteCertificateTemplateSpecsFunc func(ctx context.Context, certificateTemplateIDs []uint) error
+type DeleteCertificateTemplateSpecsFunc func(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
 
 type GlobalScheduleQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
 
@@ -3438,11 +3438,11 @@ func (s *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*fl
 	return s.ApplyCertificateTemplateSpecsFunc(ctx, specs)
 }
 
-func (s *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint) error {
+func (s *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error {
 	s.mu.Lock()
 	s.DeleteCertificateTemplateSpecsFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteCertificateTemplateSpecsFunc(ctx, certificateTemplateIDs)
+	return s.DeleteCertificateTemplateSpecsFunc(ctx, certificateTemplateIDs, teamID)
 }
 
 func (s *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {

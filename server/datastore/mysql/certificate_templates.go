@@ -16,6 +16,7 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 		SELECT
 			certificate_templates.id,
 			certificate_templates.name,
+			certificate_templates.team_id,
 			certificate_templates.certificate_authority_id,
 			certificate_authorities.name AS certificate_authority_name,
 			certificate_templates.subject_name,

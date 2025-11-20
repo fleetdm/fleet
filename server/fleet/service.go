@@ -635,7 +635,7 @@ type Service interface {
 	ListCertificateTemplates(ctx context.Context, teamID uint, page int, perPage int) ([]*CertificateTemplateResponseSummary, *PaginationMetadata, error)
 	GetCertificateTemplate(ctx context.Context, id uint, hostUUID *string) (*CertificateTemplateResponseFull, error)
 	ApplyCertificateTemplateSpecs(ctx context.Context, specs []*CertificateRequestSpec) error
-	DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint) error
+	DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalScheduleService

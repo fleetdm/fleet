@@ -14,6 +14,10 @@ type CertificateTemplate struct {
 	SubjectName            string
 }
 
+func (c *CertificateTemplate) AuthzType() string {
+	return "certificate_template"
+}
+
 type CertificateTemplateResponseSummary struct {
 	ID                       uint   `json:"id" db:"id"`
 	Name                     string `json:"name" db:"name"`
@@ -25,4 +29,5 @@ type CertificateTemplateResponseSummary struct {
 type CertificateTemplateResponseFull struct {
 	CertificateTemplateResponseSummary
 	SubjectName string `json:"subject_name" db:"subject_name"`
+	TeamID      uint   `json:"-" db:"team_id"`
 }

@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -2955,7 +2956,11 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 			logFn("[-] would've deleted %s\n", numberWithPluralization(len(certificatesToDelete), "Android certificate", "Android certificates"))
 		} else {
 			logFn("[-] deleting %s\n", numberWithPluralization(len(certificatesToDelete), "Android certificate", "Android certificates"))
-			if err := c.DeleteCertificateTemplates(certificatesToDelete); err != nil {
+			tmId, err := strconv.ParseUint(teamID, 10, 0)
+			if err != nil {
+				return fmt.Errorf("applying Android certificates: parsing team ID: %w", err)
+			}
+			if err := c.DeleteCertificateTemplates(certificatesToDelete, uint(tmId)); err != nil {
 				return fmt.Errorf("applying Android certificates: deleting existing Android certificates: %w", err)
 			}
 		}
