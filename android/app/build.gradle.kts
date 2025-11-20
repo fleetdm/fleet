@@ -50,7 +50,7 @@ detekt {
     config.setFrom("$projectDir/detekt.yml")
 }
 
-// Option 3 (Hybrid): Don't run Detekt automatically in local builds, only in CI
+// Don't run Detekt automatically in local builds, only in CI
 tasks.named("check") {
     setDependsOn(dependsOn.filterNot { it.toString().contains("detekt") })
 }
