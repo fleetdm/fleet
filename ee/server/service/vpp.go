@@ -621,9 +621,13 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		teamName = tm.Name
 	}
 
-	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, labelsIncludeAny, labelsExcludeAny)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating software labels")
+	var validatedLabels *fleet.LabelIdentsWithScope
+	if labelsExcludeAny != nil || labelsIncludeAny != nil {
+		var err error
+		validatedLabels, err = ValidateSoftwareLabels(ctx, svc, labelsIncludeAny, labelsExcludeAny)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating software labels")
+		}
 	}
 
 	meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
@@ -689,8 +693,10 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 			existingLabels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
 		}
 	}
-
-	labelsChanged := !validatedLabels.Equal(&existingLabels)
+	var labelsChanged bool
+	if validatedLabels != nil {
+		labelsChanged = !validatedLabels.Equal(&existingLabels)
+	}
 
 	// Get the hosts that are NOT in label scope currently (before the update happens)
 	var hostsNotInScope map[uint]struct{}
