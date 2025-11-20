@@ -16,6 +16,13 @@
       "description": "Password manager that keeps all passwords secure behind one password."
     },
     {
+      "name": "1Password",
+      "slug": "1password/windows",
+      "platform": "windows",
+      "unique_identifier": "1Password",
+      "description": "Password manager that keeps all passwords secure behind one password."
+    },
+    {
       "name": "Abstract",
       "slug": "abstract/darwin",
       "platform": "darwin",
@@ -42,6 +49,13 @@
       "platform": "darwin",
       "unique_identifier": "com.electron.asana",
       "description": "Manage team projects and tasks."
+    },
+    {
+      "name": "BBEdit",
+      "slug": "bbedit/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.barebones.bbedit",
+      "description": "BBEdit is a text, code, and markup editor."
     },
     {
       "name": "Beyond Compare",
@@ -254,11 +268,32 @@
       "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
     },
     {
+      "name": "Grammarly Desktop",
+      "slug": "grammarly-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.grammarly.ProjectLlama",
+      "description": "Grammarly Desktop is an AI writing assistant."
+    },
+    {
       "name": "iMazing Profile Editor",
       "slug": "imazing-profile-editor/darwin",
       "platform": "darwin",
       "unique_identifier": "com.DigiDNA.iMazingProfileEditorMac",
       "description": "iMazing Profile Editor is an app for creating and editing Apple configuration profiles."
+    },
+    {
+      "name": "IntelliJ IDEA CE",
+      "slug": "intellij-idea-ce/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.intellij.ce",
+      "description": "IntelliJ IDEA CE is a community edition IDE for Java development by JetBrains."
+    },
+    {
+      "name": "IntelliJ IDEA Ultimate",
+      "slug": "intellij-idea/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.intellij",
+      "description": "IntelliJ IDEA Ultimate is a Java IDE by JetBrains."
     },
     {
       "name": "Company Portal",
@@ -294,6 +329,13 @@
       "platform": "darwin",
       "unique_identifier": "com.loom.desktop",
       "description": "Screen and video recording software."
+    },
+    {
+      "name": "Messenger",
+      "slug": "messenger/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.facebook.archon.developerID",
+      "description": "Messenger is a native desktop app for Messenger (formerly Facebook Messenger)."
     },
     {
       "name": "Microsoft Edge",
@@ -352,6 +394,13 @@
       "description": "Online collaborative whiteboard platform"
     },
     {
+      "name": "MySQL Workbench",
+      "slug": "mysqlworkbench/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.oracle.workbench.MySQLWorkbench",
+      "description": "Visual tool to design, develop and administer MySQL servers."
+    },
+    {
       "name": "Notion",
       "slug": "notion/darwin",
       "platform": "darwin",
@@ -387,11 +436,18 @@
       "description": "P4V is an app for accessing and managing Perforce version control repositories via a graphical interface."
     },
     {
+      "name": "Parallels Desktop",
+      "slug": "parallels/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.parallels.desktop.console",
+      "description": "Parallels Desktop is virtualization software."
+    },
+    {
       "name": "PhpStorm",
       "slug": "phpstorm/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.PhpStorm",
-      "description": "PHP IDE by JetBrains"
+      "description": "PhpStorm is a PHP IDE by JetBrains."
     },
     {
       "name": "Postman",

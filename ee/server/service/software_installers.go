@@ -2077,6 +2077,7 @@ func (svc *Service) softwareBatchUpload(
 				LabelsExcludeAny:   p.LabelsExcludeAny,
 				ValidatedLabels:    p.ValidatedLabels,
 				Categories:         p.Categories,
+				DisplayName:        p.DisplayName,
 			}
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
