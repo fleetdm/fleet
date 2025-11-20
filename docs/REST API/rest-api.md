@@ -3090,6 +3090,7 @@ Returns the information of the specified host.
 | exclude_software | boolean | query | If `true`, the response will not include a list of installed software for the host.     |
 | exclude_fleet_maintained_policies | boolean | query | If `true`, will omit Fleet-maintained policies from the policies list. |
 
+
 #### Example
 
 `GET /api/v1/fleet/hosts/121`
@@ -3163,6 +3164,13 @@ Returns the information of the specified host.
       {
         "cycle_count": 999,
         "health": "Normal"
+      }
+    ],
+    "custom_vitals": [
+      {
+        "query_id": 123,
+        "label": "WiFi security type",
+        "value": "WPA2 Personal"
       }
     ],
     "geolocation": {
@@ -8470,6 +8478,8 @@ Creates a global query or team query.
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
 | logging                         | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
 | discard_data                    | boolean | body | Whether to skip saving the latest query results for each host. Default: `false`. |
+| host_vital                    | boolean | body | Whether to save this as a custom host vital. This surfaces the first column of a host's first result in host details. Default: `false`. |
+| host_vital_label              | string  | body | Label for data surfaced as a custom host vital. Required if `host_vital` is `true`. |
 
 
 #### Example
@@ -8521,6 +8531,8 @@ Creates a global query or team query.
     "observer_can_run": true,
     "discard_data": false,
     "packs": [],
+    "host_vital": false,
+    "host_vital_label": "",
     "labels_include_any": [
       "Hosts with Docker installed"
     ]
