@@ -587,7 +587,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 - [Edit certificate authority (CA)](#edit-certificate-authority-ca)
 - [List certificate authorities (CAs)](#list-certificate-authorities-cas)
 - [Get certificate authority (CA)](#get-certificate-authority-ca)
-- [Get certificate](#get-certificate)
+- [Get certificate template](#get-certificate-template)
 - [Delete certificate authority (CA)](#delete-certificate-authority-ca)
 - [Request certificate](#request-certificate)
 
@@ -801,6 +801,69 @@ Get details of the certificate authority.
     "$FLEET_VAR_HOST_HARDWARE_SERIAL"
   ],
   "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+}
+```
+
+### List certificate templates
+
+List certificate added to Fleet. Currently, they can only be added via GitOps.
+
+`GET /api/v1/fleet/certificates`
+
+#### Parameters
+
+| Name      | Type    | In   | Description                                                    |
+| ----------| ------- | ---- | -------------------------------------------------------------- |
+| team      | string  | query | _Available in Fleet Premium_. The team ID to filter profiles. |
+| page      | integer | query | Page number of the results to fetch.                          |
+| per_page  | integer | query | Results per page.                                             |
+
+#### Request headers
+
+This endpoint accepts the node key from Fleet's Android agent for authentication in addition to [default authentication](#retrieve-your-api-token) with a Bearer token.
+
+The `Authorization` header must be formatted as follows:
+
+```
+Authorization: Node key <node_key>
+```
+
+#### Example
+
+`GET /api/v1/fleet/certificates/`
+
+##### Request headers
+
+```http
+Authorization: Node key 24dd9ebf-02cd-4d4c-888a-5caa441ee5d5
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificates": [
+    {
+      "id": 1,
+      "name": "wifi-certificate",
+      "certificate_authority_id": "1",
+      "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
+      "created_at": "2025-11-04T00:00:00Z",
+    },
+    {
+      "id": 2,
+      "name": "vpn-certificate",
+      "certificate_authority_id": "1",
+      "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
+      "created_at": "2025-11-04T00:00:00Z",
+    }  
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
