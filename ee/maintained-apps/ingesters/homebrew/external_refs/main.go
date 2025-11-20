@@ -13,6 +13,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"whatsapp/darwin":               {WhatsAppVersionShortener},
 	"google-chrome/darwin":          {ChromePKGInstaller},
 	"omnissa-horizon-client/darwin": {OmnissaHorizonVersionShortener},
+	"8x8-work/darwin":               {EightXEightWorkVersionShortener},
 	"cisco-jabber/darwin":           {CiscoJabberVersionTransformer},
 	"parallels/darwin":              {ParallelsVersionShortener},
 	"github/darwin":                 {GitHubDesktopVersionShortener},

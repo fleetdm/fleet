@@ -23,6 +23,13 @@
       "description": "Password manager that keeps all passwords secure behind one password."
     },
     {
+      "name": "8x8 Work",
+      "slug": "8x8-work/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.8x8---virtual-office",
+      "description": "8x8 Work is a communications application with voice, video, chat, and web conferencing."
+    },
+    {
       "name": "Abstract",
       "slug": "abstract/darwin",
       "platform": "darwin",
