@@ -50,6 +50,7 @@ const UpdateEndUserModal = ({
             value={idpUsername}
             onChange={(val: string) => setIdpUsername(val)}
             helpText="This will be used to populate additional user data, e.g. full name and department."
+            autofocus
           />
 
           <div className="modal-cta-wrap">

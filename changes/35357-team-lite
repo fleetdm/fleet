@@ -1,0 +1,1 @@
+* Improved performance by avoiding unneeded extra queries when fetching team information

@@ -25,7 +25,7 @@ func TestSetupExperienceAuth(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script, allowUpdate bool) error {
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error {
 		return nil
 	}
 
@@ -54,8 +54,8 @@ func TestSetupExperienceAuth(t *testing.T) {
 			return newNotFoundError() // TODO: confirm if we want to return not found on deletes
 		}
 	}
-	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
-		return &fleet.Team{ID: id}, nil
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: id}, nil
 	}
 	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
 		return nil
@@ -199,7 +199,7 @@ func TestSetupExperienceAuth(t *testing.T) {
 			ctx = viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			t.Run("setup experience script", func(t *testing.T) {
-				err := svc.CreateSetupExperienceScript(ctx, nil, "test.sh", strings.NewReader("echo"))
+				err := svc.SetSetupExperienceScript(ctx, nil, "test.sh", strings.NewReader("echo"))
 				checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 				err = svc.DeleteSetupExperienceScript(ctx, nil)
 				checkAuthErr(t, tt.shouldFailGlobalWrite, err)
@@ -208,7 +208,7 @@ func TestSetupExperienceAuth(t *testing.T) {
 				_, _, err = svc.GetSetupExperienceScript(ctx, nil, true)
 				checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
-				err = svc.CreateSetupExperienceScript(ctx, &teamID, "test.sh", strings.NewReader("echo"))
+				err = svc.SetSetupExperienceScript(ctx, &teamID, "test.sh", strings.NewReader("echo"))
 				checkAuthErr(t, tt.shouldFailTeamWrite, err)
 				err = svc.DeleteSetupExperienceScript(ctx, &teamID)
 				checkAuthErr(t, tt.shouldFailTeamWrite, err)
