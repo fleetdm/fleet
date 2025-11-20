@@ -1,0 +1,8 @@
+{
+  "name": "Evernote",
+  "unique_identifier": "com.evernote.Evernote",
+  "token": "evernote",
+  "installer_format": "dmg",
+  "slug": "evernote/darwin",
+  "default_categories": ["Productivity"]
+}

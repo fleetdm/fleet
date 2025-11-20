@@ -44,6 +44,13 @@
       "description": "Manage team projects and tasks."
     },
     {
+      "name": "BBEdit",
+      "slug": "bbedit/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.barebones.bbedit",
+      "description": "BBEdit is a text, code, and markup editor."
+    },
+    {
       "name": "Beyond Compare",
       "slug": "beyond-compare/darwin",
       "platform": "darwin",
@@ -184,6 +191,13 @@
       "description": "Dropbox is a client for the Dropbox cloud storage service."
     },
     {
+      "name": "Evernote",
+      "slug": "evernote/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.evernote.Evernote",
+      "description": "Evernote is an app for note taking, organising, task lists, and archiving."
+    },
+    {
       "name": "Figma",
       "slug": "figma/darwin",
       "platform": "darwin",
@@ -308,6 +322,13 @@
       "platform": "darwin",
       "unique_identifier": "com.loom.desktop",
       "description": "Screen and video recording software."
+    },
+    {
+      "name": "Messenger",
+      "slug": "messenger/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.facebook.archon.developerID",
+      "description": "Messenger is a native desktop app for Messenger (formerly Facebook Messenger)."
     },
     {
       "name": "Microsoft Edge",
