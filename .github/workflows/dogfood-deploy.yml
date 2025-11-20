@@ -111,10 +111,10 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
         # Note: This will cause the geolite2 image to be built twice, but that cannot be avoided without refactoring the terraform to not tag it based upon timestamp.
-      - name: Terraform Apply Free
-        if: inputs.dry_run == false
-        id: apply-free
-        run: terraform apply -target=module.free -target=module.migrations_free -target=module.geolite2 -auto-approve
+      # - name: Terraform Apply Free
+      #   if: inputs.dry_run == false
+      #   id: apply-free
+      #   run: terraform apply -target=module.free -target=module.migrations_free -target=module.geolite2 -auto-approve
       - name: Terraform Apply
         if: inputs.dry_run == false
         id: apply
