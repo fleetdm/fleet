@@ -125,7 +125,7 @@
       "slug": "clion/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.CLion",
-      "description": ""
+      "description": "JetBrains IDE for C and C++"
     },
     {
       "name": "Cloudflare WARP",
