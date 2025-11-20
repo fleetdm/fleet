@@ -131,6 +131,7 @@ func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
 		Host: &fleet.Host{
 			Hostname:       "hostname",
 			ComputerName:   "computer_name",
+			Platform:       "android",
 			OSVersion:      "Android 14",
 			Build:          "build",
 			Memory:         1024,

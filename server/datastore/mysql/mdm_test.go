@@ -29,6 +29,7 @@ import (
 
 func TestMDMShared(t *testing.T) {
 	ds := CreateMySQLDS(t)
+	TruncateTables(t, ds)
 
 	cases := []struct {
 		name string

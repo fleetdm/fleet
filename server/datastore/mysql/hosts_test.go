@@ -70,6 +70,7 @@ var enrollTests = []struct {
 
 func TestHosts(t *testing.T) {
 	ds := CreateMySQLDS(t)
+	TruncateTables(t, ds)
 
 	cases := []struct {
 		name string
