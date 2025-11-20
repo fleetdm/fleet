@@ -10,4 +10,4 @@ const BBEdit = (props: SVGProps<SVGSVGElement>) => (
     />
   </svg>
 );
-export default SvgBbEdit;
+export default BBEdit;
