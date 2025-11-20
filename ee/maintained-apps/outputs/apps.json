@@ -380,6 +380,13 @@
       "description": "Online collaborative whiteboard platform"
     },
     {
+      "name": "MySQL Workbench",
+      "slug": "mysqlworkbench/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.oracle.workbench.MySQLWorkbench",
+      "description": "Visual tool to design, develop and administer MySQL servers."
+    },
+    {
       "name": "Notion",
       "slug": "notion/darwin",
       "platform": "darwin",
