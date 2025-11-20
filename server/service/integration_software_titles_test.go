@@ -176,11 +176,31 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		LatestVersion:    "1.0.0",
 	}
 
+	// Create a label
+	clr := createLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+		LabelPayload: fleet.LabelPayload{
+			Name: "foo",
+		},
+	}, http.StatusOK, &clr)
+
+	lbl1Name := clr.Label.Name
+
+	clr = createLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+		LabelPayload: fleet.LabelPayload{
+			Name: "bar",
+		},
+	}, http.StatusOK, &clr)
+
+	lbl2Name := clr.Label.Name
+
 	var addAppResp addAppStoreAppResponse
 	addAppReq := &addAppStoreAppRequest{
-		TeamID:      &team.ID,
-		AppStoreID:  includeAnyApp.AdamID,
-		SelfService: true,
+		TeamID:           &team.ID,
+		AppStoreID:       includeAnyApp.AdamID,
+		SelfService:      true,
+		LabelsIncludeAny: []string{lbl1Name, lbl2Name},
 	}
 
 	// Now add it for real
@@ -258,9 +278,16 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	stResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", macOSTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Empty(stResp.SoftwareTitle.DisplayName)
-	// PATCH semantics, so we shouldn't overwrite self service or categories
+	// PATCH semantics, so we shouldn't overwrite self service or categories or labels
 	s.Assert().True(stResp.SoftwareTitle.AppStoreApp.SelfService)
 	s.Assert().ElementsMatch([]string{"Developer tools", "Browsers"}, stResp.SoftwareTitle.AppStoreApp.Categories)
+	s.Assert().ElementsMatch([]string{lbl1Name, lbl2Name}, func() []string {
+		var ret []string
+		for _, l := range stResp.SoftwareTitle.AppStoreApp.LabelsIncludeAny {
+			ret = append(ret, l.LabelName)
+		}
+		return ret
+	}())
 
 	// List software titles has display name
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID), "query", includeAnyApp.Name)
