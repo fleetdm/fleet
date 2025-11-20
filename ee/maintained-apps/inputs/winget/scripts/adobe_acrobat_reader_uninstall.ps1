@@ -1,7 +1,7 @@
 # Attempts to locate Adobe Acrobat Reader uninstaller from registry and execute it silently
 
 $displayName = "Adobe Acrobat (64-bit)"
-$publisher = "Adobe Inc."
+$publisher = "Adobe"
 
 $paths = @(
     'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
