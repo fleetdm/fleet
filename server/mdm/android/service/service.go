@@ -890,3 +890,137 @@ func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (svc *Service) PatchDevice(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (skip bool, apiErr error) {
+	deviceRequest, err := newAndroidDeviceRequest(policyID, deviceName, device)
+	if err != nil {
+		return false, ctxerr.Wrapf(ctx, err, "prepare device request %s", deviceName)
+	}
+
+	applied, apiErr := svc.androidAPIClient.EnterprisesDevicesPatch(ctx, deviceName, device)
+	if apiErr != nil {
+		var gerr *googleapi.Error
+		if errors.As(apiErr, &gerr) {
+			deviceRequest.StatusCode = gerr.Code
+		}
+		deviceRequest.ErrorDetails.V = apiErr.Error()
+		deviceRequest.ErrorDetails.Valid = true
+
+		if skip = androidmgmt.IsNotModifiedError(apiErr); skip {
+			apiErr = nil
+		}
+	} else {
+		deviceRequest.StatusCode = http.StatusOK
+		deviceRequest.AppliedPolicyVersion.V = applied.AppliedPolicyVersion
+		deviceRequest.AppliedPolicyVersion.Valid = true
+	}
+
+	if err := svc.fleetDS.NewAndroidPolicyRequest(ctx, deviceRequest); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "save android device request")
+	}
+	return skip, nil
+}
+
+func (svc *Service) PatchPolicy(ctx context.Context, policyID, policyName string,
+	policy *androidmanagement.Policy, metadata map[string]string,
+) (skip bool, err error) {
+	policyRequest, err := newAndroidPolicyRequest(policyID, policyName, policy, metadata)
+	if err != nil {
+		return false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
+	}
+
+	applied, apiErr := svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy)
+	if apiErr != nil {
+		var gerr *googleapi.Error
+		if errors.As(apiErr, &gerr) {
+			policyRequest.StatusCode = gerr.Code
+		}
+		policyRequest.ErrorDetails.V = apiErr.Error()
+		policyRequest.ErrorDetails.Valid = true
+
+		// Note that from my tests, the "not modified" error is not reliable, the
+		// AMAPI happily returned 200 even if the policy was the same (as
+		// confirmed by the same version number being returned), so we do check
+		// for this error, but do not build critical logic on top of it.
+		//
+		// Tests do show that the version number is properly incremented when the
+		// policy changes, though.
+		if skip = androidmgmt.IsNotModifiedError(apiErr); skip {
+			apiErr = nil
+		}
+	} else {
+		policyRequest.StatusCode = http.StatusOK
+		policyRequest.PolicyVersion.V = applied.Version
+		policyRequest.PolicyVersion.Valid = true
+	}
+
+	if err := svc.fleetDS.NewAndroidPolicyRequest(ctx, policyRequest); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "save android policy request")
+	}
+	return skip, nil
+}
+
+func (svc *Service) MigrateToPerDevicePolicy(ctx context.Context) error {
+
+	hosts, err := svc.fleetDS.ListAndroidEnrolledDevicesForReconcile(ctx)
+	if err != nil {
+		return err
+	}
+
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, h := range hosts {
+		if h.AppliedPolicyID != nil && *h.AppliedPolicyID == "1" {
+			var policy androidmanagement.Policy
+
+			policy.StatusReportingSettings = &androidmanagement.StatusReportingSettings{
+				DeviceSettingsEnabled:        true,
+				MemoryInfoEnabled:            true,
+				NetworkInfoEnabled:           true,
+				DisplayInfoEnabled:           true,
+				PowerManagementEventsEnabled: true,
+				HardwareStatusEnabled:        true,
+				SystemPropertiesEnabled:      true,
+				SoftwareInfoEnabled:          true,
+				CommonCriteriaModeEnabled:    true,
+				ApplicationReportsEnabled:    true,
+				ApplicationReportingSettings: nil, // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
+			}
+
+			if h.EnterpriseSpecificID != nil {
+
+				policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), *h.EnterpriseSpecificID)
+				_, err := svc.PatchPolicy(ctx, *h.EnterpriseSpecificID, policyName, &policy, nil)
+				if err != nil {
+					return err
+				}
+				device := &androidmanagement.Device{
+					PolicyName: policyName,
+					// State must be specified when updating a device, otherwise it fails with
+					// "Illegal state transition from ACTIVE to DEVICE_STATE_UNSPECIFIED"
+					//
+					// > Note that when calling enterprises.devices.patch, ACTIVE and
+					// > DISABLED are the only allowable values.
+
+					// TODO(ap): should we send whatever the previous state was? If it was DISABLED,
+					// we probably don't want to re-enable it by accident. Those are the only
+					// 2 valid states when patching a device.
+					State: "ACTIVE",
+				}
+				androidHost, err := svc.ds.AndroidHostLiteByHostUUID(ctx, *h.EnterpriseSpecificID)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", *h.EnterpriseSpecificID)
+				}
+				deviceName := fmt.Sprintf("%s/devices/%s", enterprise.Name(), androidHost.DeviceID)
+				_, err = svc.PatchDevice(ctx, *h.EnterpriseSpecificID, deviceName, device)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
