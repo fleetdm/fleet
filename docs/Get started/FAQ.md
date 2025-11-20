@@ -82,27 +82,18 @@ Fleet supports the following operating system versions on hosts.
 | ChromeOS   | 112.0.5615.134+                         |
 | Android    | 13+                                     |
 
-On Linux, Fleet Desktop only supports the GNOME and KDE Plasma desktop environments.
-
 While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them.
 
-## Some notes on compatibility
 
-### Tables
+### Note
 
-Not all osquery tables are available for every OS. Please check out the [osquery schema](https://fleetdm.com/tables) for detailed information. 
+> - Not all osquery tables are available for every OS. Please check out the [osquery schema](https://fleetdm.com/tables) for detailed information.
+>   - If a table is not available for your host, Fleet will generally handle things behind the scenes for you.
+> - On Linux, Fleet Desktop is only supported on GNOME and KDE Plasma desktop environments.
+>   - GNOME requires a [GNOME extension](https://extensions.gnome.org/extension/615/appindicator-support/).
+> - Fleet's default (un)install scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
+> - The `fleetctl package` command is not supported on DISA-STIG distribution.
 
-If a table is not available for your host, Fleet will generally handle things behind the scenes for you.
-
-### Linux
-
-Fleet Desktop is supported on Ubuntu, Fedora, Debian, and Arch Linux, and Omarchy.
-
-Fedora and Debian hosts require a [GNOME extension](https://extensions.gnome.org/extension/615/appindicator-support/) for Fleet Desktop.
-
-Fleet's default (un)install scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
-
-The `fleetctl package` command is not supported on DISA-STIG distribution.
 
 ## Is Fleet MIT licensed?
 
