@@ -191,13 +191,6 @@
       "description": "Dropbox is a client for the Dropbox cloud storage service."
     },
     {
-      "name": "Evernote",
-      "slug": "evernote/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.evernote.Evernote",
-      "description": "Evernote is an app for note taking, organising, task lists, and archiving."
-    },
-    {
       "name": "Figma",
       "slug": "figma/darwin",
       "platform": "darwin",
