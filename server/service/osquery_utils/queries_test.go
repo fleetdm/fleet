@@ -2004,10 +2004,10 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 	logger := log.NewNopLogger()
 	host := &fleet.Host{ID: 1, UUID: "mdm-windows-hw-uuid"}
 
-	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string) error {
+	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string) (bool, error) {
 		require.NotEmpty(t, deviceID)
 		require.Equal(t, host.UUID, hostUUID)
-		return nil
+		return true, nil
 	}
 
 	// if no rows, assume the registry key is not present (i.e. mdm is turned off) and do nothing
