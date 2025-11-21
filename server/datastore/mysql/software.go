@@ -2848,7 +2848,6 @@ type hostSoftware struct {
 	SoftwareID            *uint      `db:"software_id"`
 	SoftwareSource        *string    `db:"software_source"`
 	SoftwareExtensionFor  *string    `db:"software_extension_for"`
-	UpgradeCode           *string    `db:"upgrade_code"`
 	InstallerID           *uint      `db:"installer_id"`
 	PackageSelfService    *bool      `db:"package_self_service"`
 	PackageName           *string    `db:"package_name"`
