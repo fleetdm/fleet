@@ -1,0 +1,8 @@
+{
+  "name": "OpenVPN Connect",
+  "slug": "openvpn-connect/darwin",
+  "unique_identifier": "net.openvpn.OpenVPNConnect",
+  "token": "openvpn-connect",
+  "installer_format": "dmg",
+  "default_categories": ["Productivity"]
+}
