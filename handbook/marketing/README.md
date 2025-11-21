@@ -37,7 +37,7 @@ In the Marketing department, we're using the following issue labels to organize 
 | **:mktg-ops** | For internal "infrastructure" work: tooling (e.g., "Fix email automation"), analytics, reporting, list management, and process improvements. |
 | **:mktg-ar** | For tasks related to analyst relations - briefing, responding to reports, inquiries, etc. |
 | **:mktg-pr** | All tasks/effort related to public relations, press releases, earned media, interviews, responding to reporters, etc. |
-| **:mktg-enablement** | all work associated with designing, developing, delivering enablement content for sales, partners, etc |
+| **:mktg-enablement** | All work associated with designing, developing, delivering enablement content for sales, partners, etc. |
 
 ### Prepare "Let's get you set up!" meeting notes
 
