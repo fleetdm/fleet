@@ -57,7 +57,7 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 		return nil, ctxerr.Wrap(ctx, err, "creating certificate template")
 	}
 
-	return svc.ds.GetCertificateTemplateById(ctx, savedTemplate.ID)
+	return savedTemplate, nil
 }
 
 type listCertificateTemplatesRequest struct {

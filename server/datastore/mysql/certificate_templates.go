@@ -83,7 +83,15 @@ func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateT
 		return nil, ctxerr.Wrap(ctx, err, "getting last insert id for certificate_template")
 	}
 
-	return ds.GetCertificateTemplateById(ctx, uint(id)) //nolint:gosec // dismiss G115
+	return &fleet.CertificateTemplateResponseFull{
+		CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+			ID:                     uint(id), //nolint:gosec
+			Name:                   certificateTemplate.Name,
+			CertificateAuthorityId: certificateTemplate.CertificateAuthorityID,
+		},
+		SubjectName: certificateTemplate.SubjectName,
+		TeamID:      certificateTemplate.TeamID,
+	}, nil
 }
 
 func (ds *Datastore) DeleteCertificateTemplate(ctx context.Context, id uint) error {
