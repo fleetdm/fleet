@@ -286,7 +286,7 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	require.Equal(t, payloadWithTitle.Title, installerWithTitle.SoftwareTitle)
 
 	// Different bundle id with same name should create new software title
-	payloadSameTitle := fleet.UploadSoftwareInstallerPayload{
+	payloadSameName := fleet.UploadSoftwareInstallerPayload{
 		TeamID:           &team.ID,
 		UserID:           user1.ID,
 		Title:            "New Title",
@@ -297,9 +297,9 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 		Version:          "1.0.0",
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	}
-	_, titleSameTitle, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payloadSameTitle)
+	_, titleSameName, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payloadSameName)
 	require.NoError(t, err)
-	require.NotEqual(t, titleIDWithTitle, titleSameTitle)
+	require.NotEqual(t, titleIDWithTitle, titleSameName)
 }
 
 func testInHouseAppsMultipleTeams(t *testing.T, ds *Datastore) {
