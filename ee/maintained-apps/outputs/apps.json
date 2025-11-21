@@ -107,6 +107,13 @@
       "description": "Canva is a popular online graphic design tool."
     },
     {
+      "name": "ChatGPT Atlas",
+      "slug": "chatgpt-atlas/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.openai.atlas",
+      "description": "ChatGPT Atlas is OpenAI's official browser with ChatGPT built in."
+    },
+    {
       "name": "ChatGPT Desktop",
       "slug": "chatgpt/darwin",
       "platform": "darwin",
