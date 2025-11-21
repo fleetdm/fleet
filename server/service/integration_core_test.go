@@ -10530,6 +10530,10 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 				OrbitNodeKey: *h.OrbitNodeKey,
 			}
 		}
+		// These routes don't require MDM because they can be used to change end-user auth, but they do require a license.
+		if route.method == "PATCH" && (route.path == "/api/latest/fleet/setup_experience" || route.path == "/api/latest/fleet/mdm/apple/setup") {
+			expectedErr = fleet.ErrMissingLicense
+		}
 		res := s.Do(route.method, path, params, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, expectedErr.Error(), fmt.Sprintf("%s %s", route.method, path))
