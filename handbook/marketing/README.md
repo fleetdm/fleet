@@ -24,6 +24,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 The Marketing department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
 
+
 ### Organize work in GitHub issues with marketing labels
 
 In the Marketing department, we're using the following issue labels to organize our work into different categories/buckets.
