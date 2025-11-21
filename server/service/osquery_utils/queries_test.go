@@ -1134,6 +1134,9 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 				require.False(t, isPersonalEnrollment)
 				return nil
 			}
+			ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+				return nil, common_mysql.NotFound("MDMWindowsEnrolledDevice")
+			}
 		})
 		err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &fleet.Host{}, ds, c.data)
 		require.NoError(t, err)

@@ -2388,10 +2388,12 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 			// There does not seem to be a way on the host to detect this via osquery.
 			windowsDevice, err := ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID)
 			deviceID := "unknown"
+			notInOOBE := false
 			if windowsDevice != nil {
 				deviceID = windowsDevice.MDMDeviceID
+				notInOOBE = windowsDevice.MDMNotInOOBE
 			}
-			fmt.Printf("directIngestMDMWindows got device %s for host %s MDMNotInOOBE %t\n", deviceID, host.UUID, windowsDevice.MDMNotInOOBE)
+			fmt.Printf("directIngestMDMWindows got device %s for host %s MDMNotInOOBE %t\n", deviceID, host.UUID, notInOOBE)
 			if err == nil && windowsDevice != nil {
 				automatic = !windowsDevice.MDMNotInOOBE
 			}
