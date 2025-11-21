@@ -20,11 +20,20 @@ try {
     # Also install for current user so osquery can detect it immediately
     Add-AppxPackage -Path `$msixPath
 
-    # Wait for Windows to fully register the package in the registry
-    Start-Sleep -Seconds 5
+    # Poll for package registration (up to 30 seconds)
+    `$maxAttempts = 30
+    `$attempt = 0
+    `$installed = `$null
 
-    # Verify package is registered
-    `$installed = Get-AppxPackage -Name "MSTeams"
+    while (`$attempt -lt `$maxAttempts) {
+        `$installed = Get-AppxPackage -Name "MSTeams"
+        if (`$installed) {
+            break
+        }
+        Start-Sleep -Seconds 1
+        `$attempt++
+    }
+
     if (-not `$installed) {
         `$exitCode = 1
     }
