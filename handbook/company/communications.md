@@ -147,7 +147,7 @@ In some instances, you may need to record a call locally (i.e. save the recordin
 4. Upload the mp4 recording to the [whiteboards folder](https://drive.google.com/drive/u/0/folders/1prO98fmB2WKzpubZ2-z0sju9dQ4ijpNE) in Google Drive.
 
 
-> **Confidentiality reminder.**
+> **Confidentiality reminder:**
 >
 > Fleet meetings titled with "▶️" are considered public by default unless [otherwise specified](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality). All public meeting transcripts and video are screened for confidential information before being published. If confidential information (e.g. customer names, IP addresses, GitHub secrets, etc.) is revealed via screen share or audio during the recording of a public meeting, any team member on the call that notices sensitive information should verbally say, "Pineapple, pineapple, pineapple." 
 >
