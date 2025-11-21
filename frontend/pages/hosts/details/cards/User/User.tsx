@@ -31,7 +31,11 @@ interface IUserProps {
   disableFullNameTooltip?: boolean;
   disableGroupsTooltip?: boolean;
   className?: string;
-  onClickUpdateUser?: () => void;
+  onClickUpdateUser?: (
+    e:
+      | React.MouseEvent<HTMLButtonElement>
+      | React.KeyboardEvent<HTMLButtonElement>
+  ) => void;
 }
 
 const User = ({
@@ -40,7 +44,7 @@ const User = ({
   disableFullNameTooltip = false,
   disableGroupsTooltip = false,
   className,
-  onClickUpdateUser = noop,
+  onClickUpdateUser,
 }: IUserProps) => {
   const classNames = classnames(baseClass, className);
 
