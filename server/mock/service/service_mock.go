@@ -394,6 +394,8 @@ type ListCertificateTemplatesFunc func(ctx context.Context, teamID uint, page in
 
 type GetCertificateTemplateFunc func(ctx context.Context, id uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error)
 
+type DeleteCertificateTemplateFunc func(ctx context.Context, id uint) error
+
 type ApplyCertificateTemplateSpecsFunc func(ctx context.Context, specs []*fleet.CertificateRequestSpec) error
 
 type DeleteCertificateTemplateSpecsFunc func(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
@@ -1424,6 +1426,9 @@ type Service struct {
 
 	GetCertificateTemplateFunc        GetCertificateTemplateFunc
 	GetCertificateTemplateFuncInvoked bool
+
+	DeleteCertificateTemplateFunc        DeleteCertificateTemplateFunc
+	DeleteCertificateTemplateFuncInvoked bool
 
 	ApplyCertificateTemplateSpecsFunc        ApplyCertificateTemplateSpecsFunc
 	ApplyCertificateTemplateSpecsFuncInvoked bool
@@ -3441,6 +3446,13 @@ func (s *Service) GetCertificateTemplate(ctx context.Context, id uint, hostUUID 
 	s.GetCertificateTemplateFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCertificateTemplateFunc(ctx, id, hostUUID)
+}
+
+func (s *Service) DeleteCertificateTemplate(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteCertificateTemplateFunc(ctx, id)
 }
 
 func (s *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*fleet.CertificateRequestSpec) error {

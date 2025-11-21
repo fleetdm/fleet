@@ -20,6 +20,7 @@ func TestCertificates(t *testing.T) {
 		{"CreateCertificateTemplate", testCreateCertificateTemplate},
 		{"GetCertificateTemplateById", testGetCertificateTemplateByID},
 		{"GetCertificateTemplatesByTeamID", testGetCertificateTemplatesByTeamID},
+		{"DeleteCertificateTemplate", testDeleteCertificateTemplate},
 		{"BatchUpsertCertificates", testBatchUpsertCertificates},
 		{"BatchDeleteCertificateTemplates", testBatchDeleteCertificateTemplates},
 	}
@@ -339,6 +340,85 @@ func testGetCertificateTemplatesByTeamID(t *testing.T, ds *Datastore) {
 				require.Len(t, templates, 1)
 				require.True(t, meta.HasPreviousResults)
 				require.False(t, meta.HasNextResults)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+
+			tc.before(ds)
+
+			tc.testFunc(t, ds)
+		})
+	}
+}
+
+func testDeleteCertificateTemplate(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	var teamID, caID uint
+	var certificateTemplateID uint
+	testCases := []struct {
+		name     string
+		before   func(ds *Datastore)
+		testFunc func(*testing.T, *Datastore)
+	}{
+		{
+			"Delete existing certificate template",
+			func(ds *Datastore) {
+				// Create a test team
+				team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
+				require.NoError(t, err)
+				teamID = team.ID
+
+				// Create a test certificate authority
+				ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+					Type:      string(fleet.CATypeCustomSCEPProxy),
+					Name:      ptr.String("Test SCEP CA"),
+					URL:       ptr.String("http://localhost:8080/scep"),
+					Challenge: ptr.String("test-challenge"),
+				})
+				require.NoError(t, err)
+				caID = ca.ID
+
+				// Insert initial certificate
+				certificateTemplate := fleet.CertificateTemplate{
+					Name:                   "Cert1",
+					TeamID:                 teamID,
+					CertificateAuthorityID: caID,
+					SubjectName:            "CN=Test Subject 1",
+				}
+				result, err := ds.writer(ctx).ExecContext(ctx,
+					"INSERT INTO certificate_templates (name, team_id, certificate_authority_id, subject_name) VALUES (?, ?, ?, ?)",
+					certificateTemplate.Name,
+					certificateTemplate.TeamID,
+					certificateTemplate.CertificateAuthorityID,
+					certificateTemplate.SubjectName,
+				)
+				require.NoError(t, err)
+				lastID, err := result.LastInsertId()
+				require.NoError(t, err)
+				certificateTemplateID = uint(lastID) //nolint:gosec
+			},
+			func(t *testing.T, ds *Datastore) {
+				err := ds.DeleteCertificateTemplate(ctx, certificateTemplateID)
+				require.NoError(t, err)
+
+				var count int
+				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates WHERE id = ?", certificateTemplateID)
+				require.NoError(t, err)
+				require.Equal(t, 0, count)
+			},
+		},
+		{
+			"Delete non-existing certificate template",
+			func(ds *Datastore) {},
+			func(t *testing.T, ds *Datastore) {
+				err := ds.DeleteCertificateTemplate(ctx, 0)
+				require.Error(t, err)
+				require.Equal(t, notFound("CertificateTemplate").WithID(0), err)
 			},
 		},
 	}

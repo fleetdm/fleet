@@ -83,7 +83,27 @@ func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateT
 		return nil, ctxerr.Wrap(ctx, err, "getting last insert id for certificate_template")
 	}
 
-	return ds.GetCertificateTemplateById(ctx, uint(id))
+	return ds.GetCertificateTemplateById(ctx, uint(id)) //nolint:gosec // dismiss G115
+}
+
+func (ds *Datastore) DeleteCertificateTemplate(ctx context.Context, id uint) error {
+	result, err := ds.writer(ctx).ExecContext(ctx, `
+		DELETE FROM certificate_templates
+		WHERE id = ?
+	`, id)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting certificate_template")
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting rows affected for certificate_template")
+	}
+	if rowsAffected == 0 {
+		return notFound("CertificateTemplate").WithID(id)
+	}
+
+	return nil
 }
 
 func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certificateTemplates []*fleet.CertificateTemplate) error {

@@ -142,6 +142,37 @@ func (svc *Service) GetCertificateTemplate(ctx context.Context, id uint, hostUUI
 	return certificate, nil
 }
 
+type deleteCertificateTemplateRequest struct {
+	ID uint `url:"id"`
+}
+type deleteCertificateTemplateResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteCertificateTemplateResponse) Error() error { return r.Err }
+
+func deleteCertificateTemplateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*deleteCertificateTemplateRequest)
+	err := svc.DeleteCertificateTemplate(ctx, req.ID)
+	if err != nil {
+		return deleteCertificateTemplateResponse{Err: err}, nil
+	}
+	return deleteCertificateTemplateResponse{}, nil
+}
+
+func (svc *Service) DeleteCertificateTemplate(ctx context.Context, certificateTemplateID uint) error {
+	certificate, err := svc.ds.GetCertificateTemplateById(ctx, certificateTemplateID)
+	if err != nil {
+		return err
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: certificate.TeamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	return svc.ds.DeleteCertificateTemplate(ctx, certificateTemplateID)
+}
+
 type applyCertificateTemplateSpecsRequest struct {
 	Specs []*fleet.CertificateRequestSpec `json:"specs"`
 }
