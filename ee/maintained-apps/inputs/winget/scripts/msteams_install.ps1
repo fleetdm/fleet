@@ -2,12 +2,10 @@ $softwareName = "MSTeams-x64"
 $msixPath = "${env:INSTALLER_PATH}"
 $taskName = "fleet-install-$softwareName.msix"
 $scriptPath = "$env:PUBLIC\install-$softwareName.ps1"
-$logFile = "$env:PUBLIC\install-output-$softwareName.txt"
 $exitCodeFile = "$env:PUBLIC\install-exitcode-$softwareName.txt"
 
 $userScript = @"
 `$msixPath = "$msixPath"
-`$logFile = "$logFile"
 `$exitCodeFile = "$exitCodeFile"
 `$exitCode = 0
 
@@ -78,9 +76,9 @@ try {
     # Write the install script to disk
     Set-Content -Path $scriptPath -Value $userScript -Force
 
-    # Build task action: run script, redirect stdout/stderr to log file
+    # Build task action: run script (output goes to stdout for Fleet)
     $action = New-ScheduledTaskAction -Execute "powershell.exe" `
-        -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scriptPath`" *> `"$logFile`" 2>&1"
+        -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scriptPath`""
 
     $trigger = New-ScheduledTaskTrigger -AtLogOn
 
@@ -126,7 +124,6 @@ try {
     # Clean up
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
     Remove-Item -Path $scriptPath -Force -ErrorAction SilentlyContinue
-    Remove-Item -Path $logFile -Force -ErrorAction SilentlyContinue
     Remove-Item -Path $exitCodeFile -Force -ErrorAction SilentlyContinue
 }
 
