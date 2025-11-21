@@ -50,6 +50,7 @@ type Device struct {
 }
 
 type AgentManagedConfiguration struct {
+	ServerURL    string `json:"serverURL"`
 	HostUUID     string `json:"hostUUID"`
 	EnrollSecret string `json:"enrollSecret"`
 }

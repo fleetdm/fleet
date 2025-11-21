@@ -142,8 +142,15 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		}
 		// Use the first enroll secret
 		enrollSecret := enrollSecrets[0].Secret
+
+		appConfig, err := v.Datastore.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get app config")
+		}
+
 		err = v.AndroidModule.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, map[string]android.AgentManagedConfiguration{
 			hostUUID: {
+				ServerURL:    appConfig.ServerSettings.ServerURL,
 				HostUUID:     hostUUID,
 				EnrollSecret: enrollSecret,
 			},
