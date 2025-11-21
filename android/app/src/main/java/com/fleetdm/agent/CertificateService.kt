@@ -6,6 +6,12 @@ import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
+import com.fleetdm.agent.scep.ScepClient
+import com.fleetdm.agent.scep.ScepClientImpl
+import com.fleetdm.agent.scep.ScepConfig
+import com.fleetdm.agent.scep.ScepEnrollmentException
+import com.fleetdm.agent.scep.ScepException
+import com.fleetdm.agent.scep.ScepResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -13,7 +19,6 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.security.PrivateKey
 import java.security.cert.Certificate
-import java.security.cert.X509Certificate
 
 /**
  * Service to handle SCEP enrollment and silent certificate installation using DevicePolicyManager.
@@ -25,19 +30,8 @@ class CertificateService : Service() {
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
 
-    // Data structure assumed to be pushed by the MDM for SCEP
-    data class ScepConfig(
-        val url: String,
-        val challenge: String,
-        val alias: String, // Added alias for silent installation
-        val subject: String? = null
-    )
-
-    // Structure for SCEP result, holding the key and certificate(s)
-    data class ScepResult(
-        val privateKey: PrivateKey,
-        val certificateChain: Array<Certificate>
-    )
+    // SCEP client for certificate enrollment
+    private val scepClient: ScepClient = ScepClientImpl()
 
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -90,30 +84,41 @@ class CertificateService : Service() {
                 url = json.getString("scep_url"),
                 challenge = json.getString("challenge"),
                 alias = json.getString("alias"),
-                subject = json.optString("subject", null)
+                subject = json.getString("subject"),
+                keyLength = json.optInt("key_length", 2048),
+                signatureAlgorithm = json.optString("signature_algorithm", "SHA256withRSA")
             )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse SCEP configuration JSON: ${e.message}")
-            ScepConfig("", "", "default_alias", "")
+            throw IllegalArgumentException("Invalid SCEP configuration", e)
         }
     }
 
     /**
-     * !!! SIMPLIFIED PLACEHOLDER: YOUR SCEP CLIENT IMPLEMENTATION GOES HERE !!!
-     * * In a real app, this function would handle:
-     * 1. KeyPair Generation (using KeyGenParameterSpec and KeyPairGenerator)
-     * 2. Certificate Signing Request (CSR) creation.
-     * 3. Network communication with the SCEP server to get the PKCS#7 response.
-     * 4. Parsing the response into a PrivateKey object and an Array of X509Certificate objects.
-     * * @return The resulting ScepResult object containing the key and chain, or null if enrollment fails.
+     * Performs SCEP enrollment using the ScepClient implementation.
+     *
+     * This function handles:
+     * 1. KeyPair Generation (using RSA)
+     * 2. Certificate Signing Request (CSR) creation
+     * 3. Network communication with the SCEP server to get the PKCS#7 response
+     * 4. Parsing the response into a PrivateKey object and an Array of Certificate objects
+     *
+     * @return The resulting ScepResult object containing the key and chain, or null if enrollment fails
      */
-    private fun scepEnrollment(config: ScepConfig): ScepResult? {
-        Log.w(TAG, "--- SCEP Enrollment Placeholder Running ---")
-        Log.w(TAG, "Your actual SCEP client library must replace this function.")
-
-        // This MUST return a valid PrivateKey and Certificate array for installation to work.
-        // Returning null to simulate failure for now.
-        return null
+    private suspend fun scepEnrollment(config: ScepConfig): ScepResult? {
+        return try {
+            Log.i(TAG, "Starting SCEP enrollment with ${config.url}")
+            scepClient.enroll(config)
+        } catch (e: ScepEnrollmentException) {
+            Log.e(TAG, "SCEP enrollment failed: ${e.message}", e)
+            null
+        } catch (e: ScepException) {
+            Log.e(TAG, "SCEP error: ${e.message}", e)
+            null
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error during SCEP enrollment: ${e.message}", e)
+            null
+        }
     }
 
     /**
