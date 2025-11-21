@@ -1,5 +1,12 @@
 # Fleet Android agent
 
+- [Requirements](#requirements)
+- [Building the project](#building-the-project)
+- [Deploying via Android MDM](#deploying-via-android-mdm-development)
+- [Running tests](#running-tests)
+- [Code quality](#code-quality)
+- [Troubleshooting](#troubleshooting)
+
 ## Requirements
 
 - **JDK 17 or later** - Set `JAVA_HOME` environment variable
