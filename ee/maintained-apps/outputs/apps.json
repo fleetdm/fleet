@@ -6,21 +6,21 @@
       "slug": "010-editor/darwin",
       "platform": "darwin",
       "unique_identifier": "com.SweetScape.010Editor",
-      "description": "A toolkit for working with text and binary data."
+      "description": "010 Editor is a toolkit for working with text and binary data."
     },
     {
       "name": "1Password",
       "slug": "1password/darwin",
       "platform": "darwin",
       "unique_identifier": "com.1password.1password",
-      "description": "Password manager that keeps all passwords secure behind one password."
+      "description": "1Password is a password manager that keeps all passwords secure behind one password."
     },
     {
       "name": "1Password",
       "slug": "1password/windows",
       "platform": "windows",
       "unique_identifier": "1Password",
-      "description": "Password manager that keeps all passwords secure behind one password."
+      "description": "1Password is a password manager that keeps all passwords secure behind one password."
     },
     {
       "name": "8x8 Work",
@@ -55,7 +55,7 @@
       "slug": "asana/darwin",
       "platform": "darwin",
       "unique_identifier": "com.electron.asana",
-      "description": "Manage team projects and tasks."
+      "description": "Asana is an app to manage team projects and tasks."
     },
     {
       "name": "BBEdit",
@@ -111,7 +111,7 @@
       "slug": "chatgpt/darwin",
       "platform": "darwin",
       "unique_identifier": "com.openai.chat",
-      "description": "OpenAI's official ChatGPT desktop app for macOS, providing seamless access to AI-powered conversations and assistance."
+      "description": "ChatGPT Desktop is OpenAI's official ChatGPT desktop app for macOS, providing seamless access to AI-powered conversations and assistance."
     },
     {
       "name": "Cisco Jabber",
@@ -125,7 +125,7 @@
       "slug": "claude/darwin",
       "platform": "darwin",
       "unique_identifier": "com.anthropic.claudefordesktop",
-      "description": "Anthropic's official Claude AI desktop app."
+      "description": "Claude is Anthropic's official Claude AI desktop app."
     },
     {
       "name": "ClickUp",
@@ -139,7 +139,7 @@
       "slug": "clion/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.CLion",
-      "description": "Clion is a JetBrains IDE for C and C++."
+      "description": "CLion is a JetBrains IDE for C and C++."
     },
     {
       "name": "Cloudflare WARP",
@@ -174,7 +174,7 @@
       "slug": "datagrip/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.datagrip",
-      "description": "A powerful cross-platform IDE for relational and NoSQL databases."
+      "description": "DataGrip is a powerful cross-platform IDE for relational and NoSQL databases."
     },
     {
       "name": "Amazon DCV",
@@ -265,21 +265,21 @@
       "slug": "goland/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.goland",
-      "description": "Go (golang) IDE by JetBrains"
+      "description": "GoLand is a Go (golang) IDE by JetBrains"
     },
     {
       "name": "Google Chrome",
       "slug": "google-chrome/darwin",
       "platform": "darwin",
       "unique_identifier": "com.google.Chrome",
-      "description": "Google Chrome Enterprise is a fast, reliable web browser built for performance and compatibility across platforms."
+      "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
       "name": "Google Chrome",
       "slug": "google-chrome/windows",
       "platform": "windows",
       "unique_identifier": "Google Chrome",
-      "description": "Google Chrome Enterprise is a fast, reliable web browser built for performance and compatibility across platforms."
+      "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
       "name": "Google Drive",
@@ -314,7 +314,7 @@
       "slug": "insomnia/darwin",
       "platform": "darwin",
       "unique_identifier": "com.insomnia.app",
-      "description": "Open-source, cross-platform API client primarily used for designing, testing, and debugging REST APIs"
+      "description": "Insomnia is an open-source, cross-platform API client primarily used for designing, testing, and debugging REST APIs"
     },
     {
       "name": "IntelliJ IDEA CE",
@@ -342,28 +342,28 @@
       "slug": "iterm2/darwin",
       "platform": "darwin",
       "unique_identifier": "com.googlecode.iterm2",
-      "description": "A terminal emulator alternative to Apple's Terminal app."
+      "description": "iTerm2 is a terminal emulator alternative to Apple's Terminal app."
     },
     {
       "name": "Linear",
       "slug": "linear-linear/darwin",
       "platform": "darwin",
       "unique_identifier": "com.linear",
-      "description": "An app to manage software development and track bugs."
+      "description": "Linear is an app to manage software development and track bugs."
     },
     {
       "name": "Logi Options+",
       "slug": "logi-options+/darwin",
       "platform": "darwin",
       "unique_identifier": "com.logi.optionsplus",
-      "description": "Software for managing Logitech devices."
+      "description": "Logi Options+ is software for managing Logitech devices."
     },
     {
       "name": "Loom",
       "slug": "loom/darwin",
       "platform": "darwin",
       "unique_identifier": "com.loom.desktop",
-      "description": "Screen and video recording software."
+      "description": "Loom is screen and video recording software."
     },
     {
       "name": "Messenger",
@@ -426,21 +426,21 @@
       "slug": "miro/darwin",
       "platform": "darwin",
       "unique_identifier": "com.electron.realtimeboard",
-      "description": "Online collaborative whiteboard platform"
+      "description": "Miro is an online collaborative whiteboard platform."
     },
     {
       "name": "MySQL Workbench",
       "slug": "mysqlworkbench/darwin",
       "platform": "darwin",
       "unique_identifier": "com.oracle.workbench.MySQLWorkbench",
-      "description": "Visual tool to design, develop and administer MySQL servers."
+      "description": "MySQL Workbench is a visual tool to design, develop and administer MySQL servers."
     },
     {
       "name": "NordVPN",
       "slug": "nordvpn/darwin",
       "platform": "darwin",
       "unique_identifier": "com.nordvpn.macos",
-      "description": "VPN client for secure internet access and private browsing."
+      "description": "NordVPN is a VPN client for secure internet access and private browsing."
     },
     {
       "name": "Notion",
@@ -524,21 +524,21 @@
       "slug": "pycharm-ce/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.pycharm.ce",
-      "description": "Jetbrains IDE for Python programming - Community Edition"
+      "description": "PyCharm Community Edition is a Jetbrains IDE for Python programming - Community Edition"
     },
     {
       "name": "PyCharm Professional",
       "slug": "pycharm/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.pycharm",
-      "description": "Jetbrain IDE for professional Python development. This version includes advanced features and requires a valid license."
+      "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
     },
     {
       "name": "Rectangle",
       "slug": "rectangle/darwin",
       "platform": "darwin",
       "unique_identifier": "com.knollsoft.Rectangle",
-      "description": "Move and resize windows using keyboard shortcuts or snap areas."
+      "description": "Rectangle is an app to move and resize windows using keyboard shortcuts or snap areas."
     },
     {
       "name": "Santa",
@@ -615,7 +615,7 @@
       "slug": "thunderbird/darwin",
       "platform": "darwin",
       "unique_identifier": "org.mozilla.thunderbird",
-      "description": "Mozilla Thunderbird is a free and open-source e-mail client."
+      "description": "Thunderbird is a free and open-source e-mail client."
     },
     {
       "name": "Tunnelblick",
@@ -657,7 +657,7 @@
       "slug": "whatsapp/darwin",
       "platform": "darwin",
       "unique_identifier": "net.whatsapp.WhatsApp",
-      "description": "WhatsApp's native desktop client for seamless messaging and calling on macOS."
+      "description": "WhatsApp is WhatsApp's native desktop client for seamless messaging and calling on macOS."
     },
     {
       "name": "Windows App",
