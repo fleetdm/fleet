@@ -630,6 +630,11 @@ type Service interface {
 	ApplyUserRolesSpecs(ctx context.Context, specs UsersRoleSpec) error
 
 	// /////////////////////////////////////////////////////////////////////////////
+	// Certificate Templates
+
+	UpdateCertificateStatus(ctx context.Context, certificateTemplateID, status string) error
+
+	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalScheduleService
 
 	GlobalScheduleQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
