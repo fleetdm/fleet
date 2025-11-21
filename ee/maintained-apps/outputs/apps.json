@@ -317,6 +317,13 @@
       "description": "Grammarly Desktop is an AI writing assistant."
     },
     {
+      "name": "Granola",
+      "slug": "granola/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.granola.app",
+      "description": "Granola is an AI-powered notepad for meetings."
+    },
+    {
       "name": "iMazing Profile Editor",
       "slug": "imazing-profile-editor/darwin",
       "platform": "darwin",
