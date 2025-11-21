@@ -161,6 +161,7 @@ const LoginForm = ({
         <InputFieldWithIcon
           error={errors.email}
           autofocus
+          type="email"
           label="Email"
           placeholder="Email"
           value={formData.email}
