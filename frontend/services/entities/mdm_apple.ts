@@ -79,6 +79,8 @@ const handleEditVppForm = (
 
   if (formData.categories && formData.categories.length > 0) {
     body.categories = formData.categories as SoftwareCategory[];
+  } else {
+    body.categories = [];
   }
 
   if (formData.targetType === "Custom") {
@@ -88,6 +90,9 @@ const handleEditVppForm = (
     } else {
       body.labels_exclude_any = selectedLabels;
     }
+  } else {
+    body.labels_exclude_any = [];
+    body.labels_include_any = [];
   }
 
   return body;
