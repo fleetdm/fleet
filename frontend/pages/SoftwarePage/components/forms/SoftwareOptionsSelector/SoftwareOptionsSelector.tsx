@@ -155,7 +155,8 @@ const SoftwareOptionsSelector = ({
     return isPlatformIosOrIpados && !isEditingSoftware ? (
       <p>
         Automatic install for iOS and iPadOS is coming soon. Today, you can
-        manually install the <strong>Host details</strong> page for each host.
+        manually install it from the <strong>Host details</strong> page for each
+        host.
       </p>
     ) : null;
   };
