@@ -909,7 +909,6 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					if sw.ApplicationID != nil && *sw.ApplicationID != "" {
 						newTitle.ApplicationID = sw.ApplicationID
 					}
-					fmt.Printf("\n\nsw.UpgradeCode (incoming software, collecting for new title): %v\n\n", sw.UpgradeCode)
 					if sw.UpgradeCode != nil {
 						// intentionally write both empty and non-empty strings as upgrade codes
 						newTitle.UpgradeCode = sw.UpgradeCode

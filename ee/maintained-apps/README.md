@@ -58,7 +58,7 @@
 
 If the `unique_identifier` doesn't match the `DisplayName`, then Fleet will incorrectly create two software titles when the Fleet-maintained app is added and later installed. One title for the Fleet-maintained app and a separate title for the inventoried software.
 
-1. Fill out the file according to the [input schema](#windows-input-file-schema). For example, Box Drive looks like this:
+3. Fill out the file according to the [input schema](#windows-input-file-schema). For example, Box Drive looks like this:
 
 ```json
 {
@@ -73,23 +73,8 @@ If the `unique_identifier` doesn't match the `DisplayName`, then Fleet will inco
 }
 ```
 
-and Cloudflare WARP looks like:
 
-```json
-  {
-     "name": "Cloudflare WARP",
-     "slug": "cloudflare-warp/windows",
-     "package_identifier": "Cloudflare.Warp",
-   //   "unique_identifier": "Cloudflare WARP",
-     "unique_identifier": "{1BF42825-7B65-4CA9-AFFF-B7B5E1CE27B4}", // UpgradeCode from https://github.com/microsoft/winget-pkgs/blob/master/manifests/c/Cloudflare/Warp/25.9.558.0/Cloudflare.Warp.installer.yaml
-     "installer_arch": "x64",
-     "installer_type": "msi",
-     "installer_scope": "machine",
-     "default_categories": ["Productivity"]
-  }
-```
-
-1. Run `go run cmd/maintained-apps/main.go --slug="<app-name>/windows" --debug` from the root of the
+4. Run `go run cmd/maintained-apps/main.go --slug="<app-name>/windows" --debug` from the root of the
    Fleet repo to generate the app's output data, replacing `<app-name>` with your apps name, for example:
 
 ```bash

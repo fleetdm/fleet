@@ -64,14 +64,10 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, ctxerr.Wrap(ctx, err, "getting maintained app by id")
 	}
 
-	fmt.Printf("\n\nmaintained app, pre-hydration: %+v\n\n", app)
-
 	app, err = maintained_apps.Hydrate(ctx, app)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "hydrating app from manifest")
 	}
-
-	fmt.Printf("\n\nmaintained app, post-hydration: %+v\n\n", app)
 
 	// Download installer from the URL
 	timeout := maintained_apps.InstallerTimeout

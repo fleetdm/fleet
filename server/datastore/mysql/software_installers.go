@@ -509,7 +509,6 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 
 	// upgrade_code should be NULL for non-Windows software, empty or non-empty string for Windows
 	// software
-	fmt.Printf("\n\ninstaller payload: %+v\n\n", payload)
 	if payload.Source == "programs" {
 		insertStmt = `INSERT INTO software_titles (name, source, extension_for, upgrade_code) VALUES (?, ?, '', ?)`
 		insertArgs = []any{payload.Title, payload.Source, payload.UpgradeCode}
