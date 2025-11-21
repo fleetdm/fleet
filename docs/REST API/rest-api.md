@@ -1198,13 +1198,13 @@ None.
     "sso_server_url": ""
   },
   "conditional_access": {
-    "microsoft_entra_tenant_id": "<TENANT ID>",
-    "microsoft_entra_connection_configured": true,
-    "okta_idp_id": "<ID>",
-    "okta_assertion_consumer_service_url": "<URL>",
-    "okta_audience_uri": "<URI>",
-    "okta_certificate": "<TODO>",
-    "okta_snooze_enabled": true
+    "microsoft_entra_tenant_id": "",
+    "microsoft_entra_connection_configured": false,
+    "okta_idp_id": "0ogmbinlfy9hvGs7cx492",
+    "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
+    "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
+    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----",
+    "snooze_enabled": true
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -1506,8 +1506,13 @@ Modifies the Fleet's configuration with the supplied information.
     "sso_server_url": "https://instance.fleet.com"
   },
   "conditional_access": {
-    "microsoft_entra_tenant_id": "<TENANT ID>",
-    "microsoft_entra_connection_configured": true
+    "microsoft_entra_tenant_id": "",
+    "microsoft_entra_connection_configured": false,
+    "okta_idp_id": "0ogmbinlfy9hvGs7cx492",
+    "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
+    "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
+    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----",
+    "snooze_enabled": true
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -5106,17 +5111,24 @@ Note that if the host is online and the query times out, this endpoint will retu
 
 ## Snooze host's conditional access
 
-Grant a blocked host access for a single login. Requires Okta conditional access configured with `conditional_access.okta_snooze_enabled` configured.
+Grant a blocked host access for a single login. Requires Okta conditional access configured with `conditional_access.snooze_enabled` configured.
 
 `POST /api/v1/fleet/device/:token/snooze_conditional_access`
 
 #### Parameters
 
-TODO: 1 parameter (device token)
+| Name        | Type   | In   | Description                                                                                                                                                                                                                                  |
+| ----------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| token        | string | path | **Required.** The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+
 
 #### Example 
 
-TODO
+`POST /api/v1/fleet/device/abcdef012456789/snooze_conditional_access`
+
+#### Default response 
+
+`Status: 200` 
 
 ---
 
