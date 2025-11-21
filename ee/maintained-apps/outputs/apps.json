@@ -219,6 +219,13 @@
       "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
     },
     {
+      "name": "Docker Desktop",
+      "slug": "docker/windows",
+      "platform": "windows",
+      "unique_identifier": "Docker Desktop",
+      "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
+    },
+    {
       "name": "draw.io",
       "slug": "drawio/darwin",
       "platform": "darwin",
