@@ -176,20 +176,52 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger kitlog.Logger,
 		windowsProfilesByID[existingProfile.ProfileUUID] = existingProfile
 	}
 
+	// Track profile types for special handling of mixed profiles
+	profilePathTypes := make(map[string]struct {
+		hasUserPaths   bool
+		hasDevicePaths bool
+	})
+
 	err = LoopOverExpectedHostProfiles(ctx, logger, ds, host, func(profile *fleet.ExpectedMDMProfile, ref, locURI, wantData string) {
+		if _, exists := profilePathTypes[profile.Name]; !exists {
+			profilePathTypes[profile.Name] = struct {
+				hasUserPaths   bool
+				hasDevicePaths bool
+			}{}
+		}
+
 		isSCEPLocURI := strings.Contains(strings.TrimSpace(locURI), "/Vendor/MSFT/ClientCertificateInstall/SCEP")
 		existingProfileStatus := windowsProfilesByID[profile.ProfileUUID].Status
 		if isSCEPLocURI &&
 			existingProfileStatus != nil && *existingProfileStatus != fleet.MDMDeliveryFailed { // Don't verify SCEP if it previously failed
 
 			verified[profile.Name] = struct{}{}
-			// We delete here if by some accident it was marked as missing before
 			delete(missing, profile.Name)
 			return
 		} else if isSCEPLocURI && existingProfileStatus != nil && *existingProfileStatus == fleet.MDMDeliveryFailed {
 			return // Just early return here
 		}
 
+		// Categorize the LocURI path type
+		trimmedURI := strings.TrimSpace(locURI)
+		isUserPath := strings.HasPrefix(trimmedURI, "./User/")
+
+		// Update profile path tracking
+		pathInfo := profilePathTypes[profile.Name]
+		if isUserPath {
+			pathInfo.hasUserPaths = true
+		} else {
+			pathInfo.hasDevicePaths = true
+		}
+		profilePathTypes[profile.Name] = pathInfo
+
+		// For user-scoped loc uris, skip validation but don't auto verify the whole profile
+		// Only full user-scoped profiles get auto verified at the end
+		if isUserPath {
+			return
+		}
+
+		// Continue with normal validation for device scoped loc uris
 		// if we didn't get a status for a LocURI, mark the profile as missing.
 		gotStatus, ok := profileResults.cmdRefToStatus[ref]
 		if !ok {
@@ -242,6 +274,15 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger kitlog.Logger,
 	if err != nil {
 		return nil, nil, fmt.Errorf("looping host mdm LocURIs: %w", err)
 	}
+
+	// mark full user-scoped profiles as verified
+	for profileName, pathInfo := range profilePathTypes {
+		if pathInfo.hasUserPaths && !pathInfo.hasDevicePaths {
+			verified[profileName] = struct{}{}
+			delete(missing, profileName) // we delete to be safe
+		}
+	}
+
 	return verified, missing, nil
 }
 
