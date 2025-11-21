@@ -10,11 +10,13 @@ import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
 import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
+import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
 import {
   CATEGORIES_ITEMS,
   ICategory,
 } from "pages/hosts/details/cards/Software/SelfService/helpers";
 import Button from "components/buttons/Button";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 const baseClass = "software-options-selector";
 
@@ -64,7 +66,8 @@ interface ISoftwareOptionsSelector {
   formData:
     | IFleetMaintainedAppFormData
     | ISoftwareVppFormData
-    | IPackageFormData;
+    | IPackageFormData
+    | ISoftwareAndroidFormData;
   /** Only used in create mode not edit mode for FMA, VPP, and custom packages */
   onToggleAutomaticInstall: (value: boolean) => void;
   onToggleSelfService: (value: boolean) => void;
@@ -105,7 +108,8 @@ const SoftwareOptionsSelector = ({
   const classNames = classnames(baseClass, className);
 
   const isPlatformIosOrIpados =
-    platform === "ios" || platform === "ipados" || isIpaPackage;
+    isIPadOrIPhone(platform || "") || isIpaPackage || false;
+  const isPlatformAndroid = isAndroid(platform || "");
   const isSelfServiceDisabled = disableOptions;
   const isAutomaticInstallDisabled =
     disableOptions ||
@@ -151,6 +155,15 @@ const SoftwareOptionsSelector = ({
   const canSelectSoftwareCategories = formData.selfService && isEditingSoftware;
 
   const renderOptionsDescription = () => {
+    if (isPlatformAndroid) {
+      return (
+        <p>
+          Currently, Android apps can only be added as self-service and end user
+          can install them from <strong>Play Store</strong> in their work
+          profile{" "}
+        </p>
+      );
+    }
     // Render unavailable description for iOS or iPadOS add software form only
     return isPlatformIosOrIpados && !isEditingSoftware ? (
       <p>
@@ -171,9 +184,7 @@ const SoftwareOptionsSelector = ({
           className={`${baseClass}__self-service-checkbox`}
           labelTooltipContent={
             !isSelfServiceDisabled &&
-            getSelfServiceTooltip(
-              isIpaPackage || isPlatformIosOrIpados || false
-            )
+            getSelfServiceTooltip(isPlatformIosOrIpados, isPlatformAndroid)
           }
           labelTooltipClickable // Allow interaction with link in tooltip
           disabled={isSelfServiceDisabled}

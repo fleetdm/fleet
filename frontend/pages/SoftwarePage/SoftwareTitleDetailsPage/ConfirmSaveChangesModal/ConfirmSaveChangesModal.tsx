@@ -8,7 +8,7 @@ const baseClass = "save-changes-modal";
 export interface IConfirmSaveChangesModalProps {
   onSaveChanges: () => void;
   softwareInstallerName?: string;
-  installerType: "package" | "vpp";
+  installerType: "package" | "app-store";
   onClose: () => void;
 }
 

@@ -3,9 +3,12 @@
 # retry logic, and sending queues.
 
 otelCollector:
+  # Enable low cardinality exception grouping to reduce exception noise
+  lowCardinalityExceptionGrouping: true
+
   config:
     exporters:
-      # Logs exporter with increased timeout and retry/queue support
+      # Logs exporter with balanced queue sizes for throughput and memory
       clickhouselogsexporter:
         timeout: 60s
         retry_on_failure:
@@ -16,9 +19,9 @@ otelCollector:
         sending_queue:
           enabled: true
           num_consumers: 10
-          queue_size: 5000
+          queue_size: 10000
 
-      # Traces exporter with proper timeout and retry/queue support
+      # Traces exporter must handle spans after tail_sampling
       clickhousetraces:
         timeout: 120s
         retry_on_failure:
@@ -29,7 +32,7 @@ otelCollector:
         sending_queue:
           enabled: true
           num_consumers: 10
-          queue_size: 5000
+          queue_size: 10000
 
       # Metadata exporter with increased timeout and retry support
       metadataexporter:
@@ -41,7 +44,21 @@ otelCollector:
           max_elapsed_time: 300s
 
     processors:
-      # Optimized batch processor to reduce load
+      # Optimized batch processor to send data more frequently
+      # Smaller batches reduce memory pressure
       batch:
-        send_batch_size: 10000
-        timeout: 10s
+        send_batch_size: 2000
+        timeout: 5s
+
+      # Memory limiter to prevent out-of-memory by applying back pressure
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 11264
+        spike_limit_mib: 512
+
+    service:
+      pipelines:
+        traces:
+          processors:
+            - memory_limiter
+            - batch

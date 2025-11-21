@@ -228,12 +228,6 @@ func TestVerifyMDMAppleConfigured(t *testing.T) {
 	ds.AppConfigFuncInvoked = false
 	require.True(t, authzCtx.Checked())
 
-	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
-	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
-	require.True(t, ds.AppConfigFuncInvoked)
-	ds.AppConfigFuncInvoked = false
-	require.True(t, authzCtx.Checked())
-
 	// error retrieving app config
 	authzCtx = &authz_ctx.AuthorizationContext{}
 	ctx = authz_ctx.NewContext(baseCtx, authzCtx)
@@ -247,12 +241,6 @@ func TestVerifyMDMAppleConfigured(t *testing.T) {
 	ds.AppConfigFuncInvoked = false
 	require.True(t, authzCtx.Checked())
 
-	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
-	require.ErrorIs(t, err, testErr)
-	require.True(t, ds.AppConfigFuncInvoked)
-	ds.AppConfigFuncInvoked = false
-	require.True(t, authzCtx.Checked())
-
 	// mdm configured
 	authzCtx = &authz_ctx.AuthorizationContext{}
 	ctx = authz_ctx.NewContext(baseCtx, authzCtx)
@@ -260,12 +248,6 @@ func TestVerifyMDMAppleConfigured(t *testing.T) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
 	err = svc.VerifyMDMAppleConfigured(ctx)
-	require.NoError(t, err)
-	require.True(t, ds.AppConfigFuncInvoked)
-	ds.AppConfigFuncInvoked = false
-	require.False(t, authzCtx.Checked())
-
-	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
 	require.NoError(t, err)
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
@@ -291,12 +273,6 @@ func TestVerifyMDMWindowsConfigured(t *testing.T) {
 	ds.AppConfigFuncInvoked = false
 	require.True(t, authzCtx.Checked())
 
-	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
-	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
-	require.True(t, ds.AppConfigFuncInvoked)
-	ds.AppConfigFuncInvoked = false
-	require.True(t, authzCtx.Checked())
-
 	// error retrieving app config
 	authzCtx = &authz_ctx.AuthorizationContext{}
 	ctx = authz_ctx.NewContext(baseCtx, authzCtx)
@@ -306,12 +282,6 @@ func TestVerifyMDMWindowsConfigured(t *testing.T) {
 	}
 
 	err = svc.VerifyMDMWindowsConfigured(ctx)
-	require.ErrorIs(t, err, testErr)
-	require.True(t, ds.AppConfigFuncInvoked)
-	ds.AppConfigFuncInvoked = false
-	require.True(t, authzCtx.Checked())
-
-	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
 	require.ErrorIs(t, err, testErr)
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
@@ -329,11 +299,90 @@ func TestVerifyMDMWindowsConfigured(t *testing.T) {
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
 	require.False(t, authzCtx.Checked())
+}
 
-	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
+// TestVerifyAnyMDMConfigured validates the service helper that powers the
+// middleware and ensures each Apple/Windows/Android configuration path is covered.
+func TestVerifyAnyMDMConfigured(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	cfg := config.TestConfig()
+	svc, baseCtx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	// helper to create context per assertion
+	newCtx := func() (context.Context, *authz_ctx.AuthorizationContext) {
+		authzCtx := &authz_ctx.AuthorizationContext{}
+		return authz_ctx.NewContext(baseCtx, authzCtx), authzCtx
+	}
+
+	// none configured
+	ctx, authzCtx := newCtx()
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{}}, nil
+	}
+	err := svc.VerifyAnyMDMConfigured(ctx)
+	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.True(t, authzCtx.Checked())
+
+	// error retrieving config
+	ctx, authzCtx = newCtx()
+	testErr := errors.New("test err")
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return nil, testErr
+	}
+	err = svc.VerifyAnyMDMConfigured(ctx)
+	require.ErrorIs(t, err, testErr)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.True(t, authzCtx.Checked())
+
+	// apple only
+	ctx, authzCtx = newCtx()
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	err = svc.VerifyAnyMDMConfigured(ctx)
 	require.NoError(t, err)
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
+	require.False(t, authzCtx.Checked())
+
+	// windows only
+	ctx, authzCtx = newCtx()
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}, nil
+	}
+	err = svc.VerifyAnyMDMConfigured(ctx)
+	require.NoError(t, err)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.False(t, authzCtx.Checked())
+
+	// android only
+	ctx, authzCtx = newCtx()
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+	}
+	err = svc.VerifyAnyMDMConfigured(ctx)
+	require.NoError(t, err)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.False(t, authzCtx.Checked())
+
+	// multiple configs
+	ctx, authzCtx = newCtx()
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{
+			EnabledAndConfigured:        true,
+			WindowsEnabledAndConfigured: true,
+			AndroidEnabledAndConfigured: true,
+		}}, nil
+	}
+	err = svc.VerifyAnyMDMConfigured(ctx)
+	require.NoError(t, err)
+	require.True(t, ds.AppConfigFuncInvoked)
 	require.False(t, authzCtx.Checked())
 }
 
@@ -1180,6 +1229,9 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: tid, Name: "team1"}, nil
 	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: tid, Name: "team1"}, nil
+	}
 	ds.DeleteMDMWindowsConfigProfileFunc = func(ctx context.Context, profileUUID string) error {
 		return nil
 	}
@@ -1743,6 +1795,28 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N1", Contents: androidConfigProfileForTest(t, "A2", nil).RawJSON},
 			},
 			"duplicate json by name",
+		},
+		{
+			"premium-only android profile without premium license",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "systemUpdate", Contents: json.RawMessage([]byte(`{"systemUpdate": {"type": "AUTOMATIC"}}`))},
+			},
+			`Android OS updates ("systemUpdate") is Fleet Premium only.`,
+		},
+		{
+			"premium-only android profile with premium license",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "systemUpdate", Contents: json.RawMessage([]byte(`{"systemUpdate": {"type": "AUTOMATIC"}}`))},
+			},
+			"",
 		},
 	}
 
@@ -2536,4 +2610,101 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 	require.EqualValues(t, 2, newProfileCalls)
 	require.EqualValues(t, 2, deleteCalls)
 	require.EqualValues(t, 2, newActivityCalls) // Only enabled Disk encryption activities, we don't want to log disable right before enabling.
+}
+
+func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
+	require.Len(t, fleet.AndroidPremiumOnlyJSONKeys, 1, "update this test with any new premium-only key for android profiles")
+	require.Contains(t, fleet.AndroidPremiumOnlyJSONKeys, "systemUpdate", "update this test with any new premium-only key for android profiles")
+
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			OrgInfo: fleet.OrgInfo{
+				OrgName: "Foo Inc.",
+			},
+			ServerSettings: fleet.ServerSettings{
+				ServerURL: "https://foo.example.com",
+			},
+			MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: true,
+				AndroidEnabledAndConfigured: true,
+			},
+		}, nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{ID: 1, Name: name}, nil
+	}
+	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: id, Name: "team"}, nil
+	}
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
+		return nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.NewMDMAndroidConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+		return &fleet.MDMAndroidConfigProfile{}, nil
+	}
+
+	testCases := []struct {
+		name    string
+		user    *fleet.User
+		premium bool
+		teamID  uint
+		profile string
+		wantErr string
+	}{
+		{
+			"premium-only android profile without premium license",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			0,
+			`{"systemUpdate": {"type": "AUTOMATIC"}}`,
+			`Android OS updates ("systemUpdate") is Fleet Premium only.`,
+		},
+		{
+			"premium-only android profile with premium license",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			0,
+			`{"systemUpdate": {"type": "AUTOMATIC"}}`,
+			"",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() { ds.NewMDMAndroidConfigProfileFuncInvoked = false }()
+
+			// prepare the context with the user and license
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			tier := fleet.TierFree
+			if tt.premium {
+				tier = fleet.TierPremium
+			}
+			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
+
+			_, err := svc.NewMDMAndroidConfigProfile(ctx, tt.teamID, tt.name, []byte(tt.profile), nil, fleet.LabelsIncludeAll)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				require.True(t, ds.NewMDMAndroidConfigProfileFuncInvoked)
+				return
+			}
+			require.Error(t, err)
+			require.ErrorContains(t, err, tt.wantErr)
+			require.False(t, ds.NewMDMAndroidConfigProfileFuncInvoked)
+		})
+	}
 }
