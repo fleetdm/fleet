@@ -100,7 +100,6 @@
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
-      
       "name": "Canva",
       "slug": "canva/darwin",
       "platform": "darwin",
@@ -435,6 +434,13 @@
       "platform": "darwin",
       "unique_identifier": "com.oracle.workbench.MySQLWorkbench",
       "description": "Visual tool to design, develop and administer MySQL servers."
+    },
+    {
+      "name": "NordVPN",
+      "slug": "nordvpn/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nordvpn.macos",
+      "description": ""
     },
     {
       "name": "Notion",
