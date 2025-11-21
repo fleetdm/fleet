@@ -626,9 +626,13 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		teamName = tm.Name
 	}
 
-	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating software labels")
+	var validatedLabels *fleet.LabelIdentsWithScope
+	if payload.LabelsExcludeAny != nil || payload.LabelsIncludeAny != nil {
+		var err error
+		validatedLabels, err = ValidateSoftwareLabels(ctx, svc, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating software labels")
+		}
 	}
 
 	meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
@@ -637,13 +641,17 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	}
 
 	// TODO(JK): check that configuration doesnt have any nil errors
+	selfServiceVal := meta.SelfService
+	if payload.SelfService != nil {
+		selfServiceVal = *payload.SelfService
+	}
 
 	appToWrite := &fleet.VPPApp{
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID: fleet.VPPAppID{
 				AdamID: meta.AdamID, Platform: meta.Platform,
 			},
-			SelfService:     payload.SelfService,
+			SelfService:     selfServiceVal,
 			ValidatedLabels: validatedLabels,
 			DisplayName:     payload.DisplayName,
 			Configuration:   payload.Configuration,
@@ -658,20 +666,22 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		appToWrite.IconURL = *meta.IconURL
 	}
 
-	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
-	}
-
-	if len(catIDs) != len(payload.Categories) {
-		return nil, &fleet.BadRequestError{
-			Message:     "some or all of the categories provided don't exist",
-			InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
+	if payload.Categories != nil {
+		payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
+		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
 		}
-	}
 
-	appToWrite.CategoryIDs = catIDs
+		if len(catIDs) != len(payload.Categories) {
+			return nil, &fleet.BadRequestError{
+				Message:     "some or all of the categories provided don't exist",
+				InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
+			}
+		}
+
+		appToWrite.CategoryIDs = catIDs
+	}
 
 	// check if labels have changed
 	var existingLabels fleet.LabelIdentsWithScope
@@ -690,8 +700,10 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 			existingLabels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
 		}
 	}
-
-	labelsChanged := !validatedLabels.Equal(&existingLabels)
+	var labelsChanged bool
+	if validatedLabels != nil {
+		labelsChanged = !validatedLabels.Equal(&existingLabels)
+	}
 
 	// Get the hosts that are NOT in label scope currently (before the update happens)
 	var hostsNotInScope map[uint]struct{}
@@ -735,7 +747,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	act := fleet.ActivityEditedAppStoreApp{
 		TeamName:         &teamName,
 		TeamID:           teamID,
-		SelfService:      payload.SelfService,
+		SelfService:      selfServiceVal,
 		SoftwareTitleID:  titleID,
 		SoftwareTitle:    meta.Name,
 		AppStoreID:       meta.AdamID,

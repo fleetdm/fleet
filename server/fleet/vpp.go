@@ -145,7 +145,7 @@ const (
 )
 
 type VPPAppUpdate struct {
-	SelfService      bool
+	SelfService      *bool
 	LabelsIncludeAny []string
 	LabelsExcludeAny []string
 	Categories       []string
