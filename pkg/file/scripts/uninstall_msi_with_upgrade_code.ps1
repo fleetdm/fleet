@@ -10,7 +10,7 @@ foreach ($product_code in $inst.RelatedProducts("$UPGRADE_CODE")) {
     
     if (-not $completed) {
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-        Exit 1603  # ERROR_INSTALL_FAILURE
+        Exit 1603  # ERROR_UNINSTALL_FAILURE
     }
     
     # If the uninstall failed, bail
