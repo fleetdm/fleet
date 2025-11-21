@@ -59,6 +59,7 @@ func TestAndroid(t *testing.T) {
 		{"InsertAndroidAppConfiguration_Duplicate", testInsertAndroidAppConfigurationDuplicate},
 		{"AndroidAppConfiguration_CascadeDeleteTeam", testAndroidAppConfigurationCascadeDeleteTeam},
 		{"AndroidAppConfiguration_GlobalVsTeam", testAndroidAppConfigurationGlobalVsTeam},
+		{"AddDeleteAndroidAppWithConfiguration", testAddDeleteAndroidAppWithConfiguration},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2537,4 +2538,72 @@ func testAndroidAppConfigurationGlobalVsTeam(t *testing.T, ds *Datastore) {
 	require.NotNil(t, retrievedTeam.TeamID)
 	require.Equal(t, teamID, *retrievedTeam.TeamID)
 	require.Equal(t, teamID, retrievedTeam.GlobalOrTeamID)
+}
+
+func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	testConfig := json.RawMessage(`{"ManagedConfiguration": {"DisableShareScreen": true, "DisableComputerAudio": true}}`)
+	// Create android and VPP apps
+	app1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "android1", BundleIdentifier: "android1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "something_android_app_1", Platform: fleet.AndroidPlatform},
+			Configuration: testConfig,
+		}}, &team1.ID)
+	require.NoError(t, err)
+
+	app2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_forapple_1", Platform: fleet.IOSPlatform},
+			Configuration: json.RawMessage(`{"ManagedConfiguration": {"ios app shouldn't have configuration": true}}`),
+		}}, &team1.ID)
+	require.NoError(t, err)
+
+	// Get android app without team
+	meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, app1.TitleID)
+	require.NoError(t, err)
+	require.Zero(t, meta.Configuration)
+
+	// Get android app and configuration
+	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, app1.TitleID)
+	require.NoError(t, err)
+	require.NotZero(t, meta.VPPAppsTeamsID)
+	require.NotZero(t, meta.Configuration)
+	require.Equal(t, "android1", meta.BundleIdentifier)
+	require.Equal(t, testConfig, meta.Configuration)
+
+	// Get ios app
+	meta2, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, app2.TitleID)
+	require.NoError(t, err)
+	require.NotZero(t, meta2.VPPAppsTeamsID)
+
+	// Edit android app
+	newConfig := json.RawMessage(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
+	app1.VPPAppTeam.Configuration = newConfig
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	require.NoError(t, err)
+
+	// Check that configuration was changed
+	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, app1.TitleID)
+	require.NoError(t, err)
+	require.NotZero(t, meta.VPPAppsTeamsID)
+	require.Equal(t, newConfig, meta.Configuration)
+
+	// Add invalid configuration
+	badConfig := json.RawMessage(`"-": "-"`)
+	app1.VPPAppTeam.Configuration = badConfig
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	require.Error(t, err)
+
+	// Delete app, should delete configuration
+	require.NoError(t, ds.DeleteVPPAppFromTeam(ctx, &team1.ID, app1.VPPAppID))
+	_, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, app1.TitleID)
+	require.ErrorContains(t, err, "not found")
+	_, err = ds.GetAndroidAppConfiguration(ctx, app1.AdamID, team1.ID)
+	require.ErrorContains(t, err, "not found")
 }

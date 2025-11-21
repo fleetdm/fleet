@@ -651,7 +651,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 		}
 
 		if app.Configuration != nil && app.Platform == fleet.AndroidPlatform {
-			if err := ds.updateAndroidAppConfiguration(ctx, tx, teamID, app.AdamID, app.Platform, app.Configuration); err != nil {
+			if err := ds.updateAndroidAppConfiguration(ctx, tx, teamID, app.AdamID, app.Configuration); err != nil {
 				return ctxerr.Wrap(ctx, err, "setting configuration for android app")
 			}
 		}
@@ -920,7 +920,12 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 			globalOrTeamID))
 	}
 
-	// TODO(JK): delete android app configuration
+	if appID.Platform == fleet.AndroidPlatform {
+		err := ds.DeleteAndroidAppConfiguration(ctx, appID.AdamID, globalOrTeamID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "deleting android app configuration")
+		}
+	}
 
 	return nil
 }
