@@ -39,7 +39,6 @@ try {
         $userName = (Get-CimInstance Win32_ComputerSystem).UserName
 
         if ($userName -and $userName -like "*\*") {
-            Write-Output "Interactive user detected: $userName"
             break
         } else {
             Start-Sleep -Seconds 5
@@ -84,15 +83,8 @@ try {
         $state = (Get-ScheduledTask -TaskName $taskName).State
     }
 
-    # Show task output
-    if (Test-Path $logFile) {
-        Write-Host "`n--- Scheduled Task Output ---"
-        Get-Content $logFile | Write-Host
-    }
-
     if (Test-Path $exitCodeFile) {
         $exitCode = Get-Content $exitCodeFile
-        Write-Host "`nScheduled task exit code: $exitCode"
     }
 
 } catch {
@@ -100,7 +92,6 @@ try {
     $exitCode = 1
 } finally {
     # Clean up
-    Write-Host "Cleaning up..."
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
     Remove-Item -Path $scriptPath -Force -ErrorAction SilentlyContinue
     Remove-Item -Path $logFile -Force -ErrorAction SilentlyContinue
