@@ -4,6 +4,7 @@ import { uniqueId } from "lodash";
 
 const FileVpp = () => {
   const clipPathId = uniqueId("clip-path-");
+
   return (
     <svg width="34" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
       <g clipPath={`url(#${clipPathId})`}>

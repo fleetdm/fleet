@@ -49,7 +49,7 @@ const EmptyUsers = () => {
           <path fill="#fff" d="M0 0h322v150H0z" />
         </clipPath>
         <filter
-          id="emptyusers_filter"
+          id={filterId}
           width={324}
           height={93}
           x={-0.5}

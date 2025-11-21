@@ -1,7 +1,7 @@
 import React from "react";
-import { COLORS } from "styles/var/colors";
 
 import { uniqueId } from "lodash";
+import { COLORS } from "styles/var/colors";
 import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
 
 interface IInstallSelfServiceProps {
