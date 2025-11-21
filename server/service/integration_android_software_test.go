@@ -268,10 +268,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 	s.DoJSON(
 		"PATCH",
 		fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", appWithConfigResp.TitleID),
-		&addAppStoreAppRequest{
-			AppStoreID: androidAppWithConfig.AdamID,
-			Platform:   androidAppWithConfig.VPPAppID.Platform,
-		},
+		&updateAppStoreAppRequest{},
 		http.StatusOK,
 		&addAppResp,
 	)
@@ -287,4 +284,22 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 
 	// retrieved json is formatted differently so just check it has this key
 	require.Contains(t, string(titleWithConfigResp.SoftwareTitle.AppStoreApp.Configuration), "workProfileWidgets")
+
+	// Edit app and change configuration
+	newConfig := json.RawMessage(`{"managedConfiguration": {"key": "value"}}`)
+	s.DoJSON(
+		"PATCH",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", appWithConfigResp.TitleID),
+		&updateAppStoreAppRequest{
+			Configuration: newConfig,
+		},
+		http.StatusOK,
+		&addAppResp,
+	)
+
+	// Verify that  configuration changed
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_icon_url":"https://example.com/1.jpg", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "display_name":"", "platform": "%s", "self_service": true,"configuration": %s}`,
+			"", "Test App", appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", androidAppWithConfig.Platform, newConfig), 0)
+
 }

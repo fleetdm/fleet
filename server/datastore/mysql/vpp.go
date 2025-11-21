@@ -96,12 +96,12 @@ WHERE
 
 	app.DisplayName = displayName
 
-	configuration, err := ds.GetAndroidAppConfiguration(ctx, app.AdamID, tmID) // tmID can be used as globalOrTeamID
+	config, err := ds.GetAndroidAppConfiguration(ctx, app.AdamID, tmID) // tmID can be used as globalOrTeamID
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get android configuration for app store app")
 	}
-	if configuration != nil {
-		app.Configuration = configuration.Configuration
+	if config != nil && config.Configuration != nil {
+		app.Configuration = config.Configuration
 	}
 
 	if teamID != nil {

@@ -640,7 +640,6 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting vpp app metadata")
 	}
 
-	// TODO(JK): check that configuration doesnt have any nil errors
 	selfServiceVal := meta.SelfService
 	if payload.SelfService != nil {
 		selfServiceVal = *payload.SelfService
@@ -681,6 +680,10 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 
 		appToWrite.CategoryIDs = catIDs
+	}
+
+	if payload.Configuration != nil {
+		appToWrite.Configuration = payload.Configuration
 	}
 
 	// check if labels have changed
@@ -755,7 +758,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		LabelsIncludeAny: actLabelsIncl,
 		LabelsExcludeAny: actLabelsExcl,
 		SoftwareIconURL:  meta.IconURL,
-		Configuration:    meta.Configuration,
+		Configuration:    appToWrite.Configuration,
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for update app store app")
