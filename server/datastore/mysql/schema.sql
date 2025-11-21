@@ -2770,7 +2770,6 @@ CREATE TABLE `users` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_user_unique_email` (`email`),
   UNIQUE KEY `invite_id` (`invite_id`),
-  KEY `idx_users_email` (`email`),
   KEY `idx_users_name` (`name`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
