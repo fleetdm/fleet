@@ -343,7 +343,7 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, queries []*fleet
 	}
 
 	// We need to figure out the label IDs for the labels we're going to add.
-	stm, args, err := sqlx.In(`SELECT id, name FROM labels WHERE name IN (?)`,  slices.Collect(maps.Keys(lblNamesMap)))
+	stm, args, err := sqlx.In(`SELECT id, name FROM labels WHERE name IN (?)`, slices.Collect(maps.Keys(lblNamesMap)))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching label IDs")
 	}
@@ -374,7 +374,7 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, queries []*fleet
 		return ctxerr.New(ctx, "not all labels found for query")
 	}
 
-	params := make([]string, 0,numLabelNames)
+	params := make([]string, 0, numLabelNames)
 	args = make([]interface{}, 0, numLabelNames*2)
 	for _, q := range queries {
 		lblIdents := make([]fleet.LabelIdent, 0, len(q.LabelsIncludeAny))
