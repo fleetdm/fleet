@@ -16,6 +16,11 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Pass integration test flag from project property to instrumentation runner
+        if (project.hasProperty("runIntegrationTests")) {
+            testInstrumentationRunnerArguments["runIntegrationTests"] = "true"
+        }
     }
 
     buildTypes {

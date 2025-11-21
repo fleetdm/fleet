@@ -28,11 +28,27 @@ This guide covers testing strategies for the SCEP (Simple Certificate Enrollment
 
 ## Running Tests
 
-### Run All Tests
+> **Integration Tests:** By default, integration tests are SKIPPED during local development. See [INTEGRATION_TESTS.md](./INTEGRATION_TESTS.md) for details on running them in CI or locally.
+
+### Run All Unit Tests
 
 ```bash
 cd android
 ./gradlew test
+```
+
+### Run All Android Tests (Excludes Integration Tests)
+
+```bash
+cd android
+./gradlew connectedDebugAndroidTest
+```
+
+### Run All Tests Including Integration Tests
+
+```bash
+cd android
+./gradlew test connectedDebugAndroidTest -PrunIntegrationTests=true
 ```
 
 ### Run Specific Test Class
