@@ -39,6 +39,7 @@ In the Marketing department, we're using the following issue labels to organize 
 | **:mktg-pr** | All tasks/effort related to public relations, press releases, earned media, interviews, responding to reporters, etc. |
 | **:mktg-enablement** | All work associated with designing, developing, delivering enablement content for sales, partners, etc. |
 
+
 ### Prepare "Let's get you set up!" meeting notes
 
 Before each group call, copy the attendees from the "Lets get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
