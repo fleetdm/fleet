@@ -3,7 +3,7 @@
     {
       "version": "3.8.1",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.openvpn.OpenVPNConnect';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.openvpn.client.app';"
       },
       "installer_url": "https://swupdate.openvpn.net/downloads/connect/openvpn-connect-3.8.1.5790_signed.dmg",
       "install_script_ref": "0e3f967b",
