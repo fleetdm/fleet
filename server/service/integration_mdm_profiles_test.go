@@ -36,6 +36,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
@@ -8045,4 +8046,203 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 	body, err := io.ReadAll(scepRes.Body)
 	require.NoError(t, err)
 	assert.Equal(t, scepserver.DefaultCACaps, string(body))
+}
+
+// This test verifies that there is no longer a race condition in apple profile resending
+func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a host and enroll it in MDM
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setupPusher(s, t, mdmDevice)
+
+	scimUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "user@example.com"})
+	require.NoError(t, err)
+
+	// Assign scim user to host
+	hostIdStr := fmt.Sprint(host.ID)
+	s.Do("PUT", "/api/latest/fleet/hosts/"+hostIdStr+"/device_mapping", putHostDeviceMappingRequest{
+		Email:  "user@example.com",
+		Source: "idp",
+	}, http.StatusOK)
+
+	// Create a profile that uses IDP variables
+	profileWithIDPVar := mobileconfigForTestWithContent("TestProfile", "com.test.profile", "com.test.profile.content", "com.test.profile", "Test IDP Variable Profile")
+
+	// Replace the profile content to include an IDP variable
+	profileContent := string(profileWithIDPVar)
+	profileContent = strings.Replace(profileContent, "<key>ShowRecoveryKey</key>", "<key>TestVariable</key>", 1)
+	profileContent = strings.Replace(profileContent, "<false/>", "<string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>", 1)
+	profileWithIDPVar = []byte(profileContent)
+
+	// Upload the profile using the new endpoint that supports variables
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "TestProfile", Contents: profileWithIDPVar},
+	}}, http.StatusNoContent) // Setup SCIM user data for the host
+
+	// No profiles until reconciler
+	hostProfiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Empty(t, hostProfiles, "Host should not have any profiles before sync")
+
+	// Trigger initial profile sync - profile should be set to pending/installing
+	s.awaitTriggerProfileSchedule(t)
+
+	// Check that install command was sent, but do not acknowledge it yet
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+
+	seenProfile := false
+	profileCmdID := ""
+	for cmd != nil {
+		if cmd.Command.RequestType != "InstallProfile" {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+			continue
+		}
+		var fullCmd micromdm.CommandPayload
+		err = plist.Unmarshal(cmd.Raw, &fullCmd)
+		require.NoError(t, err)
+		if strings.Contains(string(fullCmd.Command.InstallProfile.Payload), "TestProfile") {
+			seenProfile = true
+			profileCmdID = cmd.CommandUUID
+			break
+		}
+
+		// Acknowledge other commands
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	require.True(t, seenProfile, "Expected install command for TestProfile not found")
+
+	// Verify profile is in pending status
+	hostProfiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+
+	var testProfile *fleet.HostMDMAppleProfile
+	for _, p := range hostProfiles {
+		if p.Identifier == "com.test.profile" {
+			testProfile = &p
+			break
+		}
+	}
+	require.NotNil(t, testProfile)
+	require.Equal(t, fleet.MDMDeliveryPending, *testProfile.Status)
+
+	// Now simulate the race condition:
+	// we trigger a resend before the acknowledgement comes back
+
+	// 1. Trigger an IDP variable change by updating SCIM user
+	err = s.ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUserID, UserName: "newuser@example.com"})
+	require.NoError(t, err)
+
+	// 2. At this point, the profile should be marked for resend (status = NULL)
+	hostProfiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+
+	for _, p := range hostProfiles {
+		if p.Identifier == "com.test.profile" {
+			fmt.Printf("%v\n", p.Status)
+			testProfile = &p
+			break
+		}
+	}
+	require.NotNil(t, testProfile)
+	require.Equal(t, fleet.MDMDeliveryPending, *testProfile.Status) // Should be NULL (pending for the user)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var status *fleet.MDMDeliveryStatus
+		err := sqlx.GetContext(t.Context(), q, &status, `SELECT status FROM host_mdm_apple_profiles WHERE profile_identifier = ?`, testProfile.Identifier)
+		require.Nil(t, status)
+		return err
+	})
+
+	// Acknowledge the original install command now, simulating the device response
+	cmd, err = mdmDevice.Acknowledge(profileCmdID)
+	require.NoError(t, err)
+
+	// Now check if we see any new TestProfile cmds (we need to ack them here, since we might have skipped some above.)
+	seenProfile = false
+	for cmd != nil {
+		if cmd.Command.RequestType != "InstallProfile" {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+			continue
+		}
+		var fullCmd micromdm.CommandPayload
+		err = plist.Unmarshal(cmd.Raw, &fullCmd)
+		require.NoError(t, err)
+		if strings.Contains(string(fullCmd.Command.InstallProfile.Payload), "TestProfile") {
+			seenProfile = true
+			// Acknowledge the resend command
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		} else {
+			// Acknowledge other commands
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+	}
+	require.Nil(t, cmd, "No further commands should be pending after acknowledging install")
+	require.False(t, seenProfile, "No resend install command for TestProfile should be sent due to race condition")
+
+	// Verify the profile is still in pending status (null in the DB)
+	// aka. no race condition.
+	hostProfiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+
+	for _, p := range hostProfiles {
+		if p.Identifier == "com.test.profile" {
+			testProfile = &p
+			break
+		}
+	}
+	require.NotNil(t, testProfile)
+	require.Equal(t, fleet.MDMDeliveryPending, *testProfile.Status)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var status *fleet.MDMDeliveryStatus
+		err := sqlx.GetContext(t.Context(), q, &status, `SELECT status FROM host_mdm_apple_profiles WHERE profile_identifier = ?`, testProfile.Identifier)
+		require.Nil(t, status)
+		return err
+	})
+
+	// run reconciler to resend any pending profiles
+	s.awaitTriggerProfileSchedule(t)
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	// Now we should see the resend command
+	seenProfile = false
+	for cmd != nil {
+		if cmd.Command.RequestType != "InstallProfile" {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+			continue
+		}
+		var fullCmd micromdm.CommandPayload
+		err = plist.Unmarshal(cmd.Raw, &fullCmd)
+		require.NoError(t, err)
+		if strings.Contains(string(fullCmd.Command.InstallProfile.Payload), "TestProfile") {
+			seenProfile = true
+			// Acknowledge the resend command
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		} else {
+			// Acknowledge other commands
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+	}
+	require.True(t, seenProfile, "Resend install command for TestProfile should be sent after reconciler runs")
+
+	// And we should now also see the profile being marked as verifying
+	hostProfiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	for _, p := range hostProfiles {
+		if p.Identifier == "com.test.profile" {
+			testProfile = &p
+			break
+		}
+	}
+	require.NotNil(t, testProfile)
+	require.Equal(t, fleet.MDMDeliveryVerifying, *testProfile.Status)
 }
