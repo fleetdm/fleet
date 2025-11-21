@@ -315,7 +315,7 @@ Ready to switch? Start at the [top of this guide](#conditional-access-entra) and
 
 If you're using Entra and you want to unblock all end users, you can disable conditional access by heading to Entra and turning off the ["Conditional Access" Entra policies](#step-6-add-entra-policies).
 
-For Okta, TODO
+For Okta, remove Fleet as a factor. TODO: Explain how.
 
 <meta name="articleTitle" value="Conditional access">
 <meta name="authorFullName" value="Lucas Manuel Rodriguez">
