@@ -9,6 +9,56 @@ import (
 	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
+type createCertificateTemplateRequest struct {
+	Name                   string `json:"name"`
+	TeamID                 uint   `json:"team_id"`
+	CertificateAuthorityId uint   `json:"certificate_authority_id"`
+	SubjectName            string `json:"subject_name"`
+}
+type createCertificateTemplateResponse struct {
+	ID                     uint   `json:"id"`
+	Name                   string `json:"name"`
+	CertificateAuthorityId uint   `json:"certificate_authority_id"`
+	SubjectName            string `json:"subject_name"`
+	Err                    error  `json:"error,omitempty"`
+}
+
+func (r createCertificateTemplateResponse) Error() error { return r.Err }
+
+func createCertificateTemplateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*createCertificateTemplateRequest)
+	certificate, err := svc.CreateCertificateTemplate(ctx, req.Name, req.TeamID, req.CertificateAuthorityId, req.SubjectName)
+	if err != nil {
+		return createCertificateTemplateResponse{Err: err}, nil
+	}
+	return createCertificateTemplateResponse{
+		ID:                     certificate.ID,
+		Name:                   certificate.Name,
+		CertificateAuthorityId: certificate.CertificateAuthorityId,
+		SubjectName:            certificate.SubjectName,
+	}, nil
+}
+
+func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*fleet.CertificateTemplateResponseFull, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	certTemplate := &fleet.CertificateTemplate{
+		Name:                   name,
+		TeamID:                 teamID,
+		CertificateAuthorityID: certificateAuthorityID,
+		SubjectName:            subjectName,
+	}
+
+	savedTemplate, err := svc.ds.CreateCertificateTemplate(ctx, certTemplate)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating certificate template")
+	}
+
+	return svc.ds.GetCertificateTemplateById(ctx, savedTemplate.ID)
+}
+
 type listCertificateTemplatesRequest struct {
 	TeamID  uint `query:"team_id"`
 	Page    int  `query:"page,optional"`

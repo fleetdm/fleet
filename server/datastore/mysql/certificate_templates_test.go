@@ -17,6 +17,7 @@ func TestCertificates(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"CreateCertificateTemplate", testCreateCertificateTemplate},
 		{"GetCertificateTemplateById", testGetCertificateTemplateByID},
 		{"GetCertificateTemplatesByTeamID", testGetCertificateTemplatesByTeamID},
 		{"BatchUpsertCertificates", testBatchUpsertCertificates},
@@ -27,6 +28,109 @@ func TestCertificates(t *testing.T) {
 		t.Helper()
 		t.Run(c.name, func(t *testing.T) {
 			c.fn(t, ds)
+		})
+	}
+}
+
+func testCreateCertificateTemplate(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	var teamID, caID uint
+	testCases := []struct {
+		name     string
+		before   func(ds *Datastore)
+		testFunc func(*testing.T, *Datastore)
+	}{
+		{
+			"Create certificate template",
+			func(ds *Datastore) {
+				// Create a test team
+				team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
+				require.NoError(t, err)
+				teamID = team.ID
+
+				// Create a test certificate authority
+				ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+					Type:      string(fleet.CATypeCustomSCEPProxy),
+					Name:      ptr.String("Test SCEP CA"),
+					URL:       ptr.String("http://localhost:8080/scep"),
+					Challenge: ptr.String("test-challenge"),
+				})
+				require.NoError(t, err)
+				caID = ca.ID
+			},
+			func(t *testing.T, ds *Datastore) {
+				certTemplate := &fleet.CertificateTemplate{
+					Name:                   "Cert1",
+					TeamID:                 teamID,
+					CertificateAuthorityID: caID,
+					SubjectName:            "CN=Test Subject 1",
+				}
+				savedTemplate, err := ds.CreateCertificateTemplate(ctx, certTemplate)
+				require.NoError(t, err)
+				require.NotNil(t, savedTemplate)
+
+				require.NotZero(t, savedTemplate.ID)
+				require.Equal(t, certTemplate.Name, savedTemplate.Name)
+				require.Equal(t, certTemplate.CertificateAuthorityID, savedTemplate.CertificateAuthorityId)
+				require.Equal(t, certTemplate.SubjectName, savedTemplate.SubjectName)
+			},
+		},
+		{
+			"Certificate template exists, fails to create",
+			func(ds *Datastore) {
+				// Create a test team
+				team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
+				require.NoError(t, err)
+				teamID = team.ID
+
+				// Create a test certificate authority
+				ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+					Type:      string(fleet.CATypeCustomSCEPProxy),
+					Name:      ptr.String("Test SCEP CA"),
+					URL:       ptr.String("http://localhost:8080/scep"),
+					Challenge: ptr.String("test-challenge"),
+				})
+				require.NoError(t, err)
+				caID = ca.ID
+
+				// Insert initial certificate
+				certificateTemplate := fleet.CertificateTemplate{
+					Name:                   "Cert1",
+					TeamID:                 teamID,
+					CertificateAuthorityID: caID,
+					SubjectName:            "CN=Test Subject 1",
+				}
+				_, err = ds.writer(ctx).ExecContext(ctx,
+					"INSERT INTO certificate_templates (name, team_id, certificate_authority_id, subject_name) VALUES (?, ?, ?, ?)",
+					certificateTemplate.Name,
+					certificateTemplate.TeamID,
+					certificateTemplate.CertificateAuthorityID,
+					certificateTemplate.SubjectName,
+				)
+				require.NoError(t, err)
+			},
+			func(t *testing.T, ds *Datastore) {
+				certTemplate := &fleet.CertificateTemplate{
+					Name:                   "Cert1",
+					TeamID:                 teamID,
+					CertificateAuthorityID: caID,
+					SubjectName:            "CN=Test Another Subject ",
+				}
+				savedTemplate, err := ds.CreateCertificateTemplate(ctx, certTemplate)
+				require.Error(t, err)
+				require.Nil(t, savedTemplate)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+
+			tc.before(ds)
+
+			tc.testFunc(t, ds)
 		})
 	}
 }

@@ -1609,6 +1609,8 @@ type BatchUpsertCertificateTemplatesFunc func(ctx context.Context, certificates 
 
 type BatchDeleteCertificateTemplatesFunc func(ctx context.Context, certificateTemplateIDs []uint) error
 
+type CreateCertificateTemplateFunc func(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponseFull, error)
+
 type GetCertificateTemplateByIdFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error)
 
 type GetCertificateTemplatesByTeamIDFunc func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
@@ -3996,6 +3998,9 @@ type DataStore struct {
 
 	BatchDeleteCertificateTemplatesFunc        BatchDeleteCertificateTemplatesFunc
 	BatchDeleteCertificateTemplatesFuncInvoked bool
+
+	CreateCertificateTemplateFunc        CreateCertificateTemplateFunc
+	CreateCertificateTemplateFuncInvoked bool
 
 	GetCertificateTemplateByIdFunc        GetCertificateTemplateByIdFunc
 	GetCertificateTemplateByIdFuncInvoked bool
@@ -9561,6 +9566,13 @@ func (s *DataStore) BatchDeleteCertificateTemplates(ctx context.Context, certifi
 	s.BatchDeleteCertificateTemplatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchDeleteCertificateTemplatesFunc(ctx, certificateTemplateIDs)
+}
+
+func (s *DataStore) CreateCertificateTemplate(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponseFull, error) {
+	s.mu.Lock()
+	s.CreateCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateCertificateTemplateFunc(ctx, certificateTemplate)
 }
 
 func (s *DataStore) GetCertificateTemplateById(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {

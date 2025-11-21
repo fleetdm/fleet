@@ -65,6 +65,27 @@ func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID
 	return templates, paginationMetaData, nil
 }
 
+func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponseFull, error) {
+	result, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO certificate_templates (
+			name,
+			team_id,
+			certificate_authority_id,
+			subject_name
+		) VALUES (?, ?, ?, ?)
+	`, certificateTemplate.Name, certificateTemplate.TeamID, certificateTemplate.CertificateAuthorityID, certificateTemplate.SubjectName)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "inserting certificate_template")
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting last insert id for certificate_template")
+	}
+
+	return ds.GetCertificateTemplateById(ctx, uint(id))
+}
+
 func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certificateTemplates []*fleet.CertificateTemplate) error {
 	if len(certificateTemplates) == 0 {
 		return nil
