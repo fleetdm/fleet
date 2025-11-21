@@ -476,10 +476,10 @@ CREATE TABLE `host_certificate_sources` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_certificate_templates` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `host_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
   `certificate_template_id` int unsigned NOT NULL,
   `fleet_challenge` char(32) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `status` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
