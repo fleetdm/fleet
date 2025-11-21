@@ -22312,7 +22312,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 			require.NoError(t, sqlx.GetContext(ctx, q, &titleName, `SELECT name FROM software_titles WHERE id = ?`, titleID))
 			return nil
 		})
-		require.Equal(t, "ipa_test", titleName) //Title name should be different than filename
+		require.Equal(t, "ipa_test", titleName) // Title name should be different than filename
 
 		// check activity
 		activityData := fmt.Sprintf(
