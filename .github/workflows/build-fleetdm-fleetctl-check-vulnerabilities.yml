@@ -43,7 +43,7 @@ jobs:
 
       - name: Clean up Docker build cache
         run: |
-          docker system prune -af --filter "label!=fleetdm/fleetctl"
+          docker builder prune -af
           df -h
 
       - name: List VEX files
