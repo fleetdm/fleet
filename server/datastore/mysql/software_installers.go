@@ -783,7 +783,7 @@ WHERE
 	}
 
 	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, *dest.TitleID)
-	if err != nil {
+	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get display name for software installer")
 	}
 

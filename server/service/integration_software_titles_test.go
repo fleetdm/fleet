@@ -44,10 +44,11 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		TeamID:        &team.ID,
 		Platform:      "linux",
 		// additional fields below are pre-populated so we can re-use the payload later for the test assertions
-		Title:     "ruby",
-		Version:   "1:2.5.1",
-		Source:    "deb_packages",
-		StorageID: "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+		Title:            "ruby",
+		Version:          "1:2.5.1",
+		Source:           "deb_packages",
+		StorageID:        "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+		AutomaticInstall: true,
 	}
 	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
@@ -90,6 +91,13 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	stResp := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal("RubyUpdate1", stResp.SoftwareTitle.DisplayName)
+	s.Assert().Len(stResp.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies, 1)
+
+	// Auto install policy should have the display name
+	var getPolicyResp getPolicyByIDResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].ID), getPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
+	s.Assert().NotNil(getPolicyResp.Policy)
+	s.Assert().Equal("RubyUpdate1", getPolicyResp.Policy.InstallSoftware.DisplayName)
 
 	// List software titles has display name
 	var resp listSoftwareTitlesResponse
