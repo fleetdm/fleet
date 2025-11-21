@@ -1,6 +1,6 @@
 {
   "name": "Docker Desktop",
-  "slug": "docker-desktop/windows",
+  "slug": "docker/windows",
   "package_identifier": "Docker.DockerDesktop",
   "unique_identifier": "Docker Desktop",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/docker_install.ps1",
