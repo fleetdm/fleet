@@ -68,8 +68,32 @@ jobs:
             echo "No changed apps detected, skipping validation"
           fi
 
+      - name: Check if there are Darwin apps
+        id: check-darwin-apps
+        working-directory: fleet
+        run: |
+          if [ "${{ steps.check-changes.outputs.has_changes }}" != "true" ]; then
+            echo "has_darwin_apps=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Filter changed apps to only include darwin platform
+          DARWIN_SLUGS=$(echo '${{ steps.detect-changed.outputs.CHANGED_APPS }}' | jq -r '.[] | select(endswith("/darwin"))')
+
+          if [ -z "$DARWIN_SLUGS" ]; then
+            echo "has_darwin_apps=false" >> $GITHUB_OUTPUT
+            echo "No darwin apps changed, skipping Darwin workflow"
+          else
+            echo "has_darwin_apps=true" >> $GITHUB_OUTPUT
+            echo "Darwin apps detected:"
+            echo "$DARWIN_SLUGS" | while read -r slug; do
+              echo "  - $slug"
+            done
+          fi
+        shell: bash
+
       - name: Install osquery mac
-        if: steps.check-changes.outputs.has_changes == 'true'
+        if: steps.check-darwin-apps.outputs.has_darwin_apps == 'true'
         run: |
           echo "Runner architecture: $(uname -m)"
           curl -L -o osquery.tar.gz "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1_1.macos_arm64.tar.gz"
@@ -80,7 +104,7 @@ jobs:
           sudo ln -sf /opt/osquery/lib/osquery.app/Contents/Resources/osqueryctl /usr/local/bin/osqueryctl
 
       - name: Remove pre-installed google chrome mac
-        if: steps.check-changes.outputs.has_changes == 'true'
+        if: steps.check-darwin-apps.outputs.has_darwin_apps == 'true'
         run: |
           ls /Applications | grep -i "Chrome"
           find /Applications -name "*Chrome*.app" -type d | while read app;
@@ -90,17 +114,11 @@ jobs:
           done
 
       - name: Filter apps.json and verify changed apps
-        if: steps.check-changes.outputs.has_changes == 'true'
+        if: steps.check-darwin-apps.outputs.has_darwin_apps == 'true'
         working-directory: fleet
         run: |
           # Filter changed apps to only include darwin platform
           DARWIN_SLUGS=$(echo '${{ steps.detect-changed.outputs.CHANGED_APPS }}' | jq -r '.[] | select(endswith("/darwin"))')
-
-          if [ -z "$DARWIN_SLUGS" ]; then
-            echo "No darwin apps changed, skipping validation"
-            exit 0
-          fi
-
           DARWIN_SLUGS_JSON=$(echo "$DARWIN_SLUGS" | jq -R -s -c 'split("\n") | map(select(length > 0))')
 
           # Backup original apps.json

@@ -75,8 +75,31 @@ jobs:
           }
         shell: pwsh
 
+      - name: Check if there are Windows apps
+        id: check-windows-apps
+        working-directory: fleet
+        run: |
+          if ("${{ steps.check-changes.outputs.has_changes }}" -ne "true") {
+            Write-Host "has_windows_apps=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            exit 0
+          }
+
+          # Filter changed apps to only include windows platform
+          $changedAppsJson = '${{ steps.detect-changed.outputs.CHANGED_APPS }}'
+          $windowsSlugs = ($changedAppsJson | ConvertFrom-Json | Where-Object { $_ -like "*/windows" })
+
+          if ($null -eq $windowsSlugs -or $windowsSlugs.Count -eq 0) {
+            Write-Host "has_windows_apps=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host "No windows apps changed, skipping Windows workflow"
+          } else {
+            Write-Host "has_windows_apps=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host "Windows apps detected:"
+            $windowsSlugs | ForEach-Object { Write-Host "  - $_" }
+          }
+        shell: pwsh
+
       - name: Install osquery windows
-        if: steps.check-changes.outputs.has_changes == 'true'
+        if: steps.check-windows-apps.outputs.has_windows_apps == 'true'
         run: |
           Write-Host "Runner architecture: $env:PROCESSOR_ARCHITECTURE"
           curl -L -o osquery.zip "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1.windows_x86_64.zip"
@@ -88,7 +111,7 @@ jobs:
         shell: pwsh
 
       - name: Remove pre-installed google chrome
-        if: steps.check-changes.outputs.has_changes == 'true'
+        if: steps.check-windows-apps.outputs.has_windows_apps == 'true'
         run: |
           Write-Host "Listing all installed packages containing 'Chrome':"
           Get-Package | Where-Object { $_.Name -like "*Chrome*" } | ForEach-Object {
@@ -112,18 +135,12 @@ jobs:
         shell: pwsh
 
       - name: Filter apps.json and verify changed apps
-        if: steps.check-changes.outputs.has_changes == 'true'
+        if: steps.check-windows-apps.outputs.has_windows_apps == 'true'
         working-directory: fleet
         run: |
           # Filter changed apps to only include windows platform
           $changedAppsJson = '${{ steps.detect-changed.outputs.CHANGED_APPS }}'
           $windowsSlugs = ($changedAppsJson | ConvertFrom-Json | Where-Object { $_ -like "*/windows" })
-
-          if ($null -eq $windowsSlugs -or $windowsSlugs.Count -eq 0) {
-            Write-Host "No windows apps changed, skipping validation"
-            exit 0
-          }
-
           $windowsSlugsJson = ($windowsSlugs | ConvertTo-Json -Compress)
           Write-Host "Filtering apps.json for slugs: $windowsSlugsJson"
 
