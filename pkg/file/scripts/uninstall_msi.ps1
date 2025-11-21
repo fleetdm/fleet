@@ -9,7 +9,7 @@ $completed = $process.WaitForExit($timeoutSeconds * 1000)
 
 if (-not $completed) {
     Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-    Exit 1603  # ERROR_INSTALL_FAILURE
+    Exit 1603  # ERROR_UNINSTALL_FAILURE
 }
 
 # Check exit code and output result
