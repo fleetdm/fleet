@@ -36,6 +36,10 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	s.setVPPTokenForTeam(team.ID)
 
+	// =========================================
+	//           CUSTOM PACKAGES
+	// =========================================
+
 	// Add a custom package
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
@@ -176,7 +180,9 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
 	s.Assert().Empty(getDeviceSw.Software[0].DisplayName)
 
-	// Test display names with app store apps
+	// =========================================
+	//           APP STORE APPS
+	// =========================================
 
 	// create MDM enrolled macOS host
 	mdmHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -227,6 +233,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		AppStoreID:       macOSApp.AdamID,
 		SelfService:      true,
 		LabelsIncludeAny: []string{lbl1Name, lbl2Name},
+		AutomaticInstall: true,
 	}
 
 	// Now add it for real
@@ -240,9 +247,15 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	s.Assert().Equal(*updateAppReq.DisplayName, updateAppResp.AppStoreApp.DisplayName)
 
+	// Entity has display name
 	stResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", macOSTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal(*updateAppReq.DisplayName, stResp.SoftwareTitle.DisplayName)
+
+	// Auto install policy has display name
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.AppStoreApp.AutomaticInstallPolicies[0].ID), getPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
+	s.Assert().NotNil(getPolicyResp.Policy)
+	s.Assert().Equal(*updateAppReq.DisplayName, getPolicyResp.Policy.InstallSoftware.DisplayName)
 
 	// List software titles has display name
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID), "query", macOSApp.Name)
@@ -329,7 +342,10 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		}
 	}
 
-	// Test display names with in-house apps
+	// =========================================
+	//           IN HOUSE APPS
+	// =========================================
+
 	// Upload in-house app for iOS, with the label as "exclude any"
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa", TeamID: &team.ID}, http.StatusOK, "")
 
