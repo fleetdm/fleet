@@ -6,14 +6,28 @@
       "slug": "010-editor/darwin",
       "platform": "darwin",
       "unique_identifier": "com.SweetScape.010Editor",
-      "description": "A toolkit for working with text and binary data."
+      "description": "010 Editor is a toolkit for working with text and binary data."
     },
     {
       "name": "1Password",
       "slug": "1password/darwin",
       "platform": "darwin",
       "unique_identifier": "com.1password.1password",
-      "description": "Password manager that keeps all passwords secure behind one password."
+      "description": "1Password is a password manager that keeps all passwords secure behind one password."
+    },
+    {
+      "name": "1Password",
+      "slug": "1password/windows",
+      "platform": "windows",
+      "unique_identifier": "1Password",
+      "description": "1Password is a password manager that keeps all passwords secure behind one password."
+    },
+    {
+      "name": "8x8 Work",
+      "slug": "8x8-work/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.8x8---virtual-office",
+      "description": "8x8 Work is a communications application with voice, video, chat, and web conferencing."
     },
     {
       "name": "Abstract",
@@ -41,7 +55,14 @@
       "slug": "asana/darwin",
       "platform": "darwin",
       "unique_identifier": "com.electron.asana",
-      "description": "Manage team projects and tasks."
+      "description": "Asana is an app to manage team projects and tasks."
+    },
+    {
+      "name": "BBEdit",
+      "slug": "bbedit/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.barebones.bbedit",
+      "description": "BBEdit is a text, code, and markup editor."
     },
     {
       "name": "Beyond Compare",
@@ -86,18 +107,32 @@
       "description": "Canva is a popular online graphic design tool."
     },
     {
+      "name": "ChatGPT Atlas",
+      "slug": "chatgpt-atlas/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.openai.atlas",
+      "description": "ChatGPT Atlas is OpenAI's official browser with ChatGPT built in."
+    },
+    {
       "name": "ChatGPT Desktop",
       "slug": "chatgpt/darwin",
       "platform": "darwin",
       "unique_identifier": "com.openai.chat",
-      "description": "OpenAI's official ChatGPT desktop app for macOS, providing seamless access to AI-powered conversations and assistance."
+      "description": "ChatGPT Desktop is OpenAI's official ChatGPT desktop app for macOS, providing seamless access to AI-powered conversations and assistance."
+    },
+    {
+      "name": "Cisco Jabber",
+      "slug": "cisco-jabber/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.cisco.jabber",
+      "description": "Cisco Jabber is a collaboration and communication app."
     },
     {
       "name": "Claude",
       "slug": "claude/darwin",
       "platform": "darwin",
       "unique_identifier": "com.anthropic.claudefordesktop",
-      "description": "Anthropic's official Claude AI desktop app."
+      "description": "Claude is Anthropic's official Claude AI desktop app."
     },
     {
       "name": "ClickUp",
@@ -105,6 +140,13 @@
       "platform": "darwin",
       "unique_identifier": "com.clickup.desktop-app",
       "description": "ClickUp is a productivity platform for tasks, docs, goals, and chat."
+    },
+    {
+      "name": "CLion",
+      "slug": "clion/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.CLion",
+      "description": "CLion is a JetBrains IDE for C and C++."
     },
     {
       "name": "Cloudflare WARP",
@@ -135,11 +177,18 @@
       "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
     },
     {
+      "name": "Cyberduck",
+      "slug": "cyberduck/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ch.sudo.cyberduck",
+      "description": "Cyberduck is a server and cloud storage browser."
+    },
+    {
       "name": "DataGrip",
       "slug": "datagrip/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.datagrip",
-      "description": "A powerful cross-platform IDE for relational and NoSQL databases."
+      "description": "DataGrip is a powerful cross-platform IDE for relational and NoSQL databases."
     },
     {
       "name": "Amazon DCV",
@@ -212,6 +261,13 @@
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
+      "name": "GitHub Desktop",
+      "slug": "github/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.GitHubClient",
+      "description": "GitHub Desktop is a desktop client for GitHub repositories."
+    },
+    {
       "name": "GitKraken",
       "slug": "gitkraken/darwin",
       "platform": "darwin",
@@ -223,21 +279,21 @@
       "slug": "goland/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.goland",
-      "description": "Go (golang) IDE by JetBrains"
+      "description": "GoLand is a Go (golang) IDE by JetBrains"
     },
     {
       "name": "Google Chrome",
       "slug": "google-chrome/darwin",
       "platform": "darwin",
       "unique_identifier": "com.google.Chrome",
-      "description": "Google Chrome Enterprise is a fast, reliable web browser built for performance and compatibility across platforms."
+      "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
       "name": "Google Chrome",
       "slug": "google-chrome/windows",
       "platform": "windows",
       "unique_identifier": "Google Chrome",
-      "description": "Google Chrome Enterprise is a fast, reliable web browser built for performance and compatibility across platforms."
+      "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
       "name": "Google Drive",
@@ -254,11 +310,46 @@
       "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
     },
     {
+      "name": "Grammarly Desktop",
+      "slug": "grammarly-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.grammarly.ProjectLlama",
+      "description": "Grammarly Desktop is an AI writing assistant."
+    },
+    {
+      "name": "Granola",
+      "slug": "granola/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.granola.app",
+      "description": "Granola is an AI-powered notepad for meetings."
+    },
+    {
       "name": "iMazing Profile Editor",
       "slug": "imazing-profile-editor/darwin",
       "platform": "darwin",
       "unique_identifier": "com.DigiDNA.iMazingProfileEditorMac",
       "description": "iMazing Profile Editor is an app for creating and editing Apple configuration profiles."
+    },
+    {
+      "name": "Insomnia",
+      "slug": "insomnia/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.insomnia.app",
+      "description": "Insomnia is an open-source, cross-platform API client primarily used for designing, testing, and debugging REST APIs"
+    },
+    {
+      "name": "IntelliJ IDEA CE",
+      "slug": "intellij-idea-ce/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.intellij.ce",
+      "description": "IntelliJ IDEA CE is a community edition IDE for Java development by JetBrains."
+    },
+    {
+      "name": "IntelliJ IDEA Ultimate",
+      "slug": "intellij-idea/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.intellij",
+      "description": "IntelliJ IDEA Ultimate is a Java IDE by JetBrains."
     },
     {
       "name": "Company Portal",
@@ -272,28 +363,35 @@
       "slug": "iterm2/darwin",
       "platform": "darwin",
       "unique_identifier": "com.googlecode.iterm2",
-      "description": "A terminal emulator alternative to Apple's Terminal app."
+      "description": "iTerm2 is a terminal emulator alternative to Apple's Terminal app."
     },
     {
       "name": "Linear",
       "slug": "linear-linear/darwin",
       "platform": "darwin",
       "unique_identifier": "com.linear",
-      "description": "An app to manage software development and track bugs."
+      "description": "Linear is an app to manage software development and track bugs."
     },
     {
       "name": "Logi Options+",
       "slug": "logi-options+/darwin",
       "platform": "darwin",
       "unique_identifier": "com.logi.optionsplus",
-      "description": "Software for managing Logitech devices."
+      "description": "Logi Options+ is software for managing Logitech devices."
     },
     {
       "name": "Loom",
       "slug": "loom/darwin",
       "platform": "darwin",
       "unique_identifier": "com.loom.desktop",
-      "description": "Screen and video recording software."
+      "description": "Loom is screen and video recording software."
+    },
+    {
+      "name": "Messenger",
+      "slug": "messenger/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.facebook.archon.developerID",
+      "description": "Messenger is a native desktop app for Messenger (formerly Facebook Messenger)."
     },
     {
       "name": "Microsoft Edge",
@@ -349,7 +447,21 @@
       "slug": "miro/darwin",
       "platform": "darwin",
       "unique_identifier": "com.electron.realtimeboard",
-      "description": "Online collaborative whiteboard platform"
+      "description": "Miro is an online collaborative whiteboard platform."
+    },
+    {
+      "name": "MySQL Workbench",
+      "slug": "mysqlworkbench/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.oracle.workbench.MySQLWorkbench",
+      "description": "MySQL Workbench is a visual tool to design, develop and administer MySQL servers."
+    },
+    {
+      "name": "NordVPN",
+      "slug": "nordvpn/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nordvpn.macos",
+      "description": "NordVPN is a VPN client for secure internet access and private browsing."
     },
     {
       "name": "Notion",
@@ -387,11 +499,18 @@
       "description": "P4V is an app for accessing and managing Perforce version control repositories via a graphical interface."
     },
     {
+      "name": "Parallels Desktop",
+      "slug": "parallels/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.parallels.desktop.console",
+      "description": "Parallels Desktop is virtualization software."
+    },
+    {
       "name": "PhpStorm",
       "slug": "phpstorm/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.PhpStorm",
-      "description": "PHP IDE by JetBrains"
+      "description": "PhpStorm is a PHP IDE by JetBrains."
     },
     {
       "name": "Postman",
@@ -426,21 +545,21 @@
       "slug": "pycharm-ce/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.pycharm.ce",
-      "description": "Jetbrains IDE for Python programming - Community Edition"
+      "description": "PyCharm Community Edition is a Jetbrains IDE for Python programming - Community Edition"
     },
     {
       "name": "PyCharm Professional",
       "slug": "pycharm/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.pycharm",
-      "description": "Jetbrain IDE for professional Python development. This version includes advanced features and requires a valid license."
+      "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
     },
     {
       "name": "Rectangle",
       "slug": "rectangle/darwin",
       "platform": "darwin",
       "unique_identifier": "com.knollsoft.Rectangle",
-      "description": "Move and resize windows using keyboard shortcuts or snap areas."
+      "description": "Rectangle is an app to move and resize windows using keyboard shortcuts or snap areas."
     },
     {
       "name": "Santa",
@@ -499,11 +618,25 @@
       "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
     },
     {
+      "name": "Telegram",
+      "slug": "telegram/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ru.keepcoder.Telegram",
+      "description": "Telegram is a messaging app with a focus on speed and security."
+    },
+    {
+      "name": "Telegram",
+      "slug": "telegram/windows",
+      "platform": "windows",
+      "unique_identifier": "Telegram Desktop",
+      "description": "Telegram is a messaging app with a focus on speed and security."
+    },
+    {
       "name": "Thunderbird",
       "slug": "thunderbird/darwin",
       "platform": "darwin",
       "unique_identifier": "org.mozilla.thunderbird",
-      "description": "Mozilla Thunderbird is a free and open-source e-mail client."
+      "description": "Thunderbird is a free and open-source e-mail client."
     },
     {
       "name": "Tunnelblick",
@@ -545,7 +678,7 @@
       "slug": "whatsapp/darwin",
       "platform": "darwin",
       "unique_identifier": "net.whatsapp.WhatsApp",
-      "description": "WhatsApp's native desktop client for seamless messaging and calling on macOS."
+      "description": "WhatsApp is WhatsApp's native desktop client for seamless messaging and calling on macOS."
     },
     {
       "name": "Windows App",
