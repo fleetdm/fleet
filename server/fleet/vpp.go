@@ -49,7 +49,7 @@ type VPPAppTeam struct {
 	AddedAutomaticInstallPolicy *Policy `json:"-"`
 	// Configuration is a json file used to customize Android app
 	// behavior/settings. Relevant to Android only.
-	Configuration json.RawMessage `json:"configuration"`
+	Configuration json.RawMessage `json:"configuration,omitempty"`
 	DisplayName   *string         `json:"display_name"`
 }
 
