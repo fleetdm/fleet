@@ -93,7 +93,8 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context
 		FROM mdm_windows_enrollments WHERE host_uuid = ?`
 
 	var winMDMDevice fleet.MDMWindowsEnrolledDevice
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &winMDMDevice, stmt, hostUUID); err != nil {
+	// use the writer because this is sometimes fetched soon after updating the host UUID
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &winMDMDevice, stmt, hostUUID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(hostUUID))
 		}
@@ -576,8 +577,10 @@ WHERE
 }
 
 func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error) {
-	stmt := `UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE mdm_device_id = ?`
-	res, err := ds.writer(ctx).Exec(stmt, hostUUID, mdmDeviceID)
+	// The final clause ensures we only update if the host UUID changes so we can tell the caller as this basically
+	// signals a new MDM enrollment in certain cases, as it is the first time we associate a host with an enrollment
+	stmt := `UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE mdm_device_id = ? AND host_uuid <> ?`
+	res, err := ds.writer(ctx).Exec(stmt, hostUUID, mdmDeviceID, hostUUID)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "setting host_uuid for windows enrollment")
 	}
@@ -585,6 +588,7 @@ func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, ho
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "checking rows affected when setting host_uuid for windows enrollment")
 	}
+	fmt.Printf("Updated %d rows setting host_uuid=%s for mdm_device_id=%s\n", aff, hostUUID, mdmDeviceID)
 	return aff > 0, nil
 }
 
