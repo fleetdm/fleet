@@ -1034,3 +1034,68 @@ func (svc *Service) PatchPolicy(ctx context.Context, policyID, policyName string
 	}
 	return skip, nil
 }
+
+func (svc *Service) MigrateToPerDevicePolicy(ctx context.Context) error {
+
+	hosts, err := svc.fleetDS.ListAndroidEnrolledDevicesForReconcile(ctx)
+	if err != nil {
+		return err
+	}
+
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, h := range hosts {
+		if h.AppliedPolicyID != nil && *h.AppliedPolicyID == "1" {
+			var policy androidmanagement.Policy
+
+			policy.StatusReportingSettings = &androidmanagement.StatusReportingSettings{
+				DeviceSettingsEnabled:        true,
+				MemoryInfoEnabled:            true,
+				NetworkInfoEnabled:           true,
+				DisplayInfoEnabled:           true,
+				PowerManagementEventsEnabled: true,
+				HardwareStatusEnabled:        true,
+				SystemPropertiesEnabled:      true,
+				SoftwareInfoEnabled:          true,
+				CommonCriteriaModeEnabled:    true,
+				ApplicationReportsEnabled:    true,
+				ApplicationReportingSettings: nil, // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
+			}
+
+			if h.EnterpriseSpecificID != nil {
+
+				policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), *h.EnterpriseSpecificID)
+				_, err := svc.PatchPolicy(ctx, *h.EnterpriseSpecificID, policyName, &policy, nil)
+				if err != nil {
+					return err
+				}
+				device := &androidmanagement.Device{
+					PolicyName: policyName,
+					// State must be specified when updating a device, otherwise it fails with
+					// "Illegal state transition from ACTIVE to DEVICE_STATE_UNSPECIFIED"
+					//
+					// > Note that when calling enterprises.devices.patch, ACTIVE and
+					// > DISABLED are the only allowable values.
+
+					// TODO(ap): should we send whatever the previous state was? If it was DISABLED,
+					// we probably don't want to re-enable it by accident. Those are the only
+					// 2 valid states when patching a device.
+					State: "ACTIVE",
+				}
+				androidHost, err := svc.ds.AndroidHostLiteByHostUUID(ctx, *h.EnterpriseSpecificID)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", *h.EnterpriseSpecificID)
+				}
+				deviceName := fmt.Sprintf("%s/devices/%s", enterprise.Name(), androidHost.DeviceID)
+				_, err = svc.PatchDevice(ctx, *h.EnterpriseSpecificID, deviceName, device)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}

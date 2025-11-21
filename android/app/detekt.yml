@@ -1,0 +1,22 @@
+build:
+  maxIssues: 0
+
+naming:
+  FunctionNaming:
+    active: false # Allow Composable functions to use PascalCase
+  VariableNaming:
+    active: false # Allow TAG constants to be uppercase
+
+style:
+  MagicNumber:
+    active: false # Color hex values are standard in Compose
+  MaxLineLength:
+    maxLineLength: 140 # Align with ktlint
+
+complexity:
+  NestedBlockDepth:
+    threshold: 5 # Android receivers often need nested blocks
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: false # Sometimes necessary for robustness in Android
