@@ -105,7 +105,7 @@ try {
 
     # Wait for it to complete
     while ($state -eq "Running") {
-        Start-Sleep -Seconds 15
+        Start-Sleep -Seconds 5
         $elapsed = (New-Timespan -Start $startDate).TotalSeconds
         if ($elapsed -gt 120) { throw "Timeout waiting for task to finish." }
         $state = (Get-ScheduledTask -TaskName $taskName).State
