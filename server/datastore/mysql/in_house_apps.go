@@ -29,10 +29,6 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 	}
 
-	if payload.Title == "" {
-		payload.Title, _ = strings.CutSuffix(payload.Filename, ".ipa")
-	}
-
 	titleIDipad, err := ds.getOrGenerateInHouseAppTitleID(ctx, payload.Title, payload.BundleID, "ipados_apps")
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "generating software title")
@@ -74,8 +70,8 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 }
 
 func (ds *Datastore) getOrGenerateInHouseAppTitleID(ctx context.Context, name string, bundleID string, source string) (uint, error) {
-	selectStmt := `SELECT id FROM software_titles WHERE (bundle_identifier = ? AND source = ?) ORDER BY bundle_identifier = ? DESC LIMIT 1`
-	selectArgs := []any{bundleID, source, bundleID}
+	selectStmt := `SELECT id FROM software_titles WHERE bundle_identifier = ? AND source = ?`
+	selectArgs := []any{bundleID, source}
 	insertStmt := `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
 	insertArgs := []any{name, source, bundleID}
 

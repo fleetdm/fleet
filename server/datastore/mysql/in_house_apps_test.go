@@ -252,22 +252,6 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	require.True(t, installer2.SelfService)
 
 	// Test that app name is correct
-	payloadNoTitle := fleet.UploadSoftwareInstallerPayload{
-		TeamID:           &team.ID,
-		UserID:           user1.ID,
-		Filename:         "foo_no_title.ipa",
-		BundleIdentifier: "com.foo_no_title",
-		StorageID:        "testing5",
-		Extension:        "ipa",
-		Version:          "1.0.0",
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-	}
-	_, titleIDNoTitle, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payloadNoTitle)
-	require.NoError(t, err)
-	installerNoTitle, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleIDNoTitle)
-	require.NoError(t, err)
-	require.Equal(t, "foo_no_title", installerNoTitle.SoftwareTitle)
-
 	payloadWithTitle := fleet.UploadSoftwareInstallerPayload{
 		TeamID:           &team.ID,
 		UserID:           user1.ID,
