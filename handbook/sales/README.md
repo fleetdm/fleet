@@ -140,6 +140,21 @@ To complete a security questionnaire, the AE assigned to the account will:
 5. If there are still unanswered questions, the AE will route the issue to the relevant department. Once complete, the team will leave a comment in the issue `@`mentioning the AE with the requested information. Any questions answered by other departments will be added to the handbook by the AE.
 
 
+### Update Salesforce “Attributed to” field in opportunity page
+
+The “Attributed to” field in Salesforce opportunity page will be used to track where each new business opportunity created can be attributed to. This is a temporary solution put in place until we have built-out the process that would automate how we track attribution, and measure ROI associated with our program spend.  
+
+The “Attributed to” field is associated with a Salesforce user. The opportunity owner will have to determine the correct user to add to the field when the opportunity is created. The rule to determine which user to add to the field:
+
+- Inbound: For all opportunities created based on inbound leads (e.g. digital ads, brand, events, GitOps workshops, organic web traffic, etc), update the field with CMO’s name
+- Outbound-AE: If the opportunity was created as a result of the AE’s outbound efforts, update the field with the CCO’s name
+- Outbound-SDR: If the opportunity was created as a result of the AE’s outbound efforts, update the field with the SDR’s name
+- Channel: If a deal was referred to us from a Channel partner (deal-reg approved by Channel manager), update the field with Channel manager’s name.
+- All other sources: For opportunities that do not fall under any of the above categories, update the field with Head of Digital Workplace & GTM Systems’ name
+
+AE’s should update all the new business opportunities created since 2025-Q4.
+
+
 ## Rituals
 
 <rituals :rituals="rituals['handbook/sales/sales.rituals.yml']"></rituals>
