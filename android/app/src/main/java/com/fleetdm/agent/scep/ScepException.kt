@@ -3,7 +3,7 @@ package com.fleetdm.agent.scep
 /**
  * Base exception for all SCEP-related errors.
  */
-sealed class ScepException(message: String, cause: Throwable? = null) : Exception(message, cause)
+open class ScepException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /**
  * Thrown when SCEP enrollment fails due to server rejection or pending status.

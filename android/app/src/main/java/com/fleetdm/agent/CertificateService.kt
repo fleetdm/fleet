@@ -139,7 +139,8 @@ class CertificateService : Service() {
             null,
             privateKey,
             certificateChain,
-            alias
+            alias,
+            0 // flags - 0 means no special flags
         )
 
         if (success) {
