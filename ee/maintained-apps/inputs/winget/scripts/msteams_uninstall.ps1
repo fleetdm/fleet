@@ -14,7 +14,11 @@ $userScript = @"
 Start-Transcript -Path `$logFile -Append
 
 try {
+    # Remove for current user
     Remove-AppxPackage -Package (Get-AppxPackage -Name `$packageName).PackageFullName
+
+    # Also remove provisioned package for all future users
+    Get-AppxProvisionedPackage -Online | Where-Object { `$_.DisplayName -eq `$packageName } | Remove-AppxProvisionedPackage -Online
 } catch {
     Write-Host "Error: `$_.Exception.Message"
     `$exitCode = 1

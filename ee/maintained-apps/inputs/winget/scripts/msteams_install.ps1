@@ -14,7 +14,11 @@ $userScript = @"
 Start-Transcript -Path `$logFile -Append
 
 try {
+    # Provision for all future users
     Add-AppProvisionedPackage -Online -PackagePath `$msixPath -SkipLicense
+
+    # Also install for current user so osquery can detect it immediately
+    Add-AppxPackage -Path `$msixPath
 } catch {
     Write-Host "Error: `$_.Exception.Message"
     `$exitCode = 1
