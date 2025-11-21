@@ -1523,6 +1523,12 @@ type ListAndroidEnrolledDevicesForReconcileFunc func(ctx context.Context) ([]*an
 
 type GetAndroidAppConfigurationFunc func(ctx context.Context, adamID string, globalOrTeamID uint) (*fleet.AndroidAppConfiguration, error)
 
+type InsertAndroidAppConfigurationFunc func(ctx context.Context, config *fleet.AndroidAppConfiguration) error
+
+type UpdateAndroidAppConfigurationFunc func(ctx context.Context, config *fleet.AndroidAppConfiguration) error
+
+type DeleteAndroidAppConfigurationFunc func(ctx context.Context, adamID string, globalOrTeamID uint) error
+
 type CreateScimUserFunc func(ctx context.Context, user *fleet.ScimUser) (uint, error)
 
 type ScimUserByIDFunc func(ctx context.Context, id uint) (*fleet.ScimUser, error)
@@ -3861,6 +3867,15 @@ type DataStore struct {
 
 	GetAndroidAppConfigurationFunc        GetAndroidAppConfigurationFunc
 	GetAndroidAppConfigurationFuncInvoked bool
+
+	InsertAndroidAppConfigurationFunc        InsertAndroidAppConfigurationFunc
+	InsertAndroidAppConfigurationFuncInvoked bool
+
+	UpdateAndroidAppConfigurationFunc        UpdateAndroidAppConfigurationFunc
+	UpdateAndroidAppConfigurationFuncInvoked bool
+
+	DeleteAndroidAppConfigurationFunc        DeleteAndroidAppConfigurationFunc
+	DeleteAndroidAppConfigurationFuncInvoked bool
 
 	CreateScimUserFunc        CreateScimUserFunc
 	CreateScimUserFuncInvoked bool
@@ -9245,6 +9260,27 @@ func (s *DataStore) GetAndroidAppConfiguration(ctx context.Context, adamID strin
 	s.GetAndroidAppConfigurationFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAndroidAppConfigurationFunc(ctx, adamID, globalOrTeamID)
+}
+
+func (s *DataStore) InsertAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
+	s.mu.Lock()
+	s.InsertAndroidAppConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertAndroidAppConfigurationFunc(ctx, config)
+}
+
+func (s *DataStore) UpdateAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
+	s.mu.Lock()
+	s.UpdateAndroidAppConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateAndroidAppConfigurationFunc(ctx, config)
+}
+
+func (s *DataStore) DeleteAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) error {
+	s.mu.Lock()
+	s.DeleteAndroidAppConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteAndroidAppConfigurationFunc(ctx, adamID, globalOrTeamID)
 }
 
 func (s *DataStore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (uint, error) {

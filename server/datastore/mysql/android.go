@@ -1539,7 +1539,6 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID stri
 		SELECT
 			id,
 			adam_id,
-			platform,
 			team_id,
 			global_or_team_id,
 			configuration,
@@ -1559,4 +1558,69 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID stri
 	}
 
 	return &config, nil
+}
+
+// InsertAndroidAppConfiguration creates a new Android app configuration entry.
+func (ds *Datastore) InsertAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
+	stmt := `
+		INSERT INTO android_app_configurations
+		(adam_id, team_id, global_or_team_id, configuration)
+		VALUES (?, ?, ?, ?)
+	`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, config.AdamID, config.TeamID, config.GlobalOrTeamID, config.Configuration)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "insert android app configuration")
+	}
+
+	return nil
+}
+
+// UpdateAndroidAppConfiguration updates an existing Android app configuration.
+func (ds *Datastore) UpdateAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
+	stmt := `
+		UPDATE android_app_configurations
+		SET configuration = ?, updated_at = CURRENT_TIMESTAMP(6)
+		WHERE adam_id = ? AND global_or_team_id = ?
+	`
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, config.Configuration, config.AdamID, config.GlobalOrTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update android app configuration")
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update android app configuration rows affected")
+	}
+
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
+	}
+
+	return nil
+}
+
+// DeleteAndroidAppConfiguration removes an Android app configuration.
+func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) error {
+	stmt := `
+		DELETE FROM android_app_configurations
+		WHERE adam_id = ? AND global_or_team_id = ?
+	`
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, adamID, globalOrTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete android app configuration")
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete android app configuration rows affected")
+	}
+
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
+	}
+
+	return nil
 }
