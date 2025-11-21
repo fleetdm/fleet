@@ -440,7 +440,7 @@
       "slug": "nordvpn/darwin",
       "platform": "darwin",
       "unique_identifier": "com.nordvpn.macos",
-      "description": ""
+      "description": "VPN client for secure internet access and private browsing."
     },
     {
       "name": "Notion",
