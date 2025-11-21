@@ -2,31 +2,35 @@ $softwareName = "MSTeams-x64"
 $packageName = "MSTeams"
 $taskName = "fleet-uninstall-$softwareName.msix"
 $scriptPath = "$env:PUBLIC\uninstall-$softwareName.ps1"
-$logFile = "$env:PUBLIC\uninstall-output-$softwareName.txt"
 $exitCodeFile = "$env:PUBLIC\uninstall-exitcode-$softwareName.txt"
 
 $userScript = @"
 `$packageName = "$packageName"
-`$logFile = "$logFile"
 `$exitCodeFile = "$exitCodeFile"
 `$exitCode = 0
 
-Start-Transcript -Path `$logFile -Append
-
 try {
+    Write-Host "=== Teams Uninstallation Start ==="
+
     # Remove for current user
-    Remove-AppxPackage -Package (Get-AppxPackage -Name `$packageName).PackageFullName
+    Write-Host "Removing package for current user..."
+    Remove-AppxPackage -Package (Get-AppxPackage -Name `$packageName).PackageFullName -ErrorAction Stop
+    Write-Host "Removed for current user"
 
     # Also remove provisioned package for all future users
-    Get-AppxProvisionedPackage -Online | Where-Object { `$_.DisplayName -eq `$packageName } | Remove-AppxProvisionedPackage -Online
+    Write-Host "Removing provisioned package for all future users..."
+    Get-AppxProvisionedPackage -Online | Where-Object { `$_.DisplayName -eq `$packageName } | Remove-AppxProvisionedPackage -Online -ErrorAction Stop
+    Write-Host "Removed provisioned package"
+
+    Write-Host "=== Uninstallation Successful ==="
 } catch {
-    Write-Host "Error: `$_.Exception.Message"
+    Write-Host "=== Uninstallation Failed ==="
+    Write-Host "Error: `$(`$_.Exception.Message)"
     `$exitCode = 1
 } finally {
+    Write-Host "Exit Code: `$exitCode"
     Set-Content -Path `$exitCodeFile -Value `$exitCode
 }
-
-Stop-Transcript
 
 Exit `$exitCode
 "@
@@ -48,9 +52,9 @@ try {
     # Write the uninstall script to disk
     Set-Content -Path $scriptPath -Value $userScript -Force
 
-    # Build task action: run script, redirect stdout/stderr to log file
+    # Build task action: run script (output goes to stdout for Fleet)
     $action = New-ScheduledTaskAction -Execute "powershell.exe" `
-        -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scriptPath`" *> `"$logFile`" 2>&1"
+        -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scriptPath`""
 
     $trigger = New-ScheduledTaskTrigger -AtLogOn
 
@@ -94,7 +98,6 @@ try {
     # Clean up
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
     Remove-Item -Path $scriptPath -Force -ErrorAction SilentlyContinue
-    Remove-Item -Path $logFile -Force -ErrorAction SilentlyContinue
     Remove-Item -Path $exitCodeFile -Force -ErrorAction SilentlyContinue
 }
 

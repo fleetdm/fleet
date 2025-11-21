@@ -144,7 +144,7 @@ func run(cfg *Config) error {
 					level.Error(appLogger).Log("msg", fmt.Sprintf("Output: %s", output))
 					return err
 				}
-				level.Info(appLogger).Log("msg", fmt.Sprintf("Install script output: %s", output))
+				level.Debug(appLogger).Log("msg", fmt.Sprintf("Output: %s", output))
 				return nil
 			},
 		)
