@@ -603,7 +603,7 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	return apps, nil
 }
 
-func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string, displayName *string) (*fleet.VPPAppStoreApp, error) {
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService *bool, labelsIncludeAny, labelsExcludeAny, categories []string, displayName *string) (*fleet.VPPAppStoreApp, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -621,9 +621,13 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		teamName = tm.Name
 	}
 
-	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, labelsIncludeAny, labelsExcludeAny)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating software labels")
+	var validatedLabels *fleet.LabelIdentsWithScope
+	if labelsExcludeAny != nil || labelsIncludeAny != nil {
+		var err error
+		validatedLabels, err = ValidateSoftwareLabels(ctx, svc, labelsIncludeAny, labelsExcludeAny)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating software labels")
+		}
 	}
 
 	meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
@@ -631,12 +635,17 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting vpp app metadata")
 	}
 
+	selfServiceVal := meta.SelfService
+	if selfService != nil {
+		selfServiceVal = *selfService
+	}
+
 	appToWrite := &fleet.VPPApp{
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID: fleet.VPPAppID{
 				AdamID: meta.AdamID, Platform: meta.Platform,
 			},
-			SelfService:     selfService,
+			SelfService:     selfServiceVal,
 			ValidatedLabels: validatedLabels,
 			DisplayName:     displayName,
 		},
@@ -650,20 +659,22 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		appToWrite.IconURL = *meta.IconURL
 	}
 
-	categories = server.RemoveDuplicatesFromSlice(categories)
-	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, categories)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
-	}
-
-	if len(catIDs) != len(categories) {
-		return nil, &fleet.BadRequestError{
-			Message:     "some or all of the categories provided don't exist",
-			InternalErr: fmt.Errorf("categories provided: %v", categories),
+	if categories != nil {
+		categories = server.RemoveDuplicatesFromSlice(categories)
+		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, categories)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
 		}
-	}
 
-	appToWrite.CategoryIDs = catIDs
+		if len(catIDs) != len(categories) {
+			return nil, &fleet.BadRequestError{
+				Message:     "some or all of the categories provided don't exist",
+				InternalErr: fmt.Errorf("categories provided: %v", categories),
+			}
+		}
+
+		appToWrite.CategoryIDs = catIDs
+	}
 
 	// check if labels have changed
 	var existingLabels fleet.LabelIdentsWithScope
@@ -682,8 +693,10 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 			existingLabels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
 		}
 	}
-
-	labelsChanged := !validatedLabels.Equal(&existingLabels)
+	var labelsChanged bool
+	if validatedLabels != nil {
+		labelsChanged = !validatedLabels.Equal(&existingLabels)
+	}
 
 	// Get the hosts that are NOT in label scope currently (before the update happens)
 	var hostsNotInScope map[uint]struct{}
@@ -727,7 +740,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	act := fleet.ActivityEditedAppStoreApp{
 		TeamName:         &teamName,
 		TeamID:           teamID,
-		SelfService:      selfService,
+		SelfService:      selfServiceVal,
 		SoftwareTitleID:  titleID,
 		SoftwareTitle:    meta.Name,
 		AppStoreID:       meta.AdamID,

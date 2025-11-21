@@ -541,12 +541,12 @@ const DeviceUserPage = ({
     setSelectedCertificate(certificate);
   };
 
-  const resendProfile = (profileUUID: string): Promise<void> => {
-    if (!host) {
-      return new Promise(() => undefined);
-    }
-    return deviceUserAPI.resendProfile(deviceAuthToken, profileUUID);
-  };
+  const resendProfile = useCallback(
+    (profileUUID: string): Promise<void> => {
+      return deviceUserAPI.resendProfile(deviceAuthToken, profileUUID);
+    },
+    [deviceAuthToken]
+  );
 
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;

@@ -85,21 +85,6 @@ const EndUserAuthentication = ({
       return <Spinner />;
     }
     const mdmConfig = globalConfig.mdm;
-    if (
-      !(
-        mdmConfig.enabled_and_configured ||
-        mdmConfig.android_enabled_and_configured
-      )
-    ) {
-      return (
-        <TurnOnMdmMessage
-          header="Additional configuration required"
-          info="Supported on macOS, iOS, iPadOS, and Android. To customize, first turn on MDM."
-          buttonText="Turn on"
-          router={router}
-        />
-      );
-    }
     return (
       <SetupExperienceContentContainer>
         {!isIdPConfigured(mdmConfig) ? (
