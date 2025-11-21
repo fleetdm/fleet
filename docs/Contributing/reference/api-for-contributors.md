@@ -4814,42 +4814,38 @@ Body: <blob>
 
 ## Certificates
 
-### Batch-apply certificate templates
+### Apply certificate templates
 
 _Available in Fleet Premium_
 
-`POST /api/latest/fleet/certificates/batch`
+`POST /api/latest/fleet/spec/certificates`
 
 #### Parameters
 
 | Name      | Type   | In    | Description                                                                                                                                                           |
 | --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_id | integer | query | The ID of the team to add the certificate template to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`.
-| team_name | string | query | The name of the team to add the certificate template to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`.
-| dry_run   | bool   | query | Validate the provided certificate templates and return any validation errors, but do not apply the changes.                                                                         |
-| certificates  | array  | body  | An array of objects with the certificate templates. Each item must contain `name` with the certificate template name, `certificate_authority_name` with the certificate authority name, and `subject_name` with the certificate's subject name.   |
-
-If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error.
-If no `team_name` or `team_id` is provided, certificate templates are applied for hosts that are not assigned to any team.
+| specs     | array  | body  | **Required**. An array of objects with the certificate templates. Each item must contain `name` with the certificate template name, a `team` with a team id,  `certificate_authority_id` with the certificate authority id, and `subject_name` with the certificate's subject name.   |
 
 > Any existing certificate template that is not included in the list will be removed, and existing templates with the same name as the new template will be edited. Providing an empty list of certificate templates will remove existing scripts.
 
 #### Example
 
-`POST /api/latest/fleet/certificates/batch`
+`POST /api/latest/fleet/spec/certificates`
 
 ##### Request body
 
 ```json
 {
-  "certificates": [
+  "specs": [
     {
       "name": "WIFI_CERTIFICATE",
+      "team": 1,
       "certificate_authority_name": "WIFI_CERTIFICATE_CA_PROD",
       "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
     },
     {
       "name": "WIFI_CERTIFICATE_TEST",
+      "team": 1,
       "certificate_authority_name": "WIFI_CERTIFICATE_CA_STAGING",
       "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
     },
@@ -4861,22 +4857,30 @@ If no `team_name` or `team_id` is provided, certificate templates are applied fo
 
 `Status: 200`
 
+### Delete certificate templates
+
+`DELETE /api/latest/fleet/spec/certificates`
+
+#### Parameters
+
+| Name      | Type    | In    | Description                                                                            |
+|-----------|---------|-------|----------------------------------------------------------------------------------------|
+| ids       | array   | body  | **Required**. An array of certificate template ids to be deleted                       |
+| team_id   | integer | body  | **Required**. The team_id which the certificate templates you want to delete belong to |
+
+#### Example
+
+`DELETE /api/latest/fleet/spec/certificates`
 ```json
 {
-  "scripts": [
-    {
-      "team_id": 3,
-      "id": 6690,
-      "name": "Ensure shields are up"
-    },
-    {
-      "team_id": 3,
-      "id": 10412,
-      "name": "Ensure flux capacitor is charged"
-    }
-  ]
+  "ids": [1, 2, 3, 4],
+  "team_id": 1
 }
 ```
+
+##### Default response
+
+`Status: 200`
 
 ## Users
 
