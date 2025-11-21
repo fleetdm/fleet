@@ -2355,6 +2355,7 @@ func deduceMDMNameWindows(data map[string]string) string {
 }
 
 func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	fmt.Printf("directIngestMDMWindows called with %d rows\n", len(rows))
 	if len(rows) == 0 {
 		// no mdm information in the registry
 		return ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", false)
@@ -2381,11 +2382,18 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 			// NOTE: We intentionally nest this condition to eliminate `enrolled == false && automatic == true`
 			// as a possible status for Windows hosts (which would be otherwise be categorized as
 			// "Pending"). Currently, the "Pending" status is supported only for macOS hosts.
+			automatic = true
 			// We also must check the MDM Enrollment information on the fleet side here. If the host set the NotInOobe
 			// flag during enrollment, the enrollment is considered manual as it was user-initiated via the Settings app.
-			automatic = true
-			windowsDevice, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, host.UUID)
-			if err != nil && !fleet.IsNotFound(err) {
+			// There does not seem to be a way on the host to detect this via osquery.
+			windowsDevice, err := ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID)
+			deviceID := "unknown"
+			if windowsDevice != nil {
+				deviceID = windowsDevice.MDMDeviceID
+			}
+			fmt.Printf("directIngestMDMWindows got device %s for host %s MDMNotInOOBE %t\n", deviceID, host.UUID, windowsDevice.MDMNotInOOBE)
+			if err == nil && windowsDevice != nil {
+				automatic = !windowsDevice.MDMNotInOOBE
 			}
 		}
 	}
@@ -2651,6 +2659,7 @@ func directIngestMacOSProfiles(
 }
 
 func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	fmt.Printf("directIngestMDMDeviceIDWindows called with %d rows\n", len(rows))
 	if len(rows) == 0 {
 		// this registry key is only going to be present if the device is enrolled to mdm so assume that mdm is turned off
 		return nil
@@ -2659,7 +2668,58 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 	if len(rows) > 1 {
 		return ctxerr.Errorf(ctx, "directIngestMDMDeviceIDWindows invalid number of rows: %d", len(rows))
 	}
-	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
+	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating windows mdm device id")
+	}
+	if updated {
+		device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, rows[0]["data"])
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
+		}
+		if device != nil && microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
+			fmt.Printf("directIngestMDMDeviceIDWindows got device %s NotInOOBE %t\n", device.MDMDeviceID, device.MDMNotInOOBE)
+			// Update the host's MDM enrolled flags to show it as a manual enrollment. THis is to avoid
+			// it taking two full refreshes to show this
+			if device.MDMNotInOOBE {
+				err = ds.UpdateMDMInstalledFromDEP(ctx, host.ID, false)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
+				}
+			}
+			mapping := []*fleet.HostDeviceMapping{
+				{
+					HostID: host.ID,
+					Email:  device.MDMEnrollUserID,
+					Source: fleet.DeviceMappingIDP,
+				},
+			}
+			err = ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping, fleet.DeviceMappingIDP)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "replacing host device mapping for windows mdm enrolled device")
+			}
+			// Check if the user is a valid SCIM user to manage the join table
+			scimUser, err := ds.ScimUserByUserNameOrEmail(ctx, device.MDMEnrollUserID, device.MDMEnrollUserID)
+			if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
+				return ctxerr.Wrap(ctx, err, "find SCIM user for Windows Azure enrollment linking by username or email")
+			}
+			if err == nil && scimUser != nil {
+				// User exists in SCIM, create/update the mapping for additional attributes
+				// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
+				if err := ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUser.ID); err != nil {
+					// Log the error but don't fail the request since the main IDP mapping succeeded
+					level.Debug(logger).Log("msg", "failed to set SCIM user mapping", "err", err)
+				}
+			} else {
+				// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
+				if err := ds.DeleteHostSCIMUserMapping(ctx, host.ID); err != nil && !fleet.IsNotFound(err) {
+					// Log the error but don't fail the request
+					level.Debug(logger).Log("msg", "failed to delete SCIM user mapping", "err", err)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 var luksVerifyQuery = DetailQuery{

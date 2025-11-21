@@ -15,7 +15,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
@@ -1248,11 +1247,6 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 	return htmlBuf.String(), nil
 }
 
-// isValidUPN checks if the provided user ID is a valid UPN
-func isValidUPN(userID string) bool {
-	return upnRegex.MatchString(userID)
-}
-
 // isTrustedRequest checks if the incoming request was sent from MDM enrolled device
 func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) error {
 	if reqSyncML == nil {
@@ -1308,9 +1302,6 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 	return errors.New("calling device is not trusted")
 }
 
-// regex to validate UPN
-var upnRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-
 // isFleetdPresentOnDevice checks if the device requires Fleetd to be deployed
 func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, deviceID string) (bool, error) {
 	// checking first if the device was enrolled through programmatic flow
@@ -1321,7 +1312,7 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, deviceID string
 
 	// If user identity is a MS-MDM UPN it means that the device was enrolled through user-driven flow
 	// This means that fleetd might not be installed
-	if isValidUPN(enrolledDevice.MDMEnrollUserID) {
+	if microsoft_mdm.IsValidUPN(enrolledDevice.MDMEnrollUserID) {
 		var isPresent bool
 		if enrolledDevice.HostUUID != "" {
 			host, err := svc.ds.HostLiteByIdentifier(ctx, enrolledDevice.HostUUID)
