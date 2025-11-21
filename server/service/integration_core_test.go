@@ -8029,8 +8029,19 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	require.NoError(t, err)
 	certID := savedCertificateTemplates[0].ID
 
+	// Get certificate without node_key
+	var getCertResp getDeviceCertificateTemplateResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleetd/certificates/%d", certID), nil, http.StatusBadRequest, &getCertResp)
+
+	// Get certificate with node_key (should return replaced variables)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleetd/certificates/%d?node_key=%s", certID, *host.NodeKey), nil, http.StatusOK, &getCertResp)
+	require.NotNil(t, getCertResp.Certificate)
+
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "test.user@example.com")
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "test-uuid-12345")
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "TEST-SERIAL-67890")
+
 	// Get certificate without host_uuid (should return subject with variables)
-	var getCertResp getCertificateTemplateResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", certID), nil, http.StatusOK, &getCertResp)
 	require.NotNil(t, getCertResp.Certificate)
 

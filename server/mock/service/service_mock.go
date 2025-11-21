@@ -392,6 +392,8 @@ type CreateCertificateTemplateFunc func(ctx context.Context, name string, teamID
 
 type ListCertificateTemplatesFunc func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
 
+type GetDeviceCertificateTemplateFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error)
+
 type GetCertificateTemplateFunc func(ctx context.Context, id uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error)
 
 type DeleteCertificateTemplateFunc func(ctx context.Context, id uint) error
@@ -1423,6 +1425,9 @@ type Service struct {
 
 	ListCertificateTemplatesFunc        ListCertificateTemplatesFunc
 	ListCertificateTemplatesFuncInvoked bool
+
+	GetDeviceCertificateTemplateFunc        GetDeviceCertificateTemplateFunc
+	GetDeviceCertificateTemplateFuncInvoked bool
 
 	GetCertificateTemplateFunc        GetCertificateTemplateFunc
 	GetCertificateTemplateFuncInvoked bool
@@ -3439,6 +3444,13 @@ func (s *Service) ListCertificateTemplates(ctx context.Context, teamID uint, pag
 	s.ListCertificateTemplatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListCertificateTemplatesFunc(ctx, teamID, page, perPage)
+}
+
+func (s *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
+	s.mu.Lock()
+	s.GetDeviceCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetDeviceCertificateTemplateFunc(ctx, id)
 }
 
 func (s *Service) GetCertificateTemplate(ctx context.Context, id uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error) {

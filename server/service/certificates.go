@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/variables"
 )
@@ -93,6 +94,58 @@ func (svc *Service) ListCertificateTemplates(ctx context.Context, teamID uint, p
 	}
 
 	return certificates, paginationMetaData, nil
+}
+
+type getDeviceCertificateTemplateRequest struct {
+	ID      uint   `url:"id"`
+	NodeKey string `query:"node_key"`
+}
+
+func (r *getDeviceCertificateTemplateRequest) hostNodeKey() string {
+	return r.NodeKey
+}
+
+type getDeviceCertificateTemplateResponse struct {
+	Certificate *fleet.CertificateTemplateResponseFull `json:"certificate"`
+	Err         error                                  `json:"error,omitempty"`
+}
+
+func (r getDeviceCertificateTemplateResponse) Error() error { return r.Err }
+
+func getDeviceCertificateTemplateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getDeviceCertificateTemplateRequest)
+	certificate, err := svc.GetDeviceCertificateTemplate(ctx, req.ID)
+	if err != nil {
+		return getDeviceCertificateTemplateResponse{Err: err}, nil
+	}
+	return getDeviceCertificateTemplateResponse{Certificate: certificate}, nil
+}
+
+func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
+	// skipauth: This endpoint uses node key authentication instead of user authentication.
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, ctxerr.New(ctx, "missing host from request context")
+	}
+
+	certificate, err := svc.ds.GetCertificateTemplateById(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if certificate.TeamID != 0 && (host.TeamID == nil || *host.TeamID != certificate.TeamID) {
+		return nil, fleet.NewPermissionError("host does not have access to this certificate template")
+	}
+
+	subjectName, err := svc.replaceCertificateVariables(ctx, certificate.SubjectName, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "replacing certificate variables")
+	}
+	certificate.SubjectName = subjectName
+
+	return certificate, nil
 }
 
 type getCertificateTemplateRequest struct {
