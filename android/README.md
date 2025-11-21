@@ -87,6 +87,42 @@ ls "$(grep sdk.dir local.properties | cut -d= -f2)/build-tools/"
 jarsigner -verify app/build/outputs/bundle/release/app-release.aab
 ```
 
+## Deploying via Android MDM (development)
+
+This feature is behind the feature flag `FLEET_DEV_ANDROID_AGENT_PACKAGE`. Requires `FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS` to be set in your workarea.
+
+1. **Set the feature flag on your Fleet server:**
+
+```bash
+export FLEET_DEV_ANDROID_AGENT_PACKAGE=com.fleetdm.agent.private.<yourname>
+```
+
+2. **Change the `applicationId` in `app/build.gradle.kts`:**
+
+```kotlin
+defaultConfig {
+    applicationId = "com.fleetdm.agent.private.<yourname>"
+    // ...
+}
+```
+
+3. **Build a signed release** (AAB) using the instructions above.
+
+4. **Get the Google Play URL:**
+
+```bash
+# Run from top-level directory of the working tree
+go run tools/android/android.go --command enterprises.webTokens.create --enterprise_id '<your-enterprise-id>'
+```
+
+5. **Upload your signed app** in the Private apps tab using the URL from the previous step.
+
+6. **Wait ~10 minutes** for Google Play to process the upload.
+
+7. **Enroll your Android device.**
+
+The agent should start installing shortly. Check Google Play in your Work profile. If it shows as pending, try restarting the device.
+
 ### Full build with tests
 
 ```bash
@@ -155,3 +191,7 @@ See `gradle/libs.versions.toml` for complete list.
 ```bash
 ./gradlew clean build
 ```
+
+**Delete device from Android MDM:**
+- Delete Work profile on Android device
+- Using `tools/android/android.go`, delete the device and delete the associated policy (as of 2025/11/21, Fleet server does not do this)
