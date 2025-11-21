@@ -170,6 +170,13 @@
       "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
     },
     {
+      "name": "Cyberduck",
+      "slug": "cyberduck/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ch.sudo.cyberduck",
+      "description": "Cyberduck is a server and cloud storage browser."
+    },
+    {
       "name": "DataGrip",
       "slug": "datagrip/darwin",
       "platform": "darwin",
