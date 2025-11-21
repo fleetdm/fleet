@@ -21,7 +21,7 @@ func Up_20251121100000(tx *sql.Tx) error {
 		-- ^ Composite index for AND conditions 
 
 		-- User table indexes
-		CREATE INDEX idx_users_email ON users (email);
+		-- Email index comes from the unique key constraint on the table
 		CREATE INDEX idx_users_name ON users (name);
 	`)
 	return err
