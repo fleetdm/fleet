@@ -150,11 +150,6 @@ func testAndroidAppConfigValidation(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	// configValidBoth?
-
-	// TODO(JK): this needs to be mostly tested with uploading/editing/getting VPP app
-	// as that is the only API to change configurations
-
 	for _, c := range cases {
 		t.Log("Running test case ", c.desc)
 		err := validateAndroidAppConfiguration(c.config)

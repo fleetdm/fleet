@@ -59,7 +59,7 @@ type addAppStoreAppRequest struct {
 	LabelsIncludeAny []string                        `json:"labels_include_any"`
 	LabelsExcludeAny []string                        `json:"labels_exclude_any"`
 	Categories       []string                        `json:"categories"`
-	Configuration    json.RawMessage                 `json:"configuration,omitempty"` // TODO(JK): []byte instead?
+	Configuration    json.RawMessage                 `json:"configuration,omitempty"`
 }
 
 type addAppStoreAppResponse struct {
