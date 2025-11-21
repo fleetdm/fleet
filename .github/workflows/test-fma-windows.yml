@@ -82,4 +82,30 @@ jobs:
           ls "C:\Program Files"
           cd fleet
           go run ./cmd/maintained-apps/validate
+
+          # TEMPORARY: Immediately check for log files before any cleanup
+          Write-Host "`n=== Checking for log files immediately after validation ==="
+          if (Test-Path "C:\Users\Public\install-output-MSTeams-x64.txt") {
+            Write-Host "LOG FILE EXISTS!"
+            Write-Host "Size: $((Get-Item 'C:\Users\Public\install-output-MSTeams-x64.txt').Length) bytes"
+          } else {
+            Write-Host "LOG FILE DOES NOT EXIST"
+          }
         shell: pwsh
+
+      # TEMPORARY: Debug - List all files in Public directory
+      - name: List Public directory files
+        if: always()
+        run: |
+          Write-Host "Files in C:\Users\Public:"
+          Get-ChildItem C:\Users\Public -Force | Select-Object Name, Length, LastWriteTime
+        shell: pwsh
+
+      # TEMPORARY: Upload install logs for debugging Teams MSIX detection issue
+      - name: Upload Teams installation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: teams-install-logs
+          path: C:\Users\Public\*MSTeams*.txt
+          if-no-files-found: ignore
