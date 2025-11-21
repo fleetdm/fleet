@@ -210,6 +210,7 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 func (w *Worker) processJob(ctx context.Context, job *fleet.Job) error {
 	// Create OTEL span for job processing (parent span should be: cron.scheduled_tick.integrations)
 	ctx, span := otel.Tracer("github.com/fleetdm/fleet/v4/server/worker").Start(ctx, fmt.Sprintf("worker.process_job.%s", job.Name),
+		trace.WithSpanKind(trace.SpanKindConsumer),
 		trace.WithAttributes(
 			attribute.Int64("job.id", int64(job.ID)), // nolint:gosec,G115
 		),
