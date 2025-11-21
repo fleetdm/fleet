@@ -117,10 +117,10 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 
 	// Try to upload in house app again, expect duplicate error
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
-	require.ErrorContains(t, err, fmt.Sprintf(`in-house app %q already exists`, payload.Filename))
+	require.ErrorContains(t, err, fmt.Sprintf(`In-house app %q already exists`, payload.Filename))
 	// Try to upload in house app with different version or name but same bundle id
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payloadV2)
-	require.ErrorContains(t, err, fmt.Sprintf(`in-house app %q already exists`, payloadV2.Filename))
+	require.ErrorContains(t, err, fmt.Sprintf(`In-house app %q already exists`, payloadV2.Filename))
 
 	// Get new in house app
 	installer, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleID)
