@@ -1,0 +1,118 @@
+# binaries
+*.exe
+
+# output directories
+/build
+vendor
+node_modules
+dist
+
+# generated artifacts
+assets/bundle*.*
+assets/*@*.svg
+assets/*@*.png
+assets/*@*.gif
+assets/*@*.eot
+assets/*@*.woff
+assets/*@*.woff2
+assets/*@*.ttf
+assets/*@*.mp4
+frontend/templates/react.tmpl
+bindata.go
+server/bindata/generated.go
+*.cover
+*.test
+*.log
+coverage.txt
+storybook-static
+frontend/coverage
+
+# typescript generated test files
+tmp/
+
+# test debug files
+debug.test*
+
+# operating system artifacts
+.DS_Store
+
+# test mysql server data
+mysqldata/
+
+# test helm charts
+helm-temp
+charts/fleet/charts
+
+#editors
+.idea
+.swp
+
+# Fleet local development DB backups
+backup.sql.gz
+
+# Common mistake for new developers to run npm install and then end up
+# committing a package-lock.json. Fleet app uses Yarn with yarn.lock.
+package-lock.json
+
+# infra
+.terraform
+.terraform.tfstate*
+terraform.tfstate*
+
+# generated orbit installers and artifacts
+fleet-osquery*
+desktop.app.tar.gz
+osqueryd.app.tar.gz
+desktop.tar.gz
+nudge.app.tar.gz
+swiftDialog.app.tar.gz
+
+# residual files when running the cpe command
+cmd/cpe/etagenv
+cmd/cpe/cpe*.sqlite
+cmd/cpe/cpe*.sqlite.gz
+
+# Testing TUF server
+test_tuf
+
+# Residual files when running the msrc generate command
+msrc_in/
+msrc_out/
+
+# Residual files when running cmd/macoffice/generate.go
+macoffice_rel_notes/
+
+# Keys and certificates that may be generated in the root of the repo
+# (e.g. with ./build/fleetctl generate ...).
+/*.key
+/*.crt
+
+# IDE
+.vscode
+.cursor
+
+# residual files when running the build-windows tool
+orbit/cmd/desktop/manifest.xml
+orbit/cmd/desktop/resource_windows.syso
+orbit/cmd/orbit/manifest.xml
+orbit/cmd/orbit/resource_windows.syso
+
+# Residual files from osqueryd loadtests.
+osquery_worker_*.jpg
+
+# Residual files when building fleetd_tables extension.
+fleetd_tables_*
+
+# Location of test extensions executables
+tools/test_extensions/hello_world/macos
+tools/test_extensions/hello_world/linux
+tools/test_extensions/hello_world/linux-arm64
+tools/test_extensions/hello_world/windows
+tools/test_extensions/hello_world/windows-arm64
+
+# Residual files when building fleet_tables extension.
+fleet_tables_*.ext
+
+# Local dev files
+.env
+.tool-versions
