@@ -11,9 +11,9 @@ func init() {
 func Up_20251121124239(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS host_certificate_templates (
-			id INT PRIMARY KEY AUTO_INCREMENT,
+			id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
 			host_uuid varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
-			certificate_template_id INT NOT NULL,
+			certificate_template_id INT UNSIGNED NOT NULL,
 			fleet_challenge char(32) NOT NULL,
 			status VARCHAR(255) NOT NULL,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
