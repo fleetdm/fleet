@@ -18,6 +18,7 @@ type MaintainedApp struct {
 	UninstallScript       string   `json:"uninstall_script,omitempty"`
 	AutomaticInstallQuery string   `json:"-"`
 	Categories            []string `json:"categories"`
+	UpgradeCode           string   `json:"upgrade_code,omitempty"`
 }
 
 func (s *MaintainedApp) Source() string {

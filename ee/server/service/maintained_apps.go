@@ -64,17 +64,20 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, ctxerr.Wrap(ctx, err, "getting maintained app by id")
 	}
 
+	fmt.Printf("\n\nmaintained app, pre-hydration: %+v\n\n", app)
+
 	app, err = maintained_apps.Hydrate(ctx, app)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "hydrating app from manifest")
 	}
+
+	fmt.Printf("\n\nmaintained app, post-hydration: %+v\n\n", app)
 
 	// Download installer from the URL
 	timeout := maintained_apps.InstallerTimeout
 	if v := os.Getenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT"); v != "" {
 		timeout, _ = time.ParseDuration(v)
 	}
-
 	client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
 	installerTFR, filename, err := maintained_apps.DownloadInstaller(ctx, app.InstallerURL, client)
 	if err != nil {
@@ -149,6 +152,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		Source:                app.Source(),
 		Extension:             extension,
 		BundleIdentifier:      app.BundleIdentifier(),
+		UpgradeCode:           app.UpgradeCode,
 		StorageID:             app.SHA256,
 		FleetMaintainedAppID:  maintainedAppID,
 		PreInstallQuery:       preInstallQuery,

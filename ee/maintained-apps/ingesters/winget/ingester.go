@@ -311,7 +311,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		name = input.UniqueIdentifier
 	}
 
-	// TODO - consider UpgradeCode here
+	// TODO - consider UpgradeCode here?
 	existsTemplate := "SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';"
 	if input.FuzzyMatchName {
 		existsTemplate = "SELECT 1 FROM programs WHERE name LIKE '%s %%' AND publisher = '%s';"

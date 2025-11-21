@@ -218,8 +218,6 @@ type inputApp struct {
 	// Token is the identifier in the source data for the app (e.g. homebrew token).
 	Token string `json:"token"`
 	// UniqueIdentifier is the app's unique identifier on its platform (e.g. bundle ID on macOS).
-	// (jacob): this comment implies this struct was intended for use across platforms, but seems to
-	// only be used for mac SW now, while there is a distinct `inputApp` for winget (Windows) software
 	UniqueIdentifier string `json:"unique_identifier"`
 	// InstallerFormat is the installer format used for installing this app.
 	InstallerFormat string `json:"installer_format"`
