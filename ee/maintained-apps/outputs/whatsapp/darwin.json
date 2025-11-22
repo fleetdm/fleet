@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.whatsapp.WhatsApp';"
       },
-      "installer_url": "https://web.whatsapp.com/desktop/mac_native/release/?version=2.25.35.17&extension=zip&configuration=Release&branch=master&is_buck=true",
+      "installer_url": "https://web.whatsapp.com/desktop/mac_native/release/?version=2.25.35.17\u0026extension=zip\u0026configuration=Release\u0026branch=master\u0026is_buck=true",
       "install_script_ref": "0787f97b",
       "uninstall_script_ref": "1601899d",
       "sha256": "b9050844b5ad10fbb32a165023f2d002cf626ab287c44dfc51165890fcd9001b",
