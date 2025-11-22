@@ -84,7 +84,7 @@ func TestUpdateSoftwareTitlesUpgradeCode(t *testing.T) {
 					ID:          3,
 					Name:        "Software 3",
 					Source:      "programs",
-					UpgradeCode: ptr.String("differnt_uc_value"),
+					UpgradeCode: ptr.String("different_uc_value"),
 				},
 			},
 			expectedUpdates:     map[uint]string{},

@@ -1186,12 +1186,11 @@ func (ds *Datastore) reconcileExistingTitleEmptyUpgradeCodes(
 		case existingTitle.UpgradeCode != nil && *existingTitle.UpgradeCode != "" && *sw.UpgradeCode != *existingTitle.UpgradeCode:
 			// don't update this title
 			level.Warn(ds.logger).Log(
-				"msg", "Incoming software's upgrade code has changed from the existing title's. The developers of this software may have changed the upgrade code, and this may be worth investigating. Keeping the previous title's upgrade code. This will likely result is some inconcistencies, such as the title's upgrade_code possibly not being returned from the list host software endpoint.",
+				"msg", "Incoming software's upgrade code has changed from the existing title's. The developers of this software may have changed the upgrade code, and this may be worth investigating. Keeping the previous title's upgrade code. This will likely result is some inconsistencies, such as the title's upgrade_code possibly not being returned from the list host software endpoint.",
 				"existing_title_id", existingTitle.ID,
 				"existing_title_name", existingTitle.Name,
 				"existing_title_source", existingTitle.Source,
 				"existing_title_upgrade_code", *existingTitle.UpgradeCode,
-				"incoming_software_upgrade_code", *sw.UpgradeCode,
 				"incoming_software_name", sw.Name,
 				"incoming_software_source", sw.Source,
 				"incoming_software_upgrade_code", *sw.UpgradeCode,
