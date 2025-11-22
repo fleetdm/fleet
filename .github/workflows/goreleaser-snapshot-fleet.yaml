@@ -152,7 +152,6 @@ jobs:
         run: |
           for TAG in ${{ steps.docker.outputs.TAG }}; do
             docker tag fleetdm/fleet:${TAG} quay.io/fleetdm/fleet:${TAG}
-            docker push quay.io/fleetdm/fleet:${TAG}
             for i in {1..5}; do
               docker push quay.io/fleetdm/fleet:${TAG} && break || sleep 10
             done
