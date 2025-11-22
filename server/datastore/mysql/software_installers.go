@@ -505,7 +505,7 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	selectStmt := `SELECT id FROM software_titles WHERE name = ? AND source = ? AND extension_for = ''`
 	selectArgs := []any{payload.Title, payload.Source}
 	insertStmt := `INSERT INTO software_titles (name, source, extension_for) VALUES (?, ?, '')`
-	insertArgs := []any{payload.Title, payload.Source, payload.UpgradeCode}
+	insertArgs := []any{payload.Title, payload.Source}
 
 	// upgrade_code should be NULL for non-Windows software, empty or non-empty string for Windows
 	// software
