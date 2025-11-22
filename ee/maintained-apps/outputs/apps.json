@@ -695,6 +695,13 @@
       "description": "Webex is a video communication and virtual meeting platform."
     },
     {
+      "name": "WebStorm",
+      "slug": "webstorm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.WebStorm",
+      "description": "JavaScript IDE by JetBrains."
+    },
+    {
       "name": "WhatsApp",
       "slug": "whatsapp/darwin",
       "platform": "darwin",
