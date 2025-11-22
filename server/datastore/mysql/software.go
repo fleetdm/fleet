@@ -420,11 +420,17 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	// into smaller, faster transactions that release locks quickly.
 	// These operations are idempotent due to INSERT IGNORE.
 	if len(incomingSoftwareByChecksum) > 0 {
+
+		err = ds.reconcileExistingTitleEmptyUpgradeCodes(ctx, incomingSoftwareByChecksum, incomingChecksumsToExistingTitles)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update software titles upgrade code")
+		}
 		// Pre-insert software and titles in small batches
 		err = ds.preInsertSoftwareInventory(ctx, existingSoftwareSummaries, incomingSoftwareByChecksum, incomingChecksumsToExistingTitles)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "pre-insert software inventory")
 		}
+
 	}
 
 	// PHASE 2: Main transaction for host-specific operations
@@ -923,9 +929,6 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			for checksum, title := range incomingChecksumsToExistingTitles {
 				titleIDsByChecksum[checksum] = title.ID
 			}
-			// TODO: somewhere around here: if new SW title has diff upgrade_code from existing, log as an error and
-			// do NOT insert the new title
-
 			if len(newTitlesNeeded) > 0 {
 				uniqueTitlesToInsert := make(map[titleKey]fleet.SoftwareTitle)
 				for _, title := range newTitlesNeeded {
@@ -1148,6 +1151,79 @@ func (ds *Datastore) linkSoftwareToHost(
 	}
 
 	return insertedSoftware, nil
+}
+
+func (ds *Datastore) reconcileExistingTitleEmptyUpgradeCodes(
+	ctx context.Context,
+	incomingSoftwareByChecksum map[string]fleet.Software,
+	incomingChecksumsToExistingTitles map[string]fleet.SoftwareTitle,
+) error {
+	existingTitlesToUpgradeCodesToWrite := make(map[uint]string) // titleID -> upgrade_code
+
+	for swChecksum, sw := range incomingSoftwareByChecksum {
+		if sw.UpgradeCode == nil || *sw.UpgradeCode == "" {
+			continue
+		}
+
+		existingTitle, ok := incomingChecksumsToExistingTitles[swChecksum]
+		if !ok {
+			// a new title will be inserted in the next step with the fresh upgrade code, if any, from the incoming software
+			continue
+		}
+
+		switch {
+		case existingTitle.UpgradeCode == nil:
+			level.Warn(ds.logger).Log(
+				"msg", "Encountered Windows software title with a NULL upgrade_code, which shouldn't be possible. Writing the incoming non-empty upgrade code to the title.",
+				"title_id", existingTitle.ID,
+				"title_name", existingTitle.Name,
+				"source", existingTitle.Source,
+				"incoming_upgrade_code", *sw.UpgradeCode,
+			)
+			existingTitlesToUpgradeCodesToWrite[existingTitle.ID] = *sw.UpgradeCode
+		case *existingTitle.UpgradeCode == "":
+			existingTitlesToUpgradeCodesToWrite[existingTitle.ID] = *sw.UpgradeCode
+		case existingTitle.UpgradeCode != nil && *existingTitle.UpgradeCode != "" && *sw.UpgradeCode != *existingTitle.UpgradeCode:
+			// don't update this title
+			level.Warn(ds.logger).Log(
+				"msg", "Incoming software's upgrade code has changed from the existing title's. The developers of this software may have changed the upgrade code, and this may be worth investigating. Keeping the previous title's upgrade code. This will likely result is some inconcistencies, such as the title's upgrade_code possibly not being returned from the list host software endpoint.",
+				"existing_title_id", existingTitle.ID,
+				"existing_title_name", existingTitle.Name,
+				"existing_title_source", existingTitle.Source,
+				"existing_title_upgrade_code", *existingTitle.UpgradeCode,
+				"incoming_software_upgrade_code", *sw.UpgradeCode,
+				"incoming_software_name", sw.Name,
+				"incoming_software_source", sw.Source,
+				"incoming_software_upgrade_code", *sw.UpgradeCode,
+			)
+		}
+	}
+
+	// Update each title
+	for titleID := range existingTitlesToUpgradeCodesToWrite {
+		// since this should be a very rare occurrence, no need to batch
+		ucForTitle := existingTitlesToUpgradeCodesToWrite[titleID]
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			stmt := `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`
+			result, err := tx.ExecContext(ctx, stmt, ucForTitle, titleID)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "updating upgrade_code for software_title id: %d", titleID)
+			}
+
+			if rowsAffected, _ := result.RowsAffected(); rowsAffected > 0 {
+				level.Info(ds.logger).Log(
+					"msg", "updated software title upgrade_code",
+					"title_id", titleID,
+					"upgrade_code", ucForTitle,
+				)
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func getExistingSoftwareSummariesByChecksums(ctx context.Context, tx sqlx.QueryerContext, checksums []string) ([]softwareSummary, error) {
