@@ -26,6 +26,7 @@ export const getInstallerCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
 
   return {
     softwareTitleName: softwareTitle.name,
+    softwareDisplayName: softwareTitle.display_name || softwareTitle.name,
     softwarePackage: installerData,
     name: (isPackage && installerData.name) || softwareTitle.name,
     version:
