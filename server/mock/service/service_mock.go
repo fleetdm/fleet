@@ -388,6 +388,8 @@ type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, execu
 
 type ApplyUserRolesSpecsFunc func(ctx context.Context, specs fleet.UsersRoleSpec) error
 
+type UpdateCertificateStatusFunc func(ctx context.Context, certificateTemplateID uint, status fleet.OSSettingsStatus) error
+
 type GlobalScheduleQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
 
 type GetGlobalScheduledQueriesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
@@ -1405,6 +1407,9 @@ type Service struct {
 
 	ApplyUserRolesSpecsFunc        ApplyUserRolesSpecsFunc
 	ApplyUserRolesSpecsFuncInvoked bool
+
+	UpdateCertificateStatusFunc        UpdateCertificateStatusFunc
+	UpdateCertificateStatusFuncInvoked bool
 
 	GlobalScheduleQueryFunc        GlobalScheduleQueryFunc
 	GlobalScheduleQueryFuncInvoked bool
@@ -3395,6 +3400,13 @@ func (s *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRole
 	s.ApplyUserRolesSpecsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ApplyUserRolesSpecsFunc(ctx, specs)
+}
+
+func (s *Service) UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status fleet.OSSettingsStatus) error {
+	s.mu.Lock()
+	s.UpdateCertificateStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateCertificateStatusFunc(ctx, certificateTemplateID, status)
 }
 
 func (s *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {

@@ -1605,6 +1605,8 @@ type UpdateCertificateAuthorityByIDFunc func(ctx context.Context, id uint, certi
 
 type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error
 
+type UpdateCertificateStatusFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.OSSettingsStatus) error
+
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
 type UpdateOrDeleteHostMDMWindowsProfileFunc func(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error
@@ -3982,6 +3984,9 @@ type DataStore struct {
 
 	BatchApplyCertificateAuthoritiesFunc        BatchApplyCertificateAuthoritiesFunc
 	BatchApplyCertificateAuthoritiesFuncInvoked bool
+
+	UpdateCertificateStatusFunc        UpdateCertificateStatusFunc
+	UpdateCertificateStatusFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -9527,6 +9532,13 @@ func (s *DataStore) BatchApplyCertificateAuthorities(ctx context.Context, ops fl
 	s.BatchApplyCertificateAuthoritiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchApplyCertificateAuthoritiesFunc(ctx, ops)
+}
+
+func (s *DataStore) UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.OSSettingsStatus) error {
+	s.mu.Lock()
+	s.UpdateCertificateStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateCertificateStatusFunc(ctx, hostUUID, certificateTemplateID, status)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {

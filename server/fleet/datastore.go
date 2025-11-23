@@ -2483,6 +2483,9 @@ type Datastore interface {
 	// processed together as upserts using INSERT...ON DUPLICATE KEY UPDATE.
 	BatchApplyCertificateAuthorities(ctx context.Context, ops CertificateAuthoritiesBatchOperations) error
 
+	// UpdateCertificateStatus allows a host to update the installation status of a certificate given its template.
+	UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status OSSettingsStatus) error
+
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
 

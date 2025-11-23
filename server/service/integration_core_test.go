@@ -14536,11 +14536,12 @@ func (s *integrationTestSuite) TestUpdateHostCertificateTemplate() {
 INSERT INTO host_certificate_templates (
 	host_uuid, 
 	certificate_template_id, 
-	status
-) VALUES (?, ?, ?);
+	status,
+	fleet_challenge
+) VALUES (?, ?, ?, ?);
 	`
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err = q.ExecContext(ctx, sql, host.UUID, certificateTemplateID, "pending")
+		_, err = q.ExecContext(ctx, sql, host.UUID, certificateTemplateID, "pending", "some_challenge_value")
 		require.NoError(t, err)
 		return nil
 	})
@@ -14566,7 +14567,7 @@ INSERT INTO host_certificate_templates (
 			templateID:              certificateTemplateID,
 			nodeKey:                 nodeKey,
 			newStatus:               "invalid_status",
-			expectedResponseStatus:  http.StatusBadRequest,
+			expectedResponseStatus:  http.StatusUnprocessableEntity,
 			expectedResponseMessage: "invalid status value",
 		},
 		{
@@ -14574,7 +14575,7 @@ INSERT INTO host_certificate_templates (
 			templateID:              certificateTemplateID,
 			nodeKey:                 "wrong-nodekey",
 			newStatus:               "verified",
-			expectedResponseStatus:  http.StatusNotFound,
+			expectedResponseStatus:  http.StatusUnauthorized,
 			expectedResponseMessage: "host certificate template not found",
 		},
 		{
@@ -14588,12 +14589,12 @@ INSERT INTO host_certificate_templates (
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			var resp updateCertificateStatusResponse
-			s.DoJSON("PUT", fmt.Sprintf("/api/fleet/fleetd/certificates/%d/status", tc.templateID), updateCertificateStatusRequest{
+		t.Run(fmt.Sprintf("TestUpdateHostCertificateTemplate:%s", tc.name), func(t *testing.T) {
+			var resp map[string]interface{}
+			s.DoJSON("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", tc.templateID), updateCertificateStatusRequest{
 				NodeKey: tc.nodeKey,
 				Status:  tc.newStatus,
-			}, tc.expectedResponseStatus, &resp, "node_key", tc.nodeKey, "status", tc.newStatus)
+			}, tc.expectedResponseStatus, &resp)
 		})
 	}
 }

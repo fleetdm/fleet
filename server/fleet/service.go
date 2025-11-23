@@ -632,7 +632,7 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate Templates
 
-	UpdateCertificateStatus(ctx context.Context, certificateTemplateID, status string) error
+	UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status OSSettingsStatus) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalScheduleService
