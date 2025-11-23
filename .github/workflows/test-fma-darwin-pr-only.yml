@@ -65,6 +65,7 @@ jobs:
           GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}
         run: |
           cd fleet
+          export GITHUB_WORKSPACE="$PWD"
           .github/scripts/detect-new-fmas-in-pr.sh
         shell: bash
 
@@ -127,6 +128,9 @@ jobs:
         if: steps.check-darwin-apps.outputs.has_darwin_apps == 'true'
         run: |
           cd fleet
+          # Set GITHUB_WORKSPACE to current directory so scripts can find files
+          export GITHUB_WORKSPACE="$PWD"
+          
           # Filter changed apps to only include darwin platform
           DARWIN_SLUGS=$(echo '${{ steps.detect-changed.outputs.CHANGED_APPS }}' | jq -r '.[] | select(endswith("/darwin"))')
           DARWIN_SLUGS_JSON=$(echo "$DARWIN_SLUGS" | jq -R -s -c 'split("\n") | map(select(length > 0))')

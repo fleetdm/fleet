@@ -71,6 +71,7 @@ jobs:
           GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}
         run: |
           cd fleet
+          $env:GITHUB_WORKSPACE = (Get-Location).Path
           bash .github/scripts/detect-new-fmas-in-pr.sh
         shell: pwsh
 
@@ -148,6 +149,9 @@ jobs:
         if: steps.check-windows-apps.outputs.has_windows_apps == 'true'
         run: |
           cd fleet
+          # Set GITHUB_WORKSPACE to current directory so scripts can find files
+          $env:GITHUB_WORKSPACE = (Get-Location).Path
+          
           # Filter changed apps to only include windows platform
           $changedAppsJson = '${{ steps.detect-changed.outputs.CHANGED_APPS }}'
           $windowsSlugs = ($changedAppsJson | ConvertFrom-Json | Where-Object { $_ -like "*/windows" })
@@ -161,6 +165,12 @@ jobs:
           # Use a fixed path for the temp file to avoid issues with bash
           $filteredAppsJson = Join-Path $env:TEMP "filtered-apps-$(New-Guid).json"
           bash .github/scripts/filter-apps-json.sh "$windowsSlugsJson" "$filteredAppsJson"
+
+          # Verify the filtered file was created
+          if (-not (Test-Path $filteredAppsJson)) {
+            Write-Host "Error: Filtered apps.json was not created at $filteredAppsJson"
+            exit 1
+          }
 
           # Replace apps.json with filtered version
           Move-Item -Path $filteredAppsJson -Destination "ee\maintained-apps\outputs\apps.json" -Force
