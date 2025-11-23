@@ -7,14 +7,6 @@ on:
       - ee/maintained-apps/inputs/**
       - ee/maintained-apps/outputs/**
       - cmd/maintained-apps/validate/**
-  push:
-    branches:
-      - 35887-only-test-newly-added-fleet-maintained-apps-in-pull-requests
-    paths:
-      - ee/maintained-apps/inputs/**
-      - ee/maintained-apps/outputs/**
-      - cmd/maintained-apps/validate/**
-      - .github/workflows/test-fma-windows-pr-only.yml
   workflow_dispatch: # Manual trigger
     inputs:
       log_level:
