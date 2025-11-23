@@ -8,9 +8,15 @@ import (
 )
 
 type updateCertificateStatusRequest struct {
-	CertificateTemplateID                   string `json:"certificate_template_id"`
+	CertificateTemplateID                   string `url:"id"`
+	NodeKey 							    string `json:"node_key"`
 	Status string `json:"status"`
 }
+
+func (r *updateCertificateStatusRequest) hostNodeKey() string {
+	return r.NodeKey
+}
+
 
 type updateCertificateStatusResponse struct {
 	Err                    error  `json:"error,omitempty"`
