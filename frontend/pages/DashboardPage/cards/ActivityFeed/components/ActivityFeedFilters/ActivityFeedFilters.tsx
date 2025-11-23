@@ -6,6 +6,8 @@ import SearchField from "components/forms/fields/SearchField";
 import ActionsDropdown from "components/ActionsDropdown";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 
+import ActivityTypeDropdown from "../ActivityTypeDropdown";
+
 const baseClass = "activity-feed-filters";
 
 const DATE_FILTER_OPTIONS = [
@@ -62,6 +64,13 @@ const ActivityFeedFilters = ({
   setCreatedAtDirection,
   setPageIndex,
 }: ActivityFeedFiltersProps) => {
+  const [activityType, setActivityType] = React.useState<string>("all");
+
+  const onChangeActivityType = (value: string) => {
+    setActivityType(value);
+    setPageIndex(0);
+  };
+
   const generateTypeFilterLabel = (type: ActivityType) => {
     return type ? ACTIVITY_DISPLAY_NAME_MAP[type] : "All types";
   };
@@ -78,48 +87,34 @@ const ActivityFeedFilters = ({
         icon="search"
       />
       <div className={`${baseClass}__dropdown-filters`}>
-        <div className={`${baseClass}__filters`}>
-          <ActionsDropdown
-            className={`${baseClass}__type-filter-dropdown`}
-            options={TYPE_FILTER_OPTIONS}
-            placeholder={`Type: ${generateTypeFilterLabel(
-              typeFilter[0] as ActivityType
-            )}`}
-            onChange={(value: string) => {
-              setTypeFilter(() => {
-                // TODO: multiple selections
-                return [value as ActivityType];
-              });
-              setPageIndex(0); // Reset to first page on sort change
-            }}
-            isSearchable
-          />
-
-          <DropdownWrapper
-            className={`${baseClass}__date-filter-dropdown`}
-            iconName="calendar"
-            name="date-filter"
-            options={DATE_FILTER_OPTIONS}
-            placeholder={`${DATE_FILTER_OPTIONS.find((option) => option.value === dateFilter)
-                ?.label
-              }`}
-            onChange={(value) => {
-              if (value === null) return;
-              setDateFilter(value.value);
-              setPageIndex(0); // Reset to first page on sort change
-            }}
-          />
-        </div>
-        <ActionsDropdown
+        <ActivityTypeDropdown
+          value={activityType}
+          onSelect={onChangeActivityType}
+        />
+        <DropdownWrapper
+          className={`${baseClass}__date-filter-dropdown`}
+          iconName="calendar"
+          name="date-filter"
+          options={DATE_FILTER_OPTIONS}
+          value={dateFilter}
+          onChange={(value) => {
+            if (value === null) return;
+            setDateFilter(value.value);
+            setPageIndex(0); // Reset to first page on sort change
+          }}
+        />
+        <DropdownWrapper
           className={`${baseClass}__sort-created-at-dropdown`}
+          name="created-at-filter"
+          iconName="filter"
           options={SORT_OPTIONS}
-          placeholder={`Sort by: ${createdAtDirection === "asc" ? "Oldest" : "Newest"
-            }`}
-          onChange={(value: string) => {
-            if (value === createdAtDirection) {
+          value={createdAtDirection}
+          onChange={(value) => {
+            if (value === null) return;
+            if (value.value === createdAtDirection) {
               return; // No change in sort direction
             }
-            setCreatedAtDirection(value);
+            setCreatedAtDirection(value.value);
             setPageIndex(0); // Reset to first page on sort change
           }}
         />

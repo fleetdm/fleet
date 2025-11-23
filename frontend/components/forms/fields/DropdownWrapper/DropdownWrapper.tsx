@@ -31,6 +31,38 @@ import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import { TooltipContent } from "interfaces/dropdownOption";
 
+interface CustomOptionProps
+  extends Omit<OptionProps<CustomOptionType, false>, "data"> {
+  data: CustomOptionType;
+}
+
+const baseClass = "dropdown-wrapper";
+
+const CustomOption = (props: CustomOptionProps) => {
+  const { data, ...rest } = props;
+
+  const optionContent = (
+    <div className={`${baseClass}__option`}>
+      {data.label}
+      {data.helpText && (
+        <span className={`${baseClass}__help-text`}>{data.helpText}</span>
+      )}
+    </div>
+  );
+
+  return (
+    <components.Option {...rest} data={data}>
+      {data.tooltipContent ? (
+        <DropdownOptionTooltipWrapper tipContent={data.tooltipContent}>
+          {optionContent}
+        </DropdownOptionTooltipWrapper>
+      ) : (
+        optionContent
+      )}
+    </components.Option>
+  );
+};
+
 export interface CustomOptionType {
   label: React.ReactNode;
   value: string;
@@ -86,8 +118,6 @@ const getOptionFontWeight = (
   return state.isSelected ? "600" : "normal";
 };
 
-const baseClass = "dropdown-wrapper";
-
 const DropdownWrapper = ({
   options,
   value,
@@ -122,36 +152,6 @@ const DropdownWrapper = ({
       return options.find((option) => option.value === value) || null;
     }
     return value;
-  };
-
-  interface CustomOptionProps
-    extends Omit<OptionProps<CustomOptionType, false>, "data"> {
-    data: CustomOptionType;
-  }
-
-  const CustomOption = (props: CustomOptionProps) => {
-    const { data, ...rest } = props;
-
-    const optionContent = (
-      <div className={`${baseClass}__option`}>
-        {data.label}
-        {data.helpText && (
-          <span className={`${baseClass}__help-text`}>{data.helpText}</span>
-        )}
-      </div>
-    );
-
-    return (
-      <components.Option {...rest} data={data}>
-        {data.tooltipContent ? (
-          <DropdownOptionTooltipWrapper tipContent={data.tooltipContent}>
-            {optionContent}
-          </DropdownOptionTooltipWrapper>
-        ) : (
-          optionContent
-        )}
-      </components.Option>
-    );
   };
 
   const CustomDropdownIndicator = (
