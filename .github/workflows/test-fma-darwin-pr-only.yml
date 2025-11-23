@@ -52,8 +52,8 @@ jobs:
           go-version-file: "fleet/go.mod"
 
       - name: Fetch base branch
-        working-directory: fleet
         run: |
+          cd fleet
           BASE_BRANCH="${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}"
           echo "Fetching base branch: $BASE_BRANCH"
           git fetch origin "$BASE_BRANCH:$BASE_BRANCH" || true
@@ -61,16 +61,15 @@ jobs:
 
       - name: Detect changed apps
         id: detect-changed
-        working-directory: fleet
         env:
           GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}
         run: |
+          cd fleet
           .github/scripts/detect-new-fmas-in-pr.sh
         shell: bash
 
       - name: Check if there are changes
         id: check-changes
-        working-directory: fleet
         run: |
           if [ "${{ steps.detect-changed.outputs.HAS_CHANGES }}" == "true" ]; then
             echo "has_changes=true" >> $GITHUB_OUTPUT
@@ -82,7 +81,6 @@ jobs:
 
       - name: Check if there are Darwin apps
         id: check-darwin-apps
-        working-directory: fleet
         run: |
           if [ "${{ steps.check-changes.outputs.has_changes }}" != "true" ]; then
             echo "has_darwin_apps=false" >> $GITHUB_OUTPUT
@@ -127,8 +125,8 @@ jobs:
 
       - name: Filter apps.json and verify changed apps
         if: steps.check-darwin-apps.outputs.has_darwin_apps == 'true'
-        working-directory: fleet
         run: |
+          cd fleet
           # Filter changed apps to only include darwin platform
           DARWIN_SLUGS=$(echo '${{ steps.detect-changed.outputs.CHANGED_APPS }}' | jq -r '.[] | select(endswith("/darwin"))')
           DARWIN_SLUGS_JSON=$(echo "$DARWIN_SLUGS" | jq -R -s -c 'split("\n") | map(select(length > 0))')

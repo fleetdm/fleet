@@ -52,14 +52,14 @@ jobs:
           go-version-file: "fleet/go.mod"
 
       - name: Setup Git for base branch comparison
-        working-directory: fleet
         run: |
+          cd fleet
           git config --global --add safe.directory $PWD
         shell: pwsh
 
       - name: Fetch base branch
-        working-directory: fleet
         run: |
+          cd fleet
           $baseBranch = "${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}"
           Write-Host "Fetching base branch: $baseBranch"
           git fetch origin "$baseBranch`:$baseBranch" || exit 0
@@ -67,16 +67,15 @@ jobs:
 
       - name: Detect changed apps
         id: detect-changed
-        working-directory: fleet
         env:
           GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}
         run: |
+          cd fleet
           bash .github/scripts/detect-new-fmas-in-pr.sh
         shell: pwsh
 
       - name: Check if there are changes
         id: check-changes
-        working-directory: fleet
         run: |
           if ("${{ steps.detect-changed.outputs.HAS_CHANGES }}" -eq "true") {
             "has_changes=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
@@ -89,7 +88,6 @@ jobs:
 
       - name: Check if there are Windows apps
         id: check-windows-apps
-        working-directory: fleet
         run: |
           if ("${{ steps.check-changes.outputs.has_changes }}" -ne "true") {
             "has_windows_apps=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
@@ -148,8 +146,8 @@ jobs:
 
       - name: Filter apps.json and verify changed apps
         if: steps.check-windows-apps.outputs.has_windows_apps == 'true'
-        working-directory: fleet
         run: |
+          cd fleet
           # Filter changed apps to only include windows platform
           $changedAppsJson = '${{ steps.detect-changed.outputs.CHANGED_APPS }}'
           $windowsSlugs = ($changedAppsJson | ConvertFrom-Json | Where-Object { $_ -like "*/windows" })
