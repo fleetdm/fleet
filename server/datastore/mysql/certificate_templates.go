@@ -9,6 +9,11 @@ import (
 )
 
 func (ds *Datastore) UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.OSSettingsStatus) error {
+	// Validate the status.
+	if !status.IsValid() {
+		return ctxerr.Wrap(ctx, fmt.Errorf("Invalid status '%s'", string(status)))
+	}
+
 	// Attempt to update the certificate status for the given host and template.
 	result, err := ds.writer(ctx).ExecContext(ctx, `
     UPDATE host_certificate_templates
@@ -25,7 +30,7 @@ func (ds *Datastore) UpdateCertificateStatus(ctx context.Context, hostUUID strin
 	}
 
 	if rowsAffected == 0 {
-		return ctxerr.Wrap(ctx, notFound("Label").WithMessage(fmt.Sprintf("No certificate found for host UUID '%s' and template ID '%s'", hostUUID, certificateTemplateID)))
+		return ctxerr.Wrap(ctx, notFound("Label").WithMessage(fmt.Sprintf("No certificate found for host UUID '%s' and template ID '%d'", hostUUID, certificateTemplateID)))
 	}
 
 	return nil
