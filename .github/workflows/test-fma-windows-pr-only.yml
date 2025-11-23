@@ -60,12 +60,16 @@ jobs:
       - name: Fetch base branch
         working-directory: fleet
         run: |
-          git fetch origin ${{ github.event.pull_request.base.ref || 'main' }}:${{ github.event.pull_request.base.ref || 'main' }} || true
+          $baseBranch = "${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}"
+          Write-Host "Fetching base branch: $baseBranch"
+          git fetch origin "$baseBranch`:$baseBranch" || exit 0
         shell: pwsh
 
       - name: Detect changed apps
         id: detect-changed
         working-directory: fleet
+        env:
+          GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}
         run: |
           bash .github/scripts/detect-new-fmas-in-pr.sh
         shell: pwsh
@@ -75,10 +79,10 @@ jobs:
         working-directory: fleet
         run: |
           if ("${{ steps.detect-changed.outputs.HAS_CHANGES }}" -eq "true") {
-            Write-Host "has_changes=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "has_changes=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             Write-Host "Changed apps detected: ${{ steps.detect-changed.outputs.CHANGED_APPS }}"
           } else {
-            Write-Host "has_changes=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "has_changes=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             Write-Host "No changed apps detected, skipping validation"
           }
         shell: pwsh
@@ -88,7 +92,7 @@ jobs:
         working-directory: fleet
         run: |
           if ("${{ steps.check-changes.outputs.has_changes }}" -ne "true") {
-            Write-Host "has_windows_apps=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "has_windows_apps=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             exit 0
           }
 
@@ -97,10 +101,10 @@ jobs:
           $windowsSlugs = ($changedAppsJson | ConvertFrom-Json | Where-Object { $_ -like "*/windows" })
 
           if ($null -eq $windowsSlugs -or $windowsSlugs.Count -eq 0) {
-            Write-Host "has_windows_apps=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "has_windows_apps=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             Write-Host "No windows apps changed, skipping Windows workflow"
           } else {
-            Write-Host "has_windows_apps=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "has_windows_apps=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             Write-Host "Windows apps detected:"
             $windowsSlugs | ForEach-Object { Write-Host "  - $_" }
           }

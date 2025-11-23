@@ -54,12 +54,16 @@ jobs:
       - name: Fetch base branch
         working-directory: fleet
         run: |
-          git fetch origin ${{ github.event.pull_request.base.ref || 'main' }}:${{ github.event.pull_request.base.ref || 'main' }} || true
+          BASE_BRANCH="${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}"
+          echo "Fetching base branch: $BASE_BRANCH"
+          git fetch origin "$BASE_BRANCH:$BASE_BRANCH" || true
         shell: bash
 
       - name: Detect changed apps
         id: detect-changed
         working-directory: fleet
+        env:
+          GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}
         run: |
           .github/scripts/detect-new-fmas-in-pr.sh
         shell: bash
