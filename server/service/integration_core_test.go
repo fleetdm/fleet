@@ -14510,3 +14510,90 @@ func (s *integrationTestSuite) TestConditionalAccessOnlyCloud() {
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
 		http.StatusBadRequest, &d)
 }
+
+func (s *integrationTestSuite) TestUpdateHostCertificateTemplate() {
+	t := s.T()
+	ctx := context.Background()
+
+	nodeKey := uuid.New().String()
+	uuid := uuid.New().String()
+	hostName := "test-update-host-certificate-template"
+
+	// Create a host
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		NodeKey:  &nodeKey,
+		UUID:     uuid,
+		Hostname: hostName,
+		Platform: "android",
+	})
+	require.NoError(t, err)
+
+	// TODO -- add a host certificate template when we have a foreign key set up.
+	certificateTemplateID := uint(1)
+
+	// Create a record in host_certificate_templates using ad hoc SQL
+	sql := `
+INSERT INTO host_certificate_templates (
+	host_uuid, 
+	certificate_template_id, 
+	status
+) VALUES (?, ?, ?);
+	`
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err = q.ExecContext(ctx, sql, host.UUID, certificateTemplateID, "pending")
+		require.NoError(t, err)
+		return nil
+	})
+
+	// Test cases
+	cases := []struct {
+		name                    string
+		templateID              uint
+		nodeKey                 string
+		newStatus               string
+		expectedResponseStatus  int
+		expectedResponseMessage string
+	}{
+		{
+			name:                   "Valid Update",
+			templateID:             certificateTemplateID,
+			nodeKey:                nodeKey,
+			newStatus:              "verified",
+			expectedResponseStatus: http.StatusOK,
+		},
+		{
+			name:                    "Invalid Status",
+			templateID:              certificateTemplateID,
+			nodeKey:                 nodeKey,
+			newStatus:               "invalid_status",
+			expectedResponseStatus:  http.StatusBadRequest,
+			expectedResponseMessage: "invalid status value",
+		},
+		{
+			name:                    "Wrong node key",
+			templateID:              certificateTemplateID,
+			nodeKey:                 "wrong-nodekey",
+			newStatus:               "verified",
+			expectedResponseStatus:  http.StatusNotFound,
+			expectedResponseMessage: "host certificate template not found",
+		},
+		{
+			name:                    "Wrong Template ID",
+			templateID:              9999,
+			nodeKey:                 nodeKey,
+			newStatus:               "verified",
+			expectedResponseStatus:  http.StatusNotFound,
+			expectedResponseMessage: "host certificate template not found",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var resp updateCertificateStatusResponse
+			s.DoJSON("PUT", fmt.Sprintf("/api/fleet/fleetd/certificates/%d/status", tc.templateID), updateCertificateStatusRequest{
+				NodeKey: tc.nodeKey,
+				Status:  tc.newStatus,
+			}, tc.expectedResponseStatus, &resp, "node_key", tc.nodeKey, "status", tc.newStatus)
+		})
+	}
+}
