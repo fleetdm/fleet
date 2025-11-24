@@ -71,7 +71,6 @@ func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getenv func(stri
 }
 
 func (g *GoogleClient) SignupURLsCreate(ctx context.Context, _, callbackURL string) (*android.SignupDetails, error) {
-	fmt.Println("Called google signup URL create")
 	signupURL, err := g.mgmt.SignupUrls.Create().ProjectId(g.androidProjectID).CallbackUrl(callbackURL).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("creating signup url: %w", err)
