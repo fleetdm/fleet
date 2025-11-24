@@ -597,6 +597,20 @@
       "description": "Rectangle is an app to move and resize windows using keyboard shortcuts or snap areas."
     },
     {
+      "name": "RubyMine",
+      "slug": "rubymine/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.rubymine",
+      "description": "Ruby on Rails IDE by JetBrains."
+    },
+    {
+      "name": "RustRover",
+      "slug": "rustrover/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.rustrover",
+      "description": "Rust IDE by JetBrains."
+    },
+    {
       "name": "Santa",
       "slug": "santa/darwin",
       "platform": "darwin",
@@ -707,6 +721,13 @@
       "platform": "darwin",
       "unique_identifier": "Cisco-Systems.Spark",
       "description": "Webex is a video communication and virtual meeting platform."
+    },
+    {
+      "name": "WebStorm",
+      "slug": "webstorm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.WebStorm",
+      "description": "JavaScript IDE by JetBrains."
     },
     {
       "name": "WhatsApp",
