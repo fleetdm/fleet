@@ -653,6 +653,13 @@
       "description": "Sublime Text is a text editor for code, markup, and prose."
     },
     {
+      "name": "TablePlus",
+      "slug": "tableplus/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.tinyapp.TablePlus",
+      "description": "Native GUI tool for relational databases."
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
