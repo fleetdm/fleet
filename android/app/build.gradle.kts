@@ -86,6 +86,8 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.amapi.sdk)
     testImplementation(libs.junit)
+    testImplementation(libs.androidx.work.testing)
+    testImplementation(libs.robolectric)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
