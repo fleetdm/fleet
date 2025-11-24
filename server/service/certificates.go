@@ -399,5 +399,5 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, certificateTemp
 		return fleet.NewInvalidArgumentError("status", string(status))
 	}
 
-	return svc.ds.UpdateCertificateStatus(ctx, host.UUID, certificateTemplateID, fleet.OSSettingsStatus(status))
+	return svc.ds.UpdateCertificateStatus(ctx, host.UUID, certificateTemplateID, status)
 }
