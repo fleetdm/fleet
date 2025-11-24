@@ -425,7 +425,7 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 				return profileContents, err
 			}
 			if hostLite.HardwareSerial == "" {
-				return profileContents, &MicrosoftProfileProcessingError{message: "the profile includes variable substitution for a hardware serial number, but this host does not have a serial number set"}
+				return profileContents, &MicrosoftProfileProcessingError{message: fmt.Sprintf("There is no serial number for this host. Fleet couldn't populate %s.", fleet.FleetVarHostHardwareSerial.WithPrefix())}
 			}
 
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostHardwareSerialRegexp, result, hostLite.HardwareSerial)
