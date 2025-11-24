@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useCallback } from "react";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import {
@@ -9,7 +9,6 @@ import {
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import { NotificationContext } from "context/notification";
-import { INotification } from "interfaces/notification";
 import { getErrorReason } from "interfaces/errors";
 import softwareAPI from "services/entities/software";
 
@@ -150,7 +149,7 @@ const EditIconModal = ({
   installerType,
   previewInfo,
 }: IEditIconModalProps) => {
-  const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const isSoftwarePackage = installerType === "package";
   const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(
@@ -199,18 +198,17 @@ const EditIconModal = ({
   const canSaveForm = canSaveIcon || canSaveDisplayName;
 
   // Sets state after fetching current API custom icon
-  const setCurrentApiCustomIcon = (
-    file: File,
-    width: number,
-    previewUrl: string
-  ) =>
-    setIconState({
-      previewUrl,
-      formData: { icon: file, display_name: displayName },
-      dimensions: width,
-      fileDetails: makeFileDetails(file, width),
-      status: "apiCustom",
-    });
+  const setCurrentApiCustomIcon = useCallback(
+    (file: File, width: number, previewUrl: string) =>
+      setIconState({
+        previewUrl,
+        formData: { icon: file, display_name: displayName },
+        dimensions: width,
+        fileDetails: makeFileDetails(file, width),
+        status: "apiCustom",
+      }),
+    [displayName]
+  );
 
   // Sets state after a successful new custom file upload
   const setCustomUpload = (file: File, width: number, previewUrl: string) =>
@@ -374,6 +372,8 @@ const EditIconModal = ({
     shouldFetchCustomIcon,
     iconState.previewUrl,
     previewInfo.currentIconUrl,
+    originalIsVpp,
+    setCurrentApiCustomIcon,
   ]);
 
   const fileDetails =
@@ -632,104 +632,43 @@ const EditIconModal = ({
   const onClickSave = async () => {
     setIsUpdatingSoftwareInfo(true);
     try {
-      const notifications: INotification[] = [];
-
       // Process icon change
-      try {
-        if (!iconState.formData?.icon) {
-          // No new upload, so either removing existing custom icon or no change
-          if (originalIsApiCustom) {
-            await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
-            notifications.push({
-              id: "icon-removed",
-              alertType: "success",
-              isVisible: true,
-              message: (
-                <>
-                  Successfully removed icon from <b>{software?.name}</b>.
-                </>
-              ),
-              persistOnPageChange: false,
-            });
-          }
-        } else {
-          // New custom icon upload
-          await softwareAPI.editSoftwareIcon(
-            softwareId,
-            teamIdForApi,
-            iconState.formData
-          );
-          notifications.push({
-            id: "icon-edited",
-            alertType: "success",
-            isVisible: true,
-            message: (
-              <>
-                Successfully edited <b>{previewInfo.name}</b>.
-              </>
-            ),
-            persistOnPageChange: false,
-          });
-        }
-      } catch (e) {
-        const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
-        notifications.push({
-          id: "icon-error",
-          alertType: "error",
-          isVisible: true,
-          message: errorMessage,
-          persistOnPageChange: false,
-        });
+      // Only delete if explicitly removed (fallback status) and was originally custom
+      if (
+        iconState.status === "fallback" &&
+        originalIsApiCustom &&
+        !iconState.formData?.icon
+      ) {
+        await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
+      } else if (iconState.status === "customUpload" && iconState.formData) {
+        // Only upload if it's a new custom upload
+        await softwareAPI.editSoftwareIcon(
+          softwareId,
+          teamIdForApi,
+          iconState.formData
+        );
       }
 
       // Process display name change
       if (canSaveDisplayName) {
-        try {
-          await (installerType === "package"
-            ? softwareAPI.editSoftwarePackage({
-                data: { displayName },
-                softwareId,
-                teamId: teamIdForApi,
-              })
-            : softwareAPI.editAppStoreApp(softwareId, teamIdForApi, {
-                displayName,
-              }));
-          notifications.push({
-            id: "name-edited",
-            alertType: "success",
-            isVisible: true,
-            message:
-              displayName === "" ? (
-                <>
-                  Successfully removed custom name for <b>{previewInfo.name}</b>
-                  .
-                </>
-              ) : (
-                <>
-                  Successfully renamed <b>{previewInfo.name}</b> to{" "}
-                  <b>{displayName}</b>.
-                </>
-              ),
-            persistOnPageChange: false,
-          });
-        } catch (e) {
-          const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
-          notifications.push({
-            id: "name-error",
-            alertType: "error",
-            isVisible: true,
-            message: errorMessage,
-            persistOnPageChange: false,
-          });
-        }
+        await (installerType === "package"
+          ? softwareAPI.editSoftwarePackage({
+              data: { displayName },
+              softwareId,
+              teamId: teamIdForApi,
+            })
+          : softwareAPI.editAppStoreApp(softwareId, teamIdForApi, {
+              displayName,
+            }));
       }
 
-      // Show all gathered messages
-      if (notifications.length > 1) {
-        renderMultiFlash({ notifications });
-      } else if (notifications.length === 1) {
-        renderFlash(notifications[0].alertType, notifications[0].message);
-      }
+      renderFlash(
+        "success",
+        <>
+          Successfully edited{" "}
+          <b>{displayName === "" ? previewInfo.name : displayName}</b>.
+        </>
+      );
 
       refetchSoftwareTitle();
       setIconUploadedAt(new Date().toISOString());

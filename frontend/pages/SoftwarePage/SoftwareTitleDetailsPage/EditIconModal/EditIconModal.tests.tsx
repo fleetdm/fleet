@@ -1,10 +1,11 @@
 import React from "react";
-import { screen, fireEvent } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import {
   createMockSoftwarePackage,
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
+import softwareAPI from "services/entities/software";
 import EditIconModal from "./EditIconModal";
 
 const software = createMockSoftwareTitle();
@@ -88,6 +89,54 @@ describe("EditIconModal", () => {
       const displayNameInput = screen.getByLabelText("Display name");
       expect(displayNameInput).toBeInTheDocument();
       expect(displayNameInput).toHaveValue("New Custom Name");
+    });
+
+    it("only edits the display name and shows a single success toast when icon is not changed", async () => {
+      const editSoftwarePackageSpy = jest.spyOn(
+        softwareAPI,
+        "editSoftwarePackage"
+      );
+      const deleteSoftwareIconSpy = jest.spyOn(
+        softwareAPI,
+        "deleteSoftwareIcon"
+      );
+      const editSoftwareIconSpy = jest.spyOn(softwareAPI, "editSoftwareIcon");
+
+      const CUSTOM_ICON_PROPS = {
+        ...MOCK_PROPS,
+        previewInfo: {
+          ...MOCK_PROPS.previewInfo,
+          currentIconUrl: "/api/v1/fleet/software/icons/123", // Simulate existing custom icon
+        },
+      };
+
+      const render = createCustomRenderer({ withBackendMock: true });
+      const { user } = render(<EditIconModal {...CUSTOM_ICON_PROPS} />);
+
+      const displayNameInput = screen.getByLabelText("Display name");
+      await user.type(displayNameInput, " Updated");
+
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      await user.click(saveButton);
+
+      expect(editSoftwarePackageSpy).toHaveBeenCalledWith({
+        data: { displayName: "Zoom Updated" },
+        softwareId: 123,
+        teamId: 456,
+      });
+
+      expect(deleteSoftwareIconSpy).not.toHaveBeenCalled();
+      expect(editSoftwareIconSpy).not.toHaveBeenCalled();
+
+      // Verify single toast message
+      expect(
+        await screen.findByText(/Successfully edited/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText("Zoom Updated")).toBeInTheDocument();
+      // Ensure "Successfully renamed" is NOT present (old message)
+      expect(
+        screen.queryByText(/Successfully renamed/i)
+      ).not.toBeInTheDocument();
     });
   });
 });
