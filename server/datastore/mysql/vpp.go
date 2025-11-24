@@ -2183,3 +2183,26 @@ FROM (
 
 	return applicationIDs, err
 }
+
+func (ds *Datastore) GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]string, error) {
+	stmt := `
+SELECT
+	adam_id
+FROM
+	vpp_apps_teams vat
+WHERE
+	vat.global_or_team_id = ? AND
+	vat.platform = ? AND
+	vat.install_during_setup = 1
+`
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	var ids []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, tmID, platform); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get VPP apps to install during setup experience")
+	}
+	return ids, nil
+}

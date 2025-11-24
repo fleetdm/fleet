@@ -767,6 +767,10 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, assigned, 0)
 
+	forSetup, err := ds.GetVPPAppsToInstallDuringSetupExperience(ctx, &team.ID, "darwin")
+	require.NoError(t, err)
+	require.Len(t, forSetup, 0)
+
 	// Assign 2 apps
 	// make app1 install_during_setup for that team
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
@@ -802,6 +806,11 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	assert.Contains(t, assigned, app2.VPPAppID)
 	assert.True(t, assigned[app2.VPPAppID].SelfService)
 	assert.True(t, *assigned[app1.VPPAppID].InstallDuringSetup)
+
+	forSetup, err = ds.GetVPPAppsToInstallDuringSetupExperience(ctx, &team.ID, "darwin")
+	require.NoError(t, err)
+	require.Len(t, forSetup, 1)
+	require.ElementsMatch(t, forSetup, []string{app1.VPPAppID.AdamID})
 
 	// Assign an additional app
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
