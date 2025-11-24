@@ -226,6 +226,8 @@ const ActivityTypeDropdown = ({
       padding: 0,
       display: "flex",
       gap: PADDING["pad-small"],
+      // we need the no wrap to keep the value and icon on the same line. The value
+      // will be truncated with ellipsis if too long.
       flexWrap: "nowrap",
     }),
   };
