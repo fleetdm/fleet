@@ -60,14 +60,14 @@ CREATE TABLE `aggregated_stats` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `android_app_configurations` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `adam_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `application_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `team_id` int unsigned DEFAULT NULL,
   `global_or_team_id` int NOT NULL DEFAULT '0',
   `configuration` json NOT NULL,
   `created_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_global_or_team_id_adam_id` (`global_or_team_id`,`adam_id`),
+  UNIQUE KEY `idx_global_or_team_id_application_id` (`global_or_team_id`,`application_id`),
   KEY `team_id` (`team_id`),
   CONSTRAINT `android_app_configurations_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

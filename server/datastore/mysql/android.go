@@ -1538,14 +1538,14 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID stri
 	stmt := `
 		SELECT
 			id,
-			adam_id,
+			application_id,
 			team_id,
 			global_or_team_id,
 			configuration,
 			created_at,
 			updated_at
 		FROM android_app_configurations
-		WHERE adam_id = ? AND global_or_team_id = ?
+		WHERE application_id = ? AND global_or_team_id = ?
 	`
 
 	var config fleet.AndroidAppConfiguration
@@ -1564,11 +1564,11 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID stri
 func (ds *Datastore) InsertAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
 	stmt := `
 		INSERT INTO android_app_configurations
-		(adam_id, team_id, global_or_team_id, configuration)
+		(application_id, team_id, global_or_team_id, configuration)
 		VALUES (?, ?, ?, ?)
 	`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, config.AdamID, config.TeamID, config.GlobalOrTeamID, config.Configuration)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, config.ApplicationID, config.TeamID, config.GlobalOrTeamID, config.Configuration)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "insert android app configuration")
 	}
@@ -1581,10 +1581,10 @@ func (ds *Datastore) UpdateAndroidAppConfiguration(ctx context.Context, config *
 	stmt := `
 		UPDATE android_app_configurations
 		SET configuration = ?, updated_at = CURRENT_TIMESTAMP(6)
-		WHERE adam_id = ? AND global_or_team_id = ?
+		WHERE application_id = ? AND global_or_team_id = ?
 	`
 
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, config.Configuration, config.AdamID, config.GlobalOrTeamID)
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, config.Configuration, config.ApplicationID, config.GlobalOrTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update android app configuration")
 	}
@@ -1602,13 +1602,13 @@ func (ds *Datastore) UpdateAndroidAppConfiguration(ctx context.Context, config *
 }
 
 // DeleteAndroidAppConfiguration removes an Android app configuration.
-func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) error {
+func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID string, globalOrTeamID uint) error {
 	stmt := `
 		DELETE FROM android_app_configurations
-		WHERE adam_id = ? AND global_or_team_id = ?
+		WHERE application_id = ? AND global_or_team_id = ?
 	`
 
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, adamID, globalOrTeamID)
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, appID, globalOrTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete android app configuration")
 	}

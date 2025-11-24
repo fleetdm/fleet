@@ -146,7 +146,7 @@ type AndroidPolicyRequestPayloadMetadata struct {
 // It contains the managedConfiguration and workProfileWidgets settings for an Android app.
 type AndroidAppConfiguration struct {
 	ID             uint            `db:"id" json:"id"`
-	AdamID         string          `db:"adam_id" json:"adam_id"`
+	ApplicationID  string          `db:"application_id" json:"application_id"`
 	TeamID         *uint           `db:"team_id" json:"team_id,omitempty"`
 	GlobalOrTeamID uint            `db:"global_or_team_id" json:"global_or_team_id"`
 	Configuration  json.RawMessage `db:"configuration" json:"configuration"`

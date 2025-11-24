@@ -13,7 +13,7 @@ func Up_20251119145734(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 	CREATE TABLE android_app_configurations (
 		id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-		adam_id VARCHAR(255) NOT NULL,
+		application_id VARCHAR(255) NOT NULL,
 		team_id INT UNSIGNED NULL,
 		global_or_team_id INT NOT NULL DEFAULT 0,
 		configuration JSON NOT NULL,
@@ -22,7 +22,7 @@ func Up_20251119145734(tx *sql.Tx) error {
 
 		PRIMARY KEY (id),
 		FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE,
-		UNIQUE KEY idx_global_or_team_id_adam_id (global_or_team_id, adam_id)
+		UNIQUE KEY idx_global_or_team_id_application_id (global_or_team_id, application_id)
 	) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci`)
 	if err != nil {
 		return fmt.Errorf("failed to create table android_app_configurations: %w", err)
