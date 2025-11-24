@@ -1,7 +1,8 @@
-import React, { useRef } from "react";
+import React, { useRef, useMemo } from "react";
 import classnames from "classnames";
 import Select, {
   components,
+  InputProps,
   MenuListProps,
   SelectInstance,
   SingleValue,
@@ -106,6 +107,20 @@ TYPE_FILTER_OPTIONS.unshift({
   value: "all",
 });
 
+const generateOptions = (searchQuery: string) => {
+  const query = searchQuery.toLowerCase().trim();
+  if (query === "") {
+    return TYPE_FILTER_OPTIONS;
+  }
+
+  return TYPE_FILTER_OPTIONS.filter((option) => {
+    if (typeof option.label !== "string") {
+      return false;
+    }
+    return option.label.toLowerCase().includes(query);
+  });
+};
+
 interface IActivityTypeDropdownProps {
   value: string;
   onSelect: (value: string) => void;
@@ -182,6 +197,7 @@ const ActivityTypeDropdown = ({
   };
 
   const classNames = classnames(baseClass, className);
+  const options = useMemo(() => generateOptions(searchQuery), [searchQuery]);
 
   return (
     <FormField
@@ -195,7 +211,7 @@ const ActivityTypeDropdown = ({
           ref={selectRef}
           styles={customStyles}
           menuIsOpen={menuIsOpen}
-          options={TYPE_FILTER_OPTIONS}
+          options={options}
           components={{
             MenuList: CustomMenuList,
             DropdownIndicator: CustomDropdownIndicator,
@@ -206,7 +222,6 @@ const ActivityTypeDropdown = ({
           value={getValue()}
           onChange={handleChange}
           searchQuery={searchQuery}
-          // onInputChange={onInputChange}
           noOptionsMessage={() => "No results found"}
           onKeyDown={onKeyDown}
           onBlur={onBlur}
