@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251104165942, Down_20251104165942)
+	MigrationClient.AddMigration(Up_20251124162948, Down_20251124162948)
 }
 
-func Up_20251104165942(tx *sql.Tx) error {
+func Up_20251124162948(tx *sql.Tx) error {
 	stmt := `
 		ALTER TABLE hosts
 		ADD COLUMN last_restarted_at datetime(6) DEFAULT '0001-01-01 00:00:00.000000'
@@ -32,6 +32,6 @@ func Up_20251104165942(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20251104165942(tx *sql.Tx) error {
+func Down_20251124162948(tx *sql.Tx) error {
 	return nil
 }
