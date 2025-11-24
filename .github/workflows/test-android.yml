@@ -124,12 +124,14 @@ jobs:
         run: chmod +x gradlew
 
       - name: Free up disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          df -h
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+          tool-cache: false
+          docker-images: false
 
       - name: Enable KVM
         run: |
@@ -144,7 +146,6 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
-          disk-size: 6GB
           script: cd android && ./gradlew connectedCheck
 
       - name: Upload instrumented test reports
