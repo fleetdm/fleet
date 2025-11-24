@@ -26,6 +26,12 @@ The IT & Enablement department is directly responsible for solutions consulting,
 
 ## Processes and Procedures
 
+### [Solutions Consulting](solutions-consulting.md)
+- Solutions Consultant role and responsibilities
+- Prospect outreach and use case qualification
+- Collaboration with ADRs and AEs
+- Customer training and enablement
+
 ### [Hardware and Equipment](hardware-and-equipment.md)
 - Hardware procurement policies and tier configurations
 - Apple, Windows, and Linux device specifications
