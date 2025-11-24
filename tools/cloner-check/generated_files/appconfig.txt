@@ -175,6 +175,13 @@ github.com/fleetdm/fleet/v4/server/fleet/MDMAppleVolumePurchasingProgramInfo	Tea
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AndroidEnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AndroidSettings	fleet.AndroidSettings
 github.com/fleetdm/fleet/v4/server/fleet/AndroidSettings	CustomSettings	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]
+github.com/fleetdm/fleet/v4/server/fleet/AndroidSettings	Certificates	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.CertificateTemplateSpec]
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.CertificateTemplateSpec]	Set	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.CertificateTemplateSpec]	Valid	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.CertificateTemplateSpec]	Value	[]fleet.CertificateTemplateSpec
+github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	Name	string
+github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	CertificateAuthorityName	string
+github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectName	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	UIGitOpsMode	fleet.UIGitOpsModeConfig
 github.com/fleetdm/fleet/v4/server/fleet/UIGitOpsModeConfig	GitopsModeEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/UIGitOpsModeConfig	RepositoryURL	string

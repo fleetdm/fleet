@@ -945,6 +945,7 @@ func TestMDMConfig(t *testing.T) {
 				},
 				AndroidSettings: fleet.AndroidSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
@@ -994,6 +995,7 @@ func TestMDMConfig(t *testing.T) {
 				},
 				AndroidSettings: fleet.AndroidSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
@@ -1025,6 +1027,7 @@ func TestMDMConfig(t *testing.T) {
 				},
 				AndroidSettings: fleet.AndroidSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
@@ -1063,6 +1066,7 @@ func TestMDMConfig(t *testing.T) {
 				},
 				AndroidSettings: fleet.AndroidSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
@@ -1101,6 +1105,7 @@ func TestMDMConfig(t *testing.T) {
 				},
 				AndroidSettings: fleet.AndroidSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
@@ -1139,6 +1144,7 @@ func TestMDMConfig(t *testing.T) {
 				},
 				AndroidSettings: fleet.AndroidSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
@@ -1202,6 +1208,7 @@ func TestMDMConfig(t *testing.T) {
 				},
 				AndroidSettings: fleet.AndroidSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
