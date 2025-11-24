@@ -29,7 +29,6 @@ class RestrictionsReceiver : BroadcastReceiver() {
                         putExtra("CERT_DATA", certData)
                     }
                     it.startService(serviceIntent)
-
                 } else {
                     Log.d(TAG, "No relevant certificate data found for key '$CERT_DATA_KEY'.")
                 }

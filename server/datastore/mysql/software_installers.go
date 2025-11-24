@@ -202,6 +202,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 	if payload.Extension == "ipa" {
 		installerID, titleID, err := ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
 			TeamID:          payload.TeamID,
+			Title:           payload.Title,
 			Filename:        payload.Filename,
 			BundleID:        payload.BundleIdentifier,
 			StorageID:       payload.StorageID,
@@ -212,7 +213,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			SelfService:     payload.SelfService,
 		})
 		if err != nil {
-			return 0, 0, ctxerr.Wrap(ctx, err, "MatchOrCreateSoftwareInstaller")
+			return 0, 0, ctxerr.Wrap(ctx, err, "insert in house app")
 		}
 		return installerID, titleID, err
 	}
@@ -776,6 +777,18 @@ WHERE
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
 	}
+
+	var tmID uint
+	if dest.TeamID != nil {
+		tmID = *dest.TeamID
+	}
+
+	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, *dest.TitleID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get display name for software installer")
+	}
+
+	dest.DisplayName = displayName
 
 	return &dest, nil
 }

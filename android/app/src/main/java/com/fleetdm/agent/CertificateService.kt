@@ -21,6 +21,7 @@ import java.security.cert.X509Certificate
  */
 class CertificateService : Service() {
     private val TAG = "CertCompanionService"
+
     // Use a supervisor job for the service's lifecycle
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
@@ -30,15 +31,14 @@ class CertificateService : Service() {
         val url: String,
         val challenge: String,
         val alias: String, // Added alias for silent installation
-        val subject: String? = null
+        val subject: String? = null,
     )
 
     // Structure for SCEP result, holding the key and certificate(s)
     data class ScepResult(
         val privateKey: PrivateKey,
-        val certificateChain: Array<Certificate>
+        val certificateChain: Array<Certificate>,
     )
-
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val certDataJson = intent?.getStringExtra("CERT_DATA")
@@ -60,7 +60,7 @@ class CertificateService : Service() {
                         installCertificateSilently(
                             scepConfig.alias,
                             result.privateKey,
-                            result.certificateChain
+                            result.certificateChain,
                         )
                     } else {
                         Log.e(TAG, "SCEP enrollment failed or returned empty data.")
@@ -79,23 +79,20 @@ class CertificateService : Service() {
         return START_NOT_STICKY
     }
 
-
     /**
      * Parses the JSON payload from the MDM into a structured configuration object.
      */
-    private fun parseScepConfig(jsonString: String): ScepConfig {
-        return try {
-            val json = JSONObject(jsonString)
-            ScepConfig(
-                url = json.getString("scep_url"),
-                challenge = json.getString("challenge"),
-                alias = json.getString("alias"),
-                subject = json.optString("subject", null)
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse SCEP configuration JSON: ${e.message}")
-            ScepConfig("", "", "default_alias", "")
-        }
+    private fun parseScepConfig(jsonString: String): ScepConfig = try {
+        val json = JSONObject(jsonString)
+        ScepConfig(
+            url = json.getString("scep_url"),
+            challenge = json.getString("challenge"),
+            alias = json.getString("alias"),
+            subject = if (json.has("subject")) json.getString("subject") else null,
+        )
+    } catch (e: Exception) {
+        Log.e(TAG, "Failed to parse SCEP configuration JSON: ${e.message}")
+        ScepConfig("", "", "default_alias", "")
     }
 
     /**
@@ -107,6 +104,7 @@ class CertificateService : Service() {
      * 4. Parsing the response into a PrivateKey object and an Array of X509Certificate objects.
      * * @return The resulting ScepResult object containing the key and chain, or null if enrollment fails.
      */
+    @Suppress("UnusedParameter")
     private fun scepEnrollment(config: ScepConfig): ScepResult? {
         Log.w(TAG, "--- SCEP Enrollment Placeholder Running ---")
         Log.w(TAG, "Your actual SCEP client library must replace this function.")
@@ -123,7 +121,7 @@ class CertificateService : Service() {
     private fun installCertificateSilently(
         alias: String,
         privateKey: PrivateKey,
-        certificateChain: Array<Certificate>
+        certificateChain: Array<Certificate>,
     ) {
         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
 
@@ -134,7 +132,8 @@ class CertificateService : Service() {
             null,
             privateKey,
             certificateChain,
-            alias
+            alias,
+            true, // requestAccess: allows user confirmation if needed
         )
 
         if (success) {
