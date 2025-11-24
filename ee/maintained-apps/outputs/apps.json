@@ -692,14 +692,7 @@
       "slug": "todoist-app/darwin",
       "platform": "darwin",
       "unique_identifier": "com.todoist.mac.Todoist",
-      "description": ""
-    },
-    {
-      "name": "Todoist",
-      "slug": "todoist/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.todoist.mac.Todoist",
-      "description": "A To-Do List to Organize Your Work & Life."
+      "description": "Todoist is a To-Do List to Organize Your Work & Life."
     },
     {
       "name": "Tunnelblick",
