@@ -1,12 +1,8 @@
 name: Test Fleet Maintained Apps - Darwin
 
 on: 
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths:
-      - ee/maintained-apps/inputs/**
-      - ee/maintained-apps/outputs/**
-      - cmd/maintained-apps/validate/**
+  # Note: PR triggers removed - use test-fma-darwin-pr-only.yml for PRs
+  # This workflow is kept for manual testing of all FMAs via workflow_dispatch
   workflow_dispatch: # Manual trigger
     inputs:
       log_level:
