@@ -18338,6 +18338,9 @@ func (s *integrationMDMTestSuite) TestAndroidEnterpriseDeletedDetection() {
 			TopicName:      "projects/android/topics/ae98ed130-5ce2-4ddb-a90a-191ec76976d5",
 		}, nil
 	}
+	s.androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{}, nil
+	}
 
 	// First, create an enterprise to test with
 	var signupResp android.EnterpriseSignupResponse
