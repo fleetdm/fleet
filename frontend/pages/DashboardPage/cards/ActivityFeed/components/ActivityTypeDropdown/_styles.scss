@@ -2,13 +2,13 @@
   &__search-field {
     position: sticky;
     top: 0;
-    dispaly: flex;
     padding-top: $pad-small;
+    background-color: $core-fleet-white;
    
     .icon {
       position: absolute;
       left: 12px;
-      top: 12px;
+      top: 19px;
     }
   }
 
@@ -25,8 +25,6 @@
     font-size: $x-small;
     box-sizing: border-box;
     height: 36px;
-
-    margin-bottom: $pad-medium;
 
     &::placeholder {
       color: $ui-fleet-black-50;

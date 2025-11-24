@@ -194,10 +194,28 @@ const ActivityTypeDropdown = ({
   };
 
   const customStyles: StylesConfig<CustomOptionType, false> = {
+    // TODO: update the generateCustomDropdownStyles to override styles for the components.
+    // Right now, we have to copy over the entire styles object for that component to make small adjustments.
     ...generateCustomDropdownStyles(),
+    menu: (provided) => ({
+      ...provided,
+      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
+      borderRadius: "4px",
+      zIndex: 6,
+      overflow: "hidden",
+      border: 0,
+      marginTop: "3px",
+      left: 0,
+      maxHeight: "none",
+      position: "absolute",
+      animation: "fade-in 150ms ease-out",
+      width: 370,
+    }),
     menuList: (provided) => ({
       ...provided,
       maxHeight: 360,
+      // we want to remove the padding from the top and handle that with the search field.
+      // This ensures the scrolled options dont show above a gap above the search field.
       paddingBottom: PADDING["pad-small"],
       paddingLeft: PADDING["pad-small"],
       paddingRight: PADDING["pad-small"],
