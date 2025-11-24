@@ -1,7 +1,12 @@
-name: Build fleetdm/bomutils and check vulnerabilities
+name: Check fleetdm/bomutils for vulnerabilities
 
 on:
   workflow_dispatch:
+    inputs:
+      build_image:
+        description: "Scan locally-built image instead of published image"
+        type: boolean
+        default: false
   schedule:
     - cron: "0 6 * * *"
 
@@ -19,7 +24,7 @@ permissions:
   contents: read
 
 jobs:
-  build-and-check:
+  check-published:
     runs-on: ubuntu-22.04
     environment: Docker Hub
     permissions:
@@ -39,12 +44,12 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Build fleetdm/bomutils
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_image }}
         run: make bomutils-docker
 
       - name: Clean up Docker build cache
-        run: |
-          docker system prune -af
-          df -h
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_image }}
+        run: docker builder prune -af
 
       - name: List VEX files
         id: generate_vex_files

@@ -1531,3 +1531,96 @@ func isAndroidHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext
 
 	return isEnrolled, nil
 }
+
+// GetAndroidAppConfiguration retrieves the configuration for an Android app
+// identified by adam_id and global_or_team_id.
+func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*fleet.AndroidAppConfiguration, error) {
+	stmt := `
+		SELECT
+			id,
+			application_id,
+			team_id,
+			global_or_team_id,
+			configuration,
+			created_at,
+			updated_at
+		FROM android_app_configurations
+		WHERE application_id = ? AND global_or_team_id = ?
+	`
+
+	var config fleet.AndroidAppConfiguration
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, adamID, globalOrTeamID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get android app configuration")
+	}
+
+	return &config, nil
+}
+
+// InsertAndroidAppConfiguration creates a new Android app configuration entry.
+func (ds *Datastore) InsertAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
+	stmt := `
+		INSERT INTO android_app_configurations
+		(application_id, team_id, global_or_team_id, configuration)
+		VALUES (?, ?, ?, ?)
+	`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, config.ApplicationID, config.TeamID, config.GlobalOrTeamID, config.Configuration)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "insert android app configuration")
+	}
+
+	return nil
+}
+
+// UpdateAndroidAppConfiguration updates an existing Android app configuration.
+func (ds *Datastore) UpdateAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
+	stmt := `
+		UPDATE android_app_configurations
+		SET configuration = ?, updated_at = CURRENT_TIMESTAMP(6)
+		WHERE application_id = ? AND global_or_team_id = ?
+	`
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, config.Configuration, config.ApplicationID, config.GlobalOrTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update android app configuration")
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update android app configuration rows affected")
+	}
+
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
+	}
+
+	return nil
+}
+
+// DeleteAndroidAppConfiguration removes an Android app configuration.
+func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID string, globalOrTeamID uint) error {
+	stmt := `
+		DELETE FROM android_app_configurations
+		WHERE application_id = ? AND global_or_team_id = ?
+	`
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, appID, globalOrTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete android app configuration")
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete android app configuration rows affected")
+	}
+
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
+	}
+
+	return nil
+}
