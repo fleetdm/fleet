@@ -423,6 +423,9 @@ var hostDetailQueries = map[string]DetailQuery{
 			}
 			host.Uptime = time.Duration(uptimeSeconds) * time.Second
 
+			// Update the last restart date of the host if it's changed more than 30 seconds.
+			maybeUpdateLastRestartedAt(time.Now(), host)
+
 			return nil
 		},
 		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
@@ -3200,4 +3203,33 @@ func directIngestHostCertificates(
 	}
 
 	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs)
+}
+
+func maybeUpdateLastRestartedAt(now time.Time, host *fleet.Host) error {
+	// If the uptime is 0, don't change the last restarted at time.
+	if host.Uptime == 0 {
+		return nil
+	}
+	// Calculate the last restart date.
+	newLastRestartedAt := now.Add(-host.Uptime)
+
+	// If we have a previous last restarted at time, compare it to the new one.
+	if !host.LastRestartedAt.IsZero() {
+		diff := newLastRestartedAt.Sub(host.LastRestartedAt)
+		// The new date should always be later, so if it's not, ignore.
+		if diff < 0 {
+			return nil
+		}
+		// If the new date is within 30 seconds of the previous one, ignore.
+		// This accounts for small differences between when the uptime
+		// reading was taken and when we process it here.
+		if diff < 30*time.Second {
+			return nil
+		}
+	}
+
+	// Update the last restarted at time.
+	host.LastRestartedAt = newLastRestartedAt
+
+	return nil
 }
