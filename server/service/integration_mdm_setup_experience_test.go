@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
@@ -27,6 +28,7 @@ import (
 	"github.com/micromdm/plist"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
@@ -3323,4 +3325,166 @@ func (s *integrationMDMTestSuite) TestSetupExperienceGetPutSoftware() {
 		TeamID:   0,
 		TitleIDs: []uint{app2IOSTitleID},
 	}, http.StatusOK, &putSetupSoftware)
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
+	t := s.T()
+	ctx := t.Context()
+	s.setSkipWorkerJobs(t)
+
+	s.setVPPTokenForTeam(0)
+	s.enableAndroidMDM(t)
+
+	// add a macOS software installer
+	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "dummy_installer.pkg",
+		Title:         "DummyApp",
+		TeamID:        nil,
+	}
+	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
+
+	// add a VPP app available on macos and ios
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: nil, Platform: "darwin", AppStoreID: "2", SelfService: false}, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: nil, Platform: "ios", AppStoreID: "2", SelfService: false}, http.StatusOK)
+
+	// add 2 android apps
+	app1 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.test1",
+				Platform: fleet.AndroidPlatform,
+			},
+		},
+		Name:             "Test1",
+		BundleIdentifier: "com.test1",
+		IconURL:          "https://example.com/1",
+	}
+	app2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.test2",
+				Platform: fleet.AndroidPlatform,
+			},
+		},
+		Name:             "Test2",
+		BundleIdentifier: "com.test2",
+		IconURL:          "https://example.com/2",
+	}
+
+	androidApps := []*fleet.VPPApp{app1, app2}
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		for _, app := range androidApps {
+			if app.AdamID == packageName {
+				return &androidmanagement.Application{IconUrl: app.IconURL, Title: app.Name}, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
+
+	// should be called twice - once with the 2 Android apps to make available for self-install,
+	// and once for the setup experience with only the app to install at setup (and install type
+	// FORCE_INSTALLED)
+	var patchAppsCallCount int // no need for mutex, protected via runWorkerUntilDone
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		patchAppsCallCount++
+		switch patchAppsCallCount {
+		case 1:
+			// first call to make apps available for self-install
+			require.Len(t, appPolicies, 2, "initial call to make apps available for self-install should have 2 apps")
+			require.Equal(t, appPolicies[0].InstallType, "AVAILABLE")
+			require.Equal(t, appPolicies[0].PackageName, app1.VPPAppID.AdamID)
+			require.Equal(t, appPolicies[1].InstallType, "AVAILABLE")
+			require.Equal(t, appPolicies[1].PackageName, app2.VPPAppID.AdamID)
+		case 2:
+			// second call for setup experience, should have only app1 with FORCE_INSTALLED
+			require.Len(t, appPolicies, 1, "second call for setup experience should have only 1 app")
+			require.Equal(t, appPolicies[0].InstallType, "FORCE_INSTALLED")
+			require.Equal(t, appPolicies[0].PackageName, app1.VPPAppID.AdamID)
+		default:
+			t.Fatalf("unexpected call count %d to EnterprisesPoliciesModifyPolicyApplications", patchAppsCallCount)
+		}
+
+		return &androidmanagement.Policy{}, nil
+	}
+
+	// add Android app 1
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: app1.AdamID,
+		Platform:   fleet.AndroidPlatform,
+	}, http.StatusOK, &addAppResp)
+	app1TitleID := addAppResp.TitleID
+
+	// add Android app 2
+	addAppResp = addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: app2.AdamID,
+		Platform:   fleet.AndroidPlatform,
+	}, http.StatusOK, &addAppResp)
+	app2TitleID := addAppResp.TitleID
+
+	require.NotEqual(t, app1TitleID, app2TitleID)
+
+	// add app 1 to Android setup experience
+	var putResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+		Platform: string(fleet.AndroidPlatform),
+		TeamID:   0,
+		TitleIDs: []uint{app1TitleID},
+	}, http.StatusOK, &putResp)
+
+	// list the available setup experience software and verify that only app 1 is installed at setup
+	var getResp getSetupExperienceSoftwareResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", nil, http.StatusOK, &getResp,
+		"team_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
+	require.Len(t, getResp.SoftwareTitles, 2)
+	require.Equal(t, app1TitleID, getResp.SoftwareTitles[0].ID)
+	require.Equal(t, app1.Name, getResp.SoftwareTitles[0].Name)
+	require.Equal(t, app1.AdamID, getResp.SoftwareTitles[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getResp.SoftwareTitles[0].AppStoreApp.InstallDuringSetup)
+	require.True(t, *getResp.SoftwareTitles[0].AppStoreApp.InstallDuringSetup)
+	require.Equal(t, app2TitleID, getResp.SoftwareTitles[1].ID)
+	require.Equal(t, app2.Name, getResp.SoftwareTitles[1].Name)
+	require.Equal(t, app2.AdamID, getResp.SoftwareTitles[1].AppStoreApp.AppStoreID)
+	require.NotNil(t, getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
+	require.False(t, *getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
+
+	// get the required secrets to enroll an Android device
+	secrets, err := s.ds.GetEnrollSecrets(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken}, nil)
+	require.NoError(t, err)
+	pubsubToken := assets[fleet.MDMAssetAndroidPubSubToken]
+	require.NotEmpty(t, pubsubToken.Value)
+
+	// enroll an Android device
+	deviceID := createAndroidDeviceID("test-android")
+	enterpriseSpecificID := strings.ToUpper(uuid.New().String())
+	enrollmentMessage := enrollmentMessageWithEnterpriseSpecificID(
+		t,
+		androidmanagement.Device{
+			Name:                deviceID,
+			EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
+		},
+		enterpriseSpecificID,
+	)
+
+	req := android_service.PubSubPushRequest{
+		PubSubMessage: *enrollmentMessage,
+	}
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
+
+	var hosts listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts)
+	require.Len(t, hosts.Hosts, 1)
+
+	// Google AMAPI hasn't been hit yet
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	// run worker, should run the job that assigns the app to the host's MDM policy
+	s.runWorkerUntilDone()
+	// should have hit the android API endpoint
+	require.True(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 }

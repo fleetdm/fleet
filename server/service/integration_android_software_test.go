@@ -22,6 +22,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 	ctx := context.Background()
 	t := s.T()
 
+	s.setVPPTokenForTeam(0)
 	appConf, err := s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
 	appConf.MDM.AndroidEnabledAndConfigured = false
@@ -285,7 +286,6 @@ func (s *integrationMDMTestSuite) enableAndroidMDM(t *testing.T) string {
 	appConf.MDM.AndroidEnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
-	s.setVPPTokenForTeam(0)
 
 	t.Cleanup(func() {
 		appConf, err := s.ds.AppConfig(context.Background())
