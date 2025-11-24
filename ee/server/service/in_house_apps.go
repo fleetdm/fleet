@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, vc viewer.Viewer, teamName *string, software *fleet.SoftwareTitle) (*fleet.SoftwareInstaller, error) {
@@ -38,14 +39,16 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	if payload.SelfService != nil {
 		selfService = *payload.SelfService
 	}
+	displayName := ptr.ValOrZero(payload.DisplayName)
 	activity := fleet.ActivityTypeEditedSoftware{
-		SoftwareTitle:   existingInstaller.SoftwareTitle,
-		TeamName:        teamName,
-		TeamID:          actTeamID,
-		SoftwarePackage: &existingInstaller.Name,
-		SoftwareTitleID: payload.TitleID,
-		SoftwareIconURL: existingInstaller.IconUrl,
-		SelfService:     selfService,
+		SoftwareTitle:       existingInstaller.SoftwareTitle,
+		TeamName:            teamName,
+		TeamID:              actTeamID,
+		SoftwarePackage:     &existingInstaller.Name,
+		SoftwareTitleID:     payload.TitleID,
+		SoftwareIconURL:     existingInstaller.IconUrl,
+		SelfService:         selfService,
+		SoftwareDisplayName: displayName,
 	}
 
 	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload
