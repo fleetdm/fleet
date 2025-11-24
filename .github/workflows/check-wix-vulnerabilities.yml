@@ -2,6 +2,11 @@ name: Check fleetdm/wix for vulnerabilities
 
 on:
   workflow_dispatch:
+    inputs:
+      build_image:
+        description: "Scan locally-built image instead of published image"
+        type: boolean
+        default: false
   schedule:
     - cron: "0 6 * * *"
 
@@ -37,6 +42,14 @@ jobs:
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
           go-version-file: "go.mod"
+
+      - name: Build fleetdm/wix
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_image }}
+        run: make wix-docker
+
+      - name: Clean up Docker build cache
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_image }}
+        run: docker builder prune -af
 
       - name: List VEX files
         id: generate_vex_files
