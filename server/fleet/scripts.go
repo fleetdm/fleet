@@ -434,6 +434,7 @@ type SoftwareInstallerPayload struct {
 	ValidatedLabels *LabelIdentsWithScope
 	SHA256          string   `json:"sha256"`
 	Categories      []string `json:"categories"`
+	DisplayName     string   `json:"display_name"`
 	// This is to support FMAs
 	Slug          *string        `json:"slug"`
 	MaintainedApp *MaintainedApp `json:"-"`

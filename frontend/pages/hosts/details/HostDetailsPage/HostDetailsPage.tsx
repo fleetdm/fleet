@@ -669,12 +669,15 @@ const HostDetailsPage = ({
     }
   };
 
-  const resendProfile = (profileUUID: string): Promise<void> => {
-    if (!host) {
-      return new Promise(() => undefined);
-    }
-    return hostAPI.resendProfile(host.id, profileUUID);
-  };
+  const resendProfile = useCallback(
+    (profileUUID: string): Promise<void> => {
+      if (!host?.id) {
+        return new Promise(() => undefined);
+      }
+      return hostAPI.resendProfile(host.id, profileUUID);
+    },
+    [host?.id]
+  );
 
   const onChangeActivityTab = (tabIndex: number) => {
     setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
@@ -1232,7 +1235,14 @@ const HostDetailsPage = ({
                     isGlobalAdmin ||
                     isGlobalMaintainer
                   }
-                  onClickUpdateUser={() => setShowUpdateEndUserModal(true)}
+                  onClickUpdateUser={(
+                    e:
+                      | React.MouseEvent<HTMLButtonElement>
+                      | React.KeyboardEvent<HTMLButtonElement>
+                  ) => {
+                    e.preventDefault();
+                    setShowUpdateEndUserModal(true);
+                  }}
                 />
                 {showActivityCard && (
                   <ActivityCard

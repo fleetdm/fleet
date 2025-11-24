@@ -2122,7 +2122,7 @@ func testSoftwareTitleDisplayNameVPP(t *testing.T, ds *Datastore) {
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID:    fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform},
-			DisplayName: "vpp_update1",
+			DisplayName: ptr.String("vpp_update1"),
 		},
 	}, nil)
 	require.NoError(t, err)
@@ -2166,7 +2166,7 @@ func testSoftwareTitleDisplayNameVPP(t *testing.T, ds *Datastore) {
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID:    fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform},
-			DisplayName: "vpp_update2",
+			DisplayName: ptr.String("vpp_update2"),
 		},
 	}, nil)
 	require.NoError(t, err)
@@ -2192,7 +2192,8 @@ func testSoftwareTitleDisplayNameVPP(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform},
+			DisplayName: ptr.String(""),
+			VPPAppID:    fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform},
 		},
 	}, nil)
 	require.NoError(t, err)

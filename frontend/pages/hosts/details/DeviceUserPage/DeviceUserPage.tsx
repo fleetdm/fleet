@@ -151,8 +151,6 @@ const DeviceUserPage = ({
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
   const [enrollUrlError, setEnrollUrlError] = useState<string | null>(null);
-  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
-  const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -181,6 +179,11 @@ const DeviceUserPage = ({
   const [sortCerts, setSortCerts] = useState<IListSort>({
     ...CERTIFICATES_DEFAULT_SORT,
   });
+  const [queuedSelfServiceRefetch, setQueuedSelfServiceRefetch] = useState(
+    false
+  );
+  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
+  const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
 
   const { data: deviceMacAdminsData } = useQuery(
     ["macadmins", deviceAuthToken],
@@ -301,7 +304,7 @@ const DeviceUserPage = ({
             }
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
-            if (totalElapsedTime < 60000) {
+            if (totalElapsedTime < 180000) {
               if (responseHost.status === "online") {
                 setTimeout(() => {
                   refetchHostDetails();
@@ -343,6 +346,7 @@ const DeviceUserPage = ({
   } = dupResponse || {};
   const isPremiumTier = license?.tier === "premium";
   const isAppleHost = isAppleDevice(host?.platform);
+  const isIOSIPadOS = host?.platform === "ios" || host?.platform === "ipados";
   const isSetupExperienceSoftwareEnabledPlatform =
     isLinuxLike(host?.platform || "") ||
     host?.platform === "windows" ||
@@ -463,20 +467,44 @@ const DeviceUserPage = ({
   }, [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]);
 
   // User-initiated refetch always starts a new timer!
-  const onRefetchHost = async () => {
-    if (host) {
-      setShowRefetchSpinner(true);
-      try {
-        await deviceUserAPI.refetch(deviceAuthToken);
-        setRefetchStartTime(Date.now()); // Always reset on user action
-        setTimeout(() => {
-          refetchHostDetails();
-          refetchExtensions();
-        }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
-      } catch (error) {
-        renderFlash("error", getErrorMessage(error, host.display_name));
-        resetHostRefetchStates();
-      }
+  const onRefetchHost = useCallback(async () => {
+    if (!host) return;
+    setShowRefetchSpinner(true);
+    try {
+      await deviceUserAPI.refetch(deviceAuthToken);
+      setRefetchStartTime(Date.now());
+      setTimeout(() => {
+        refetchHostDetails();
+        refetchExtensions();
+      }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
+    } catch (error) {
+      renderFlash("error", getErrorMessage(error, host.display_name));
+      resetHostRefetchStates();
+    }
+  }, [
+    host,
+    deviceAuthToken,
+    refetchHostDetails,
+    refetchExtensions,
+    renderFlash,
+  ]);
+
+  // Handles the queue: If there's a queued refetch and not actively refetching, run refetch
+  useEffect(() => {
+    if (queuedSelfServiceRefetch && !showRefetchSpinner) {
+      setQueuedSelfServiceRefetch(false);
+      onRefetchHost();
+    }
+  }, [queuedSelfServiceRefetch, showRefetchSpinner, onRefetchHost]);
+
+  // Triggered when a software update finishes
+  const requestRefetch = () => {
+    // If a refetch is already happening, queue this refetch
+    if (showRefetchSpinner) {
+      setQueuedSelfServiceRefetch(true);
+    } else {
+      // Otherwise, run it now
+      onRefetchHost();
     }
   };
 
@@ -513,12 +541,12 @@ const DeviceUserPage = ({
     setSelectedCertificate(certificate);
   };
 
-  const resendProfile = (profileUUID: string): Promise<void> => {
-    if (!host) {
-      return new Promise(() => undefined);
-    }
-    return deviceUserAPI.resendProfile(deviceAuthToken, profileUUID);
-  };
+  const resendProfile = useCallback(
+    (profileUUID: string): Promise<void> => {
+      return deviceUserAPI.resendProfile(deviceAuthToken, profileUUID);
+    },
+    [deviceAuthToken]
+  );
 
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
@@ -595,9 +623,22 @@ const DeviceUserPage = ({
       );
     }
 
-    if (isMobileView) {
+    // iOS/iPadOS devices or narrow screens should show mobile UI
+    const shouldShowMobileUI = isIOSIPadOS || isMobileView;
+
+    if (shouldShowMobileUI) {
+      // Force redirect to self-service route for iOS/iPadOS devices
+      if (
+        isIOSIPadOS &&
+        !location.pathname.includes("/self-service") &&
+        hasSelfService
+      ) {
+        router.replace(PATHS.DEVICE_USER_DETAILS_SELF_SERVICE(deviceAuthToken));
+        return <Spinner />;
+      }
+
       // Render the simplified mobile version
-      // Currently only available for self-service page
+      // For iOS/iPadOS and narrow screen devices
       return (
         <div className={`${baseClass} main-content`}>
           <div className="device-user-mobile">
@@ -608,11 +649,11 @@ const DeviceUserPage = ({
               pathname={location.pathname}
               queryParams={parseSelfServiceQueryParams(location.query)}
               router={router}
-              refetchHostDetails={refetchHostDetails}
+              refetchHostDetails={requestRefetch}
               isHostDetailsPolling={showRefetchSpinner}
               hostSoftwareUpdatedAt={host.software_updated_at}
               hostDisplayName={host?.hostname || ""}
-              isMobileView={isMobileView}
+              isMobileView={shouldShowMobileUI}
             />
           </div>
         </div>
@@ -685,7 +726,7 @@ const DeviceUserPage = ({
                     pathname={location.pathname}
                     queryParams={parseSelfServiceQueryParams(location.query)}
                     router={router}
-                    refetchHostDetails={refetchHostDetails}
+                    refetchHostDetails={requestRefetch}
                     isHostDetailsPolling={showRefetchSpinner}
                     hostSoftwareUpdatedAt={host.software_updated_at}
                     hostDisplayName={host?.hostname || ""}
@@ -872,6 +913,7 @@ const DeviceUserPage = ({
           isMobileView={isMobileView}
           isMobileDevice={isMobileDevice}
           isAuthenticationError={!!isAuthenticationError}
+          platform={host?.platform}
         />
       ) : (
         <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>

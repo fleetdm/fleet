@@ -513,9 +513,11 @@ func numberWithPluralization(n int, singular string, plural string) string {
 	return fmt.Sprintf("%d %s", n, plural)
 }
 
-const dryRunAppliedFormat = "[+] would've applied %s\n"
-const appliedFormat = "[+] applied %s\n"
-const applyingTeamFormat = "[+] applying %s for team %s\n"
+const (
+	dryRunAppliedFormat = "[+] would've applied %s\n"
+	appliedFormat       = "[+] applied %s\n"
+	applyingTeamFormat  = "[+] applying %s for team %s\n"
+)
 
 // ApplyGroup applies the given spec group to Fleet.
 func (c *Client) ApplyGroup(
@@ -885,6 +887,7 @@ func (c *Client) ApplyGroup(
 					LabelsExcludeAny:   app.LabelsExcludeAny,
 					LabelsIncludeAny:   app.LabelsIncludeAny,
 					Categories:         app.Categories,
+					DisplayName:        app.DisplayName,
 					IconPath:           app.Icon.Path,
 					IconHash:           iconHash,
 				})
@@ -1237,6 +1240,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			LabelsExcludeAny:   si.LabelsExcludeAny,
 			SHA256:             si.SHA256,
 			Categories:         si.Categories,
+			DisplayName:        si.DisplayName,
 			IconPath:           si.Icon.Path,
 			IconHash:           iconHash,
 		}
@@ -1988,6 +1992,11 @@ func (c *Client) DoGitOps(
 		if incoming.Controls.WindowsMigrationEnabled == nil {
 			mdmAppConfig["windows_migration_enabled"] = false
 		}
+		// Put in default values for enable_turn_on_windows_mdm_manually
+		mdmAppConfig["enable_turn_on_windows_mdm_manually"] = incoming.Controls.EnableTurnOnWindowsMDMManually
+		if incoming.Controls.EnableTurnOnWindowsMDMManually == nil {
+			mdmAppConfig["enable_turn_on_windows_mdm_manually"] = false
+		}
 		if windowsEnabledAndConfiguredAssumption, ok := mdmAppConfig["windows_enabled_and_configured"].(bool); ok {
 			teamAssumptions = &fleet.TeamSpecsDryRunAssumptions{
 				WindowsEnabledAndConfigured: optjson.SetBool(windowsEnabledAndConfiguredAssumption),
@@ -2451,6 +2460,7 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				AppStoreID:         vppApp.AppStoreID,
 				SelfService:        vppApp.SelfService,
 				InstallDuringSetup: &installDuringSetup,
+				DisplayName:        vppApp.DisplayName,
 				IconPath:           vppApp.Icon.Path,
 				IconHash:           iconHash,
 			})

@@ -693,6 +693,18 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 			return &fleet.Team{}, nil
 		}
 	}
+	mockTeamLiteFunc := func(u *fleet.User) mock.TeamLiteFunc {
+		return func(ctx context.Context, teamID uint) (*fleet.TeamLite, error) {
+			if len(u.Teams) > 0 {
+				for _, t := range u.Teams {
+					if t.ID == teamID {
+						return &fleet.TeamLite{ID: teamID}, nil
+					}
+				}
+			}
+			return &fleet.TeamLite{}, nil
+		}
+	}
 
 	checkShouldFail := func(err error, shouldFail bool) {
 		if !shouldFail {
@@ -708,6 +720,7 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	for _, tt := range testCases {
 		ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 		ds.TeamWithExtrasFunc = mockTeamFuncWithUser(tt.user)
+		ds.TeamLiteFunc = mockTeamLiteFunc(tt.user)
 
 		t.Run(tt.name, func(t *testing.T) {
 			// test authz create new profile (no team)
@@ -1424,7 +1437,7 @@ func TestMDMUnenrollment(t *testing.T) {
 }
 
 func TestMDMTokenUpdate(t *testing.T) {
-	ctx := context.Background()
+	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ds := new(mock.Store)
 	mdmStorage := &mdmmock.MDMAppleStore{}
 	pushFactory, _ := newMockAPNSPushProviderFactory()
@@ -1585,6 +1598,164 @@ func TestMDMTokenUpdate(t *testing.T) {
 	// Should NOT call the setup experience enqueue function but it should mark the migration complete
 	require.False(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
 	require.True(t, ds.SetHostMDMMigrationCompletedFuncInvoked)
+}
+
+func TestMDMTokenUpdateIOS(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
+	)
+	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
+	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), newActivity)
+	svc := MDMAppleCheckinAndCommandService{
+		ds:           ds,
+		mdmLifecycle: mdmLifecycle,
+		commander:    cmdr,
+		logger:       kitlog.NewNopLogger(),
+	}
+	uuid, serial, model, wantTeamID := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1", uint(12)
+
+	ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		require.Equal(t, uuid, hostUUID)
+		return &fleet.MDMIdPAccount{
+			UUID:     "some-uuid",
+			Username: "some-user",
+			Email:    "some-user@example.com",
+			Fullname: "Some User",
+		}, nil
+	}
+
+	ds.NewJobFunc = func(ctx context.Context, j *fleet.Job) (*fleet.Job, error) {
+		return j, nil
+	}
+
+	ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+		require.Equal(t, uuid, hostUUID)
+		return &fleet.HostMDMCheckinInfo{
+			HostID:             1337,
+			HardwareSerial:     serial,
+			DisplayName:        model,
+			InstalledFromDEP:   true,
+			TeamID:             wantTeamID,
+			DEPAssignedToFleet: true,
+			Platform:           "ios",
+		}, nil
+	}
+
+	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
+		return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
+	}
+
+	ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
+		require.Equal(t, "ios", hostPlatformLike)
+		require.Equal(t, uuid, hostUUID)
+		require.Equal(t, wantTeamID, teamID)
+		return true, nil
+	}
+
+	// DEP-installed without AwaitingConfiguration - should not enqueue SetupExperience items
+	err := svc.TokenUpdate(
+		&mdm.Request{
+			Context:  ctx,
+			EnrollID: &mdm.EnrollID{ID: uuid, Type: mdm.Device},
+			Params:   map[string]string{"enroll_reference": "abcd"},
+		},
+		&mdm.TokenUpdate{
+			Enrollment: mdm.Enrollment{
+				UDID: uuid,
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.False(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
+
+	// Non-DEP-installed, non device-type enrollment should not enqueue SetupExperience items
+	err = svc.TokenUpdate(
+		&mdm.Request{
+			Context:  ctx,
+			EnrollID: &mdm.EnrollID{ID: uuid, Type: mdm.User},
+			Params:   map[string]string{"enroll_reference": "abcd"},
+		},
+		&mdm.TokenUpdate{
+			Enrollment: mdm.Enrollment{
+				UDID: uuid,
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.False(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
+
+	// Non-DEP-installed without AwaitingConfiguration - should not enqueue SetupExperience items if token count is > 1
+	ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+		require.Equal(t, uuid, hostUUID)
+		return &fleet.HostMDMCheckinInfo{
+			HostID:             1337,
+			HardwareSerial:     serial,
+			DisplayName:        model,
+			InstalledFromDEP:   false,
+			TeamID:             wantTeamID,
+			DEPAssignedToFleet: true,
+			Platform:           "ios",
+		}, nil
+	}
+
+	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
+		return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 2}, nil
+	}
+
+	err = svc.TokenUpdate(
+		&mdm.Request{
+			Context:  ctx,
+			EnrollID: &mdm.EnrollID{ID: uuid, Type: mdm.Device},
+			Params:   map[string]string{"enroll_reference": "abcd"},
+		},
+		&mdm.TokenUpdate{
+			Enrollment: mdm.Enrollment{
+				UDID: uuid,
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.False(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
+
+	// Non-DEP-installed without AwaitingConfiguration - should enqueue SetupExperience items if token count is 1
+	ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+		require.Equal(t, uuid, hostUUID)
+		return &fleet.HostMDMCheckinInfo{
+			HostID:             1337,
+			HardwareSerial:     serial,
+			DisplayName:        model,
+			InstalledFromDEP:   false,
+			TeamID:             wantTeamID,
+			DEPAssignedToFleet: true,
+			Platform:           "ios",
+		}, nil
+	}
+
+	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
+		return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
+	}
+
+	err = svc.TokenUpdate(
+		&mdm.Request{
+			Context:  ctx,
+			EnrollID: &mdm.EnrollID{ID: uuid, Type: mdm.Device},
+			Params:   map[string]string{"enroll_reference": "abcd"},
+		},
+		&mdm.TokenUpdate{
+			Enrollment: mdm.Enrollment{
+				UDID: uuid,
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.True(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
 }
 
 func TestMDMCheckout(t *testing.T) {
@@ -3528,6 +3699,74 @@ func TestPreprocessProfileContents(t *testing.T) {
 		assert.NotEqual(t, cmdUUID, target.cmdUUID)
 		assert.Equal(t, []string{hostUUID}, target.enrollmentIDs)
 		assert.Equal(t, hostUUID, string(profileContents[profUUID]))
+	}
+
+	// Host Platform - macOS (darwin -> macos)
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		assert.Equal(t, []string{hostUUID}, uuids)
+		return []*fleet.Host{
+			{ID: 1, UUID: hostUUID, Platform: "darwin", HardwareSerial: "serial1"},
+		}, nil
+	}
+	profileContents = map[string]mobileconfig.Mobileconfig{
+		"p1": []byte("$FLEET_VAR_HOST_PLATFORM"),
+	}
+	updatedProfile = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
+	require.NoError(t, err)
+	assert.Len(t, targets, 1)
+	for profUUID := range targets {
+		assert.Equal(t, "macos", string(profileContents[profUUID]))
+	}
+
+	// Host Platform - iOS
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		assert.Equal(t, []string{hostUUID}, uuids)
+		return []*fleet.Host{
+			{ID: 1, UUID: hostUUID, Platform: "ios", HardwareSerial: "serial1"},
+		}, nil
+	}
+	updatedProfile = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
+	require.NoError(t, err)
+	assert.Len(t, targets, 1)
+	for profUUID := range targets {
+		assert.Equal(t, "ios", string(profileContents[profUUID]))
+	}
+
+	// Host Platform fail - host not found
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		assert.Equal(t, []string{hostUUID}, uuids)
+		return nil, nil
+	}
+	updatedProfile = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
+	require.NoError(t, err)
+	require.NotNil(t, updatedProfile)
+	assert.Contains(t, updatedProfile.Detail, "Unexpected number of hosts (0) for UUID")
+	assert.Empty(t, targets)
+
+	// Host Platform with Hardware Serial - both variables in profile
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		assert.Equal(t, []string{hostUUID}, uuids)
+		return []*fleet.Host{
+			{ID: 1, UUID: hostUUID, Platform: "darwin", HardwareSerial: "serial123"},
+		}, nil
+	}
+	profileContents = map[string]mobileconfig.Mobileconfig{
+		"p1": []byte("$FLEET_VAR_HOST_PLATFORM $FLEET_VAR_HOST_HARDWARE_SERIAL"),
+	}
+	updatedProfile = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
+	require.NoError(t, err)
+	assert.Nil(t, updatedProfile)
+	assert.Len(t, targets, 1)
+	for profUUID := range targets {
+		assert.Equal(t, "macos serial123", string(profileContents[profUUID]))
 	}
 
 	// multiple profiles, multiple hosts

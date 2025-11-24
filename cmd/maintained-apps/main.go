@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -70,10 +71,14 @@ func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) err
 		Refs:     map[string]string{app.UninstallScriptRef: app.UninstallScript, app.InstallScriptRef: app.InstallScript},
 	}
 
-	outBytes, err := json.MarshalIndent(outFile, "", "  ")
-	if err != nil {
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(outFile); err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling output app manifest")
 	}
+	outBytes := buf.Bytes()
 
 	outDir := path.Join(maintained_apps.OutputPath, app.SlugAppName())
 
@@ -133,10 +138,14 @@ func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifest
 		// Keep existing order
 		slices.SortFunc(outputAppsFile.Apps, func(a, b maintained_apps.FMAListFileApp) int { return strings.Compare(a.Slug, b.Slug) })
 
-		updatedFile, err := json.MarshalIndent(outputAppsFile, "", "  ")
-		if err != nil {
+		var buf bytes.Buffer
+		encoder := json.NewEncoder(&buf)
+		encoder.SetEscapeHTML(false)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(outputAppsFile); err != nil {
 			return ctxerr.Wrap(ctx, err, "marshaling updated output apps file")
 		}
+		updatedFile := buf.Bytes()
 
 		if err := os.WriteFile(appListFilePath, updatedFile, 0o644); err != nil {
 			return ctxerr.Wrap(ctx, err, "writing updated output apps file")

@@ -107,11 +107,11 @@ func main() {
 			},
 		}, nil
 	}
-	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
-		return &fleet.Team{
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{
 			ID:   tid,
 			Name: fmt.Sprintf("team-test-%d", tid),
-			Config: fleet.TeamConfig{
+			Config: fleet.TeamConfigLite{
 				Integrations: fleet.TeamIntegrations{
 					Jira: []*fleet.TeamJiraIntegration{
 						{

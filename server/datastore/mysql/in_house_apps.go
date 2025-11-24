@@ -29,14 +29,13 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 	}
 
-	titleName, _ := strings.CutSuffix(payload.Filename, ".ipa")
-	titleIDipad, err := ds.getOrGenerateInHouseAppTitleID(ctx, titleName, payload.BundleID, "ipados_apps")
+	titleIDipad, err := ds.getOrGenerateInHouseAppTitleID(ctx, payload.Title, payload.BundleID, "ipados_apps")
 	if err != nil {
-		return 0, 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
+		return 0, 0, ctxerr.Wrap(ctx, err, "generating software title")
 	}
-	titleIDios, err := ds.getOrGenerateInHouseAppTitleID(ctx, titleName, payload.BundleID, "ios_apps")
+	titleIDios, err := ds.getOrGenerateInHouseAppTitleID(ctx, payload.Title, payload.BundleID, "ios_apps")
 	if err != nil {
-		return 0, 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
+		return 0, 0, ctxerr.Wrap(ctx, err, "generating software title")
 	}
 
 	var installerID uint
@@ -48,31 +47,11 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 		if count > 0 {
 			// ios or ipados version of this installer exists
-			err = alreadyExists("In-house app", payload.Filename)
+			return alreadyExists("In-house app", payload.Filename)
 		}
 
-		argsIos := []any{
-			tid,
-			globalOrTeamID,
-			payload.Filename,
-			payload.StorageID,
-			payload.Version,
-			payload.BundleID,
-			titleIDios,
-			"ios",
-			payload.SelfService,
-		}
-		argsIpad := []any{
-			tid,
-			globalOrTeamID,
-			payload.Filename,
-			payload.StorageID,
-			payload.Version,
-			payload.BundleID,
-			titleIDipad,
-			"ipados",
-			payload.SelfService,
-		}
+		argsIos := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDios, "ios", payload.SelfService}
+		argsIpad := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDipad, "ipados", payload.SelfService}
 
 		_, err := ds.insertInHouseAppDB(ctx, tx, payload, argsIpad)
 		if err != nil {
@@ -91,8 +70,8 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 }
 
 func (ds *Datastore) getOrGenerateInHouseAppTitleID(ctx context.Context, name string, bundleID string, source string) (uint, error) {
-	selectStmt := `SELECT id FROM software_titles WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ?)`
-	selectArgs := []any{bundleID, source, name, source}
+	selectStmt := `SELECT id FROM software_titles WHERE bundle_identifier = ? AND source = ?`
+	selectArgs := []any{bundleID, source}
 	insertStmt := `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
 	insertArgs := []any{name, source, bundleID}
 
@@ -248,6 +227,13 @@ WHERE
 		dest.Categories = categories
 	}
 
+	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, titleID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get in house app display name")
+	}
+
+	dest.DisplayName = displayName
+
 	if teamID != nil {
 		icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, titleID)
 		if err != nil && !fleet.IsNotFound(err) {
@@ -280,6 +266,9 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 		}
 
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			if IsDuplicate(err) {
+				return alreadyExists("In-house app", payload.Filename)
+			}
 			return ctxerr.Wrap(ctx, err, "update in house app")
 		}
 
@@ -292,6 +281,12 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 		if payload.CategoryIDs != nil {
 			if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, payload.InstallerID, payload.CategoryIDs, softwareTypeInHouseApp); err != nil {
 				return ctxerr.Wrap(ctx, err, "upsert in house app categories")
+			}
+		}
+
+		if payload.DisplayName != nil {
+			if err := updateSoftwareTitleDisplayName(ctx, tx, payload.TeamID, payload.TitleID, *payload.DisplayName); err != nil {
+				return ctxerr.Wrap(ctx, err, "update in house app display name")
 			}
 		}
 

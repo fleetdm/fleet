@@ -1281,7 +1281,8 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		JOIN fleet_variables fv
 			ON mcpv.fleet_variable_id = fv.id
 	SET
-		hmap.status = NULL
+		hmap.status = NULL,
+		hmap.command_uuid = ''
 	WHERE
 		h.id IN (:host_ids) AND
 		hmap.operation_type = :operation_type_install AND

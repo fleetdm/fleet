@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+	external_refs "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/winget/external_refs"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -317,6 +318,8 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	out.InstallScriptRef = maintained_apps.GetScriptRef(out.InstallScript)
 	out.UninstallScriptRef = maintained_apps.GetScriptRef(out.UninstallScript)
 	out.Frozen = input.Frozen
+
+	external_refs.EnrichManifest(&out)
 
 	return &out, nil
 }

@@ -1,0 +1,8 @@
+{
+  "name": "8x8 Work",
+  "unique_identifier": "com.electron.8x8---virtual-office",
+  "token": "8x8-work",
+  "installer_format": "dmg",
+  "slug": "8x8-work/darwin",
+  "default_categories": ["Communication"]
+}
