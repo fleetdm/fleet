@@ -689,6 +689,13 @@
     },
     {
       "name": "Todoist",
+      "slug": "todoist-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.todoist.mac.Todoist",
+      "description": ""
+    },
+    {
+      "name": "Todoist",
       "slug": "todoist/darwin",
       "platform": "darwin",
       "unique_identifier": "com.todoist.mac.Todoist",
