@@ -1,7 +1,12 @@
-name: Build fleetdm/bomutils and check vulnerabilities
+name: Check fleetdm/wix for vulnerabilities
 
 on:
   workflow_dispatch:
+    inputs:
+      build_image:
+        description: "Scan locally-built image instead of published image"
+        type: boolean
+        default: false
   schedule:
     - cron: "0 6 * * *"
 
@@ -19,7 +24,7 @@ permissions:
   contents: read
 
 jobs:
-  build-and-check:
+  check-published:
     runs-on: ubuntu-22.04
     environment: Docker Hub
     permissions:
@@ -38,21 +43,21 @@ jobs:
         with:
           go-version-file: "go.mod"
 
-      - name: Build fleetdm/bomutils
-        run: make bomutils-docker
+      - name: Build fleetdm/wix
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_image }}
+        run: make wix-docker
 
       - name: Clean up Docker build cache
-        run: |
-          docker builder prune -af
-          df -h
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_image }}
+        run: docker builder prune -af
 
       - name: List VEX files
         id: generate_vex_files
         run: |
-          echo "VEX_FILES=$(ls -1 ./security/vex/bomutils/ | while IFS= read -r line; do echo "./security/vex/bomutils/$line"; done | tr '\n' ',' | sed 's/.$//')" >> $GITHUB_OUTPUT
+          echo "VEX_FILES=$(ls -1 ./security/vex/wix/ | while IFS= read -r line; do echo "./security/vex/wix/$line"; done | tr '\n' ',' | sed 's/.$//')" >> $GITHUB_OUTPUT
 
       # We use the trivy command and not the github action because it doesn't support loading VEX files yet.
-      - name: Run Trivy vulnerability scanner on fleetdm/bomutils
+      - name: Run Trivy vulnerability scanner on fleetdm/wix
         env:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
@@ -70,7 +75,7 @@ jobs:
             --pkg-types=os,library \
             --severity=HIGH,CRITICAL \
             --vex="${{ steps.generate_vex_files.outputs.VEX_FILES }}" \
-            fleetdm/bomutils
+            fleetdm/wix
 
       - name: Slack notification
         if: github.event.schedule == '0 6 * * *' && failure()
@@ -84,7 +89,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "⚠️ Build fleetdm/bomutils and check vulnerabilities failed.\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}"
+                    "text": "⚠️ Build fleetdm/wix and check vulnerabilities failed.\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}"
                   }
                 }
               ]
