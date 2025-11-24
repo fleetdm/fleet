@@ -419,7 +419,7 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostPlatformRegexp, result, "windows")
 		case fleetVar == string(fleet.FleetVarHostHardwareSerial):
 			hostLite, _, err := profiles.HydrateHost(deps.GetContext(), deps.GetDS(), fleet.Host{UUID: params.HostUUID}, func(hostCount int) error {
-				return &MicrosoftProfileProcessingError{message: fmt.Sprintf("found %d hosts with UUID %s; profile variable substitution for hardware serial number requires exactly one host", hostCount, params.HostUUID)}
+				return &MicrosoftProfileProcessingError{message: fmt.Sprintf("Found %d hosts with UUID %s. Profile variable substitution for %s requires exactly one host", hostCount, params.HostUUID, fleet.FleetVarHostHardwareSerial.WithPrefix())}
 			})
 			if err != nil {
 				return profileContents, err
