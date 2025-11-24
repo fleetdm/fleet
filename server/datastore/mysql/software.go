@@ -5361,7 +5361,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			return nil, nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
 		}
 
-		displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, teamID, softwareTitleIDs)
+		displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, teamID, append(append(vppTitleIDs, inHouseTitleIDs...), softwareTitleIDs...))
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "get software display names by team and title IDs")
 		}

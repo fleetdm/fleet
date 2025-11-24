@@ -39,6 +39,10 @@ CREATE TABLE `activities` (
   KEY `fk_activities_user_id` (`user_id`),
   KEY `activities_streamed_idx` (`streamed`),
   KEY `activities_created_at_idx` (`created_at`),
+  KEY `idx_activities_user_name` (`user_name`),
+  KEY `idx_activities_user_email` (`user_email`),
+  KEY `idx_activities_activity_type` (`activity_type`),
+  KEY `idx_activities_type_created` (`activity_type`,`created_at`),
   CONSTRAINT `activities_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -421,9 +425,9 @@ CREATE TABLE `fleet_variables` (
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_fleet_variables_name_is_prefix` (`name`,`is_prefix`)
-) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `fleet_variables` VALUES (1,'FLEET_VAR_NDES_SCEP_CHALLENGE',0,'2025-04-22 00:00:00.000000'),(2,'FLEET_VAR_NDES_SCEP_PROXY_URL',0,'2025-04-22 00:00:00.000000'),(3,'FLEET_VAR_HOST_END_USER_EMAIL_IDP',0,'2025-04-22 00:00:00.000000'),(4,'FLEET_VAR_HOST_HARDWARE_SERIAL',0,'2025-04-22 00:00:00.000000'),(5,'FLEET_VAR_HOST_END_USER_IDP_USERNAME',0,'2025-04-22 00:00:00.000000'),(6,'FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART',0,'2025-04-22 00:00:00.000000'),(7,'FLEET_VAR_HOST_END_USER_IDP_GROUPS',0,'2025-04-22 00:00:00.000000'),(8,'FLEET_VAR_DIGICERT_DATA_',1,'2025-04-22 00:00:00.000000'),(9,'FLEET_VAR_DIGICERT_PASSWORD_',1,'2025-04-22 00:00:00.000000'),(10,'FLEET_VAR_CUSTOM_SCEP_CHALLENGE_',1,'2025-04-22 00:00:00.000000'),(11,'FLEET_VAR_CUSTOM_SCEP_PROXY_URL_',1,'2025-04-22 00:00:00.000000'),(12,'FLEET_VAR_SCEP_RENEWAL_ID',0,'2025-04-30 00:00:00.000000'),(13,'FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT',0,'2025-06-27 00:00:00.000000'),(14,'FLEET_VAR_HOST_UUID',0,'2025-08-08 00:00:00.000000'),(15,'FLEET_VAR_HOST_END_USER_IDP_FULL_NAME',0,'2025-08-25 00:00:00.000000'),(16,'FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID',0,'2025-10-22 00:00:00.000000');
+INSERT INTO `fleet_variables` VALUES (1,'FLEET_VAR_NDES_SCEP_CHALLENGE',0,'2025-04-22 00:00:00.000000'),(2,'FLEET_VAR_NDES_SCEP_PROXY_URL',0,'2025-04-22 00:00:00.000000'),(3,'FLEET_VAR_HOST_END_USER_EMAIL_IDP',0,'2025-04-22 00:00:00.000000'),(4,'FLEET_VAR_HOST_HARDWARE_SERIAL',0,'2025-04-22 00:00:00.000000'),(5,'FLEET_VAR_HOST_END_USER_IDP_USERNAME',0,'2025-04-22 00:00:00.000000'),(6,'FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART',0,'2025-04-22 00:00:00.000000'),(7,'FLEET_VAR_HOST_END_USER_IDP_GROUPS',0,'2025-04-22 00:00:00.000000'),(8,'FLEET_VAR_DIGICERT_DATA_',1,'2025-04-22 00:00:00.000000'),(9,'FLEET_VAR_DIGICERT_PASSWORD_',1,'2025-04-22 00:00:00.000000'),(10,'FLEET_VAR_CUSTOM_SCEP_CHALLENGE_',1,'2025-04-22 00:00:00.000000'),(11,'FLEET_VAR_CUSTOM_SCEP_PROXY_URL_',1,'2025-04-22 00:00:00.000000'),(12,'FLEET_VAR_SCEP_RENEWAL_ID',0,'2025-04-30 00:00:00.000000'),(13,'FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT',0,'2025-06-27 00:00:00.000000'),(14,'FLEET_VAR_HOST_UUID',0,'2025-08-08 00:00:00.000000'),(15,'FLEET_VAR_HOST_END_USER_IDP_FULL_NAME',0,'2025-08-25 00:00:00.000000'),(16,'FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID',0,'2025-10-22 00:00:00.000000'),(17,'FLEET_VAR_HOST_PLATFORM',0,'2025-11-19 00:00:00.000000');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_activities` (
@@ -482,6 +486,19 @@ CREATE TABLE `host_certificate_sources` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_host_certificate_sources_unique` (`host_certificate_id`,`source`,`username`),
   CONSTRAINT `fk_host_certificate_sources_host_certificate_id` FOREIGN KEY (`host_certificate_id`) REFERENCES `host_certificates` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `host_certificate_templates` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `certificate_template_id` int unsigned NOT NULL,
+  `fleet_challenge` char(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -2781,7 +2798,8 @@ CREATE TABLE `users` (
   `invite_id` int unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_user_unique_email` (`email`),
-  UNIQUE KEY `invite_id` (`invite_id`)
+  UNIQUE KEY `invite_id` (`invite_id`),
+  KEY `idx_users_name` (`name`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

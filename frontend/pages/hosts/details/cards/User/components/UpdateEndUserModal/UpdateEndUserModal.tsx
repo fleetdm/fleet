@@ -33,7 +33,8 @@ const UpdateEndUserModal = ({
   const isEditing = !!userNameDisplayValue;
   const [idpUsername, setIdpUsername] = useState(userNameDisplayValue || "");
 
-  const onSave = () => {
+  const onSave = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     onUpdate(idpUsername);
   };
 
@@ -43,7 +44,7 @@ const UpdateEndUserModal = ({
     }
     return (
       <>
-        <form>
+        <form onSubmit={onSave}>
           <InputField
             label="Username (IdP)"
             name="username_idp"
@@ -57,7 +58,7 @@ const UpdateEndUserModal = ({
             <Button
               isLoading={isUpdating}
               disabled={isUpdating || (!isEditing && idpUsername === "")}
-              onClick={onSave}
+              type="submit"
             >
               Save
             </Button>
