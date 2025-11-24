@@ -1,56 +1,45 @@
 package com.fleetdm.agent
 
 import android.app.admin.DevicePolicyManager
-import android.bluetooth.BluetoothClass
 import android.content.Context
-import android.content.RestrictionsManager
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.security.KeyChain
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LargeTopAppBar
-import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.fleetdm.agent.ui.theme.MyApplicationTheme
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.toMutableStateList
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.fleetdm.agent.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
-import java.net.HttpURLConnection
-import java.net.URL
 import java.security.KeyStore
 import java.security.cert.X509Certificate
 import java.util.Date
@@ -93,30 +82,11 @@ class MainActivity : ComponentActivity() {
             val fleetBaseUrl by remember {
                 mutableStateOf(appRestrictions.getString("fleetBaseUrl"))
             }
-//            var enrollUrl by remember {
-//                val buildEnroll = fleetBaseUrl?.let { url ->
-//                    Uri.parse(url)
-//                        .buildUpon()
-//                        .appendPath("api")
-//                        .appendPath("fleet")
-//                        .appendPath("orbit")
-//                        .appendPath("enroll")
-//                        .build()
-//                        .toString()
-//                }
-//                mutableStateOf(buildEnroll)
-//            }
             var clicks by remember { mutableStateOf(0) }
-            var respBody by remember { mutableStateOf("not sent yet")}
-            var enrollBody by remember {
-//                val body = if (enrollUrl == null) {
-//                    "no enroll url"
-//                } else {
-//                    "not enroll"
-//                }
-                mutableStateOf("not enrolled")
-            }
+            var enrollBody by remember { mutableStateOf("enroll not run") }
             var installedCertificates: List<CertificateInfo> by remember { mutableStateOf(listOf()) }
+            val apiKey by ApiClient.apiKeyFlow.collectAsState(initial = null)
+            val baseUrl by ApiClient.baseUrlFlow.collectAsState(initial = null)
             val scope = rememberCoroutineScope()
 
             LaunchedEffect(Unit) {
@@ -133,30 +103,19 @@ class MainActivity : ComponentActivity() {
                             StatusScreen(
                                 dpm = dpm,
                             )
-                            Text(text = "packageName: $packageName")
-                            Text(text = "enrollSecret: $enrollSecret")
-                            Text(text = "delegatedScopes: $delegatedScopes")
-                            Text(text = "delegated cert scope: $delegatedCertScope")
-                            Text(text = "android id: $androidID")
-                            Text(text = "enrollmentSpecificID (from RM): $enrollmentSpecificID")
-                            Text(text = "fleetBaseUrl: $fleetBaseUrl")
+                            KeyValue("packageName", packageName)
+                            KeyValue("enrollSecret", enrollSecret)
+                            KeyValue("delegatedScopes", delegatedScopes.toString())
+                            KeyValue("delegated cert scope", delegatedCertScope.toString())
+                            KeyValue("android id", androidID)
+                            KeyValue("enrollmentSpecificID (MC)", enrollmentSpecificID)
+                            KeyValue("fleetBaseUrl (MC)", fleetBaseUrl)
+                            KeyValue("orbit_node_key (datastore)", apiKey)
+                            KeyValue("base_url (datastore)", baseUrl)
                             PermissionList(
-                                modifier = Modifier.padding(10.dp),
                                 permissionsList = permissionsList
                             )
                             Button(onClick = { clicks++ }) { Text("Clicks: $clicks") }
-                            Button(onClick = {
-                                scope.launch {
-                                    respBody = "launched!"
-                                    try {
-                                        val resp = makeGetRequest("https://example.com")
-                                        respBody = resp
-                                    } catch (e: Exception) {
-                                        respBody = e.toString()
-                                    }
-                                }
-                            }) { Text("make request") }
-                            Text(text = respBody)
                             Button(onClick = {
                                 scope.launch {
                                     enrollBody = "launched!!"
@@ -174,10 +133,6 @@ class MainActivity : ComponentActivity() {
                                             hardwareUUID = enrollmentSpecificID ?: "",
                                             computerName = Build.MODEL,
                                         )
-//                                        val resp = makePostRequest(
-//                                            enrollUrl.toString(),
-//                                            "",
-//                                        )
                                         enrollBody = resp.toString()
                                     } catch (e: Exception) {
                                         enrollBody = e.toString()
@@ -197,13 +152,13 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun PermissionList(modifier: Modifier = Modifier, permissionsList: List<String>) {
     Column(modifier = modifier) {
-        Text(text = "permission list:")
-        HorizontalDivider()
+        Text(text = "permission list:", fontWeight = FontWeight.Bold)
         permissionsList.forEach {
-            Text(text = it)
-            HorizontalDivider()
+            Row {
+                Text(text = "- ", modifier = Modifier.padding(end = 8.dp))
+                Text(text = it)
+            }
         }
-
     }
 }
 
@@ -225,7 +180,7 @@ fun StatusScreen(modifier: Modifier = Modifier, dpm: DevicePolicyManager) {
     Log.i(tag, "this is a log!")
 
     Greeting(
-        name = "banana frosg",
+        name = "banana frog",
         modifier = modifier,
     )
 }
@@ -236,6 +191,19 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
         text = "Hello $name!",
         modifier = modifier,
     )
+}
+
+@Composable
+fun KeyValue(key: String, value: String?) {
+    Text(
+        buildAnnotatedString {
+            withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                append(key)
+            }
+            append(": $value")
+        }
+    )
+    HorizontalDivider()
 }
 
 suspend fun listKeystoreCertificates(): List<CertificateInfo> = withContext(Dispatchers.IO) {
@@ -274,71 +242,6 @@ data class CertificateInfo(
     val notBefore: Date,
     val notAfter: Date,
 )
-
-suspend fun makePostRequest(urlString: String, jsonBody: String): String {
-    return withContext(Dispatchers.IO) {
-        val tag = "makePostRequest"
-        val url = URL(urlString)
-        val connection = url.openConnection() as HttpURLConnection
-
-        try {
-            connection.requestMethod = "POST"
-            connection.connectTimeout = 10000
-            connection.readTimeout = 10000
-            connection.doOutput = true
-            connection.setRequestProperty("Content-Type", "application/json")
-
-            Log.d(tag, "headers set, making request")
-
-            // Write the JSON body
-            connection.outputStream.use { os ->
-                os.write(jsonBody.toByteArray())
-            }
-
-            Log.d(tag, "body written")
-
-            val responseCode = connection.responseCode
-
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                Log.d(tag, "response OK")
-                connection.inputStream.bufferedReader().use { it.readText() }
-            } else {
-                Log.d(tag, "response bad")
-                throw Exception("HTTP error code: $responseCode: ${connection.responseMessage}")
-            }
-        } finally {
-            Log.d(tag, "finally")
-            connection.disconnect()
-        }
-    }
-}
-
-// Make sure to call this from a coroutine or background thread
-suspend fun makeGetRequest(urlString: String): String {
-    return withContext(Dispatchers.IO) {
-        val tag = "makeGetRequest"
-        Log.d(tag, "in withContext")
-        Log.d(tag, "url: $urlString")
-        val url = URL(urlString)
-        val connection = url.openConnection() as HttpURLConnection
-
-        try {
-            connection.requestMethod = "GET"
-            connection.connectTimeout = 10000 // 10 seconds
-            connection.readTimeout = 10000
-
-            val responseCode = connection.responseCode
-
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                connection.inputStream.bufferedReader().use { it.readText() }
-            } else {
-                throw Exception("HTTP error code: $responseCode")
-            }
-        } finally {
-            connection.disconnect()
-        }
-    }
-}
 
 @Preview(showBackground = true)
 @Composable
