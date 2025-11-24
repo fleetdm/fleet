@@ -9,6 +9,7 @@ import {
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import { NotificationContext } from "context/notification";
+import { INotification } from "interfaces/notification";
 import { getErrorReason } from "interfaces/errors";
 import softwareAPI from "services/entities/software";
 
@@ -149,7 +150,7 @@ const EditIconModal = ({
   installerType,
   previewInfo,
 }: IEditIconModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
+  const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
 
   const isSoftwarePackage = installerType === "package";
   const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(
@@ -631,49 +632,77 @@ const EditIconModal = ({
 
   const onClickSave = async () => {
     setIsUpdatingSoftwareInfo(true);
+    const notifications: INotification[] = [];
+
     try {
       // Process icon change
-      // Only delete if explicitly removed (fallback status) and was originally custom
-      if (
-        iconState.status === "fallback" &&
-        originalIsApiCustom &&
-        !iconState.formData?.icon
-      ) {
-        await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
-      } else if (iconState.status === "customUpload" && iconState.formData) {
-        // Only upload if it's a new custom upload
-        await softwareAPI.editSoftwareIcon(
-          softwareId,
-          teamIdForApi,
-          iconState.formData
-        );
+      try {
+        // Only delete if explicitly removed (fallback status) and was originally custom
+        if (
+          iconState.status === "fallback" &&
+          originalIsApiCustom &&
+          !iconState.formData?.icon
+        ) {
+          await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
+        } else if (iconState.status === "customUpload" && iconState.formData) {
+          // Only upload if it's a new custom upload
+          await softwareAPI.editSoftwareIcon(
+            softwareId,
+            teamIdForApi,
+            iconState.formData
+          );
+        }
+      } catch (e) {
+        const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
+        notifications.push({
+          id: "icon-error",
+          alertType: "error",
+          isVisible: true,
+          message: errorMessage,
+          persistOnPageChange: false,
+        });
       }
 
       // Process display name change
       if (canSaveDisplayName) {
-        await (installerType === "package"
-          ? softwareAPI.editSoftwarePackage({
-              data: { displayName },
-              softwareId,
-              teamId: teamIdForApi,
-            })
-          : softwareAPI.editAppStoreApp(softwareId, teamIdForApi, {
-              displayName,
-            }));
+        try {
+          await (installerType === "package"
+            ? softwareAPI.editSoftwarePackage({
+                data: { displayName },
+                softwareId,
+                teamId: teamIdForApi,
+              })
+            : softwareAPI.editAppStoreApp(softwareId, teamIdForApi, {
+                displayName,
+              }));
+        } catch (e) {
+          const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
+          notifications.push({
+            id: "name-error",
+            alertType: "error",
+            isVisible: true,
+            message: errorMessage,
+            persistOnPageChange: false,
+          });
+        }
       }
 
-      renderFlash(
-        "success",
-        <>
-          Successfully edited{" "}
-          <b>{displayName === "" ? previewInfo.name : displayName}</b>.
-        </>
-      );
-
-      refetchSoftwareTitle();
-      setIconUploadedAt(new Date().toISOString());
-      onExitEditIconModal();
+      if (notifications.length > 0) {
+        renderMultiFlash({ notifications });
+      } else {
+        renderFlash(
+          "success",
+          <>
+            Successfully edited{" "}
+            <b>{displayName === "" ? previewInfo.name : displayName}</b>.
+          </>
+        );
+        refetchSoftwareTitle();
+        setIconUploadedAt(new Date().toISOString());
+        onExitEditIconModal();
+      }
     } catch (e) {
+      // This catch block might catch unexpected errors outside the specific try/catches above
       const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
       renderFlash("error", errorMessage);
     } finally {
