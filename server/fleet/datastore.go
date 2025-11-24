@@ -2357,6 +2357,8 @@ type Datastore interface {
 	// It returns a minimal device struct with host and device identifiers.
 	ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error)
 
+	InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *HostAndroidVPPSoftwareInstallPayload) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
 

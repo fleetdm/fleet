@@ -134,6 +134,21 @@ type HostVPPSoftwareInstall struct {
 	BundleIdentifier     string     `db:"bundle_identifier"`
 }
 
+// HostAndroidVPPSoftwareInstallPayload represents the payload needed to
+// insert a VPP software install record for an Android host.
+//
+// NOTE: Currently only supported for setup experience, to revisit when
+// we support Android app installs at-large (as it will then go through
+// the upcoming queue). For this reason, user ID and (Fleet-) policy id
+// are always null and self-service is always false, while platform is
+// always android.
+type HostAndroidVPPSoftwareInstallPayload struct {
+	HostID            uint
+	AdamID            string // for Android, this is the e.g. com.chrome application ID
+	CommandUUID       string // uuid of the corresponding android_policy_request row
+	AssociatedEventID string // for Android (for the current setup-experience-only approach), we overload this field to store the Android policy version ID
+}
+
 const (
 	DefaultVPPInstallVerifyTimeout = 10 * time.Minute
 	DefaultVPPVerifyRequestDelay   = 5 * time.Second

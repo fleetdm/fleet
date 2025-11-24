@@ -1531,3 +1531,28 @@ func isAndroidHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext
 
 	return isEnrolled, nil
 }
+
+func (ds *Datastore) InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *fleet.HostAndroidVPPSoftwareInstallPayload) error {
+	const stmt = `
+		INSERT INTO
+			host_vpp_software_installs (
+				host_id,
+				adam_id,
+				command_uuid,
+				self_service,
+				associated_event_id,
+				platform
+			)
+		VALUES
+			(?, ?, ?, ?, ?, ?)`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		payload.HostID,
+		payload.AdamID,
+		payload.CommandUUID,
+		false,
+		payload.AssociatedEventID,
+		fleet.AndroidPlatform,
+	)
+	return ctxerr.Wrap(ctx, err, "inserting android setup experience software install")
+}

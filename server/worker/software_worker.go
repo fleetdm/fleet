@@ -258,11 +258,23 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 		}
-		_ = hostToPolicyRequest
 
-		// TODO(mna): insert each app install into host_vpp_software_installs with status pending,
-		// and store the policy version in associated_event_id (? or a new column?) to track for
-		// install verification.
+		// if it succeeded, it's guaranteed that only one entry exists in that map (as there's only one host)
+		var policyRequest *android.MDMAndroidPolicyRequest
+		for _, req := range hostToPolicyRequest {
+			policyRequest = req
+		}
+		for _, appID := range appIDs {
+			err := v.Datastore.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstallPayload{
+				HostID:            host.Host.ID,
+				AdamID:            appID,
+				CommandUUID:       policyRequest.RequestUUID,
+				AssociatedEventID: fmt.Sprint(policyRequest.PolicyVersion.V),
+			})
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting android setup experience install request")
+			}
+		}
 	}
 
 	return nil
