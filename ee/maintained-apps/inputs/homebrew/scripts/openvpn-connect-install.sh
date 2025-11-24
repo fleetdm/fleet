@@ -28,4 +28,36 @@ done
 
 if [ $COUNTER -ge $MAX_WAIT ]; then
   echo "Warning: Timed out waiting for OpenVPN Connect app installation"
+  exit 1
 fi
+
+# Fix the symlink structure for osquery detection
+# The vendor's postinstall creates:
+#   /Applications/OpenVPN Connect/OpenVPN Connect.app (actual app)
+#   /Applications/OpenVPN Connect.app (symlink)
+# osquery doesn't follow symlinks, so we need to move the actual app to the expected location
+
+echo "Restructuring app for osquery detection..."
+
+# Remove the symlink
+if [ -L "/Applications/OpenVPN Connect.app" ]; then
+  sudo rm "/Applications/OpenVPN Connect.app"
+  echo "Removed symlink"
+fi
+
+# Move the actual app to the standard location
+if [ -d "/Applications/OpenVPN Connect/OpenVPN Connect.app" ]; then
+  sudo mv "/Applications/OpenVPN Connect/OpenVPN Connect.app" "/Applications/OpenVPN Connect.app"
+  echo "Moved app to /Applications/OpenVPN Connect.app"
+
+  # Clean up empty directory
+  sudo rmdir "/Applications/OpenVPN Connect" 2>/dev/null || echo "Directory not empty, keeping it"
+fi
+
+# Verify the app exists in the correct location
+if [ ! -d "/Applications/OpenVPN Connect.app" ]; then
+  echo "Error: App not found at /Applications/OpenVPN Connect.app"
+  exit 1
+fi
+
+echo "Installation complete"
