@@ -18316,8 +18316,7 @@ func (s *integrationMDMTestSuite) TestAndroidEnterpriseDeletedDetection() {
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		ctx := t.Context()
-		err := s.ds.SaveAppConfig(ctx, &originalAppConfig)
+		err := s.ds.SaveAppConfig(context.Background(), &originalAppConfig)
 		require.NoError(t, err)
 	})
 
