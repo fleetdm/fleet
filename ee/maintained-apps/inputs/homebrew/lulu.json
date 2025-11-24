@@ -1,0 +1,8 @@
+{
+  "name": "LuLu",
+  "slug": "lulu/darwin",
+  "unique_identifier": "com.objective-see.lulu.app",
+  "token": "lulu",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
+}
