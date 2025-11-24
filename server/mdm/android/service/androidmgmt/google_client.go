@@ -71,6 +71,7 @@ func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getenv func(stri
 }
 
 func (g *GoogleClient) SignupURLsCreate(ctx context.Context, _, callbackURL string) (*android.SignupDetails, error) {
+	fmt.Println("Called google signup URL create")
 	signupURL, err := g.mgmt.SignupUrls.Create().ProjectId(g.androidProjectID).CallbackUrl(callbackURL).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("creating signup url: %w", err)
@@ -230,6 +231,14 @@ func (g *GoogleClient) EnterprisesDevicesDelete(ctx context.Context, deviceName 
 		return fmt.Errorf("deleting device %s: %w", deviceName, err)
 	}
 	return nil
+}
+
+func (g *GoogleClient) EnterprisesDevicesListPartial(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error) {
+	ret, err := g.mgmt.Enterprises.Devices.List(enterpriseName).Context(ctx).PageToken(pageToken).PageSize(100).Fields("nextPageToken", "devices/name").Do()
+	if err != nil {
+		return nil, fmt.Errorf("listing devices: %w", err)
+	}
+	return ret, nil
 }
 
 func (g *GoogleClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken,
