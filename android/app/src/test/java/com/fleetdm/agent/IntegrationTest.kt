@@ -5,7 +5,7 @@ package com.fleetdm.agent
  *
  * Tests annotated with @IntegrationTest will only run when:
  * - The system property "runIntegrationTests" is set to "true"
- * - Or when explicitly running the integrationTest task
+ * - Or when explicitly running with -PrunIntegrationTests flag
  *
  * Usage:
  * ```
@@ -18,12 +18,12 @@ package com.fleetdm.agent
  *
  * Local development (excludes integration tests):
  * ```
- * ./gradlew connectedDebugAndroidTest
+ * ./gradlew test
  * ```
  *
  * CI or explicit integration tests:
  * ```
- * ./gradlew connectedDebugAndroidTest -PrunIntegrationTests=true
+ * ./gradlew test -PrunIntegrationTests=true
  * ```
  */
 @Retention(AnnotationRetention.RUNTIME)

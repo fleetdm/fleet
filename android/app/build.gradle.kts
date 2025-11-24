@@ -25,6 +25,26 @@ android {
         }
     }
 
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = false
+            all {
+                it.apply {
+                    // Pass integration test flag and SCEP configuration to unit tests
+                    if (project.hasProperty("runIntegrationTests")) {
+                        systemProperty("runIntegrationTests", "true")
+                    }
+                    if (project.hasProperty("scep.url")) {
+                        systemProperty("scep.url", project.property("scep.url").toString())
+                    }
+                    if (project.hasProperty("scep.challenge")) {
+                        systemProperty("scep.challenge", project.property("scep.challenge").toString())
+                    }
+                }
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -67,8 +87,15 @@ android {
 }
 
 kotlin {
+    jvmToolchain(17)
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+    }
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
     }
 }
 
@@ -130,11 +157,7 @@ dependencies {
     // Testing
     testImplementation(libs.junit)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
-    testImplementation("io.mockk:mockk:1.13.13")
-    testImplementation("io.mockk:mockk-android:1.13.13")
-    testImplementation("org.robolectric:robolectric:4.13")
-    testImplementation("androidx.test:core:1.6.1")
-    testImplementation("androidx.test.ext:junit:1.2.1")
+    testImplementation("org.json:json:20231013") // For JSON parsing in unit tests
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

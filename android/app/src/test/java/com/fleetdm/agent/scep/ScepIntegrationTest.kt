@@ -1,7 +1,5 @@
 package com.fleetdm.agent.scep
 
-import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import com.fleetdm.agent.IntegrationTest
 import com.fleetdm.agent.IntegrationTestRule
 import kotlinx.coroutines.test.runTest
@@ -9,14 +7,13 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.runner.RunWith
 
 /**
  * Integration tests for ScepClientImpl with a real SCEP server.
  *
  * These tests only run when explicitly enabled:
- * - Local: ./gradlew connectedDebugAndroidTest -PrunIntegrationTests=true
- * - CI: Set runIntegrationTests=true in instrumentation arguments
+ * - Local: ./gradlew test -PrunIntegrationTests=true
+ * - CI: ./gradlew test -PrunIntegrationTests=true
  *
  * Requirements:
  * 1. A test SCEP server is available
@@ -24,11 +21,10 @@ import org.junit.runner.RunWith
  * 3. Network connectivity is available
  *
  * Configure SCEP server:
- * ./gradlew connectedAndroidTest -PrunIntegrationTests=true \
- *   -Pandroid.testInstrumentationRunnerArguments.scep.url=https://your-scep-server.com/scep \
- *   -Pandroid.testInstrumentationRunnerArguments.scep.challenge=your-challenge
+ * ./gradlew test -PrunIntegrationTests=true \
+ *   -Pscep.url=https://your-scep-server.com/scep \
+ *   -Pscep.challenge=your-challenge
  */
-@RunWith(AndroidJUnit4::class)
 class ScepIntegrationTest {
 
     @get:Rule
@@ -41,9 +37,8 @@ class ScepIntegrationTest {
     fun setup() {
         scepClient = ScepClientImpl()
 
-        val arguments = InstrumentationRegistry.getArguments()
-        val scepUrl = arguments.getString("scep.url") ?: "https://tim-fleet-2.ngrok.app/mdm/scep/proxy/foo,g-profile"
-        val challenge = arguments.getString("scep.challenge") ?: "secret"
+        val scepUrl = System.getProperty("scep.url") ?: "https://tim-fleet-2.ngrok.app/mdm/scep/proxy/foo,g-profile"
+        val challenge = System.getProperty("scep.challenge") ?: "secret"
 
         // Generate unique subject DN to avoid duplicates on SCEP server
         val uniqueId = System.currentTimeMillis()

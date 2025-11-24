@@ -6,23 +6,20 @@ import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
-import com.fleetdm.agent.scep.ScepClient
 import com.fleetdm.agent.scep.ScepClientImpl
-import com.fleetdm.agent.scep.ScepConfig
-import com.fleetdm.agent.scep.ScepEnrollmentException
-import com.fleetdm.agent.scep.ScepException
-import com.fleetdm.agent.scep.ScepResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 import java.security.PrivateKey
 import java.security.cert.Certificate
 
 /**
  * Service to handle SCEP enrollment and silent certificate installation using DevicePolicyManager.
  * Runs long-running tasks on the background IO thread via Coroutines.
+ *
+ * This is a thin wrapper around CertificateEnrollmentHandler that provides Android-specific
+ * lifecycle management and certificate installation.
  */
 class CertificateService : Service() {
     private val TAG = "CertCompanionService"
@@ -31,8 +28,11 @@ class CertificateService : Service() {
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
 
-    // SCEP client for certificate enrollment
-    private val scepClient: ScepClient = ScepClientImpl()
+    // Enrollment handler with Android-specific certificate installer
+    private val enrollmentHandler = CertificateEnrollmentHandler(
+        scepClient = ScepClientImpl(),
+        certificateInstaller = AndroidCertificateInstaller()
+    )
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val certDataJson = intent?.getStringExtra("CERT_DATA")
@@ -41,26 +41,18 @@ class CertificateService : Service() {
             // Launch the SCEP process in a coroutine on the IO dispatcher
             serviceScope.launch {
                 try {
-                    val scepConfig = parseScepConfig(certDataJson)
-                    Log.d(TAG, "Parsed SCEP URL: ${scepConfig.url}")
+                    val result = enrollmentHandler.handleEnrollment(certDataJson)
 
-                    // Step 1: Execute the SCEP enrollment process
-                    val result = scepEnrollment(scepConfig)
-
-                    if (result != null) {
-                        Log.i(TAG, "SCEP enrollment succeeded. Performing silent installation.")
-
-                        // Step 2: Perform the silent installation using DPM
-                        installCertificateSilently(
-                            scepConfig.alias,
-                            result.privateKey,
-                            result.certificateChain,
-                        )
-                    } else {
-                        Log.e(TAG, "SCEP enrollment failed or returned empty data.")
+                    when (result) {
+                        is CertificateEnrollmentHandler.EnrollmentResult.Success -> {
+                            Log.i(TAG, "Certificate successfully enrolled and installed with alias: ${result.alias}")
+                        }
+                        is CertificateEnrollmentHandler.EnrollmentResult.Failure -> {
+                            Log.e(TAG, "Certificate enrollment failed: ${result.reason}", result.exception)
+                        }
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Certificate installation failed due to error: ${e.message}", e)
+                    Log.e(TAG, "Unexpected error during certificate enrollment: ${e.message}", e)
                 } finally {
                     // Stop the service when work is done, regardless of success/failure
                     stopSelf(startId)
@@ -74,78 +66,34 @@ class CertificateService : Service() {
     }
 
     /**
-     * Parses the JSON payload from the MDM into a structured configuration object.
+     * Android-specific certificate installer using DevicePolicyManager.
      */
-    private fun parseScepConfig(jsonString: String): ScepConfig {
-        return try {
-            val json = JSONObject(jsonString)
-            ScepConfig(
-                url = json.getString("scep_url"),
-                challenge = json.getString("challenge"),
-                alias = json.getString("alias"),
-                subject = json.getString("subject"),
-                keyLength = json.optInt("key_length", 2048),
-                signatureAlgorithm = json.optString("signature_algorithm", "SHA256withRSA"),
+    inner class AndroidCertificateInstaller : CertificateEnrollmentHandler.CertificateInstaller {
+        override fun installCertificate(
+            alias: String,
+            privateKey: PrivateKey,
+            certificateChain: Array<Certificate>
+        ): Boolean {
+            val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+
+            // The admin component is null because the caller is a DELEGATED application,
+            // not the Device Policy Controller itself. The DPM recognizes the delegation
+            // via the calling package's UID and the granted CERT_INSTALL scope.
+            val success = dpm.installKeyPair(
+                null,
+                privateKey,
+                certificateChain,
+                alias,
+                true, // requestAccess: allows user confirmation if needed
             )
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse SCEP configuration JSON: ${e.message}")
-            throw IllegalArgumentException("Invalid SCEP configuration", e)
-        }
-    }
 
-    /**
-     * Performs SCEP enrollment using the ScepClient implementation.
-     *
-     * This function handles:
-     * 1. KeyPair Generation (using RSA)
-     * 2. Certificate Signing Request (CSR) creation
-     * 3. Network communication with the SCEP server to get the PKCS#7 response
-     * 4. Parsing the response into a PrivateKey object and an Array of Certificate objects
-     *
-     * @return The resulting ScepResult object containing the key and chain, or null if enrollment fails
-     */
-    private suspend fun scepEnrollment(config: ScepConfig): ScepResult? {
-        return try {
-            Log.i(TAG, "Starting SCEP enrollment with ${config.url}")
-            scepClient.enroll(config)
-        } catch (e: ScepEnrollmentException) {
-            Log.e(TAG, "SCEP enrollment failed: ${e.message}", e)
-            null
-        } catch (e: ScepException) {
-            Log.e(TAG, "SCEP error: ${e.message}", e)
-            null
-        } catch (e: Exception) {
-            Log.e(TAG, "Unexpected error during SCEP enrollment: ${e.message}", e)
-            null
-        }
-    }
+            if (success) {
+                Log.i(TAG, "Certificate successfully installed with alias: $alias")
+            } else {
+                Log.e(TAG, "Certificate installation failed. Check MDM policy and delegation status.")
+            }
 
-    /**
-     * Performs a silent installation of the KeyPair using the delegated CERT_INSTALL scope.
-     * This method requires NO user interaction on modern managed devices (API 18+).
-     */
-    private fun installCertificateSilently(
-        alias: String,
-        privateKey: PrivateKey,
-        certificateChain: Array<Certificate>,
-    ) {
-        val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-
-        // The admin component is null because the caller is a DELEGATED application,
-        // not the Device Policy Controller itself. The DPM recognizes the delegation
-        // via the calling package's UID and the granted CERT_INSTALL scope.
-        val success = dpm.installKeyPair(
-            null,
-            privateKey,
-            certificateChain,
-            alias,
-            true, // requestAccess: allows user confirmation if needed
-        )
-
-        if (success) {
-            Log.i(TAG, "Certificate successfully installed silently with alias: $alias")
-        } else {
-            Log.e(TAG, "Silent certificate installation failed. Check MDM policy and delegation status.")
+            return success
         }
     }
 

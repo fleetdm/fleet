@@ -9,8 +9,7 @@ import org.junit.runners.model.Statement
  * JUnit rule that skips integration tests unless explicitly enabled.
  *
  * Integration tests are only run when:
- * - The instrumentation argument "runIntegrationTests" is set to "true"
- * - Or the system property "runIntegrationTests" is set to "true"
+ * - The system property "runIntegrationTests" is set to "true"
  *
  * Usage in test class:
  * ```
@@ -33,9 +32,7 @@ class IntegrationTestRule : TestRule {
                         description.testClass?.getAnnotation(IntegrationTest::class.java) != null
 
                 if (hasIntegrationAnnotation) {
-                    val runIntegrationTests = System.getProperty("runIntegrationTests", "false").toBoolean() ||
-                            androidx.test.platform.app.InstrumentationRegistry.getArguments()
-                                .getString("runIntegrationTests", "false").toBoolean()
+                    val runIntegrationTests = System.getProperty("runIntegrationTests", "false").toBoolean()
 
                     Assume.assumeTrue(
                         "Integration tests are disabled. Run with -PrunIntegrationTests=true to enable",
