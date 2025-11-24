@@ -65,6 +65,8 @@ class MainActivity : ComponentActivity() {
         val appRestrictions = restrictionsManager.applicationRestrictions
         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
 
+        ApiClient.initialize(this)
+
         setContent {
             val enrollSecret by remember { mutableStateOf(appRestrictions.getString("enrollSecret")) }
             val delegatedScopes by remember { mutableStateOf(dpm.getDelegatedScopes(null, packageName)) }
@@ -91,28 +93,28 @@ class MainActivity : ComponentActivity() {
             val fleetBaseUrl by remember {
                 mutableStateOf(appRestrictions.getString("fleetBaseUrl"))
             }
-            var enrollUrl by remember {
-                val buildEnroll = fleetBaseUrl?.let { url ->
-                    Uri.parse(url)
-                        .buildUpon()
-                        .appendPath("api")
-                        .appendPath("fleet")
-                        .appendPath("orbit")
-                        .appendPath("enroll")
-                        .build()
-                        .toString()
-                }
-                mutableStateOf(buildEnroll)
-            }
+//            var enrollUrl by remember {
+//                val buildEnroll = fleetBaseUrl?.let { url ->
+//                    Uri.parse(url)
+//                        .buildUpon()
+//                        .appendPath("api")
+//                        .appendPath("fleet")
+//                        .appendPath("orbit")
+//                        .appendPath("enroll")
+//                        .build()
+//                        .toString()
+//                }
+//                mutableStateOf(buildEnroll)
+//            }
             var clicks by remember { mutableStateOf(0) }
             var respBody by remember { mutableStateOf("not sent yet")}
             var enrollBody by remember {
-                val body = if (enrollUrl == null) {
-                    "no enroll url"
-                } else {
-                    "not enroll"
-                }
-                mutableStateOf(body)
+//                val body = if (enrollUrl == null) {
+//                    "no enroll url"
+//                } else {
+//                    "not enroll"
+//                }
+                mutableStateOf("not enrolled")
             }
             var installedCertificates: List<CertificateInfo> by remember { mutableStateOf(listOf()) }
             val scope = rememberCoroutineScope()
@@ -165,11 +167,18 @@ class MainActivity : ComponentActivity() {
                                         enrollBody = "no fleet URL"
                                     }
                                     try {
-                                        val resp = makePostRequest(
-                                            enrollUrl.toString(),
-                                            "",
+                                        Log.d("main_activity", "sending request!")
+                                        val resp = ApiClient.enroll(
+                                            baseUrl = fleetBaseUrl ?: "",
+                                            enrollSecret = enrollSecret ?: "",
+                                            hardwareUUID = enrollmentSpecificID ?: "",
+                                            computerName = Build.MODEL,
                                         )
-                                        enrollBody = resp
+//                                        val resp = makePostRequest(
+//                                            enrollUrl.toString(),
+//                                            "",
+//                                        )
+                                        enrollBody = resp.toString()
                                     } catch (e: Exception) {
                                         enrollBody = e.toString()
                                     }

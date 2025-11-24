@@ -1,6 +1,7 @@
 package com.fleetdm.agent
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -105,12 +106,18 @@ object ApiClient {
     suspend inline fun <reified T> makeRequest(
         endpoint: String,
         method: String = "GET",
-        body: Any? = null
+        body: Any? = null,
+        authenticated: Boolean = true,
     ): Result<T> = withContext(Dispatchers.IO) {
+        val tag = "api_client"
+
         try {
-            val apiKey = getApiKey() ?: return@withContext Result.failure(
-                Exception("API key not configured")
-            )
+            var apiKey: String? = null
+            if (authenticated) {
+                apiKey = getApiKey() ?: return@withContext Result.failure(
+                    Exception("API key not configured")
+                )
+            }
 
             val baseUrl = getBaseUrl() ?: return@withContext Result.failure(
                 Exception("Base URL not configured")
@@ -119,9 +126,13 @@ object ApiClient {
             val url = URL("$baseUrl$endpoint")
             val connection = url.openConnection() as HttpURLConnection
 
+            Log.d(tag, "body: ${json.encodeToString(body)}")
+
             connection.apply {
                 requestMethod = method
-                setRequestProperty("Authorization", "Bearer $apiKey")
+                if (authenticated) {
+                    setRequestProperty("Authorization", "Bearer $apiKey")
+                }
                 setRequestProperty("Content-Type", "application/json")
                 connectTimeout = 15000
                 readTimeout = 15000
@@ -155,8 +166,22 @@ object ApiClient {
         }
     }
 
-    suspend fun enroll(baseUrl: String, enrollSecret: String, hardwareUUID: String, computerName: String) {
+    suspend fun enroll(baseUrl: String, enrollSecret: String, hardwareUUID: String, computerName: String): Result<EnrollResponse> {
         setBaseUrl(baseUrl)
+        val resp = makeRequest<EnrollResponse>(
+            endpoint = "/api/fleet/orbit/enroll",
+            body = EnrollRequest(
+                enrollSecret = enrollSecret,
+                hardwareUUID = hardwareUUID,
+                computerName = computerName,
+            ),
+            authenticated = false,
+        )
+        resp.onSuccess { value ->
+            setApiKey(value.orbitNodeKey)
+        }
+
+        return resp
 //
 //        makeRequest(
 //            endpoint = "/api/fleet/orbit/enroll",
@@ -176,4 +201,10 @@ data class EnrollRequest(
     val platform: String = "android",
     @SerialName("computer_name")
     val computerName: String,
+)
+
+@Serializable
+data class EnrollResponse(
+    @SerialName("orbit_node_key")
+    var orbitNodeKey: String,
 )
