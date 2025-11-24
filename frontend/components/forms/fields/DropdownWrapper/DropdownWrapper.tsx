@@ -146,7 +146,7 @@ const getOptionFontWeight = (
 };
 
 /** generates the default custom styles for the dropdown component.
- * NOTE: we export this from this from DropdownWrapper components so that other more
+ * NOTE: we export this from DropdownWrapper components so that other more
  * customisable dropdown components can use this for consistency in styling */
 export const generateCustomDropdownStyles = (
   variant?: DropdownWrapperVariant,
