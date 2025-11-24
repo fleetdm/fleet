@@ -1,4 +1,4 @@
-name: Build fleetdm/wix and check vulnerabilities
+name: Check fleetdm/wix for vulnerabilities
 
 on:
   workflow_dispatch:
@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 jobs:
-  build-and-check:
+  check-published:
     runs-on: ubuntu-22.04
     environment: Docker Hub
     permissions:
@@ -37,14 +37,6 @@ jobs:
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
           go-version-file: "go.mod"
-
-      - name: Build fleetdm/wix
-        run: make wix-docker
-
-      - name: Clean up Docker build cache
-        run: |
-          docker builder prune -af
-          df -h
 
       - name: List VEX files
         id: generate_vex_files
