@@ -813,6 +813,11 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_apps;")
 		return err
 	})
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM android_enterprises`)
+		return err
+	})
 }
 
 func (s *integrationMDMTestSuite) mockDEPResponse(orgName string, handler http.Handler) {
@@ -18316,12 +18321,6 @@ func (s *integrationMDMTestSuite) TestAndroidEnterpriseDeletedDetection() {
 	appConfig.MDM.AndroidEnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(ctx, appConfig)
 	require.NoError(t, err)
-
-	// Delete android enterprise
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `DELETE FROM android_enterprises`)
-		return err
-	})
 
 	t.Cleanup(func() {
 		err := s.ds.SaveAppConfig(context.Background(), &originalAppConfig)
