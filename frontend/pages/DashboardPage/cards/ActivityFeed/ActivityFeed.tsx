@@ -23,6 +23,7 @@ import ShowQueryModal from "components/modals/ShowQueryModal";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
+import EmptyTable from "components/EmptyTable";
 
 import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
@@ -294,14 +295,10 @@ const ActivityFeed = ({
 
   const renderNoActivities = () => {
     return (
-      <div className={`${baseClass}__no-activities`}>
-        <p>
-          <b>No activities match the current criteria</b>
-        </p>
-        <p>
-          Try editing a query, updating your policies, or running a live query.
-        </p>
-      </div>
+      <EmptyTable
+        header="No activivities match the curent criteria"
+        info="Try editing a query, updating your policies, or running a live query."
+      />
     );
   };
 
