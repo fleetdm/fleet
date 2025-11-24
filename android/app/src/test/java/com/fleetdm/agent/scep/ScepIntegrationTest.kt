@@ -3,7 +3,10 @@ package com.fleetdm.agent.scep
 import com.fleetdm.agent.IntegrationTest
 import com.fleetdm.agent.IntegrationTestRule
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -46,8 +49,8 @@ class ScepIntegrationTest {
         testConfig = ScepConfig(
             url = scepUrl,
             challenge = challenge,
-            alias = "integration-test-cert-${uniqueId}",
-            subject = "CN=IntegrationTestDevice-${uniqueId},O=FleetDM,C=US"
+            alias = "integration-test-cert-$uniqueId",
+            subject = "CN=IntegrationTestDevice-$uniqueId,O=FleetDM,C=US",
         )
     }
 
@@ -96,8 +99,8 @@ class ScepIntegrationTest {
             val uniqueId = System.currentTimeMillis()
             val config = testConfig.copy(
                 keyLength = keySize,
-                alias = "test-cert-${keySize}-${uniqueId}",
-                subject = "CN=IntegrationTestDevice-${keySize}-${uniqueId},O=FleetDM,C=US"
+                alias = "test-cert-$keySize-$uniqueId",
+                subject = "CN=IntegrationTestDevice-$keySize-$uniqueId,O=FleetDM,C=US",
             )
 
             val result = scepClient.enroll(config)
@@ -126,7 +129,7 @@ class ScepIntegrationTest {
     @Test
     fun `enrollment with unreachable server fails quickly`() = runTest {
         val unreachableConfig = testConfig.copy(
-            url = "https://unreachable-scep-server.invalid/scep"
+            url = "https://unreachable-scep-server.invalid/scep",
         )
 
         val startTime = System.currentTimeMillis()

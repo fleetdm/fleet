@@ -25,23 +25,21 @@ import org.junit.runners.model.Statement
  */
 class IntegrationTestRule : TestRule {
 
-    override fun apply(base: Statement, description: Description): Statement {
-        return object : Statement() {
-            override fun evaluate() {
-                val hasIntegrationAnnotation = description.getAnnotation(IntegrationTest::class.java) != null ||
-                        description.testClass?.getAnnotation(IntegrationTest::class.java) != null
+    override fun apply(base: Statement, description: Description): Statement = object : Statement() {
+        override fun evaluate() {
+            val hasIntegrationAnnotation = description.getAnnotation(IntegrationTest::class.java) != null ||
+                description.testClass?.getAnnotation(IntegrationTest::class.java) != null
 
-                if (hasIntegrationAnnotation) {
-                    val runIntegrationTests = System.getProperty("runIntegrationTests", "false").toBoolean()
+            if (hasIntegrationAnnotation) {
+                val runIntegrationTests = System.getProperty("runIntegrationTests", "false").toBoolean()
 
-                    Assume.assumeTrue(
-                        "Integration tests are disabled. Run with -PrunIntegrationTests=true to enable",
-                        runIntegrationTests
-                    )
-                }
-
-                base.evaluate()
+                Assume.assumeTrue(
+                    "Integration tests are disabled. Run with -PrunIntegrationTests=true to enable",
+                    runIntegrationTests,
+                )
             }
+
+            base.evaluate()
         }
     }
 }

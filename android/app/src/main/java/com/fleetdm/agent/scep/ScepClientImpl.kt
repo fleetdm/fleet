@@ -63,7 +63,7 @@ class ScepClientImpl : ScepClient {
             val selfSignedCert = createSelfSignedCertificate(
                 entity,
                 keyPair,
-                config.signatureAlgorithm
+                config.signatureAlgorithm,
             )
 
             // Step 4: Create SCEP client
@@ -97,17 +97,17 @@ class ScepClientImpl : ScepClient {
 
                     ScepResult(
                         privateKey = keyPair.private,
-                        certificateChain = certificates.toTypedArray()
+                        certificateChain = certificates.toTypedArray(),
                     )
                 }
                 response.isPending -> {
                     throw ScepEnrollmentException(
-                        "Enrollment is pending - requires CA administrator approval"
+                        "Enrollment is pending - requires CA administrator approval",
                     )
                 }
                 else -> {
                     throw ScepEnrollmentException(
-                        "Enrollment failed - certificate not issued by SCEP server"
+                        "Enrollment failed - certificate not issued by SCEP server",
                     )
                 }
             }
@@ -131,7 +131,7 @@ class ScepClientImpl : ScepClient {
     private fun createSelfSignedCertificate(
         entity: X500Name,
         keyPair: java.security.KeyPair,
-        signatureAlgorithm: String
+        signatureAlgorithm: String,
     ) = try {
         val now = System.currentTimeMillis()
         val validityEnd = now + (1000L * 60 * 60 * 24 * SELF_SIGNED_CERT_VALIDITY_DAYS)
@@ -142,7 +142,7 @@ class ScepClientImpl : ScepClient {
             Date(now),
             Date(validityEnd),
             entity,
-            keyPair.public
+            keyPair.public,
         )
 
         val contentSigner = JcaContentSignerBuilder(signatureAlgorithm).build(keyPair.private)
@@ -157,7 +157,7 @@ class ScepClientImpl : ScepClient {
         entity: X500Name,
         keyPair: java.security.KeyPair,
         challenge: String,
-        signatureAlgorithm: String
+        signatureAlgorithm: String,
     ) = try {
         val csrBuilder = JcaPKCS10CertificationRequestBuilder(entity, keyPair.public)
 

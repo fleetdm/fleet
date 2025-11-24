@@ -15,7 +15,7 @@ import java.security.cert.Certificate
  */
 class CertificateEnrollmentHandler(
     private val scepClient: ScepClient,
-    private val certificateInstaller: CertificateInstaller
+    private val certificateInstaller: CertificateInstaller,
 ) {
 
     /**
@@ -45,14 +45,14 @@ class CertificateEnrollmentHandler(
             // Step 2: Perform SCEP enrollment
             val result = performEnrollment(config) ?: return EnrollmentResult.Failure(
                 reason = "SCEP enrollment failed or returned null",
-                exception = null
+                exception = null,
             )
 
             // Step 3: Install certificate
             val installed = certificateInstaller.installCertificate(
                 config.alias,
                 result.privateKey,
-                result.certificateChain
+                result.certificateChain,
             )
 
             if (installed) {
@@ -70,34 +70,30 @@ class CertificateEnrollmentHandler(
     /**
      * Parses JSON configuration into ScepConfig object.
      */
-    fun parseScepConfig(jsonString: String): ScepConfig {
-        return try {
-            val json = JSONObject(jsonString)
-            ScepConfig(
-                url = json.getString("scep_url"),
-                challenge = json.getString("challenge"),
-                alias = json.getString("alias"),
-                subject = json.getString("subject"),
-                keyLength = json.optInt("key_length", 2048),
-                signatureAlgorithm = json.optString("signature_algorithm", "SHA256withRSA"),
-            )
-        } catch (e: Exception) {
-            throw IllegalArgumentException("Invalid SCEP configuration: ${e.message}", e)
-        }
+    fun parseScepConfig(jsonString: String): ScepConfig = try {
+        val json = JSONObject(jsonString)
+        ScepConfig(
+            url = json.getString("scep_url"),
+            challenge = json.getString("challenge"),
+            alias = json.getString("alias"),
+            subject = json.getString("subject"),
+            keyLength = json.optInt("key_length", 2048),
+            signatureAlgorithm = json.optString("signature_algorithm", "SHA256withRSA"),
+        )
+    } catch (e: Exception) {
+        throw IllegalArgumentException("Invalid SCEP configuration: ${e.message}", e)
     }
 
     /**
      * Performs SCEP enrollment, returning result or null on failure.
      */
-    suspend fun performEnrollment(config: ScepConfig): ScepResult? {
-        return try {
-            scepClient.enroll(config)
-        } catch (e: ScepEnrollmentException) {
-            null
-        } catch (e: ScepException) {
-            null
-        } catch (e: Exception) {
-            null
-        }
+    suspend fun performEnrollment(config: ScepConfig): ScepResult? = try {
+        scepClient.enroll(config)
+    } catch (e: ScepEnrollmentException) {
+        null
+    } catch (e: ScepException) {
+        null
+    } catch (e: Exception) {
+        null
     }
 }

@@ -34,7 +34,8 @@ android {
                     if (project.hasProperty("runIntegrationTests")) {
                         // Check for required SCEP configuration
                         if (!project.hasProperty("scep.url") || !project.hasProperty("scep.challenge")) {
-                            throw GradleException("""
+                            throw GradleException(
+                                """
                                 |
                                 |ERROR: Integration tests require SCEP server configuration.
                                 |
@@ -47,7 +48,8 @@ android {
                                 |    -Pscep.url=https://your-scep-server.com/scep \
                                 |    -Pscep.challenge=your-challenge-password
                                 |
-                            """.trimMargin())
+                                """.trimMargin(),
+                            )
                         }
 
                         systemProperty("runIntegrationTests", "true")
@@ -77,25 +79,26 @@ android {
     }
     packaging {
         resources {
-            excludes += setOf(
-                "META-INF/DEPENDENCIES",
-                "META-INF/DEPENDENCIES.txt",
-                "META-INF/LICENSE",
-                "META-INF/LICENSE.txt",
-                "META-INF/LICENSE.md",
-                "META-INF/LICENSE-notice.md",
-                "META-INF/NOTICE",
-                "META-INF/NOTICE.txt",
-                "META-INF/NOTICE.md",
-                "META-INF/notice.txt",
-                "META-INF/license.txt",
-                "META-INF/license.md",
-                "META-INF/dependencies.txt",
-                "META-INF/LGPL2.1",
-                "META-INF/AL2.0",
-                "META-INF/LGPL3.0",
-                "META-INF/*.kotlin_module"
-            )
+            excludes +=
+                setOf(
+                    "META-INF/DEPENDENCIES",
+                    "META-INF/DEPENDENCIES.txt",
+                    "META-INF/LICENSE",
+                    "META-INF/LICENSE.txt",
+                    "META-INF/LICENSE.md",
+                    "META-INF/LICENSE-notice.md",
+                    "META-INF/NOTICE",
+                    "META-INF/NOTICE.txt",
+                    "META-INF/NOTICE.md",
+                    "META-INF/notice.txt",
+                    "META-INF/license.txt",
+                    "META-INF/license.md",
+                    "META-INF/dependencies.txt",
+                    "META-INF/LGPL2.1",
+                    "META-INF/AL2.0",
+                    "META-INF/LGPL3.0",
+                    "META-INF/*.kotlin_module",
+                )
         }
     }
 }

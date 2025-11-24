@@ -1,16 +1,16 @@
 package com.fleetdm.agent.scep
 
-import java.security.KeyPair
-import java.security.KeyPairGenerator
-import java.security.cert.Certificate
-import java.security.cert.X509Certificate
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
 import java.math.BigInteger
+import java.security.KeyPair
+import java.security.KeyPairGenerator
 import java.security.Security
+import java.security.cert.Certificate
+import java.security.cert.X509Certificate
 import java.util.Date
 
 /**
@@ -59,7 +59,7 @@ class MockScepClient : ScepClient {
 
         return ScepResult(
             privateKey = keyPair.private,
-            certificateChain = arrayOf(cert)
+            certificateChain = arrayOf(cert),
         )
     }
 
@@ -75,7 +75,7 @@ class MockScepClient : ScepClient {
             Date(now),
             Date(validityEnd),
             entity,
-            keyPair.public
+            keyPair.public,
         )
 
         val contentSigner = JcaContentSignerBuilder("SHA256withRSA").build(keyPair.private)

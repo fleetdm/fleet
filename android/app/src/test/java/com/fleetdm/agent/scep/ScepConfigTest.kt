@@ -1,6 +1,8 @@
 package com.fleetdm.agent.scep
 
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.fail
 import org.junit.Test
 
 /**
@@ -15,7 +17,7 @@ class ScepConfigTest {
             url = "https://scep.example.com/cgi-bin/pkiclient.exe",
             challenge = "secret123",
             alias = "device-cert",
-            subject = "CN=Device123,O=FleetDM"
+            subject = "CN=Device123,O=FleetDM",
         )
 
         assertEquals("https://scep.example.com/cgi-bin/pkiclient.exe", config.url)
@@ -34,7 +36,7 @@ class ScepConfigTest {
             alias = "cert",
             subject = "CN=Test",
             keyLength = 4096,
-            signatureAlgorithm = "SHA512withRSA"
+            signatureAlgorithm = "SHA512withRSA",
         )
 
         assertEquals(4096, config.keyLength)
@@ -47,7 +49,7 @@ class ScepConfigTest {
             url = "",
             challenge = "secret",
             alias = "cert",
-            subject = "CN=Test"
+            subject = "CN=Test",
         )
     }
 
@@ -57,7 +59,7 @@ class ScepConfigTest {
             url = "https://scep.example.com",
             challenge = "",
             alias = "cert",
-            subject = "CN=Test"
+            subject = "CN=Test",
         )
     }
 
@@ -67,7 +69,7 @@ class ScepConfigTest {
             url = "https://scep.example.com",
             challenge = "secret",
             alias = "",
-            subject = "CN=Test"
+            subject = "CN=Test",
         )
     }
 
@@ -77,7 +79,7 @@ class ScepConfigTest {
             url = "https://scep.example.com",
             challenge = "secret",
             alias = "cert",
-            subject = ""
+            subject = "",
         )
     }
 
@@ -88,7 +90,7 @@ class ScepConfigTest {
             challenge = "secret",
             alias = "cert",
             subject = "CN=Test",
-            keyLength = 512
+            keyLength = 512,
         )
     }
 
@@ -99,7 +101,7 @@ class ScepConfigTest {
             challenge = "secret",
             alias = "cert",
             subject = "CN=Test",
-            keyLength = 1024
+            keyLength = 1024,
         )
 
         assertEquals(1024, config.keyLength)
@@ -111,14 +113,14 @@ class ScepConfigTest {
             url = "https://scep.example.com",
             challenge = "secret",
             alias = "cert",
-            subject = "CN=Test"
+            subject = "CN=Test",
         )
 
         val config2 = ScepConfig(
             url = "https://scep.example.com",
             challenge = "secret",
             alias = "cert",
-            subject = "CN=Test"
+            subject = "CN=Test",
         )
 
         assertEquals(config1, config2)

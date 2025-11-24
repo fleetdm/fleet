@@ -16,7 +16,7 @@ data class ScepConfig(
     val alias: String,
     val subject: String,
     val keyLength: Int = 2048,
-    val signatureAlgorithm: String = "SHA256withRSA"
+    val signatureAlgorithm: String = "SHA256withRSA",
 ) {
     init {
         require(url.isNotBlank()) { "SCEP URL cannot be blank" }

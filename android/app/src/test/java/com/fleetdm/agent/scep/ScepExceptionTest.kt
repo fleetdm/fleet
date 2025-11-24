@@ -1,6 +1,9 @@
 package com.fleetdm.agent.scep
 
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -68,7 +71,7 @@ class ScepExceptionTest {
             ScepNetworkException("network"),
             ScepCertificateException("certificate"),
             ScepKeyGenerationException("key"),
-            ScepCsrException("csr")
+            ScepCsrException("csr"),
         )
 
         exceptions.forEach { exception ->

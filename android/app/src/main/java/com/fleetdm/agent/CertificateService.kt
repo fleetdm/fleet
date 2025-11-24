@@ -31,7 +31,7 @@ class CertificateService : Service() {
     // Enrollment handler with Android-specific certificate installer
     private val enrollmentHandler = CertificateEnrollmentHandler(
         scepClient = ScepClientImpl(),
-        certificateInstaller = AndroidCertificateInstaller()
+        certificateInstaller = AndroidCertificateInstaller(),
     )
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -72,7 +72,7 @@ class CertificateService : Service() {
         override fun installCertificate(
             alias: String,
             privateKey: PrivateKey,
-            certificateChain: Array<Certificate>
+            certificateChain: Array<Certificate>,
         ): Boolean {
             val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
 

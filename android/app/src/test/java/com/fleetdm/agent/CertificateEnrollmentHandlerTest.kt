@@ -4,7 +4,10 @@ import com.fleetdm.agent.scep.MockScepClient
 import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
 import org.junit.After
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.security.PrivateKey
@@ -27,7 +30,7 @@ class CertificateEnrollmentHandlerTest {
         mockInstaller = MockCertificateInstaller()
         handler = CertificateEnrollmentHandler(
             scepClient = mockScepClient,
-            certificateInstaller = mockInstaller
+            certificateInstaller = mockInstaller,
         )
     }
 
@@ -50,7 +53,7 @@ class CertificateEnrollmentHandlerTest {
         override fun installCertificate(
             alias: String,
             privateKey: PrivateKey,
-            certificateChain: Array<Certificate>
+            certificateChain: Array<Certificate>,
         ): Boolean {
             wasInstallCalled = true
             capturedAlias = alias
@@ -194,12 +197,10 @@ class CertificateEnrollmentHandlerTest {
 
     // Helper functions
 
-    private fun createValidCertDataJson(): JSONObject {
-        return JSONObject().apply {
-            put("scep_url", "https://scep.example.com/cgi-bin/pkiclient.exe")
-            put("challenge", "secret123")
-            put("alias", "device-cert")
-            put("subject", "CN=Device123,O=FleetDM")
-        }
+    private fun createValidCertDataJson(): JSONObject = JSONObject().apply {
+        put("scep_url", "https://scep.example.com/cgi-bin/pkiclient.exe")
+        put("challenge", "secret123")
+        put("alias", "device-cert")
+        put("subject", "CN=Device123,O=FleetDM")
     }
 }

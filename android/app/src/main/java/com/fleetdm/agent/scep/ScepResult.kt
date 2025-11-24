@@ -11,7 +11,7 @@ import java.security.cert.Certificate
  */
 data class ScepResult(
     val privateKey: PrivateKey,
-    val certificateChain: Array<Certificate>
+    val certificateChain: Array<Certificate>,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

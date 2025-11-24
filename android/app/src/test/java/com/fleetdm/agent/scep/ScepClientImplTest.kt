@@ -1,7 +1,9 @@
 package com.fleetdm.agent.scep
 
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.*
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 
@@ -26,7 +28,7 @@ class ScepClientImplTest {
             url = "not-a-valid-url",
             challenge = "secret",
             alias = "cert",
-            subject = "CN=Test"
+            subject = "CN=Test",
         )
 
         try {
@@ -43,7 +45,7 @@ class ScepClientImplTest {
             url = "https://scep.example.com/cgi-bin/pkiclient.exe",
             challenge = "secret",
             alias = "cert",
-            subject = "invalid-subject-format"
+            subject = "invalid-subject-format",
         )
 
         try {
@@ -60,7 +62,7 @@ class ScepClientImplTest {
             url = "https://invalid-scep-server-that-does-not-exist.example.com/scep",
             challenge = "secret",
             alias = "cert",
-            subject = "CN=Test,O=Example"
+            subject = "CN=Test,O=Example",
         )
 
         try {
