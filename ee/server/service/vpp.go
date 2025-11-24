@@ -738,7 +738,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 
 	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(validatedLabels)
 
-	displayNameVal := ptr.IfNotNil(displayName)
+	displayNameVal := ptr.ValOrZero(displayName)
 
 	act := fleet.ActivityEditedAppStoreApp{
 		TeamName:            &teamName,

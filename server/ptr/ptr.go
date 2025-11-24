@@ -77,9 +77,9 @@ func T[T any](x T) *T {
 	return &x
 }
 
-// IfNotNil returns the value of x if x is not nil, and the zero value
+// ValOrZero returns the value of x if x is not nil, and the zero value
 // for T otherwise.
-func IfNotNil[T any](x *T) T {
+func ValOrZero[T any](x *T) T {
 	var ret T
 
 	if x != nil {

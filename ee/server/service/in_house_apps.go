@@ -39,7 +39,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	if payload.SelfService != nil {
 		selfService = *payload.SelfService
 	}
-	displayName := ptr.IfNotNil(payload.DisplayName)
+	displayName := ptr.ValOrZero(payload.DisplayName)
 	activity := fleet.ActivityTypeEditedSoftware{
 		SoftwareTitle:       existingInstaller.SoftwareTitle,
 		TeamName:            teamName,
