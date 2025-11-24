@@ -3487,4 +3487,19 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	s.runWorkerUntilDone()
 	// should have hit the android API endpoint
 	require.True(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+
+	// TODO(mna): once we have full status tracking of Android app installs, we can do a better
+	// higher-level check with API calls, but for now confirm that the API requests were saved
+	// in the DB.
+	var count int
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &count,
+			`SELECT COUNT(*) FROM android_policy_requests WHERE policy_id = ?`,
+			hosts.Hosts[0].UUID)
+	})
+	// 1. The default enrollment policy
+	// 2. The Fleet-enforced per-device policy
+	// 3. The patch applications to make apps available for self-service
+	// 4. The patch applications to force install at setup experience
+	require.Equal(t, 4, count)
 }
