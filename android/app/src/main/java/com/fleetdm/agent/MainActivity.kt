@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -66,6 +67,8 @@ class MainActivity : ComponentActivity() {
             }
             val androidID by remember { mutableStateOf(Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)) }
             val enrollmentSpecificID by remember { mutableStateOf(appRestrictions.getString("enrollmentSpecificID")) }
+            val certRequestList by remember { mutableStateOf(appRestrictions.getParcelableArray("certificates", Bundle::class.java)?.toList()) }
+            val certIds by remember { mutableStateOf(certRequestList?.map { bundle -> bundle.getInt("certificate_id") }) }
             val permissionsList by remember {
                 val grantedPermissions = mutableListOf<String>()
                 val packageInfo: PackageInfo = packageManager.getPackageInfo(packageName, PackageManager.GET_PERMISSIONS)
@@ -111,6 +114,7 @@ class MainActivity : ComponentActivity() {
                             KeyValue("fleetBaseUrl (MC)", fleetBaseUrl)
                             KeyValue("orbit_node_key (datastore)", apiKey)
                             KeyValue("base_url (datastore)", baseUrl)
+                            KeyValue("certificate_ids", certIds.toString())
                             PermissionList(
                                 permissionsList = permissionsList
                             )

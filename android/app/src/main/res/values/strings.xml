@@ -5,8 +5,12 @@
     <string name="enroll_secret_description">Secret used to enroll in a fleet instance</string>
     <string name="fleet_base_url_title">Fleet Base URL</string>
     <string name="fleet_base_url_description">The base URL of the fleet server</string>
-    <string name="certificate_ids_title">Certificate IDs</string>
-    <string name="certificate_ids_description">A comma-separated array of certificate IDs to be requested</string>
+    <string name="certificates_title">Certificates</string>
+    <string name="certificates_description">Array of bundles containing certificate information</string>
+    <string name="certificate_title">Certificate</string>
+    <string name="certificate_description">Certificate information</string>
+    <string name="certificate_id_title">Certificate ID</string>
+    <string name="certificate_id_description">Certificate ID to be requested</string>
     <string name="enrollment_specific_id_title">Enrollment-Specific ID</string>
     <string name="enrollment_specific_id_description">The enrollment-specific ID for this device</string>
 </resources>

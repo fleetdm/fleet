@@ -14,24 +14,26 @@
         android:description="@string/fleet_base_url_description" />
 
     <restriction
-        android:key="certificateIDs"
-        android:title="@string/certificate_ids_title"
-        android:restrictionType="string"
-        android:description="@string/certificate_ids_description" />
-
-    <restriction
         android:key="enrollmentSpecificID"
         android:title="@string/enrollment_specific_id_title"
         android:restrictionType="string"
         android:description="@string/enrollment_specific_id_description" />
 
     <restriction
-        android:key="test_array"
-        android:title="test"
+        android:key="certificates"
+        android:title="@string/certificates_title"
+        android:description="@string/certificates_description"
         android:restrictionType="bundle_array" >
         <restriction
-            android:key="array_key"
-            android:title="array key"
-        />
+            android:key="certificate"
+            android:title="@string/certificate_title"
+            android:description="@string/certificate_description"
+            android:restrictionType="bundle">
+            <restriction
+                android:key="certificate_id"
+                android:title="@string/certificate_id_title"
+                android:description="@string/certificate_id_description"
+                android:restrictionType="integer" />
+        </restriction>
     </restriction>
 </restrictions>
