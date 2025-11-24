@@ -1,15 +1,25 @@
 import React, { useRef } from "react";
+import classnames from "classnames";
 import Select, {
   components,
   MenuListProps,
   SingleValue,
+  StylesConfig,
   GroupBase,
+  ValueContainerProps,
 } from "react-select-5";
 
 import { ACTIVITY_DISPLAY_NAME_MAP, ActivityType } from "interfaces/activity";
 
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import {
+  CustomOptionType,
+  CustomDropdownIndicator,
+  generateCustomDropdownStyles,
+} from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Icon from "components/Icon";
+import FormField from "components/forms/FormField";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 
 declare module "react-select-5/dist/declarations/src/Select" {
   export interface Props<
@@ -71,6 +81,18 @@ const CustomMenuList = (props: ICustomMenuListProps) => {
   );
 };
 
+const CustomValueContainer = ({
+  children,
+  ...props
+}: ValueContainerProps<CustomOptionType, false>) => {
+  return (
+    <components.ValueContainer {...props}>
+      <Icon name="filter-alt" className="filter-icon" />
+      {children}
+    </components.ValueContainer>
+  );
+};
+
 const TYPE_FILTER_OPTIONS: CustomOptionType[] = Object.values(ActivityType)
   .map((type) => ({
     label: ACTIVITY_DISPLAY_NAME_MAP[type],
@@ -86,11 +108,13 @@ TYPE_FILTER_OPTIONS.unshift({
 interface IActivityTypeDropdownProps {
   value: string;
   onSelect: (value: string) => void;
+  className?: string;
 }
 
 const ActivityTypeDropdown = ({
   value,
   onSelect,
+  className,
 }: IActivityTypeDropdownProps) => {
   const [searchQuery, setSearchQuery] = React.useState("");
 
@@ -109,25 +133,37 @@ const ActivityTypeDropdown = ({
     );
   };
 
+  const customStyles: StylesConfig<CustomOptionType, false> = {
+    ...generateCustomDropdownStyles(),
+    menuList: (provided) => ({ ...provided, maxHeight: 360 }),
+  };
+
+  const classNames = classnames(baseClass, className);
+
   return (
-    <Select<CustomOptionType, false>
-      className={baseClass}
-      // styles={customStyles}
-      options={TYPE_FILTER_OPTIONS}
-      components={{
-        MenuList: CustomMenuList,
-        // Option: CustomOption,
-        // DropdownIndicator: CustomDropdownIndicator,
-        IndicatorSeparator: () => null,
-        // ValueContainer,
-      }}
-      isSearchable={false}
-      value={getValue()}
-      onChange={handleChange}
-      searchQuery={searchQuery}
-      // onInputChange={onInputChange}
-      noOptionsMessage={() => "No results found"}
-    />
+    <FormField
+      className={classNames}
+      type="dropdown"
+      name="activity-type-dropdown"
+      label=""
+    >
+      <Select<CustomOptionType, false>
+        styles={customStyles}
+        options={TYPE_FILTER_OPTIONS}
+        components={{
+          MenuList: CustomMenuList,
+          DropdownIndicator: CustomDropdownIndicator,
+          IndicatorSeparator: () => null,
+          ValueContainer: CustomValueContainer,
+        }}
+        isSearchable={false}
+        value={getValue()}
+        onChange={handleChange}
+        searchQuery={searchQuery}
+        // onInputChange={onInputChange}
+        noOptionsMessage={() => "No results found"}
+      />
+    </FormField>
   );
 };
 

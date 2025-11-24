@@ -88,6 +88,7 @@ const ActivityFeedFilters = ({
       />
       <div className={`${baseClass}__dropdown-filters`}>
         <ActivityTypeDropdown
+          className={`${baseClass}__type-filter-dropdown`}
           value={activityType}
           onSelect={onChangeActivityType}
         />

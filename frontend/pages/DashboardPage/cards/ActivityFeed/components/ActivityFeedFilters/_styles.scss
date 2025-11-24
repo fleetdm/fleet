@@ -3,25 +3,15 @@
   flex-direction: column;
   gap: $pad-medium;
 
+  .form-field--dropdown {
+    flex: 1;
+    min-width: 0; // allows the dropdowns to shrink properly in flex container
+  }
+  
   &__dropdown-filters {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: $pad-medium;
-    }
-
-    &__filters {
-      display: flex;
-      align-items: center;
-      gap: $pad-small;
-    }
-
-
-  // want to  limit the height of the dropdown menu for the activty type filter
-  &__type-filter-dropdown {
-    .actions-dropdown-select__menu>* {
-      max-height: 250px;
-      overflow-y: auto;
-    }
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $pad-medium;
   }
 }
