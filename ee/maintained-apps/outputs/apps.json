@@ -380,6 +380,13 @@
       "description": "iTerm2 is a terminal emulator alternative to Apple's Terminal app."
     },
     {
+      "name": "JetBrains Toolbox",
+      "slug": "jetbrains-toolbox/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.toolbox",
+      "description": "JetBrains tools manager."
+    },
+    {
       "name": "Linear",
       "slug": "linear-linear/darwin",
       "platform": "darwin",
@@ -399,6 +406,13 @@
       "platform": "darwin",
       "unique_identifier": "com.loom.desktop",
       "description": "Loom is screen and video recording software."
+    },
+    {
+      "name": "LuLu",
+      "slug": "lulu/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.objective-see.lulu.app",
+      "description": "Open-source firewall to block unknown outgoing connections."
     },
     {
       "name": "Messenger",
@@ -581,6 +595,13 @@
       "platform": "darwin",
       "unique_identifier": "com.knollsoft.Rectangle",
       "description": "Rectangle is an app to move and resize windows using keyboard shortcuts or snap areas."
+    },
+    {
+      "name": "RubyMine",
+      "slug": "rubymine/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.rubymine",
+      "description": "Ruby on Rails IDE by JetBrains."
     },
     {
       "name": "RustRover",
