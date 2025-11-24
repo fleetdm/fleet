@@ -1267,9 +1267,7 @@ func maybeUpdateLastRestartedAt(now time.Time, host *fleet.Host) error {
 	// Calculate the last restart date.
 	newLastRestartedAt := now.Add(-host.Uptime)
 
-	// If we have a previous last restarted at time, and it's within
-	// 30 seconds of the calculated one, keep it (to avoid small
-	// variations on each osquery run).
+	// If we have a previous last restarted at time, compare it to the new one.
 	if !host.LastRestartedAt.IsZero() {
 		diff := newLastRestartedAt.Sub(host.LastRestartedAt)
 		// The new date should always be later, so if it's not, ignore.
