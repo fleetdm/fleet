@@ -7038,10 +7038,29 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 		}
 	}
 
+	// enable Windows MDM manual enrollment
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_turn_on_windows_mdm_manually": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
+	assert.True(t, acResp.MDM.EnableTurnOnWindowsMDMManually)
+	// No hosts should be told to enroll or unenroll because (un)enrollment is all done by the end-user
+	for _, meta := range metadataHosts {
+		var resp orbitGetConfigResponse
+		s.DoJSON("POST", "/api/fleet/orbit/config",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
+			http.StatusOK, &resp)
+		require.Equal(t, false, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
+		require.Equal(t, false, resp.Notifications.NeedsMDMMigration)
+		require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
+		require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
+	}
+
 	// enable Windows MDM migration
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_migration_enabled": true }
+		"mdm": { "windows_migration_enabled": true, "enable_turn_on_windows_mdm_manually": false }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	assert.True(t, acResp.MDM.WindowsMigrationEnabled)
