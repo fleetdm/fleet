@@ -1,3 +1,12 @@
 <resources>
     <string name="app_name">Fleet Agent</string>
+
+    <string name="enroll_secret_title">Enroll Secret</string>
+    <string name="enroll_secret_description">Secret used to enroll in a fleet instance</string>
+    <string name="fleet_base_url_title">Fleet Base URL</string>
+    <string name="fleet_base_url_description">The base URL of the fleet server</string>
+    <string name="certificate_ids_title">Certificate IDs</string>
+    <string name="certificate_ids_description">A comma-separated array of certificate IDs to be requested</string>
+    <string name="enrollment_specific_id_title">Enrollment-Specific ID</string>
+    <string name="enrollment_specific_id_description">The enrollment-specific ID for this device</string>
 </resources>

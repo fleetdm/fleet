@@ -51,6 +51,14 @@
         <service
             android:name=".CertificateService"
             android:exported="false" />
+
+        <service android:name=".EnrollService"
+            android:exported="false" />
+
+        <!-- Managed configuration schema -->
+        <meta-data android:name="android.content.APP_RESTRICTIONS"
+            android:resource="@xml/app_restrictions" />
+
     </application>
 
 </manifest>

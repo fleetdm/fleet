@@ -37,7 +37,7 @@ class CertificateService : Service() {
     // Structure for SCEP result, holding the key and certificate(s)
     data class ScepResult(
         val privateKey: PrivateKey,
-        val certificateChain: Array<Certificate>,
+        val certificateChain: Array<Certificate>
     )
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -121,7 +121,7 @@ class CertificateService : Service() {
     private fun installCertificateSilently(
         alias: String,
         privateKey: PrivateKey,
-        certificateChain: Array<Certificate>,
+        certificateChain: Array<Certificate>
     ) {
         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
 
