@@ -221,6 +221,13 @@ const ActivityTypeDropdown = ({
       paddingRight: PADDING["pad-small"],
       paddingTop: 0,
     }),
+    valueContainer: (provided) => ({
+      ...provided,
+      padding: 0,
+      display: "flex",
+      gap: PADDING["pad-small"],
+      flexWrap: "nowrap",
+    }),
   };
 
   const classNames = classnames(baseClass, className);
