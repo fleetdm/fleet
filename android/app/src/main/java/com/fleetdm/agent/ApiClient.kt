@@ -45,13 +45,15 @@ object ApiClient {
         }
     }
 
-    val apiKeyFlow: Flow<String?> get() = dataStore.data.map { preferences ->
-        preferences[API_KEY]
-    }
+    val apiKeyFlow: Flow<String?>
+        get() = dataStore.data.map { preferences ->
+            preferences[API_KEY]
+        }
 
-    val baseUrlFlow: Flow<String?> get() = dataStore.data.map { preferences ->
-        preferences[BASE_URL_KEY]
-    }
+    val baseUrlFlow: Flow<String?>
+        get() = dataStore.data.map { preferences ->
+            preferences[BASE_URL_KEY]
+        }
 
     suspend fun getApiKey(): String? {
         return dataStore.data.first()[API_KEY]
@@ -70,7 +72,7 @@ object ApiClient {
         try {
             val apiKey = getApiKey()
             if (authenticated && apiKey == null) {
-                  return@withContext Result.failure(
+                return@withContext Result.failure(
                     Exception("API key not configured")
                 )
             }
@@ -120,7 +122,12 @@ object ApiClient {
         }
     }
 
-    suspend fun enroll(baseUrl: String, enrollSecret: String, hardwareUUID: String, computerName: String): Result<EnrollResponse> {
+    suspend fun enroll(
+        baseUrl: String,
+        enrollSecret: String,
+        hardwareUUID: String,
+        computerName: String
+    ): Result<EnrollResponse> {
         setBaseUrl(baseUrl)
         val resp = makeRequest<EnrollRequest, EnrollResponse>(
             endpoint = "/api/fleet/orbit/enroll",
