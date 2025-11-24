@@ -252,11 +252,11 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 		return ctxerr.Wrapf(ctx, err, "getting vpp apps to install during setup experience for team %d", hostEnrollTeamID)
 	}
 	// assign those apps to the host's Android policy
-	hostToPolicyVersion, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{hostUUID: hostUUID}, "FORCE_INSTALLED")
+	hostToPolicyRequest, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{hostUUID: hostUUID}, "FORCE_INSTALLED")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 	}
-	_ = hostToPolicyVersion
+	_ = hostToPolicyRequest
 
 	// TODO(mna): insert each app install into host_vpp_software_installs with status pending,
 	// and store the policy version in associated_event_id (? or a new column?) to track for
