@@ -91,18 +91,16 @@ describe("EditIconModal", () => {
       expect(displayNameInput).toHaveValue("New Custom Name");
     });
 
-    it("only edits the display name and shows a single success toast when icon is not changed", async () => {
-      const editSoftwarePackageSpy = jest.spyOn(
-        softwareAPI,
-        "editSoftwarePackage"
-      );
+    it("only edits the display name when icon is not changed", async () => {
+      const editSoftwarePackageSpy = jest
+        .spyOn(softwareAPI, "editSoftwarePackage")
+        .mockResolvedValue({} as any);
       const deleteSoftwareIconSpy = jest.spyOn(
         softwareAPI,
         "deleteSoftwareIcon"
       );
       const editSoftwareIconSpy = jest.spyOn(softwareAPI, "editSoftwareIcon");
 
-      // Don't set currentIconUrl to avoid triggering loading state
       const render = createCustomRenderer({ withBackendMock: true });
       const { user } = render(<EditIconModal {...MOCK_PROPS} />);
 
@@ -122,43 +120,62 @@ describe("EditIconModal", () => {
       expect(editSoftwareIconSpy).not.toHaveBeenCalled();
     });
 
+    it("only edits the display name when removing a custom name", async () => {
+      const editSoftwarePackageSpy = jest
+        .spyOn(softwareAPI, "editSoftwarePackage")
+        .mockResolvedValue({} as any);
+
+      const MODIFIED_PROPS = {
+        ...MOCK_PROPS,
+        previewInfo: {
+          ...MOCK_PROPS.previewInfo,
+          name: "Custom Display Name",
+          titleName: "Original Software Name",
+        },
+      };
+
+      const render = createCustomRenderer({ withBackendMock: true });
+      const { user } = render(<EditIconModal {...MODIFIED_PROPS} />);
+
+      const displayNameInput = screen.getByLabelText("Display name");
+      await user.clear(displayNameInput);
+
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      await user.click(saveButton);
+
+      expect(editSoftwarePackageSpy).toHaveBeenCalledWith({
+        data: { displayName: "" },
+        softwareId: 123,
+        teamId: 456,
+      });
+    });
+
     it("handles name update error properly", async () => {
       const editSoftwarePackageSpy = jest
         .spyOn(softwareAPI, "editSoftwarePackage")
         .mockRejectedValue(new Error("Name update failed"));
 
-      // Setup: Software with custom icon that user wants to remove + change name
       const CUSTOM_ICON_PROPS = {
         ...MOCK_PROPS,
         previewInfo: {
           ...MOCK_PROPS.previewInfo,
-          currentIconUrl: null, // Start without icon to avoid loading state
+          currentIconUrl: null,
         },
       };
 
       const render = createCustomRenderer({ withBackendMock: true });
       const { user } = render(<EditIconModal {...CUSTOM_ICON_PROPS} />);
 
-      // Change name to trigger name update
       const displayNameInput = screen.getByLabelText("Display name");
       await user.type(displayNameInput, "New Name");
-
-      // Note: To properly test icon deletion error, we'd need to simulate
-      // the icon removal flow, which is complex in tests. For now, this
-      // test verifies the name error is shown. The icon error path is
-      // covered by the code structure but harder to test in this context.
 
       const saveButton = screen.getByRole("button", { name: "Save" });
       await user.click(saveButton);
 
-      // Verify name update was attempted and failed
       expect(editSoftwarePackageSpy).toHaveBeenCalled();
       await expect(editSoftwarePackageSpy).rejects.toThrow(
         "Name update failed"
       );
-
-      // Note: Toast rendering verification requires complex notification
-      // context mocking. We verify the error path is executed via API calls.
     });
   });
 });

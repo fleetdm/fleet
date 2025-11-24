@@ -633,23 +633,36 @@ const EditIconModal = ({
   const onClickSave = async () => {
     setIsUpdatingSoftwareInfo(true);
     const notifications: INotification[] = [];
+    let iconSucceeded = false;
+    let nameSucceeded = false;
+    let iconSuccessMessage: React.ReactElement | null = null;
+    let nameSuccessMessage: React.ReactElement | null = null;
 
     try {
-      // Process icon change
       try {
-        // Only delete if explicitly removed (fallback status) and was originally custom
         if (
           iconState.status === "fallback" &&
           originalIsApiCustom &&
           !iconState.formData?.icon
         ) {
           await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
+          iconSucceeded = true;
+          iconSuccessMessage = (
+            <>
+              Successfully removed icon from <b>{software?.name}</b>.
+            </>
+          );
         } else if (iconState.status === "customUpload" && iconState.formData) {
-          // Only upload if it's a new custom upload
           await softwareAPI.editSoftwareIcon(
             softwareId,
             teamIdForApi,
             iconState.formData
+          );
+          iconSucceeded = true;
+          iconSuccessMessage = (
+            <>
+              Successfully edited <b>{previewInfo.name}</b>.
+            </>
           );
         }
       } catch (e) {
@@ -663,7 +676,6 @@ const EditIconModal = ({
         });
       }
 
-      // Process display name change
       if (canSaveDisplayName) {
         try {
           await (installerType === "package"
@@ -675,6 +687,18 @@ const EditIconModal = ({
             : softwareAPI.editAppStoreApp(softwareId, teamIdForApi, {
                 displayName,
               }));
+          nameSucceeded = true;
+          nameSuccessMessage =
+            displayName === "" ? (
+              <>
+                Successfully removed custom name for <b>{previewInfo.name}</b>.
+              </>
+            ) : (
+              <>
+                Successfully renamed <b>{previewInfo.name}</b> to{" "}
+                <b>{displayName}</b>.
+              </>
+            );
         } catch (e) {
           const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
           notifications.push({
@@ -689,7 +713,8 @@ const EditIconModal = ({
 
       if (notifications.length > 0) {
         renderMultiFlash({ notifications });
-      } else {
+      } else if (iconSucceeded && nameSucceeded) {
+        // Both changed - show generic message to avoid double toast
         renderFlash(
           "success",
           <>
@@ -700,9 +725,18 @@ const EditIconModal = ({
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
         onExitEditIconModal();
+      } else if (iconSucceeded && iconSuccessMessage) {
+        renderFlash("success", iconSuccessMessage);
+        refetchSoftwareTitle();
+        setIconUploadedAt(new Date().toISOString());
+        onExitEditIconModal();
+      } else if (nameSucceeded && nameSuccessMessage) {
+        renderFlash("success", nameSuccessMessage);
+        refetchSoftwareTitle();
+        setIconUploadedAt(new Date().toISOString());
+        onExitEditIconModal();
       }
     } catch (e) {
-      // This catch block might catch unexpected errors outside the specific try/catches above
       const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
       renderFlash("error", errorMessage);
     } finally {
