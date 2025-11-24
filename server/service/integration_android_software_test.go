@@ -281,7 +281,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 	}, http.StatusOK, &titleWithConfigResp)
 
 	var responseConf map[string]any
-	json.Unmarshal(titleWithConfigResp.SoftwareTitle.AppStoreApp.Configuration, &responseConf)
+	require.NoError(t, json.Unmarshal(titleWithConfigResp.SoftwareTitle.AppStoreApp.Configuration, &responseConf))
 	require.Contains(t, responseConf, "workProfileWidgets")
 
 	// Edit app and change configuration
