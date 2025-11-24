@@ -1788,7 +1788,8 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 
 func TestDetailQueries(t *testing.T) {
 	ds := new(mock.Store)
-	mockClock := clock.NewMockClock()
+	testStartTime := time.Date(2025, 11, 24, 12, 30, 0, 0, time.UTC)
+	mockClock := clock.NewMockClock(testStartTime)
 	lq := live_query_mock.New(t)
 	svc, ctx := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
@@ -2119,6 +2120,51 @@ func TestDetailQueries(t *testing.T) {
 			Source:           "source2",
 		},
 	}, gotSoftware)
+
+	expectedLastRestartedAt, err := time.ParseInLocation(time.RFC3339, "2025-11-04T11:41:47Z", time.UTC)
+	require.NoError(t, err)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
+
+	// Set the last restarted at date, then update the mock clock time to a day later.
+	// Update the uptime results to reflect the new time, but with a small delta to
+	// verify that we allow up to 30 seconds of drift.
+	host.LastRestartedAt = expectedLastRestartedAt
+	mockClock.SetTime(testStartTime.Add(24*time.Hour + -30*time.Second))
+	results["fleet_detail_query_uptime"] = []map[string]string{
+		{
+			"days":          "21",
+			"hours":         "0",
+			"minutes":       "46",
+			"seconds":       "13",
+			"total_seconds": "1817293",
+		},
+	}
+	// Verify that results are ingested properly
+	require.NoError(
+		t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{}),
+	)
+	require.NotNil(t, gotHost)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
+
+	// Test again with a larger drift than allowed (more than 30s), to verify that
+	// the LastRestartedAt is updated.
+	mockClock.SetTime(testStartTime.Add(24 * time.Hour))
+	results["fleet_detail_query_uptime"] = []map[string]string{
+		{
+			"days":          "0",
+			"hours":         "0",
+			"minutes":       "30",
+			"seconds":       "0",
+			"total_seconds": "1800",
+		},
+	}
+	expectedLastRestartedAt = mockClock.Now().Add(-30 * time.Minute)
+	// Verify that results are ingested properly
+	require.NoError(
+		t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{}),
+	)
+	require.NotNil(t, gotHost)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
 
 	host.Hostname = "computer.local"
 	host.Platform = "darwin"
