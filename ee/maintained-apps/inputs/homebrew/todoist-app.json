@@ -1,0 +1,8 @@
+{
+  "name": "Todoist",
+  "slug": "todoist/darwin",
+  "unique_identifier": "com.todoist.mac.Todoist",
+  "token": "todoist-app",
+  "installer_format": "dmg",
+  "default_categories": ["Productivity"]
+}

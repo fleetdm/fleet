@@ -688,6 +688,13 @@
       "description": "Thunderbird is a free and open-source e-mail client."
     },
     {
+      "name": "Todoist",
+      "slug": "todoist/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.todoist.mac.Todoist",
+      "description": "A To-Do List to Organize Your Work & Life."
+    },
+    {
       "name": "Tunnelblick",
       "slug": "tunnelblick/darwin",
       "platform": "darwin",
