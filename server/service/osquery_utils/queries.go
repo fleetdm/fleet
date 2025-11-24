@@ -2355,7 +2355,6 @@ func deduceMDMNameWindows(data map[string]string) string {
 }
 
 func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
-	fmt.Printf("directIngestMDMWindows called with %d rows\n", len(rows))
 	if len(rows) == 0 {
 		// no mdm information in the registry
 		return ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", false)
@@ -2395,15 +2394,6 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 			if windowsDevice != nil {
 				automatic = !windowsDevice.MDMNotInOOBE
 			}
-
-			deviceID := "unknown"
-			notInOOBE := false
-			if windowsDevice != nil {
-				deviceID = windowsDevice.MDMDeviceID
-				notInOOBE = windowsDevice.MDMNotInOOBE
-			}
-			fmt.Printf("directIngestMDMWindows got device %s for host %s MDMNotInOOBE %t\n", deviceID, host.UUID, notInOOBE)
-
 		}
 	}
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
@@ -2668,7 +2658,6 @@ func directIngestMacOSProfiles(
 }
 
 func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
-	fmt.Printf("directIngestMDMDeviceIDWindows called with %d rows\n", len(rows))
 	if len(rows) == 0 {
 		// this registry key is only going to be present if the device is enrolled to mdm so assume that mdm is turned off
 		return nil
@@ -2687,7 +2676,6 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 			return ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
 		}
 		if device != nil && microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
-			fmt.Printf("directIngestMDMDeviceIDWindows got device %s NotInOOBE %t\n", device.MDMDeviceID, device.MDMNotInOOBE)
 			// Update the host's MDM enrolled flags to show it as a manual enrollment. THis is to avoid
 			// it taking two full refreshes to show this
 			if device.MDMNotInOOBE {

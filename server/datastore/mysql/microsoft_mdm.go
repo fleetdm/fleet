@@ -590,7 +590,6 @@ func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, ho
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "checking rows affected when setting host_uuid for windows enrollment")
 	}
-	fmt.Printf("Updated %d rows setting host_uuid=%s for mdm_device_id=%s\n", aff, hostUUID, mdmDeviceID)
 	return aff > 0, nil
 }
 
