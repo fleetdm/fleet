@@ -2983,6 +2983,20 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// add an in-house app to the team
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team1.ID,
+		UserID:           user.ID,
+		Title:            "inhouse",
+		Filename:         "inhouse.ipa",
+		BundleIdentifier: "com.inhouse",
+		StorageID:        "inhouse",
+		Extension:        "ipa",
+		Version:          "1.2.3",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
 	// get installer IDs from added installers
 	var installer1NoTeam, installer1Team1, installer2NoTeam uint
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -3010,14 +3024,17 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, installers, 2)
 
-	require.Equal(t, installer1NoTeam, installers[0].InstallerID)
-	require.Nil(t, installers[0].TeamID)
+	require.Len(t, installers[0], 1)
+	require.Equal(t, installer1NoTeam, installers[0][0].InstallerID)
+	require.Nil(t, installers[0][0].TeamID)
 
-	require.Equal(t, installer1Team1, installers[1].InstallerID)
-	require.NotNil(t, installers[1].TeamID)
-	require.Equal(t, team1.ID, *installers[1].TeamID)
+	require.Len(t, installers[1], 1)
+	require.Equal(t, installer1Team1, installers[1][0].InstallerID)
+	require.NotNil(t, installers[1][0].TeamID)
+	require.Equal(t, team1.ID, *installers[1][0].TeamID)
 
-	for _, i := range installers {
+	for _, is := range installers {
+		i := is[0]
 		require.Equal(t, "installer1", i.Title)
 		require.Equal(t, "pkg", i.Extension)
 		require.Equal(t, "1.0", i.Version)
@@ -3027,7 +3044,26 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 	installers, err = ds.GetTeamsWithInstallerByHash(ctx, hash2, "https://example.com/2")
 	require.NoError(t, err)
 	require.Len(t, installers, 1)
-	require.Equal(t, installers[0].InstallerID, installer2NoTeam)
+	require.Len(t, installers[0], 1)
+	require.Equal(t, installers[0][0].InstallerID, installer2NoTeam)
+
+	// in-house hash with invalid url
+	installers, err = ds.GetTeamsWithInstallerByHash(ctx, "inhouse", "https://no-such-match")
+	require.NoError(t, err)
+	require.Len(t, installers, 0)
+
+	// in-house hash without url match
+	installers, err = ds.GetTeamsWithInstallerByHash(ctx, "inhouse", "")
+	require.NoError(t, err)
+	require.Len(t, installers, 1)
+	require.Len(t, installers[team1.ID], 2) // ios and ipados
+	require.Equal(t, "inhouse.ipa", installers[team1.ID][0].Filename)
+	require.Equal(t, "inhouse.ipa", installers[team1.ID][1].Filename)
+	var foundPlatforms []string
+	for _, inst := range installers[team1.ID] {
+		foundPlatforms = append(foundPlatforms, inst.Platform)
+	}
+	require.ElementsMatch(t, []string{"ios", "ipados"}, foundPlatforms)
 }
 
 func testEditDeleteSoftwareInstallersActivateNextActivity(t *testing.T, ds *Datastore) {
@@ -3469,7 +3505,7 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	assert.Empty(t, title.DisplayName)
 
 	err = ds.SaveInstallerUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
-		DisplayName:       "update1",
+		DisplayName:       ptr.String("update1"),
 		TitleID:           titleID,
 		InstallerFile:     &fleet.TempFileReader{},
 		InstallScript:     new(string),
@@ -3537,7 +3573,7 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 
 	// Update the display name again, should see the change
 	err = ds.SaveInstallerUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
-		DisplayName:       "update2",
+		DisplayName:       ptr.String("update2"),
 		TitleID:           titleID,
 		InstallerFile:     &fleet.TempFileReader{},
 		InstallScript:     new(string),
@@ -3587,6 +3623,7 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 		PostInstallScript: new(string),
 		SelfService:       ptr.Bool(false),
 		UninstallScript:   new(string),
+		DisplayName:       ptr.String(""),
 	})
 	require.NoError(t, err)
 
@@ -3619,7 +3656,6 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, titleID, *software.TitleID)
 	assert.Empty(t, software.DisplayName)
-
 }
 
 func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore) {

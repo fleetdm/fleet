@@ -449,7 +449,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	if opts.TeamID != nil {
 		payload["team_id"] = *opts.TeamID
 		if opts.BootstrapPackage {
-			team, err := s.ds.Team(ctx, *opts.TeamID)
+			team, err := s.ds.TeamWithExtras(ctx, *opts.TeamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
 			require.NoError(t, err)
 
 			team.Config.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("bootstrap.pkg")
@@ -470,7 +470,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		// Get back to the default state.
 		if opts.BootstrapPackage {
 			if opts.TeamID != nil {
-				team, err := s.ds.Team(ctx, *opts.TeamID)
+				team, err := s.ds.TeamWithExtras(ctx, *opts.TeamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
 				require.NoError(t, err)
 
 				team.Config.MDM.MacOSSetup.BootstrapPackage = optjson.String{}

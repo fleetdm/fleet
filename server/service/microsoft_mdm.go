@@ -2315,11 +2315,18 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		return ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
-	params := microsoft_mdm.PreprocessingParameters{
-		HostIDForUUIDCache: make(map[string]uint),
-	}
-
 	managedCertificatePayloads := &[]*fleet.MDMManagedCertificate{}
+	deps := microsoft_mdm.ProfilePreprocessDependenciesForDeploy{
+		ProfilePreprocessDependenciesForVerify: microsoft_mdm.ProfilePreprocessDependenciesForVerify{
+			Context:            ctx,
+			Logger:             logger,
+			DataStore:          ds,
+			HostIDForUUIDCache: make(map[string]uint),
+		},
+		AppConfig:                  appConfig,
+		CustomSCEPCAs:              groupedCAs.ToCustomSCEPProxyCAMap(),
+		ManagedCertificatePayloads: managedCertificatePayloads,
+	}
 
 	for profUUID, target := range installTargets {
 		p, ok := profileContents[profUUID]
@@ -2349,11 +2356,12 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 					continue
 				}
 
-				// Create a unique command UUID for this host since the content is unique
-				hostCmdUUID := uuid.New().String()
-
 				// Preprocess the profile content for this specific host
-				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(ctx, logger, ds, appConfig, hostUUID, hostCmdUUID, profUUID, groupedCAs, string(p.SyncML), managedCertificatePayloads, params)
+				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(
+					deps,
+					microsoft_mdm.ProfilePreprocessParams{HostUUID: hostUUID, ProfileUUID: profUUID},
+					string(p.SyncML),
+				)
 				var profileProcessingError *microsoft_mdm.MicrosoftProfileProcessingError
 				if err != nil && !errors.As(err, &profileProcessingError) {
 					return ctxerr.Wrapf(ctx, err, "preprocessing profile contents for host %s and profile %s", hostUUID, profUUID)
@@ -2362,6 +2370,9 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 					hp.Detail = profileProcessingError.Error()
 					continue
 				}
+
+				// Create a unique command UUID for this host since the content is unique
+				hostCmdUUID := uuid.New().String()
 
 				// Build the command with the processed content
 				command, err := buildCommandFromProfileBytes([]byte(processedContent), hostCmdUUID)
@@ -2388,8 +2399,8 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		}
 	}
 
-	// Store list of failed profiles to avoid updating other stuff for that, such as managed certs.
-	failedProfilesUUIDs := make(map[string]bool)
+	// Store list of failed profiles (profile UUID + host UUID to create uniqueness) to avoid updating other stuff for that, such as managed certs.
+	failedProfileHostUUIDs := make(map[string]bool)
 
 	// Since we are not using DB transactions here, there is a small chance that the profile contents don't match
 	// the checksum we retrieved earlier. Update the checksums if needed.
@@ -2399,7 +2410,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		}
 
 		if p.Status != nil && *p.Status == fleet.MDMDeliveryFailed {
-			failedProfilesUUIDs[p.ProfileUUID] = true
+			failedProfileHostUUIDs[p.ProfileUUID+p.HostUUID] = true
 		}
 	}
 
@@ -2417,7 +2428,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 	// Run through managed certs and remove all those that belong to failed profiles
 	filteredManagedCerts := []*fleet.MDMManagedCertificate{}
 	for _, mc := range *managedCertificatePayloads {
-		if _, failed := failedProfilesUUIDs[mc.ProfileUUID]; !failed {
+		if _, failed := failedProfileHostUUIDs[mc.ProfileUUID+mc.HostUUID]; !failed {
 			filteredManagedCerts = append(filteredManagedCerts, mc)
 		}
 	}

@@ -103,6 +103,28 @@ Sometimes there is a change in the champion within the customer's organization.
 4. Fill out all the required fields making sure to pick "Expansion" in the  "Type" dropdown menu and then click "Save".
 
 
+### Schedule a Fast-track engagement
+
+Fast-track is Fleet's service delivery package for new MDM customers. Check with your team to learn about the options available and the differences between them (virtual vs on site, migration vs no migration). If your customer has a Fast-track engagement, it will be included in their contract. Follow the directions below to get a Fast-track set up and collect the training pre-requisites.
+
+1. When a deal including Fast-track closes, add a TODO on the final page of the partnership kickoff presentation, to confirm the details around their services purchase and to coordinate scheduling. Be sure to make the customer aware that delays in confirming service delivery date can cause the date to move out further.
+2. Prior to the Fast-track kickoff, schedule a Pre-requisite planning meeting with the customer and the assigned CSA to collect the following information:
+- What is the target migration date and when does the previous MDM contract end?
+- Which critical workflows will Fleet be used for?
+  - Onboarding workflow?
+  - Offboarding workflow?
+  - Automated device enrollment (ADE)? Autopilot?
+  - Setup experience?
+  - Self-service software?
+- Which integrations will be required for migration? Which integrations will be required post-migration (no hard timeline)?
+  - IAM?
+  - Log shipping to SIEM?
+  - Zendesk/JIRA?
+  - Others?
+- Gather a list of which policies and profiles need to be replicated or replaced
+3. For managed cloud customers, send a request to the [:help-customers board](https://github.com/orgs/fleetdm/projects/79/views/1?filterQuery=) requesting that an infrastructure engineer double check the configuration variables to ensure they support the size and scale of the upcoming deployment. For self-hosted customers, schedule a dedicated session with the customer and the assigned CSA to review their server configuration and ensure that it supports the size and scale of the upcoming deployment.
+
+
 ### Conduct a health check
 
 Health checks are conducted quarterly or bi-annually, in preparation for a quarterly business review (QBR). The purpose of a health check is to understand what features and functionality the customer is currently using in Fleet. This information will be used to provide guidance to the customer during their QBR. For more information around QBRs, please see the section below, titled "Conduct a quarterly business review".
@@ -133,7 +155,7 @@ Customer promises are contractually obligated feature requests, with guaranteed 
 2. Once notified, reach out to your customer and schedule a meeting to review the work that has been done, and to make sure it meets their requirements.
 3. At the end of the customer promise review meeting, tell your customer that you will be sending over an email going over the discussion and completion of their promise.
 4. Get a verbal agreement from your customer to respond to that follow up email, with a confirmation that the promise was completed in a satisfactory manner.
-5. Once you have received email confirmation of the completed promise, you may then close out the related issue in GitHub.
+5. Once you have received email confirmation of the completed promise, note this via a comment in the GitHub issue. If all other customers have confirmed completion, then you may close out the issue as well.
 
 
 ### File a customer bug report
@@ -249,6 +271,17 @@ Fleet-managed DNS records are maintained in Cloudflare using Terraform.
 See [DNS management](https://github.com/fleetdm/confidential/tree/main/infrastructure/dns/dns-management.md) for how changes are reviewed, validated, and applied automatically.
 
 
+### Process a self-service license dispenser refund
+
+Refunds for Fleet Premium licenses purchased on the self-service license dispenser on fleetdm.com are processed in [Stripe](https://dashboard.stripe.com/). To refund a subscription: 
+1. Log in to Stripe using the shared credentials from 1Password. 
+2. Search for the user's email address, and select the subscription associated with their Stripe customer account. 
+3. On the page for the user's subscription, select the "Actions" dropdown in the top right and choose "Cancel subscription". 
+4. In the cancellation options, select the options to *cancel the subscription immediately*, *refund the last payment*, and *send the user a refund receipt*. 
+
+Once you submit the form, Stripe will refund the user's payment and cancel their subscription.
+
+ 
 ## Rituals
 
 <rituals :rituals="rituals['handbook/customer-success/customer-success.rituals.yml']"></rituals>

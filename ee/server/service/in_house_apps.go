@@ -17,9 +17,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		return nil, ctxerr.Wrap(ctx, err, "getting existing installer")
 	}
 
-	if payload.SelfService == nil && payload.InstallerFile == nil && payload.PreInstallQuery == nil &&
-		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil &&
-		payload.LabelsIncludeAny == nil && payload.LabelsExcludeAny == nil {
+	if payload.IsNoopPayload(software) {
 		return existingInstaller, nil // no payload, noop
 	}
 
@@ -36,6 +34,10 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	if payload.TeamID != nil && *payload.TeamID != 0 {
 		actTeamID = payload.TeamID
 	}
+	selfService := existingInstaller.SelfService
+	if payload.SelfService != nil {
+		selfService = *payload.SelfService
+	}
 	activity := fleet.ActivityTypeEditedSoftware{
 		SoftwareTitle:   existingInstaller.SoftwareTitle,
 		TeamName:        teamName,
@@ -43,6 +45,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		SoftwarePackage: &existingInstaller.Name,
 		SoftwareTitleID: payload.TitleID,
 		SoftwareIconURL: existingInstaller.IconUrl,
+		SelfService:     selfService,
 	}
 
 	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload
@@ -89,6 +92,10 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		payload.Version = existingInstaller.Version
 	}
 
+	if payload.SelfService == nil {
+		payload.SelfService = &existingInstaller.SelfService
+	}
+
 	// persist changes starting here, now that we've done all the validation/diffing we can
 	if payloadForNewInstallerFile != nil {
 		if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {
@@ -115,6 +122,10 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	activity.LabelsExcludeAny = actLabelsExcl
 	if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating activity for edited in house app")
+	}
+
+	if payload.DisplayName != nil {
+		activity.SoftwareDisplayName = *payload.DisplayName
 	}
 
 	// re-pull installer from database to ensure any side effects are accounted for; may be able to optimize this out later

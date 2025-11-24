@@ -52,6 +52,10 @@ const SoftwareCustomPackage = ({
     showPreviewEndUserExperience,
     setShowPreviewEndUserExperience,
   ] = useState(false);
+  const [
+    isIpadOrIphoneSoftwareSource,
+    setIsIpadOrIphoneSoftwareSource,
+  ] = useState(false);
 
   const {
     data: labels,
@@ -87,8 +91,9 @@ const SoftwareCustomPackage = ({
     };
   }, [uploadDetails]);
 
-  const onClickPreviewEndUserExperience = () => {
+  const onClickPreviewEndUserExperience = (isIosOrIpadosApp = false) => {
     setShowPreviewEndUserExperience(!showPreviewEndUserExperience);
+    setIsIpadOrIphoneSoftwareSource(isIosOrIpadosApp);
   };
 
   const onCancel = () => {
@@ -191,6 +196,7 @@ const SoftwareCustomPackage = ({
         {showPreviewEndUserExperience && (
           <CategoriesEndUserExperienceModal
             onCancel={onClickPreviewEndUserExperience}
+            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource}
           />
         )}
       </>

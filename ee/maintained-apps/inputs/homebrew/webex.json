@@ -1,0 +1,8 @@
+{
+  "name": "Webex",
+  "unique_identifier": "Cisco-Systems.Spark",
+  "token": "webex",
+  "installer_format": "dmg",
+  "slug": "webex/darwin",
+  "default_categories": ["Communication"]
+}

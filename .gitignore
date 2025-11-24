@@ -30,6 +30,9 @@ frontend/coverage
 # typescript generated test files
 tmp/
 
+# test debug files
+debug.test*
+
 # operating system artifacts
 .DS_Store
 

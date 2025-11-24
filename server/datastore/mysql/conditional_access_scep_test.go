@@ -22,6 +22,7 @@ func TestConditionalAccessSCEP(t *testing.T) {
 		{"GetCertBySerialAndCreatedAt", testGetConditionalAccessCertBySerialAndCreatedAt},
 		{"RevokedCertsNotReturned", testRevokedConditionalAccessCertsNotReturned},
 		{"ExpiredCertsNotReturned", testExpiredConditionalAccessCertsNotReturned},
+		{"CertificateLifecycle", testConditionalAccessCertificateLifecycle},
 	}
 
 	for _, c := range cases {
@@ -156,4 +157,68 @@ MIICEjCCAXsCAg36MA0GCSqGSIb3DQEBBQUAMIGbMQswCQYDVQQGEwJKUDEOMAwG
 	})
 
 	return serialNumber
+}
+
+func testConditionalAccessCertificateLifecycle(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	now := time.Now()
+
+	// Create two test hosts
+	host1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: ptr.String("test-host-lifecycle-1"), NodeKey: ptr.String("test-node-key-1"),
+		UUID: "test-uuid-1", Hostname: "test-hostname-1", Platform: "darwin", DetailUpdatedAt: now,
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: ptr.String("test-host-lifecycle-2"), NodeKey: ptr.String("test-node-key-2"),
+		UUID: "test-uuid-2", Hostname: "test-hostname-2", Platform: "darwin", DetailUpdatedAt: now,
+	})
+	require.NoError(t, err)
+
+	// Host 1: Multiple valid certs (simulating rotation)
+	s1_old := insertConditionalAccessCert(t, ds, ctx, host1.ID, "h1-old", now.Add(-3*time.Hour), now.Add(24*time.Hour), false)
+	s1_new := insertConditionalAccessCert(t, ds, ctx, host1.ID, "h1-new", now.Add(-2*time.Hour), now.Add(24*time.Hour), false)
+
+	// Host 2: New cert within grace period + 1 revoked cert
+	s2_old := insertConditionalAccessCert(t, ds, ctx, host2.ID, "h2-old", now.Add(-3*time.Hour), now.Add(24*time.Hour), false)
+	s2_new := insertConditionalAccessCert(t, ds, ctx, host2.ID, "h2-new", now.Add(-30*time.Minute), now.Add(24*time.Hour), false)
+	s2_revoked := insertConditionalAccessCert(t, ds, ctx, host2.ID, "h2-revoked", now.Add(-4*time.Hour), now.Add(24*time.Hour), true)
+
+	// All valid certs authenticate
+	for _, s := range []uint64{s1_old, s1_new, s2_old, s2_new} {
+		_, err := ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, s)
+		require.NoError(t, err)
+	}
+
+	// Revoked cert does not authenticate
+	_, err = ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, s2_revoked)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Cleanup with 1-hour grace: only host1's old cert eligible (host1's new cert is 2h old)
+	count, err := ds.RevokeOldConditionalAccessCerts(ctx, 1*time.Hour)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), count)
+
+	// Host1's old cert now revoked, new cert still works
+	_, err = ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, s1_old)
+	assert.True(t, fleet.IsNotFound(err))
+	_, err = ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, s1_new)
+	require.NoError(t, err)
+
+	// Host2's certs still work (new cert within grace period)
+	_, err = ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, s2_old)
+	require.NoError(t, err)
+	_, err = ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, s2_new)
+	require.NoError(t, err)
+
+	// Second cleanup revokes nothing
+	count, err = ds.RevokeOldConditionalAccessCerts(ctx, 1*time.Hour)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), count)
+
+	// GetConditionalAccessCertCreatedAtByHostID returns most recent cert
+	createdAt, err := ds.GetConditionalAccessCertCreatedAtByHostID(ctx, host2.ID)
+	require.NoError(t, err)
+	assert.True(t, createdAt.After(now.Add(-1*time.Hour)) && createdAt.Before(now.Add(1*time.Minute)))
 }

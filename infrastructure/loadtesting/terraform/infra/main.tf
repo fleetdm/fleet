@@ -61,7 +61,7 @@ module "loadtest" {
     elasticache_subnet_group_name = data.terraform_remote_state.shared.outputs.vpc.elasticache_subnet_group_name
     allowed_cidrs                 = concat(data.terraform_remote_state.shared.outputs.vpc.private_subnets_cidr_blocks, local.vpn_cidr_blocks)
     # fleet-vpc has subnets in all 3 availability zones
-    availability_zones            = ["us-east-2a", "us-east-2b", "us-east-2c"]
+    availability_zones = ["us-east-2a", "us-east-2b", "us-east-2c"]
     parameter = [
       { name = "client-output-buffer-limit-pubsub-hard-limit", value = 0 },
       { name = "client-output-buffer-limit-pubsub-soft-limit", value = 0 },
@@ -90,8 +90,10 @@ module "loadtest" {
       container_port   = 8080
     }]
     autoscaling = {
-      min_capacity = var.fleet_task_count
-      max_capacity = var.fleet_task_count
+      min_capacity                 = var.fleet_task_count
+      max_capacity                 = var.fleet_task_count
+      cpu_tracking_target_value    = 70
+      memory_tracking_target_value = 70
     }
     awslogs = {
       name      = local.customer
@@ -110,7 +112,7 @@ module "loadtest" {
     extra_iam_policies = concat(
       module.osquery-carve.fleet_extra_iam_policies,
       module.ses.fleet_extra_iam_policies,
-      module.logging_firehose.fleet_extra_iam_policies,
+      # module.logging_firehose.fleet_extra_iam_policies,
     )
     # Add these for MDM or cloudfront
     extra_execution_iam_policies = concat(
@@ -124,7 +126,7 @@ module "loadtest" {
       module.osquery-carve.fleet_extra_environment_variables,
       module.vuln-processing.extra_environment_variables,
       module.ses.fleet_extra_environment_variables,
-      module.logging_firehose.fleet_extra_environment_variables,
+      # module.logging_firehose.fleet_extra_environment_variables,
       local.extra_environment_variables,
     )
     extra_secrets = merge(
@@ -192,7 +194,7 @@ module "ses" {
 }
 
 module "migrations" {
-  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.1.0"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.2.1"
   ecs_cluster              = module.loadtest.byo-db.byo-ecs.service.cluster
   task_definition          = module.loadtest.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.loadtest.byo-db.byo-ecs.task_definition.revision
@@ -201,6 +203,7 @@ module "migrations" {
   ecs_service              = module.loadtest.byo-db.byo-ecs.service.name
   desired_count            = module.loadtest.byo-db.byo-ecs.appautoscaling_target.min_capacity
   min_capacity             = module.loadtest.byo-db.byo-ecs.appautoscaling_target.min_capacity
+  max_capacity             = module.loadtest.byo-db.byo-ecs.appautoscaling_target.max_capacity
 
   depends_on = [
     module.loadtest,
@@ -242,25 +245,8 @@ module "osquery-carve" {
 }
 
 module "logging_alb" {
-  source          = "github.com/fleetdm/fleet-terraform//addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.6.1"
+  source          = "github.com/fleetdm/fleet-terraform//addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.6.2"
   prefix          = local.customer
   alt_path_prefix = local.customer
   enable_athena   = true
-}
-
-module "logging_firehose" {
-  source = "github.com/fleetdm/fleet-terraform//addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.2.4"
-  prefix = local.customer
-  osquery_results_s3_bucket = {
-    name         = "${local.customer}-osquery-results-firehose-policy"
-    expires_days = 1
-  }
-  osquery_status_s3_bucket = {
-    name         = "${local.customer}-osquery-status-firehose-policy"
-    expires_days = 1
-  }
-  audit_s3_bucket = {
-    name         = "${local.customer}-audit-firehose-policy"
-    expires_days = 1
-  }
 }

@@ -14,11 +14,11 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 **Stage lifecycle**
 
-- Early Development (most categories Planned/Minimal)
-- Core Capabilities Available (key platforms/categories Viable)
-- Enterprise Ready (majority Viable/Complete, competitive feature set)
-- Market Competitive (Complete across all major use cases)
-- Market Leading (Lovable in key areas, Complete elsewhere)
+- **Early development** (most categories 🥚 Planned/🐣 Minimal)
+- **Core capabilities available** (key platforms/categories 🐥 Viable)
+- **Enterprise ready** (majority 🐥 Viable/🦆 Complete, competitive feature set)
+- **Market competitive** (🦆 Complete across all major use cases)
+- **Market leading** (🦢 Lovable in key areas, 🦆 Complete elsewhere)
 
 ---
 
@@ -40,8 +40,8 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Work Profile enrollment (Android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | Automatic Device Enrollment (Android) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | Linux enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| iOS/iPadOS profile-based enrollment | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Account Driven User Enrollment (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| iOS/iPadOS profile-based enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Account Driven User Enrollment (Apple) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Account Driven Device Enrollment (Apple) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | ChromeOS enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 
@@ -191,6 +191,8 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Jira integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Zendesk integration | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Splunk integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Snowflake integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| BigQuery integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Terraform provider | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | GitOps support | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
 | ServiceNow integration | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |

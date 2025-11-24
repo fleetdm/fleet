@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 const (
@@ -35,6 +37,10 @@ const (
 	SoftwareTeamIdentifierMaxLength = 10
 
 	SoftwareTitleDisplayNameMaxLength = 255
+
+	// UpgradeCode is a GUID, only uses hexadecimal digits, hyphens, curly braces, all ASCII, so 1char
+	// == 1rune –> 38chars
+	UpgradeCodeExpectedLength = 38
 )
 
 type Vulnerabilities []CVE
@@ -102,6 +108,8 @@ type Software struct {
 	IsKernel bool `json:"-"`
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 
 	DisplayName string `json:"display_name"`
 }
@@ -146,6 +154,11 @@ func (s Software) ToUniqueStr() string {
 	if s.ApplicationID != nil && *s.ApplicationID != "" {
 		ss = append(ss, *s.ApplicationID)
 	}
+	// if identical software comes in with a newly non-empty or changed upgrade code, it will be
+	// considered Software unique from its nil/empty ugprade coded predecessor
+	if s.UpgradeCode != nil && *s.UpgradeCode != "" {
+		ss = append(ss, *s.UpgradeCode)
+	}
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
@@ -157,6 +170,12 @@ func (s Software) ComputeRawChecksum() ([]byte, error) {
 
 	if s.ApplicationID != nil && *s.ApplicationID != "" {
 		cols = append(cols, *s.ApplicationID)
+	}
+
+	// though possible for a Windows software to have the empty string upgrade code, would provide no
+	// additional signal of uniqueness, so omit
+	if s.UpgradeCode != nil && *s.UpgradeCode != "" {
+		cols = append(cols, *s.UpgradeCode)
 	}
 
 	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
@@ -253,6 +272,9 @@ type SoftwareTitle struct {
 	IsKernel bool `json:"-" db:"is_kernel"`
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See
+	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	// DisplayName is an end-user friendly name.
 	DisplayName string `json:"display_name" db:"display_name"`
 }
@@ -336,7 +358,10 @@ type SoftwareTitleListResult struct {
 	HashSHA256       *string `json:"hash_sha256,omitempty" db:"package_storage_id"`
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
-	DisplayName   string  `json:"display_name" db:"display_name"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See
+	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	DisplayName string  `json:"display_name" db:"display_name"`
 }
 
 type SoftwareTitleListOptions struct {
@@ -352,6 +377,12 @@ type SoftwareTitleListOptions struct {
 	MaximumCVSS         float64 `query:"max_cvss_score,optional"`
 	PackagesOnly        bool    `query:"packages_only,optional"`
 	Platform            string  `query:"platform,optional"`
+
+	// ForSetupExperience is an internal flag set when listing software via the
+	// setup experience endpoint, so that it filters out any software available
+	// for install that is not supported for setup experience. It cannot be set
+	// via the query parameters.
+	ForSetupExperience bool
 }
 
 type HostSoftwareTitleListOptions struct {
@@ -538,7 +569,7 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
 func SoftwareFromOsqueryRow(
 	name, version, source, vendor, installedPath, release, arch,
-	bundleIdentifier, extensionId, extensionFor, lastOpenedAt string,
+	bundleIdentifier, extensionId, extensionFor, lastOpenedAt, upgradeCode string,
 ) (*Software, error) {
 	if name == "" {
 		return nil, errors.New("host reported software with empty name")
@@ -563,17 +594,33 @@ func SoftwareFromOsqueryRow(
 		return str
 	}
 
+	truncatedSource := truncateString(source, SoftwareSourceMaxLength)
+
+	var upgradeCodeForFleetSW *string
+	// 3 options:
+	// - nil for sources other than "programs"
+	// - "" if "programs" source and no code returned, or
+	// - length-validated code for "programs" source and non-empty value returned
+	if truncatedSource == "programs" {
+		if upgradeCode != "" && len(upgradeCode) != UpgradeCodeExpectedLength {
+			return nil, errors.New("host reported invalid upgrade code - unexpected length")
+		}
+		upgradeCodeForFleetSW = ptr.String(upgradeCode)
+
+	}
+
 	software := Software{
 		Name:             truncateString(name, SoftwareNameMaxLength),
 		Version:          truncateString(version, SoftwareVersionMaxLength),
-		Source:           truncateString(source, SoftwareSourceMaxLength),
+		Source:           truncatedSource,
 		BundleIdentifier: truncateString(bundleIdentifier, SoftwareBundleIdentifierMaxLength),
 		ExtensionID:      truncateString(extensionId, SoftwareExtensionIDMaxLength),
 		ExtensionFor:     truncateString(extensionFor, SoftwareExtensionForMaxLength),
 
-		Release: truncateString(release, SoftwareReleaseMaxLength),
-		Vendor:  vendor,
-		Arch:    truncateString(arch, SoftwareArchMaxLength),
+		Release:     truncateString(release, SoftwareReleaseMaxLength),
+		Vendor:      vendor,
+		Arch:        truncateString(arch, SoftwareArchMaxLength),
+		UpgradeCode: upgradeCodeForFleetSW,
 	}
 	if !lastOpenedAtTime.IsZero() {
 		software.LastOpenedAt = &lastOpenedAtTime
@@ -589,22 +636,24 @@ type VPPBatchPayload struct {
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories []string `json:"categories"`
-	IconPath   string   `json:"-"`
-	IconHash   string   `json:"-"`
+	Categories  []string `json:"categories"`
+	DisplayName string   `json:"display_name"`
+	IconPath    string   `json:"-"`
+	IconHash    string   `json:"-"`
 }
 
 type VPPBatchPayloadWithPlatform struct {
-	AppStoreID         string              `json:"app_store_id"`
-	SelfService        bool                `json:"self_service"`
-	Platform           AppleDevicePlatform `json:"platform"`
-	InstallDuringSetup *bool               `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
-	LabelsExcludeAny   []string            `json:"labels_exclude_any"`
-	LabelsIncludeAny   []string            `json:"labels_include_any"`
+	AppStoreID         string                    `json:"app_store_id"`
+	SelfService        bool                      `json:"self_service"`
+	Platform           InstallableDevicePlatform `json:"platform"`
+	InstallDuringSetup *bool                     `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
+	LabelsExcludeAny   []string                  `json:"labels_exclude_any"`
+	LabelsIncludeAny   []string                  `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
 	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
 	CategoryIDs []uint `json:"-"`
+	DisplayName string `json:"display_name"`
 }
 
 type SoftwareCategory struct {
