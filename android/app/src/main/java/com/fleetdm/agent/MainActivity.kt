@@ -82,7 +82,6 @@ class MainActivity : ComponentActivity() {
             val fleetBaseUrl by remember {
                 mutableStateOf(appRestrictions.getString("fleetBaseUrl"))
             }
-            var clicks by remember { mutableStateOf(0) }
             var enrollBody by remember { mutableStateOf("enroll not run") }
             var installedCertificates: List<CertificateInfo> by remember { mutableStateOf(listOf()) }
             val apiKey by ApiClient.apiKeyFlow.collectAsState(initial = null)
@@ -115,7 +114,6 @@ class MainActivity : ComponentActivity() {
                             PermissionList(
                                 permissionsList = permissionsList
                             )
-                            Button(onClick = { clicks++ }) { Text("Clicks: $clicks") }
                             Button(onClick = {
                                 scope.launch {
                                     enrollBody = "launched!!"

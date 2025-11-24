@@ -158,5 +158,5 @@ data class EnrollRequest(
 @Serializable
 data class EnrollResponse(
     @SerialName("orbit_node_key")
-    var orbitNodeKey: String,
+    val orbitNodeKey: String,
 )
