@@ -26,13 +26,13 @@ import java.security.cert.Certificate
  */
 class CertificateService : Service() {
     private val TAG = "CertCompanionService"
+
     // Use a supervisor job for the service's lifecycle
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
 
     // SCEP client for certificate enrollment
     private val scepClient: ScepClient = ScepClientImpl()
-
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val certDataJson = intent?.getStringExtra("CERT_DATA")
@@ -54,7 +54,7 @@ class CertificateService : Service() {
                         installCertificateSilently(
                             scepConfig.alias,
                             result.privateKey,
-                            result.certificateChain
+                            result.certificateChain,
                         )
                     } else {
                         Log.e(TAG, "SCEP enrollment failed or returned empty data.")
@@ -73,7 +73,6 @@ class CertificateService : Service() {
         return START_NOT_STICKY
     }
 
-
     /**
      * Parses the JSON payload from the MDM into a structured configuration object.
      */
@@ -86,7 +85,7 @@ class CertificateService : Service() {
                 alias = json.getString("alias"),
                 subject = json.getString("subject"),
                 keyLength = json.optInt("key_length", 2048),
-                signatureAlgorithm = json.optString("signature_algorithm", "SHA256withRSA")
+                signatureAlgorithm = json.optString("signature_algorithm", "SHA256withRSA"),
             )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse SCEP configuration JSON: ${e.message}")
@@ -128,7 +127,7 @@ class CertificateService : Service() {
     private fun installCertificateSilently(
         alias: String,
         privateKey: PrivateKey,
-        certificateChain: Array<Certificate>
+        certificateChain: Array<Certificate>,
     ) {
         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
 
@@ -140,7 +139,7 @@ class CertificateService : Service() {
             privateKey,
             certificateChain,
             alias,
-            0 // flags - 0 means no special flags
+            true, // requestAccess: allows user confirmation if needed
         )
 
         if (success) {
