@@ -18308,6 +18308,8 @@ func (s *integrationMDMTestSuite) TestAndroidEnterpriseDeletedDetection() {
 	t := s.T()
 	ctx := t.Context()
 
+	// ----- SETUP
+
 	appConfig, err := s.ds.AppConfig(ctx)
 	require.NoError(t, err)
 	originalAppConfig := *appConfig
@@ -18315,10 +18317,18 @@ func (s *integrationMDMTestSuite) TestAndroidEnterpriseDeletedDetection() {
 	err = s.ds.SaveAppConfig(ctx, appConfig)
 	require.NoError(t, err)
 
+	// Delete android enterprise
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM android_enterprises`)
+		return err
+	})
+
 	t.Cleanup(func() {
 		err := s.ds.SaveAppConfig(context.Background(), &originalAppConfig)
 		require.NoError(t, err)
 	})
+
+	// ---- SETUP DONE
 
 	s.androidAPIClient.InitCommonMocks()
 
