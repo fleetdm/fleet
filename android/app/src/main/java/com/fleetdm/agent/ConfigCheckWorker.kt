@@ -7,7 +7,6 @@ import androidx.work.WorkerParameters
 
 /**
  * WorkManager worker that periodically checks managed configurations.
- * Runs every 15 minutes to ensure configs are up-to-date even if broadcasts are missed.
  */
 class ConfigCheckWorker(
     context: Context,

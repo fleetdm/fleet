@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Custom Application class for Fleet Agent.
- * Runs when the app process starts (triggered by broadcasts, not user launch).
+ * Runs when the app process starts (triggered by broadcasts, not by user).
  */
 class FleetApplication : Application() {
     companion object {
@@ -26,7 +26,7 @@ class FleetApplication : Application() {
     private fun schedulePeriodicConfigCheck() {
         val workRequest =
             PeriodicWorkRequestBuilder<ConfigCheckWorker>(
-                15,
+                15, // 15 is the minimum
                 TimeUnit.MINUTES,
             ).build()
 
