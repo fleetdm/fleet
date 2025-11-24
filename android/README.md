@@ -144,7 +144,7 @@ This runs:
 
 ## Running tests
 
-### Unit tests (fast, no emulator required)
+### Unit tests (JVM)
 
 ```bash
 ./gradlew test
