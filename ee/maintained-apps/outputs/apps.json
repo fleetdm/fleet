@@ -590,6 +590,13 @@
       "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
     },
     {
+      "name": "Rancher Desktop",
+      "slug": "rancher/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.rancherdesktop.app",
+      "description": ""
+    },
+    {
       "name": "Rectangle",
       "slug": "rectangle/darwin",
       "platform": "darwin",
