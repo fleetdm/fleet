@@ -165,9 +165,6 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 		args = append(args, opt.ActivityType)
 	}
 
-	fmt.Println("opt.StartCreatedAt:", opt.StartCreatedAt)
-	fmt.Println("opt.EndCreatedAt:", opt.EndCreatedAt)
-
 	if opt.StartCreatedAt != "" || opt.EndCreatedAt != "" {
 		start := opt.StartCreatedAt
 		end := opt.EndCreatedAt
