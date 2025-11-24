@@ -709,6 +709,13 @@
       "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
     },
     {
+      "name": "VLC media player",
+      "slug": "vlc/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.videolan.vlc",
+      "description": "VLC media player is a free and open-source media player software."
+    },
+    {
       "name": "VNC Viewer",
       "slug": "vnc-viewer/darwin",
       "platform": "darwin",
