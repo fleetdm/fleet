@@ -178,7 +178,7 @@ Schedule a Zoom call with the team **at least one week before** the event.
 - Make sure the booth/demo area is set up correctly.  
 - Ensure **1–2 team members** are at the booth when coverage is needed, based on the event schedule.  
 - Keep the team aligned and on track.  
-- Make sure contacts are created and updated in `#help-create-contact`.  
+- Make sure contacts are created and updated in `Popl', and can be transferred into Salesforce.  
 - Handle any issues that come up and escalate if needed.  
 - Confirm demos, materials, and setups are working.
 
