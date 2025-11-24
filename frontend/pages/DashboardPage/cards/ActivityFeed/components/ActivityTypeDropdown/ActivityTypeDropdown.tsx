@@ -24,6 +24,8 @@ import TooltipTruncatedText from "components/TooltipTruncatedText";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import { PADDING } from "styles/var/padding";
+import { FONT_SIZES } from "styles/var/fonts";
+import { COLORS } from "styles/var/colors";
 
 declare module "react-select-5/dist/declarations/src/Select" {
   export interface Props<
@@ -223,6 +225,17 @@ const ActivityTypeDropdown = ({
       paddingRight: PADDING["pad-small"],
       paddingTop: 0,
     }),
+    noOptionsMessage: (provided) => ({
+      ...provided,
+      padding: PADDING["pad-small"],
+      fontSize: FONT_SIZES["x-small"],
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "100%",
+      height: 276,
+      color: COLORS["ui-fleet-black-75"],
+    }),
     valueContainer: (provided) => ({
       ...provided,
       padding: 0,
@@ -260,7 +273,7 @@ const ActivityTypeDropdown = ({
           value={getValue()}
           onChange={handleChange}
           searchQuery={searchQuery}
-          noOptionsMessage={() => "No results found"}
+          noOptionsMessage={() => "No items match this search criteria."}
           onKeyDown={onKeyDown}
           onBlur={onBlur}
           onChangeSearchQuery={onChangeSearchQuery}
