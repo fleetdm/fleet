@@ -129,7 +129,7 @@ const Checkbox = (props: ICheckboxProps) => {
       return (
         <TooltipWrapper
           tipContent={iconTooltipContent}
-          clickable={false}
+          clickable={labelTooltipClickable}
           underline={false}
           showArrow
           position="right"
@@ -149,7 +149,7 @@ const Checkbox = (props: ICheckboxProps) => {
       <span className={`${baseClass}__label-tooltip tooltip`}>
         <TooltipWrapper
           tipContent={labelTooltipContent}
-          clickable={false} // Not block form behind tooltip
+          clickable={labelTooltipClickable} // Allow interaction with link in tooltip
         >
           {children}
         </TooltipWrapper>

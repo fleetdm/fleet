@@ -30,11 +30,11 @@ const MOCK_PROPS = {
 };
 
 describe("EditIconModal", () => {
-  it("renders with the correct modal title for package, FileUploader, Preview tabs, save button", () => {
+  it("renders with the correct modal title for software, FileUploader, Preview tabs, save button", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(<EditIconModal {...MOCK_PROPS} />);
 
-    expect(screen.getByText(/edit package/i)).toBeInTheDocument();
+    expect(screen.getByText(/edit software/i)).toBeInTheDocument();
     expect(screen.getByText("Choose file")).toBeInTheDocument();
     expect(screen.getByText("Preview")).toBeInTheDocument();
     expect(screen.getByText("Fleet")).toBeInTheDocument();

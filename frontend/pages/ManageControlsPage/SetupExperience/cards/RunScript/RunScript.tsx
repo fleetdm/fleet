@@ -81,7 +81,7 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
 
   const renderContent = () => {
     if (isLoading || isLoadingGlobalConfig || isLoadingTeamConfig) {
-      <Spinner />;
+      return <Spinner />;
     }
 
     if (

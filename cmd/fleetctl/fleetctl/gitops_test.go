@@ -316,6 +316,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
@@ -628,17 +631,17 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	// Track default team config for team 0
 	defaultTeamConfig := &fleet.TeamConfig{}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid == 0 {
 			// Return a mock team 0 with the default config
-			return &fleet.Team{
+			return &fleet.TeamLite{
 				ID:     0,
 				Name:   fleet.ReservedNameNoTeam,
-				Config: *defaultTeamConfig,
+				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
 		if tid == team.ID {
-			return savedTeam, nil
+			return savedTeam.ToTeamLite(), nil
 		}
 		return nil, nil
 	}
@@ -682,6 +685,9 @@ func TestGitOpsBasicTeam(t *testing.T) {
 		return nil
 	}
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
@@ -1179,9 +1185,15 @@ func TestGitOpsFullTeam(t *testing.T) {
 		}
 		return nil, &notFoundError{}
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid == savedTeam.ID {
 			return savedTeam, nil
+		}
+		return nil, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		if tid == savedTeam.ID {
+			return savedTeam.ToTeamLite(), nil
 		}
 		return nil, nil
 	}
@@ -1205,8 +1217,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 		return team, nil
 	}
 
-	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
-		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 	}
 
 	// Policies
@@ -1282,6 +1294,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 		if teamID != nil && *teamID != 0 {
 			appliedSoftwareInstallers = installers
 		}
+		return nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
@@ -1589,17 +1604,17 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	// Track default team config for team 0
 	defaultTeamConfig := &fleet.TeamConfig{}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid == 0 {
 			// Return a mock team 0 with the default config
-			return &fleet.Team{
+			return &fleet.TeamLite{
 				ID:     0,
 				Name:   fleet.ReservedNameNoTeam,
-				Config: *defaultTeamConfig,
+				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
 		if tid == team.ID {
-			return savedTeam, nil
+			return savedTeam.ToTeamLite(), nil
 		}
 		return nil, nil
 	}
@@ -1635,6 +1650,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		return team, nil
 	}
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
@@ -1830,15 +1848,15 @@ software:
 	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 		return []*fleet.Team{teamToDelete, team}, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		switch tid {
 		case team.ID:
-			return team, nil
+			return team.ToTeamLite(), nil
 		case teamToDeleteID:
-			return teamToDelete, nil
+			return teamToDelete.ToTeamLite(), nil
 		}
 		assert.Fail(t, fmt.Sprintf("unexpected team ID %d", tid))
-		return teamToDelete, nil
+		return teamToDelete.ToTeamLite(), nil
 	}
 	ds.DeleteTeamFunc = func(ctx context.Context, tid uint) error {
 		assert.Equal(t, teamToDeleteID, tid)
@@ -1962,17 +1980,17 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	// Track default team config for team 0
 	defaultTeamConfig := &fleet.TeamConfig{}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid == 0 {
 			// Return a mock team 0 with the default config
-			return &fleet.Team{
+			return &fleet.TeamLite{
 				ID:     0,
 				Name:   fleet.ReservedNameNoTeam,
-				Config: *defaultTeamConfig,
+				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
 		if tid == team.ID {
-			return savedTeam, nil
+			return savedTeam.ToTeamLite(), nil
 		}
 		return nil, nil
 	}
@@ -2008,6 +2026,9 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		return team, nil
 	}
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
@@ -2379,8 +2400,8 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
 		return 0, nil
 	}
-	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
-		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 	}
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 		return []uint{}, nil

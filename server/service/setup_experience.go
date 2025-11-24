@@ -244,7 +244,7 @@ func isAllSetupExperienceSoftwareRequired(ctx context.Context, ds fleet.Datastor
 		}
 		requireAllSoftware = ac.MDM.MacOSSetup.RequireAllSoftware
 	} else {
-		team, err := ds.Team(ctx, *teamID)
+		team, err := ds.TeamLite(ctx, *teamID)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "load team")
 		}

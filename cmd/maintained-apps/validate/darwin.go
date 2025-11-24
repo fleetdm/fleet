@@ -152,7 +152,13 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 			result.Name = software.Name
 
 			level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s, Bundled Version: %s", result.Name, result.Path, result.Version, result.BundledVersion))
+			// Check exact match first
 			if result.Version == appVersion || result.BundledVersion == appVersion {
+				return true, nil
+			}
+			// Check if found version starts with expected version (handles suffixes like ".CE")
+			// This handles cases where the app version is "8.0.44.CE" but expected is "8.0.44"
+			if strings.HasPrefix(result.Version, appVersion+".") || strings.HasPrefix(result.BundledVersion, appVersion+".") {
 				return true, nil
 			}
 		}

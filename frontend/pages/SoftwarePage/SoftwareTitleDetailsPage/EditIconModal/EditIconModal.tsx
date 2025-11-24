@@ -12,7 +12,6 @@ import { NotificationContext } from "context/notification";
 import { INotification } from "interfaces/notification";
 import { getErrorReason } from "interfaces/errors";
 import softwareAPI from "services/entities/software";
-import mdmAppleAPI from "services/entities/mdm_apple";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
@@ -526,7 +525,6 @@ const EditIconModal = ({
     </Card>
   );
 
-  // TODO: Confirm design with designer as this was a missed spec and not on Figma
   const renderPreviewSelfServiceMobileCard = () => (
     <Card
       borderRadiusSize="medium"
@@ -567,7 +565,7 @@ const EditIconModal = ({
           className={`${baseClass}__self-service-preview-name-version--mobile`}
         >
           <div className={`${baseClass}__self-service-preview-name--mobile`}>
-            <TooltipTruncatedText value={previewInfo.name} />
+            <TooltipTruncatedText value={displayName || previewInfo.name} />
           </div>
           <div className={`${baseClass}__self-service-preview-version--mobile`}>
             {"latest_version" in software
@@ -579,7 +577,6 @@ const EditIconModal = ({
     </Card>
   );
 
-  console.log("EDIT ICON MODAL software", software);
   const renderForm = () => (
     <>
       <InputField
@@ -591,7 +588,7 @@ const EditIconModal = ({
         helpText={
           <>
             Optional. If left blank, Fleet will use{" "}
-            <strong>{previewInfo.name}</strong>.
+            <strong>{software.name}</strong>.
           </>
         }
         autofocus
@@ -694,7 +691,7 @@ const EditIconModal = ({
                 softwareId,
                 teamId: teamIdForApi,
               })
-            : mdmAppleAPI.editVppApp(softwareId, teamIdForApi, {
+            : softwareAPI.editAppStoreApp(softwareId, teamIdForApi, {
                 displayName,
               }));
           notifications.push({
@@ -748,7 +745,7 @@ const EditIconModal = ({
   return (
     <Modal
       className={baseClass}
-      title={isSoftwarePackage ? "Edit package" : "Edit app"}
+      title="Edit software"
       onExit={onExitEditIconModal}
     >
       <>
