@@ -520,6 +520,13 @@
       "description": "Omnissa Horizon Client is a tool end users use to access remote virtual desktops."
     },
     {
+      "name": "OneDrive",
+      "slug": "onedrive/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.OneDrive",
+      "description": "Microsoft's cloud storage client."
+    },
+    {
       "name": "Opera",
       "slug": "opera/darwin",
       "platform": "darwin",
