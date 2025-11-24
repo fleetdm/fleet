@@ -15,7 +15,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
-        android:name=".FleetApplication"
+        android:name=".AgentApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -47,7 +47,7 @@
 
         <!-- AMAPI NotificationReceiverService for COMPANION_APP role -->
         <service
-            android:name=".FleetNotificationReceiverService"
+            android:name=".RoleNotificationReceiverService"
             android:exported="true"
             tools:ignore="ExportedService">
             <meta-data

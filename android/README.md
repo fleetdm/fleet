@@ -3,6 +3,7 @@
 - [Requirements](#requirements)
 - [Building the project](#building-the-project)
 - [Deploying via Android MDM](#deploying-via-android-mdm-development)
+- [How the app starts](#how-the-app-starts)
 - [Running tests](#running-tests)
 - [Code quality](#code-quality)
 - [Troubleshooting](#troubleshooting)
@@ -143,6 +144,33 @@ go run tools/android/android.go --command enterprises.webTokens.create --enterpr
 7. **Enroll your Android device.**
 
 The agent should start installing shortly. Check Google Play in your Work profile. If it shows as pending, try restarting the device.
+
+## How the app starts
+
+The Fleet Android agent is designed to run automatically without user interaction. The app starts in three scenarios:
+
+### 1. On installation (COMPANION_APP role)
+
+When the app is installed via MDM, Android Device Policy assigns it the `COMPANION_APP` role. This triggers `RoleNotificationReceiverService`, which starts the app process and runs `AgentApplication.onCreate()`.
+
+### 2. On device boot
+
+When the device boots, `BootReceiver` receives the `ACTION_BOOT_COMPLETED` broadcast and starts the app process, triggering `AgentApplication.onCreate()`.
+
+### 3. Periodically every 15 minutes
+
+`AgentApplication.onCreate()` schedules a `ConfigCheckWorker` to run every 15 minutes using WorkManager. This ensures the app wakes up periodically even if the process is killed.
+
+**Note:** WorkManager ensures reliable background execution. The work persists across device reboots and process death.
+
+### Why not ACTION_APPLICATION_RESTRICTIONS_CHANGED?
+
+We don't use `ACTION_APPLICATION_RESTRICTIONS_CHANGED` to detect MDM config changes because:
+
+1. This broadcast can only be registered dynamically (not in the manifest)
+2. On Android 14+, [context-registered broadcasts are queued when the app is in cached state](https://developer.android.com/about/versions/14/behavior-changes-all#pending-broadcasts-queued)
+
+This means the broadcast won't wake the app immediately when configs change if the app is in the background. WorkManager polling every 15 minutes is the reliable solution for detecting config changes.
 
 ### Full build with tests
 
