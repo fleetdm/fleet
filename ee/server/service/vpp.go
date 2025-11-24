@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/itunes"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 )
@@ -737,17 +738,20 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 
 	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(validatedLabels)
 
+	displayNameVal := ptr.IfNotNil(displayName)
+
 	act := fleet.ActivityEditedAppStoreApp{
-		TeamName:         &teamName,
-		TeamID:           teamID,
-		SelfService:      selfServiceVal,
-		SoftwareTitleID:  titleID,
-		SoftwareTitle:    meta.Name,
-		AppStoreID:       meta.AdamID,
-		Platform:         meta.Platform,
-		LabelsIncludeAny: actLabelsIncl,
-		LabelsExcludeAny: actLabelsExcl,
-		SoftwareIconURL:  meta.IconURL,
+		TeamName:            &teamName,
+		TeamID:              teamID,
+		SelfService:         selfServiceVal,
+		SoftwareTitleID:     titleID,
+		SoftwareTitle:       meta.Name,
+		AppStoreID:          meta.AdamID,
+		Platform:            meta.Platform,
+		LabelsIncludeAny:    actLabelsIncl,
+		LabelsExcludeAny:    actLabelsExcl,
+		SoftwareIconURL:     meta.IconURL,
+		SoftwareDisplayName: displayNameVal,
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for update app store app")
