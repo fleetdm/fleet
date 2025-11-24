@@ -64,10 +64,8 @@ const ActivityFeedFilters = ({
   setCreatedAtDirection,
   setPageIndex,
 }: ActivityFeedFiltersProps) => {
-  const [activityType, setActivityType] = React.useState<string>("all");
-
   const onChangeActivityType = (value: string) => {
-    setActivityType(value);
+    setTypeFilter((prev: string[]) => [value]);
     setPageIndex(0);
   };
 
@@ -89,7 +87,7 @@ const ActivityFeedFilters = ({
       <div className={`${baseClass}__dropdown-filters`}>
         <ActivityTypeDropdown
           className={`${baseClass}__type-filter-dropdown`}
-          value={activityType}
+          value={typeFilter[0] || "all"}
           onSelect={onChangeActivityType}
         />
         <DropdownWrapper

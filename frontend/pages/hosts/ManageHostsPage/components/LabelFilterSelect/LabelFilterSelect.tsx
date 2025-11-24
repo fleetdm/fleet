@@ -23,7 +23,7 @@ declare module "react-select-5/dist/declarations/src/Select" {
     Option,
     IsMulti extends boolean,
     Group extends GroupBase<Option>
-  > {
+    > {
     labelQuery?: string;
     canAddNewLabels?: boolean;
     onAddLabel?: () => void;

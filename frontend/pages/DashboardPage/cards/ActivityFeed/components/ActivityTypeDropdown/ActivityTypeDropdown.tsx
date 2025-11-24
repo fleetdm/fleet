@@ -3,6 +3,7 @@ import classnames from "classnames";
 import Select, {
   components,
   MenuListProps,
+  SelectInstance,
   SingleValue,
   StylesConfig,
   GroupBase,
@@ -51,16 +52,16 @@ const CustomMenuList = (props: ICustomMenuListProps) => {
   const handleInputClick = (
     event: React.MouseEvent<HTMLInputElement, MouseEvent>
   ) => {
-    onClickSearchInput?.(event);
+    onClickSearchInput && onClickSearchInput(event);
     inputRef.current?.focus();
     event.stopPropagation();
   };
 
   return (
     <components.MenuList {...props}>
-      <div className={`${baseClass}__field`}>
+      <div className={`${baseClass}__search-field`}>
         <input
-          className={`${baseClass}__input`}
+          className={`${baseClass}__search-input`}
           ref={inputRef}
           value={searchQuery}
           name="label-search-input"
@@ -117,13 +118,55 @@ const ActivityTypeDropdown = ({
   className,
 }: IActivityTypeDropdownProps) => {
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [menuIsOpen, setMenuIsOpen] = React.useState(false);
+
+  const selectRef = useRef<SelectInstance<CustomOptionType, false>>(null);
+  const isSearchInputFocusedRef = useRef(false);
 
   const handleChange = (option: SingleValue<CustomOptionType>) => {
+    setSearchQuery("");
     onSelect(option ? option.value : "all");
+    selectRef.current?.blur();
   };
 
-  const onInputChange = (val: string, actionMeta: any) => {
-    console.log("Input Changed", val, actionMeta);
+  const onChangeSearchQuery = (event: React.ChangeEvent<HTMLInputElement>) => {
+    // We need to stop the key presses propagation to prevent the dropdown from
+    // picking up keypresses.
+    event.stopPropagation();
+    setSearchQuery(event.target.value);
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setMenuIsOpen(false);
+      selectRef.current?.blur();
+    } else if (e.key === "Tab" && !e.shiftKey) {
+      // Allow tabbing out of the component
+      setMenuIsOpen(false);
+      selectRef.current?.blur();
+    } else {
+      setMenuIsOpen(true);
+    }
+  };
+
+  const onBlur = () => {
+    if (!isSearchInputFocusedRef.current) {
+      isSearchInputFocusedRef.current = false;
+      setMenuIsOpen(false);
+    }
+  };
+
+  const onClickSearchInput = () => {
+    isSearchInputFocusedRef.current = true;
+  };
+
+  const onBlurSearchInput = () => {
+    isSearchInputFocusedRef.current = false;
+  };
+
+  const toggleMenu = () => {
+    menuIsOpen && selectRef.current?.blur();
+    setMenuIsOpen(!menuIsOpen);
   };
 
   const getValue = () => {
@@ -147,22 +190,31 @@ const ActivityTypeDropdown = ({
       name="activity-type-dropdown"
       label=""
     >
-      <Select<CustomOptionType, false>
-        styles={customStyles}
-        options={TYPE_FILTER_OPTIONS}
-        components={{
-          MenuList: CustomMenuList,
-          DropdownIndicator: CustomDropdownIndicator,
-          IndicatorSeparator: () => null,
-          ValueContainer: CustomValueContainer,
-        }}
-        isSearchable={false}
-        value={getValue()}
-        onChange={handleChange}
-        searchQuery={searchQuery}
-        // onInputChange={onInputChange}
-        noOptionsMessage={() => "No results found"}
-      />
+      <div onClick={toggleMenu}>
+        <Select<CustomOptionType, false>
+          ref={selectRef}
+          styles={customStyles}
+          menuIsOpen={menuIsOpen}
+          options={TYPE_FILTER_OPTIONS}
+          components={{
+            MenuList: CustomMenuList,
+            DropdownIndicator: CustomDropdownIndicator,
+            IndicatorSeparator: () => null,
+            ValueContainer: CustomValueContainer,
+          }}
+          isSearchable={false}
+          value={getValue()}
+          onChange={handleChange}
+          searchQuery={searchQuery}
+          // onInputChange={onInputChange}
+          noOptionsMessage={() => "No results found"}
+          onKeyDown={onKeyDown}
+          onBlur={onBlur}
+          onChangeSearchQuery={onChangeSearchQuery}
+          onClickSearchInput={onClickSearchInput}
+          onBlurSearchInput={onBlurSearchInput}
+        />
+      </div>
     </FormField>
   );
 };
