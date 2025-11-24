@@ -2338,10 +2338,10 @@ type Datastore interface {
 	GetHostMDMAndroidProfiles(ctx context.Context, hostUUID string) ([]HostMDMAndroidProfile, error)
 
 	// NewAndroidPolicyRequest saves details about a new Android AMAPI request.
-	NewAndroidPolicyRequest(ctx context.Context, req *MDMAndroidPolicyRequest) error
+	NewAndroidPolicyRequest(ctx context.Context, req *android.MDMAndroidPolicyRequest) error
 
 	// GetAndroidPolicyRequestByUUID retrieves an Android policy request by ID.
-	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*MDMAndroidPolicyRequest, error)
+	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
 
 	// ListMDMAndroidProfilesToSend lists the Android hosts that need to have
 	// their configuration profiles (Android policy) sent. It returns two lists,
@@ -2518,7 +2518,7 @@ type AndroidDatastore interface {
 	BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionID int64) error
 	// ListHostMDMAndroidProfilesPendingInstallWithVersion returns a list of all android profiles that are pending install, and where version is less than or equals to the policyVersion.
 	ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*MDMAndroidProfilePayload, error)
-	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*MDMAndroidPolicyRequest, error)
+	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`
 	// slice, updating existing entries and inserting new entries.

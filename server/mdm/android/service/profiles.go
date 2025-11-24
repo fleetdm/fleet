@@ -380,7 +380,7 @@ func buildPolicyFieldsOverriddenErrorMessage(overriddenFields []string) string {
 
 func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyName string,
 	policy *androidmanagement.Policy, metadata map[string]string,
-) (req *fleet.MDMAndroidPolicyRequest, skip bool, err error) {
+) (req *android.MDMAndroidPolicyRequest, skip bool, err error) {
 	policyRequest, err := newAndroidPolicyRequest(policyID, policyName, policy, metadata)
 	if err != nil {
 		return nil, false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
@@ -395,7 +395,7 @@ func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyNam
 
 func (r *profileReconciler) patchDevice(ctx context.Context, policyID, deviceName string,
 	device *androidmanagement.Device,
-) (req *fleet.MDMAndroidPolicyRequest, skip bool, apiErr error) {
+) (req *android.MDMAndroidPolicyRequest, skip bool, apiErr error) {
 	deviceRequest, err := newAndroidDeviceRequest(policyID, deviceName, device)
 	if err != nil {
 		return nil, false, ctxerr.Wrapf(ctx, err, "prepare device request %s", deviceName)

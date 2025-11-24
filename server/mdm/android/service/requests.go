@@ -9,24 +9,25 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
 )
 
-func newAndroidDeviceRequest(policyID, deviceName string, device *androidmanagement.Device) (*fleet.MDMAndroidPolicyRequest, error) {
+func newAndroidDeviceRequest(policyID, deviceName string, device *androidmanagement.Device) (*android.MDMAndroidPolicyRequest, error) {
 	b, err := json.Marshal(device)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal device to json: %w", err)
 	}
-	return &fleet.MDMAndroidPolicyRequest{
+	return &android.MDMAndroidPolicyRequest{
 		RequestName: deviceName,
 		PolicyID:    policyID,
 		Payload:     b,
 	}, nil
 }
 
-func newAndroidPolicyApplicationsRequest(policyID, policyName string, apps []*androidmanagement.ApplicationPolicy) (*fleet.MDMAndroidPolicyRequest, error) {
+func newAndroidPolicyApplicationsRequest(policyID, policyName string, apps []*androidmanagement.ApplicationPolicy) (*android.MDMAndroidPolicyRequest, error) {
 	var changes []*androidmanagement.ApplicationPolicyChange
 	for _, app := range apps {
 		changes = append(changes, &androidmanagement.ApplicationPolicyChange{
@@ -41,14 +42,14 @@ func newAndroidPolicyApplicationsRequest(policyID, policyName string, apps []*an
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal modify policy applications to json: %w", err)
 	}
-	return &fleet.MDMAndroidPolicyRequest{
+	return &android.MDMAndroidPolicyRequest{
 		RequestName: policyName,
 		PolicyID:    policyID,
 		Payload:     b,
 	}, nil
 }
 
-func newAndroidPolicyRequest(policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (*fleet.MDMAndroidPolicyRequest, error) {
+func newAndroidPolicyRequest(policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (*android.MDMAndroidPolicyRequest, error) {
 	// save the payload with metadata about what setting comes from what profile
 	m := fleet.AndroidPolicyRequestPayload{
 		Policy: policy,
@@ -60,7 +61,7 @@ func newAndroidPolicyRequest(policyID, policyName string, policy *androidmanagem
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal policy to json: %w", err)
 	}
-	return &fleet.MDMAndroidPolicyRequest{
+	return &android.MDMAndroidPolicyRequest{
 		RequestName: policyName,
 		PolicyID:    policyID,
 		Payload:     b,
@@ -71,7 +72,7 @@ func newAndroidPolicyRequest(policyID, policyName string, policy *androidmanagem
 // (via newAndroidXxxRequest) requestObject with data from the result (success or
 // error). Only one of policyResult or deviceResult should be non-nil, depending
 // on the type of request made.
-func recordAndroidRequestResult(ctx context.Context, ds fleet.Datastore, requestObject *fleet.MDMAndroidPolicyRequest,
+func recordAndroidRequestResult(ctx context.Context, ds fleet.Datastore, requestObject *android.MDMAndroidPolicyRequest,
 	policyResult *androidmanagement.Policy, deviceResult *androidmanagement.Device, apiErr error) (skip bool, err error) {
 	if apiErr != nil {
 		var gerr *googleapi.Error
