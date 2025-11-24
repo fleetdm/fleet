@@ -65,13 +65,13 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                                   @rachaelshaw
+/docs                                                   @rachaelshaw @lukeheath
 /docs/solutions                                         @ddribeiro
-/docs/Configuration                                     @rachaelshaw
+/docs/Configuration                                     @rachaelshaw @lukeheath
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
 /docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @sgress454 @getvictor # software ingestion is security & compliance
-/docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
-/docs/Contributing/reference                            @rachaelshaw
+/docs/REST\ API/rest-api.md                             @rachaelshaw @lukeheath # « REST API reference documentation
+/docs/Contributing/reference                            @rachaelshaw @lukeheath
 /schema                                                 @eashaw # « Data tables (osquery/fleetd schema) documentation
 /render.yaml                                            @edwardsb
 /it-and-security                                        @allenhouchins
@@ -157,6 +157,7 @@ go.mod @fleetdm/go
 ##############################################################################################
 # 🚀 GitHub workflows
 ##############################################################################################
-/.github/workflows/ @lukeheath @georgekarrv @sharon-fdm
+/.github @lukeheath
+/.github/workflows/ @georgekarrv @sharon-fdm @lukeheath
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.
