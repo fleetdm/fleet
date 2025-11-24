@@ -18160,9 +18160,16 @@ func (s *integrationMDMTestSuite) TestAndroidEnterpriseDeletedDetection() {
 
 	appConfig, err := s.ds.AppConfig(ctx)
 	require.NoError(t, err)
+	originalAppConfig := *appConfig
 	appConfig.MDM.AndroidEnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(ctx, appConfig)
 	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		ctx := t.Context()
+		err := s.ds.SaveAppConfig(ctx, &originalAppConfig)
+		require.NoError(t, err)
+	})
 
 	s.androidAPIClient.InitCommonMocks()
 
