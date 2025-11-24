@@ -2387,6 +2387,15 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 			// flag during enrollment, the enrollment is considered manual as it was user-initiated via the Settings app.
 			// There does not seem to be a way on the host to detect this via osquery.
 			windowsDevice, err := ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "checking windows enrolled device for AAD enrolled host")
+			}
+			// Not a big deal if we didn't find it - the query may not have been processed to link the host
+			// to the enrollment yet
+			if windowsDevice != nil {
+				automatic = !windowsDevice.MDMNotInOOBE
+			}
+
 			deviceID := "unknown"
 			notInOOBE := false
 			if windowsDevice != nil {
@@ -2394,9 +2403,7 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 				notInOOBE = windowsDevice.MDMNotInOOBE
 			}
 			fmt.Printf("directIngestMDMWindows got device %s for host %s MDMNotInOOBE %t\n", deviceID, host.UUID, notInOOBE)
-			if err == nil && windowsDevice != nil {
-				automatic = !windowsDevice.MDMNotInOOBE
-			}
+
 		}
 	}
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
@@ -2689,6 +2696,7 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 					return ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
 				}
 			}
+
 			mapping := []*fleet.HostDeviceMapping{
 				{
 					HostID: host.ID,

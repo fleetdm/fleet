@@ -1137,11 +1137,13 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 				return nil, common_mysql.NotFound("MDMWindowsEnrolledDevice")
 			}
+			ds.SetOrUpdateMDMDataFuncInvoked = false
+			ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked = false
+
+			err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &fleet.Host{}, ds, c.data)
+			require.NoError(t, err)
+			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 		})
-		err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &fleet.Host{}, ds, c.data)
-		require.NoError(t, err)
-		require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
-		ds.SetOrUpdateMDMDataFuncInvoked = false
 	}
 }
 
@@ -2007,28 +2009,192 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 	logger := log.NewNopLogger()
 	host := &fleet.Host{ID: 1, UUID: "mdm-windows-hw-uuid"}
 
+	returnEnrollmentsUpdated := true
 	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string) (bool, error) {
 		require.NotEmpty(t, deviceID)
 		require.Equal(t, host.UUID, hostUUID)
-		return true, nil
+		return returnEnrollmentsUpdated, nil
+	}
+	ds.UpdateMDMInstalledFromDEPFunc = func(ctx context.Context, hostID uint, enrolledFromDEP bool) error {
+		return nil
 	}
 
-	// if no rows, assume the registry key is not present (i.e. mdm is turned off) and do nothing
-	require.NoError(t, directIngestMDMDeviceIDWindows(ctx, logger, host, ds, []map[string]string{}))
-	require.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+	baseEnrolledDeviceToReturn := fleet.MDMWindowsEnrolledDevice{
+		ID:                     1,
+		MDMHardwareID:          "12345",
+		MDMDeviceState:         "MDMDeviceEnrolledEnrolled",
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "Fleetie-PC",
+		MDMEnrollUserID:        "a1b2c3d4e5f6g7h8i9j0",
+		MDMEnrollProtoVersion:  "7.0",
+		MDMEnrollClientVersion: "10.0.26200.7020",
+		MDMEnrollType:          "Full",
+	}
+	ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, deviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+		device := baseEnrolledDeviceToReturn
+		device.MDMDeviceID = deviceID
+		return &device, nil
+	}
 
-	// if multiple rows, expect error
-	require.Error(t, directIngestMDMDeviceIDWindows(ctx, logger, host, ds, []map[string]string{
-		{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
-		{"name": "mdm-windows-hostname2", "data": "mdm-windows-device-id2"},
-	}))
-	require.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+	ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, hostID uint, mappings []*fleet.HostDeviceMapping, source string) error {
+		require.Len(t, mappings, 1)
+		require.Equal(t, mappings[0].Email, baseEnrolledDeviceToReturn.MDMEnrollUserID)
+		require.Equal(t, mappings[0].HostID, host.ID)
+		require.Equal(t, mappings[0].Source, source)
+		return nil
+	}
 
-	// happy path
-	require.NoError(t, directIngestMDMDeviceIDWindows(ctx, logger, host, ds, []map[string]string{
-		{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
-	}))
-	require.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+	baseSCIMUser := fleet.ScimUser{
+		ID:         1,
+		UserName:   "fleetie@example.com",
+		GivenName:  ptr.String("Fleetie"),
+		FamilyName: ptr.String("McDougal"),
+		Emails:     []fleet.ScimUserEmail{{ScimUserID: 1, Email: "fleetie@example.com"}},
+	}
+	returnSCIMUser := true
+
+	ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, name string, email string) (*fleet.ScimUser, error) {
+		if returnSCIMUser {
+			return &baseSCIMUser, nil
+		}
+		return nil, common_mysql.NotFound("SCIMUser")
+	}
+
+	ds.SetOrUpdateHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint, scimUserID uint) error {
+		require.Equal(t, host.ID, hostID)
+		require.Equal(t, baseSCIMUser.ID, scimUserID)
+		return nil
+	}
+
+	ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) error {
+		require.Equal(t, host.ID, hostID)
+		return nil
+	}
+
+	testCases := []struct {
+		name                                                 string
+		rows                                                 []map[string]string
+		expectError                                          bool
+		mdmEnrollUserID                                      string
+		mdmEnrollNotInOOBE                                   bool
+		returnSCIMUser                                       bool
+		expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked bool
+		expectUpdateMDMInstalledFromDEPFuncInvoked           bool
+		expectReplaceHostDeviceMappingFuncInvoked            bool
+		expectScimUserByUserNameOrEmailFuncInvoked           bool
+		expectDeleteHostSCIMUserMappingFuncInvoked           bool
+	}{
+		{
+			// if no rows, assume the registry key is not present (i.e. mdm is turned off) and do nothing
+			name: "no rows",
+			rows: []map[string]string{},
+		},
+		{
+			name: "multiple rows",
+			rows: []map[string]string{
+				{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+				{"name": "mdm-windows-hostname2", "data": "mdm-windows-device-id2"},
+			}, expectError: true,
+		},
+		{
+			name: "happy path, device without UPN",
+			rows: []map[string]string{
+				{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+			},
+			expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked: true,
+		},
+		{
+			name: "happy path, device enrolled by Fleetie@example.com via Autopilot",
+			rows: []map[string]string{
+				{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+			},
+			mdmEnrollUserID: "fleetie@example.com",
+			expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked: true,
+			expectReplaceHostDeviceMappingFuncInvoked:            true,
+			expectScimUserByUserNameOrEmailFuncInvoked:           true,
+		},
+		{
+			name: "device was enrolled by fleetie@example.com via Settings app",
+			rows: []map[string]string{
+				{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+			},
+			mdmEnrollUserID:    "fleetie@example.com",
+			mdmEnrollNotInOOBE: true,
+			expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked: true,
+			expectUpdateMDMInstalledFromDEPFuncInvoked:           true,
+			expectScimUserByUserNameOrEmailFuncInvoked:           true,
+			expectReplaceHostDeviceMappingFuncInvoked:            true,
+		},
+	}
+
+	resetInvocationFlags := func() {
+		ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked = false
+		ds.UpdateMDMInstalledFromDEPFuncInvoked = false
+		ds.ReplaceHostDeviceMappingFuncInvoked = false
+		ds.ScimUserByUserNameOrEmailFuncInvoked = false
+		ds.DeleteHostSCIMUserMappingFuncInvoked = false
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resetInvocationFlags()
+
+			// set base enrolled device state
+			if tc.mdmEnrollUserID != "" {
+				baseEnrolledDeviceToReturn.MDMEnrollUserID = tc.mdmEnrollUserID
+			} else {
+				// random string that looks like the sort of device IDs we get from the orbit enroll path
+				baseEnrolledDeviceToReturn.MDMEnrollUserID = "a1b2c3d4e5f6g7h8i9j0"
+			}
+			baseEnrolledDeviceToReturn.MDMNotInOOBE = tc.mdmEnrollNotInOOBE
+
+			// If no updates were done no further actions should be taken. This generic case covers this behavior.
+			if tc.expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked {
+				returnEnrollmentsUpdated = false
+				err := directIngestMDMDeviceIDWindows(ctx, logger, host, ds, tc.rows)
+				require.NoError(t, err)
+
+				require.Equal(t, tc.expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+				require.Equal(t, false, ds.UpdateMDMInstalledFromDEPFuncInvoked)
+				require.Equal(t, false, ds.ReplaceHostDeviceMappingFuncInvoked)
+				require.Equal(t, false, ds.ScimUserByUserNameOrEmailFuncInvoked)
+				require.Equal(t, false, ds.DeleteHostSCIMUserMappingFuncInvoked)
+			}
+
+			// Run the actual defined testcase
+			returnEnrollmentsUpdated = true
+			returnSCIMUser = true
+			err := directIngestMDMDeviceIDWindows(ctx, logger, host, ds, tc.rows)
+			if tc.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			require.Equal(t, tc.expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+			require.Equal(t, tc.expectUpdateMDMInstalledFromDEPFuncInvoked, ds.UpdateMDMInstalledFromDEPFuncInvoked)
+			require.Equal(t, tc.expectReplaceHostDeviceMappingFuncInvoked, ds.ReplaceHostDeviceMappingFuncInvoked)
+			require.Equal(t, tc.expectScimUserByUserNameOrEmailFuncInvoked, ds.ScimUserByUserNameOrEmailFuncInvoked)
+			// this test will always return a SCIM user if invoked and as such should update the mapping and never delete it
+			require.Equal(t, false, ds.DeleteHostSCIMUserMappingFuncInvoked)
+
+			// Test the case where no user is returned if applicable
+			if tc.expectScimUserByUserNameOrEmailFuncInvoked {
+				resetInvocationFlags()
+
+				returnSCIMUser = false
+				err = directIngestMDMDeviceIDWindows(ctx, logger, host, ds, tc.rows)
+				require.NoError(t, err)
+
+				require.Equal(t, tc.expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+				require.Equal(t, tc.expectUpdateMDMInstalledFromDEPFuncInvoked, ds.UpdateMDMInstalledFromDEPFuncInvoked)
+				require.Equal(t, tc.expectReplaceHostDeviceMappingFuncInvoked, ds.ReplaceHostDeviceMappingFuncInvoked)
+				require.Equal(t, tc.expectScimUserByUserNameOrEmailFuncInvoked, ds.ScimUserByUserNameOrEmailFuncInvoked)
+				// this test will never return a SCIM user if invoked and as such should always delete the mapping
+				require.Equal(t, true, ds.DeleteHostSCIMUserMappingFuncInvoked)
+			}
+		})
+	}
 }
 
 func TestDirectIngestWindowsProfiles(t *testing.T) {

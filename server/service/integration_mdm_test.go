@@ -6944,7 +6944,8 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 			require.NoError(t, err)
 			updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, mdmDevice.DeviceID)
 			require.NoError(t, err)
-			require.True(t, updated)
+			// No update should have been made because the orbit enrolled path results in an immediately linked hostUUID->windows enrollment
+			require.False(t, updated)
 			err = s.ds.SetOrUpdateMDMData(ctx, host.ID, meta.isServer, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
 			require.NoError(t, err)
 		} else {
@@ -18092,7 +18093,8 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	require.NoError(t, err)
 	updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, newHost.UUID, newHostDevice.DeviceID)
 	require.NoError(t, err)
-	require.True(t, updated)
+	// The MDM Enrollment should have linked the host UUID to the Windows enrollment so there should have been no update
+	require.False(t, updated)
 	err = s.ds.SetOrUpdateMDMData(ctx, newHost.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
 	require.NoError(t, err)
 
