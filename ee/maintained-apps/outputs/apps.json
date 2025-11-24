@@ -380,6 +380,13 @@
       "description": "iTerm2 is a terminal emulator alternative to Apple's Terminal app."
     },
     {
+      "name": "JetBrains Toolbox",
+      "slug": "jetbrains-toolbox/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.toolbox",
+      "description": "JetBrains tools manager."
+    },
+    {
       "name": "Linear",
       "slug": "linear-linear/darwin",
       "platform": "darwin",
