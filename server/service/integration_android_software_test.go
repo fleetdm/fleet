@@ -280,8 +280,9 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		TeamID: nil,
 	}, http.StatusOK, &titleWithConfigResp)
 
-	// retrieved json is formatted differently so just check that it still has this key
-	require.Contains(t, string(titleWithConfigResp.SoftwareTitle.AppStoreApp.Configuration), "workProfileWidgets")
+	var responseConf map[string]any
+	json.Unmarshal(titleWithConfigResp.SoftwareTitle.AppStoreApp.Configuration, &responseConf)
+	require.Contains(t, responseConf, "workProfileWidgets")
 
 	// Edit app and change configuration
 	newConfig := json.RawMessage(`{"managedConfiguration": {"key": "value"}}`)

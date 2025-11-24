@@ -144,7 +144,7 @@ const (
 	DefaultVPPVerifyRequestDelay   = 5 * time.Second
 )
 
-type VPPAppUpdate struct {
+type AppStoreAppUpdatePayload struct {
 	SelfService      *bool
 	LabelsIncludeAny []string
 	LabelsExcludeAny []string
