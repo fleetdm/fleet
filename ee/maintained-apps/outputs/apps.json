@@ -408,6 +408,13 @@
       "description": "Loom is screen and video recording software."
     },
     {
+      "name": "LuLu",
+      "slug": "lulu/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.objective-see.lulu.app",
+      "description": "Open-source firewall to block unknown outgoing connections."
+    },
+    {
       "name": "Messenger",
       "slug": "messenger/darwin",
       "platform": "darwin",
