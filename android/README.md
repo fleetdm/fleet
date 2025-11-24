@@ -94,14 +94,27 @@ ls "$(grep sdk.dir local.properties | cut -d= -f2)/build-tools/"
 jarsigner -verify app/build/outputs/bundle/release/app-release.aab
 ```
 
+### Getting the SHA256 fingerprint
+
+The SHA256 fingerprint is required for MDM deployment. You can get it from your keystore.
+
+```bash
+keytool -list -v -keystore keystore.jks -alias fleet-android | grep SHA256 | awk '{print $3}'
+# Grab SHA256
+echo <SHA256> | xxd -r -p | base64
+```
+
+**Copy the fingerprint for use in `FLEET_DEV_ANDROID_AGENT_SHA256`:**
+
 ## Deploying via Android MDM (development)
 
 This feature is behind the feature flag `FLEET_DEV_ANDROID_AGENT_PACKAGE`. Requires `FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS` to be set in your workarea.
 
-1. **Set the feature flag on your Fleet server:**
+1. **Set the feature flags on your Fleet server:**
 
 ```bash
 export FLEET_DEV_ANDROID_AGENT_PACKAGE=com.fleetdm.agent.private.<yourname>
+export FLEET_DEV_ANDROID_AGENT_SHA256=<SHA256 fingerprint>
 ```
 
 2. **Change the `applicationId` in `app/build.gradle.kts`:**
