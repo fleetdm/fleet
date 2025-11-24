@@ -604,6 +604,13 @@
       "description": "Ruby on Rails IDE by JetBrains."
     },
     {
+      "name": "RustRover",
+      "slug": "rustrover/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.rustrover",
+      "description": "Rust IDE by JetBrains."
+    },
+    {
       "name": "Santa",
       "slug": "santa/darwin",
       "platform": "darwin",
