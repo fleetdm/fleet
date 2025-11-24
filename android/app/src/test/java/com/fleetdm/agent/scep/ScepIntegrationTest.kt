@@ -37,8 +37,9 @@ class ScepIntegrationTest {
     fun setup() {
         scepClient = ScepClientImpl()
 
-        val scepUrl = System.getProperty("scep.url") ?: "https://tim-fleet-2.ngrok.app/mdm/scep/proxy/foo,g-profile"
-        val challenge = System.getProperty("scep.challenge") ?: "secret"
+        // Use placeholder values for non-integration tests, real values provided by build config for integration tests
+        val scepUrl = System.getProperty("scep.url") ?: "https://scep.example.com/scep"
+        val challenge = System.getProperty("scep.challenge") ?: "test-challenge"
 
         // Generate unique subject DN to avoid duplicates on SCEP server
         val uniqueId = System.currentTimeMillis()

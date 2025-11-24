@@ -30,14 +30,28 @@ android {
             isIncludeAndroidResources = false
             all {
                 it.apply {
-                    // Pass integration test flag and SCEP configuration to unit tests
+                    // Validate integration test configuration
                     if (project.hasProperty("runIntegrationTests")) {
+                        // Check for required SCEP configuration
+                        if (!project.hasProperty("scep.url") || !project.hasProperty("scep.challenge")) {
+                            throw GradleException("""
+                                |
+                                |ERROR: Integration tests require SCEP server configuration.
+                                |
+                                |Please provide both required properties:
+                                |  -Pscep.url=<SCEP_SERVER_URL>
+                                |  -Pscep.challenge=<SCEP_CHALLENGE>
+                                |
+                                |Example:
+                                |  ./gradlew test -PrunIntegrationTests=true \
+                                |    -Pscep.url=https://your-scep-server.com/scep \
+                                |    -Pscep.challenge=your-challenge-password
+                                |
+                            """.trimMargin())
+                        }
+
                         systemProperty("runIntegrationTests", "true")
-                    }
-                    if (project.hasProperty("scep.url")) {
                         systemProperty("scep.url", project.property("scep.url").toString())
-                    }
-                    if (project.hasProperty("scep.challenge")) {
                         systemProperty("scep.challenge", project.property("scep.challenge").toString())
                     }
                 }
