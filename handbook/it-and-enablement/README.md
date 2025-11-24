@@ -73,6 +73,120 @@ As soon as an offer is accepted, Fleet provides laptops and YubiKey security key
 - Include delivery tracking information when closing the support request so the new employee can be notified.
 
 
+### Hardware procurement
+
+Fleet maintains standardized hardware configurations across three tiers to ensure team members have appropriate equipment for their roles while managing costs effectively. We believe in empowering team members to use the platform that allows them to be their best, whether that's macOS, Windows, or Linux. This multi-platform approach also supports our product initiatives by ensuring Fleet is tested and validated across all major operating systems internally, helping us build better products for our customers.
+
+> **Important:** All hardware procurement is handled by IT and HR unless direct guidance to purchase has been provided. Team members should not purchase hardware independently without prior approval.
+
+#### Hardware tiers
+
+Fleet uses three hardware tiers based on role requirements:
+
+- **Engineer tier**: For engineering roles requiring maximum performance for development, compilation, and resource-intensive tasks.
+  - Department: Engineering
+- **Tech tier**: For technical roles that require virtualization and other resource-intensive applications.
+  - Departments: Product Design, IT & Enablement, Customer Success (technical roles)
+- **Non-tech tier**: For non-technical roles that primarily use standard business applications and web-based tools.
+  - Departments: Sales, Marketing, Finance, People
+
+#### Hardware specifications
+
+Hardware specifications and tier configurations are constantly evolving based on what is available
+in the market and our own internal benchmarking and data analysis. IT & Enablement regularly reviews
+performance data, cost-effectiveness, and market availability to ensure we're providing the best
+equipment for each role tier while maintaining cost efficiency. Specifications will be updated
+regularly and as new hardware becomes available and testing is completed.
+
+#### Apple devices
+
+All Apple devices must be enrolled in Apple Business Manager (ABM) to ensure proper device management and security.
+
+**Engineer tier**
+- *Specifications to be provided*
+
+**Tech tier**
+- *Specifications to be provided*
+
+**Non-tech tier**
+- *Specifications to be provided*
+
+**Procurement process:**
+- Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680).
+- When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business Manager (ABM).
+- Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ABM. In countries that Apple does not operate or that do not allow ABM enrollment, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate.
+- A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point.
+
+#### Windows devices
+
+Windows devices are purchased through [frame.work](https://frame.work/).
+
+**Engineer tier**
+- *Specifications to be provided*
+
+**Tech tier**
+- *Specifications to be provided*
+
+**Non-tech tier**
+- *Specifications to be provided*
+
+**Procurement process:**
+- All Windows device purchases should be made through frame.work's business portal.
+- Ensure devices are configured according to the appropriate tier specifications before ordering.
+
+#### Linux devices
+
+Linux devices are purchased through [frame.work](https://frame.work/).
+
+**Linux distribution requirements**
+
+To be fully supported by Fleet for internal use, Linux distributions must support:
+- **Disk encryption escrow**: Full disk encryption using LUKS2 (Linux Unified Key Setup version 2) with encryption key escrow to Fleet. All drives must be encrypted using LUKS2, and full disk encryption can only be enabled during operating system installation.
+- **Fleet Desktop**: Native desktop application for device management and user notifications
+- **MDM features**: Policy enforcement, software installation, and device management capabilities
+
+**Currently supported Linux distributions:**
+
+- **Ubuntu Linux** (including Kubuntu)
+- **Fedora Linux**
+
+> **Note:** While Fleet Desktop is also supported on Debian and Omarchy, these distributions do not currently support disk encryption escrow and are not recommended for internal Fleet use unless specific requirements necessitate them.
+
+**Engineer tier**
+- *Specifications to be provided*
+
+**Tech tier**
+- *Specifications to be provided*
+
+**Non-tech tier**
+- *Specifications to be provided*
+
+**Procurement process:**
+- All Linux device purchases should be made through frame.work's business portal.
+- Ensure devices are configured according to the appropriate tier specifications before ordering.
+- **Important:** When setting up Linux devices, full disk encryption must be enabled during operating system installation. If encryption is not enabled during setup, the operating system will need to be reinstalled to enable encryption.
+
+#### Secondary and test devices (warehouse requests)
+
+For secondary devices, test equipment, or temporary hardware needs, team members should first check the ["📦 Warehouse" team in dogfood](https://dogfood.fleetdm.com/dashboard?team_id=279) before purchasing new equipment. This ensures we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
+
+To request warehouse equipment:
+- File a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request) with details about the equipment needed and the intended use case.
+- Warehouse requests are typically fulfilled from existing inventory that has been returned or is no longer in active use.
+- If warehouse inventory cannot meet the request, IT & Enablement will procure new equipment following the standard procurement process.
+
+#### Brex procurement recommendations
+
+When purchasing hardware through Brex, follow these recommendations:
+
+- **Use Brex for all hardware purchases**: All hardware procurement should be processed through Brex to maintain proper expense tracking and approval workflows.
+- **Include detailed descriptions**: When submitting expenses, include the team member's name, role tier (Engineer/Tech/Non-tech), and intended use (primary device, secondary device, test equipment, etc.).
+- **Attach purchase documentation**: Include order confirmations, receipts, and shipping information in the Brex expense submission.
+- **Tag appropriately**: Use appropriate tags in Brex to categorize hardware purchases (e.g., "Hardware - Apple", "Hardware - Windows", "Hardware - Linux", "Hardware - Warehouse").
+- **Pre-approval for high-value items**: For purchases exceeding standard tier allocations, seek pre-approval through the standard [request process](https://fleetdm.com/handbook/it-and-enablement#contact-us) before making the purchase.
+- **Track delivery**: Update the request issue with delivery tracking information so the team member can be notified when equipment arrives.
+
+
 ### Process incoming equipment
 
 Upon receiving any device, follow these steps to process incoming equipment.
