@@ -916,6 +916,16 @@ func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterprise
 				DefaultPermissionPolicy: "GRANT",
 				DelegatedScopes:         []string{"CERT_INSTALL"},
 				ManagedConfiguration:    managedConfigJSON,
+				SigningKeyCerts: []*androidmanagement.ApplicationSigningKeyCert{
+					{
+						SigningKeyCertFingerprintSha256: os.Getenv("FLEET_DEV_ANDROID_AGENT_SHA256"),
+					},
+				},
+				Roles: []*androidmanagement.Role{
+					{
+						RoleType: "COMPANION_APP",
+					},
+				},
 			}
 			_, err = svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName,
 				[]*androidmanagement.ApplicationPolicy{fleetAgentApp})
