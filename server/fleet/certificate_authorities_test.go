@@ -11,6 +11,34 @@ func TestValidateCertificateAuthoritiesSpec(t *testing.T) {
 	// TODO(hca): placeholder for additional tests to the extent not otherwise covered by client_test
 }
 
+func TestGroupedCertificateAuthorities(t *testing.T) {
+	grouped := GroupedCertificateAuthorities{
+		NDESSCEP: &NDESSCEPProxyCA{ // should not be included
+			URL:      "https://some-ndes-scep-proxy-url.com",
+			AdminURL: "https://some-ndes-admin-url.com",
+			Username: "some-ndes-username",
+			Password: "some-ndes-password",
+		},
+		CustomScepProxy: []CustomSCEPProxyCA{ // should both be included
+			{
+				Name:      "some-custom-scep-proxy-name",
+				URL:       "https://some-custom-scep-proxy-url.com",
+				Challenge: "some-custom-scep-proxy-challenge",
+			},
+			{
+				Name:      "another-custom-scep-proxy-name",
+				URL:       "https://another-custom-scep-proxy-url.com",
+				Challenge: "another-custom-scep-proxy-challenge",
+			},
+		},
+	}
+
+	mapped := grouped.ToCustomSCEPProxyCAMap()
+	require.Len(t, mapped, 2)
+	require.Equal(t, "some-custom-scep-proxy-challenge", mapped["some-custom-scep-proxy-name"].Challenge)
+	require.Equal(t, "another-custom-scep-proxy-challenge", mapped["another-custom-scep-proxy-name"].Challenge)
+}
+
 func TestPreprocessCAFields(t *testing.T) {
 	t.Run("DigiCert CA fields are trimmed and normalized", func(t *testing.T) {
 		digiCertCA := &DigiCertCA{
