@@ -26,6 +26,28 @@ func newAndroidDeviceRequest(policyID, deviceName string, device *androidmanagem
 	}, nil
 }
 
+func newAndroidPolicyApplicationsRequest(policyID, policyName string, apps []*androidmanagement.ApplicationPolicy) (*fleet.MDMAndroidPolicyRequest, error) {
+	var changes []*androidmanagement.ApplicationPolicyChange
+	for _, app := range apps {
+		changes = append(changes, &androidmanagement.ApplicationPolicyChange{
+			Application: app,
+		})
+	}
+	req := androidmanagement.ModifyPolicyApplicationsRequest{
+		Changes: changes,
+	}
+
+	b, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal modify policy applications to json: %w", err)
+	}
+	return &fleet.MDMAndroidPolicyRequest{
+		RequestName: policyName,
+		PolicyID:    policyID,
+		Payload:     b,
+	}, nil
+}
+
 func newAndroidPolicyRequest(policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (*fleet.MDMAndroidPolicyRequest, error) {
 	// save the payload with metadata about what setting comes from what profile
 	m := fleet.AndroidPolicyRequestPayload{

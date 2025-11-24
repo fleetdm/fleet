@@ -868,9 +868,8 @@ func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName,
 }
 
 // Adds the specified apps to the host-specific Android policy of the provided hosts, and
-// returns a map of host UUID to the version of their updated policy on success.
-func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string, installType string) (map[string]int64, error) {
-
+// returns a map of host UUID to the policy request object of their updated policy on success.
+func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string, installType string) (map[string]*fleet.MDMAndroidPolicyRequest, error) {
 	var appPolicies []*androidmanagement.ApplicationPolicy
 	for _, a := range applicationIDs {
 		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
@@ -880,19 +879,26 @@ func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName s
 	}
 
 	var errs []error
-	hostToPolicyVersion := make(map[string]int64, len(hostUUIDs))
+	hostToPolicyRequest := make(map[string]*fleet.MDMAndroidPolicyRequest, len(hostUUIDs))
 	for uuid, policyID := range hostUUIDs {
 		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, policyID)
-
-		policy, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, appPolicies)
+		policyRequest, err := newAndroidPolicyApplicationsRequest(policyID, policyName, appPolicies)
 		if err != nil {
-			errs = append(errs, ctxerr.Wrapf(ctx, err, "google api: modify policy applications for host %s", uuid))
-			continue
+			return nil, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 		}
-		hostToPolicyVersion[uuid] = policy.Version
+
+		policy, apiErr := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, appPolicies)
+		if _, err := recordAndroidRequestResult(ctx, svc.fleetDS, policyRequest, policy, nil, apiErr); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "save android policy request for host %s", uuid)
+		}
+
+		if apiErr != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, apiErr, "google api: modify policy applications for host %s", uuid))
+		}
+		hostToPolicyRequest[uuid] = policyRequest
 	}
 
-	return hostToPolicyVersion, errors.Join(errs...)
+	return hostToPolicyRequest, errors.Join(errs...)
 }
 
 // AddFleetAgentToAndroidPolicy adds the Fleet Agent to the Android policy for the given enterprise.
