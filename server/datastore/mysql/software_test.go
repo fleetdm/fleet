@@ -865,10 +865,39 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("order by hosts_count", func(t *testing.T) {
-		software := listSoftwareCheckCount(t, ds, 5, 5, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}, WithHostCounts: true}, false)
+		softwareDESC := listSoftwareCheckCount(t, ds, 5, 5, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}, WithHostCounts: true}, false)
 		// ordered by counts descending, so foo003 is first
-		assert.Equal(t, foo003.Name, software[0].Name)
-		assert.Equal(t, 2, software[0].HostsCount)
+		assert.Equal(t, foo003.Name, softwareDESC[0].Name)
+		assert.Equal(t, 2, softwareDESC[0].HostsCount)
+
+		// Test that ASC exactly reverses DESC ordering
+		softwareASC := listSoftwareCheckCount(t, ds, 5, 5, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderAscending}, WithHostCounts: true}, false)
+		require.Len(t, softwareASC, 5)
+		require.Len(t, softwareDESC, 5)
+
+		// Verify at least 2 software items have the same host count (to test secondary sort)
+		countMap := make(map[int]int)
+		for _, s := range softwareDESC {
+			countMap[s.HostsCount]++
+		}
+		hasMultipleWithSameCount := false
+		for _, count := range countMap {
+			if count >= 2 {
+				hasMultipleWithSameCount = true
+				break
+			}
+		}
+		require.True(t, hasMultipleWithSameCount, "test requires at least 2 software items with the same host count")
+
+		// ASC should be exact reverse of DESC
+		for i := range softwareASC {
+			expectedIdx := len(softwareDESC) - 1 - i
+			assert.Equal(t, softwareDESC[expectedIdx].ID, softwareASC[i].ID,
+				"ASC[%d] should equal DESC[%d], ASC=%s %s (id=%d), DESC=%s %s (id=%d)",
+				i, expectedIdx,
+				softwareASC[i].Name, softwareASC[i].Version, softwareASC[i].ID,
+				softwareDESC[expectedIdx].Name, softwareDESC[expectedIdx].Version, softwareDESC[expectedIdx].ID)
+		}
 	})
 
 	t.Run("order by epss_probability", func(t *testing.T) {
@@ -3707,6 +3736,8 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.1", Source: "test", ExtensionID: "ext"},
 		{Name: "foo", Version: "0.0.2", Source: "test"},
 		{Name: "foo", Version: "0.0.2", Source: "test", ApplicationID: ptr.String("foo.bar.baz")},
+		{Name: "foo", Version: "0.0.2", Source: "programs", UpgradeCode: ptr.String("{55ac7218-24cb-4b99-9449-f28d9c59cc7e}")},
+		{Name: "foo", Version: "0.0.2", Source: "programs", UpgradeCode: ptr.String("")},
 	}
 
 	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
@@ -3722,7 +3753,7 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 		var got fleet.Software
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &got,
-				`SELECT name, version, source, bundle_identifier, `+"`release`"+`, arch, vendor, extension_for, extension_id, application_id FROM software WHERE checksum = UNHEX(?)`, cs)
+				`SELECT name, version, source, bundle_identifier, `+"`release`"+`, arch, vendor, extension_for, extension_id, application_id, upgrade_code FROM software WHERE checksum = UNHEX(?)`, cs)
 		})
 		require.Equal(t, software[i], got)
 	}
@@ -5781,7 +5812,7 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	})
 
 	// Create an intermediate failure record
-	failedExecID, installResult, isNewRecord, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+	failedExecID, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "original-uuid",
 		InstallScriptExitCode: ptr.Int(1),
@@ -5790,13 +5821,6 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, failedExecID)
-	require.NotNil(t, installResult)
-	require.True(t, isNewRecord, "First call should create a new record")
-	require.Equal(t, "test-app", installResult.SoftwareTitle)
-	require.Equal(t, "installer.pkg", installResult.SoftwarePackage)
-	require.Equal(t, user.ID, *installResult.UserID)
-	require.Nil(t, installResult.PolicyID)
-	require.False(t, installResult.SelfService)
 
 	// Verify original record is still pending using GetSoftwareInstallResults
 	originalResult, err := ds.GetSoftwareInstallResults(ctx, "original-uuid")
@@ -5812,6 +5836,13 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, *failedResult.InstallScriptExitCode)
 	require.NotNil(t, failedResult.Output)
 	require.Equal(t, "network timeout", *failedResult.Output)
+	// Verify metadata preserved and correct
+	require.Equal(t, "test-app", failedResult.SoftwareTitle)
+	require.Equal(t, "installer.pkg", failedResult.SoftwarePackage)
+	require.NotNil(t, failedResult.UserID)
+	require.Equal(t, user.ID, *failedResult.UserID)
+	require.Nil(t, failedResult.PolicyID)
+	require.False(t, failedResult.SelfService)
 
 	// Verify the created_at timestamp was preserved from the original record
 	var failedRecordCreatedAt time.Time
@@ -5828,7 +5859,7 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	require.Equal(t, 2, count)
 
 	// Test idempotency: calling again with same retries_remaining should return same UUID and not create new record
-	failedExecID2, installResult2, isNewRecord2, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+	failedExecID2, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "original-uuid",
 		InstallScriptExitCode: ptr.Int(1),
@@ -5837,8 +5868,6 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, failedExecID, failedExecID2, "Should generate same UUID for same retries_remaining")
-	require.NotNil(t, installResult2)
-	require.False(t, isNewRecord2, "Second call should update existing record")
 
 	// Verify still only 2 records (idempotent)
 	err = ds.writer(ctx).GetContext(ctx, &count, `
@@ -5852,7 +5881,7 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	require.Equal(t, "network timeout updated", *updatedResult.Output)
 
 	// Test with different retries_remaining creates new record
-	failedExecID3, _, isNewRecord3, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+	failedExecID3, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "original-uuid",
 		InstallScriptExitCode: ptr.Int(1),
@@ -5861,7 +5890,6 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotEqual(t, failedExecID, failedExecID3, "Should generate different UUID for different retries_remaining")
-	require.True(t, isNewRecord3, "Different retries_remaining should create new record")
 
 	// Verify now have 3 records
 	err = ds.writer(ctx).GetContext(ctx, &count, `
@@ -6874,8 +6902,8 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	err = ds.UpdateHost(ctx, anotherHost)
 	require.NoError(t, err)
 	require.NoError(t, ds.AddLabelsToHost(ctx, thirdHost.ID, []uint{label1.ID}))
-	anotherHost.LabelUpdatedAt = time.Now()
-	err = ds.UpdateHost(ctx, anotherHost)
+	thirdHost.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, thirdHost)
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
@@ -6986,10 +7014,10 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	checkSoftware(software)
 
 	// Add "exclude any" labels to installer2
-	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2" + t.Name()})
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2" + t.Name(), Query: "select 1"})
 	require.NoError(t, err)
 
-	label3, err := ds.NewLabel(ctx, &fleet.Label{Name: "label3" + t.Name()})
+	label3, err := ds.NewLabel(ctx, &fleet.Label{Name: "label3" + t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual})
 	require.NoError(t, err)
 
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID2, fleet.LabelIdentsWithScope{
@@ -7119,6 +7147,46 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID3, host.ID)
 	require.NoError(t, err)
 	require.False(t, scoped)
+
+	// Add yet another installer. No label yet.
+	installer4 := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		UninstallScript:   "goodbye",
+		InstallerFile:     tfr1,
+		StorageID:         "storage5",
+		Filename:          "file5",
+		Title:             "file5",
+		Version:           "3.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		BundleIdentifier:  "bi5",
+		Platform:          "darwin",
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	}
+	installerID4, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, installer4)
+	require.NoError(t, err)
+
+	// No labels yet, so we should see it
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	checkSoftware(software, installer2.Filename, installer3.Filename, installer4.Filename)
+
+	// Create a new manual label and apply it to the new installer
+	label5, err := ds.NewLabel(ctx, &fleet.Label{Name: "label5" + t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
+
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID4, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName:     map[string]fleet.LabelIdent{label5.Name: {LabelName: label5.Name, LabelID: label5.ID}},
+	}, softwareTypeInstaller)
+	require.NoError(t, err)
+
+	// Installer4 is still listed and does not need the host's LabelUpdatedAt to be updated
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	checkSoftware(software, installer2.Filename, installer3.Filename, installer4.Filename)
 }
 
 func testListHostSoftwareVulnerableAndVPP(t *testing.T, ds *Datastore) {
@@ -8070,7 +8138,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	}, softwareTypeVPP)
 	require.NoError(t, err)
 
-	// intall vpp app on fourth host
+	// install vpp app on fourth host
 	fourthHostVpp1CmdUUID := createVPPAppInstallRequest(t, ds, fourthHost, vppApp.AdamID, user1)
 	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), fourthHost.ID, "")
 	require.NoError(t, err)
@@ -8218,12 +8286,27 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	host.LabelUpdatedAt = time.Now()
 	err = ds.UpdateHost(ctx, host)
 	require.NoError(t, err)
-	time.Sleep(time.Second)
 
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	checkSoftware(software)
 
+	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+
+	// Create a manual label (prior was dynamic) and set it instead as exclude-any for the VPP app
+	label4, err := ds.NewLabel(ctx, &fleet.Label{Name: "label4" + t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
+
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), vppAppTeamID, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName:     map[string]fleet.LabelIdent{label4.Name: {LabelName: label4.Name, LabelID: label4.ID}},
+	}, softwareTypeVPP)
+	require.NoError(t, err)
+
+	// The host need not update its LabelUpdatedAt because the label is manually scoped and not applied,
+	// so it is immediately resolvable (and the host doesn't have the excluded label applied to it)
 	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
 	require.NoError(t, err)
 	require.True(t, scoped)
@@ -9160,9 +9243,9 @@ func testCheckForDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
 
-	existingSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.0-2", "deb_packages", "", "", "", "", "", "", "", "")
+	existingSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.0-2", "deb_packages", "", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
-	updateSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.1-5", "deb_packages", "", "", "", "", "", "", "", "")
+	updateSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.1-5", "deb_packages", "", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
 
 	_, err = ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{*existingSw})
@@ -9699,6 +9782,7 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 		Extension:        "ipa",
 		BundleIdentifier: "inhouse2",
 		UserID:           user.ID,
+		SelfService:      true,
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
@@ -9786,7 +9870,16 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.Len(t, sw, 5)
 	require.Equal(t, []string{"a", "b", "inhouse1", "inhouse2", "inhouse3"}, pluckSoftwareNames(sw))
 
+	// only 1 with self-service
+	opts.IncludeAvailableForInstall = true
+	opts.SelfServiceOnly = true
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, []string{"inhouse2"}, pluckSoftwareNames(sw))
+
 	// vulnerable only returns "b"
+	opts.SelfServiceOnly = false
 	opts.IncludeAvailableForInstall = false
 	opts.VulnerableOnly = true
 	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
@@ -9873,7 +9966,7 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.NotNil(t, sw[3].SoftwarePackage)
 	require.Equal(t, sw[3].SoftwarePackage.Name, "inhouse2.ipa")
 	require.Equal(t, sw[3].SoftwarePackage.Platform, "ios")
-	require.Equal(t, sw[3].SoftwarePackage.SelfService, ptr.Bool(false))
+	require.Equal(t, sw[3].SoftwarePackage.SelfService, ptr.Bool(true))
 	require.NotNil(t, sw[3].SoftwarePackage.LastInstall)
 	require.Equal(t, sw[3].SoftwarePackage.LastInstall.CommandUUID, inhouse2InstallCmd)
 	require.Nil(t, sw[4].Status)
@@ -9924,7 +10017,7 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.NotNil(t, sw[1].SoftwarePackage)
 	require.Equal(t, sw[1].SoftwarePackage.Name, "inhouse2.ipa")
 	require.Equal(t, sw[1].SoftwarePackage.Platform, "ios")
-	require.Equal(t, sw[1].SoftwarePackage.SelfService, ptr.Bool(false))
+	require.Equal(t, sw[1].SoftwarePackage.SelfService, ptr.Bool(true))
 	require.NotNil(t, sw[1].SoftwarePackage.LastInstall)
 	require.Equal(t, sw[1].SoftwarePackage.LastInstall.CommandUUID, inhouse2InstallCmd)
 

@@ -10,6 +10,15 @@ import (
 
 type ContextKey string
 
+type ActivityWebhookPayload struct {
+	Timestamp     time.Time        `json:"timestamp"`
+	ActorFullName *string          `json:"actor_full_name"`
+	ActorID       *uint            `json:"actor_id"`
+	ActorEmail    *string          `json:"actor_email"`
+	Type          string           `json:"type"`
+	Details       *json.RawMessage `json:"details"`
+}
+
 // ActivityWebhookContextKey is the context key to indicate that the activity webhook has been processed before saving the activity.
 const ActivityWebhookContextKey = ContextKey("ActivityWebhook")
 
@@ -239,6 +248,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityDeletedCustomVariable{},
 
 	ActivityEditedSetupExperienceSoftware{},
+
+	ActivityTypeEditedHostIdpData{},
 }
 
 type ActivityDetails interface {
@@ -2039,15 +2050,16 @@ func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
 }
 
 type ActivityTypeEditedSoftware struct {
-	SoftwareTitle    string                  `json:"software_title"`
-	SoftwarePackage  *string                 `json:"software_package"`
-	TeamName         *string                 `json:"team_name"`
-	TeamID           *uint                   `json:"team_id"`
-	SelfService      bool                    `json:"self_service"`
-	SoftwareIconURL  *string                 `json:"software_icon_url"`
-	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
-	SoftwareTitleID  uint                    `json:"software_title_id"`
+	SoftwareTitle       string                  `json:"software_title"`
+	SoftwarePackage     *string                 `json:"software_package"`
+	TeamName            *string                 `json:"team_name"`
+	TeamID              *uint                   `json:"team_id"`
+	SelfService         bool                    `json:"self_service"`
+	SoftwareIconURL     *string                 `json:"software_icon_url"`
+	LabelsIncludeAny    []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny    []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	SoftwareTitleID     uint                    `json:"software_title_id"`
+	SoftwareDisplayName string                  `json:"software_display_name"`
 }
 
 func (a ActivityTypeEditedSoftware) ActivityName() string {
@@ -2063,7 +2075,8 @@ func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
 - "self_service": Whether the software is available for installation by the end user.
 - "software_title_id": ID of the added software title.
 - "labels_include_any": Target hosts that have any label in the array.
-- "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
+- "labels_exclude_any": Target hosts that don't have any label in the array.
+- "software_display_name": Display name of the software title.`, `{
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
@@ -2071,6 +2084,7 @@ func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
   "self_service": true,
   "software_title_id": 2234,
   "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
+  "software_display_name": "Crowdstrike Falcon",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2239,15 +2253,15 @@ func (a ActivityDisabledVPP) Documentation() (activity string, details string, d
 }
 
 type ActivityAddedAppStoreApp struct {
-	SoftwareTitle    string                  `json:"software_title"`
-	SoftwareTitleId  uint                    `json:"software_title_id"`
-	AppStoreID       string                  `json:"app_store_id"`
-	TeamName         *string                 `json:"team_name"`
-	TeamID           *uint                   `json:"team_id"`
-	Platform         AppleDevicePlatform     `json:"platform"`
-	SelfService      bool                    `json:"self_service"`
-	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	SoftwareTitle    string                    `json:"software_title"`
+	SoftwareTitleId  uint                      `json:"software_title_id"`
+	AppStoreID       string                    `json:"app_store_id"`
+	TeamName         *string                   `json:"team_name"`
+	TeamID           *uint                     `json:"team_id"`
+	Platform         InstallableDevicePlatform `json:"platform"`
+	SelfService      bool                      `json:"self_service"`
+	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
@@ -2286,14 +2300,14 @@ func (a ActivityAddedAppStoreApp) Documentation() (activity string, details stri
 }
 
 type ActivityDeletedAppStoreApp struct {
-	SoftwareTitle    string                  `json:"software_title"`
-	AppStoreID       string                  `json:"app_store_id"`
-	TeamName         *string                 `json:"team_name"`
-	TeamID           *uint                   `json:"team_id"`
-	Platform         AppleDevicePlatform     `json:"platform"`
-	SoftwareIconURL  *string                 `json:"software_icon_url"`
-	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	SoftwareTitle    string                    `json:"software_title"`
+	AppStoreID       string                    `json:"app_store_id"`
+	TeamName         *string                   `json:"team_name"`
+	TeamID           *uint                     `json:"team_id"`
+	Platform         InstallableDevicePlatform `json:"platform"`
+	SoftwareIconURL  *string                   `json:"software_icon_url"`
+	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityDeletedAppStoreApp) ActivityName() string {
@@ -2388,16 +2402,16 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 }
 
 type ActivityEditedAppStoreApp struct {
-	SoftwareTitle    string                  `json:"software_title"`
-	SoftwareTitleID  uint                    `json:"software_title_id"`
-	AppStoreID       string                  `json:"app_store_id"`
-	TeamName         *string                 `json:"team_name"`
-	TeamID           *uint                   `json:"team_id"`
-	Platform         AppleDevicePlatform     `json:"platform"`
-	SelfService      bool                    `json:"self_service"`
-	SoftwareIconURL  *string                 `json:"software_icon_url"`
-	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	SoftwareTitle    string                    `json:"software_title"`
+	SoftwareTitleID  uint                      `json:"software_title_id"`
+	AppStoreID       string                    `json:"app_store_id"`
+	TeamName         *string                   `json:"team_name"`
+	TeamID           *uint                     `json:"team_id"`
+	Platform         InstallableDevicePlatform `json:"platform"`
+	SelfService      bool                      `json:"self_service"`
+	SoftwareIconURL  *string                   `json:"software_icon_url"`
+	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityEditedAppStoreApp) ActivityName() string {
@@ -3116,5 +3130,27 @@ func (a ActivityTypeEditedAndroidProfile) Documentation() (activity, details, de
 - "team_name": The name of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
   "team_id": 123,
   "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEditedHostIdpData struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	HostIdPUsername string `json:"host_idp_username"`
+}
+
+func (a ActivityTypeEditedHostIdpData) ActivityName() string {
+	return "edited_host_idp_data"
+}
+
+func (a ActivityTypeEditedHostIdpData) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user updates a host's IdP data. Currently IdP username can be edited.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_idp_username": The updated IdP username for this host.`, `{
+	"host_id": 1,
+	"host_display_name": "Anna's MacBook Pro",
+	"host_idp_username": "anna.chao@example.com"
 }`
 }

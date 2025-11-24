@@ -42,6 +42,7 @@ export interface IOSVersionsResponse {
 interface IGetOsVersionOptions {
   os_version_id: number;
   teamId?: number;
+  max_vulnerabilities?: number;
 }
 
 export interface IGetOsVersionQueryKey extends IGetOsVersionOptions {
@@ -94,11 +95,12 @@ export const getOSVersions = ({
 const getOSVersion = ({
   os_version_id,
   teamId,
+  max_vulnerabilities,
 }: IGetOsVersionOptions): Promise<IOSVersionResponse> => {
   const endpoint = endpoints.OS_VERSION(os_version_id);
   const queryString = buildQueryStringFromParams({
     team_id: teamId,
-    max_vulnerabilities: 3, // Limit CVEs to first 3, use vulnerabilities_count for total
+    max_vulnerabilities,
   });
   const path = queryString ? `${endpoint}?${queryString}` : endpoint;
 

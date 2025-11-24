@@ -83,8 +83,12 @@ module.exports = {
           subscription: thisAndroidEnterprise.pubsubSubscriptionName,
         });
         return;
+      }).intercept({status: 429}, (err)=>{
+        // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
+        sails.log.warn(`p1: Android management API rate limit exceeded! Error: ${require('util').inspect(err)}`);
+        return new Error(`When attempting to delete android enterprise from Google (${androidEnterpriseId}), an error occurred. Error: ${err}`);
       }).intercept((err)=>{
-        throw new Error(`When attempting to delete android enterprise from Google (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+        return new Error(`When attempting to delete android enterprise from Google (${androidEnterpriseId}), an error occurred. Error: ${err}`);
       });
     } catch (unusedErr) {
       // If Google API deletion fails (e.g., enterprise already deleted), continue with proxy cleanup

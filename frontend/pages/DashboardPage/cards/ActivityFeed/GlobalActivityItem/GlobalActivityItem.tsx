@@ -1607,6 +1607,17 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  editedHostIdpData: (activity: IActivity) => {
+    const { host_display_name, host_idp_username } = activity.details || {};
+    const removed = host_idp_username === "";
+    return (
+      <>
+        {removed ? "removed" : "set"} the end user associated with{" "}
+        <b>{host_display_name}</b>
+        {removed ? "" : <> to {host_idp_username}</>}.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1713,12 +1724,14 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.AddedCustomScepProxy:
     case ActivityType.AddedDigicert:
     case ActivityType.AddedHydrant:
+    case ActivityType.AddedCustomESTProxy:
     case ActivityType.AddedSmallstep: {
       return TAGGED_TEMPLATES.addedCertificateAuthority(activity.details?.name);
     }
     case ActivityType.DeletedCustomScepProxy:
     case ActivityType.DeletedDigicert:
     case ActivityType.DeletedHydrant:
+    case ActivityType.DeletedCustomESTProxy:
     case ActivityType.DeletedSmallstep: {
       return TAGGED_TEMPLATES.deletedCertificateAuthority(
         activity.details?.name
@@ -1727,6 +1740,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedCustomScepProxy:
     case ActivityType.EditedDigicert:
     case ActivityType.EditedHydrant:
+    case ActivityType.EditedCustomESTProxy:
     case ActivityType.EditedSmallstep: {
       return TAGGED_TEMPLATES.editedCertificateAuthority(
         activity.details?.name
@@ -1946,23 +1960,21 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DeletedPolicy: {
       return TAGGED_TEMPLATES.deletedPolicy(activity);
     }
-
     case ActivityType.EscrowedDiskEncryptionKey: {
       return TAGGED_TEMPLATES.escrowedDiskEncryptionKey(activity);
     }
-
     case ActivityType.CreatedCustomVariable: {
       return TAGGED_TEMPLATES.createdCustomVariable(activity);
     }
-
     case ActivityType.DeletedCustomVariable: {
       return TAGGED_TEMPLATES.deletedCustomVariable(activity);
     }
-
     case ActivityType.EditedSetupExperienceSoftware: {
       return TAGGED_TEMPLATES.editedSetupExperienceSoftware(activity);
     }
-
+    case ActivityType.EditedHostIdpData: {
+      return TAGGED_TEMPLATES.editedHostIdpData(activity);
+    }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }

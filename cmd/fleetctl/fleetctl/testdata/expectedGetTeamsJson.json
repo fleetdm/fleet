@@ -26,10 +26,6 @@
 				"google_calendar": null,
 				"conditional_access_enabled": null
 			},
-			"features": {
-				"enable_host_users": true,
-				"enable_software_inventory": true
-			},
 			"mdm": {
 				"enable_disk_encryption": false,
 				"windows_require_bitlocker_pin": false,
@@ -66,8 +62,13 @@
 					"custom_settings": null
 				},
 				"android_settings": {
-					"custom_settings": null
+					"custom_settings": null,
+					"certificates": null
 				}
+			},
+			"features": {
+				"enable_host_users": true,
+				"enable_software_inventory": true
 			},
 			"scripts": null,
 			"user_count": 99,
@@ -115,13 +116,6 @@
 				"google_calendar": null,
 				"conditional_access_enabled": null
 			},
-			"features": {
-				"enable_host_users": false,
-				"enable_software_inventory": false,
-				"additional_queries": {
-					"foo": "bar"
-				}
-			},
 			"mdm": {
 				"enable_disk_encryption": false,
 				"windows_require_bitlocker_pin": false,
@@ -158,7 +152,15 @@
 					"custom_settings": null
 				},
 				"android_settings": {
-					"custom_settings": null
+					"custom_settings": null,
+					"certificates": null
+				}
+			},
+			"features": {
+				"enable_host_users": false,
+				"enable_software_inventory": false,
+				"additional_queries": {
+					"foo": "bar"
 				}
 			},
 			"scripts": null,

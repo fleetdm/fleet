@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadContent</key>
+			<dict>
+				<key>AllowAllAppsAccess</key>
+				<true/>
+				<key>CertificateRenewalTimeInterval</key>
+				<integer>14</integer>
+				<key>Challenge</key>
+				<string>YOUR_SCEP_SECRET_KEY_FROM_OKTA</string>
+				<key>Key Usage</key>
+				<integer>4</integer>
+				<key>Keysize</key>
+				<integer>2048</integer>
+				<key>Subject</key>
+				<array>
+					<array>
+						<array>
+							<string>CN</string>
+							<string>managementAttestation %HardwareUUID%</string>
+						</array>
+					</array>
+				</array>
+				<key>URL</key>
+				<string>https://yourdomain.okta.com/pki/YOUR_SCEP_PATH</string>
+			</dict>
+			<key>PayloadDisplayName</key>
+			<string>SCEP</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.security.scep.579AFA18-2121-49BC-959D-F2B658945A67</string>
+			<key>PayloadType</key>
+			<string>com.apple.security.scep</string>
+			<key>PayloadUUID</key>
+			<string>579AFA18-2121-49BC-959D-F2B658945A67</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>Okta Device Access SCEP</string>
+	<key>PayloadIdentifier</key>
+	<string>com.okta.device.access.53D4F816-6B96-400A-81A4-2C141E582D54</string>
+	<key>PayloadRemovalDisallowed</key>
+	<true/>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>53D4F816-6B96-400A-81A4-2C141E582D54</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

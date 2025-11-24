@@ -235,11 +235,11 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 		}
 		return policy, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid == teamID {
-			return &fleet.Team{
+			return &fleet.TeamLite{
 				ID: teamID,
-				Config: fleet.TeamConfig{
+				Config: fleet.TeamConfigLite{
 					WebhookSettings: fleet.TeamWebhookSettings{
 						FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 							Enable:         true,

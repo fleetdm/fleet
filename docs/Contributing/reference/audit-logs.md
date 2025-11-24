@@ -1466,6 +1466,7 @@ This activity contains the following fields:
 - "software_title_id": ID of the added software title.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
+- "software_display_name": Display name of the software title.
 
 #### Example
 
@@ -1478,6 +1479,7 @@ This activity contains the following fields:
   "self_service": true,
   "software_title_id": 2234,
   "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
+  "software_display_name": "Crowdstrike Falcon",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2249,6 +2251,25 @@ This activity contains the following fields:
 	"platform": "darwin",
 	"team_id": 1,
 	"team_name": "Workstations"
+}
+```
+
+## edited_host_idp_data
+
+Generated when a user updates a host's IdP data. Currently IdP username can be edited.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_idp_username": The updated IdP username for this host.
+
+#### Example
+
+```json
+{
+	"host_id": 1,
+	"host_display_name": "Anna's MacBook Pro",
+	"host_idp_username": "anna.chao@example.com"
 }
 ```
 

@@ -94,6 +94,9 @@ const (
 	// CapabilityMacOSWebSetupExperience denotes the ability of the server to support
 	// a web-based setup experience UI for macOS devices
 	CapabilityMacOSWebSetupExperience Capability = "macos_web_setup_experience"
+	// CapabilityEndUserAuth denotes the ability of the client to authenticate
+	// the end user against the Fleet server (e.g. SSO) before enrolling
+	CapabilityEndUserAuth Capability = "end_user_auth"
 )
 
 func GetServerOrbitCapabilities() CapabilityMap {
@@ -121,6 +124,7 @@ func GetOrbitClientCapabilities() CapabilityMap {
 	return CapabilityMap{
 		CapabilityEscrowBuddy:     {},
 		CapabilitySetupExperience: {},
+		CapabilityEndUserAuth:     {},
 	}
 }
 

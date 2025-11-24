@@ -315,7 +315,7 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected2.Subject.CommonName, certs[2].SubjectCommonName)
 
 	// Check that the managed certificate details were updated correctly
-	profile, err := ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCPs[0].ProfileUUID, "custom-ca")
+	profile, err := ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCPs[0].ProfileUUID, "custom-ca")
 	require.NoError(t, err)
 	require.NotNil(t, profile)
 	assert.Equal(t, host.UUID, profile.HostUUID)
@@ -331,7 +331,7 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "custom-ca", profile.CAName)
 
 	// Check that the managed certificate details were updated correctly
-	profile2, err := ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCPs[1].ProfileUUID, "step-ca")
+	profile2, err := ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCPs[1].ProfileUUID, "step-ca")
 	require.NoError(t, err)
 	require.NotNil(t, profile2)
 	assert.Equal(t, host.UUID, profile2.HostUUID)
@@ -358,7 +358,7 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected2.Subject.CommonName, certs3[1].SubjectCommonName)
 
 	// Check that the managed certificate details were not updated
-	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCPs[0].ProfileUUID, "custom-ca")
+	profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCPs[0].ProfileUUID, "custom-ca")
 	require.NoError(t, err)
 	require.NotNil(t, profile)
 	assert.Equal(t, host.UUID, profile.HostUUID)

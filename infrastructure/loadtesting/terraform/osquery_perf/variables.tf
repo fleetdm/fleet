@@ -1,11 +1,6 @@
-variable "tag" {
-  description = "The docker image tag to deploy. The image must exist in fleetdm/fleet docker repository"
-}
-
-variable "git_branch" {
-  description = "The git branch to use to build loadtest containers.  Only needed if docker tag doesn't match the git branch"
+variable "git_tag_branch" {
+  description = "The tag or git branch to use to build loadtest containers."
   type        = string
-  default     = null
 }
 
 variable "loadtest_containers" {
@@ -18,4 +13,16 @@ variable "extra_flags" {
   description = "Comma delimited list (string) for passing extra flags to osquery-perf containers"
   type        = list(string)
   default     = ["--orbit_prob", "0.0"]
+}
+
+variable "task_size" {
+  type = object({
+    cpu    = optional(number, 256)
+    memory = optional(number, 1024)
+  })
+
+  default = {
+    cpu    = 256
+    memory = 1024
+  }
 }
