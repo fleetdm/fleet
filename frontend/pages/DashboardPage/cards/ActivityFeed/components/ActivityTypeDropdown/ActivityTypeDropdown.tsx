@@ -141,8 +141,10 @@ const ActivityTypeDropdown = ({
   const isSearchInputFocusedRef = useRef(false);
 
   const handleChange = (option: SingleValue<CustomOptionType>) => {
+    if (option === null) return;
+
     setSearchQuery("");
-    onSelect(option ? option.value : "all");
+    onSelect(option.value !== "all" ? option.value : "");
     selectRef.current?.blur();
   };
 

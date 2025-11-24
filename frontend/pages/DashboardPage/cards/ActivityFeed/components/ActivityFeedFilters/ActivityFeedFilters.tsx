@@ -69,10 +69,6 @@ const ActivityFeedFilters = ({
     setPageIndex(0);
   };
 
-  const generateTypeFilterLabel = (type: ActivityType) => {
-    return type ? ACTIVITY_DISPLAY_NAME_MAP[type] : "All types";
-  };
-
   return (
     <div className={baseClass}>
       <SearchField
