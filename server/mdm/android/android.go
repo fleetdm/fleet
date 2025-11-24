@@ -50,3 +50,9 @@ type Device struct {
 	AppliedPolicyID      *string    `db:"applied_policy_id"`
 	AppliedPolicyVersion *int64     `db:"applied_policy_version"`
 }
+
+type AgentManagedConfiguration struct {
+	ServerURL    string `json:"serverURL"`
+	HostUUID     string `json:"hostUUID"`
+	EnrollSecret string `json:"enrollSecret"`
+}

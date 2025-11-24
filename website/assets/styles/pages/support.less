@@ -62,6 +62,7 @@
     margin-right: 12px;
     margin-bottom: 30px;
     box-shadow: none;
+
     &:hover {
       text-decoration: none;
     }
@@ -72,6 +73,10 @@
     margin-bottom: 30px;
     a {
       text-decoration: none;
+      min-width: 0px;
+      &:hover {
+        color: @core-fleet-black-75;
+      }
     }
     [purpose='support-card'] {
       width: 100%;
@@ -84,6 +89,10 @@
   [purpose='support-cards'] {
     a {
       text-decoration: none;
+      min-width: 0px;
+      &:hover {
+        color: @core-fleet-black-75;
+      }
     }
     flex-direction: column;
     [purpose='support-row'] {
@@ -177,6 +186,9 @@
       a {
         width: 100%;
       }
+      [purpose='support-card'] {
+        height: 230px;
+      }
     }
 
   }
@@ -191,6 +203,7 @@
     [purpose='community-cards'] {
       [purpose='support-card'] {
         padding: 32px 40px 40px 40px;
+        height: fit-content;
       }
     }
     [purpose='page-title'] {
@@ -214,16 +227,19 @@
       margin-bottom: 30px;
       margin-right: 0px;
       margin-left: 0px;
+
     }
     [purpose='community-cards'] {
       [purpose='support-card'] {
         padding-top: 32px;
         margin-bottom: 16px;
+
       }
     }
     [purpose='support-cards'] {
       [purpose='support-card'] {
         margin-bottom: 16px;
+
       }
     }
 

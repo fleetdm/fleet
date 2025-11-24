@@ -628,6 +628,114 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			},
 			toVerify: []string{"N1", "N2"},
 		},
+		{
+			name: "full user-scope profile verifies without validation",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb: "Replace",
+						LocURI: `
+						./User/some-other-loc-uri-key`,
+						Data: "non related data",
+					},
+				}), 0},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      &fleet.MDMDeliveryPending,
+				},
+			},
+			toVerify: []string{"N1"},
+		},
+		{
+			name: "mix of user-scoped profile and device-scoped profile verifies only device paths",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb:   "Replace",
+						LocURI: "./User/some-other-loc-uri-key",
+						Data:   "non related data",
+					},
+					{
+						Verb:   "Replace",
+						LocURI: "./Device/some-other-loc-uri-key",
+						Data:   "L1",
+					},
+				}), 0},
+				{"N2", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb:   "Replace",
+						LocURI: "./User/loc-uri",
+						Data:   "non related data",
+					},
+					{
+						Verb:   "Replace",
+						LocURI: "./Device/loc-uri",
+						Data:   "L1",
+					},
+				}), 0},
+			},
+			report: []osqueryReport{
+				{
+					"N1", "404", "./Device/some-other-loc-uri-key", "",
+				},
+				{
+					"N2", "200", "./Device/loc-uri", "L1",
+				},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      &fleet.MDMDeliveryPending,
+				},
+				{
+					ProfileUUID: "uuid-N2",
+					Name:        "N2",
+					Status:      &fleet.MDMDeliveryPending,
+				},
+			},
+			toVerify: []string{"N2"},
+			toRetry:  []string{"N1"},
+		},
+		{
+			name: "failed scep profile stays failed",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb: "Replace",
+						LocURI: `
+						./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/bogus-key-value`,
+						Data: "non related data",
+					},
+				}), 0},
+				{"N2", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb: "Replace",
+						LocURI: `
+						./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/bogus-key-value`,
+						Data: "non related data",
+					},
+				}), 2},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      &fleet.MDMDeliveryFailed,
+				},
+				{
+					ProfileUUID: "uuid-N2",
+					Name:        "N2",
+					Status:      &fleet.MDMDeliveryFailed,
+				},
+			},
+			toVerify: []string{},
+			toFail:   []string{},
+			toRetry:  []string{}, // It should not do anything on SCEP profiles.
+		},
 	}
 
 	for _, tt := range cases {
