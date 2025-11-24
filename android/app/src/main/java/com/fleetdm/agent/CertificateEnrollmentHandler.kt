@@ -87,13 +87,17 @@ class CertificateEnrollmentHandler(
     /**
      * Performs SCEP enrollment, returning result or null on failure.
      */
+    @Suppress("SwallowedException")
     suspend fun performEnrollment(config: ScepConfig): ScepResult? = try {
         scepClient.enroll(config)
     } catch (e: ScepEnrollmentException) {
+        // Enrollment failure is expected in some scenarios (pending approval, invalid challenge)
         null
     } catch (e: ScepException) {
+        // SCEP protocol errors are expected in some scenarios
         null
     } catch (e: Exception) {
+        // Unexpected errors are logged by the SCEP client
         null
     }
 }

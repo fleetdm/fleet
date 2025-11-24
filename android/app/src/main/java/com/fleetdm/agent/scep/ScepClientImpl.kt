@@ -33,7 +33,6 @@ import java.util.Date
 class ScepClientImpl : ScepClient {
 
     companion object {
-        private const val TAG = "ScepClientImpl"
         private const val SCEP_PROFILE = "NDESCA" // Network Device Enrollment Service CA
         private const val SELF_SIGNED_CERT_VALIDITY_DAYS = 100L
 

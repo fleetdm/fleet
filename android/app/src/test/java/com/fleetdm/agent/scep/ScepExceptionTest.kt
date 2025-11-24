@@ -65,6 +65,7 @@ class ScepExceptionTest {
     }
 
     @Test
+    @Suppress("SwallowedException", "ThrowsCount")
     fun `all exceptions are catchable as ScepException`() {
         val exceptions = listOf<ScepException>(
             ScepEnrollmentException("enrollment"),
@@ -78,7 +79,7 @@ class ScepExceptionTest {
             try {
                 throw exception
             } catch (e: ScepException) {
-                // Successfully caught as base type
+                // Successfully caught as base type - intentionally swallowed for test
                 assertNotNull(e.message)
             }
         }
@@ -95,6 +96,7 @@ class ScepExceptionTest {
     }
 
     @Test
+    @Suppress("SwallowedException", "ThrowsCount")
     fun `exception types are distinguishable in catch blocks`() {
         var enrollmentCaught = false
         var networkCaught = false
@@ -103,18 +105,21 @@ class ScepExceptionTest {
         try {
             throw ScepEnrollmentException("test")
         } catch (e: ScepEnrollmentException) {
+            // Intentionally swallowed for test - verifying exception can be caught
             enrollmentCaught = true
         }
 
         try {
             throw ScepNetworkException("test")
         } catch (e: ScepNetworkException) {
+            // Intentionally swallowed for test - verifying exception can be caught
             networkCaught = true
         }
 
         try {
             throw ScepCertificateException("test")
         } catch (e: ScepCertificateException) {
+            // Intentionally swallowed for test - verifying exception can be caught
             certificateCaught = true
         }
 
