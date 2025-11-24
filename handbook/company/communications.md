@@ -89,8 +89,6 @@ Fleet is successful because of our customers and community, and those relationsh
 | Fleet-maintained apps                  | <sup><sub>_[Allen Houchins](https://fleetdm.com/handbook/it-and-enablement#team)_</sup></sub>
 
 
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/f67a88e3-ab0a-4eda-a44d-b0e68de523a9">
-
 
 ## Meetings
 
@@ -147,7 +145,9 @@ In some instances, you may need to record a call locally (i.e. save the recordin
 4. Upload the mp4 recording to the [whiteboards folder](https://drive.google.com/drive/u/0/folders/1prO98fmB2WKzpubZ2-z0sju9dQ4ijpNE) in Google Drive.
 
 
-> **Confidentiality reminder.** Fleet meetings titled with "▶️" are considered public by default unless [otherwise specified](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality). All public meeting transcripts and video are screened for confidential information before being published. If confidential information (e.g. customer names, IP addresses, GitHub secrets, etc.) is revealed via screen share or audio during the recording of a public meeting, any team member on the call that notices sensitive information should verbally say, "Pineapple, pineapple, pineapple." 
+> **Confidentiality reminder:**
+>
+> Fleet meetings titled with "▶️" are considered public by default unless [otherwise specified](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality). All public meeting transcripts and video are screened for confidential information before being published. If confidential information (e.g. customer names, IP addresses, GitHub secrets, etc.) is revealed via screen share or audio during the recording of a public meeting, any team member on the call that notices sensitive information should verbally say, "Pineapple, pineapple, pineapple." 
 >
 > 🍍🍍🍍 Why three times? This helps ensure that at least one of the "Pineapple" call-outs will be transcribed correctly. 🍍🍍🍍   
 
@@ -172,8 +172,6 @@ Our Zoom meetings are configured to let participants join before the host arrive
 It is important to [set your working hours](https://support.google.com/calendar/answer/7638168?hl=en&co=GENIE.Platform%3DDesktop) in Google Calendar and block out any personal time/events/PTO, so that team members do not inadvertently schedule a time when you are not available. Many team members use the free tier of [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into their work calendars. 
 
 It is also common practice to block out time for focused work. In an all-remote company, "face time" matters. Remember: even if someone's calendar is open, they have other work to do. Help each other by batching up internal meetings which enables longer, uninterrupted stretches of deep work.
-
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/0f453745-9ddc-4ae7-853a-2a73e3d2aa1a">
 
 
 ## Meeting agendas
