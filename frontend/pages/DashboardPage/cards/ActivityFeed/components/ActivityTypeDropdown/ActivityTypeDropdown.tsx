@@ -23,6 +23,8 @@ import FormField from "components/forms/FormField";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import TooltipWrapper from "components/TooltipWrapper";
 
+import { PADDING } from "styles/var/padding";
+
 declare module "react-select-5/dist/declarations/src/Select" {
   export interface Props<
     Option,
@@ -193,7 +195,14 @@ const ActivityTypeDropdown = ({
 
   const customStyles: StylesConfig<CustomOptionType, false> = {
     ...generateCustomDropdownStyles(),
-    menuList: (provided) => ({ ...provided, maxHeight: 360 }),
+    menuList: (provided) => ({
+      ...provided,
+      maxHeight: 360,
+      paddingBottom: PADDING["pad-small"],
+      paddingLeft: PADDING["pad-small"],
+      paddingRight: PADDING["pad-small"],
+      paddingTop: 0,
+    }),
   };
 
   const classNames = classnames(baseClass, className);
