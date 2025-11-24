@@ -162,8 +162,9 @@ const ActionsDropdown = ({
       <Icon
         name="chevron-down"
         color="core-fleet-white"
-        className={`actions-dropdown__icon${menuIsOpen ? " actions-dropdown__icon--open" : ""
-          }`}
+        className={`actions-dropdown__icon${
+          menuIsOpen ? " actions-dropdown__icon--open" : ""
+        }`}
       />
     </Button>
   );
