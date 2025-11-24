@@ -333,7 +333,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	// set the host's orbit notifications for Windows MDM
-	fmt.Printf("appConfig.MDM.EnableTurnOnWindowsMDMManually: %t\n", appConfig.MDM.EnableTurnOnWindowsMDMManually)
 	if appConfig.MDM.WindowsEnabledAndConfigured && !appConfig.MDM.EnableTurnOnWindowsMDMManually {
 		if isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
 			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
@@ -542,8 +541,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	if notifs.RunDiskEncryptionEscrow {
 		_ = svc.ds.ClearPendingEscrow(ctx, host.ID)
 	}
-
-	fmt.Printf("Orbit notifs: %+v\n", notifs)
 
 	return fleet.OrbitConfig{
 		ScriptExeTimeout: opts.ScriptExecutionTimeout,

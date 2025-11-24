@@ -1826,7 +1826,9 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 	}
 
 	// TODO: azure enrollments come with an empty uuid, I haven't figured
-	// out a good way to identify the device.
+	// out a good way to identify the device here.
+	// Note that we currently do the Enrollment->Host mapping during the next
+	// refetch of the host
 	displayName := reqDeviceName
 	var serial string
 	if hostUUID != "" {
