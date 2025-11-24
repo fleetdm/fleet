@@ -448,8 +448,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		assetMD := assetMetadata[asset.AdamID]
 
-		// Configuration is an android only feature
-		// TODO(JK): error?
+		// Configuration is an Android only feature
 		appID.Configuration = nil
 
 		platforms := getPlatformsFromSupportedDevices(assetMD.SupportedDevices)
