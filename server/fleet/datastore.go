@@ -2357,6 +2357,19 @@ type Datastore interface {
 	// It returns a minimal device struct with host and device identifiers.
 	ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error)
 
+	// GetAndroidAppConfiguration retrieves the configuration for an Android app
+	// identified by adam_id and global_or_team_id.
+	GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*AndroidAppConfiguration, error)
+
+	// InsertAndroidAppConfiguration creates a new Android app configuration entry.
+	InsertAndroidAppConfiguration(ctx context.Context, config *AndroidAppConfiguration) error
+
+	// UpdateAndroidAppConfiguration updates an existing Android app configuration.
+	UpdateAndroidAppConfiguration(ctx context.Context, config *AndroidAppConfiguration) error
+
+	// DeleteAndroidAppConfiguration removes an Android app configuration.
+	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
 
@@ -2483,6 +2496,19 @@ type Datastore interface {
 	// update, delete). Deletes are processed first based on name and type. Adds and updates are
 	// processed together as upserts using INSERT...ON DUPLICATE KEY UPDATE.
 	BatchApplyCertificateAuthorities(ctx context.Context, ops CertificateAuthoritiesBatchOperations) error
+
+	// BatchUpsertCertificateTemplates upserts a batch of certificates.
+	BatchUpsertCertificateTemplates(ctx context.Context, certificates []*CertificateTemplate) error
+	// BatchDeleteCertificateTemplates deletes a batch of certificates.
+	BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) error
+	// CreateCertificateTemplate creates a new certificate template.
+	CreateCertificateTemplate(ctx context.Context, certificateTemplate *CertificateTemplate) (*CertificateTemplateResponseFull, error)
+	// DeleteCertificateTemplate deletes a certificate template by its ID.
+	DeleteCertificateTemplate(ctx context.Context, id uint) error
+	// GetCertificateTemplateById gets a certificate template by its ID.
+	GetCertificateTemplateById(ctx context.Context, id uint) (*CertificateTemplateResponseFull, error)
+	// GetCertificateTemplatesByTeamID gets all certificate templates for a team.
+	GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, page, perPage int) ([]*CertificateTemplateResponseSummary, *PaginationMetadata, error)
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)

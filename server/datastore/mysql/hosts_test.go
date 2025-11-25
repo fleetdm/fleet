@@ -70,6 +70,7 @@ var enrollTests = []struct {
 
 func TestHosts(t *testing.T) {
 	ds := CreateMySQLDS(t)
+	TruncateTables(t, ds)
 
 	cases := []struct {
 		name string
@@ -814,6 +815,8 @@ func listHostsCheckCount(t *testing.T, ds *Datastore, filter fleet.TeamFilter, o
 }
 
 func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
 	var teamIDFilterNil *uint                // "All teams" option should include all hosts regardless of team assignment
 	var teamIDFilterZero *uint = ptr.Uint(0) // "No team" option should include only hosts that are not assigned to any team
 	teamIDFilterBad := ptr.Uint(9999)
@@ -1006,6 +1009,8 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 }
 
 func testHostListAndroidHostsOSSettings(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
 	// Add a couple of Android hosts. One we will create profiles on, another as a control
 	hosts := []*fleet.Host{}
 	for i := 0; i < 2; i++ {
