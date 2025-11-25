@@ -1613,6 +1613,18 @@ type UpdateCertificateAuthorityByIDFunc func(ctx context.Context, id uint, certi
 
 type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error
 
+type BatchUpsertCertificateTemplatesFunc func(ctx context.Context, certificates []*fleet.CertificateTemplate) error
+
+type BatchDeleteCertificateTemplatesFunc func(ctx context.Context, certificateTemplateIDs []uint) error
+
+type CreateCertificateTemplateFunc func(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponseFull, error)
+
+type DeleteCertificateTemplateFunc func(ctx context.Context, id uint) error
+
+type GetCertificateTemplateByIdFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error)
+
+type GetCertificateTemplatesByTeamIDFunc func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
+
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
 type UpdateOrDeleteHostMDMWindowsProfileFunc func(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error
@@ -4002,6 +4014,24 @@ type DataStore struct {
 
 	BatchApplyCertificateAuthoritiesFunc        BatchApplyCertificateAuthoritiesFunc
 	BatchApplyCertificateAuthoritiesFuncInvoked bool
+
+	BatchUpsertCertificateTemplatesFunc        BatchUpsertCertificateTemplatesFunc
+	BatchUpsertCertificateTemplatesFuncInvoked bool
+
+	BatchDeleteCertificateTemplatesFunc        BatchDeleteCertificateTemplatesFunc
+	BatchDeleteCertificateTemplatesFuncInvoked bool
+
+	CreateCertificateTemplateFunc        CreateCertificateTemplateFunc
+	CreateCertificateTemplateFuncInvoked bool
+
+	DeleteCertificateTemplateFunc        DeleteCertificateTemplateFunc
+	DeleteCertificateTemplateFuncInvoked bool
+
+	GetCertificateTemplateByIdFunc        GetCertificateTemplateByIdFunc
+	GetCertificateTemplateByIdFuncInvoked bool
+
+	GetCertificateTemplatesByTeamIDFunc        GetCertificateTemplatesByTeamIDFunc
+	GetCertificateTemplatesByTeamIDFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -9575,6 +9605,48 @@ func (s *DataStore) BatchApplyCertificateAuthorities(ctx context.Context, ops fl
 	s.BatchApplyCertificateAuthoritiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchApplyCertificateAuthoritiesFunc(ctx, ops)
+}
+
+func (s *DataStore) BatchUpsertCertificateTemplates(ctx context.Context, certificates []*fleet.CertificateTemplate) error {
+	s.mu.Lock()
+	s.BatchUpsertCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchUpsertCertificateTemplatesFunc(ctx, certificates)
+}
+
+func (s *DataStore) BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) error {
+	s.mu.Lock()
+	s.BatchDeleteCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchDeleteCertificateTemplatesFunc(ctx, certificateTemplateIDs)
+}
+
+func (s *DataStore) CreateCertificateTemplate(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponseFull, error) {
+	s.mu.Lock()
+	s.CreateCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateCertificateTemplateFunc(ctx, certificateTemplate)
+}
+
+func (s *DataStore) DeleteCertificateTemplate(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteCertificateTemplateFunc(ctx, id)
+}
+
+func (s *DataStore) GetCertificateTemplateById(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
+	s.mu.Lock()
+	s.GetCertificateTemplateByIdFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCertificateTemplateByIdFunc(ctx, id)
+}
+
+func (s *DataStore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.GetCertificateTemplatesByTeamIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCertificateTemplatesByTeamIDFunc(ctx, teamID, page, perPage)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {
