@@ -25,4 +25,3 @@ func TwingateVersionShortener(app *maintained_apps.FMAManifestApp) (*maintained_
 
 	return app, nil
 }
-
