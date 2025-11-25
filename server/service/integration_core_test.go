@@ -14624,6 +14624,31 @@ func (s *integrationTestSuite) TestUpdateHostCertificateTemplate() {
 	t := s.T()
 	ctx := context.Background()
 
+	// Create a test team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
+	require.NoError(t, err)
+	teamID := team.ID
+
+	// Create a test certificate authority
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("Test SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID := ca.ID
+
+	certTemplate := &fleet.CertificateTemplate{
+		Name:                   "Cert1",
+		TeamID:                 teamID,
+		CertificateAuthorityID: caID,
+		SubjectName:            "CN=Test Subject 1",
+	}
+	savedTemplate, err := s.ds.CreateCertificateTemplate(ctx, certTemplate)
+	require.NoError(t, err)
+	require.NotNil(t, savedTemplate)
+
 	nodeKey := uuid.New().String()
 	uuid := uuid.New().String()
 	hostName := "test-update-host-certificate-template"
@@ -14634,11 +14659,18 @@ func (s *integrationTestSuite) TestUpdateHostCertificateTemplate() {
 		UUID:     uuid,
 		Hostname: hostName,
 		Platform: "android",
+		TeamID:   &teamID,
 	})
 	require.NoError(t, err)
 
-	// TODO -- add a host certificate template when we have a foreign key set up.
-	certificateTemplateID := uint(1)
+	certificateTemplateID := savedTemplate.ID
+
+	// Delete the certificate after the test is done, so the team can be deleted.
+	defer func() {
+		// Clean up
+		err = s.ds.DeleteCertificateTemplate(ctx, certificateTemplateID)
+		require.NoError(t, err)
+	}()
 
 	// Create a record in host_certificate_templates using ad hoc SQL
 	sql := `

@@ -675,17 +675,45 @@ func TestUpdateHostCertificateTemplateStatus(t *testing.T) {
 	uuid := uuid.New().String()
 	hostName := "test-update-host-certificate-template"
 
+	ctx := context.Background()
+
+	// Create a test team
+	team, err := db.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
+	require.NoError(t, err)
+	teamID := team.ID
+
+	// Create a test certificate authority
+	ca, err := db.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("Test SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID := ca.ID
+
+	certTemplate := &fleet.CertificateTemplate{
+		Name:                   "Cert1",
+		TeamID:                 teamID,
+		CertificateAuthorityID: caID,
+		SubjectName:            "CN=Test Subject 1",
+	}
+	savedTemplate, err := db.CreateCertificateTemplate(ctx, certTemplate)
+	require.NoError(t, err)
+	require.NotNil(t, savedTemplate)
+
 	// Create a host
 	host, err := db.NewHost(context.Background(), &fleet.Host{
 		NodeKey:  &nodeKey,
 		UUID:     uuid,
 		Hostname: hostName,
 		Platform: "android",
+		TeamID:   &teamID,
 	})
 	require.NoError(t, err)
 
 	// TODO -- add a host certificate template when we have a foreign key set up.
-	certificateTemplateID := uint(1)
+	certificateTemplateID := savedTemplate.ID
 
 	// Create a record in host_certificate_templates using ad hoc SQL
 	sql := `
