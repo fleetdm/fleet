@@ -201,11 +201,6 @@ To sync Okta groups with Fleet:
 - Check that **Push group memberships immediately** is enabled
 - Verify users are actually members of the pushed groups in Okta
 
-**Need help?**
-- Work with your Fleet customer success manager
-- Email Fleet support: support@fleetdm.com
-- Check Fleet docs: https://fleetdm.com/docs
-
 ### Okta custom SAML app
 
 Create a new SAML app in Okta:
