@@ -1,0 +1,9 @@
+{
+  "name": "OpenVPN Connect",
+  "slug": "openvpn-connect/darwin",
+  "unique_identifier": "org.openvpn.client.app",
+  "token": "openvpn-connect",
+  "installer_format": "dmg",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/openvpn-connect-install.sh"
+}
