@@ -14632,7 +14632,7 @@ func (s *integrationTestSuite) TestUpdateHostCertificateTemplate() {
 	// Create a test certificate authority
 	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      ptr.String("Test SCEP CA"),
+		Name:      ptr.String("TestUpdateHostCertificateTemplate SCEP CA"),
 		URL:       ptr.String("http://localhost:8080/scep"),
 		Challenge: ptr.String("test-challenge"),
 	})
