@@ -2264,6 +2264,15 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	vpp2, titleID2 := va2.VPPAppID, va2.TitleID
 
+	installs, err := ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, host1.Host.UUID, 100)
+	require.NoError(t, err)
+	require.Len(t, installs, 0)
+
+	// unknown host uuid returns nothing
+	installs, err = ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, "no-such-uuid", 1)
+	require.NoError(t, err)
+	require.Len(t, installs, 0)
+
 	// insert pending install for no-team app on host1
 	cmdVpp1 := uuid.NewString()
 	err = ds.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
@@ -2274,15 +2283,40 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// requesting pending installs with any version equal or greater returns it
+	installs, err = ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, host1.Host.UUID, 1)
+	require.NoError(t, err)
+	require.Len(t, installs, 1)
+	require.Equal(t, cmdVpp1, installs[0].CommandUUID)
+
+	installs, err = ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, host1.Host.UUID, 3)
+	require.NoError(t, err)
+	require.Len(t, installs, 1)
+	require.Equal(t, cmdVpp1, installs[0].CommandUUID)
+
+	// smaller version doesn't return it
+	installs, err = ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, host1.Host.UUID, 0)
+	require.NoError(t, err)
+	require.Len(t, installs, 0)
+
 	// insert pending install for team app on host2
 	cmdVpp2 := uuid.NewString()
 	err = ds.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
 		HostID:            host2.Host.ID,
 		AdamID:            vpp2.AdamID,
 		CommandUUID:       cmdVpp2,
-		AssociatedEventID: "1",
+		AssociatedEventID: "123",
 	})
 	require.NoError(t, err)
+
+	installs, err = ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, host2.Host.UUID, 3)
+	require.NoError(t, err)
+	require.Len(t, installs, 0)
+
+	installs, err = ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, host2.Host.UUID, 123)
+	require.NoError(t, err)
+	require.Len(t, installs, 1)
+	require.Equal(t, cmdVpp2, installs[0].CommandUUID)
 
 	// insert pending install for no-team app on host3
 	cmdVpp3 := uuid.NewString()
@@ -2328,6 +2362,10 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NotNil(t, hostTitles[0].Status)
 	require.Equal(t, fleet.SoftwareInstallPending, *hostTitles[0].Status)
 
+	// bulk-set nothing as verified
+	err = ds.BulkSetVPPInstallsAsVerified(ctx, host1.Host.ID, []string{})
+	require.NoError(t, err)
+
 	summary, err := ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 2}, summary)
@@ -2337,7 +2375,7 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1}, summary)
 
 	// mark vpp1 as installed on host1
-	err = ds.SetVPPInstallAsVerified(ctx, host1.Host.ID, cmdVpp1, uuid.NewString())
+	err = ds.BulkSetVPPInstallsAsVerified(ctx, host1.Host.ID, []string{cmdVpp1})
 	require.NoError(t, err)
 
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
@@ -2345,7 +2383,7 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Installed: 1}, summary)
 
 	// mark vpp2 as failed on host2
-	err = ds.SetVPPInstallAsFailed(ctx, host2.Host.ID, cmdVpp2, uuid.NewString())
+	err = ds.BulkSetVPPInstallsAsFailed(ctx, host2.Host.ID, []string{cmdVpp2})
 	require.NoError(t, err)
 
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, &tm.ID, vpp2)

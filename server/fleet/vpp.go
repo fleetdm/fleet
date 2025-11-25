@@ -148,10 +148,10 @@ type HostVPPSoftwareInstall struct {
 // are always null and self-service is always false, while platform is
 // always android.
 type HostAndroidVPPSoftwareInstall struct {
-	HostID            uint
-	AdamID            string // for Android, this is the e.g. com.chrome application ID
-	CommandUUID       string // uuid of the corresponding android_policy_request row
-	AssociatedEventID string // for Android (for the current setup-experience-only approach), we overload this field to store the Android policy version ID
+	HostID            uint   `db:"host_id"`
+	AdamID            string `db:"adam_id"`             // for Android, this is the e.g. com.chrome application ID
+	CommandUUID       string `db:"command_uuid"`        // uuid of the corresponding android_policy_request row
+	AssociatedEventID string `db:"associated_event_id"` // for Android (for the current setup-experience-only approach), we overload this field to store the Android policy version ID
 }
 
 const (
