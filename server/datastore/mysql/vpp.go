@@ -1085,7 +1085,7 @@ VALUES
 func (ds *Datastore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error) {
 	var adamIds []string
 	// this is Apple-only VPP installs, which is fine currently as Android does not support
-	// policy-based automatic installs.
+	// policy-based automatic installs (the context in which this is called).
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &adamIds, `SELECT hvsi.adam_id
 			FROM host_vpp_software_installs hvsi
 			JOIN nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid AND nvq.status IS NULL
@@ -1106,7 +1106,7 @@ func (ds *Datastore) GetPastActivityDataForVPPAppInstall(ctx context.Context, co
 	}
 
 	// TODO(mna): this is probably fine to stay APple-only VPP installs, but on turn off MDM for Android,
-	// call a similar but different method to get the past activity to create.
+	// and on install verified, call a similar but different method to get the past activity to create.
 
 	stmt := `
 SELECT
@@ -1131,7 +1131,7 @@ FROM
 WHERE
 	hvsi.command_uuid = :command_uuid AND
 	hvsi.canceled = 0
-	`
+`
 
 	type result struct {
 		HostID          uint    `db:"host_id"`

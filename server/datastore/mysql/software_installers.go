@@ -1604,7 +1604,7 @@ SELECT
 	hvsi.host_id
 FROM
 	host_vpp_software_installs hvsi
-	INNER JOIN
+	LEFT JOIN
 		nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 	LEFT JOIN host_vpp_software_installs hvsi2
 		ON hvsi.host_id = hvsi2.host_id AND
@@ -1617,6 +1617,7 @@ WHERE
 	AND hvsi.adam_id = :adam_id
 	AND hvsi.platform = :platform
 	AND hvsi.canceled = 0
+	AND (ncr.id IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
 	AND (%s) = :status
 	AND NOT EXISTS (
 		SELECT 1
