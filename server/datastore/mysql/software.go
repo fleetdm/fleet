@@ -552,7 +552,7 @@ func (ds *Datastore) getExistingSoftware(
 ) (
 	currentSoftwareSummaries []softwareSummary,
 	newChecksumsToSoftware map[string]fleet.Software,
-	incomingChecksumsToTitles map[string]fleet.SoftwareTitle,
+	incomingChecksumsToTitleSummaries map[string]fleet.SoftwareTitleSummary,
 	err error,
 ) {
 	// TODO(jacob) - the `incoming` argument here should already contain a map of checksum:Software, put
@@ -600,16 +600,16 @@ func (ds *Datastore) getExistingSoftware(
 	}
 
 	if len(setOfNewSWChecksums) == 0 {
-		return currentSoftwareSummaries, newChecksumsToSoftware, incomingChecksumsToTitles, nil
+		return currentSoftwareSummaries, newChecksumsToSoftware, incomingChecksumsToTitleSummaries, nil
 	}
 
 	// There's new software, so we try to get the titles already stored in `software_titles` for them.
-	incomingChecksumsToTitles, _, err = ds.getIncomingSoftwareChecksumsToExistingTitles(ctx, setOfNewSWChecksums, newChecksumsToSoftware)
+	incomingChecksumsToTitleSummaries, _, err = ds.getIncomingSoftwareChecksumsToExistingTitles(ctx, setOfNewSWChecksums, newChecksumsToSoftware)
 	if err != nil {
 		return nil, nil, nil, ctxerr.Wrap(ctx, err, "get incoming software checksums to existing titles")
 	}
 
-	return currentSoftwareSummaries, newChecksumsToSoftware, incomingChecksumsToTitles, nil
+	return currentSoftwareSummaries, newChecksumsToSoftware, incomingChecksumsToTitleSummaries, nil
 }
 
 // getIncomingSoftwareChecksumsToExistingTitles loads the existing titles for the new incoming software.
@@ -625,12 +625,12 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 	ctx context.Context,
 	newSoftwareChecksums map[string]struct{},
 	incomingChecksumToSoftware map[string]fleet.Software,
-) (map[string]fleet.SoftwareTitle, map[string]fleet.Software, error) {
+) (map[string]fleet.SoftwareTitleSummary, map[string]fleet.Software, error) {
 	var (
-		incomingChecksumsToTitles   = make(map[string]fleet.SoftwareTitle, len(newSoftwareChecksums))
-		argsWithoutBundleIdentifier []any
-		argsWithBundleIdentifier    []any
-		uniqueTitleStrToChecksums   = make(map[string][]string)
+		incomingChecksumsToTitleSummaries = make(map[string]fleet.SoftwareTitleSummary, len(newSoftwareChecksums))
+		argsWithoutBundleIdentifier       []any
+		argsWithBundleIdentifier          []any
+		uniqueTitleStrToChecksums         = make(map[string][]string)
 	)
 	bundleIDsToIncomingNames := make(map[string]string)
 	for checksum := range newSoftwareChecksums {
@@ -677,24 +677,25 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		}
 
 		stmt := fmt.Sprintf(
-			"SELECT id, name, source, extension_for FROM software_titles WHERE (name, source, extension_for) IN (%s)",
+			"SELECT id, name, source, extension_for, upgrade_code FROM software_titles WHERE (name, source, extension_for) IN (%s)",
 			strings.Join(valuePlaceholders, ", "),
 		)
-		var existingSoftwareTitlesForNewSoftwareWithoutBundleIdentifier []fleet.SoftwareTitle
+		var existingTitleSummariesForNewSoftwareWithoutBundleIdentifier []fleet.SoftwareTitleSummary
 		if err := sqlx.SelectContext(ctx,
 			ds.reader(ctx),
-			&existingSoftwareTitlesForNewSoftwareWithoutBundleIdentifier,
+			&existingTitleSummariesForNewSoftwareWithoutBundleIdentifier,
 			stmt,
 			argsWithoutBundleIdentifier...,
 		); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "get existing titles without bundle identifier")
 		}
-		for _, title := range existingSoftwareTitlesForNewSoftwareWithoutBundleIdentifier {
-			checksums, ok := uniqueTitleStrToChecksums[UniqueSoftwareTitleStr(title.Name, title.Source, title.ExtensionFor)]
+		for _, titleSummary := range existingTitleSummariesForNewSoftwareWithoutBundleIdentifier {
+			// TODO - need to factor upgrade_code in here?
+			checksums, ok := uniqueTitleStrToChecksums[UniqueSoftwareTitleStr(titleSummary.Name, titleSummary.Source, titleSummary.ExtensionFor)]
 			if ok {
 				// Map all checksums that correspond to this title
 				for _, checksum := range checksums {
-					incomingChecksumsToTitles[checksum] = title
+					incomingChecksumsToTitleSummaries[checksum] = titleSummary
 				}
 			}
 		}
@@ -706,31 +707,31 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		// no-op code change
 		// TODO(jacob) - this var name is shadowing the one in the outer scope. Is this successfully
 		// adding titles-by-checksum for software with bundle ids?
-		incomingChecksumsToTitles = make(map[string]fleet.SoftwareTitle, len(newSoftwareChecksums))
+		incomingChecksumsToTitleSummaries = make(map[string]fleet.SoftwareTitleSummary, len(newSoftwareChecksums))
 		stmtBundleIdentifier := `SELECT id, name, source, extension_for, bundle_identifier FROM software_titles WHERE bundle_identifier IN (?)`
 		stmtBundleIdentifier, argsWithBundleIdentifier, err := sqlx.In(stmtBundleIdentifier, argsWithBundleIdentifier)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "build query to get existing titles with bundle_identifier")
 		}
-		var existingSoftwareTitlesForNewSoftwareWithBundleIdentifier []fleet.SoftwareTitle
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingSoftwareTitlesForNewSoftwareWithBundleIdentifier, stmtBundleIdentifier, argsWithBundleIdentifier...); err != nil {
+		var existingSoftwareTitleSummariesForNewSoftwareWithBundleIdentifier []fleet.SoftwareTitleSummary
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingSoftwareTitleSummariesForNewSoftwareWithBundleIdentifier, stmtBundleIdentifier, argsWithBundleIdentifier...); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "get existing titles with bundle_identifier")
 		}
 		// Map software titles to software checksums.
-		for _, title := range existingSoftwareTitlesForNewSoftwareWithBundleIdentifier {
+		for _, title := range existingSoftwareTitleSummariesForNewSoftwareWithBundleIdentifier {
 			uniqueStrWithoutName := UniqueSoftwareTitleStr(*title.BundleIdentifier, title.Source, title.ExtensionFor)
 			checksums, withoutName := uniqueTitleStrToChecksums[uniqueStrWithoutName]
 
 			if withoutName {
 				// Map all checksums that correspond to this title
 				for _, checksum := range checksums {
-					incomingChecksumsToTitles[checksum] = title
+					incomingChecksumsToTitleSummaries[checksum] = title
 				}
 			}
 		}
 	}
 
-	return incomingChecksumsToTitles, existingBundleIDsToUpdate, nil
+	return incomingChecksumsToTitleSummaries, existingBundleIDsToUpdate, nil
 }
 
 // BundleIdentifierOrName returns the bundle identifier if it is not empty, otherwise name
@@ -813,7 +814,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 	ctx context.Context,
 	existingSoftwareSummaries []softwareSummary,
 	incomingSoftwareByChecksum map[string]fleet.Software,
-	incomingChecksumsToExistingTitles map[string]fleet.SoftwareTitle,
+	incomingChecksumsToExistingTitleSummaries map[string]fleet.SoftwareTitleSummary,
 ) error {
 	type titleKey struct {
 		name         string
@@ -889,7 +890,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			// First insert any needed software titles
 			newTitlesNeeded := make(map[string]fleet.SoftwareTitle)
 			for checksum, sw := range batchSoftware {
-				if _, ok := incomingChecksumsToExistingTitles[checksum]; !ok {
+				if _, ok := incomingChecksumsToExistingTitleSummaries[checksum]; !ok {
 					titleName := sw.Name
 					if sw.BundleIdentifier != "" {
 						key := titleKey{
@@ -923,11 +924,11 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			}
 
 			// Map to store title IDs for all titles (both existing and new)
-			titleIDsByChecksum := make(map[string]uint, len(incomingChecksumsToExistingTitles))
+			titleIDsByChecksum := make(map[string]uint, len(incomingChecksumsToExistingTitleSummaries))
 
 			// First, add existing titles to the map
-			for checksum, title := range incomingChecksumsToExistingTitles {
-				titleIDsByChecksum[checksum] = title.ID
+			for checksum, titleSummary := range incomingChecksumsToExistingTitleSummaries {
+				titleIDsByChecksum[checksum] = titleSummary.ID
 			}
 			if len(newTitlesNeeded) > 0 {
 				uniqueTitlesToInsert := make(map[titleKey]fleet.SoftwareTitle)
@@ -963,16 +964,9 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					return ctxerr.Wrap(ctx, err, "pre-insert software_titles")
 				}
 
-				// TODO(jacob) - incorporate UpgradeCode here?
 				// Retrieve the IDs for the titles we just inserted (or that already existed)
-				var titlesData []struct {
-					ID               uint    `db:"id"`
-					Name             string  `db:"name"`
-					Source           string  `db:"source"`
-					ExtensionFor     string  `db:"extension_for"`
-					BundleIdentifier *string `db:"bundle_identifier"`
-				}
-
+				var retrievedTitleSummaries []fleet.SoftwareTitleSummary
+				// TODO - include UpgradeCode in the below WHERE (these args) for additional specificity?
 				titlePlaceholders := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(uniqueTitlesToInsert)), ",")
 				queryArgs := make([]interface{}, 0, len(uniqueTitlesToInsert)*4)
 				for tk := range uniqueTitlesToInsert {
@@ -989,19 +983,19 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					queryArgs = append(queryArgs, firstArg, title.Source, title.ExtensionFor, bundleID)
 				}
 
-				queryTitles := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier
+				stmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, upgrade_code
 					FROM software_titles
 					WHERE (COALESCE(bundle_identifier, name), source, extension_for, COALESCE(bundle_identifier, '')) IN (%s)`, titlePlaceholders)
 
-				if err := sqlx.SelectContext(ctx, tx, &titlesData, queryTitles, queryArgs...); err != nil {
+				if err := sqlx.SelectContext(ctx, tx, &retrievedTitleSummaries, stmt, queryArgs...); err != nil {
 					return ctxerr.Wrap(ctx, err, "select software titles")
 				}
 
 				// Map the titles back to their checksums
-				for _, td := range titlesData {
+				for _, titleSummary := range retrievedTitleSummaries {
 					var bundleID string
-					if td.BundleIdentifier != nil {
-						bundleID = *td.BundleIdentifier
+					if titleSummary.BundleIdentifier != nil {
+						bundleID = *titleSummary.BundleIdentifier
 					}
 					for checksum, title := range newTitlesNeeded {
 						var titleBundleID string
@@ -1010,13 +1004,14 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						}
 						// For apps with bundle_identifier, match by bundle_identifier (since we may have picked a different name)
 						// For others, match by name
-						nameMatches := td.Name == title.Name
+						nameMatches := titleSummary.Name == title.Name
+						// TODO - similarly match if UpgradeCodes match?
 						if bundleID != "" && titleBundleID != "" {
 							// Both have bundle_identifier - match by bundle_identifier instead of name
 							nameMatches = true
 						}
-						if nameMatches && td.Source == title.Source && td.ExtensionFor == title.ExtensionFor && bundleID == titleBundleID {
-							titleIDsByChecksum[checksum] = td.ID
+						if nameMatches && titleSummary.Source == title.Source && titleSummary.ExtensionFor == title.ExtensionFor && bundleID == titleBundleID {
+							titleIDsByChecksum[checksum] = titleSummary.ID
 							// Don't break here - multiple checksums can map to the same title
 							// (e.g., when software has same truncated name but different versions (very rare))
 						}
@@ -1156,7 +1151,7 @@ func (ds *Datastore) linkSoftwareToHost(
 func (ds *Datastore) reconcileExistingTitleEmptyUpgradeCodes(
 	ctx context.Context,
 	incomingSoftwareByChecksum map[string]fleet.Software,
-	incomingChecksumsToExistingTitles map[string]fleet.SoftwareTitle,
+	incomingChecksumsToExistingTitleSummaries map[string]fleet.SoftwareTitleSummary,
 ) error {
 	existingTitlesToUpgradeCodesToWrite := make(map[uint]string) // titleID -> upgrade_code
 
@@ -1165,32 +1160,32 @@ func (ds *Datastore) reconcileExistingTitleEmptyUpgradeCodes(
 			continue
 		}
 
-		existingTitle, ok := incomingChecksumsToExistingTitles[swChecksum]
+		existingTitleSummary, ok := incomingChecksumsToExistingTitleSummaries[swChecksum]
 		if !ok {
 			// a new title will be inserted in the next step with the fresh upgrade code, if any, from the incoming software
 			continue
 		}
 
 		switch {
-		case existingTitle.UpgradeCode == nil:
+		case existingTitleSummary.UpgradeCode == nil:
 			level.Warn(ds.logger).Log(
 				"msg", "Encountered Windows software title with a NULL upgrade_code, which shouldn't be possible. Writing the incoming non-empty upgrade code to the title.",
-				"title_id", existingTitle.ID,
-				"title_name", existingTitle.Name,
-				"source", existingTitle.Source,
+				"title_id", existingTitleSummary.ID,
+				"title_name", existingTitleSummary.Name,
+				"source", existingTitleSummary.Source,
 				"incoming_upgrade_code", *sw.UpgradeCode,
 			)
-			existingTitlesToUpgradeCodesToWrite[existingTitle.ID] = *sw.UpgradeCode
-		case *existingTitle.UpgradeCode == "":
-			existingTitlesToUpgradeCodesToWrite[existingTitle.ID] = *sw.UpgradeCode
-		case existingTitle.UpgradeCode != nil && *existingTitle.UpgradeCode != "" && *sw.UpgradeCode != *existingTitle.UpgradeCode:
+			existingTitlesToUpgradeCodesToWrite[existingTitleSummary.ID] = *sw.UpgradeCode
+		case *existingTitleSummary.UpgradeCode == "":
+			existingTitlesToUpgradeCodesToWrite[existingTitleSummary.ID] = *sw.UpgradeCode
+		case existingTitleSummary.UpgradeCode != nil && *existingTitleSummary.UpgradeCode != "" && *sw.UpgradeCode != *existingTitleSummary.UpgradeCode:
 			// don't update this title
 			level.Warn(ds.logger).Log(
 				"msg", "Incoming software's upgrade code has changed from the existing title's. The developers of this software may have changed the upgrade code, and this may be worth investigating. Keeping the previous title's upgrade code. This will likely result is some inconsistencies, such as the title's upgrade_code possibly not being returned from the list host software endpoint.",
-				"existing_title_id", existingTitle.ID,
-				"existing_title_name", existingTitle.Name,
-				"existing_title_source", existingTitle.Source,
-				"existing_title_upgrade_code", *existingTitle.UpgradeCode,
+				"existing_title_id", existingTitleSummary.ID,
+				"existing_title_name", existingTitleSummary.Name,
+				"existing_title_source", existingTitleSummary.Source,
+				"existing_title_upgrade_code", *existingTitleSummary.UpgradeCode,
 				"incoming_software_name", sw.Name,
 				"incoming_software_source", sw.Source,
 				"incoming_software_upgrade_code", *sw.UpgradeCode,

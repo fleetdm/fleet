@@ -21,7 +21,7 @@ func TestUpdateSoftwareTitlesUpgradeCode(t *testing.T) {
 	testCases := []struct {
 		name                              string
 		incomingSwChecksumToSw            map[string]fleet.Software
-		incomingSwChecksumToMatchingTitle map[string]fleet.SoftwareTitle
+		incomingSwChecksumToMatchingTitle map[string]fleet.SoftwareTitleSummary
 		expectedUpdates                   map[uint]string // titleID -> value of expected upgrade_code
 		expectedInfoLogs                  int
 		expectedWarningLogs               int
@@ -36,7 +36,7 @@ func TestUpdateSoftwareTitlesUpgradeCode(t *testing.T) {
 					UpgradeCode: &nonEmptyUc,
 				},
 			},
-			incomingSwChecksumToMatchingTitle: map[string]fleet.SoftwareTitle{
+			incomingSwChecksumToMatchingTitle: map[string]fleet.SoftwareTitleSummary{
 				"checksum1": {
 					ID:          1,
 					Name:        "Software 1",
@@ -59,7 +59,7 @@ func TestUpdateSoftwareTitlesUpgradeCode(t *testing.T) {
 					UpgradeCode: &emptyUc,
 				},
 			},
-			incomingSwChecksumToMatchingTitle: map[string]fleet.SoftwareTitle{
+			incomingSwChecksumToMatchingTitle: map[string]fleet.SoftwareTitleSummary{
 				"checksum2": {
 					ID:          2,
 					Name:        "Software 2",
@@ -79,7 +79,7 @@ func TestUpdateSoftwareTitlesUpgradeCode(t *testing.T) {
 					UpgradeCode: &nonEmptyUc,
 				},
 			},
-			incomingSwChecksumToMatchingTitle: map[string]fleet.SoftwareTitle{
+			incomingSwChecksumToMatchingTitle: map[string]fleet.SoftwareTitleSummary{
 				"checksum3": {
 					ID:          3,
 					Name:        "Software 3",
@@ -100,7 +100,7 @@ func TestUpdateSoftwareTitlesUpgradeCode(t *testing.T) {
 					UpgradeCode: &nonEmptyUc,
 				},
 			},
-			incomingSwChecksumToMatchingTitle: map[string]fleet.SoftwareTitle{
+			incomingSwChecksumToMatchingTitle: map[string]fleet.SoftwareTitleSummary{
 				"checksum4": {
 					ID:          4,
 					Name:        "Software 4",
