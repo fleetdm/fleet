@@ -486,6 +486,15 @@ var (
 	MDMDeliveryPending   MDMDeliveryStatus = "pending"
 )
 
+func (s MDMDeliveryStatus) IsValid() bool {
+	switch s {
+	case MDMDeliveryFailed, MDMDeliveryPending, MDMDeliveryVerifying, MDMDeliveryVerified:
+		return true
+	default:
+		return false
+	}
+}
+
 type MDMOperationType string
 
 const (
