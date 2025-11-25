@@ -2886,7 +2886,9 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 	if config.TeamID != nil {
 		teamID = fmt.Sprintf("%d", *config.TeamID)
 	} else {
-		return errors.New("applying Android certificates: Team ID is required")
+		// TODO -- implement "no team" certs
+		return nil
+		// return errors.New("applying Android certificates: Team ID is required")
 	}
 
 	if numCerts > 0 {
