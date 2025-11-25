@@ -45,10 +45,11 @@ quit_application() {
 
 # extract contents
 # Use 'yes' to automatically accept license agreement when mounting DMG
+# This replicates Homebrew's behavior for DMG files with license agreements
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
-yes | hdiutil attach -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"
+yes | hdiutil attach -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" || exit 1
 sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
-hdiutil detach "$MOUNT_POINT"
+hdiutil detach "$MOUNT_POINT" || true
 
 # copy to the applications folder
 quit_application 'com.omnigroup.OmniGraffle7'
