@@ -594,7 +594,7 @@
       "slug": "rancher/darwin",
       "platform": "darwin",
       "unique_identifier": "io.rancherdesktop.app",
-      "description": "Kubernetes and container management on the desktop."
+      "description": "Rancher Desktop is an app for kubernetes and container management on the desktop."
     },
     {
       "name": "Rectangle",
