@@ -3659,10 +3659,8 @@ org_settings:
 	}
 }
 
-// TestGitOpsAndroidCertificatesAdd tests adding Android certificates via GitOps
-func TestGitOpsAndroidCertificatesAdd(t *testing.T) {
-	ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
-
+// setupAndroidCertificatesTestMocks sets up common mocks for Android certificate GitOps tests
+func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.CertificateAuthority {
 	// Set up certificate authority mocks
 	certAuthorities := []*fleet.CertificateAuthority{
 		{
@@ -3686,8 +3684,6 @@ func TestGitOpsAndroidCertificatesAdd(t *testing.T) {
 		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
 		androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
-		// Add logging to see what's being passed
-		fmt.Printf("BatchSetMDMProfiles called: androidProfiles=%d\n", len(androidProfiles))
 		return fleet.MDMProfilesUpdates{}, nil
 	}
 
@@ -3716,6 +3712,22 @@ func TestGitOpsAndroidCertificatesAdd(t *testing.T) {
 		return grouped, err
 	}
 
+	// Override LabelIDsByNameFunc to handle empty labels
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		if len(labels) == 0 {
+			return map[string]uint{}, nil
+		}
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+
+	return certAuthorities
+}
+
+// TestGitOpsAndroidCertificatesAdd tests adding Android certificates via GitOps
+func TestGitOpsAndroidCertificatesAdd(t *testing.T) {
+	ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+	setupAndroidCertificatesTestMocks(t, ds)
+
 	// Track certificate templates that are created
 	var createdCertificates []fleet.CertificateTemplate
 
@@ -3734,14 +3746,6 @@ func TestGitOpsAndroidCertificatesAdd(t *testing.T) {
 
 	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) error {
 		return nil
-	}
-
-	// Override LabelIDsByNameFunc to handle empty labels
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		if len(labels) == 0 {
-			return map[string]uint{}, nil
-		}
-		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 
 	// Create team config
@@ -3795,43 +3799,7 @@ software: null
 // TestGitOpsAndroidCertificatesChange tests changing existing Android certificates via GitOps
 func TestGitOpsAndroidCertificatesChange(t *testing.T) {
 	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
-
-	// Set up certificate authority mocks
-	certAuthorities := []*fleet.CertificateAuthority{
-		{
-			ID:        1,
-			Name:      ptr.String("Test CA 1"),
-			Type:      string(fleet.CATypeCustomSCEPProxy),
-			URL:       ptr.String("https://ca1.example.com"),
-			Challenge: ptr.String("challenge1"),
-		},
-		{
-			ID:        2,
-			Name:      ptr.String("Test CA 2"),
-			Type:      string(fleet.CATypeCustomSCEPProxy),
-			URL:       ptr.String("https://ca2.example.com"),
-			Challenge: ptr.String("challenge2"),
-		},
-	}
-
-	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
-		summaries := make([]*fleet.CertificateAuthoritySummary, 0, len(certAuthorities))
-		for _, ca := range certAuthorities {
-			summaries = append(summaries, &fleet.CertificateAuthoritySummary{
-				ID:   ca.ID,
-				Name: *ca.Name,
-				Type: ca.Type,
-			})
-		}
-		return summaries, nil
-	}
-
-	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
-		cas := make([]*fleet.CertificateAuthority, len(certAuthorities))
-		copy(cas, certAuthorities)
-		grouped, err := fleet.GroupCertificateAuthoritiesByType(cas)
-		return grouped, err
-	}
+	setupAndroidCertificatesTestMocks(t, ds)
 
 	// Track certificate templates
 	var updatedCertificates []fleet.CertificateTemplate
@@ -3863,14 +3831,6 @@ func TestGitOpsAndroidCertificatesChange(t *testing.T) {
 
 	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) error {
 		return nil
-	}
-
-	// Override LabelIDsByNameFunc to handle empty labels
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		if len(labels) == 0 {
-			return map[string]uint{}, nil
-		}
-		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 
 	// Create team config with modified certificates
@@ -3934,43 +3894,7 @@ software: null
 // TestGitOpsAndroidCertificatesDeleteOne tests deleting one certificate while leaving others via GitOps
 func TestGitOpsAndroidCertificatesDeleteOne(t *testing.T) {
 	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
-
-	// Set up certificate authority mocks
-	certAuthorities := []*fleet.CertificateAuthority{
-		{
-			ID:        1,
-			Name:      ptr.String("Test CA 1"),
-			Type:      string(fleet.CATypeCustomSCEPProxy),
-			URL:       ptr.String("https://ca1.example.com"),
-			Challenge: ptr.String("challenge1"),
-		},
-		{
-			ID:        2,
-			Name:      ptr.String("Test CA 2"),
-			Type:      string(fleet.CATypeCustomSCEPProxy),
-			URL:       ptr.String("https://ca2.example.com"),
-			Challenge: ptr.String("challenge2"),
-		},
-	}
-
-	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
-		summaries := make([]*fleet.CertificateAuthoritySummary, 0, len(certAuthorities))
-		for _, ca := range certAuthorities {
-			summaries = append(summaries, &fleet.CertificateAuthoritySummary{
-				ID:   ca.ID,
-				Name: *ca.Name,
-				Type: ca.Type,
-			})
-		}
-		return summaries, nil
-	}
-
-	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
-		cas := make([]*fleet.CertificateAuthority, len(certAuthorities))
-		copy(cas, certAuthorities)
-		grouped, err := fleet.GroupCertificateAuthoritiesByType(cas)
-		return grouped, err
-	}
+	setupAndroidCertificatesTestMocks(t, ds)
 
 	// Track what was deleted
 	var deletedCertificateIDs []uint
@@ -4004,14 +3928,6 @@ func TestGitOpsAndroidCertificatesDeleteOne(t *testing.T) {
 			},
 		}
 		return existing, &fleet.PaginationMetadata{}, nil
-	}
-
-	// Override LabelIDsByNameFunc to handle empty labels
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		if len(labels) == 0 {
-			return map[string]uint{}, nil
-		}
-		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 
 	// Create team config with only one certificate (Certificate 1 removed)
@@ -4079,46 +3995,11 @@ software: null
 // TestGitOpsAndroidCertificatesDeleteAll tests deleting all certificates via GitOps
 func TestGitOpsAndroidCertificatesDeleteAll(t *testing.T) {
 	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
-
-	// Set up certificate authority mocks
-	certAuthorities := []*fleet.CertificateAuthority{
-		{
-			ID:        1,
-			Name:      ptr.String("Test CA 1"),
-			Type:      string(fleet.CATypeCustomSCEPProxy),
-			URL:       ptr.String("https://ca1.example.com"),
-			Challenge: ptr.String("challenge1"),
-		},
-		{
-			ID:        2,
-			Name:      ptr.String("Test CA 2"),
-			Type:      string(fleet.CATypeCustomSCEPProxy),
-			URL:       ptr.String("https://ca2.example.com"),
-			Challenge: ptr.String("challenge2"),
-		},
-	}
-
-	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
-		summaries := make([]*fleet.CertificateAuthoritySummary, 0, len(certAuthorities))
-		for _, ca := range certAuthorities {
-			summaries = append(summaries, &fleet.CertificateAuthoritySummary{
-				ID:   ca.ID,
-				Name: *ca.Name,
-				Type: ca.Type,
-			})
-		}
-		return summaries, nil
-	}
-
-	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
-		cas := make([]*fleet.CertificateAuthority, len(certAuthorities))
-		copy(cas, certAuthorities)
-		grouped, err := fleet.GroupCertificateAuthoritiesByType(cas)
-		return grouped, err
-	}
+	setupAndroidCertificatesTestMocks(t, ds)
 
 	// Track what was deleted
 	var deletedCertificateIDs []uint
+
 	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) error {
 		deletedCertificateIDs = ids
 		return nil
@@ -4139,14 +4020,6 @@ func TestGitOpsAndroidCertificatesDeleteAll(t *testing.T) {
 			},
 		}
 		return existing, &fleet.PaginationMetadata{}, nil
-	}
-
-	// Override LabelIDsByNameFunc to handle empty labels
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		if len(labels) == 0 {
-			return map[string]uint{}, nil
-		}
-		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 
 	// Create team config with no certificates
