@@ -2040,7 +2040,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 		require.Len(t, mappings, 1)
 		require.Equal(t, mappings[0].Email, baseEnrolledDeviceToReturn.MDMEnrollUserID)
 		require.Equal(t, mappings[0].HostID, host.ID)
-		require.Equal(t, mappings[0].Source, source)
+		require.Equal(t, mappings[0].Source, fleet.DeviceMappingMDMIdpAccounts)
 		return nil
 	}
 
