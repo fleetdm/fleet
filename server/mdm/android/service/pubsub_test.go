@@ -1115,3 +1115,7 @@ func TestBuildNonComplianceErrorMessage(t *testing.T) {
 		})
 	}
 }
+
+func TestStatusReportAppInstallVerification(t *testing.T) {
+	t.Fatal("IMPLEMENT ME!")
+}

@@ -3333,7 +3333,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	s.setSkipWorkerJobs(t)
 
 	s.setVPPTokenForTeam(0)
-	s.enableAndroidMDM(t)
+	enterpriseID := s.enableAndroidMDM(t)
 
 	// add a macOS software installer
 	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
@@ -3405,7 +3405,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 			t.Fatalf("unexpected call count %d to EnterprisesPoliciesModifyPolicyApplications", patchAppsCallCount)
 		}
 
-		return &androidmanagement.Policy{}, nil
+		return &androidmanagement.Policy{Version: int64(patchAppsCallCount)}, nil
 	}
 
 	// add Android app 1
@@ -3480,6 +3480,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	var hosts listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts)
 	require.Len(t, hosts.Hosts, 1)
+	host := hosts.Hosts[0]
+	require.EqualValues(t, fleet.AndroidPlatform, host.Platform)
 
 	// Google AMAPI hasn't been hit yet
 	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
@@ -3488,9 +3490,6 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	// should have hit the android API endpoint
 	require.True(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 
-	// TODO(mna): once we have full status tracking of Android app installs, we can do a better
-	// higher-level check with API calls, but for now confirm that the API requests were saved
-	// in the DB.
 	var count int
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, tx, &count,
@@ -3502,4 +3501,61 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	// 3. The patch applications to make apps available for self-service
 	// 4. The patch applications to force install at setup experience
 	require.Equal(t, 4, count)
+
+	// the pending install should show up in the host software
+	getHostSw := getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"order_key", "name")
+	require.Len(t, getHostSw.Software, 2)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+	require.Nil(t, getHostSw.Software[1].Status)
+
+	// send a pub-sub with the software installed, to make it verified
+	policyName := fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host.UUID)
+	reportMsg := enrollmentMessageWithEnterpriseSpecificID(
+		t,
+		androidmanagement.Device{
+			Name:                 deviceID,
+			EnrollmentTokenData:  fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
+			AppliedPolicyName:    policyName,
+			AppliedPolicyVersion: 2,
+			ApplicationReports: []*androidmanagement.ApplicationReport{
+				{PackageName: app1.AdamID, State: "INSTALLED"},
+			},
+			LastPolicySyncTime: time.Now().Format(time.RFC3339Nano),
+		},
+		enterpriseSpecificID,
+	)
+	req = android_service.PubSubPushRequest{PubSubMessage: *reportMsg}
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
+
+	// the pending install should now be verified
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"order_key", "name")
+	require.Len(t, getHostSw.Software, 2)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstalled, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+	require.Nil(t, getHostSw.Software[1].Status)
+
+	// the software now shows up in the host inventory
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "order_key", "name")
+	require.Len(t, getHostSw.Software, 2)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstalled, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+	require.Nil(t, getHostSw.Software[1].Status)
 }
