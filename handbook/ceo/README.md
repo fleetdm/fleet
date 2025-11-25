@@ -113,6 +113,13 @@ The Executive Assistant will verify daily that the CEO's calendar is accurate fo
   - The CEO will schedule his own transportation (e.g. to/from hotel/event location) while traveling. If the CEO is traveling to an event or meeting where other Fleeties are present, he may use travel time (e.g. an Uber ride) as time to align with other team members in person.
 
 
+### Asking CEO to travel
+To have the CEO meet with a customer or prospect, you will need to bring information to the Executive Assitant to confirm with the CEO. Such as:
+1. What will it be?
+2. What's the value to the company of having the CEO there?
+3. Where is it? 
+4. What's the minimum number of nights he will need to be there?
+
 ### Schedule CEO interview
 
 Use the following steps to schedule an interview between a candidate and the CEO:
