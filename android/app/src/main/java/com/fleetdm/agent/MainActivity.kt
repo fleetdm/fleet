@@ -38,12 +38,12 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.fleetdm.agent.ui.theme.MyApplicationTheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.security.KeyStore
 import java.security.cert.X509Certificate
 import java.util.Date
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,9 +105,7 @@ class MainActivity : ComponentActivity() {
                         Column(
                             modifier = Modifier.padding(padding).verticalScroll(rememberScrollState()),
                         ) {
-                            StatusScreen(
-                                dpm = dpm,
-                            )
+                            StatusScreen()
                             KeyValue("packageName", packageName)
                             KeyValue("enrollSecret", enrollSecret)
                             KeyValue("delegatedScopes", delegatedScopes.toString())
@@ -180,7 +178,7 @@ fun CertificateList(modifier: Modifier = Modifier, certificateList: List<Certifi
 }
 
 @Composable
-fun StatusScreen(modifier: Modifier = Modifier, dpm: DevicePolicyManager) {
+fun StatusScreen(modifier: Modifier = Modifier) {
     val tag = "CertStatusScreen"
     Log.i(tag, "this is a log!")
 
@@ -219,19 +217,15 @@ suspend fun listKeystoreCertificates(): List<CertificateInfo> = withContext(Disp
         val aliases = keyStore.aliases().toList()
 
         aliases.mapNotNull { alias ->
-            try {
-                val cert = keyStore.getCertificate(alias) as? X509Certificate
-                cert?.let {
-                    CertificateInfo(
-                        alias = alias,
-                        subject = it.subjectDN.name,
-                        issuer = it.issuerDN.name,
-                        notBefore = it.notBefore,
-                        notAfter = it.notAfter,
-                    )
-                }
-            } catch (e: Exception) {
-                null
+            val cert = keyStore.getCertificate(alias) as? X509Certificate
+            cert?.let {
+                CertificateInfo(
+                    alias = alias,
+                    subject = it.subjectDN.name,
+                    issuer = it.issuerDN.name,
+                    notBefore = it.notBefore,
+                    notAfter = it.notAfter,
+                )
             }
         }
     } catch (e: Exception) {

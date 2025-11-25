@@ -7,6 +7,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import java.net.HttpURLConnection
+import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -16,8 +18,6 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.net.HttpURLConnection
-import java.net.URL
 
 private val Context.credentialStore: DataStore<Preferences> by preferencesDataStore(name = "api_credentials")
 
@@ -81,19 +81,19 @@ object ApiClient {
                 Exception("Base URL not configured"),
             )
 
-             // Validate base URL format and scheme
-             try {
-                 val parsedUrl = URL(baseUrl)
-                 if (parsedUrl.protocol !in listOf("https", "http")) {
-                     return@withContext Result.failure(
-                         Exception("Base URL must use HTTP or HTTPS scheme")
-                     )
-                 }
-             } catch (e: Exception) {
-                 return@withContext Result.failure(
-                     Exception("Invalid base URL format: ${e.message}")
-                 )
-             }
+            // Validate base URL format and scheme
+            try {
+                val parsedUrl = URL(baseUrl)
+                if (parsedUrl.protocol !in listOf("https", "http")) {
+                    return@withContext Result.failure(
+                        Exception("Base URL must use HTTP or HTTPS scheme"),
+                    )
+                }
+            } catch (e: Exception) {
+                return@withContext Result.failure(
+                    Exception("Invalid base URL format: ${e.message}"),
+                )
+            }
 
             val url = URL("$baseUrl$endpoint")
             connection = url.openConnection() as HttpURLConnection
