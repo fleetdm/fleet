@@ -1207,9 +1207,9 @@ func (ds *Datastore) reconcileExistingTitleEmptyUpgradeCodes(
 		args := []any{newUcPtr, titleID}
 		stmt := `UPDATE software_titles SET upgrade_code = ? WHERE id = ? AND upgrade_code`
 		if oldUcPtr == nil {
-			stmt = stmt + " IS NULL"
+			stmt += " IS NULL"
 		} else {
-			stmt = stmt + " = ?"
+			stmt += " = ?"
 			args = append(args, oldUcPtr)
 		}
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
