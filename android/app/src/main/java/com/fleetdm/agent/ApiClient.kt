@@ -65,6 +65,7 @@ object ApiClient {
         body: R? = null,
         authenticated: Boolean = true,
     ): Result<T> = withContext(Dispatchers.IO) {
+        var connection: HttpURLConnection? = null
         try {
             val apiKey = getApiKey()
             if (authenticated && apiKey == null) {
@@ -77,11 +78,27 @@ object ApiClient {
                 Exception("Base URL not configured"),
             )
 
+             // Validate base URL format and scheme
+             try {
+                 val parsedUrl = URL(baseUrl)
+                 if (parsedUrl.protocol !in listOf("https", "http")) {
+                     return@withContext Result.failure(
+                         Exception("Base URL must use HTTP or HTTPS scheme")
+                     )
+                 }
+             } catch (e: Exception) {
+                 return@withContext Result.failure(
+                     Exception("Invalid base URL format: ${e.message}")
+                 )
+             }
+
             val url = URL("$baseUrl$endpoint")
-            val connection = url.openConnection() as HttpURLConnection
+            connection = url.openConnection() as HttpURLConnection
 
             connection.apply {
                 requestMethod = method
+                useCaches = false
+                doInput = true
                 if (authenticated) {
                     setRequestProperty("Authorization", "Bearer $apiKey")
                 }
@@ -104,8 +121,6 @@ object ApiClient {
                     ?: "HTTP $responseCode"
             }
 
-            connection.disconnect()
-
             if (responseCode in 200..299) {
                 val parsed = json.decodeFromString<T>(response)
                 Result.success(parsed)
@@ -114,6 +129,8 @@ object ApiClient {
             }
         } catch (e: Exception) {
             Result.failure(e)
+        } finally {
+            connection?.disconnect()
         }
     }
 
@@ -133,7 +150,7 @@ object ApiClient {
             setApiKey(value.orbitNodeKey)
         }
         resp.onFailure { exception ->
-            Log.d("ApiClient.enroll", exception.toString())
+            Log.d("ApiClient.enroll", "Enrollment failed: ${exception.message}")
         }
 
         return resp
