@@ -37,6 +37,13 @@
       "description": "Abstract is a collaborative design tool with support for Sketch files."
     },
     {
+      "name": "Adobe Acrobat Pro DC",
+      "slug": "adobe-acrobat-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adobe.Acrobat.Pro",
+      "description": "Adobe Acrobat Pro DC is a professional PDF editor for creating, editing, converting, and managing PDF documents."
+    },
+    {
       "name": "Adobe Acrobat Reader",
       "slug": "adobe-acrobat-reader/darwin",
       "platform": "darwin",
