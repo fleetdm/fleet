@@ -61,21 +61,24 @@ class MainActivity : ComponentActivity() {
             val enrollSecret by remember { mutableStateOf(appRestrictions.getString("enrollSecret")) }
             val delegatedScopes by remember { mutableStateOf(dpm.getDelegatedScopes(null, packageName)) }
             val delegatedCertScope by remember {
-                mutableStateOf(delegatedScopes.contains(
-                    DevicePolicyManager.DELEGATION_CERT_INSTALL)
-                )
+                mutableStateOf(delegatedScopes.contains(DevicePolicyManager.DELEGATION_CERT_INSTALL))
             }
             val androidID by remember { mutableStateOf(Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)) }
             val enrollmentSpecificID by remember { mutableStateOf(appRestrictions.getString("enrollmentSpecificID")) }
-            val certRequestList by remember { mutableStateOf(appRestrictions.getParcelableArray("certificates", Bundle::class.java)?.toList()) }
+            val certRequestList by remember {
+                mutableStateOf(appRestrictions.getParcelableArray("certificates", Bundle::class.java)?.toList())
+            }
             val certIds by remember { mutableStateOf(certRequestList?.map { bundle -> bundle.getInt("certificate_id") }) }
             val permissionsList by remember {
                 val grantedPermissions = mutableListOf<String>()
                 val packageInfo: PackageInfo = packageManager.getPackageInfo(packageName, PackageManager.GET_PERMISSIONS)
                 packageInfo.requestedPermissions?.let {
                     for (i in it.indices) {
-                        if ((packageInfo.requestedPermissionsFlags?.get(i)
-                                ?.and(PackageInfo.REQUESTED_PERMISSION_GRANTED)) != 0) {
+                        if ((
+                                packageInfo.requestedPermissionsFlags?.get(i)
+                                    ?.and(PackageInfo.REQUESTED_PERMISSION_GRANTED)
+                                ) != 0
+                        ) {
                             grantedPermissions.add(it[i])
                         }
                     }
@@ -100,7 +103,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     content = { padding ->
                         Column(
-                            modifier = Modifier.padding(padding).verticalScroll(rememberScrollState())
+                            modifier = Modifier.padding(padding).verticalScroll(rememberScrollState()),
                         ) {
                             StatusScreen(
                                 dpm = dpm,
@@ -116,7 +119,7 @@ class MainActivity : ComponentActivity() {
                             KeyValue("base_url (datastore)", baseUrl)
                             KeyValue("certificate_ids", certIds.toString())
                             PermissionList(
-                                permissionsList = permissionsList
+                                permissionsList = permissionsList,
                             )
                             Button(onClick = {
                                 scope.launch {
@@ -144,7 +147,7 @@ class MainActivity : ComponentActivity() {
                             Text(enrollBody)
                             CertificateList(certificateList = installedCertificates)
                         }
-                    }
+                    },
                 )
             }
         }
@@ -203,7 +206,7 @@ fun KeyValue(key: String, value: String?) {
                 append(key)
             }
             append(": $value")
-        }
+        },
     )
     HorizontalDivider()
 }
@@ -224,7 +227,7 @@ suspend fun listKeystoreCertificates(): List<CertificateInfo> = withContext(Disp
                         subject = it.subjectDN.name,
                         issuer = it.issuerDN.name,
                         notBefore = it.notBefore,
-                        notAfter = it.notAfter
+                        notAfter = it.notAfter,
                     )
                 }
             } catch (e: Exception) {
@@ -237,13 +240,7 @@ suspend fun listKeystoreCertificates(): List<CertificateInfo> = withContext(Disp
     }
 }
 
-data class CertificateInfo(
-    val alias: String,
-    val subject: String,
-    val issuer: String,
-    val notBefore: Date,
-    val notAfter: Date,
-)
+data class CertificateInfo(val alias: String, val subject: String, val issuer: String, val notBefore: Date, val notAfter: Date)
 
 @Preview(showBackground = true)
 @Composable

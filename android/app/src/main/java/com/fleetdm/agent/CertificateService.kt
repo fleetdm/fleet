@@ -35,10 +35,7 @@ class CertificateService : Service() {
     )
 
     // Structure for SCEP result, holding the key and certificate(s)
-    data class ScepResult(
-        val privateKey: PrivateKey,
-        val certificateChain: Array<Certificate>
-    )
+    data class ScepResult(val privateKey: PrivateKey, val certificateChain: Array<Certificate>)
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val certDataJson = intent?.getStringExtra("CERT_DATA")
@@ -118,11 +115,7 @@ class CertificateService : Service() {
      * Performs a silent installation of the KeyPair using the delegated CERT_INSTALL scope.
      * This method requires NO user interaction on modern managed devices (API 18+).
      */
-    private fun installCertificateSilently(
-        alias: String,
-        privateKey: PrivateKey,
-        certificateChain: Array<Certificate>
-    ) {
+    private fun installCertificateSilently(alias: String, privateKey: PrivateKey, certificateChain: Array<Certificate>) {
         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
 
         // The admin component is null because the caller is a DELEGATED application,

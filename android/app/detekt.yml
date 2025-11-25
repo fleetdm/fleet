@@ -16,6 +16,10 @@ style:
 complexity:
   NestedBlockDepth:
     threshold: 5 # Android receivers often need nested blocks
+  LongMethod:
+    active: false # Up to engineers to determine if method is too long
+  CyclomaticComplexMethod:
+    active: false # Up to engineers to determine if method is too complex
 
 exceptions:
   TooGenericExceptionCaught:

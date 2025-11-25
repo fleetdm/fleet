@@ -62,6 +62,7 @@ spotless {
         targetExclude("**/build/**/*.kt")
         ktlint().editorConfigOverride(
             mapOf(
+                "max_line_length" to 140,
                 // Jetpack Compose requires Composable functions to start with uppercase (PascalCase)
                 "ktlint_standard_function-naming" to "disabled",
                 // Android conventionally uses uppercase TAG constants for logging

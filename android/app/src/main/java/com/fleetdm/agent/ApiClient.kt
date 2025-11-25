@@ -55,13 +55,9 @@ object ApiClient {
             preferences[BASE_URL_KEY]
         }
 
-    suspend fun getApiKey(): String? {
-        return dataStore.data.first()[API_KEY]
-    }
+    suspend fun getApiKey(): String? = dataStore.data.first()[API_KEY]
 
-    suspend fun getBaseUrl(): String? {
-        return dataStore.data.first()[BASE_URL_KEY]
-    }
+    suspend fun getBaseUrl(): String? = dataStore.data.first()[BASE_URL_KEY]
 
     suspend inline fun <reified R, reified T> makeRequest(
         endpoint: String,
@@ -73,12 +69,12 @@ object ApiClient {
             val apiKey = getApiKey()
             if (authenticated && apiKey == null) {
                 return@withContext Result.failure(
-                    Exception("API key not configured")
+                    Exception("API key not configured"),
                 )
             }
 
             val baseUrl = getBaseUrl() ?: return@withContext Result.failure(
-                Exception("Base URL not configured")
+                Exception("Base URL not configured"),
             )
 
             val url = URL("$baseUrl$endpoint")
@@ -116,18 +112,12 @@ object ApiClient {
             } else {
                 Result.failure(Exception("HTTP $responseCode: $response"))
             }
-
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun enroll(
-        baseUrl: String,
-        enrollSecret: String,
-        hardwareUUID: String,
-        computerName: String
-    ): Result<EnrollResponse> {
+    suspend fun enroll(baseUrl: String, enrollSecret: String, hardwareUUID: String, computerName: String): Result<EnrollResponse> {
         setBaseUrl(baseUrl)
         val resp = makeRequest<EnrollRequest, EnrollResponse>(
             endpoint = "/api/fleet/orbit/enroll",
