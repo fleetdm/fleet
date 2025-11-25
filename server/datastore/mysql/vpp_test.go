@@ -2266,7 +2266,7 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 
 	// insert pending install for no-team app on host1
 	cmdVpp1 := uuid.NewString()
-	err = ds.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstallPayload{
+	err = ds.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
 		HostID:            host1.Host.ID,
 		AdamID:            vpp1.AdamID,
 		CommandUUID:       cmdVpp1,
@@ -2276,7 +2276,7 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 
 	// insert pending install for team app on host2
 	cmdVpp2 := uuid.NewString()
-	err = ds.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstallPayload{
+	err = ds.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
 		HostID:            host2.Host.ID,
 		AdamID:            vpp2.AdamID,
 		CommandUUID:       cmdVpp2,
@@ -2286,7 +2286,7 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 
 	// insert pending install for no-team app on host3
 	cmdVpp3 := uuid.NewString()
-	err = ds.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstallPayload{
+	err = ds.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
 		HostID:            host3.Host.ID,
 		AdamID:            vpp1.AdamID,
 		CommandUUID:       cmdVpp3,

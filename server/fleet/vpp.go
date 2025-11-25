@@ -139,7 +139,7 @@ type HostVPPSoftwareInstall struct {
 	BundleIdentifier     string     `db:"bundle_identifier"`
 }
 
-// HostAndroidVPPSoftwareInstallPayload represents the payload needed to
+// HostAndroidVPPSoftwareInstall represents the payload needed to
 // insert a VPP software install record for an Android host.
 //
 // NOTE: Currently only supported for setup experience, to revisit when
@@ -147,7 +147,7 @@ type HostVPPSoftwareInstall struct {
 // the upcoming queue). For this reason, user ID and (Fleet-) policy id
 // are always null and self-service is always false, while platform is
 // always android.
-type HostAndroidVPPSoftwareInstallPayload struct {
+type HostAndroidVPPSoftwareInstall struct {
 	HostID            uint
 	AdamID            string // for Android, this is the e.g. com.chrome application ID
 	CommandUUID       string // uuid of the corresponding android_policy_request row

@@ -1532,7 +1532,7 @@ func isAndroidHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext
 	return isEnrolled, nil
 }
 
-func (ds *Datastore) InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *fleet.HostAndroidVPPSoftwareInstallPayload) error {
+func (ds *Datastore) InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *fleet.HostAndroidVPPSoftwareInstall) error {
 	const stmt = `
 		INSERT INTO
 			host_vpp_software_installs (
@@ -1557,7 +1557,7 @@ func (ds *Datastore) InsertAndroidSetupExperienceSoftwareInstall(ctx context.Con
 	return ctxerr.Wrap(ctx, err, "inserting android setup experience software install")
 }
 
-func (ds *Datastore) ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.HostAndroidVPPSoftwareInstallPayload, error) {
+func (ds *Datastore) ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
 	const stmt = `
 SELECT
 	hvsi.host_id,
@@ -1575,7 +1575,7 @@ WHERE
 	hvsi.verification_failed_at IS NULL
 `
 
-	var pendingInstalls []*fleet.HostAndroidVPPSoftwareInstallPayload
+	var pendingInstalls []*fleet.HostAndroidVPPSoftwareInstall
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &pendingInstalls, stmt, hostUUID, fleet.AndroidPlatform, policyVersion)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing host mdm android vpp apps pending install")

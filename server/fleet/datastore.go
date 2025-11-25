@@ -2359,7 +2359,7 @@ type Datastore interface {
 
 	// InsertAndroidSetupExperienceSoftwareInstall inserts a new Android
 	// VPP app install record for the setup experience flow.
-	InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *HostAndroidVPPSoftwareInstallPayload) error
+	InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *HostAndroidVPPSoftwareInstall) error
 
 	// GetAndroidAppConfiguration retrieves the configuration for an Android app
 	// identified by adam_id and global_or_team_id.
@@ -2569,7 +2569,7 @@ type AndroidDatastore interface {
 	// ListHostMDMAndroidVPPAppsPendingInstallWithVersion lists the Android
 	// VPP apps pending install for a host that were requested in a policy
 	// version <= the provided policy version.
-	ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*HostAndroidVPPSoftwareInstallPayload, error)
+	ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*HostAndroidVPPSoftwareInstall, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

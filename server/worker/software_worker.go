@@ -265,7 +265,7 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 			policyRequest = req
 		}
 		for _, appID := range appIDs {
-			err := v.Datastore.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstallPayload{
+			err := v.Datastore.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
 				HostID:            host.Host.ID,
 				AdamID:            appID,
 				CommandUUID:       policyRequest.RequestUUID,

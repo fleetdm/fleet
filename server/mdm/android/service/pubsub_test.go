@@ -238,6 +238,9 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 				installPendingProfile,
 			}, nil
 		}
+		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+			return nil, nil
+		}
 		mockDS.BulkUpsertMDMAndroidHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
 			require.Len(t, payload, 1)
 			require.Equal(t, installPendingProfile.ProfileUUID, payload[0].ProfileUUID)
@@ -314,6 +317,9 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 				installPendingProfile1,
 				installPendingProfile2,
 			}, nil
+		}
+		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+			return nil, nil
 		}
 		mockDS.BulkUpsertMDMAndroidHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
 			require.Len(t, payload, 2)

@@ -688,11 +688,13 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, hostUUID string, d
 		level.Error(svc.logger).Log("msg", "error getting pending vpp installs", "err", err)
 		return
 	}
-	_ = pendingInstallApps
-	// pendingByPackageName := make(map[string]*fleet.HostVPPSoftwareInstall, len(pendingInstallProfiles))
-	// for _, profile := range pendingInstallProfiles {
-	// 	pendingProfilesUUIDMap[profile.ProfileUUID] = profile
-	// }
+	pendingByPackageName := make(map[string]*fleet.HostAndroidVPPSoftwareInstall, len(pendingInstallApps))
+	for _, app := range pendingInstallApps {
+		pendingByPackageName[app.AdamID] = app
+	}
+
+	// track for each app if it should be marked successful (true) or failed (false)
+	markSuccessful := make(map[string]bool, len(pendingInstallApps))
 }
 
 func buildNonComplianceErrorMessage(nonCompliance []*androidmanagement.NonComplianceDetail) string {
