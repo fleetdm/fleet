@@ -37,6 +37,13 @@
       "description": "Abstract is a collaborative design tool with support for Sketch files."
     },
     {
+      "name": "Adobe Acrobat Pro DC",
+      "slug": "adobe-acrobat-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adobe.Acrobat.Pro",
+      "description": "Adobe Acrobat Pro DC is a professional PDF editor for creating, editing, converting, and managing PDF documents."
+    },
+    {
       "name": "Adobe Acrobat Reader",
       "slug": "adobe-acrobat-reader/darwin",
       "platform": "darwin",
@@ -527,11 +534,25 @@
       "description": "Nudge is an application for enforcing OS updates."
     },
     {
+      "name": "OmniGraffle",
+      "slug": "omnigraffle/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.omnigroup.OmniGraffle7",
+      "description": "OmniGraffle is visual communication software."
+    },
+    {
       "name": "Omnissa Horizon Client",
       "slug": "omnissa-horizon-client/darwin",
       "platform": "darwin",
       "unique_identifier": "com.omnissa.horizon.client.mac",
       "description": "Omnissa Horizon Client is a tool end users use to access remote virtual desktops."
+    },
+    {
+      "name": "OpenVPN Connect",
+      "slug": "openvpn-connect/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.openvpn.OpenVPNConnect",
+      "description": "OpenVPN Connect is a VPN client that provides secure remote access to networks and services."
     },
     {
       "name": "Opera",
@@ -688,6 +709,13 @@
       "description": "TablePlus is a native GUI tool for relational databases."
     },
     {
+      "name": "Tailscale",
+      "slug": "tailscale-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.tailscale.ipn.macsys",
+      "description": "Tailscale is mesh VPN based on WireGuard."
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
@@ -791,6 +819,13 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.rdc.macos",
       "description": "Windows App helps you connect to Windows from your Mac."
+    },
+    {
+      "name": "Wrike",
+      "slug": "wrike/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.wrike.Wrike",
+      "description": "Wrike is a project management app."
     },
     {
       "name": "Yubikey Manager",
