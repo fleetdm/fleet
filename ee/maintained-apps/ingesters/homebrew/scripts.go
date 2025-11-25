@@ -356,7 +356,7 @@ func (s *scriptBuilder) Extract(format string) {
 	case "dmg":
 		s.Write("# extract contents")
 		s.Write(`MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
-hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"
+hdiutil attach -plist -nobrowse -readonly -agreeToLicense -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"
 sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
 hdiutil detach "$MOUNT_POINT"`)
 
