@@ -527,6 +527,13 @@
       "description": "Nudge is an application for enforcing OS updates."
     },
     {
+      "name": "OmniGraffle",
+      "slug": "omnigraffle/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.omnigroup.OmniGraffle7",
+      "description": "OmniGraffle is visual communication software."
+    },
+    {
       "name": "Omnissa Horizon Client",
       "slug": "omnissa-horizon-client/darwin",
       "platform": "darwin",

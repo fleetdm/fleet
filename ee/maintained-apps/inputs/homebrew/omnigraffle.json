@@ -1,0 +1,8 @@
+{
+  "name": "OmniGraffle",
+  "unique_identifier": "com.omnigroup.OmniGraffle7",
+  "token": "omnigraffle",
+  "installer_format": "dmg",
+  "slug": "omnigraffle/darwin",
+  "default_categories": ["Productivity"]
+}
