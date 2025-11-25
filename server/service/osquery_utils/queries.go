@@ -3205,10 +3205,10 @@ func directIngestHostCertificates(
 	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs)
 }
 
-func maybeUpdateLastRestartedAt(now time.Time, host *fleet.Host) error {
+func maybeUpdateLastRestartedAt(now time.Time, host *fleet.Host) {
 	// If the uptime is 0, don't change the last restarted at time.
 	if host.Uptime == 0 {
-		return nil
+		return
 	}
 	// Calculate the last restart date.
 	newLastRestartedAt := now.Add(-host.Uptime)
@@ -3218,18 +3218,16 @@ func maybeUpdateLastRestartedAt(now time.Time, host *fleet.Host) error {
 		diff := newLastRestartedAt.Sub(host.LastRestartedAt)
 		// The new date should always be later, so if it's not, ignore.
 		if diff < 0 {
-			return nil
+			return
 		}
 		// If the new date is within 30 seconds of the previous one, ignore.
 		// This accounts for small differences between when the uptime
 		// reading was taken and when we process it here.
 		if diff < 30*time.Second {
-			return nil
+			return
 		}
 	}
 
 	// Update the last restarted at time.
 	host.LastRestartedAt = newLastRestartedAt
-
-	return nil
 }
