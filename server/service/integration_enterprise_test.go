@@ -12827,6 +12827,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	}
 	http.DefaultTransport = mockTransport
 
+	// jahz: will need something like this to serve the mAanifest - e.g. fake Fleet GitHub
 	// Mock server to serve manifest with no_check/latest
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var versions []*ma.FMAManifestApp
@@ -17552,6 +17553,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIden
 	})
 	require.NoError(t, err)
 
+	// this stuff mocks the osquery ingestion flow
 	software := []fleet.Software{
 		{Name: "DummyApp", Version: "0.0.2", Source: "apps"},
 	}
@@ -17641,6 +17643,8 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	installerBytes := []byte("abc")
 
 	// Mock server to serve the "installers"
+	// jahz: probably will need something like this to serve installer for use when user adds a
+	// current FMA to Fleet
 	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/badinstaller":
@@ -17841,8 +17845,10 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "echo done",
 	}
+	// do this to add the app to fleet
 	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
 	require.Nil(t, addMAResp.Err)
+	// then confirm UC is in the db
 
 	s.DoJSON(http.MethodGet, "/api/latest/fleet/software/fleet_maintained_apps", listFleetMaintainedAppsRequest{}, http.StatusOK,
 		&listMAResp, "team_id", fmt.Sprint(team.ID))
