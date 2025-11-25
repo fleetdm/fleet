@@ -2495,6 +2495,8 @@ type Datastore interface {
 	// update, delete). Deletes are processed first based on name and type. Adds and updates are
 	// processed together as upserts using INSERT...ON DUPLICATE KEY UPDATE.
 	BatchApplyCertificateAuthorities(ctx context.Context, ops CertificateAuthoritiesBatchOperations) error
+	// UpdateCertificateStatus allows a host to update the installation status of a certificate given its template.
+	UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status MDMDeliveryStatus) error
 
 	// BatchUpsertCertificateTemplates upserts a batch of certificates.
 	BatchUpsertCertificateTemplates(ctx context.Context, certificates []*CertificateTemplate) error
@@ -2508,6 +2510,12 @@ type Datastore interface {
 	GetCertificateTemplateById(ctx context.Context, id uint) (*CertificateTemplateResponseFull, error)
 	// GetCertificateTemplatesByTeamID gets all certificate templates for a team.
 	GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, page, perPage int) ([]*CertificateTemplateResponseSummary, *PaginationMetadata, error)
+	// ListAndroidHostUUIDsWithCertificateTemplates returns a paginated list of Android host UUIDs that have certificate templates.
+	ListAndroidHostUUIDsWithCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error)
+	// ListCertificateTemplatesForHosts returns ALL certificate templates for the given host UUIDs.
+	ListCertificateTemplatesForHosts(ctx context.Context, hostUUIDs []string) ([]CertificateTemplateForHost, error)
+	// BulkInsertHostCertificateTemplates inserts multiple host_certificate_templates records.
+	BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []HostCertificateTemplate) error
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
