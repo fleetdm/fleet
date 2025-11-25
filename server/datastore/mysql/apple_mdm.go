@@ -1087,22 +1087,24 @@ func (ds *Datastore) GetVPPCommandResults(ctx context.Context, commandUUID strin
 		&results,
 		`
 SELECT
-    ncr.id as host_uuid,
-    ncr.command_uuid,
-    ncr.status,
-    ncr.result,
-    ncr.updated_at,
-    nc.request_type,
-    nc.command as payload
+	ncr.id as host_uuid,
+	ncr.command_uuid,
+	ncr.status,
+	ncr.result,
+	ncr.updated_at,
+	nc.request_type,
+	nc.command as payload
 FROM
-    nano_command_results ncr
+	nano_command_results ncr
 INNER JOIN
-    nano_commands nc
-ON
-    ncr.command_uuid = nc.command_uuid AND ncr.id = ? AND ncr.command_uuid = ?
-LEFT JOIN host_vpp_software_installs hvsi ON ncr.command_uuid = hvsi.command_uuid
-LEFT JOIN upcoming_activities ua ON ncr.command_uuid = ua.execution_id AND ua.activity_type = 'software_install'
-WHERE ua.id IS NOT NULL OR hvsi.id IS NOT NULL
+	nano_commands nc ON ncr.command_uuid = nc.command_uuid AND ncr.id = ? AND ncr.command_uuid = ?
+LEFT JOIN
+	host_vpp_software_installs hvsi ON ncr.command_uuid = hvsi.command_uuid
+LEFT JOIN
+	upcoming_activities ua ON ncr.command_uuid = ua.execution_id AND ua.activity_type = 'software_install'
+WHERE 
+	ua.id IS NOT NULL OR 
+	hvsi.id IS NOT NULL
 `,
 		hostUUID,
 		commandUUID,

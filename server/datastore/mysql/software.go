@@ -5827,8 +5827,11 @@ SELECT
 FROM software_titles st
 INNER JOIN vpp_apps vap ON vap.title_id = st.id
 INNER JOIN host_vpp_software_installs hvsi ON hvsi.host_id = :host_id AND hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
-INNER JOIN nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
-WHERE hvsi.removed = 0 AND hvsi.canceled = 0 AND ncr.status = :mdm_status_acknowledged
+LEFT JOIN nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+WHERE 
+	hvsi.removed = 0 AND 
+	hvsi.canceled = 0 AND 
+	(ncr.status = :mdm_status_acknowledged OR hvsi.verification_at IS NOT NULL)
 `
 	selectStmt, args, err := sqlx.Named(stmt, map[string]interface{}{
 		"host_id":                   hostID,
