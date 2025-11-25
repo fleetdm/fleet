@@ -446,6 +446,8 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "clearing android enabled and configured")
 	}
 
+	// TODO(mna): mark pending VPP installs as failed, as for Apple.
+
 	err = svc.ds.BulkSetAndroidHostsUnenrolled(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set android hosts as unenrolled")
@@ -784,6 +786,8 @@ func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *an
 	if setErr := svc.ds.SetAndroidEnabledAndConfigured(ctx, false); setErr != nil {
 		level.Error(svc.logger).Log("msg", "failed to turn off Android MDM after enterprise deletion", "err", setErr)
 	}
+
+	// TODO(mna): mark pending VPP installs as failed, as for Apple.
 
 	// Unenroll Android hosts
 	if unenrollErr := svc.ds.BulkSetAndroidHostsUnenrolled(ctx); unenrollErr != nil {

@@ -1583,6 +1583,20 @@ WHERE
 	return pendingInstalls, nil
 }
 
+func (ds *Datastore) BulkSetVPPInstallsAsVerified(ctx context.Context, hostID uint, commandUUIDs []string) error {
+	if len(commandUUIDs) == 0 {
+		return nil
+	}
+	panic("unimplemented")
+}
+
+func (ds *Datastore) BulkSetVPPInstallsAsFailed(ctx context.Context, hostID uint, commandUUIDs []string) error {
+	if len(commandUUIDs) == 0 {
+		return nil
+	}
+	panic("unimplemented")
+}
+
 // GetAndroidAppConfiguration retrieves the configuration for an Android app
 // identified by adam_id and global_or_team_id.
 func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*fleet.AndroidAppConfiguration, error) {

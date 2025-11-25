@@ -370,7 +370,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		}
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 		svc.verifyDevicePolicy(ctx, host.UUID, device)
-		svc.verifyDeviceSoftware(ctx, host.UUID, device)
+		svc.verifyDeviceSoftware(ctx, host.Host, device)
 	}
 
 	deviceID, err := svc.getDeviceID(ctx, device)
@@ -675,8 +675,9 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 	}
 }
 
-func (svc *Service) verifyDeviceSoftware(ctx context.Context, hostUUID string, device *androidmanagement.Device) {
+func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, device *androidmanagement.Device) {
 	appliedPolicyVersion := device.AppliedPolicyVersion
+	hostUUID := host.UUID
 
 	level.Debug(svc.logger).Log("msg", "Verifying Android device software", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
 
@@ -688,13 +689,93 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, hostUUID string, d
 		level.Error(svc.logger).Log("msg", "error getting pending vpp installs", "err", err)
 		return
 	}
+	if len(pendingInstallApps) == 0 {
+		return
+	}
+
+	// index pending installs by package name
 	pendingByPackageName := make(map[string]*fleet.HostAndroidVPPSoftwareInstall, len(pendingInstallApps))
 	for _, app := range pendingInstallApps {
 		pendingByPackageName[app.AdamID] = app
 	}
+	// index non-compliance reports by package name, currently we don't care about why it wasn't
+	// compliant, as soon as it is non-compliant we will mark the install as failed
+	nonCompliantByPackageName := make(map[string]*androidmanagement.NonComplianceDetail)
+	for _, report := range device.NonComplianceDetails {
+		if _, ok := pendingByPackageName[report.PackageName]; ok {
+			// this is a package we're tracking, keep its non-compliance report
+			nonCompliantByPackageName[report.PackageName] = report
+		}
+	}
 
-	// track for each app if it should be marked successful (true) or failed (false)
-	markSuccessful := make(map[string]bool, len(pendingInstallApps))
+	// track for each app if it should be marked verified (true) or failed (false)
+	markVerified := make(map[string]bool, len(pendingInstallApps))
+	for _, appReport := range device.ApplicationReports {
+		if _, ok := pendingByPackageName[appReport.PackageName]; ok {
+			// TODO(mna): what if appReport.State is "REMOVED", and the user removed it before
+			// the "INSTALLED" state was reported? Should we say it was installed successfully,
+			// and how do we even know it was installed at all? Does it matter? Not handling for
+			// now, could be something to improve when we implement standard app install support
+			// for Android.
+			if appReport.State == "INSTALLED" && nonCompliantByPackageName[appReport.PackageName] == nil {
+				// definitely installed successfully
+				markVerified[appReport.PackageName] = true
+			}
+		}
+	}
+
+	// for the remaining apps, mark as failed if non-conformant
+	for packageName := range pendingByPackageName {
+		if _, ok := markVerified[packageName]; ok {
+			// already marked as verified
+			continue
+		}
+
+		if report := nonCompliantByPackageName[packageName]; report != nil {
+			if report.NonComplianceReason == "PENDING" || report.InstallationFailureReason == "IN_PROGRESS" {
+				// keep as pending
+				level.Debug(svc.logger).Log("msg", "Software not reported as installed yet", "host_uuid", hostUUID, "package_name", packageName,
+					"non_compliance_reason", report.NonComplianceReason,
+					"installation_failure_reason", report.InstallationFailureReason)
+				continue
+			}
+
+			// otherwise it has failed to install, mark as failed
+			markVerified[packageName] = false
+			level.Error(svc.logger).Log("msg", "Software failed to install", "host_uuid", hostUUID, "package_name", packageName,
+				"non_compliance_reason", report.NonComplianceReason,
+				"installation_failure_reason", report.InstallationFailureReason,
+				"specific_non_compliance_reason", report.SpecificNonComplianceReason)
+			continue
+		}
+
+		// no non-compliance report, but also not reported as installed, give it another
+		// chance later if the applied version == requested version? For now, marking as
+		// failed, we don't know how long it might take for the device to receive another
+		// policy, it may never happen.
+		markVerified[packageName] = false
+		level.Error(svc.logger).Log("msg", "Software failed to install", "host_uuid", hostUUID, "package_name", packageName,
+			"installation_failure_reason", "unknown - no non-compliance report received")
+	}
+
+	var toVerifyUUIDs, toFailUUIDs []string
+	for packageName, install := range pendingByPackageName {
+		if verified, ok := markVerified[packageName]; ok {
+			if verified {
+				toVerifyUUIDs = append(toVerifyUUIDs, install.CommandUUID)
+			} else {
+				toFailUUIDs = append(toFailUUIDs, install.CommandUUID)
+			}
+		}
+	}
+	if err := svc.ds.BulkSetVPPInstallsAsVerified(ctx, host.ID, toVerifyUUIDs); err != nil {
+		level.Error(svc.logger).Log("msg", "error marking vpp installs as verified", "err", err, "host_uuid", hostUUID)
+		return
+	}
+	if err := svc.ds.BulkSetVPPInstallsAsFailed(ctx, host.ID, toFailUUIDs); err != nil {
+		level.Error(svc.logger).Log("msg", "error marking vpp installs as failed", "err", err, "host_uuid", hostUUID)
+		return
+	}
 }
 
 func buildNonComplianceErrorMessage(nonCompliance []*androidmanagement.NonComplianceDetail) string {

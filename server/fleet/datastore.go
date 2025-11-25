@@ -2570,6 +2570,16 @@ type AndroidDatastore interface {
 	// VPP apps pending install for a host that were requested in a policy
 	// version <= the provided policy version.
 	ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*HostAndroidVPPSoftwareInstall, error)
+
+	// BulkSetVPPInstallsAsVerified marks all VPP apps identified by the command UUIDs
+	// as verified. This is for Android hosts, where the verification uuid is not important,
+	// so the implementation generates a random one.
+	BulkSetVPPInstallsAsVerified(ctx context.Context, hostID uint, commandUUIDs []string) error
+
+	// BulkSetVPPInstallsAsFailed marks all VPP apps identified by the command UUIDs
+	// as failed. This is for Android hosts, where the verification uuid is not important,
+	// so the implementation generates a random one.
+	BulkSetVPPInstallsAsFailed(ctx context.Context, hostID uint, commandUUIDs []string) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
