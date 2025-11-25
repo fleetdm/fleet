@@ -24,13 +24,25 @@ require() {
 	}
 }
 
+ensure_gh_auth() {
+    auth_status="$(gh auth status -t 2>&1 || true)"
+    if echo "$auth_status" | grep -q "You are not logged into any GitHub hosts."; then
+        echo "$auth_status" >&2
+        exit 1
+    fi
+    username="$(echo "${auth_status}" | sed -n -r 's/^.* Logged in to github.com account ([^[:space:]]+).*/\1/p')"
+    token="$(echo "${auth_status}" | sed -n -r 's/^.*Token: ([a-zA-Z0-9_]*)/\1/p')"
+    if [ -z "${username}" ] || [ -z "${token}" ]; then
+        echo "Failed to parse GitHub auth status. Try: gh auth login" >&2
+        exit 1
+    fi
+}
+
 issues() {
 	require gh
 	require jq
 
-	auth_status="$(gh auth status -t 2>&1)"
-	username="$(echo "${auth_status}" | sed -n -r 's/^.* Logged in to github.com account ([^[:space:]]+).*/\1/p')"
-	token="$(echo "${auth_status}" | sed -n -r 's/^.*Token: ([a-zA-Z0-9_]*)/\1/p')"
+	ensure_gh_auth
 
 	members="$(curl -s -u "${username}:${token}" https://api.github.com/orgs/fleetdm/members?per_page=100 | jq -r 'map(.login)')"
 
@@ -43,9 +55,7 @@ prs() {
 	require gh
 	require jq
 
-	auth_status="$(gh auth status -t 2>&1)"
-	username="$(echo "${auth_status}" | sed -n -r 's/^.* Logged in to github.com account ([^[:space:]]+).*/\1/p')"
-	token="$(echo "${auth_status}" | sed -n -r 's/^.*Token: ([a-zA-Z0-9_]*)/\1/p')"
+	ensure_gh_auth
 
 	members="$(curl -s -u "${username}:${token}" https://api.github.com/orgs/fleetdm/members?per_page=100 | jq -r 'map(.login) + ["app/dependabot"]')"
 
@@ -54,6 +64,13 @@ prs() {
 		jq -r --argjson members "$members" \
 			'map(select((.author.login as $login | ($members | index($login)) == null) and .isDraft == false)) | sort_by(.createdAt) | reverse | .[] | [(.url | split("/") | last), .createdAt, .author.login, .title] | @tsv'
 }
+
+# check for at least one argument
+if [ "$#" -lt 1 ]; then
+	echo -e "No command provided.\n"
+	usage
+	exit 1
+fi
 
 # main script
 case "$1" in

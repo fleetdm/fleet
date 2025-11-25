@@ -142,6 +142,13 @@
       "description": "Cisco Jabber is a collaboration and communication app."
     },
     {
+      "name": "Citrix Workspace",
+      "slug": "citrix-workspace/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.citrix.receiver.nomas",
+      "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
+    },
+    {
       "name": "Claude",
       "slug": "claude/darwin",
       "platform": "darwin",
@@ -552,14 +559,7 @@
       "slug": "onedrive/darwin",
       "platform": "darwin",
       "unique_identifier": "com.microsoft.OneDrive",
-      "description": "Microsoft's cloud storage client."
-    },
-    {
-      "name": "OpenVPN Connect",
-      "slug": "openvpn-connect/darwin",
-      "platform": "darwin",
-      "unique_identifier": "net.openvpn.OpenVPNConnect",
-      "description": "OpenVPN Connect is a VPN client that provides secure remote access to networks and services."
+      "description": "OneDrive is Microsoft's cloud storage client."
     },
     {
       "name": "Opera",
