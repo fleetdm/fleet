@@ -83,14 +83,7 @@ spotless {
     kotlin {
         target("**/*.kt")
         targetExclude("**/build/**/*.kt")
-        ktlint().editorConfigOverride(
-            mapOf(
-                // Jetpack Compose requires Composable functions to start with uppercase (PascalCase)
-                "ktlint_standard_function-naming" to "disabled",
-                // Android conventionally uses uppercase TAG constants for logging
-                "ktlint_standard_property-naming" to "disabled",
-            ),
-        )
+        ktlint()
     }
     kotlinGradle {
         target("*.gradle.kts")
