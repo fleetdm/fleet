@@ -37,6 +37,11 @@ type softwareSummary struct {
 	Source           string  `db:"source"`
 }
 
+type oldAndNewUpgradeCodePtrs struct {
+	old *string
+	new *string
+}
+
 // tracer is an OTEL tracer. It has no-op behavior when OTEL is not enabled.
 // If provider is set later (with otel.SetTracerProvider), the tracer will start using the new provider.
 var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/datastore/mysql")
@@ -1153,7 +1158,7 @@ func (ds *Datastore) reconcileExistingTitleEmptyUpgradeCodes(
 	incomingSoftwareByChecksum map[string]fleet.Software,
 	incomingChecksumsToExistingTitleSummaries map[string]fleet.SoftwareTitleSummary,
 ) error {
-	existingTitlesToUpgradeCodesToWrite := make(map[uint]string) // titleID -> upgrade_code
+	existingTitlesToUpgradeCodePtrsToWrite := make(map[uint]oldAndNewUpgradeCodePtrs)
 
 	for swChecksum, sw := range incomingSoftwareByChecksum {
 		if sw.UpgradeCode == nil || *sw.UpgradeCode == "" {
@@ -1175,9 +1180,9 @@ func (ds *Datastore) reconcileExistingTitleEmptyUpgradeCodes(
 				"source", existingTitleSummary.Source,
 				"incoming_upgrade_code", *sw.UpgradeCode,
 			)
-			existingTitlesToUpgradeCodesToWrite[existingTitleSummary.ID] = *sw.UpgradeCode
+			existingTitlesToUpgradeCodePtrsToWrite[existingTitleSummary.ID] = oldAndNewUpgradeCodePtrs{old: existingTitleSummary.UpgradeCode, new: sw.UpgradeCode}
 		case *existingTitleSummary.UpgradeCode == "":
-			existingTitlesToUpgradeCodesToWrite[existingTitleSummary.ID] = *sw.UpgradeCode
+			existingTitlesToUpgradeCodePtrsToWrite[existingTitleSummary.ID] = oldAndNewUpgradeCodePtrs{old: existingTitleSummary.UpgradeCode, new: sw.UpgradeCode}
 		case existingTitleSummary.UpgradeCode != nil && *existingTitleSummary.UpgradeCode != "" && *sw.UpgradeCode != *existingTitleSummary.UpgradeCode:
 			// don't update this title
 			level.Warn(ds.logger).Log(
@@ -1194,12 +1199,21 @@ func (ds *Datastore) reconcileExistingTitleEmptyUpgradeCodes(
 	}
 
 	// Update each title
-	for titleID := range existingTitlesToUpgradeCodesToWrite {
+	for titleID := range existingTitlesToUpgradeCodePtrsToWrite {
 		// since this should be a very rare occurrence, no need to batch
-		ucForTitle := existingTitlesToUpgradeCodesToWrite[titleID]
+		newUcPtr := existingTitlesToUpgradeCodePtrsToWrite[titleID].new
+		oldUcPtr := existingTitlesToUpgradeCodePtrsToWrite[titleID].old
+
+		args := []any{newUcPtr, titleID}
+		stmt := `UPDATE software_titles SET upgrade_code = ? WHERE id = ? AND upgrade_code`
+		if oldUcPtr == nil {
+			stmt = stmt + " IS NULL"
+		} else {
+			stmt = stmt + " = ?"
+			args = append(args, oldUcPtr)
+		}
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			stmt := `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`
-			result, err := tx.ExecContext(ctx, stmt, ucForTitle, titleID)
+			result, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "updating upgrade_code for software_title id: %d", titleID)
 			}
@@ -1208,7 +1222,8 @@ func (ds *Datastore) reconcileExistingTitleEmptyUpgradeCodes(
 				level.Info(ds.logger).Log(
 					"msg", "updated software title upgrade_code",
 					"title_id", titleID,
-					"upgrade_code", ucForTitle,
+					"new_upgrade_code", newUcPtr,
+					"old_upgrade_code", oldUcPtr,
 				)
 			}
 			return nil
