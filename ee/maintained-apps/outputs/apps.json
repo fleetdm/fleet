@@ -37,6 +37,13 @@
       "description": "Abstract is a collaborative design tool with support for Sketch files."
     },
     {
+      "name": "Adobe Acrobat Pro DC",
+      "slug": "adobe-acrobat-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adobe.Acrobat.Pro",
+      "description": "Adobe Acrobat Pro DC is a professional PDF editor for creating, editing, converting, and managing PDF documents."
+    },
+    {
       "name": "Adobe Acrobat Reader",
       "slug": "adobe-acrobat-reader/darwin",
       "platform": "darwin",
@@ -527,6 +534,13 @@
       "description": "Nudge is an application for enforcing OS updates."
     },
     {
+      "name": "OmniGraffle",
+      "slug": "omnigraffle/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.omnigroup.OmniGraffle7",
+      "description": "OmniGraffle is visual communication software."
+    },
+    {
       "name": "Omnissa Horizon Client",
       "slug": "omnissa-horizon-client/darwin",
       "platform": "darwin",
@@ -805,6 +819,13 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.rdc.macos",
       "description": "Windows App helps you connect to Windows from your Mac."
+    },
+    {
+      "name": "Wrike",
+      "slug": "wrike/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.wrike.Wrike",
+      "description": "Wrike is a project management app."
     },
     {
       "name": "Yubikey Manager",
