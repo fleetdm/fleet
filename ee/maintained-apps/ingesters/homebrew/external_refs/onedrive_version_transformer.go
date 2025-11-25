@@ -11,4 +11,3 @@ func OneDriveVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintaine
 	app.Version = "latest"
 	return app, nil
 }
-
