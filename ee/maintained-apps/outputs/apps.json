@@ -744,6 +744,13 @@
       "description": "Tunnelblick is a free and open-source OpenVPN client."
     },
     {
+      "name": "Twingate",
+      "slug": "twingate/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.twingate.macos",
+      "description": "Twingate is a zero trust network access platform."
+    },
+    {
       "name": "Microsoft Visual Studio Code",
       "slug": "visual-studio-code/darwin",
       "platform": "darwin",
