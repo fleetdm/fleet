@@ -779,6 +779,13 @@
       "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
     },
     {
+      "name": "Zed",
+      "slug": "zed/darwin",
+      "platform": "darwin",
+      "unique_identifier": "dev.zed.Zed",
+      "description": "Zed is a multiplayer code editor."
+    },
+    {
       "name": "Zoom",
       "slug": "zoom/darwin",
       "platform": "darwin",
