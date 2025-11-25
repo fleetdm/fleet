@@ -1988,7 +1988,6 @@ WHERE command_uuid = ?
 			return ctxerr.Wrap(ctx, err, "set vpp install as verified")
 		}
 
-		// unneeded currently for Android VPP, but harmless
 		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, installUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install verify")
 		}
@@ -2010,7 +2009,6 @@ WHERE command_uuid = ?
 			return ctxerr.Wrap(ctx, err, "set vpp install as failed")
 		}
 
-		// unneeded currently for Android VPP, but harmless
 		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, installUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install failed")
 		}

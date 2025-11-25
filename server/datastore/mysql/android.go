@@ -1584,17 +1584,49 @@ WHERE
 }
 
 func (ds *Datastore) BulkSetVPPInstallsAsVerified(ctx context.Context, hostID uint, commandUUIDs []string) error {
-	if len(commandUUIDs) == 0 {
-		return nil
-	}
-	panic("unimplemented")
+	return ds.bulkSetVPPInstallsAsFinalState(ctx, hostID, commandUUIDs, "verification_at")
 }
 
 func (ds *Datastore) BulkSetVPPInstallsAsFailed(ctx context.Context, hostID uint, commandUUIDs []string) error {
+	return ds.bulkSetVPPInstallsAsFinalState(ctx, hostID, commandUUIDs, "verification_failed_at")
+}
+
+func (ds *Datastore) bulkSetVPPInstallsAsFinalState(ctx context.Context, hostID uint, commandUUIDs []string, column string) error {
 	if len(commandUUIDs) == 0 {
 		return nil
 	}
-	panic("unimplemented")
+
+	// For Android, we don't care about the verification command uuid (at least currently),
+	// we just set a random one.
+	stmt := fmt.Sprintf(`
+UPDATE
+	host_vpp_software_installs
+SET
+	%s = CURRENT_TIMESTAMP(6),
+	verification_command_uuid = ?
+WHERE
+	command_uuid IN (?)
+`, column)
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		verificationUUID := uuid.NewString()
+		stmt, args, err := sqlx.In(stmt, verificationUUID, commandUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build set vpp installs as final state query")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "set vpp installs as final state")
+		}
+
+		// TODO(mna): for now we don't use the upcoming queue for Android app installs,
+		// but when we implement the standard Android app installs we probably will. Leaving
+		// this here as a reminder.
+		// if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ...); err != nil {
+		// 	return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install verify")
+		// }
+
+		return nil
+	})
 }
 
 // GetAndroidAppConfiguration retrieves the configuration for an Android app
