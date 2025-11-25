@@ -5,11 +5,8 @@ flowchart TD
     n1(["User adds certificate to team/no team (UI or POST /api/v1/fleet/certificates)"]) --> n2["Cron job runs"]
     n2 --> n3["Send notification to each host on the team/no team (Notification contains certificate ID and host ID)"]
     n4["Android host enrolled"] --> n5["Default policy contains Fleet agent aplication that is required to install during enrollment (including <i>enroll_secret</i> as <i>managedConfiguration</i>)"]
-    n5 --> n6["When successfully installed and launched app returns <i>RESULT_OK</i> activity."]
-    n6 --> n10["RESULT_OK?"]
-    n10 --> n11(("YES")) & n12(("NO"))
-    n12 --> n13["Enrollment stopped"]
-    n11 --> n14["App hits authentication endpoint with single-use enroll_secret to retrieve node_key"]
+
+    n5 --> n14["App hits authentication endpoint with single-use enroll_secret to retrieve node_key"]
     n14 --> n15["node_key retrieved?"]
     n15 --> n16(("YES")) & n17(("NO"))
     n16 --> n18["Store node_key to Android keychain"]
