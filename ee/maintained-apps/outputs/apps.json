@@ -601,7 +601,7 @@
       "slug": "rider/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.rider",
-      "description": ".NET IDE by JetBrains."
+      "description": "Rider is a .NET IDE by JetBrains."
     },
     {
       "name": "RubyMine",
