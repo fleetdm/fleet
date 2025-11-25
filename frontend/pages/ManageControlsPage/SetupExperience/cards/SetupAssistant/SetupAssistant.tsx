@@ -94,7 +94,7 @@ const SetupAssistant = ({
       <SetupExperienceContentContainer>
         <div className={`${baseClass}__upload-container`}>
           <p className={`${baseClass}__section-description`}>
-            Add an automatic enrollment profile to customize the Setup
+            Add an automatic enrollment profile to customize Setup
             Assistant.
           </p>
           {enrollmentProfileNotFound || !enrollmentProfileData ? (
