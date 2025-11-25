@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -21,7 +22,7 @@ import java.net.URL
 private val Context.credentialStore: DataStore<Preferences> by preferencesDataStore(name = "api_credentials")
 
 object ApiClient {
-    val json = Json { ignoreUnknownKeys = true }
+    private val json = Json { ignoreUnknownKeys = true }
 
     private lateinit var dataStore: DataStore<Preferences>
     private val API_KEY = stringPreferencesKey("api_key")
@@ -59,11 +60,13 @@ object ApiClient {
 
     suspend fun getBaseUrl(): String? = dataStore.data.first()[BASE_URL_KEY]
 
-    suspend inline fun <reified R, reified T> makeRequest(
+    suspend fun <R,T> makeRequest(
         endpoint: String,
         method: String = "GET",
         body: R? = null,
         authenticated: Boolean = true,
+        bodySerializer: KSerializer<R>,
+        responseSerializer: KSerializer<T>,
     ): Result<T> = withContext(Dispatchers.IO) {
         var connection: HttpURLConnection? = null
         try {
@@ -108,7 +111,7 @@ object ApiClient {
 
                 if (body != null && method != "GET") {
                     doOutput = true
-                    val bodyJson = json.encodeToString(body)
+                    val bodyJson = json.encodeToString(value = body, serializer = bodySerializer)
                     outputStream.use { it.write(bodyJson.toByteArray()) }
                 }
             }
@@ -122,7 +125,7 @@ object ApiClient {
             }
 
             if (responseCode in 200..299) {
-                val parsed = json.decodeFromString<T>(response)
+                val parsed = json.decodeFromString(string = response, deserializer = responseSerializer)
                 Result.success(parsed)
             } else {
                 Result.failure(Exception("HTTP $responseCode: $response"))
@@ -136,7 +139,7 @@ object ApiClient {
 
     suspend fun enroll(baseUrl: String, enrollSecret: String, hardwareUUID: String, computerName: String): Result<EnrollResponse> {
         setBaseUrl(baseUrl)
-        val resp = makeRequest<EnrollRequest, EnrollResponse>(
+        val resp = makeRequest(
             endpoint = "/api/fleet/orbit/enroll",
             method = "POST",
             body = EnrollRequest(
@@ -145,6 +148,8 @@ object ApiClient {
                 computerName = computerName,
             ),
             authenticated = false,
+            bodySerializer = EnrollRequest.serializer(),
+            responseSerializer = EnrollResponse.serializer(),
         )
         resp.onSuccess { value ->
             setApiKey(value.orbitNodeKey)
