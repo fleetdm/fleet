@@ -38,6 +38,13 @@ type Client interface {
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/delete
 	EnterprisesDevicesDelete(ctx context.Context, deviceName string) error
 
+	// EnterprisesDevicesListPartial lists devices for the given enterprise with partial fields.
+	// Page size of 100 devices
+	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/list
+	// Currently the devices has the following attributes:
+	// Name
+	EnterprisesDevicesListPartial(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error)
+
 	// EnterprisesEnrollmentTokensCreate creates an enrollment token for a given enterprise. It is used to enroll an Android device.
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.enrollmentTokens/create
 	EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string,
