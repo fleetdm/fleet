@@ -227,6 +227,26 @@ type SoftwareVersion struct {
 	TitleID uint `db:"title_id" json:"-"`
 }
 
+// SoftwareTitleSummary contains a lightweight subset of the fields of a SoftwareTitle that are
+// useful for processing incoming software
+// TODO - embed this in `SoftwareTitle` to reduce redundancy
+type SoftwareTitleSummary struct {
+	ID uint `json:"id" db:"id"`
+	// Name is the name reported by osquery.
+	Name string `json:"name" db:"name"`
+	// Source is the source reported by osquery.
+	Source string `json:"source" db:"source"`
+	// ExtensionFor is the host software that this software is an extension for
+	ExtensionFor string `json:"extension_for" db:"extension_for"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See
+	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	// BundleIdentifier is used by Apple installers to uniquely identify
+	// the software installed. It's surfaced in software_titles to match
+	// with existing software entries.
+	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+}
+
 // SoftwareTitle represents a title backed by the `software_titles` table.
 type SoftwareTitle struct {
 	ID uint `json:"id" db:"id"`
