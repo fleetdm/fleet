@@ -13,6 +13,7 @@ import (
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	external_refs "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/winget/external_refs"
+	version_filters "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/winget/version_filters"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -116,6 +117,9 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if err != nil {
 		return nil, fmt.Errorf("get data from winget repo: %w", err)
 	}
+
+	// apply version filters to remove invalid version directories before sorting
+	repoContents = version_filters.ApplyFilters(input.PackageIdentifier, repoContents)
 
 	// sort the list of directories in descending order
 	slices.SortFunc(repoContents, func(a, b *github.RepositoryContent) int { return feednvd.SmartVerCmp(b.GetName(), a.GetName()) })
