@@ -408,7 +408,7 @@ const EditIconModal = ({
           className={`${baseClass}__preview-card__fleet`}
         >
           <SoftwareDetailsSummary
-            displayName={displayName || name}
+            displayName={displayName || previewInfo.titleName}
             name={name}
             type={type}
             source={source}
@@ -516,7 +516,9 @@ const EditIconModal = ({
             />
           )}
           <div className={`${baseClass}__self-service-preview-name`}>
-            <TooltipTruncatedText value={displayName || previewInfo.name} />
+            <TooltipTruncatedText
+              value={displayName || previewInfo.titleName}
+            />
           </div>
         </div>
       </Card>

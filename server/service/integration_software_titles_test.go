@@ -252,13 +252,16 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	macOSTitleID := addAppResp.TitleID
 
+	// Attempt to set name to be all whitespace, should fail
 	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String(strings.Repeat(" ", 5))}
 	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusUnprocessableEntity)
 	s.Assert().Contains(extractServerErrorText(res.Body), "Cannot have a display name that is all whitespace.")
 
+	// This display name edit should succeed
 	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated1")}
 	var updateAppResp updateAppStoreAppResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK, &updateAppResp)
+	s.Assert().Equal(*updateAppReq.DisplayName, updateAppResp.AppStoreApp.DisplayName)
 
 	// Entity has display name
 	stResp = getSoftwareTitleResponse{}
