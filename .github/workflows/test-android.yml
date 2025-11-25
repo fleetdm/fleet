@@ -128,8 +128,8 @@ jobs:
         with:
           dotnet: true
           haskell: true
-          large-packages: true
           swap-storage: true
+          large-packages: false
           tool-cache: false
           docker-images: false
 
