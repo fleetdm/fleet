@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useCallback } from "react";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import {
@@ -199,18 +199,17 @@ const EditIconModal = ({
   const canSaveForm = canSaveIcon || canSaveDisplayName;
 
   // Sets state after fetching current API custom icon
-  const setCurrentApiCustomIcon = (
-    file: File,
-    width: number,
-    previewUrl: string
-  ) =>
-    setIconState({
-      previewUrl,
-      formData: { icon: file, display_name: displayName },
-      dimensions: width,
-      fileDetails: makeFileDetails(file, width),
-      status: "apiCustom",
-    });
+  const setCurrentApiCustomIcon = useCallback(
+    (file: File, width: number, previewUrl: string) =>
+      setIconState({
+        previewUrl,
+        formData: { icon: file, display_name: displayName },
+        dimensions: width,
+        fileDetails: makeFileDetails(file, width),
+        status: "apiCustom",
+      }),
+    [displayName]
+  );
 
   // Sets state after a successful new custom file upload
   const setCustomUpload = (file: File, width: number, previewUrl: string) =>
@@ -374,6 +373,8 @@ const EditIconModal = ({
     shouldFetchCustomIcon,
     iconState.previewUrl,
     previewInfo.currentIconUrl,
+    originalIsVpp,
+    setCurrentApiCustomIcon,
   ]);
 
   const fileDetails =
@@ -631,45 +632,38 @@ const EditIconModal = ({
 
   const onClickSave = async () => {
     setIsUpdatingSoftwareInfo(true);
-    try {
-      const notifications: INotification[] = [];
+    const notifications: INotification[] = [];
+    let iconSucceeded = false;
+    let nameSucceeded = false;
+    let iconSuccessMessage: React.ReactElement | null = null;
+    let nameSuccessMessage: React.ReactElement | null = null;
 
-      // Process icon change
+    try {
       try {
-        if (!iconState.formData?.icon) {
-          // No new upload, so either removing existing custom icon or no change
-          if (originalIsApiCustom) {
-            await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
-            notifications.push({
-              id: "icon-removed",
-              alertType: "success",
-              isVisible: true,
-              message: (
-                <>
-                  Successfully removed icon from <b>{software?.name}</b>.
-                </>
-              ),
-              persistOnPageChange: false,
-            });
-          }
-        } else {
-          // New custom icon upload
+        if (
+          iconState.status === "fallback" &&
+          originalIsApiCustom &&
+          !iconState.formData?.icon
+        ) {
+          await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
+          iconSucceeded = true;
+          iconSuccessMessage = (
+            <>
+              Successfully removed icon from <b>{software?.name}</b>.
+            </>
+          );
+        } else if (iconState.status === "customUpload" && iconState.formData) {
           await softwareAPI.editSoftwareIcon(
             softwareId,
             teamIdForApi,
             iconState.formData
           );
-          notifications.push({
-            id: "icon-edited",
-            alertType: "success",
-            isVisible: true,
-            message: (
-              <>
-                Successfully edited <b>{previewInfo.name}</b>.
-              </>
-            ),
-            persistOnPageChange: false,
-          });
+          iconSucceeded = true;
+          iconSuccessMessage = (
+            <>
+              Successfully edited <b>{previewInfo.name}</b>.
+            </>
+          );
         }
       } catch (e) {
         const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
@@ -682,7 +676,6 @@ const EditIconModal = ({
         });
       }
 
-      // Process display name change
       if (canSaveDisplayName) {
         try {
           await (installerType === "package"
@@ -694,24 +687,18 @@ const EditIconModal = ({
             : softwareAPI.editAppStoreApp(softwareId, teamIdForApi, {
                 displayName,
               }));
-          notifications.push({
-            id: "name-edited",
-            alertType: "success",
-            isVisible: true,
-            message:
-              displayName === "" ? (
-                <>
-                  Successfully removed custom name for <b>{previewInfo.name}</b>
-                  .
-                </>
-              ) : (
-                <>
-                  Successfully renamed <b>{previewInfo.name}</b> to{" "}
-                  <b>{displayName}</b>.
-                </>
-              ),
-            persistOnPageChange: false,
-          });
+          nameSucceeded = true;
+          nameSuccessMessage =
+            displayName === "" ? (
+              <>
+                Successfully removed custom name for <b>{previewInfo.name}</b>.
+              </>
+            ) : (
+              <>
+                Successfully renamed <b>{previewInfo.name}</b> to{" "}
+                <b>{displayName}</b>.
+              </>
+            );
         } catch (e) {
           const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
           notifications.push({
@@ -724,16 +711,31 @@ const EditIconModal = ({
         }
       }
 
-      // Show all gathered messages
-      if (notifications.length > 1) {
+      if (notifications.length > 0) {
         renderMultiFlash({ notifications });
-      } else if (notifications.length === 1) {
-        renderFlash(notifications[0].alertType, notifications[0].message);
+      } else if (iconSucceeded && nameSucceeded) {
+        // Both changed - show generic message to avoid double toast
+        renderFlash(
+          "success",
+          <>
+            Successfully edited{" "}
+            <b>{displayName === "" ? previewInfo.name : displayName}</b>.
+          </>
+        );
+        refetchSoftwareTitle();
+        setIconUploadedAt(new Date().toISOString());
+        onExitEditIconModal();
+      } else if (iconSucceeded && iconSuccessMessage) {
+        renderFlash("success", iconSuccessMessage);
+        refetchSoftwareTitle();
+        setIconUploadedAt(new Date().toISOString());
+        onExitEditIconModal();
+      } else if (nameSucceeded && nameSuccessMessage) {
+        renderFlash("success", nameSuccessMessage);
+        refetchSoftwareTitle();
+        setIconUploadedAt(new Date().toISOString());
+        onExitEditIconModal();
       }
-
-      refetchSoftwareTitle();
-      setIconUploadedAt(new Date().toISOString());
-      onExitEditIconModal();
     } catch (e) {
       const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
       renderFlash("error", errorMessage);

@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "7.25.1",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnigroup.OmniGraffle7';"
+      },
+      "installer_url": "https://downloads.omnigroup.com/software/macOS/12/OmniGraffle-7.25.1.dmg",
+      "install_script_ref": "de80e534",
+      "uninstall_script_ref": "20f35ad8",
+      "sha256": "9921a364ed3f6d0e76c3b5f37e7a881ab9e6a513fc4536492900f45b6b30ef72",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "20f35ad8": "#!/bin/sh\n\n# variables\nAPPDIR=\"/Applications/\"\nLOGGED_IN_USER=$(scutil <<< \"show State:/Users/ConsoleUser\" | awk '/Name :/ { print $3 }')\n# functions\n\ntrash() {\n  local logged_in_user=\"$1\"\n  local target_file=\"$2\"\n  local timestamp=\"$(date +%Y-%m-%d-%s)\"\n  local rand=\"$(jot -r 1 0 99999)\"\n\n  # replace ~ with /Users/$logged_in_user\n  if [[ \"$target_file\" == ~* ]]; then\n    target_file=\"/Users/$logged_in_user${target_file:1}\"\n  fi\n\n  local trash=\"/Users/$logged_in_user/.Trash\"\n  local file_name=\"$(basename \"${target_file}\")\"\n\n  if [[ -e \"$target_file\" ]]; then\n    echo \"removing $target_file.\"\n    mv -f \"$target_file\" \"$trash/${file_name}_${timestamp}_${rand}\"\n  else\n    echo \"$target_file doesn't exist.\"\n  fi\n}\n\nsudo rm -rf \"$APPDIR/OmniGraffle.app\"\ntrash $LOGGED_IN_USER '~/Library/Application Scripts/com.omnigroup.OmniGraffle7'\ntrash $LOGGED_IN_USER '~/Library/Application Support/CloudDocs/session/containers/iCloud.com.omnigroup.OmniGraffle'\ntrash $LOGGED_IN_USER '~/Library/Application Support/CloudDocs/session/containers/iCloud.com.omnigroup.OmniGraffle.plist'\ntrash $LOGGED_IN_USER '~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.omnigroup.omnigraffle7.sfl*'\ntrash $LOGGED_IN_USER '~/Library/Containers/com.omnigroup.OmniGraffle7'\ntrash $LOGGED_IN_USER '~/Library/Mobile Documents/iCloud~com~omnigroup~OmniGraffle'\n",
+    "de80e534": "#!/bin/sh\n\n# variables\nAPPDIR=\"/Applications/\"\nTMPDIR=$(dirname \"$(realpath $INSTALLER_PATH)\")\n\n# functions\n\nquit_application() {\n  local bundle_id=\"$1\"\n  local timeout_duration=10\n\n  # check if the application is running\n  if ! osascript -e \"application id \\\"$bundle_id\\\" is running\" 2>/dev/null; then\n    return\n  fi\n\n  local console_user\n  console_user=$(stat -f \"%Su\" /dev/console)\n  if [[ $EUID -eq 0 && \"$console_user\" == \"root\" ]]; then\n    echo \"Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'.\"\n    return\n  fi\n\n  echo \"Quitting application '$bundle_id'...\"\n\n  # try to quit the application within the timeout period\n  local quit_success=false\n  SECONDS=0\n  while (( SECONDS < timeout_duration )); do\n    if osascript -e \"tell application id \\\"$bundle_id\\\" to quit\" >/dev/null 2>&1; then\n      if ! pgrep -f \"$bundle_id\" >/dev/null 2>&1; then\n        echo \"Application '$bundle_id' quit successfully.\"\n        quit_success=true\n        break\n      fi\n    fi\n    sleep 1\n  done\n\n  if [[ \"$quit_success\" = false ]]; then\n    echo \"Application '$bundle_id' did not quit.\"\n  fi\n}\n\n# extract contents\n# Use 'yes' to automatically accept license agreement when mounting DMG\n# This replicates Homebrew's behavior for DMG files with license agreements\nMOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)\nyes | hdiutil attach -nobrowse -readonly -mountpoint \"$MOUNT_POINT\" \"$INSTALLER_PATH\" || exit 1\nsudo cp -R \"$MOUNT_POINT\"/* \"$TMPDIR\"\nhdiutil detach \"$MOUNT_POINT\" || true\n\n# copy to the applications folder\nquit_application 'com.omnigroup.OmniGraffle7'\nif [ -d \"$APPDIR/OmniGraffle.app\" ]; then\n\tsudo mv \"$APPDIR/OmniGraffle.app\" \"$TMPDIR/OmniGraffle.app.bkp\"\nfi\nsudo cp -R \"$TMPDIR/OmniGraffle.app\" \"$APPDIR\"\n\n"
+  }
+}

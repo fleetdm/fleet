@@ -453,9 +453,24 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 	// Process each Fleet variable
 	result := profileContents
 	for _, fleetVar := range fleetVars {
-		if fleetVar == string(fleet.FleetVarHostUUID) {
+		switch {
+		case fleetVar == string(fleet.FleetVarHostUUID):
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostUUIDRegexp, result, params.HostUUID)
-		} else if slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(fleetVar)) {
+		case fleetVar == string(fleet.FleetVarHostPlatform):
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostPlatformRegexp, result, "windows")
+		case fleetVar == string(fleet.FleetVarHostHardwareSerial):
+			hostLite, _, err := profiles.HydrateHost(deps.GetContext(), deps.GetDS(), fleet.Host{UUID: params.HostUUID}, func(hostCount int) error {
+				return &MicrosoftProfileProcessingError{message: fmt.Sprintf("Found %d hosts with UUID %s. Profile variable substitution for %s requires exactly one host", hostCount, params.HostUUID, fleet.FleetVarHostHardwareSerial.WithPrefix())}
+			})
+			if err != nil {
+				return profileContents, err
+			}
+			if hostLite.HardwareSerial == "" {
+				return profileContents, &MicrosoftProfileProcessingError{message: fmt.Sprintf("There is no serial number for this host. Fleet couldn't populate %s.", fleet.FleetVarHostHardwareSerial.WithPrefix())}
+			}
+
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostHardwareSerialRegexp, result, hostLite.HardwareSerial)
+		case slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(fleetVar)):
 			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(deps.GetContext(), deps.GetDS(), fleetVar, result, params.HostUUID, deps.GetHostIdForUUIDCache(), func(errMsg string) error {
 				return &MicrosoftProfileProcessingError{message: errMsg}
 			})

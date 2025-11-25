@@ -6,14 +6,13 @@ import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
+import org.json.JSONObject
+import java.security.PrivateKey
+import java.security.cert.Certificate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import org.json.JSONObject
-import java.security.PrivateKey
-import java.security.cert.Certificate
-import java.security.cert.X509Certificate
 
 /**
  * Service to handle SCEP enrollment and silent certificate installation using DevicePolicyManager.
