@@ -60,7 +60,7 @@ object ApiClient {
 
     suspend fun getBaseUrl(): String? = dataStore.data.first()[BASE_URL_KEY]
 
-    suspend fun <R,T> makeRequest(
+    suspend fun <R, T> makeRequest(
         endpoint: String,
         method: String = "GET",
         body: R? = null,
