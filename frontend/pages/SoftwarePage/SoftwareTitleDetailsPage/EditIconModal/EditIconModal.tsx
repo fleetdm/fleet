@@ -678,28 +678,26 @@ const EditIconModal = ({
 
       if (canSaveDisplayName) {
         try {
-          let dn = "";
-          if (displayName) {
-            dn = displayName.trim();
-          }
+          const trimmedDisplayName = (displayName ?? "").trim();
           await (installerType === "package"
             ? softwareAPI.editSoftwarePackage({
-                data: { displayName: dn },
+                data: { displayName: trimmedDisplayName },
                 softwareId,
                 teamId: teamIdForApi,
               })
             : softwareAPI.editAppStoreApp(softwareId, teamIdForApi, {
-                displayName: dn,
+                displayName: trimmedDisplayName,
               }));
           nameSucceeded = true;
           nameSuccessMessage =
-            dn === "" ? (
+            trimmedDisplayName === "" ? (
               <>
                 Successfully removed custom name for <b>{previewInfo.name}</b>.
               </>
             ) : (
               <>
-                Successfully renamed <b>{previewInfo.name}</b> to <b>{dn}</b>.
+                Successfully renamed <b>{previewInfo.name}</b> to{" "}
+                <b>{trimmedDisplayName}</b>.
               </>
             );
         } catch (e) {
