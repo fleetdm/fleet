@@ -126,10 +126,11 @@ jobs:
       - name: Free up disk space
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
         with:
+          android: false
           dotnet: true
           haskell: true
           swap-storage: true
-          large-packages: false
+          large-packages: true
           tool-cache: false
           docker-images: false
 
