@@ -1222,26 +1222,6 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 		}, nil
 	}
 
-	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		a, ok := activity.(*fleet.ActivityTypeMDMEnrolled)
-		require.True(t, ok)
-		require.Nil(t, user)
-		require.Equal(t, "mdm_enrolled", activity.ActivityName())
-		require.NotNil(t, a.HostSerial)
-		require.Equal(t, serial, *a.HostSerial)
-		require.Nil(t, a.EnrollmentID)
-		require.Equal(t, a.HostDisplayName, fmt.Sprintf("%s (%s)", model, serial))
-		require.False(t, a.InstalledFromDEP)
-		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
-
-		return nil
-	}
-
 	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
 		require.Equal(t, uuid, hostUUID)
 		return nil
@@ -1260,7 +1240,6 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.MDMAppleUpsertHostFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
-	require.True(t, ds.NewActivityFuncInvoked)
 	require.True(t, ds.MDMResetEnrollmentFuncInvoked)
 }
 
@@ -1293,25 +1272,6 @@ func TestMDMAuthenticateADE(t *testing.T) {
 		}, nil
 	}
 
-	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		a, ok := activity.(*fleet.ActivityTypeMDMEnrolled)
-		require.True(t, ok)
-		require.Nil(t, user)
-		require.Equal(t, "mdm_enrolled", activity.ActivityName())
-		require.NotNil(t, a.HostSerial)
-		require.Equal(t, serial, *a.HostSerial)
-		require.Nil(t, a.EnrollmentID)
-		require.Equal(t, a.HostDisplayName, fmt.Sprintf("%s (%s)", model, serial))
-		require.True(t, a.InstalledFromDEP)
-		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
-		return nil
-	}
-
 	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
 		require.Equal(t, uuid, hostUUID)
 		return nil
@@ -1330,7 +1290,6 @@ func TestMDMAuthenticateADE(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.MDMAppleUpsertHostFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
-	require.True(t, ds.NewActivityFuncInvoked)
 	require.True(t, ds.MDMResetEnrollmentFuncInvoked)
 }
 
@@ -1457,6 +1416,10 @@ func TestMDMTokenUpdate(t *testing.T) {
 	}
 	uuid, serial, model, wantTeamID := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1", uint(12)
 
+	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
 	}
@@ -1484,6 +1447,22 @@ func TestMDMTokenUpdate(t *testing.T) {
 		}, nil
 	}
 
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
+		a, ok := activity.(*fleet.ActivityTypeMDMEnrolled)
+		require.True(t, ok)
+		require.Nil(t, user)
+		require.Equal(t, "mdm_enrolled", activity.ActivityName())
+		require.NotNil(t, a.HostSerial)
+		require.Equal(t, serial, *a.HostSerial)
+		require.Nil(t, a.EnrollmentID)
+		require.Equal(t, a.HostDisplayName, model)
+		require.True(t, a.InstalledFromDEP)
+		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
+		return nil
+	}
+
 	ds.NewJobFunc = func(ctx context.Context, j *fleet.Job) (*fleet.Job, error) {
 		return j, nil
 	}
@@ -1499,6 +1478,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.NewJobFuncInvoked)
+	require.True(t, ds.NewActivityFuncInvoked)
 	ds.GetHostMDMCheckinInfoFuncInvoked = false
 	ds.NewJobFuncInvoked = false
 
@@ -1518,6 +1498,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.NewJobFuncInvoked)
+	require.True(t, ds.NewActivityFuncInvoked)
 
 	// With AwaitingConfiguration - should check for and enqueue SetupExperience items
 	ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
@@ -1580,6 +1561,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	// Should NOT call the setup experience enqueue function but it should mark the migration complete
 	require.False(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
 	require.True(t, ds.SetHostMDMMigrationCompletedFuncInvoked)
+	require.True(t, ds.NewActivityFuncInvoked)
 
 	ds.SetHostMDMMigrationCompletedFuncInvoked = false
 	err = svc.TokenUpdate(
@@ -1598,6 +1580,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	// Should NOT call the setup experience enqueue function but it should mark the migration complete
 	require.False(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
 	require.True(t, ds.SetHostMDMMigrationCompletedFuncInvoked)
+	require.True(t, ds.NewActivityFuncInvoked)
 }
 
 func TestMDMTokenUpdateIOS(t *testing.T) {

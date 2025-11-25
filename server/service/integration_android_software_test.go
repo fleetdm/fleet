@@ -298,6 +298,6 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 
 	// Verify that configuration changed and last activity is correct
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_icon_url":"https://example.com/1.jpg", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "display_name":"", "platform": "%s", "self_service": true,"configuration": %s}`,
+		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_icon_url":"https://example.com/1.jpg", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "software_display_name":"", "platform": "%s", "self_service": true,"configuration": %s}`,
 			"", "Test App", appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", androidAppWithConfig.Platform, newConfig), 0)
 }
