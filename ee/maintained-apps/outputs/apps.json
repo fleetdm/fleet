@@ -688,6 +688,13 @@
       "description": "TablePlus is a native GUI tool for relational databases."
     },
     {
+      "name": "Tailscale",
+      "slug": "tailscale-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.tailscale.ipn.macsys",
+      "description": "Tailscale is mesh VPN based on WireGuard."
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
