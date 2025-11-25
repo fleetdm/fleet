@@ -396,7 +396,7 @@ func (v *windowsSCEPProfileValidator) finalizeValidation() error {
 	// Check that at least one Exec LocURI is present and it matches the only one we have in the array.
 	validExecLocURIs := *v.validExecSCEPProfileLocURIs
 	if len(v.foundExecLocURIs) != 1 && !v.foundExecLocURIs[validExecLocURIs[0]] {
-		return errors.New("Couldn't Add. \"ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.")
+		return errors.New("\"ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.")
 	}
 
 	if v.totalExecLocURIs != 1 {

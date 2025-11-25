@@ -267,6 +267,7 @@ type TeamSpecAppStoreApp struct {
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
 	Platform           string                `json:"platform"`
+	DisplayName        string                `json:"display_name,omitempty"`
 }
 
 func (spec TeamSpecAppStoreApp) ResolvePaths(baseDir string) TeamSpecAppStoreApp {

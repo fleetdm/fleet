@@ -630,6 +630,17 @@ type Service interface {
 	ApplyUserRolesSpecs(ctx context.Context, specs UsersRoleSpec) error
 
 	// /////////////////////////////////////////////////////////////////////////////
+	// Certificate Templates
+
+	CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*CertificateTemplateResponseFull, error)
+	ListCertificateTemplates(ctx context.Context, teamID uint, page int, perPage int) ([]*CertificateTemplateResponseSummary, *PaginationMetadata, error)
+	GetDeviceCertificateTemplate(ctx context.Context, id uint) (*CertificateTemplateResponseFull, error)
+	GetCertificateTemplate(ctx context.Context, id uint, hostUUID *string) (*CertificateTemplateResponseFull, error)
+	DeleteCertificateTemplate(ctx context.Context, id uint) error
+	ApplyCertificateTemplateSpecs(ctx context.Context, specs []*CertificateRequestSpec) error
+	DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
+
+	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalScheduleService
 
 	GlobalScheduleQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
@@ -717,7 +728,7 @@ type Service interface {
 
 	// AddAppStoreApp persists a VPP app onto a team and returns the resulting title ID
 	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) (uint, error)
-	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string, displayName *string) (*VPPAppStoreApp, error)
+	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService *bool, labelsIncludeAny, labelsExcludeAny, categories []string, displayName *string) (*VPPAppStoreApp, error)
 
 	// GetInHouseAppManifest returns a manifest XML file that points at the download URL for the given in-house app.
 	GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error)

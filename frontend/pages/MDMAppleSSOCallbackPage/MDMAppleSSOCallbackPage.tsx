@@ -35,7 +35,7 @@ const EnrollmentGate = ({
 
   const deviceinfo = localStorage.getItem("deviceinfo") || "";
 
-  if (!profileToken || error) {
+  if ((!profileToken && initiator !== "setup_experience") || error) {
     return <SSOError />;
   }
 
@@ -72,7 +72,7 @@ const EnrollmentGate = ({
   return (
     <RedirectTo
       url={endpoints.MDM_APPLE_ENROLLMENT_PROFILE(
-        profileToken,
+        profileToken as string,
         enrollmentReference,
         deviceinfo
       )}

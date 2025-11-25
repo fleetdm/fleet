@@ -65,6 +65,7 @@ const (
 	FleetVarHostEndUserIDPDepartment        FleetVarName = "HOST_END_USER_IDP_DEPARTMENT"
 	FleetVarHostEndUserIDPFullname          FleetVarName = "HOST_END_USER_IDP_FULL_NAME"
 	FleetVarHostUUID                        FleetVarName = "HOST_UUID"
+	FleetVarHostPlatform                    FleetVarName = "HOST_PLATFORM"
 
 	// Certificate authority variables
 	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"
@@ -94,6 +95,7 @@ var (
 	FleetVarHostEndUserIDPFullnameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPFullname))
 	FleetVarSCEPRenewalIDRegexp                   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPRenewalID))
 	FleetVarHostUUIDRegexp                        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
+	FleetVarHostPlatformRegexp                    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
 	FleetVarSCEPWindowsCertificateIDRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
 
 	// Fleet variable replacement failed errors

@@ -7,11 +7,10 @@ POLICY_FILE_PATH="it-and-security/lib/macos/policies/latest-macos.yml"
 WORKSTATIONS_FILE="it-and-security/teams/workstations.yml"
 WORKSTATIONS_CANARY_FILE="it-and-security/teams/workstations-canary.yml"
 BRANCH="main"
-NEW_BRANCH="update-macos-version-$(date +%s)"
 
 # Ensure required environment variables are set
-if [ -z "$DOGFOOD_AUTOMATION_TOKEN" ] || [ -z "$DOGFOOD_AUTOMATION_USER_NAME" ] || [ -z "$DOGFOOD_AUTOMATION_USER_EMAIL" ]; then
-    echo "Error: Missing required environment variables."
+if [ -z "$DOGFOOD_AUTOMATION_TOKEN" ]; then
+    echo "Error: Missing required environment variable DOGFOOD_AUTOMATION_TOKEN."
     exit 1
 fi
 
@@ -223,19 +222,7 @@ fi
 
 # Create updates if needed
 if [ "$updates_needed" = true ]; then
-    echo "Updates needed. Creating pull request..."
-
-    # Configure Git
-    git config --global user.name "$DOGFOOD_AUTOMATION_USER_NAME"
-    git config --global user.email "$DOGFOOD_AUTOMATION_USER_EMAIL"
-
-    # Clone the repository and create a new branch
-    git clone "https://$DOGFOOD_AUTOMATION_TOKEN@github.com/$REPO_OWNER/$REPO_NAME.git" repo || {
-        echo "Error: Failed to clone repository."
-        exit 1
-    }
-    cd repo || exit
-    git checkout -b "$NEW_BRANCH"
+    echo "Updates needed. Updating files..."
 
     # Update policy file if needed
     if [ "$policy_update_needed" = true ]; then
@@ -256,7 +243,7 @@ if [ "$updates_needed" = true ]; then
         fi
         
         echo "$updated_policy_response" > "$POLICY_FILE_PATH"
-        git add "$POLICY_FILE_PATH"
+        echo "Policy file updated: $POLICY_FILE_PATH"
     fi
 
     # COMMENTED OUT: Team files update logic temporarily disabled
@@ -269,90 +256,10 @@ if [ "$updates_needed" = true ]; then
     #     echo "$updated_workstations_content" > "$WORKSTATIONS_FILE"
     #     echo "$updated_canary_content" > "$WORKSTATIONS_CANARY_FILE"
     #     
-    #     git add "$WORKSTATIONS_FILE" "$WORKSTATIONS_CANARY_FILE"
+    #     echo "Team files updated"
     # fi
 
-    # Create commit message
-    commit_message="Update macOS version to $latest_macos_version"
-    if [ -n "$previous_major_latest_version" ]; then
-        commit_message="$commit_message (includes previous major v$previous_major_version: $previous_major_latest_version)"
-    fi
-    
-    if [ "$policy_update_needed" = true ]; then
-        commit_message="$commit_message
-
-- Updated policy to include latest version: $latest_macos_version"
-        if [ -n "$previous_major_latest_version" ]; then
-            commit_message="$commit_message
-- Updated policy to include previous major version: $previous_major_latest_version"
-        fi
-        if [ -n "$policy_latest_version" ]; then
-            commit_message="$commit_message
-- Previous policy version: $policy_latest_version"
-        fi
-    fi
-    # COMMENTED OUT: Team updates commit message logic temporarily disabled
-    # if [ "$team_updates_needed" = true ]; then
-    #     commit_message="$commit_message
-    # - Updated team minimum_version from $current_workstations_version to $latest_macos_version
-    # - Updated team deadline from $current_workstations_deadline to $new_deadline (4 Sundays from today)
-    # - Applied to both workstations and workstations-canary teams"
-    # fi
-
-    git commit -m "$commit_message"
-    git push origin "$NEW_BRANCH"
-
-    # Create a pull request
-    if [ -n "$previous_major_latest_version" ]; then
-        pr_title="Update latest macOS versions to $latest_macos_version and $previous_major_latest_version"
-    else
-        pr_title="Update latest macOS version to $latest_macos_version"
-    fi
-    pr_data=$(jq -n --arg title "$pr_title" \
-                 --arg head "$NEW_BRANCH" \
-                 --arg base "$BRANCH" \
-                 '{title: $title, head: $head, base: $base}')
-
-    pr_response=$(curl -s -H "Authorization: token $DOGFOOD_AUTOMATION_TOKEN" \
-        -H "Accept: application/vnd.github.v3+json" \
-        -X POST \
-        -d "$pr_data" \
-        "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/pulls")
-
-    if [[ "$pr_response" == *"Validation Failed"* ]]; then
-        echo "Error: Failed to create a pull request. Response: $pr_response"
-        exit 1
-    fi
-
-    echo "Pull request created successfully."
-
-    # Extract the pull request number from the response
-    pr_number=$(echo "$pr_response" | jq -r '.number')
-    if [ -z "$pr_number" ] || [ "$pr_number" == "null" ]; then
-        echo "Error: Failed to retrieve pull request number."
-        exit 1
-    fi
-
-    echo "Adding reviewers to PR #$pr_number..."
-
-    # Prepare the reviewers data payload
-    reviewers_data=$(jq -n \
-        --arg r1 "harrisonravazzolo" \
-        --arg r2 "tux234" \
-        '{reviewers: [$r1, $r2]}')
-
-    # Request reviewers for the pull request
-    review_response=$(curl -s -X POST \
-        -H "Authorization: token $DOGFOOD_AUTOMATION_TOKEN" \
-        -H "Accept: application/vnd.github.v3+json" \
-        -d "$reviewers_data" \
-        "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/pulls/$pr_number/requested_reviewers")
-
-    if echo "$review_response" | grep -q "errors"; then
-        echo "Error: Failed to add reviewers. Response: $review_response"
-        exit 1
-    fi
-    echo "Reviewers added successfully."
+    echo "Files updated successfully. PR will be created by GitHub Actions workflow."
 else
     echo "No updates needed; all versions and deadlines are current."
 fi

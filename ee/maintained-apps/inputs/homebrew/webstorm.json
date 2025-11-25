@@ -1,0 +1,8 @@
+{
+  "name": "WebStorm",
+  "slug": "webstorm/darwin",
+  "unique_identifier": "com.jetbrains.WebStorm",
+  "token": "webstorm",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
+} 

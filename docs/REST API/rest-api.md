@@ -6,7 +6,10 @@
 - [File carving](#file-carving)
 - [Hosts](#hosts)
 - [Labels](#labels)
-- [Mobile device management (MDM)](#mobile-device-management-mdm)
+- [OS Settings](#os-settings)
+- [Setup Experience](#setup-experience)
+- [Commands](#commands)
+- [Integrations](#integrations-1)
 - [Policies](#policies)
 - [Queries](#queries)
 - [Schedule (deprecated)](#schedule)
@@ -1432,6 +1435,7 @@ Modifies the Fleet's configuration with the supplied information.
 | agent_options            | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.  |
 | fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
 | webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
+| integrations             | object  | body  | See [integrations](#integrations).                                                                                           |
 | gitops                   | object  | body  | See [gitops](#gitops).                                                                                                               |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
@@ -6426,7 +6430,7 @@ Get information about a bootstrap package that was uploaded to Fleet.
 
 In the response above:
 
-- `token` is the value you can use to [download a bootstrap package](#download-a-bootstrap-package)
+- `token` is the value you can use to [download a bootstrap package](#download-bootstrap-package)
 - `sha256` is the SHA256 digest of the bytes of the bootstrap package file.
 
 
