@@ -203,7 +203,7 @@ past AS (
 			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
 				:software_status_failed
 			WHEN ncr.id IS NULL OR ncr.status = :mdm_status_acknowledged THEN
-				-- ncr join is null this is an android vpp app
+				-- if ncr join is null this is an android vpp app
 				:software_status_pending
 			ELSE
 				NULL -- either pending or not installed via VPP App
@@ -211,9 +211,9 @@ past AS (
 	FROM
 		host_vpp_software_installs hvsi
 		JOIN hosts h ON host_id = h.id
-		LEFT JOIN nano_command_results ncr ON 
-			ncr.id = h.uuid AND 
-			ncr.command_uuid = hvsi.command_uuid 
+		LEFT JOIN nano_command_results ncr ON
+			ncr.id = h.uuid AND
+			ncr.command_uuid = hvsi.command_uuid
 		LEFT JOIN host_vpp_software_installs hvsi2
 			ON hvsi.host_id = hvsi2.host_id AND
 				 hvsi.adam_id = hvsi2.adam_id AND
@@ -2007,7 +2007,7 @@ DELETE ua FROM
 	upcoming_activities ua
 JOIN
 	host_vpp_software_installs hvsi ON hvsi.command_uuid = ua.execution_id
-WHERE ua.activity_type = ? AND hvsi.verification_failed_at IS NULL 
+WHERE ua.activity_type = ? AND hvsi.verification_failed_at IS NULL
 AND hvsi.verification_at IS NULL AND hvsi.platform != 'android'
 `
 
