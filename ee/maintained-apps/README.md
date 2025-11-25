@@ -75,7 +75,7 @@ If the `unique_identifier` doesn't match the `DisplayName`, then Fleet will inco
 
 
 4. Run `go run cmd/maintained-apps/main.go --slug="<app-name>/windows" --debug` from the root of the
-   Fleet repo to generate the app's output data, replacing `<app-name>` with your apps name, for example:
+   Fleet repo to generate the app's output data, replacing `<app-name>` with your app's name, for example:
 
 ```bash
 go run cmd/maintained-apps/main.go --slug="box-drive/windows" --debug
