@@ -657,7 +657,7 @@
       "slug": "tableplus/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tinyapp.TablePlus",
-      "description": "Native GUI tool for relational databases."
+      "description": "TablePlus is a native GUI tool for relational databases."
     },
     {
       "name": "TeamViewer",
