@@ -2689,10 +2689,10 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 				{
 					HostID: host.ID,
 					Email:  device.MDMEnrollUserID,
-					Source: fleet.DeviceMappingIDP,
+					Source: fleet.DeviceMappingMDMIdpAccounts,
 				},
 			}
-			err = ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping, fleet.DeviceMappingIDP)
+			err = ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping, fleet.DeviceMappingMDMIdpAccounts)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "replacing host device mapping for windows mdm enrolled device")
 			}

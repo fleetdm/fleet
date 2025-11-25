@@ -2074,7 +2074,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 	testCases := []struct {
 		name                                                 string
 		rows                                                 []map[string]string
-		expectError                                          bool
+		expectError                                          string
 		mdmEnrollUserID                                      string
 		mdmEnrollNotInOOBE                                   bool
 		returnSCIMUser                                       bool
@@ -2094,7 +2094,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 			rows: []map[string]string{
 				{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
 				{"name": "mdm-windows-hostname2", "data": "mdm-windows-device-id2"},
-			}, expectError: true,
+			}, expectError: "invalid number of rows",
 		},
 		{
 			name: "happy path, device without UPN",
@@ -2165,8 +2165,8 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 			returnEnrollmentsUpdated = true
 			returnSCIMUser = true
 			err := directIngestMDMDeviceIDWindows(ctx, logger, host, ds, tc.rows)
-			if tc.expectError {
-				require.Error(t, err)
+			if tc.expectError != "" {
+				require.ErrorContains(t, err, tc.expectError)
 			} else {
 				require.NoError(t, err)
 			}
