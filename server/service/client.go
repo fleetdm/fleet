@@ -2870,20 +2870,16 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 }
 
 func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
-	if config.Controls.AndroidSettings == nil {
-		return nil
+	certificates := make([]fleet.CertificateTemplateSpec, 0)
+
+	// Extract Android certificates from config if there are any.
+	if config.Controls.AndroidSettings != nil {
+		androidSettings, ok := config.Controls.AndroidSettings.(fleet.AndroidSettings)
+		if ok && androidSettings.Certificates.Valid && len(androidSettings.Certificates.Value) > 0 {
+			certificates = androidSettings.Certificates.Value
+		}
 	}
 
-	androidSettings, ok := config.Controls.AndroidSettings.(fleet.AndroidSettings)
-	if !ok {
-		return nil
-	}
-
-	if !androidSettings.Certificates.Valid || len(androidSettings.Certificates.Value) == 0 {
-		return nil
-	}
-
-	certificates := androidSettings.Certificates.Value
 	numCerts := len(certificates)
 
 	teamID := ""
@@ -2893,7 +2889,9 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 		return errors.New("applying Android certificates: Team ID is required")
 	}
 
-	logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+	if numCerts > 0 {
+		logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+	}
 
 	// existing certificate templates
 	existingCertificates, err := c.GetCertificateTemplates(teamID)
@@ -2968,13 +2966,15 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 		}
 	}
 
-	if dryRun {
-		logFn("[+] would've applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
-	} else {
-		if err := c.ApplyCertificateSpecs(certRequests); err != nil {
-			return fmt.Errorf("applying Android certificates: %w", err)
+	if numCerts > 0 {
+		if dryRun {
+			logFn("[+] would've applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+		} else {
+			if err := c.ApplyCertificateSpecs(certRequests); err != nil {
+				return fmt.Errorf("applying Android certificates: %w", err)
+			}
+			logFn("[+] applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 		}
-		logFn("[+] applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 	}
 
 	return nil
