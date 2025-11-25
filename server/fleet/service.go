@@ -639,6 +639,7 @@ type Service interface {
 	DeleteCertificateTemplate(ctx context.Context, id uint) error
 	ApplyCertificateTemplateSpecs(ctx context.Context, specs []*CertificateRequestSpec) error
 	DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
+	UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status MDMDeliveryStatus) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalScheduleService
@@ -728,7 +729,7 @@ type Service interface {
 
 	// AddAppStoreApp persists a VPP app onto a team and returns the resulting title ID
 	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) (uint, error)
-	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService *bool, labelsIncludeAny, labelsExcludeAny, categories []string, displayName *string) (*VPPAppStoreApp, error)
+	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload AppStoreAppUpdatePayload) (*VPPAppStoreApp, error)
 
 	// GetInHouseAppManifest returns a manifest XML file that points at the download URL for the given in-house app.
 	GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error)

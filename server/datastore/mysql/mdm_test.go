@@ -99,7 +99,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
-	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(
+	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(
 		ctx,
 		windowsEnrollment.HostUUID,
 		windowsEnrollment.MDMDeviceID,
