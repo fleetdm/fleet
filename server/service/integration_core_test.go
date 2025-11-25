@@ -14640,7 +14640,7 @@ func (s *integrationTestSuite) TestUpdateHostCertificateTemplate() {
 	caID := ca.ID
 
 	certTemplate := &fleet.CertificateTemplate{
-		Name:                   "Cert1",
+		Name:                   "TestUpdateHostCertificateTemplate-Cert",
 		TeamID:                 teamID,
 		CertificateAuthorityID: caID,
 		SubjectName:            "CN=Test Subject 1",
