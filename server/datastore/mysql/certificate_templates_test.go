@@ -759,7 +759,7 @@ INSERT INTO host_certificate_templates (
 
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("TestUpdateHostCertificateTemplate:%s", tc.name), func(t *testing.T) {
-			err := db.UpdateCertificateStatus(context.Background(), host.UUID, tc.templateID, fleet.OSSettingsStatus(tc.newStatus))
+			err := db.UpdateCertificateStatus(context.Background(), host.UUID, tc.templateID, fleet.MDMDeliveryStatus(tc.newStatus))
 			if tc.expectedErrorMsg == "" {
 				require.NoError(t, err)
 				// Verify the update

@@ -376,7 +376,7 @@ func updateCertificateStatusEndpoint(ctx context.Context, request interface{}, s
 		return nil, errors.New("invalid request")
 	}
 
-	err := svc.UpdateCertificateStatus(ctx, req.CertificateTemplateID, fleet.OSSettingsStatus(req.Status))
+	err := svc.UpdateCertificateStatus(ctx, req.CertificateTemplateID, fleet.MDMDeliveryStatus(req.Status))
 	if err != nil {
 		return updateCertificateStatusResponse{Err: err}, nil
 	}
@@ -384,7 +384,7 @@ func updateCertificateStatusEndpoint(ctx context.Context, request interface{}, s
 	return updateCertificateStatusResponse{}, nil
 }
 
-func (svc *Service) UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status fleet.OSSettingsStatus) error {
+func (svc *Service) UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
