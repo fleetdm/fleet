@@ -101,7 +101,7 @@ jarsigner -verify app/build/outputs/bundle/release/app-release.aab
 The SHA256 fingerprint is required for MDM deployment. You can get it from your keystore.
 
 ```bash
-keytool -list -v -keystore keystore.jks -alias fleet-android | grep SHA256 | awk '{print $3}'
+keytool -list -v -keystore keystore.jks -alias fleet-android
 # Grab SHA256
 echo <SHA256> | xxd -r -p | base64
 ```

@@ -12,7 +12,7 @@ spotless = "8.1.0"
 detekt = "1.23.8"
 workManager = "2.11.0"
 amapi = "1.7.0"
-robolectric = "4.14"
+robolectric = "4.16"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
