@@ -40,7 +40,9 @@ func NewProxyClient(ctx context.Context, logger kitlog.Logger, licenseKey string
 		proxyEndpoint = defaultProxyEndpoint
 	}
 
-	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}))
 	// We use the same client that we use to directly connect to Google to minimize issues/maintenance.
 	// But we point it to our proxy endpoint instead of Google.
 	mgmt, err := androidmanagement.NewService(ctx,
@@ -200,9 +202,19 @@ func (p *ProxyClient) EnterprisesDevicesDelete(ctx context.Context, deviceName s
 	return nil
 }
 
-func (p *ProxyClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string,
-	token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
+func (p *ProxyClient) EnterprisesDevicesListPartial(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error) {
+	call := p.mgmt.Enterprises.Devices.List(enterpriseName).Context(ctx).PageToken(pageToken).PageSize(100).Fields("nextPageToken", "devices/name")
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	resp, err := call.Do()
+	if err != nil {
+		return nil, fmt.Errorf("listing devices: %w", err)
+	}
+	return resp, nil
+}
 
+func (p *ProxyClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string,
+	token *androidmanagement.EnrollmentToken,
+) (*androidmanagement.EnrollmentToken, error) {
 	call := p.mgmt.Enterprises.EnrollmentTokens.Create(enterpriseName, token).Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 	token, err := call.Do()
@@ -277,7 +289,6 @@ func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseNam
 		return nil, fmt.Errorf("getting application %s: %w", packageName, err)
 	}
 	return app, nil
-
 }
 
 func (p *ProxyClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
