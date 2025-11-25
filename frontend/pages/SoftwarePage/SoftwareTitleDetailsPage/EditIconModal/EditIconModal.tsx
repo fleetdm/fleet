@@ -589,7 +589,7 @@ const EditIconModal = ({
         helpText={
           <>
             Optional. If left blank, Fleet will use{" "}
-            <strong>{software.name}</strong>.
+            <strong>{previewInfo.titleName}</strong>.
           </>
         }
         autofocus

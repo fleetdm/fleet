@@ -89,6 +89,11 @@ describe("EditIconModal", () => {
       const displayNameInput = screen.getByLabelText("Display name");
       expect(displayNameInput).toBeInTheDocument();
       expect(displayNameInput).toHaveValue("New Custom Name");
+      const helpText = screen.getByText(
+        /Optional. If left blank, Fleet will use/
+      );
+
+      expect(helpText).toHaveTextContent(MODIFIED_PROPS.previewInfo.titleName);
     });
 
     it("only edits the display name when icon is not changed", async () => {
