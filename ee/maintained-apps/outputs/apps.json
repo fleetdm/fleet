@@ -506,6 +506,13 @@
       "description": "NordVPN is a VPN client for secure internet access and private browsing."
     },
     {
+      "name": "Notion Calendar",
+      "slug": "notion-calendar/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.cron.electron",
+      "description": "Manage your time and work, together."
+    },
+    {
       "name": "Notion",
       "slug": "notion/darwin",
       "platform": "darwin",
