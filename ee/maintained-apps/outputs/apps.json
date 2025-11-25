@@ -51,11 +51,18 @@
       "description": "Adobe Acrobat Reader is the industry-standard tool for viewing, printing, and commenting on PDF documents."
     },
     {
+      "name": "Adobe Acrobat Pro DC",
+      "slug": "adobe-acrobat-pro/windows",
+      "platform": "windows",
+      "unique_identifier": "Adobe Acrobat (64-bit)",
+      "description": "Adobe Acrobat Pro DC is a professional PDF editor for creating, editing, converting, and managing PDF documents."
+    },
+    {
       "name": "Adobe Creative Cloud",
       "slug": "adobe-creative-cloud/darwin",
       "platform": "darwin",
       "unique_identifier": "com.adobe.acc.AdobeCreativeCloud",
-      "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
+      "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe's suite of tools like Photoshop, Illustrator, and Premiere Pro."
     },
     {
       "name": "Asana",
