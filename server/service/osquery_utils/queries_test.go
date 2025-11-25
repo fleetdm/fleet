@@ -2038,9 +2038,10 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 
 	ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, hostID uint, mappings []*fleet.HostDeviceMapping, source string) error {
 		require.Len(t, mappings, 1)
-		require.Equal(t, mappings[0].Email, baseEnrolledDeviceToReturn.MDMEnrollUserID)
-		require.Equal(t, mappings[0].HostID, host.ID)
-		require.Equal(t, mappings[0].Source, fleet.DeviceMappingMDMIdpAccounts)
+		require.Equal(t, baseEnrolledDeviceToReturn.MDMEnrollUserID, mappings[0].Email)
+		require.Equal(t, host.ID, mappings[0].HostID)
+		require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, mappings[0].Source)
+		require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, source)
 		return nil
 	}
 
