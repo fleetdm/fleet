@@ -8,10 +8,7 @@ import androidx.work.WorkerParameters
 /**
  * WorkManager worker that periodically checks managed configurations.
  */
-class ConfigCheckWorker(
-    context: Context,
-    params: WorkerParameters,
-) : Worker(context, params) {
+class ConfigCheckWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
     companion object {
         private const val TAG = "fleet-worker"
     }
