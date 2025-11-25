@@ -37,6 +37,13 @@
       "description": "Abstract is a collaborative design tool with support for Sketch files."
     },
     {
+      "name": "Adobe Acrobat Pro DC",
+      "slug": "adobe-acrobat-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adobe.Acrobat.Pro",
+      "description": "Adobe Acrobat Pro DC is a professional PDF editor for creating, editing, converting, and managing PDF documents."
+    },
+    {
       "name": "Adobe Acrobat Reader",
       "slug": "adobe-acrobat-reader/darwin",
       "platform": "darwin",
@@ -224,6 +231,13 @@
       "platform": "windows",
       "unique_identifier": "Discord",
       "description": "Discord is voice and text chat software."
+    },
+    {
+      "name": "DisplayLink USB Graphics Software",
+      "slug": "displaylink/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.displaylink.DisplayLinkUserAgent",
+      "description": "Drivers for DisplayLink docks, adapters and monitors."
     },
     {
       "name": "Docker Desktop",
@@ -506,6 +520,13 @@
       "description": "NordVPN is a VPN client for secure internet access and private browsing."
     },
     {
+      "name": "Notion Calendar",
+      "slug": "notion-calendar/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.cron.electron",
+      "description": "Manage your time and work, together."
+    },
+    {
       "name": "Notion",
       "slug": "notion/darwin",
       "platform": "darwin",
@@ -518,6 +539,13 @@
       "platform": "darwin",
       "unique_identifier": "com.github.macadmins.Nudge",
       "description": "Nudge is an application for enforcing OS updates."
+    },
+    {
+      "name": "OmniGraffle",
+      "slug": "omnigraffle/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.omnigroup.OmniGraffle7",
+      "description": "OmniGraffle is visual communication software."
     },
     {
       "name": "Omnissa Horizon Client",
@@ -597,11 +625,25 @@
       "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
     },
     {
+      "name": "Rancher Desktop",
+      "slug": "rancher/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.rancherdesktop.app",
+      "description": "Rancher Desktop is an app for kubernetes and container management on the desktop."
+    },
+    {
       "name": "Rectangle",
       "slug": "rectangle/darwin",
       "platform": "darwin",
       "unique_identifier": "com.knollsoft.Rectangle",
       "description": "Rectangle is an app to move and resize windows using keyboard shortcuts or snap areas."
+    },
+    {
+      "name": "Rider",
+      "slug": "rider/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.rider",
+      "description": "Rider is a .NET IDE by JetBrains."
     },
     {
       "name": "RubyMine",
@@ -660,6 +702,20 @@
       "description": "Sublime Text is a text editor for code, markup, and prose."
     },
     {
+      "name": "TablePlus",
+      "slug": "tableplus/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.tinyapp.TablePlus",
+      "description": "TablePlus is a native GUI tool for relational databases."
+    },
+    {
+      "name": "Tailscale",
+      "slug": "tailscale-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.tailscale.ipn.macsys",
+      "description": "Tailscale is mesh VPN based on WireGuard."
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
@@ -695,6 +751,13 @@
       "description": "Thunderbird is a free and open-source e-mail client."
     },
     {
+      "name": "Todoist",
+      "slug": "todoist-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.todoist.mac.Todoist",
+      "description": "Todoist is a to do list and a planning center for individuals and teams."
+    },
+    {
       "name": "Tunnelblick",
       "slug": "tunnelblick/darwin",
       "platform": "darwin",
@@ -714,6 +777,13 @@
       "platform": "windows",
       "unique_identifier": "Microsoft Visual Studio Code",
       "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
+    },
+    {
+      "name": "VLC media player",
+      "slug": "vlc/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.videolan.vlc",
+      "description": "VLC media player is a free and open-source media player software."
     },
     {
       "name": "VNC Viewer",
@@ -751,11 +821,25 @@
       "description": "Windows App helps you connect to Windows from your Mac."
     },
     {
+      "name": "Wrike",
+      "slug": "wrike/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.wrike.Wrike",
+      "description": "Wrike is a project management app."
+    },
+    {
       "name": "Yubikey Manager",
       "slug": "yubico-yubikey-manager/darwin",
       "platform": "darwin",
       "unique_identifier": "com.yubico.ykman",
       "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
+    },
+    {
+      "name": "Zed",
+      "slug": "zed/darwin",
+      "platform": "darwin",
+      "unique_identifier": "dev.zed.Zed",
+      "description": "Zed is a multiplayer code editor."
     },
     {
       "name": "Zoom",
