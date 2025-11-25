@@ -1,7 +1,6 @@
 package android
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -51,26 +50,12 @@ type Device struct {
 }
 
 type AgentManagedConfiguration struct {
-	ServerURL            string                     `json:"serverURL"`
-	HostUUID             string                     `json:"hostUUID"`
-	EnrollSecret         string                     `json:"enrollSecret"`
-	CertificateTemplates []AgentCertificateTemplate `json:"certificateTemplates,omitempty"`
+	ServerURL              string                     `json:"server_url"`
+	HostUUID               string                     `json:"host_uuid"`
+	EnrollSecret           string                     `json:"enroll_secret"`
+	CertificateTemplateIDs []AgentCertificateTemplate `json:"certificate_template_ids,omitempty"`
 }
 
 type AgentCertificateTemplate struct {
-	URL string `json:"url"`
-}
-
-// NewAgentCertificateTemplate creates a new AgentCertificateTemplate with the URL generated.
-func NewAgentCertificateTemplate(serverURL string, certificateTemplateID uint, hostUUID string, fleetChallenge string) AgentCertificateTemplate {
-	url := fmt.Sprintf("%s/api/fleetd/certificates/%d?node_key=%s&challenge=%s",
-		serverURL,
-		certificateTemplateID,
-		hostUUID,
-		fleetChallenge,
-	)
-
-	return AgentCertificateTemplate{
-		URL: url,
-	}
+	ID uint `json:"id"`
 }

@@ -601,28 +601,17 @@ func (r *profileReconciler) processCertificateTemplateBatch(ctx context.Context,
 			return ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
 		}
 
-		// Build certificate list with ALL certificates for this host
-		agentCerts := make([]android.AgentCertificateTemplate, len(certTemplates))
+		// Build certificate list with ALL certificate template ids for this host
+		certificateTemplateIDs := make([]android.AgentCertificateTemplate, len(certTemplates))
 		for i, ct := range certTemplates {
-			// FleetChallenge should never be nil at this point since we only process hosts with new certs
-			// But we'll dereference safely
-			challenge := ""
-			if ct.FleetChallenge != nil {
-				challenge = *ct.FleetChallenge
-			}
-			agentCerts[i] = android.NewAgentCertificateTemplate(
-				appConfig.ServerSettings.ServerURL,
-				ct.CertificateTemplateID,
-				hostUUID,
-				challenge,
-			)
+			certificateTemplateIDs[i] = android.AgentCertificateTemplate{ID: ct.CertificateTemplateID}
 		}
 
 		hostConfigs[hostUUID] = android.AgentManagedConfiguration{
-			ServerURL:            appConfig.ServerSettings.ServerURL,
-			HostUUID:             hostUUID,
-			EnrollSecret:         enrollSecrets[0].Secret,
-			CertificateTemplates: agentCerts,
+			ServerURL:              appConfig.ServerSettings.ServerURL,
+			HostUUID:               hostUUID,
+			EnrollSecret:           enrollSecrets[0].Secret,
+			CertificateTemplateIDs: certificateTemplateIDs,
 		}
 	}
 

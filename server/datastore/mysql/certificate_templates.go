@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -17,16 +18,37 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 			certificate_templates.id,
 			certificate_templates.name,
 			certificate_templates.team_id,
-			certificate_templates.certificate_authority_id,
-			certificate_authorities.name AS certificate_authority_name,
 			certificate_templates.subject_name,
-			certificate_templates.created_at
+			certificate_templates.created_at,
+			certificate_authorities.id AS certificate_authority_id,
+			certificate_authorities.name AS certificate_authority_name,
+			certificate_authorities.type AS certificate_authority_type,
+			certificate_authorities.challenge_encrypted AS scep_challenge_encrypted,
+			host_certificate_templates.status AS status,
+			host_certificate_templates.fleet_challenge AS fleet_challenge
 		FROM certificate_templates
 		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+		LEFT JOIN host_certificate_templates
+			ON host_certificate_templates.certificate_template_id = certificate_templates.id
 		WHERE certificate_templates.id = ?
 	`, id); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id")
 	}
+
+	if template.Status != nil && *template.Status == fleet.MDMDeliveryPending {
+		if template.SCEPChallengeEncrypted != nil {
+			decryptedChallenge, err := decrypt(template.SCEPChallengeEncrypted, ds.serverPrivateKey)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "decrypting scep challenge")
+			}
+			template.SCEPChallenge = ptr.String(string(decryptedChallenge))
+		}
+	} else {
+		// Ensure challenges are nil if not in pending status
+		template.SCEPChallenge = nil
+		template.FleetChallenge = nil
+	}
+
 	return &template, nil
 }
 
@@ -173,34 +195,6 @@ func (ds *Datastore) BatchDeleteCertificateTemplates(ctx context.Context, certif
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting certificate_templates")
-	}
-
-	return nil
-}
-
-func (ds *Datastore) UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus) error {
-	// Validate the status.
-	if !status.IsValid() {
-		return ctxerr.Wrap(ctx, fmt.Errorf("Invalid status '%s'", string(status)))
-	}
-
-	// Attempt to update the certificate status for the given host and template.
-	result, err := ds.writer(ctx).ExecContext(ctx, `
-    UPDATE host_certificate_templates
-    SET status = ?
-    WHERE host_uuid = ? AND certificate_template_id = ?
-`, status, hostUUID, certificateTemplateID)
-	if err != nil {
-		return err
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	if rowsAffected == 0 {
-		return ctxerr.Wrap(ctx, notFound("Label").WithMessage(fmt.Sprintf("No certificate found for host UUID '%s' and template ID '%d'", hostUUID, certificateTemplateID)))
 	}
 
 	return nil
