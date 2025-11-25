@@ -563,7 +563,7 @@ func (r *profileReconciler) processCertificateTemplateBatch(ctx context.Context,
 				HostUUID:              allTemplates[i].HostUUID,
 				CertificateTemplateID: allTemplates[i].CertificateTemplateID,
 				FleetChallenge:        challenge,
-				Status:                "pending",
+				Status:                fleet.MDMDeliveryPending,
 			})
 		}
 	}
