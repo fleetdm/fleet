@@ -28,6 +28,11 @@ type Service interface {
 	MigrateToPerDevicePolicy(ctx context.Context) error
 	PatchDevice(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (skip bool, apiErr error)
 	PatchPolicy(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (skip bool, err error)
+
+	// verifyExistingEnterpriseIfAny checks if there's an existing enterprise in the database
+	// and if so, verifies it still exists in Google API. If it doesn't exist, performs cleanup.
+	// Returns fleet.IsNotFound error if enterprise was deleted, nil if no enterprise exists or verification passed.
+	VerifyExistingEnterpriseIfAny(ctx context.Context) error
 }
 
 // /////////////////////////////////////////////

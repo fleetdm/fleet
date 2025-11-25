@@ -7,12 +7,12 @@ import android.content.Intent
 import android.os.IBinder
 import android.util.Log
 import com.fleetdm.agent.scep.ScepClientImpl
+import java.security.PrivateKey
+import java.security.cert.Certificate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import java.security.PrivateKey
-import java.security.cert.Certificate
 
 /**
  * Service to handle SCEP enrollment and silent certificate installation using DevicePolicyManager.

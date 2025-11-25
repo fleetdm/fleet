@@ -269,6 +269,22 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.Assert().Len(getHostSw.Software, 1)
 	s.Assert().Equal(*updateAppReq.DisplayName, getHostSw.Software[0].DisplayName)
 
+	// Activity has display name
+	activityData = fmt.Sprintf(`
+	{
+		"app_store_id": "%s",
+		"software_title": "%s",
+		"software_icon_url": "%s",
+		"platform": "%s",
+		"team_name": "%s",
+	    "team_id": %d,
+		"self_service": false,
+		"software_title_id": %d,
+		"software_display_name": "%s"
+	}`,
+		macOSApp.AdamID, stResp.SoftwareTitle.Name, macOSApp.IconURL, string(macOSApp.Platform), team.Name, team.ID, stResp.SoftwareTitle.ID, *updateAppReq.DisplayName)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), activityData, 0)
+
 	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated2")}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK, &updateAppResp)
 
@@ -393,6 +409,20 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 			s.Assert().Equal("InHouseAppUpdate2", t.DisplayName)
 		}
 	}
+
+	activityData = fmt.Sprintf(`
+		{
+			"software_title": "ipa_test",
+			"software_package": "ipa_test.ipa",
+			"software_icon_url": null,
+			"team_name": "%s",
+		    "team_id": %d,
+			"self_service": true,
+			"software_title_id": %d,
+			"software_display_name": "%s"
+		}`,
+		team.Name, team.ID, titleID, "InHouseAppUpdate2")
+	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 	// Omitting the field is a no-op
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{

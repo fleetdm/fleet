@@ -232,6 +232,14 @@ func (g *GoogleClient) EnterprisesDevicesDelete(ctx context.Context, deviceName 
 	return nil
 }
 
+func (g *GoogleClient) EnterprisesDevicesListPartial(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error) {
+	ret, err := g.mgmt.Enterprises.Devices.List(enterpriseName).Context(ctx).PageToken(pageToken).PageSize(100).Fields("nextPageToken", "devices/name").Do()
+	if err != nil {
+		return nil, fmt.Errorf("listing devices: %w", err)
+	}
+	return ret, nil
+}
+
 func (g *GoogleClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken,
 ) (*androidmanagement.EnrollmentToken, error) {
 	token, err := g.mgmt.Enterprises.EnrollmentTokens.Create(enterpriseName, token).Context(ctx).Do()
