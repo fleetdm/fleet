@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "2025.288.20108",
+      "version": "2025.288",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.twingate.macos';"
       },
