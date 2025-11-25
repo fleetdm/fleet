@@ -138,6 +138,18 @@ type AndroidPolicyRequestPayloadMetadata struct {
 	SettingsOrigin map[string]string `json:"settings_origin"` // Map of policy setting name, to profile uuid.
 }
 
+// AndroidAppConfiguration represents an Android app configuration stored in Fleet.
+// It contains the managedConfiguration and workProfileWidgets settings for an Android app.
+type AndroidAppConfiguration struct {
+	ID             uint            `db:"id" json:"id"`
+	ApplicationID  string          `db:"application_id" json:"application_id"`
+	TeamID         *uint           `db:"team_id" json:"team_id,omitempty"`
+	GlobalOrTeamID uint            `db:"global_or_team_id" json:"global_or_team_id"`
+	Configuration  json.RawMessage `db:"configuration" json:"configuration"`
+	CreatedAt      time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time       `db:"updated_at" json:"updated_at"`
+}
+
 var (
 	policyFieldsCache map[string]bool
 	policyFieldsOnce  sync.Once
@@ -167,4 +179,34 @@ func initPolicyFieldsCache() {
 func IsAndroidPolicyFieldValid(fieldName string) bool {
 	policyFieldsOnce.Do(initPolicyFieldsCache)
 	return policyFieldsCache[fieldName]
+}
+
+// ValidateAndroidAppConfiguration validates Android app configuration JSON.
+// Configuration must be valid JSON with only "managedConfiguration" and/or
+// "workProfileWidgets" as top-level keys. Empty configuration is not allowed.
+func ValidateAndroidAppConfiguration(config json.RawMessage) error {
+	if len(config) == 0 {
+		return &BadRequestError{
+			Message: "Couldn't update configuration. Invalid JSON.",
+		}
+	}
+
+	type androidAppConfig struct {
+		ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
+		WorkProfileWidgets   json.RawMessage `json:"workProfileWidgets"`
+	}
+
+	var cfg androidAppConfig
+	if err := JSONStrictDecode(bytes.NewReader(config), &cfg); err != nil {
+		if strings.Contains(err.Error(), "unknown field") {
+			return &BadRequestError{
+				Message: `Couldn't update configuration. Only "managedConfiguration" and "workProfileWidgets" are supported as top-level keys.`,
+			}
+		}
+		return &BadRequestError{
+			Message: "Couldn't update configuration. Invalid JSON.",
+		}
+	}
+
+	return nil
 }

@@ -7959,6 +7959,115 @@ func (s *integrationTestSuite) TestQuerySpecs() {
 	assert.Equal(t, uint(3), delBatchResp.Deleted)
 }
 
+func (s *integrationTestSuite) TestCertificatesSpecs() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
+	require.NoError(t, err)
+
+	// Create a test certificate authority
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("Test SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+
+	// apply certificate templates
+	var applyResp applyCertificateTemplateSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Template 1",
+				Team:                   fmt.Sprint(team.ID),
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			},
+			{
+				Name:                   "Template 2",
+				Team:                   fmt.Sprint(team.ID),
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// list specs
+	var listCertifcatesResp listCertificateTemplatesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
+	require.Len(t, listCertifcatesResp.Certificates, 2)
+	assert.ElementsMatch(t, []string{"Template 1", "Template 2"}, []string{listCertifcatesResp.Certificates[0].Name, listCertifcatesResp.Certificates[1].Name})
+
+	// Create a host to get certificate get by id endpoint
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("test-cert-node-key"),
+		UUID:            "test-uuid-12345",
+		Hostname:        "test-cert-host.local",
+		HardwareSerial:  "TEST-SERIAL-67890",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	// Add an IDP user for the host
+	err = s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: host.ID,
+			Email:  "test.user@example.com",
+			Source: fleet.DeviceMappingMDMIdpAccounts,
+		},
+	}, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+
+	savedCertificateTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, team.ID, 0, 10)
+	require.NoError(t, err)
+	certID := savedCertificateTemplates[0].ID
+
+	// Get certificate without node_key
+	var getCertResp getDeviceCertificateTemplateResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleetd/certificates/%d", certID), nil, http.StatusBadRequest, &getCertResp)
+
+	// Get certificate with node_key (should return replaced variables)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleetd/certificates/%d?node_key=%s", certID, *host.NodeKey), nil, http.StatusOK, &getCertResp)
+	require.NotNil(t, getCertResp.Certificate)
+
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "test.user@example.com")
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "test-uuid-12345")
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "TEST-SERIAL-67890")
+
+	// Get certificate without host_uuid (should return subject with variables)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", certID), nil, http.StatusOK, &getCertResp)
+	require.NotNil(t, getCertResp.Certificate)
+
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_END_USER_IDP_USERNAME")
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_UUID")
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_HARDWARE_SERIAL")
+
+	// Get certificate with host_uuid (should return replaced variables)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d?host_uuid=%s", certID, host.UUID), nil, http.StatusOK, &getCertResp)
+	require.NotNil(t, getCertResp.Certificate)
+
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "test.user@example.com")
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "test-uuid-12345")
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "TEST-SERIAL-67890")
+
+	// batch delete certificate templates
+	var delBatchResp deleteCertificateTemplateSpecsResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
+		"ids": []uint{listCertifcatesResp.Certificates[0].ID, listCertifcatesResp.Certificates[1].ID},
+	}, http.StatusOK, &delBatchResp)
+
+	// list specs
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
+	require.Len(t, listCertifcatesResp.Certificates, 0)
+}
+
 func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	t := s.T()
 

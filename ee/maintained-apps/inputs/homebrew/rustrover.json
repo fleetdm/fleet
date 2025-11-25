@@ -1,0 +1,8 @@
+{
+  "name": "RustRover",
+  "unique_identifier": "com.jetbrains.rustrover",
+  "token": "rustrover",
+  "installer_format": "dmg",
+  "slug": "rustrover/darwin",
+  "default_categories": ["Developer tools"]
+}
