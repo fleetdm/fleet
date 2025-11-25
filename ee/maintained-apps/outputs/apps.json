@@ -219,6 +219,13 @@
       "description": "Discord is voice and text chat software."
     },
     {
+      "name": "DisplayLink USB Graphics Software",
+      "slug": "displaylink/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.displaylink.DisplayLinkUserAgent",
+      "description": "Drivers for DisplayLink docks, adapters and monitors."
+    },
+    {
       "name": "Docker Desktop",
       "slug": "docker/darwin",
       "platform": "darwin",
