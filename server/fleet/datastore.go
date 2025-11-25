@@ -2357,6 +2357,8 @@ type Datastore interface {
 	// It returns a minimal device struct with host and device identifiers.
 	ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error)
 
+	// InsertAndroidSetupExperienceSoftwareInstall inserts a new Android
+	// VPP app install record for the setup experience flow.
 	InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *HostAndroidVPPSoftwareInstallPayload) error
 
 	// GetAndroidAppConfiguration retrieves the configuration for an Android app
@@ -2563,6 +2565,11 @@ type AndroidDatastore interface {
 	// SetLockCommandForLostModeCheckin sets the lock reference for a lost mode check-in.
 	// This is used when an iphone or ipados checks in after being deleted, with lost mode enabled.
 	SetLockCommandForLostModeCheckin(ctx context.Context, hostID uint, commandUUID string) error
+
+	// ListHostMDMAndroidVPPAppsPendingInstallWithVersion lists the Android
+	// VPP apps pending install for a host that were requested in a policy
+	// version <= the provided policy version.
+	ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*HostAndroidVPPSoftwareInstallPayload, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

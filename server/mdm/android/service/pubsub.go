@@ -370,6 +370,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		}
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 		svc.verifyDevicePolicy(ctx, host.UUID, device)
+		svc.verifyDeviceSoftware(ctx, host.UUID, device)
 	}
 
 	deviceID, err := svc.getDeviceID(ctx, device)
@@ -558,7 +559,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 
 	level.Debug(svc.logger).Log("msg", "Verifying Android device policy", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
 
-	// Get all host_mdm_android_profiles that is pending, and included_in_policy_version = device.AppliedPolicyVersion.
+	// Get all host_mdm_android_profiles that is pending, and included_in_policy_version <= device.AppliedPolicyVersion.
 	// That way we can either fully verify the profile, or mark as failed if the field it tries to set is not compliant.
 
 	// Get all profiles that are pending install
@@ -672,6 +673,26 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "error deleting pending or failed remove profiles", "err", err, "host_uuid", hostUUID)
 	}
+}
+
+func (svc *Service) verifyDeviceSoftware(ctx context.Context, hostUUID string, device *androidmanagement.Device) {
+	appliedPolicyVersion := device.AppliedPolicyVersion
+
+	level.Debug(svc.logger).Log("msg", "Verifying Android device software", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
+
+	// Get all host_vpp_software_installs that are pending, and set in a policy version <= device.AppliedPolicyVersion.
+	// That way we can either fully verify the app install, or mark as failed if the app is not compliant.
+
+	pendingInstallApps, err := svc.ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, hostUUID, appliedPolicyVersion)
+	if err != nil {
+		level.Error(svc.logger).Log("msg", "error getting pending vpp installs", "err", err)
+		return
+	}
+	_ = pendingInstallApps
+	// pendingByPackageName := make(map[string]*fleet.HostVPPSoftwareInstall, len(pendingInstallProfiles))
+	// for _, profile := range pendingInstallProfiles {
+	// 	pendingProfilesUUIDMap[profile.ProfileUUID] = profile
+	// }
 }
 
 func buildNonComplianceErrorMessage(nonCompliance []*androidmanagement.NonComplianceDetail) string {

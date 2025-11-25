@@ -1557,6 +1557,32 @@ func (ds *Datastore) InsertAndroidSetupExperienceSoftwareInstall(ctx context.Con
 	return ctxerr.Wrap(ctx, err, "inserting android setup experience software install")
 }
 
+func (ds *Datastore) ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.HostAndroidVPPSoftwareInstallPayload, error) {
+	const stmt = `
+SELECT
+	hvsi.host_id,
+	hvsi.adam_id,
+	hvsi.command_uuid,
+	hvsi.associated_event_id
+FROM
+	host_vpp_software_installs hvsi
+	INNER JOIN hosts h ON hvsi.host_id = h.id
+WHERE
+	h.uuid = ? AND
+	h.platform = ? AND
+	CAST(hvsi.associated_event_id AS SIGNED INT) <= ? AND
+	hvsi.verification_at IS NULL AND
+	hvsi.verification_failed_at IS NULL
+`
+
+	var pendingInstalls []*fleet.HostAndroidVPPSoftwareInstallPayload
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &pendingInstalls, stmt, hostUUID, fleet.AndroidPlatform, policyVersion)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing host mdm android vpp apps pending install")
+	}
+	return pendingInstalls, nil
+}
+
 // GetAndroidAppConfiguration retrieves the configuration for an Android app
 // identified by adam_id and global_or_team_id.
 func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*fleet.AndroidAppConfiguration, error) {

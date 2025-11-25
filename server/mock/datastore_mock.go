@@ -1505,6 +1505,8 @@ type GetLatestAppleMDMCommandOfTypeFunc func(ctx context.Context, hostUUID strin
 
 type SetLockCommandForLostModeCheckinFunc func(ctx context.Context, hostID uint, commandUUID string) error
 
+type ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.HostAndroidVPPSoftwareInstallPayload, error)
+
 type NewMDMAndroidConfigProfileFunc func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error)
 
 type GetMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMAndroidConfigProfile, error)
@@ -3856,6 +3858,9 @@ type DataStore struct {
 
 	SetLockCommandForLostModeCheckinFunc        SetLockCommandForLostModeCheckinFunc
 	SetLockCommandForLostModeCheckinFuncInvoked bool
+
+	ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc        ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc
+	ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked bool
 
 	NewMDMAndroidConfigProfileFunc        NewMDMAndroidConfigProfileFunc
 	NewMDMAndroidConfigProfileFuncInvoked bool
@@ -9237,6 +9242,13 @@ func (s *DataStore) SetLockCommandForLostModeCheckin(ctx context.Context, hostID
 	s.SetLockCommandForLostModeCheckinFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetLockCommandForLostModeCheckinFunc(ctx, hostID, commandUUID)
+}
+
+func (s *DataStore) ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.HostAndroidVPPSoftwareInstallPayload, error) {
+	s.mu.Lock()
+	s.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc(ctx, hostUUID, policyVersion)
 }
 
 func (s *DataStore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
