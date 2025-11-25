@@ -15,4 +15,6 @@ type CertificateTemplateForHost struct {
 	CertificateTemplateID uint               `db:"certificate_template_id"`
 	FleetChallenge        *string            `db:"fleet_challenge"`
 	Status                *MDMDeliveryStatus `db:"status"`
+	CAType                CAConfigAssetType  `db:"ca_type"`
+	CAName                string             `db:"ca_name"`
 }
