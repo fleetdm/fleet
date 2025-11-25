@@ -232,13 +232,9 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			return 0, 0, ctxerr.Wrap(ctx, err, "check VPP app exists for title identifier")
 		}
 		if exists {
-			teamName := fleet.TeamNameNoTeam
-			if payload.TeamID != nil && *payload.TeamID > 0 {
-				tm, err := ds.TeamLite(ctx, *payload.TeamID)
-				if err != nil {
-					return 0, 0, ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
-				}
-				teamName = tm.Name
+			teamName, err := ds.getTeamName(ctx, payload.TeamID)
+			if err != nil {
+				return 0, 0, ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
 			}
 
 			return 0, 0, ctxerr.Wrap(ctx, fleet.ConflictError{
@@ -364,7 +360,11 @@ INSERT INTO software_installers (
 		if err != nil {
 			if IsDuplicate(err) {
 				// already exists for this team/no team
-				err = alreadyExists("SoftwareInstaller", payload.Title)
+				teamName, err := ds.getTeamName(ctx, payload.TeamID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err)
+				}
+				return alreadyExists("SoftwareInstaller", payload.Title).WithTeamName(teamName)
 			}
 			return err
 		}
@@ -419,6 +419,18 @@ INSERT INTO software_installers (
 	}
 
 	return installerID, titleID, nil
+}
+
+func (ds *Datastore) getTeamName(ctx context.Context, teamID *uint) (string, error) {
+	teamName := fleet.TeamNameNoTeam
+	if teamID != nil && *teamID > 0 {
+		tm, err := ds.TeamLite(ctx, *teamID)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err)
+		}
+		teamName = tm.Name
+	}
+	return teamName, nil
 }
 
 func setOrUpdateSoftwareInstallerCategoriesDB(ctx context.Context, tx sqlx.ExtContext, installerID uint, categoryIDs []uint, swType softwareType) error {
