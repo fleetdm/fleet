@@ -10,7 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-json-experiment/json"
@@ -781,19 +780,34 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 		return
 	}
 
-	// create the matching past activities
-	for _, cmd := range toVerifyUUIDs {
-		user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: cmd, Status: fleet.MDMAppleStatusError})
+	createPastActivity := func(cmdUUID string, status fleet.SoftwareInstallerStatus) (stop bool) {
+		user, act, err := svc.ds.GetPastActivityDataForAndroidVPPAppInstall(ctx, cmdUUID, status)
 		if err != nil {
 			if fleet.IsNotFound(err) {
 				// shouldn't happen, but no need to fail
-				continue
+				return false
 			}
-			return nil, nil, ctxerr.Wrap(ctx, err, "get past activity data for vpp app install")
+			// otherwise it's a DB error and we should fail
+			level.Error(svc.logger).Log("msg", "error getting past activity for installed softwaer", "err", err, "host_uuid", hostUUID)
+			return true
 		}
 		act.FromSetupExperience = true // currently, all Android app installs are from setup experience
-		if err := svc.activityModule.NewActivity(r.Context, user, act, svc.ds, svc.logger); err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
+		if err := svc.activityModule.NewActivity(ctx, user, act); err != nil {
+			level.Error(svc.logger).Log("msg", "error creating past activity for installed softwaer", "err", err, "host_uuid", hostUUID)
+			return true
+		}
+		return false
+	}
+
+	// create the matching past activities
+	for _, cmd := range toVerifyUUIDs {
+		if stop := createPastActivity(cmd, fleet.SoftwareInstalled); stop {
+			return
+		}
+	}
+	for _, cmd := range toFailUUIDs {
+		if stop := createPastActivity(cmd, fleet.SoftwareInstalled); stop {
+			return
 		}
 	}
 }
