@@ -75,6 +75,7 @@ parasails.registerPage('basic-handbook', {
           _.startsWith(page.url, '/handbook/company')// Only add links for pages in the handbook/company/ folder
           && page.url !== '/handbook/company/handbook'// Hide the /handbook/company/handbook page in the handbook index.
           && !_.startsWith(page.url, '/handbook/company/open-positions')// Don't create links to pages generated for open positions.
+          && !_.startsWith(page.url, '/handbook/company/legal')// Don't create links to pages in the legal folder
         ) {
           let pageTitle = page.title;
           if(this.hideEmojisOnPage){
