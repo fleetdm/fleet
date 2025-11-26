@@ -10,8 +10,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// ListAndroidHostUUIDsWithCertificateTemplates returns a batch of host UUIDs that have certificate templates to deliver
-func (ds *Datastore) ListAndroidHostUUIDsWithCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {
+// ListAndroidHostUUIDsWithDeliverableCertificateTemplates returns a batch of host UUIDs that have certificate templates to deliver
+func (ds *Datastore) ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {
 	const stmt = `
 		SELECT DISTINCT
 			hosts.uuid

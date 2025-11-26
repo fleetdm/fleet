@@ -509,7 +509,7 @@ func (r *profileReconciler) reconcileCertificateTemplates(ctx context.Context) e
 
 	for {
 		// Get a batch of host UUIDs that have certificate templates
-		hostUUIDs, err := r.DS.ListAndroidHostUUIDsWithCertificateTemplates(ctx, offset, batchSize)
+		hostUUIDs, err := r.DS.ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx, offset, batchSize)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list android host uuids with certificate templates")
 		}

@@ -1627,7 +1627,7 @@ type GetCertificateTemplateByIdFunc func(ctx context.Context, id uint) (*fleet.C
 
 type GetCertificateTemplatesByTeamIDFunc func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
 
-type ListAndroidHostUUIDsWithCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
+type ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
 
 type ListCertificateTemplatesForHostsFunc func(ctx context.Context, hostUUIDs []string) ([]fleet.CertificateTemplateForHost, error)
 
@@ -4044,8 +4044,8 @@ type DataStore struct {
 	GetCertificateTemplatesByTeamIDFunc        GetCertificateTemplatesByTeamIDFunc
 	GetCertificateTemplatesByTeamIDFuncInvoked bool
 
-	ListAndroidHostUUIDsWithCertificateTemplatesFunc        ListAndroidHostUUIDsWithCertificateTemplatesFunc
-	ListAndroidHostUUIDsWithCertificateTemplatesFuncInvoked bool
+	ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc        ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc
+	ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFuncInvoked bool
 
 	ListCertificateTemplatesForHostsFunc        ListCertificateTemplatesForHostsFunc
 	ListCertificateTemplatesForHostsFuncInvoked bool
@@ -9676,11 +9676,11 @@ func (s *DataStore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID 
 	return s.GetCertificateTemplatesByTeamIDFunc(ctx, teamID, page, perPage)
 }
 
-func (s *DataStore) ListAndroidHostUUIDsWithCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {
+func (s *DataStore) ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {
 	s.mu.Lock()
-	s.ListAndroidHostUUIDsWithCertificateTemplatesFuncInvoked = true
+	s.ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListAndroidHostUUIDsWithCertificateTemplatesFunc(ctx, offset, limit)
+	return s.ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc(ctx, offset, limit)
 }
 
 func (s *DataStore) ListCertificateTemplatesForHosts(ctx context.Context, hostUUIDs []string) ([]fleet.CertificateTemplateForHost, error) {
