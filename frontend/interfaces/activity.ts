@@ -377,7 +377,7 @@ export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
   transferred_hosts: "Transferred hosts",
   uninstalled_software: "Uninstall software",
   unlocked_host: "Unlocked host",
-  updated_script: "Edited script",
+  updated_script: "Updated script",
   user_added_by_sso: "Added user via JIT",
   user_failed_login: "User login: failed",
   user_logged_in: "User login: success",
