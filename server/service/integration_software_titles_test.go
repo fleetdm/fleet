@@ -70,6 +70,17 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		DisplayName:       ptr.String(strings.Repeat("a", 256)),
 	}, http.StatusBadRequest, "The maximum display name length is 255 characters.")
 
+	// Display name can't be all whitespace
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		SelfService:       ptr.Bool(true),
+		InstallScript:     ptr.String("some install script"),
+		PreInstallQuery:   ptr.String("some pre install query"),
+		PostInstallScript: ptr.String("some post install script"),
+		Filename:          "ruby.deb",
+		TitleID:           titleID,
+		TeamID:            &team.ID,
+		DisplayName:       ptr.String(strings.Repeat(" ", 5)),
+	}, http.StatusUnprocessableEntity, "Cannot have a display name that is all whitespace.")
 	// Should update the display name even if no other fields are passed
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:     titleID,
@@ -241,10 +252,15 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	macOSTitleID := addAppResp.TitleID
 
-	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated1")}
+	// Attempt to set name to be all whitespace, should fail
+	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String(strings.Repeat(" ", 5))}
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusUnprocessableEntity)
+	s.Assert().Contains(extractServerErrorText(res.Body), "Cannot have a display name that is all whitespace.")
+
+	// This display name edit should succeed
+	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated1")}
 	var updateAppResp updateAppStoreAppResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK, &updateAppResp)
-
 	s.Assert().Equal(*updateAppReq.DisplayName, updateAppResp.AppStoreApp.DisplayName)
 
 	// Entity has display name
@@ -268,6 +284,22 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
 	s.Assert().Len(getHostSw.Software, 1)
 	s.Assert().Equal(*updateAppReq.DisplayName, getHostSw.Software[0].DisplayName)
+
+	// Activity has display name
+	activityData = fmt.Sprintf(`
+	{
+		"app_store_id": "%s",
+		"software_title": "%s",
+		"software_icon_url": "%s",
+		"platform": "%s",
+		"team_name": "%s",
+	    "team_id": %d,
+		"self_service": false,
+		"software_title_id": %d,
+		"software_display_name": "%s"
+	}`,
+		macOSApp.AdamID, stResp.SoftwareTitle.Name, macOSApp.IconURL, string(macOSApp.Platform), team.Name, team.ID, stResp.SoftwareTitle.ID, *updateAppReq.DisplayName)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), activityData, 0)
 
 	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated2")}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK, &updateAppResp)
@@ -357,6 +389,11 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:     titleID,
 		TeamID:      &team.ID,
+		DisplayName: ptr.String(strings.Repeat(" ", 5))}, http.StatusUnprocessableEntity, "Cannot have a display name that is all whitespace.")
+
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:     titleID,
+		TeamID:      &team.ID,
 		DisplayName: ptr.String("InHouseAppUpdate"),
 	}, http.StatusOK, "")
 
@@ -393,6 +430,20 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 			s.Assert().Equal("InHouseAppUpdate2", t.DisplayName)
 		}
 	}
+
+	activityData = fmt.Sprintf(`
+		{
+			"software_title": "ipa_test",
+			"software_package": "ipa_test.ipa",
+			"software_icon_url": null,
+			"team_name": "%s",
+		    "team_id": %d,
+			"self_service": true,
+			"software_title_id": %d,
+			"software_display_name": "%s"
+		}`,
+		team.Name, team.ID, titleID, "InHouseAppUpdate2")
+	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 	// Omitting the field is a no-op
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{

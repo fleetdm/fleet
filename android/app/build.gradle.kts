@@ -1,9 +1,13 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.spotless)
     alias(libs.plugins.detekt)
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.2.20"
 }
 
 android {
@@ -20,8 +24,29 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Load keystore properties for release signing
+    val keystorePropertiesFile = rootProject.file("keystore.properties")
+    val keystoreProperties = Properties()
+    if (keystorePropertiesFile.exists()) {
+        FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
+    }
+
+    signingConfigs {
+        create("release") {
+            if (keystorePropertiesFile.exists()) {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -59,14 +84,7 @@ spotless {
     kotlin {
         target("**/*.kt")
         targetExclude("**/build/**/*.kt")
-        ktlint().editorConfigOverride(
-            mapOf(
-                // Jetpack Compose requires Composable functions to start with uppercase (PascalCase)
-                "ktlint_standard_function-naming" to "disabled",
-                // Android conventionally uses uppercase TAG constants for logging
-                "ktlint_standard_property-naming" to "disabled",
-            ),
-        )
+        ktlint()
     }
     kotlinGradle {
         target("*.gradle.kts")
@@ -90,4 +108,7 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    // Preferences DataStore (SharedPreferences like APIs)
+    implementation("androidx.datastore:datastore-preferences:1.2.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
 }

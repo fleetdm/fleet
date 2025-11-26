@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "9.2.4",
+      "version": "9.3.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ch.sudo.cyberduck';"
       },
-      "installer_url": "https://update.cyberduck.io/Cyberduck-9.2.4.43667.zip",
+      "installer_url": "https://update.cyberduck.io/Cyberduck-9.3.0.44071.zip",
       "install_script_ref": "0cf46de4",
       "uninstall_script_ref": "481dc73b",
-      "sha256": "7d326835d829e8459d9687a393b5c6da5261d4d12bc45466bf1d9f662c2f5ae7",
+      "sha256": "820fdb608c54bb3d7beaa35a18a5abdef1efbeecb25c16446c4e6e0b17164572",
       "default_categories": [
         "Productivity"
       ]
