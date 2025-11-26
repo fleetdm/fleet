@@ -3511,6 +3511,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
 	require.NotNil(t, getHostSw.Software[0].Status)
 	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+	app1CmdUUID := getHostSw.Software[0].AppStoreApp.LastInstall.CommandUUID
 	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
 	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
 	require.Nil(t, getHostSw.Software[1].Status)
@@ -3533,6 +3534,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	)
 	req = android_service.PubSubPushRequest{PubSubMessage: *reportMsg}
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
+	s.lastActivityOfTypeMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":%q, 
+		"command_uuid":%q, "host_display_name":%q, "host_id":%d, "policy_id":null, "policy_name":null, "self_service":false, "software_title":%q,
+		"status":%q}`, app1.AdamID, app1CmdUUID, host.DisplayName, host.ID, app1.Name, fleet.SoftwareInstalled), 0)
 
 	// the pending install should now be verified
 	getHostSw = getHostSoftwareResponse{}
@@ -3567,7 +3571,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 		TitleIDs: []uint{app1TitleID, app2TitleID},
 	}, http.StatusOK, &putResp)
 
-	// enroll another Android device
+	// enroll another Android device to test 2 apps that install on enroll
 	deviceID2 := createAndroidDeviceID("test-android-2")
 	enterpriseSpecificID2 := strings.ToUpper(uuid.New().String())
 	enrollmentMessage = enrollmentMessageWithEnterpriseSpecificID(
