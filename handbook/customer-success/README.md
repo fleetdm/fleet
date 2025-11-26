@@ -147,7 +147,8 @@ Business reviews are conducted quarterly or bi-annually to ensure initial succes
     - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for #g-mdm and #g-endpoint-ops
 3. After the business review, save the presentation as a PDF and share it with your customer.
 
-### Managing customer promises
+### Track a customer promise
+
 Customer promises are contractually obligated feature requests, with guaranteed completion in specific timeframes. These are always represented in a signed contract with the customer. The [Customer promises internal spreadsheet](https://docs.google.com/spreadsheets/d/11Z6zDD4UQktc34IZTtRpNmYZMqndjfLDgFP92P4s7cI/edit?gid=0#gid=0) is our current source of truth. It will be maintained and updated by the Customer Success team. Each CSM is responsible for adding in the following when they are assigned a new customer with contractual promises: 
 1. The name of the customer
 2. The feature that was promised
