@@ -885,9 +885,15 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 		capturedPolicies = policies
 		return &androidmanagement.Policy{}, nil
 	}
-	oldEnvValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
+
+	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
+	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SHA256")
 	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
-	defer os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldEnvValue)
+	os.Setenv("FLEET_DEV_ANDROID_AGENT_SHA256", "abc123def456")
+	defer func() {
+		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
+		os.Setenv("FLEET_DEV_ANDROID_AGENT_SHA256", oldSHA256Value)
+	}()
 
 	err = reconciler.reconcileCertificateTemplates(ctx)
 	require.NoError(t, err)
