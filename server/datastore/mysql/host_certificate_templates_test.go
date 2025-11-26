@@ -409,7 +409,7 @@ func testListCertificateTemplatesForHosts(t *testing.T, ds *Datastore) {
 					require.NotEmpty(t, res.CertificateTemplateID)
 					if res.CertificateTemplateID == templateWithHostRecordId {
 						require.Equal(t, ptr.String("challenge"), res.FleetChallenge)
-						require.Equal(t, ptr.String(string(fleet.MDMDeliveryPending)), res.Status)
+						require.Equal(t, &fleet.MDMDeliveryPending, res.Status)
 					} else {
 						require.Nil(t, res.FleetChallenge)
 						require.Nil(t, res.Status)
