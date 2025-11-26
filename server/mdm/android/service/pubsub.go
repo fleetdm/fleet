@@ -419,7 +419,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		}
 
 		err = worker.QueueRunAndroidSetupExperience(ctx, svc.fleetDS, svc.logger,
-			host.Host.UUID, host.Host.TeamID, enterprise.EnterpriseID)
+			host.Host.UUID, host.Host.TeamID, enterprise.Name())
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "enqueuing run android setup experience for host job")
 		}
@@ -507,7 +507,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	}
 
 	err = worker.QueueRunAndroidSetupExperience(ctx, svc.fleetDS, svc.logger,
-		fleetHost.Host.UUID, fleetHost.Host.TeamID, enterprise.EnterpriseID)
+		fleetHost.Host.UUID, fleetHost.Host.TeamID, enterprise.Name())
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing run android setup experience for host job")
 	}
