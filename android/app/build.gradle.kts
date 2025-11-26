@@ -174,6 +174,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.amapi.sdk)
 
     // SCEP (Simple Certificate Enrollment Protocol)
     implementation("com.google.code.jscep:jscep:3.0.1")
@@ -191,6 +193,8 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+    testImplementation(libs.androidx.work.testing)
+    testImplementation(libs.robolectric)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     testImplementation("org.json:json:20231013") // For JSON parsing in unit tests
 

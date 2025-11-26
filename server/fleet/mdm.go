@@ -405,14 +405,14 @@ type MDMDiskEncryptionSummary struct {
 }
 
 // MDMProfilesSummary reports the number of hosts being managed with configuration
-// profiles and/or disk encryption. Each host may be counted in only one of four mutually-exclusive categories:
-// Failed, Pending, Verifying, or Verified.
+// profiles, disk encryption or certificate templates.
+// Each host may be counted in only one of four mutually exclusive categories: Failed, Pending, Verifying, or Verified.
 type MDMProfilesSummary struct {
-	// Verified includes each host where Fleet has verified the installation of all of the
+	// Verified includes each host where Fleet has verified the installation of all the
 	// profiles currently applicable to the host. If any of the profiles are pending, failed, or
 	// subject to verification for the host, the host is not counted as verified.
 	Verified uint `json:"verified" db:"verified"`
-	// Verifying includes each host where the MDM service has successfully delivered all of the
+	// Verifying includes each host where the MDM service has successfully delivered all the
 	// profiles currently applicable to the host. If any of the profiles are pending or failed for
 	// the host, the host is not counted as verifying.
 	Verifying uint `json:"verifying" db:"verifying"`
@@ -422,6 +422,23 @@ type MDMProfilesSummary struct {
 	// Failed includes each host that has failed to apply one or more of the profiles currently
 	// applicable to the host.
 	Failed uint `json:"failed" db:"failed"`
+}
+
+func (mdmPS *MDMProfilesSummary) Add(other *MDMProfilesSummary) *MDMProfilesSummary {
+	var s1, s2 MDMProfilesSummary
+	if mdmPS != nil {
+		s1 = *mdmPS
+	}
+	if other != nil {
+		s2 = *other
+	}
+	return &MDMProfilesSummary{
+		Verified:  s1.Verified + s2.Verified,
+		Verifying: s1.Verifying + s2.Verifying,
+		Pending:   s1.Pending + s2.Pending,
+		Failed:    s1.Failed + s2.Failed,
+	}
+
 }
 
 // HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either
