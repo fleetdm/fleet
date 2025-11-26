@@ -449,6 +449,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		assetMD := assetMetadata[asset.AdamID]
 
+		// Configuration is an Android only feature
+		appID.Configuration = nil
+
 		platforms := getPlatformsFromSupportedDevices(assetMD.SupportedDevices)
 		if _, ok := platforms[appID.Platform]; !ok {
 			return 0, fleet.NewInvalidArgumentError("app_store_id", fmt.Sprintf("%s isn't available for %s", assetMD.TrackName, appID.Platform))
@@ -512,6 +515,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		SelfService:      app.SelfService,
 		LabelsIncludeAny: actLabelsIncl,
 		LabelsExcludeAny: actLabelsExcl,
+		Configuration:    app.Configuration,
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
@@ -604,7 +608,7 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	return apps, nil
 }
 
-func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService *bool, labelsIncludeAny, labelsExcludeAny, categories []string, displayName *string) (*fleet.VPPAppStoreApp, error) {
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -623,9 +627,9 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	}
 
 	var validatedLabels *fleet.LabelIdentsWithScope
-	if labelsExcludeAny != nil || labelsIncludeAny != nil {
+	if payload.LabelsExcludeAny != nil || payload.LabelsIncludeAny != nil {
 		var err error
-		validatedLabels, err = ValidateSoftwareLabels(ctx, svc, labelsIncludeAny, labelsExcludeAny)
+		validatedLabels, err = ValidateSoftwareLabels(ctx, svc, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating software labels")
 		}
@@ -636,9 +640,18 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting vpp app metadata")
 	}
 
+	if payload.DisplayName != nil && *payload.DisplayName != meta.DisplayName {
+		trimmed := strings.TrimSpace(*payload.DisplayName)
+		if trimmed == "" && *payload.DisplayName != "" {
+			return nil, fleet.NewInvalidArgumentError("display_name", "Cannot have a display name that is all whitespace.")
+		}
+
+		*payload.DisplayName = trimmed
+	}
+
 	selfServiceVal := meta.SelfService
-	if selfService != nil {
-		selfServiceVal = *selfService
+	if payload.SelfService != nil {
+		selfServiceVal = *payload.SelfService
 	}
 
 	appToWrite := &fleet.VPPApp{
@@ -648,7 +661,8 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 			},
 			SelfService:     selfServiceVal,
 			ValidatedLabels: validatedLabels,
-			DisplayName:     displayName,
+			DisplayName:     payload.DisplayName,
+			Configuration:   payload.Configuration,
 		},
 		TeamID:           teamID,
 		TitleID:          titleID,
@@ -660,21 +674,25 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		appToWrite.IconURL = *meta.IconURL
 	}
 
-	if categories != nil {
-		categories = server.RemoveDuplicatesFromSlice(categories)
-		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, categories)
+	if payload.Categories != nil {
+		payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
+		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
 		}
 
-		if len(catIDs) != len(categories) {
+		if len(catIDs) != len(payload.Categories) {
 			return nil, &fleet.BadRequestError{
 				Message:     "some or all of the categories provided don't exist",
-				InternalErr: fmt.Errorf("categories provided: %v", categories),
+				InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
 			}
 		}
 
 		appToWrite.CategoryIDs = catIDs
+	}
+
+	if payload.Configuration != nil {
+		appToWrite.Configuration = payload.Configuration
 	}
 
 	// check if labels have changed
@@ -738,7 +756,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 
 	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(validatedLabels)
 
-	displayNameVal := ptr.ValOrZero(displayName)
+	displayNameVal := ptr.ValOrZero(payload.DisplayName)
 
 	act := fleet.ActivityEditedAppStoreApp{
 		TeamName:            &teamName,
@@ -752,6 +770,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		LabelsExcludeAny:    actLabelsExcl,
 		SoftwareIconURL:     meta.IconURL,
 		SoftwareDisplayName: displayNameVal,
+		Configuration:       appToWrite.Configuration,
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for update app store app")
