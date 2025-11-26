@@ -429,6 +429,25 @@ func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.Ho
 			host.HostIssues.CriticalVulnerabilitiesCount = &zero
 		}
 	}
+
+	// Populate device_status and pending_action for hosts with MDM info
+	// Only set these fields for hosts that have entries in the statusMap (i.e., hosts with MDM actions)
+	if len(hosts) > 0 {
+		statusMap, err := svc.ds.GetHostsLockWipeStatusBatch(ctx, hosts)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get hosts lock/wipe status batch")
+		}
+
+		for _, host := range hosts {
+			// Only set device_status and pending_action for hosts with MDM actions
+			if status, ok := statusMap[host.ID]; ok {
+				host.MDM.DeviceStatus = ptr.String(string(status.DeviceStatus()))
+				host.MDM.PendingAction = ptr.String(string(status.PendingAction()))
+			}
+			// Hosts without entries in statusMap will have nil device_status and pending_action
+		}
+	}
+
 	return hosts, nil
 }
 

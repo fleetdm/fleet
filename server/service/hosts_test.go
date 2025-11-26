@@ -4004,7 +4004,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 	})
 
 	t.Run("script-based lock (Windows/Linux)", func(t *testing.T) {
-		var exitCode0 int64 = 0
+		var exitCode0 int64
 		var exitCode1 int64 = 1
 
 		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
