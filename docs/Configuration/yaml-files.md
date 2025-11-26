@@ -540,7 +540,7 @@ software:
   - `Communication`: shown as **👬 Communication**
   - `Developer tools`: shown as **🧰 Developer tools**
   - `Productivity`: shown as **🖥️ Productivity**
-- `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/macos-setup-experience).
+- `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
 
 ### packages
 
