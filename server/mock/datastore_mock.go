@@ -1515,6 +1515,8 @@ type BulkSetVPPInstallsAsVerifiedFunc func(ctx context.Context, hostID uint, com
 
 type BulkSetVPPInstallsAsFailedFunc func(ctx context.Context, hostID uint, commandUUIDs []string) error
 
+type GetPastActivityDataForAndroidVPPAppInstallFunc func(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
+
 type NewMDMAndroidConfigProfileFunc func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error)
 
 type GetMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMAndroidConfigProfile, error)
@@ -3883,6 +3885,9 @@ type DataStore struct {
 
 	BulkSetVPPInstallsAsFailedFunc        BulkSetVPPInstallsAsFailedFunc
 	BulkSetVPPInstallsAsFailedFuncInvoked bool
+
+	GetPastActivityDataForAndroidVPPAppInstallFunc        GetPastActivityDataForAndroidVPPAppInstallFunc
+	GetPastActivityDataForAndroidVPPAppInstallFuncInvoked bool
 
 	NewMDMAndroidConfigProfileFunc        NewMDMAndroidConfigProfileFunc
 	NewMDMAndroidConfigProfileFuncInvoked bool
@@ -9302,6 +9307,13 @@ func (s *DataStore) BulkSetVPPInstallsAsFailed(ctx context.Context, hostID uint,
 	s.BulkSetVPPInstallsAsFailedFuncInvoked = true
 	s.mu.Unlock()
 	return s.BulkSetVPPInstallsAsFailedFunc(ctx, hostID, commandUUIDs)
+}
+
+func (s *DataStore) GetPastActivityDataForAndroidVPPAppInstall(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	s.mu.Lock()
+	s.GetPastActivityDataForAndroidVPPAppInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPastActivityDataForAndroidVPPAppInstallFunc(ctx, cmdUUID, status)
 }
 
 func (s *DataStore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {

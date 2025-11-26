@@ -1122,13 +1122,18 @@ func (ds *Datastore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) 
 	return adamMap, nil
 }
 
+func (ds *Datastore) GetPastActivityDataForAndroidVPPAppInstall(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	mdmStatus := fleet.MDMAppleStatusAcknowledged
+	if status != fleet.SoftwareInstalled {
+		mdmStatus = fleet.MDMAppleStatusError
+	}
+	return ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: cmdUUID, Status: mdmStatus})
+}
+
 func (ds *Datastore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
 	if commandResults == nil {
 		return nil, nil, nil
 	}
-
-	// TODO(mna): this is probably fine to stay APple-only VPP installs, but on turn off MDM for Android,
-	// and on install verified, call a similar but different method to get the past activity to create.
 
 	stmt := `
 SELECT

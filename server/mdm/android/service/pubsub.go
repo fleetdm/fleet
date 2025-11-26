@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-json-experiment/json"
@@ -778,6 +779,22 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 	if err := svc.ds.BulkSetVPPInstallsAsFailed(ctx, host.ID, toFailUUIDs); err != nil {
 		level.Error(svc.logger).Log("msg", "error marking vpp installs as failed", "err", err, "host_uuid", hostUUID)
 		return
+	}
+
+	// create the matching past activities
+	for _, cmd := range toVerifyUUIDs {
+		user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: cmd, Status: fleet.MDMAppleStatusError})
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				// shouldn't happen, but no need to fail
+				continue
+			}
+			return nil, nil, ctxerr.Wrap(ctx, err, "get past activity data for vpp app install")
+		}
+		act.FromSetupExperience = true // currently, all Android app installs are from setup experience
+		if err := svc.activityModule.NewActivity(r.Context, user, act, svc.ds, svc.logger); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
+		}
 	}
 }
 

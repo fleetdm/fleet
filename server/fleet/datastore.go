@@ -2587,6 +2587,10 @@ type AndroidDatastore interface {
 	// as failed. This is for Android hosts, where the verification uuid is not important,
 	// so the implementation generates a random one.
 	BulkSetVPPInstallsAsFailed(ctx context.Context, hostID uint, commandUUIDs []string) error
+
+	// GetPastActivityDataForAndroidVPPAppInstall is like GetPastActivityDataForVPPAppInstall
+	// but available to the android datastore and without the Apple-based args.
+	GetPastActivityDataForAndroidVPPAppInstall(ctx context.Context, cmdUUID string, status SoftwareInstallerStatus) (*User, *ActivityInstalledAppStoreApp, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
