@@ -586,6 +586,15 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting vpp app metadata")
 	}
 
+	if displayName != nil && *displayName != meta.DisplayName {
+		trimmed := strings.TrimSpace(*displayName)
+		if trimmed == "" && *displayName != "" {
+			return nil, fleet.NewInvalidArgumentError("display_name", "Cannot have a display name that is all whitespace.")
+		}
+
+		*displayName = trimmed
+	}
+
 	selfServiceVal := meta.SelfService
 	if selfService != nil {
 		selfServiceVal = *selfService
