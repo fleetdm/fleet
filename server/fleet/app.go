@@ -1301,10 +1301,10 @@ type ListQueryOptions struct {
 type ListActivitiesOptions struct {
 	ListOptions
 	ActivityType string `query:"activity_type,optional"`
-	// StartCreatedAt filters activities created after this Unix timestamp.
-	StartCreatedAt *int64 `query:"start_created_at,optional"`
-	// EndCreatedAt filters activities created before this Unix timestamp.
-	EndCreatedAt *int64 `query:"end_created_at,optional"`
+	// StartCreatedAt filters activities created after this ISO string.
+	StartCreatedAt string `query:"start_created_at,optional"`
+	// EndCreatedAt filters activities created before this ISO string.
+	EndCreatedAt string `query:"end_created_at,optional"`
 	Streamed     *bool
 }
 

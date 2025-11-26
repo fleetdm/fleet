@@ -194,22 +194,21 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 		args = append(args, opt.ActivityType)
 	}
 
-	if opt.StartCreatedAt != nil || opt.EndCreatedAt != nil {
+	if opt.StartCreatedAt != "" || opt.EndCreatedAt != "" {
 		start := opt.StartCreatedAt
 		end := opt.EndCreatedAt
 		switch {
-		case start == nil && end != nil:
+		case start == "" && end != "":
 			// Only EndCreatedAt is set, so filter up to end
-			activitiesQ += " AND a.created_at <= FROM_UNIXTIME(?)"
+			activitiesQ += " AND a.created_at <= ?"
 			args = append(args, end)
-		case start != nil && end == nil:
+		case start != "" && end == "":
 			// Only StartCreatedAt is set, so filter from start to now
-			activitiesQ += " AND a.created_at >= FROM_UNIXTIME(?) AND a.created_at <= FROM_UNIXTIME(?)"
-			args = append(args, start, time.Now().Unix())
-		case start != nil && end != nil:
-			fmt.Println("Filtering based on", time.Unix(*start, 0).UTC().Format(time.RFC3339Nano), time.Unix(*end, 0).UTC().Format(time.RFC3339Nano))
+			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
+			args = append(args, start, time.Now().UTC())
+		case start != "" && end != "":
 			// Both are set
-			activitiesQ += " AND a.created_at >= FROM_UNIXTIME(?) AND a.created_at <= FROM_UNIXTIME(?)"
+			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
 			args = append(args, start, end)
 		}
 	}

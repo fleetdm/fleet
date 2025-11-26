@@ -211,7 +211,7 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair) error {
 			field.SetFloat(queryValFloat)
 		case reflect.Bool:
 			field.SetBool(queryVal == "1" || queryVal == "true")
-		case reflect.Int, reflect.Int64:
+		case reflect.Int:
 			queryValInt := 0
 			switch queryTagValue {
 			case "order_direction", "inherited_order_direction":

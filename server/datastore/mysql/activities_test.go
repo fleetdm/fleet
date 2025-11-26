@@ -2735,30 +2735,25 @@ func testActivitySearchAndFiltering(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		DumpTable(t, q, "activities")
-		return nil
-	})
-
 	// From 36 hours ago to now (should get 2 activities)
 	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		StartCreatedAt: ptr.Int64(timestamp.Add(-36 * time.Hour).Unix()),
+		StartCreatedAt: timestamp.Add(-36 * time.Hour).UTC().String(),
 	})
 	require.NoError(t, err)
 	require.Len(t, activities, 3) // includes the first activity created
 
 	// From 72 hours ago to 24 hours ago (should get 2 activities)
 	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		StartCreatedAt: ptr.Int64(timestamp.Add(-72 * time.Hour).Unix()),
-		EndCreatedAt:   ptr.Int64(timestamp.Add(-24 * time.Hour).Unix()),
+		StartCreatedAt: timestamp.Add(-72 * time.Hour).UTC().String(),
+		EndCreatedAt:   timestamp.Add(-24 * time.Hour).UTC().String(),
 	})
 	require.NoError(t, err)
 	require.Len(t, activities, 2)
 
 	// From now to 48 hours in the future (should get 3 activities)
 	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		StartCreatedAt: ptr.Int64(timestamp.Unix()),
-		EndCreatedAt:   ptr.Int64(timestamp.Add(48 * time.Hour).Unix()),
+		StartCreatedAt: timestamp.UTC().String(),
+		EndCreatedAt:   timestamp.Add(48 * time.Hour).UTC().String(),
 	})
 	require.NoError(t, err)
 	require.Len(t, activities, 3) // includes the first activity created
@@ -2766,8 +2761,8 @@ func testActivitySearchAndFiltering(t *testing.T, ds *Datastore) {
 	// Now we combine all 3 search types, should get all 5 activities
 	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
 		ActivityType:   "edited_script",
-		StartCreatedAt: ptr.Int64(timestamp.Add(-72 * time.Hour).Unix()),
-		EndCreatedAt:   ptr.Int64(timestamp.Add(48 * time.Hour).Unix()),
+		StartCreatedAt: timestamp.Add(-72 * time.Hour).UTC().String(),
+		EndCreatedAt:   timestamp.Add(48 * time.Hour).UTC().String(),
 		ListOptions: fleet.ListOptions{
 			MatchQuery: "newname",
 		},
@@ -2778,12 +2773,18 @@ func testActivitySearchAndFiltering(t *testing.T, ds *Datastore) {
 	// Now we retry with all 3 search types, but with no matches
 	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
 		ActivityType:   "mdm_enrolled",
-		StartCreatedAt: ptr.Int64(timestamp.Add(-72 * time.Hour).Unix()),
-		EndCreatedAt:   ptr.Int64(timestamp.Add(48 * time.Hour).Unix()),
+		StartCreatedAt: timestamp.Add(-72 * time.Hour).UTC().String(),
+		EndCreatedAt:   timestamp.Add(48 * time.Hour).UTC().String(),
 		ListOptions: fleet.ListOptions{
 			MatchQuery: "nomatch",
 		},
 	})
 	require.NoError(t, err)
 	require.Len(t, activities, 0)
+
+	// Try with non valid timestamp
+	_, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		StartCreatedAt: "not-a-timestamp",
+	})
+	require.NoError(t, err)
 }
