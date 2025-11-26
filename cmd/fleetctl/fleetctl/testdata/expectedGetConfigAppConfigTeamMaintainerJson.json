@@ -125,6 +125,7 @@
         "custom_settings": null
       },
       "android_settings": {
+        "certificates": null,
         "custom_settings": null
       },
       "end_user_authentication": {

@@ -93,11 +93,12 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 			LabelsIncludeAny:   []fleet.LabelIdent{{LabelID: fooLabel.ID, LabelName: fooLabel.Name}},
 		},
 		{
-			Name:        "bar",
-			Description: "do some bars",
-			Query:       "select baz from bar",
-			Logging:     fleet.LoggingSnapshot,
-			DiscardData: true,
+			Name:             "bar",
+			Description:      "do some bars",
+			Query:            "select baz from bar",
+			Logging:          fleet.LoggingSnapshot,
+			DiscardData:      true,
+			LabelsIncludeAny: []fleet.LabelIdent{{LabelID: fooLabel.ID, LabelName: fooLabel.Name}},
 		},
 	}
 

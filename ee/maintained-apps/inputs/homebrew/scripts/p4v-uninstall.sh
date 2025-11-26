@@ -20,6 +20,9 @@ done
 
 rm -rf "/Applications/p4v.app" "/Applications/p4merge.app" "/Applications/p4admin.app" >/dev/null 2>&1 || true
 
+# Remove p4vc command line binary
+rm -f /usr/local/bin/p4vc >/dev/null 2>&1 || true
+
 for udir in /Users/* /var/root; do
   [[ -d "$udir/Library" ]] || continue
   rm -f  "$udir/Library/Preferences/com.perforce.p4v.plist" \

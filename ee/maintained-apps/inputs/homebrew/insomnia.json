@@ -1,0 +1,8 @@
+{
+  "name": "Insomnia",
+  "unique_identifier": "com.insomnia.app",
+  "token": "insomnia",
+  "installer_format": "dmg",
+  "slug": "insomnia/darwin",
+  "default_categories": ["Developer tools"]
+}

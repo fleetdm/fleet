@@ -396,7 +396,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       // Should show delete confirmation modal
       await waitFor(() => {
         expect(
-          screen.getByText(/Fleet will be disconnected from Okta/)
+          screen.getByText(/Before you delete, first unblock all end users/)
         ).toBeInTheDocument();
       });
 

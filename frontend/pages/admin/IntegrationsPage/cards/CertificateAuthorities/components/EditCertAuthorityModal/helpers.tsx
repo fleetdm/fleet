@@ -190,11 +190,11 @@ export const generateEditCertAuthorityData = (
     case "custom_est_proxy": {
       const {
         name: customESTName,
-        scepURL: customESTUrl,
+        url: customESTUrl,
         username: customESTUsername,
         password: customESTPassword,
-      } = formData as ISmallstepFormData;
-      return {
+      } = formData as ICustomESTFormData;
+      const diff = {
         custom_est_proxy: deepDifference(
           {
             name: customESTName,
@@ -205,6 +205,16 @@ export const generateEditCertAuthorityData = (
           certAuthWithoutType
         ),
       };
+      // Make sure credentials are included if we are modifying the url
+      if (diff.custom_est_proxy.url) {
+        if (!diff.custom_est_proxy.username) {
+          diff.custom_est_proxy.username = customESTUsername;
+        }
+        if (!diff.custom_est_proxy.password) {
+          diff.custom_est_proxy.password = customESTPassword;
+        }
+      }
+      return diff;
     }
     default:
       throw new Error(

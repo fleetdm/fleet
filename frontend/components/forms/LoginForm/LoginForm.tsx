@@ -155,12 +155,13 @@ const LoginForm = ({
   }
 
   return (
-    <form onSubmit={onFormSubmit} className={loginFormClass}>
+    <form onSubmit={onFormSubmit} className={loginFormClass} noValidate>
       {baseError && <div className="form__base-error">{baseError}</div>}
       <div className={`${baseClass}__form`}>
         <InputFieldWithIcon
           error={errors.email}
           autofocus
+          type="email"
           label="Email"
           placeholder="Email"
           value={formData.email}

@@ -33,7 +33,8 @@ const UpdateEndUserModal = ({
   const isEditing = !!userNameDisplayValue;
   const [idpUsername, setIdpUsername] = useState(userNameDisplayValue || "");
 
-  const onSave = () => {
+  const onSave = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     onUpdate(idpUsername);
   };
 
@@ -43,20 +44,21 @@ const UpdateEndUserModal = ({
     }
     return (
       <>
-        <form>
+        <form onSubmit={onSave}>
           <InputField
             label="Username (IdP)"
             name="username_idp"
             value={idpUsername}
             onChange={(val: string) => setIdpUsername(val)}
             helpText="This will be used to populate additional user data, e.g. full name and department."
+            autofocus
           />
 
           <div className="modal-cta-wrap">
             <Button
               isLoading={isUpdating}
               disabled={isUpdating || (!isEditing && idpUsername === "")}
-              onClick={onSave}
+              type="submit"
             >
               Save
             </Button>

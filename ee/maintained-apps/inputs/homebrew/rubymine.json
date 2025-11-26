@@ -1,0 +1,8 @@
+{
+  "name": "RubyMine",
+  "slug": "rubymine/darwin",
+  "unique_identifier": "com.jetbrains.rubymine",
+  "token": "rubymine",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
+}

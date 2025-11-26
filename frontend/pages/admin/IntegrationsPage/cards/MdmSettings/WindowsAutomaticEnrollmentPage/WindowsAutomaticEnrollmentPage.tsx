@@ -35,7 +35,7 @@ const WindowsAutomaticEnrollmentPage = () => {
             className={`${baseClass}__back-to-automatic-enrollment`}
           />
         </div>
-        <h1>Azure Active Directory</h1>
+        <h1>Microsoft Entra</h1>
         <PageDescription
           content={
             <>

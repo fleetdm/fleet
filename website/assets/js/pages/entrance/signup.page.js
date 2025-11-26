@@ -16,7 +16,14 @@ parasails.registerPage('signup', {
       lastName: {required: true},
       // organization: {required: true},
       emailAddress: {required: true, isEmail: true},
-      password: {required: true, minLength: 8},
+      password: {
+        required: true,
+        minLength: 12,
+        maxLength: 48,
+        custom: (value)=>{
+          return value.match(/^(?=.*\d)(?=.*[^A-Za-z0-9]).{12,48}$/);
+        }
+      },
     },
     // Syncing / loading state
     syncing: false,

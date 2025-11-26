@@ -1,0 +1,8 @@
+{
+  "name": "TablePlus",
+  "slug": "tableplus/darwin",
+  "unique_identifier": "com.tinyapp.TablePlus",
+  "token": "tableplus",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
+}

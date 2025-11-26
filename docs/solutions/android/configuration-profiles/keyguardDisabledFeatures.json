@@ -1,0 +1,6 @@
+{
+  "keyguardDisabledFeatures": [
+    "FACE",
+    "BIOMETRICS"
+  ]
+}

@@ -2262,6 +2262,7 @@ type ActivityAddedAppStoreApp struct {
 	SelfService      bool                      `json:"self_service"`
 	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
+	Configuration    json.RawMessage           `json:"configuration,omitempty"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
@@ -2402,16 +2403,18 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 }
 
 type ActivityEditedAppStoreApp struct {
-	SoftwareTitle    string                    `json:"software_title"`
-	SoftwareTitleID  uint                      `json:"software_title_id"`
-	AppStoreID       string                    `json:"app_store_id"`
-	TeamName         *string                   `json:"team_name"`
-	TeamID           *uint                     `json:"team_id"`
-	Platform         InstallableDevicePlatform `json:"platform"`
-	SelfService      bool                      `json:"self_service"`
-	SoftwareIconURL  *string                   `json:"software_icon_url"`
-	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
+	SoftwareTitle       string                    `json:"software_title"`
+	SoftwareTitleID     uint                      `json:"software_title_id"`
+	AppStoreID          string                    `json:"app_store_id"`
+	TeamName            *string                   `json:"team_name"`
+	TeamID              *uint                     `json:"team_id"`
+	Platform            InstallableDevicePlatform `json:"platform"`
+	SelfService         bool                      `json:"self_service"`
+	SoftwareIconURL     *string                   `json:"software_icon_url"`
+	LabelsIncludeAny    []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny    []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
+	SoftwareDisplayName string                    `json:"software_display_name"`
+	Configuration       json.RawMessage           `json:"configuration,omitempty"`
 }
 
 func (a ActivityEditedAppStoreApp) ActivityName() string {
@@ -2428,7 +2431,8 @@ func (a ActivityEditedAppStoreApp) Documentation() (activity string, details str
 - "team_name": Name of the team on which this App Store app was updated, or ` + "`null`" + ` if it was updated on no team.
 - "team_id": ID of the team on which this App Store app was updated, or ` + "`null`" + `if it was updated on no team.
 - "labels_include_any": Target hosts that have any label in the array.
-- "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
+- "labels_exclude_any": Target hosts that don't have any label in the array.
+- "software_display_name": Display name of the software title.`, `{
   "software_title": "Logic Pro",
   "software_title_id": 123,
   "app_store_id": "1234567",
@@ -2447,6 +2451,7 @@ func (a ActivityEditedAppStoreApp) Documentation() (activity string, details str
       "id": 17
     }
   ]
+  "software_display_name": "Logic Pro DAW"
 }`
 }
 

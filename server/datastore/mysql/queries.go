@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"golang.org/x/text/unicode/norm"
@@ -329,18 +331,19 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, queries []*fleet
 		return ctxerr.Wrap(ctx, err, "deleting old query labels")
 	}
 
-	var lblNames []interface{}
+	lblNamesMap := make(map[string]struct{})
 	for _, q := range queries {
 		for _, lbl := range q.LabelsIncludeAny {
-			lblNames = append(lblNames, lbl.LabelName)
+			lblNamesMap[lbl.LabelName] = struct{}{}
 		}
 	}
-	if len(lblNames) == 0 {
+	numLabelNames := len(lblNamesMap)
+	if numLabelNames == 0 {
 		return nil
 	}
 
 	// We need to figure out the label IDs for the labels we're going to add.
-	stm, args, err := sqlx.In(`SELECT id, name FROM labels WHERE name IN (?)`, lblNames)
+	stm, args, err := sqlx.In(`SELECT id, name FROM labels WHERE name IN (?)`, slices.Collect(maps.Keys(lblNamesMap)))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching label IDs")
 	}
@@ -367,12 +370,12 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, queries []*fleet
 		return ctxerr.Wrap(ctx, err, "closing query IDs")
 	}
 
-	if len(lblNameToID) < len(lblNames) {
+	if len(lblNameToID) < numLabelNames {
 		return ctxerr.New(ctx, "not all labels found for query")
 	}
 
-	params := make([]string, 0, len(lblNames))
-	args = make([]interface{}, 0, len(lblNames)*2)
+	params := make([]string, 0, numLabelNames)
+	args = make([]interface{}, 0, numLabelNames*2)
 	for _, q := range queries {
 		lblIdents := make([]fleet.LabelIdent, 0, len(q.LabelsIncludeAny))
 		for _, lbl := range q.LabelsIncludeAny {

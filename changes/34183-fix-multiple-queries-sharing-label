@@ -1,0 +1,1 @@
+- Fixed an issue that prevented GitOps from saving multiple queries with the same label.

@@ -1140,3 +1140,22 @@ allow {
   subject.global_role == [admin, maintainer][_]
   action == write
 }
+
+##
+# Certificate Templates
+##
+# Global admins, maintainers and gitops can read and write certificate templates.
+allow {
+  object.type == "certificate_template"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == [read, write][_]
+}
+
+# Team admins, maintainers and gitops can read and write certificate templates on their teams.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "certificate_template"
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  action == [read, write][_]
+}

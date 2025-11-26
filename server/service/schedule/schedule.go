@@ -692,21 +692,6 @@ func truncateSecondsWithFloor(d time.Duration) time.Duration {
 	return d.Truncate(time.Second)
 }
 
-var (
-	tracerOnce sync.Once
-	tracer     trace.Tracer
-)
-
-// getTracer returns the tracer for the schedule package.
-// This is called lazily to ensure it gets the correct provider after otel.SetTracerProvider() is called.
-// It caches the tracer after first use to avoid mutex overhead on repeated calls.
-func getTracer() trace.Tracer {
-	tracerOnce.Do(func() {
-		tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/service/schedule")
-	})
-	return tracer
-}
-
 // startRootSpan creates a new root span for async operations
 // This is necessary because cron jobs run in background goroutines without parent HTTP contexts
 // If OpenTelemetry is not configured at the application level, this will be a no-op
@@ -721,7 +706,7 @@ func getTracer() trace.Tracer {
 // - Has minimal performance impact (essentially just returns immediately)
 // - Still maintains proper context propagation
 func startRootSpan(ctx context.Context, name string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
-	return getTracer().Start(ctx, name,
+	return otel.Tracer("github.com/fleetdm/fleet/v4/server/service/schedule").Start(ctx, name,
 		trace.WithNewRoot(),
 		trace.WithSpanKind(trace.SpanKindInternal),
 		trace.WithAttributes(attrs...))
@@ -730,7 +715,7 @@ func startRootSpan(ctx context.Context, name string, attrs ...attribute.KeyValue
 // startSpan creates a child span
 // If OpenTelemetry is not configured at the application level, this will be a no-op
 func startSpan(ctx context.Context, name string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
-	return getTracer().Start(ctx, name,
+	return otel.Tracer("github.com/fleetdm/fleet/v4/server/service/schedule").Start(ctx, name,
 		trace.WithSpanKind(trace.SpanKindInternal),
 		trace.WithAttributes(attrs...))
 }

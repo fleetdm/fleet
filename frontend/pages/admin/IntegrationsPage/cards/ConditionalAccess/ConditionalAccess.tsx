@@ -105,10 +105,20 @@ const DeleteConditionalAccessModal = ({
         </p>
       </>
     ) : (
-      <p>
-        Fleet will be disconnected from Okta and will stop blocking end users
-        from logging in with single sign-on.
-      </p>
+      <>
+        <p>
+          Before you delete, first unblock all end users.{" "}
+          <CustomLink
+            text="Learn how"
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/disable-okta-conditional-access`}
+            newTab
+          />
+        </p>
+        <p>
+          If you don&apos;t, end users will stay blocked even after deleting
+          Okta.
+        </p>
+      </>
     );
 
   return (

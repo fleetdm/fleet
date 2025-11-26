@@ -288,7 +288,9 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 	if err != nil {
 		return err
 	}
-	if !ac.MDM.EnabledAndConfigured {
+
+	// If anything besides enable_end_user_authentication is being updated, ensure MDM is on.
+	if (payload.RequireAllSoftware != nil || payload.EnableReleaseDeviceManually != nil || payload.ManualAgentInstall != nil) && !ac.MDM.EnabledAndConfigured {
 		return fleet.ErrMDMNotConfigured
 	}
 
@@ -950,19 +952,22 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		return "", idpAcc.UUID, eulaToken, originalURL, ssoRequestData, nil
 	}
 
-	// get the automatic profile to access the authentication token.
-	depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
-	if err != nil {
-		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "listing profiles")
-	}
-
-	if depProf == nil {
-		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "missing profile")
+	var depProfToken string
+	// For automatic enrollments, get the automatic profile to access the authentication token.
+	if ssoRequestData.Initiator != "setup_experience" {
+		depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
+		if err != nil {
+			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "listing profiles")
+		}
+		if depProf == nil {
+			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, errors.New("missing profile"), "missing profile")
+		}
+		depProfToken = depProf.Token
 	}
 
 	// using the idp token as a reference just because that's the
 	// only thing we're referencing later on during enrollment.
-	return depProf.Token, idpAcc.UUID, eulaToken, originalURL, ssoRequestData, nil
+	return depProfToken, idpAcc.UUID, eulaToken, originalURL, ssoRequestData, nil
 }
 
 func (svc *Service) mdmAppleSyncDEPProfiles(ctx context.Context) error {

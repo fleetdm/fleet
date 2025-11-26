@@ -261,7 +261,7 @@ func validateDigicertCACN(cn string, errPrefix string) error {
 	fleetVars := variables.Find(cn)
 	for _, fleetVar := range fleetVars {
 		switch fleetVar {
-		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
+		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial), string(fleet.FleetVarHostPlatform):
 			// ok
 		default:
 			return fleet.NewInvalidArgumentError("certificate_common_name", fmt.Sprintf("%sFLEET_VAR_%s is not allowed in CA Common Name (CN)", errPrefix, fleetVar))
@@ -283,7 +283,7 @@ func validateDigicertSeatID(seatID string, errPrefix string) error {
 	fleetVars := variables.Find(seatID)
 	for _, fleetVar := range fleetVars {
 		switch fleetVar {
-		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
+		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial), string(fleet.FleetVarHostPlatform):
 			// ok
 		default:
 			return fleet.NewInvalidArgumentError("certificate_seat_id", fmt.Sprintf("%sFLEET_VAR_%s is not allowed in DigiCert Seat ID", errPrefix, fleetVar))
@@ -307,7 +307,7 @@ func validateDigicertUserPrincipalNames(userPrincipalNames []string, errPrefix s
 	fleetVars := variables.Find(userPrincipalNames[0])
 	for _, fleetVar := range fleetVars {
 		switch fleetVar {
-		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
+		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial), string(fleet.FleetVarHostPlatform):
 			// ok
 		default:
 			return fleet.NewInvalidArgumentError("certificate_user_principal_names",

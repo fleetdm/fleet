@@ -41,7 +41,7 @@ const VppSetupSteps = ({ extendendSteps = false }: IVppSetupStepsProps) => {
       <li>
         <span>3.</span>
         <p>
-          Select <b>Payments and Billings</b> in the menu.
+          Select <b>Payments and Billing</b> in the menu.
         </p>
       </li>
       <li>

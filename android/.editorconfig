@@ -1,0 +1,25 @@
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+charset = utf-8
+
+[*.{kt,kts}]
+ktlint_code_style = android_studio
+indent_size = 4
+indent_style = space
+max_line_length = 140
+
+# Jetpack Compose requires Composable functions to start with uppercase (PascalCase)
+ktlint_standard_function-naming = disabled
+# Android conventionally uses uppercase TAG constants for logging
+ktlint_standard_property-naming = disabled
+
+# Android Studio IDE settings (prefixed with ij_)
+# Allow trailing commas (cleaner diffs + easier reordering)
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true
+# Import ordering: prioritize Android
+ij_kotlin_imports_layout = *,android.**,androidx.**,com.**,org.**,java.**,kotlin.**,kotlinx.**,^

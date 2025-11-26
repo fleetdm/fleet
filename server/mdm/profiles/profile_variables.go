@@ -226,3 +226,18 @@ func IsCustomSCEPConfigured(ctx context.Context,
 
 	return nil
 }
+
+func HydrateHost(ctx context.Context, ds fleet.Datastore, hostLite fleet.Host, onHostCountMismatch func(int) error) (fleet.Host, bool, error) {
+	if hostLite.ID != 0 { // already hydrated; return as-is
+		return hostLite, true, nil
+	}
+
+	hosts, err := ds.ListHostsLiteByUUIDs(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}, []string{hostLite.UUID})
+	if err != nil {
+		return hostLite, false, ctxerr.Wrap(ctx, err, "listing hosts")
+	}
+	if len(hosts) != 1 {
+		return hostLite, false, onHostCountMismatch(len(hosts))
+	}
+	return *hosts[0], true, nil
+}

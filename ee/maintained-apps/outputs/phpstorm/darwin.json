@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2025.2.4",
+      "version": "2025.2.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.PhpStorm';"
       },
-      "installer_url": "https://download.jetbrains.com/webide/PhpStorm-2025.2.4-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/webide/PhpStorm-2025.2.5-aarch64.dmg",
       "install_script_ref": "147cb283",
       "uninstall_script_ref": "5991db8a",
-      "sha256": "d05c2e3e9106646bdf93731a034dcd82a359c7a91601d6456ed8ea88a75c3546",
+      "sha256": "8320ce229c03277f53a836bc19b796e9241bb00e3e40d4f048290baa27aa9a90",
       "default_categories": [
         "Developer tools"
       ]

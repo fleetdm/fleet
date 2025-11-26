@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
@@ -41,6 +42,11 @@ func main() {
 	deviceID := flag.String("device_id", "", "")
 	flag.Parse()
 
+	// Normalize enterprise_id by stripping "enterprises/" prefix if present
+	if *enterpriseID != "" {
+		*enterpriseID = strings.TrimPrefix(*enterpriseID, "enterprises/")
+	}
+
 	ctx := context.Background()
 	mgmt, err := androidmanagement.NewService(ctx, option.WithCredentialsJSON([]byte(androidServiceCredentials)))
 	if err != nil {
@@ -52,6 +58,8 @@ func main() {
 		enterprisesDelete(mgmt, *enterpriseID)
 	case "enterprises.list":
 		enterprisesList(mgmt)
+	case "enterprises.webTokens.create":
+		enterprisesWebTokensCreate(mgmt, *enterpriseID)
 	case "policies.list":
 		policiesList(mgmt, *enterpriseID)
 	case "devices.list":
@@ -155,4 +163,32 @@ func devicesRelinquishOwnership(mgmt *androidmanagement.Service, enterpriseID, d
 		log.Fatalf("Error marshalling operation: %v", err)
 	}
 	log.Println(string(data))
+}
+
+func enterprisesWebTokensCreate(mgmt *androidmanagement.Service, enterpriseID string) {
+	if enterpriseID == "" {
+		log.Fatalf("enterprise_id must be set")
+	}
+
+	webToken := &androidmanagement.WebToken{
+		ParentFrameUrl: "https://example.com",
+		Permissions:    []string{"APPROVE_APPS"},
+	}
+
+	result, err := mgmt.Enterprises.WebTokens.Create("enterprises/"+enterpriseID, webToken).Do()
+	if err != nil {
+		log.Fatalf("Error creating web token: %v", err)
+	}
+
+	data, err := json.Marshal(result, jsontext.WithIndent("  "))
+	if err != nil {
+		log.Fatalf("Error marshalling web token: %v", err)
+	}
+	log.Println(string(data))
+
+	// Construct and display the complete URL
+	if result.Value != "" {
+		playURL := "https://play.google.com/work/embedded/search?token=" + result.Value
+		log.Printf("\nComplete Play Store URL:\n%s\n", playURL)
+	}
 }

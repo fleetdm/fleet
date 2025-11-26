@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<restrictions xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <restriction
+        android:key="enrollSecret"
+        android:title="@string/enroll_secret_title"
+        android:restrictionType="string"
+        android:description="@string/enroll_secret_description" />
+
+    <restriction
+        android:key="fleetBaseUrl"
+        android:title="@string/fleet_base_url_title"
+        android:restrictionType="string"
+        android:description="@string/fleet_base_url_description" />
+
+    <restriction
+        android:key="enrollmentSpecificID"
+        android:title="@string/enrollment_specific_id_title"
+        android:restrictionType="string"
+        android:description="@string/enrollment_specific_id_description" />
+
+    <restriction
+        android:key="certificates"
+        android:title="@string/certificates_title"
+        android:description="@string/certificates_description"
+        android:restrictionType="bundle_array" >
+        <restriction
+            android:key="certificate"
+            android:title="@string/certificate_title"
+            android:description="@string/certificate_description"
+            android:restrictionType="bundle">
+            <restriction
+                android:key="certificate_id"
+                android:title="@string/certificate_id_title"
+                android:description="@string/certificate_id_description"
+                android:restrictionType="integer" />
+        </restriction>
+    </restriction>
+</restrictions>

@@ -106,8 +106,10 @@ module "free" {
     family              = local.customer_free
     security_group_name = local.customer_free
     autoscaling = {
-      min_capacity = 2
-      max_capacity = 5
+      min_capacity                 = 2
+      max_capacity                 = 5
+      cpu_tracking_target_value    = 70
+      memory_tracking_target_value = 70
     }
     awslogs = {
       name      = local.customer_free
@@ -185,9 +187,9 @@ resource "aws_route53_record" "free" {
 }
 
 module "ses-free" {
-  source  = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.0"
-  zone_id = aws_route53_zone.free.zone_id
-  domain  = "free.fleetdm.com"
+  source            = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.0"
+  zone_id           = aws_route53_zone.free.zone_id
+  domain            = "free.fleetdm.com"
   extra_txt_records = []
   custom_mail_from = {
     enabled       = true
@@ -199,7 +201,7 @@ module "migrations_free" {
   depends_on = [
     module.geolite2
   ]
-  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.1.0"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.2.1"
   ecs_cluster              = module.free.byo-db.byo-ecs.service.cluster
   task_definition          = module.free.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.free.byo-db.byo-ecs.task_definition.revision
@@ -208,4 +210,5 @@ module "migrations_free" {
   ecs_service              = module.free.byo-db.byo-ecs.service.name
   desired_count            = module.free.byo-db.byo-ecs.appautoscaling_target.min_capacity
   min_capacity             = module.free.byo-db.byo-ecs.appautoscaling_target.min_capacity
+  max_capacity             = module.free.byo-db.byo-ecs.appautoscaling_target.max_capacity
 }

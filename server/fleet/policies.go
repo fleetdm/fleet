@@ -394,7 +394,8 @@ type PolicySoftwareTitle struct {
 	SoftwareTitleID uint `json:"software_title_id" db:"title_id"`
 	// Name is the associated installer title name
 	// (not the package name, but the installed software title).
-	Name string `json:"name" db:"name"`
+	Name        string `json:"name" db:"name"`
+	DisplayName string `json:"display_name" db:"display_name"`
 }
 
 // PolicyScript contains script data for policies.

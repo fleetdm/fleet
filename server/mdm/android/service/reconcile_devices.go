@@ -2,16 +2,13 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"google.golang.org/api/googleapi"
 )
 
 // ReconcileAndroidDevices polls AMAPI for devices that Fleet still considers enrolled
@@ -49,6 +46,25 @@ func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger kit
 		return nil
 	}
 
+	// Make a list of all devices in Google
+	deviceNameMap := make(map[string]struct{})
+	pageToken := ""
+	for {
+		// We use the partial call here, to avoid getting all data for a device when we only need a subset (name).
+		// should help with request speeds, and also cost for website in terms of network egress.
+		resp, err := client.EnterprisesDevicesListPartial(ctx, enterprise.Name(), pageToken)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "listing android devices from AMAPI")
+		}
+		for _, dev := range resp.Devices {
+			deviceNameMap[dev.Name] = struct{}{}
+		}
+		if resp.NextPageToken == "" {
+			break
+		}
+		pageToken = resp.NextPageToken
+	}
+
 	checked := 0
 	unenrolled := 0
 	for _, dev := range devices {
@@ -57,12 +73,12 @@ func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger kit
 		}
 		checked++
 		deviceName := fmt.Sprintf("%s/devices/%s", enterprise.Name(), dev.DeviceID)
-		_, err := client.EnterprisesDevicesGet(ctx, deviceName)
+		_, ok := deviceNameMap[deviceName]
 		switch {
-		case err == nil:
+		case ok:
 			// Device exists, no-op.
 			continue
-		case isNotFound(err):
+		case !ok:
 			if _, derr := ds.SetAndroidHostUnenrolled(ctx, dev.HostID); derr != nil {
 				level.Error(logger).Log("msg", "failed to mark android host unenrolled during reconcile", "host_id", dev.HostID, "err", derr)
 				continue
@@ -83,19 +99,9 @@ func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger kit
 			}
 			unenrolled++
 			level.Debug(logger).Log("msg", "android device missing in Google; marked unenrolled", "host_id", dev.HostID, "device", deviceName)
-		default:
-			level.Debug(logger).Log("msg", "error reconciling android device", "device", deviceName, "err", err)
 		}
 	}
 
 	level.Debug(logger).Log("msg", "android reconcile complete", "checked", checked, "unenrolled", unenrolled)
 	return nil
-}
-
-func isNotFound(err error) bool {
-	var ge *googleapi.Error
-	if errors.As(err, &ge) {
-		return ge.Code == http.StatusNotFound
-	}
-	return false
 }

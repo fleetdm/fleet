@@ -142,6 +142,7 @@ const SoftwareTitleDetailsPage = ({
 
     const {
       softwareTitleName,
+      softwareDisplayName,
       softwarePackage,
       name,
       version,
@@ -157,6 +158,7 @@ const SoftwareTitleDetailsPage = ({
     return (
       <SoftwareInstallerCard
         softwareTitleName={softwareTitleName}
+        softwareDisplayName={softwareDisplayName}
         isScriptPackage={isScriptPackage}
         isIosOrIpadosApp={isIosOrIpadosApp}
         softwareInstaller={softwarePackage}

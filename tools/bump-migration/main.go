@@ -56,7 +56,7 @@ func main() {
 	if _, err := time.Parse(timeFormat, oldTimestamp); err != nil {
 		log.Fatalf("Bad filename pattern, '%s' is not a valid timestamp in '%s'", oldTimestamp, sourceFilename)
 	}
-	newTimestamp := time.Now().Format(timeFormat)
+	newTimestamp := time.Now().UTC().Format(timeFormat)
 
 	newMig, newTest, err := renameMigrationFiles(migrationsDir, sourceFilename, oldTimestamp, newTimestamp)
 	if err != nil {

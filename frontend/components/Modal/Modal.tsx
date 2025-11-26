@@ -117,7 +117,12 @@ const Modal = ({
           <span>{title}</span>
           {!disableClosingModal && (
             <div className={`${baseClass}__ex`}>
-              <Button variant="icon" onClick={onExit} iconStroke>
+              <Button
+                variant="icon"
+                onClick={onExit}
+                iconStroke
+                autofocus={isContentDisabled}
+              >
                 <Icon name="close" color="core-fleet-black" size="medium" />
               </Button>
             </div>

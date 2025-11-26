@@ -4,6 +4,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_server_url: "",
   enable_disk_encryption: false,
   windows_require_bitlocker_pin: false,
+  enable_turn_on_windows_mdm_manually: false,
   windows_enabled_and_configured: true,
   apple_bm_default_team: "Apples",
   apple_bm_enabled_and_configured: true,

@@ -4,4 +4,10 @@
   form {
     @include vertical-form-layout;
   }
+
+  &__enrollment-type-fieldset {
+    padding: 0;
+    margin: 0;
+    border: none;
+  }
 }

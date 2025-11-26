@@ -1,0 +1,17 @@
+{
+  "openNetworkConfiguration": {
+    "NetworkConfigurations": [
+      {
+        "GUID": "testNetwork",
+        "Name": "Test Network",
+        "Type": "WiFi",
+        "WiFi": {
+          "SSID": "Test Network",
+          "Security": "WPA-PSK",
+          "Passphrase": "password123456",
+          "AutoConnect": true
+        }
+      }
+    ]
+  }
+}

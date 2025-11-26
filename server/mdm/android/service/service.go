@@ -137,7 +137,7 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 
 	// Before checking if Android is already configured, verify if existing enterprise still exists
 	// This ensures we detect enterprise deletion even if user goes directly to signup page
-	if err := svc.verifyExistingEnterpriseIfAny(ctx); err != nil {
+	if err := svc.VerifyExistingEnterpriseIfAny(ctx); err != nil {
 		// If verification returns NotFound (enterprise was deleted), continue with signup
 		// Other errors should be returned as-is
 		if !fleet.IsNotFound(err) {
@@ -404,11 +404,6 @@ func (svc *Service) GetEnterprise(ctx context.Context) (*android.Enterprise, err
 		return nil, fleet.NewInvalidArgumentError("enterprise", "No enterprise found").WithStatus(http.StatusNotFound)
 	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err, "getting enterprise")
-	}
-
-	// Verify the enterprise still exists via Google API using shared method
-	if err := svc.verifyEnterpriseExistsWithGoogle(ctx, enterprise); err != nil {
-		return nil, err
 	}
 
 	return enterprise, nil
@@ -759,15 +754,12 @@ func (svc *Service) verifyEnterpriseExistsWithGoogle(ctx context.Context, enterp
 	return fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
 }
 
-// verifyExistingEnterpriseIfAny checks if there's an existing enterprise in the database
-// and if so, verifies it still exists in Google API. If it doesn't exist, performs cleanup.
-// Returns fleet.IsNotFound error if enterprise was deleted, nil if no enterprise exists or verification passed.
-func (svc *Service) verifyExistingEnterpriseIfAny(ctx context.Context) error {
+func (svc *Service) VerifyExistingEnterpriseIfAny(ctx context.Context) error {
 	// Check if there's an existing enterprise
 	enterprise, err := svc.ds.GetEnterprise(ctx)
 	switch {
 	case fleet.IsNotFound(err):
-		// No enterprise exists - this is fine for signup
+		// No enterprise exists - this is fine
 		return nil
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "checking for existing enterprise")
@@ -870,7 +862,6 @@ func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName,
 }
 
 func (svc *Service) AddAppToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string) error {
-
 	var appPolicies []*androidmanagement.ApplicationPolicy
 	for _, a := range applicationIDs {
 		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
@@ -889,6 +880,41 @@ func (svc *Service) AddAppToAndroidPolicy(ctx context.Context, enterpriseName st
 		}
 	}
 
+	return errors.Join(errs...)
+}
+
+// AddFleetAgentToAndroidPolicy adds the Fleet Agent to the Android policy for the given enterprise.
+// hostConfigs maps host UUIDs to managed configurations for the Fleet Agent.
+// The UUID is BOTH the hostUUID and the policyID. We assume that the host UUID is the same as the policy ID.
+func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterpriseName string,
+	hostConfigs map[string]android.AgentManagedConfiguration,
+) error {
+	var errs []error
+	if packageName := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE"); packageName != "" {
+		for uuid, managedConfig := range hostConfigs {
+			policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, uuid)
+
+			// Marshal managed configuration to JSON
+			managedConfigJSON, err := json.Marshal(managedConfig)
+			if err != nil {
+				errs = append(errs, ctxerr.Wrapf(ctx, err, "marshal managed configuration for host %s", uuid))
+				continue
+			}
+
+			fleetAgentApp := &androidmanagement.ApplicationPolicy{
+				PackageName:             packageName,
+				InstallType:             "FORCE_INSTALLED",
+				DefaultPermissionPolicy: "GRANT",
+				DelegatedScopes:         []string{"CERT_INSTALL"},
+				ManagedConfiguration:    managedConfigJSON,
+			}
+			_, err = svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName,
+				[]*androidmanagement.ApplicationPolicy{fleetAgentApp})
+			if err != nil {
+				errs = append(errs, ctxerr.Wrapf(ctx, err, "google api: modify fleet agent application for host %s", uuid))
+			}
+		}
+	}
 	return errors.Join(errs...)
 }
 
@@ -998,4 +1024,68 @@ func (svc *Service) PatchPolicy(ctx context.Context, policyID, policyName string
 		return false, ctxerr.Wrap(ctx, err, "save android policy request")
 	}
 	return skip, nil
+}
+
+func (svc *Service) MigrateToPerDevicePolicy(ctx context.Context) error {
+	hosts, err := svc.fleetDS.ListAndroidEnrolledDevicesForReconcile(ctx)
+	if err != nil {
+		return err
+	}
+
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, h := range hosts {
+		if h.AppliedPolicyID != nil && *h.AppliedPolicyID == "1" {
+			var policy androidmanagement.Policy
+
+			policy.StatusReportingSettings = &androidmanagement.StatusReportingSettings{
+				DeviceSettingsEnabled:        true,
+				MemoryInfoEnabled:            true,
+				NetworkInfoEnabled:           true,
+				DisplayInfoEnabled:           true,
+				PowerManagementEventsEnabled: true,
+				HardwareStatusEnabled:        true,
+				SystemPropertiesEnabled:      true,
+				SoftwareInfoEnabled:          true,
+				CommonCriteriaModeEnabled:    true,
+				ApplicationReportsEnabled:    true,
+				ApplicationReportingSettings: nil, // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
+			}
+
+			if h.EnterpriseSpecificID != nil {
+
+				policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), *h.EnterpriseSpecificID)
+				_, err := svc.PatchPolicy(ctx, *h.EnterpriseSpecificID, policyName, &policy, nil)
+				if err != nil {
+					return err
+				}
+				device := &androidmanagement.Device{
+					PolicyName: policyName,
+					// State must be specified when updating a device, otherwise it fails with
+					// "Illegal state transition from ACTIVE to DEVICE_STATE_UNSPECIFIED"
+					//
+					// > Note that when calling enterprises.devices.patch, ACTIVE and
+					// > DISABLED are the only allowable values.
+
+					// TODO(ap): should we send whatever the previous state was? If it was DISABLED,
+					// we probably don't want to re-enable it by accident. Those are the only
+					// 2 valid states when patching a device.
+					State: "ACTIVE",
+				}
+				androidHost, err := svc.ds.AndroidHostLiteByHostUUID(ctx, *h.EnterpriseSpecificID)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", *h.EnterpriseSpecificID)
+				}
+				deviceName := fmt.Sprintf("%s/devices/%s", enterprise.Name(), androidHost.DeviceID)
+				_, err = svc.PatchDevice(ctx, *h.EnterpriseSpecificID, deviceName, device)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }

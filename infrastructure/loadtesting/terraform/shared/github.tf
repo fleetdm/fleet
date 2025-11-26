@@ -22,6 +22,7 @@ resource "aws_iam_openid_connect_provider" "github" {
 resource "aws_iam_role" "gha_role" {
   name               = "github-actions-role"
   assume_role_policy = data.aws_iam_policy_document.gha_assume_role.json
+  max_session_duration = 10800
 }
 
 resource "aws_iam_role_policy" "gha_role_policy" {

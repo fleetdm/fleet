@@ -25,6 +25,8 @@ type EnterprisesDevicesGetFunc func(ctx context.Context, deviceName string) (*an
 
 type EnterprisesDevicesDeleteFunc func(ctx context.Context, deviceName string) error
 
+type EnterprisesDevicesListPartialFunc func(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error)
+
 type EnterprisesEnrollmentTokensCreateFunc func(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error)
 
 type EnterpriseDeleteFunc func(ctx context.Context, enterpriseName string) error
@@ -55,6 +57,9 @@ type Client struct {
 
 	EnterprisesDevicesDeleteFunc        EnterprisesDevicesDeleteFunc
 	EnterprisesDevicesDeleteFuncInvoked bool
+
+	EnterprisesDevicesListPartialFunc        EnterprisesDevicesListPartialFunc
+	EnterprisesDevicesListPartialFuncInvoked bool
 
 	EnterprisesEnrollmentTokensCreateFunc        EnterprisesEnrollmentTokensCreateFunc
 	EnterprisesEnrollmentTokensCreateFuncInvoked bool
@@ -117,6 +122,13 @@ func (p *Client) EnterprisesDevicesDelete(ctx context.Context, deviceName string
 	p.EnterprisesDevicesDeleteFuncInvoked = true
 	p.mu.Unlock()
 	return p.EnterprisesDevicesDeleteFunc(ctx, deviceName)
+}
+
+func (p *Client) EnterprisesDevicesListPartial(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error) {
+	p.mu.Lock()
+	p.EnterprisesDevicesListPartialFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesDevicesListPartialFunc(ctx, enterpriseName, pageToken)
 }
 
 func (p *Client) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {

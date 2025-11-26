@@ -48,6 +48,7 @@ spec:
       custom_settings: null
     android_settings:
       custom_settings: null
+      certificates: null
     macos_setup:
       bootstrap_package: %s
       enable_end_user_authentication: false

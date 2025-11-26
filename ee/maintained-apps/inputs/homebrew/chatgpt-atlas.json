@@ -1,0 +1,8 @@
+{
+  "name": "ChatGPT Atlas",
+  "unique_identifier": "com.openai.atlas",
+  "token": "chatgpt-atlas",
+  "installer_format": "dmg",
+  "slug": "chatgpt-atlas/darwin",
+  "default_categories": ["Browsers"]
+}

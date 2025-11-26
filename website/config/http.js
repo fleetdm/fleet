@@ -71,11 +71,14 @@ module.exports.http = {
       return middlewareFn;
     })(),
 
-    // Note: this middleware function will run for every HTTP request, but will only handle errors thrown by the serve-static middleware if a user requests an invalid byte range of a static asset.
+    // Note: this middleware function will run for every HTTP request, but will only handle errors thrown by the serve-static middleware if a user requests an invalid byte range of a static asset, or sends a request with an invalid 'If-Match' header value.
     middlewareErrorHandler: function(err, req, res, next) {
       // If this is a 'RangeNotSatisfiableError' error, respond with a 416 status code.
       if (err.message === 'Range Not Satisfiable') {
         return res.status(416).send();
+      // If this is a 'PreconditionFailedError' error, respond with a 412 status code.
+      } else if(err.message === 'Precondition Failed') {
+        return res.status(412).send();
       } else {
         return next(err);
       }
