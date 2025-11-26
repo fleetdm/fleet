@@ -2,8 +2,7 @@ package fleet
 
 import "net/http"
 
-// MaintainedApp represents an app in the Fleet library of maintained apps,
-// as stored in the fleet_library_apps table.
+// MaintainedApp represents an app in the Fleet library of maintained apps
 type MaintainedApp struct {
 	ID                    uint     `json:"id" db:"id"`
 	Name                  string   `json:"name" db:"name"`
