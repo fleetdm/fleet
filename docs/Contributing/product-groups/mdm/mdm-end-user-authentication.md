@@ -1,6 +1,6 @@
 # End user authentication
 
-- [Fleet's guide for setting up end user authentication during macOS setup experience](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula)
+- [Fleet's guide for setting up end user authentication during macOS setup experience](https://fleetdm.com/guides/setup-experience#end-user-authentication)
 - On Fleet's [pricing page](https://fleetdm.com/pricing), this feature is called `User account sync` (as of 2025/03/31)
 - Also known as: IdP integration
 

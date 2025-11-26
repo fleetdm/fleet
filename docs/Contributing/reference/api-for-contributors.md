@@ -1044,7 +1044,7 @@ If no team (id or name) is provided, the profiles are applied for all hosts (for
 
 `204`
 
-### Initiate SSO during DEP or Account Driven MDM enrollment
+### Initiate SSO for end-user authentication during macOS, Windows or Linux setup
 
 This endpoint initiates the SSO flow, the response contains an URL that the client can use to redirect the user to initiate the SSO flow in the configured IdP.
 
@@ -1056,7 +1056,9 @@ A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that ne
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| initiator | string | body | Used to differentiate between account driven enrollment and DEP or other flows for SSO callback purposes. The callback will use the Account Driven Enrollment behavior if `account_driven_enroll` is passed as the value of this parameter |
+| initiator | string | body | Used to differentiate between account driven enrollment and DEP or other flows for SSO callback purposes. The callback will use the Account Driven Enrollment behavior if `account_driven_enroll` is passed as the value of this parameter. Use `setup_experience` to initiate a web-based SSO login outside of the DEP flow. |
+| user_identifier | string | body | Passed by Apple for account-driven enrollment.
+| host_uuid | string | body | The hardware UUID of the device to enroll when using the `setup_experience` value for `initiator`.
 
 #### Example
 
@@ -3142,6 +3144,16 @@ Same as [Refetch host route](https://fleetdm.com/docs/using-fleet/rest-api#refet
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
 
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
+
 #### Get device's Google Chrome profiles
 
 Same as [Get host's Google Chrome profiles](https://fleetdm.com/docs/using-fleet/rest-api#get-hosts-google-chrome-profiles) for the current device.
@@ -3250,6 +3262,16 @@ Lists the software installed on the current device.
 | query   | string | query | Search query keywords. Searchable fields include `name`. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
+
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
 
 ##### Example
 
@@ -3363,6 +3385,16 @@ Retrieve the icon added via Fleet or icon from App Store (VPP).
 | ----            | ------- | ---- | ----------------------------------------- |
 | id              | integer | path | ID of the software title to get icon for. |
 
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
+
 This endpoint will redirect (302) to the Apple-hosted URL of an icon if an icon override isn't set and a VPP app is added for the title on the host's team.
 
 #### Example
@@ -3471,6 +3503,16 @@ Install self-service software on macOS, Windows, or Linux (Ubuntu) host. The sof
 | token | string | path | **Required**. The device's authentication token. |
 | software_title_id | string | path | **Required**. The software title's ID. |
 
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
+
 ##### Example
 
 `POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install/123`
@@ -3491,6 +3533,16 @@ Uninstalls software from a host via the My device page.
 | ---------         | ---------- | ---- | --------------------------------------------     |
 | token | string | path | **Required**. The device's authentication token. |
 | software_title_id | integer    | path | **Required**. The software title's ID.           |
+
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
 
 #### Example
 
@@ -3667,6 +3719,16 @@ Returns the URL to open when clicking the "About Fleet" menu item in Fleet Deskt
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
 
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
+
 ##### Example
 
 `GET /api/v1/fleet/device/abcdef012456789/transparency`
@@ -3679,7 +3741,9 @@ Redirects to the transparency URL.
 
 #### Download device's MDM manual enrollment profile
 
-Downloads the Mobile Device Management (MDM) enrollment profile to install on the device for a manual enrollment into Fleet MDM.
+Returns the URL to open to provide installation instructions and allow a user to download a manual enrollment profile 
+for a device. A user may be required to complete SSO authenticaton if configured on the team before being presented
+with the download option.
 
 `GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`
 
@@ -3697,12 +3761,10 @@ Downloads the Mobile Device Management (MDM) enrollment profile to install on th
 
 `Status: 200`
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<!-- ... -->
-</plist>
+```json
+{
+  "enroll_url": "https://your-fleet-server-url.com/enroll?enroll_secret=ABCzmPbtEECxZhHlFlz9uTWApZmXsCND"
+}
 ```
 
 ---

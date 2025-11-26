@@ -228,7 +228,7 @@ func downloadRemoteMacosBootstrapPackage(pkgURL string) (*fleet.MDMAppleBootstra
 		case errors.Is(err, file.ErrInvalidType):
 			return nil, errors.New("Couldn’t edit bootstrap_package. The file must be a package (.pkg).")
 		case errors.Is(err, file.ErrNotSigned):
-			return nil, errors.New("Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#step-2-sign-the-package")
+			return nil, errors.New("Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")
 		default:
 			return nil, fmt.Errorf("checking package signature: %w", err)
 		}
