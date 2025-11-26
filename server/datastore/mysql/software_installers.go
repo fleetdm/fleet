@@ -197,6 +197,27 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		return 0, 0, errors.New("validated labels must not be nil")
 	}
 
+	// Insert in house app instead of software installer
+	// And add both iOS and ipadOS titles per https://github.com/fleetdm/fleet/issues/34283
+	if payload.Extension == "ipa" {
+		installerID, titleID, err := ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
+			TeamID:          payload.TeamID,
+			Title:           payload.Title,
+			Filename:        payload.Filename,
+			BundleID:        payload.BundleIdentifier,
+			StorageID:       payload.StorageID,
+			Platform:        payload.Platform,
+			ValidatedLabels: payload.ValidatedLabels,
+			CategoryIDs:     payload.CategoryIDs,
+			Version:         payload.Version,
+			SelfService:     payload.SelfService,
+		})
+		if err != nil {
+			return 0, 0, ctxerr.Wrap(ctx, err, "insert in house app")
+		}
+		return installerID, titleID, err
+	}
+
 	titleID, err = ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload)
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "get or generate software installer title ID")
@@ -213,7 +234,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		if exists {
 			teamName := fleet.TeamNameNoTeam
 			if payload.TeamID != nil && *payload.TeamID > 0 {
-				tm, err := ds.Team(ctx, *payload.TeamID)
+				tm, err := ds.TeamLite(ctx, *payload.TeamID)
 				if err != nil {
 					return 0, 0, ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
 				}
@@ -224,6 +245,37 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 				Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
 					payload.Title, teamName),
 			}, "vpp app conflicts with existing software installer")
+		}
+	}
+
+	// Enforce team-scoped uniqueness by storage hash, aligning upload behavior with GitOps.
+	// However, if the duplicate-by-hash is for the same title/source on the same team,
+	// let the DB unique (team,title) constraint surface the conflict (so tests expecting
+	// a 409 Conflict with "already exists" still pass).
+	// Only validate for script packages (.sh/.ps1) where content hash equals functionality.
+	// Binary installers can legitimately share content with different install scripts.
+	if payload.StorageID != "" && fleet.IsScriptPackage(payload.Extension) {
+		var tmID uint
+		if payload.TeamID != nil {
+			tmID = *payload.TeamID
+		}
+		// Check duplicates by content hash only (ignore URL) to align with GitOps/apply rules.
+		teamsByHash, err := ds.GetTeamsWithInstallerByHash(ctx, payload.StorageID, "")
+		if err != nil {
+			return 0, 0, ctxerr.Wrap(ctx, err, "check duplicate installer by hash")
+		}
+		if found, exists := teamsByHash[tmID]; exists {
+			// If the existing installer has the same title and source, allow the insert to proceed
+			// so that the existing UNIQUE (global_or_team_id, title_id) constraint yields a
+			// Conflict error with the expected message.
+			// Since this is not an in-house app, only one installer per team can exist.
+			if !(found[0].Title == payload.Title && found[0].Source == payload.Source) {
+				return 0, 0, fleet.NewInvalidArgumentError(
+					"software",
+					"Couldn't add software. An installer with identical contents already exists on this team.",
+				)
+			}
+			// If exact duplicate (same title and source), continue to let DB constraint handle it
 		}
 	}
 
@@ -476,7 +528,6 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	if err != nil {
 		return 0, err
 	}
-
 	return titleID, nil
 }
 
@@ -502,8 +553,9 @@ func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, tit
 type softwareType string
 
 const (
-	softwareTypeInstaller softwareType = "software_installer"
-	softwareTypeVPP       softwareType = "vpp_app_team"
+	softwareTypeInstaller  softwareType = "software_installer"
+	softwareTypeVPP        softwareType = "vpp_app_team"
+	softwareTypeInHouseApp softwareType = "in_house_app"
 )
 
 // setOrUpdateSoftwareInstallerLabelsDB sets or updates the label associations for the specified software
@@ -651,6 +703,12 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 			}
 		}
 
+		if payload.DisplayName != nil {
+			if err := updateSoftwareTitleDisplayName(ctx, tx, payload.TeamID, payload.TitleID, *payload.DisplayName); err != nil {
+				return ctxerr.Wrap(ctx, err, "update software title display name")
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -720,7 +778,87 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
 	}
 
+	var tmID uint
+	if dest.TeamID != nil {
+		tmID = *dest.TeamID
+	}
+
+	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, *dest.TitleID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get display name for software installer")
+	}
+
+	dest.DisplayName = displayName
+
 	return &dest, nil
+}
+
+func (ds *Datastore) installerAvailableForInstallForTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (installerID uint, vppAppID *fleet.VPPAppID, inHouseID uint, err error) {
+	const stmt = `
+SELECT
+	si.id AS installer_id,
+	NULL as vpp_adam_id,
+	NULL as vpp_platform,
+	NULL as in_house_id
+FROM
+	software_installers si
+WHERE
+  si.title_id = ? AND si.global_or_team_id = ?
+
+UNION ALL
+
+SELECT
+	NULL AS installer_id,
+  vap.adam_id AS vpp_adam_id,
+  vap.platform AS vpp_platform,
+	NULL as in_house_id
+FROM
+	vpp_apps vap
+	JOIN vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform
+WHERE
+	vap.title_id = ? AND vat.global_or_team_id = ?
+
+UNION ALL
+
+SELECT
+	NULL AS installer_id,
+	NULL as vpp_adam_id,
+	NULL as vpp_platform,
+	iha.id as in_house_id
+FROM
+	in_house_apps iha
+WHERE
+	iha.title_id = ? AND iha.global_or_team_id = ?
+`
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	type resultRow struct {
+		InstallerID sql.Null[uint]   `db:"installer_id"`
+		VPPAdamID   sql.Null[string] `db:"vpp_adam_id"`
+		VPPPlatform sql.Null[string] `db:"vpp_platform"`
+		InHouseID   sql.Null[uint]   `db:"in_house_id"`
+	}
+	var row resultRow
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt,
+		titleID, tmID, titleID, tmID, titleID, tmID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, nil, 0, nil
+		}
+		return 0, nil, 0, ctxerr.Wrap(ctx, err, "check installer/vpp/in-house app availability")
+	}
+
+	if row.VPPAdamID.Valid {
+		vppAppID = &fleet.VPPAppID{
+			AdamID:   row.VPPAdamID.V,
+			Platform: fleet.InstallableDevicePlatform(row.VPPPlatform.V),
+		}
+	}
+	return row.InstallerID.V, vppAppID, row.InHouseID.V, nil
 }
 
 func (ds *Datastore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
@@ -778,7 +916,7 @@ WHERE
 
 	// TODO: do we want to include labels on other queries that return software installer metadata
 	// (e.g., GetSoftwareInstallerMetadataByID)?
-	labels, err := ds.getSoftwareInstallerLabels(ctx, dest.InstallerID)
+	labels, err := ds.getSoftwareInstallerLabels(ctx, dest.InstallerID, softwareTypeInstaller)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software installer labels")
 	}
@@ -807,6 +945,13 @@ WHERE
 		dest.Categories = categories
 	}
 
+	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, titleID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get software title display name")
+	}
+
+	dest.DisplayName = displayName
+
 	if teamID != nil {
 		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, *teamID)
 		if err != nil {
@@ -826,23 +971,23 @@ WHERE
 	return &dest, nil
 }
 
-func (ds *Datastore) getSoftwareInstallerLabels(ctx context.Context, installerID uint) ([]fleet.SoftwareScopeLabel, error) {
-	query := `
+func (ds *Datastore) getSoftwareInstallerLabels(ctx context.Context, installerID uint, softwareType softwareType) ([]fleet.SoftwareScopeLabel, error) {
+	query := fmt.Sprintf(`
 SELECT
 	label_id,
 	exclude,
 	l.name as label_name,
 	si.title_id
 FROM
-	software_installer_labels sil
-	JOIN software_installers si ON si.id = sil.software_installer_id
+	%[1]s_labels sil
+	JOIN %[1]ss si ON si.id = sil.%[1]s_id
 	JOIN labels l ON l.id = sil.label_id
 WHERE
-	software_installer_id = ?`
+	%[1]s_id = ?`, softwareType)
 
 	var labels []fleet.SoftwareScopeLabel
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, installerID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get software installer labels")
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get %s labels", softwareType))
 	}
 
 	return labels, nil
@@ -975,7 +1120,7 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 	const (
 		getInstallerStmt = `
 SELECT
-	filename, "version", title_id, COALESCE(st.name, '[deleted title]') title_name
+	filename, "version", title_id, COALESCE(st.name, '[deleted title]') title_name, st.source
 FROM
 	software_installers si
 	LEFT JOIN software_titles st
@@ -992,6 +1137,7 @@ VALUES
 			'installer_filename', ?,
 			'version', ?,
 			'software_title_name', ?,
+			'source', ?,
 			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
 		)
 	)`
@@ -1021,6 +1167,7 @@ VALUES
 		Version   string  `db:"version"`
 		TitleID   *uint   `db:"title_id"`
 		TitleName *string `db:"title_name"`
+		Source    *string `db:"source"`
 	}
 	if err = sqlx.GetContext(ctx, ds.reader(ctx), &installerDetails, getInstallerStmt, softwareInstallerID); err != nil {
 		if err == sql.ErrNoRows {
@@ -1047,6 +1194,7 @@ VALUES
 			installerDetails.Filename,
 			installerDetails.Version,
 			installerDetails.TitleName,
+			installerDetails.Source,
 			userID,
 		)
 		if err != nil {
@@ -1128,6 +1276,12 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 			return nil, ctxerr.Wrap(ctx, err, "select affected host IDs for software installs/uninstalls")
 		}
 
+		_, err = tx.ExecContext(ctx, `DELETE FROM software_title_display_names WHERE (software_title_id, team_id) IN
+			(SELECT title_id, global_or_team_id FROM software_installers WHERE id = ?)`, installerID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete software title display name that matches installer")
+		}
+
 		_, err = tx.ExecContext(ctx, `DELETE FROM upcoming_activities
 			USING
 				upcoming_activities
@@ -1152,7 +1306,7 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 
 func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error {
 	const (
-		getInstallerStmt = `SELECT title_id, COALESCE(st.name, '[deleted title]') title_name
+		getInstallerStmt = `SELECT title_id, COALESCE(st.name, '[deleted title]') title_name, st.source
 			FROM software_installers si LEFT JOIN software_titles st ON si.title_id = st.id WHERE si.id = ?`
 
 		insertUAStmt = `
@@ -1164,6 +1318,7 @@ VALUES
 			'installer_filename', '',
 			'version', 'unknown',
 			'software_title_name', ?,
+			'source', ?,
 			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?),
 			'self_service', ?
 		)
@@ -1191,6 +1346,7 @@ VALUES
 	var installerDetails struct {
 		TitleID   *uint   `db:"title_id"`
 		TitleName *string `db:"title_name"`
+		Source    *string `db:"source"`
 	}
 	if err = sqlx.GetContext(ctx, ds.reader(ctx), &installerDetails, getInstallerStmt, softwareInstallerID); err != nil {
 		if err == sql.ErrNoRows {
@@ -1213,6 +1369,7 @@ VALUES
 			false,
 			executionID,
 			installerDetails.TitleName,
+			installerDetails.Source,
 			userID,
 			selfService,
 		)
@@ -1258,7 +1415,8 @@ SELECT
 	hsi.host_deleted_at,
 	hsi.policy_id,
 	hsi.created_at as created_at,
-	hsi.updated_at as updated_at
+	hsi.updated_at as updated_at,
+	st.source
 FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
@@ -1286,7 +1444,8 @@ SELECT
 	NULL AS host_deleted_at,
 	siua.policy_id AS policy_id,
 	ua.created_at as created_at,
-	ua.updated_at as updated_at
+	ua.updated_at as updated_at,
+	st.source
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua
@@ -1562,6 +1721,85 @@ WHERE
 	})
 }
 
+func (ds *Datastore) inHouseAppJoin(inHouseID uint, status fleet.SoftwareInstallerStatus) (string, []any, error) {
+	// for pending status, we'll join through upcoming_activities
+	if status == fleet.SoftwarePending || status == fleet.SoftwareInstallPending || status == fleet.SoftwareUninstallPending {
+		stmt := `JOIN (
+SELECT DISTINCT
+	host_id
+FROM
+	upcoming_activities ua
+	JOIN in_house_app_upcoming_activities ihua ON ua.id = ihua.upcoming_activity_id
+WHERE
+	%s) hss ON hss.host_id = h.id`
+
+		filter := "ihua.in_house_app_id = ?"
+		switch status {
+		case fleet.SoftwareInstallPending:
+			filter += " AND ua.activity_type = 'in_house_app_install'"
+		case fleet.SoftwareUninstallPending:
+			// TODO: Update this when in-house supports uninstall, for now we map
+			// uninstall to install to preserve existing behavior of VPP filters
+			filter += " AND ua.activity_type = 'in_house_app_install'"
+		default:
+			// no change, we're just filtering by title id so it will pick up any
+			// activity type that is associated with the app (i.e. both install and
+			// uninstall)
+		}
+
+		return fmt.Sprintf(stmt, filter), []any{inHouseID}, nil
+	}
+
+	// TODO: Update this when in-house app supports uninstall for now we map the
+	// generic failed status to the install status
+	if status == fleet.SoftwareFailed {
+		status = fleet.SoftwareInstallFailed // TODO: When in-house supports uninstall this should become STATUS IN ('failed_install', 'failed_uninstall')
+	}
+
+	stmt := fmt.Sprintf(`JOIN (
+SELECT
+	hihsi.host_id
+FROM
+	host_in_house_software_installs hihsi
+	INNER JOIN
+		nano_command_results ncr ON ncr.command_uuid = hihsi.command_uuid
+	LEFT JOIN host_in_house_software_installs hihsi2
+		ON hihsi.host_id = hihsi2.host_id AND
+			 hihsi.in_house_app_id = hihsi2.in_house_app_id AND
+			 hihsi2.canceled = 0 AND
+			 hihsi2.removed = 0 AND
+			 (hihsi.created_at < hihsi2.created_at OR (hihsi.created_at = hihsi2.created_at AND hihsi.id < hihsi2.id))
+WHERE
+	hihsi2.id IS NULL
+	AND hihsi.in_house_app_id = :in_house_app_id
+	AND hihsi.canceled = 0
+	AND hihsi.removed = 0
+	AND (%s) = :status
+	AND NOT EXISTS (
+		SELECT 1
+		FROM
+			upcoming_activities ua
+			JOIN in_house_app_upcoming_activities ihua ON ua.id = ihua.upcoming_activity_id
+		WHERE
+			ua.host_id = hihsi.host_id
+			AND ihua.in_house_app_id = hihsi.in_house_app_id
+			AND ua.activity_type = 'in_house_app_install'
+	)
+) hss ON hss.host_id = h.id
+`, inHouseAppHostStatusNamedQuery("hihsi", "ncr", ""))
+
+	return sqlx.Named(stmt, map[string]any{
+		"status":                    status,
+		"in_house_app_id":           inHouseID,
+		"software_status_installed": fleet.SoftwareInstalled,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_pending":   fleet.SoftwareInstallPending,
+		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
+		"mdm_status_error":          fleet.MDMAppleStatusError,
+		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
+	})
+}
+
 func (ds *Datastore) GetHostLastInstallData(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
 	hostLastInstall, err := ds.getLatestUpcomingInstall(ctx, hostID, installerID)
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
@@ -1633,9 +1871,14 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 
 	// get the list of software installers hashes that are in use
 	var storageIDs []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &storageIDs, `SELECT DISTINCT storage_id FROM software_installers`); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &storageIDs, `
+		SELECT storage_id FROM software_installers
+		UNION
+		SELECT storage_id FROM in_house_apps`,
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "get list of software installers in use")
 	}
+	// Add in house apps to software installers in use
 
 	_, err := softwareInstallStore.Cleanup(ctx, storageIDs, removeCreatedBefore)
 	return ctxerr.Wrap(ctx, err, "cleanup unused software installers")
@@ -1976,7 +2219,7 @@ VALUES
 	teamName := fleet.TeamNameNoTeam
 	if tmID != nil {
 		globalOrTeamID = *tmID
-		tm, err := ds.Team(ctx, *tmID)
+		tm, err := ds.TeamLite(ctx, *tmID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "fetch team for batch set software installers")
 		}
@@ -2179,7 +2422,7 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
 		}
 
-		for _, installer := range installers {
+		for i, installer := range installers {
 			if installer.ValidatedLabels == nil {
 				return ctxerr.Errorf(ctx, "labels have not been validated for installer with name %s", installer.Filename)
 			}
@@ -2377,6 +2620,11 @@ VALUES
 				}
 			}
 
+			// update the display name for the software title
+			if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleIDs[i], installer.DisplayName); err != nil {
+				return ctxerr.Wrapf(ctx, err, "update software title display name for installer with name %q", installer.Filename)
+			}
+
 			// perform side effects if this was an update (related to pending (un)install requests)
 			if len(existing) > 0 {
 				affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(
@@ -2531,6 +2779,10 @@ func (ds *Datastore) UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Contex
 	return nil
 }
 
+// GetSoftwareInstallers returns all software installers, including in-house
+// apps, for the specified team. The reason why installers and in-house apps
+// are returned together is that this is used in the gitops flow, where both
+// types of installers are specified in the same "packages" key in the yaml.
 func (ds *Datastore) GetSoftwareInstallers(ctx context.Context, teamID uint) ([]fleet.SoftwarePackageResponse, error) {
 	const loadInsertedSoftwareInstallers = `
 SELECT
@@ -2541,13 +2793,34 @@ SELECT
   si.fleet_maintained_app_id,
   COALESCE(icons.filename, '') AS icon_filename,
   COALESCE(icons.storage_id, '') AS icon_hash_sha256
-FROM software_installers si
-LEFT JOIN software_title_icons icons ON icons.software_title_id = si.title_id AND icons.team_id = si.global_or_team_id
-WHERE global_or_team_id = ?
+FROM
+	software_installers si
+	LEFT JOIN software_title_icons icons ON
+		icons.software_title_id = si.title_id AND icons.team_id = si.global_or_team_id
+WHERE
+	global_or_team_id = ?
+
+UNION ALL
+
+SELECT
+	iha.team_id,
+	iha.title_id,
+	iha.url,
+	iha.storage_id as hash_sha256,
+	NULL as fleet_maintained_app_id,
+  COALESCE(icons.filename, '') AS icon_filename,
+  COALESCE(icons.storage_id, '') AS icon_hash_sha256
+FROM
+	in_house_apps iha
+	LEFT JOIN software_title_icons icons ON
+		icons.software_title_id = iha.title_id AND icons.team_id = iha.global_or_team_id
+WHERE
+	iha.global_or_team_id = ?
 `
 	var softwarePackages []fleet.SoftwarePackageResponse
 	// Using ds.writer(ctx) on purpose because this method is to be called after applying software.
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &softwarePackages, loadInsertedSoftwareInstallers, teamID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &softwarePackages,
+		loadInsertedSoftwareInstallers, teamID, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software installers")
 	}
 	return softwarePackages, nil
@@ -2723,6 +2996,39 @@ WHERE
 	return res, nil
 }
 
+func (ds *Datastore) GetIncludedHostUUIDMapForAppStoreApp(ctx context.Context, vppAppTeamID uint) (map[string]string, error) {
+	return ds.getIncludedHostUUIDMapForSoftware(ctx, ds.writer(ctx), vppAppTeamID, softwareTypeVPP)
+}
+
+func (ds *Datastore) getIncludedHostUUIDMapForSoftware(ctx context.Context, tx sqlx.ExtContext, softwareID uint, swType softwareType) (map[string]string, error) {
+	filter := fmt.Sprintf(labelScopedFilter, swType)
+	stmt := fmt.Sprintf(`SELECT
+		h.uuid AS uuid,
+		ad.applied_policy_id AS applied_policy_id
+FROM
+		hosts h
+		JOIN android_devices ad ON ad.enterprise_specific_id = h.uuid
+WHERE
+		EXISTS (%s)
+		AND platform = 'android'
+`, filter)
+
+	var queryResults []struct {
+		UUID            string `db:"uuid"`
+		AppliedPolicyID string `db:"applied_policy_id"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &queryResults, stmt, softwareID, softwareID, softwareID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
+	}
+
+	res := make(map[string]string, len(queryResults))
+	for _, result := range queryResults {
+		res[result.UUID] = result.AppliedPolicyID
+	}
+
+	return res, nil
+}
+
 func (ds *Datastore) GetExcludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
 	return ds.getExcludedHostIDMapForSoftware(ctx, installerID, softwareTypeInstaller)
 }
@@ -2750,7 +3056,11 @@ WHERE
 	return res, nil
 }
 
-func (ds *Datastore) GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+// GetTeamsWithInstallerByHash retrieves all software installers and in-house apps
+// matching the given sha256 hash (storage_id) and optional URL, grouped by team ID.
+// Software installers can only have at most 1 installer per team for the given hash,
+// while in-house apps can have multiple (1 for ios and 1 for ipados).
+func (ds *Datastore) GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 	stmt := `
 SELECT
 	si.id AS installer_id,
@@ -2767,7 +3077,27 @@ FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
-	si.storage_id = ?%s`
+	si.storage_id = ? %s
+
+UNION ALL
+
+SELECT
+	iha.id AS installer_id,
+	iha.team_id AS team_id,
+	iha.filename AS filename,
+	'ipa' AS extension,
+	iha.version AS version,
+	iha.platform AS platform,
+	st.source AS source,
+	st.bundle_identifier AS bundle_identifier,
+	st.name AS title,
+	'' AS package_ids
+FROM
+	in_house_apps iha
+	JOIN software_titles st ON iha.title_id = st.id
+WHERE
+	iha.storage_id = ? %s
+`
 
 	var urlFilter string
 	args := []any{sha256}
@@ -2775,28 +3105,29 @@ WHERE
 		urlFilter = " AND url = ?"
 		args = append(args, url)
 	}
-	stmt = fmt.Sprintf(stmt, urlFilter)
+	stmt = fmt.Sprintf(stmt, urlFilter, urlFilter)
+	args = append(args, args...)
 
 	var installers []*fleet.ExistingSoftwareInstaller
 	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &installers, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software installer by hash")
 	}
 
-	set := make(map[uint]*fleet.ExistingSoftwareInstaller, len(installers))
+	byTeam := make(map[uint][]*fleet.ExistingSoftwareInstaller, len(installers))
 	for _, installer := range installers {
 		// team ID 0 is No team in this context
 		var tmID uint
 		if installer.TeamID != nil {
 			tmID = *installer.TeamID
 		}
-		if _, ok := set[tmID]; ok {
+		if _, ok := byTeam[tmID]; ok && installer.Extension != "ipa" {
 			return nil, ctxerr.New(ctx, fmt.Sprintf("cannot have multiple installers with the same hash %q on one team", sha256))
 		}
 		if installer.PackageIDList != "" {
 			installer.PackageIDs = strings.Split(installer.PackageIDList, ",")
 		}
-		set[tmID] = installer
+		byTeam[tmID] = append(byTeam[tmID], installer)
 	}
 
-	return set, nil
+	return byTeam, nil
 }

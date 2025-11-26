@@ -205,15 +205,15 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *testi
 
 					// Build query to avoid inserting into GENERATED columns
 					var columns string
-					columnsStmt := fmt.Sprintf(`SELECT 
-                                                  GROUP_CONCAT(column_name ORDER BY ordinal_position) 
-                                                FROM information_schema.columns 
+					columnsStmt := fmt.Sprintf(`SELECT
+                                                  GROUP_CONCAT(column_name ORDER BY ordinal_position)
+                                                FROM information_schema.columns
                                                 WHERE table_schema = '%s' AND table_name = '%s'
 												  AND NOT (EXTRA LIKE '%%GENERATED%%' AND EXTRA NOT LIKE '%%DEFAULT_GENERATED%%');`, replicaDB, tbl)
 					err = replica.GetContext(ctx, &columns, columnsStmt)
 					require.NoError(t, err)
 
-					stmt = fmt.Sprintf(`INSERT INTO %s.%s (%s) 
+					stmt = fmt.Sprintf(`INSERT INTO %s.%s (%s)
                                         SELECT %s
                                         FROM %s.%s;`, replicaDB, tbl, columns, columns, testName, tbl)
 					t.Log(stmt)
@@ -445,6 +445,7 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 		"mdm_operation_types":              true,
 		"migration_status_tables":          true,
 		"osquery_options":                  true,
+		"software_categories":              true,
 	}
 	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger, nonEmptyTables, tables...)
 }

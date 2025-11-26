@@ -58,8 +58,8 @@ AND (
 		-- platform is 'linux', so we must check if the installer is compatible with the linux distribution.
 		OR
 		(
-			-- tar.gz can be installed on any Linux distribution
-			si.extension = 'tar.gz'
+			-- tar.gz and sh can be installed on any Linux distribution
+			(si.extension = 'tar.gz' OR si.extension = 'sh')
 			OR
 			(
 				-- deb packages can only be installed on Debian-based hosts.
@@ -71,7 +71,7 @@ AND (
 		)
 	)
 )
-AND %s ORDER BY st.name ASC	
+AND %s ORDER BY st.name ASC
 `
 	if resetFailedSetupSteps {
 		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
@@ -323,7 +323,10 @@ WHERE id IN (%s)`
 			for k := range missingTitleIDs {
 				keys = append(keys, fmt.Sprintf("%d", k))
 			}
-			return ctxerr.Errorf(ctx, "title IDs not available: %s", strings.Join(keys, ","))
+			err := &fleet.BadRequestError{
+				Message: "at least one selected software title does not exist or is not available for setup experience",
+			}
+			return ctxerr.Wrapf(ctx, err, "title IDs not available: %s", strings.Join(keys, ","))
 		}
 
 		// Unset all installers
@@ -414,6 +417,7 @@ func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, plat
 		ListOptions:         opts,
 		Platform:            platform,
 		AvailableForInstall: true,
+		ForSetupExperience:  true,
 	}, fleet.TeamFilter{
 		IncludeObserver: true,
 		TeamID:          &teamID,
@@ -453,6 +457,10 @@ SELECT
 	NULLIF(va.platform, '') AS vpp_app_platform,
 	ses.script_content_id,
 	COALESCE(si.title_id, COALESCE(va.title_id, NULL)) AS software_title_id,
+	COALESCE(
+		(SELECT source FROM software_titles WHERE id = si.title_id),
+		(SELECT source FROM software_titles WHERE id = va.title_id)
+	) AS source,
     CASE
         WHEN hsi.execution_status = 'failed_install' THEN
             CASE
@@ -522,6 +530,10 @@ WHERE id = ?
 }
 
 func (ds *Datastore) GetSetupExperienceScript(ctx context.Context, teamID *uint) (*fleet.Script, error) {
+	return ds.getSetupExperienceScript(ctx, ds.reader(ctx), teamID)
+}
+
+func (ds *Datastore) getSetupExperienceScript(ctx context.Context, q sqlx.QueryerContext, teamID *uint) (*fleet.Script, error) {
 	query := `
 SELECT
   id,
@@ -541,7 +553,7 @@ WHERE
 	}
 
 	var script fleet.Script
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &script, query, globalOrTeamID); err != nil {
+	if err := sqlx.GetContext(ctx, q, &script, query, globalOrTeamID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("SetupExperienceScript"), "get setup experience script")
 		}
@@ -588,6 +600,27 @@ func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet
 		}
 		id, _ := scRes.LastInsertId()
 
+		// This clause allows for PUT semantics. The basic idea is:
+		// - no existing setup script -> go through the usual insert logic
+		// - existing setup script with different content -> delete(with all side effects) and re-insert
+		// - existing setup script with same content -> no-op
+		gotSetupExperienceScript, err := ds.getSetupExperienceScript(ctx, tx, script.TeamID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return err
+		}
+		// We will fall through on a notFound err - nothing to do here
+		if err == nil {
+			if gotSetupExperienceScript.ScriptContentID != uint(id) { // nolint:gosec // dismiss G115 - low risk here
+				err = ds.deleteSetupExperienceScript(ctx, tx, script.TeamID)
+				if err != nil {
+					return err
+				}
+			} else {
+				// no change
+				return nil
+			}
+		}
+
 		// then create the script entity
 		_, err = insertSetupExperienceScript(ctx, tx, script, uint(id)) // nolint: gosec
 		return err
@@ -627,12 +660,16 @@ VALUES
 }
 
 func (ds *Datastore) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
+	return ds.deleteSetupExperienceScript(ctx, ds.writer(ctx), teamID)
+}
+
+func (ds *Datastore) deleteSetupExperienceScript(ctx context.Context, tx sqlx.ExtContext, teamID *uint) error {
 	var globalOrTeamID uint
 	if teamID != nil {
 		globalOrTeamID = *teamID
 	}
 
-	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM setup_experience_scripts WHERE global_or_team_id = ?`, globalOrTeamID)
+	_, err := tx.ExecContext(ctx, `DELETE FROM setup_experience_scripts WHERE global_or_team_id = ?`, globalOrTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete setup experience script")
 	}

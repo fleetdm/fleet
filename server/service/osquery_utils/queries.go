@@ -125,6 +125,56 @@ ORDER BY
 	inet_aton(ia.address) IS NOT NULL DESC
 LIMIT 1;`
 
+const linuxGigsAllDiskSpaceSubQueryConditions = `WHERE
+-- exclude mounts with no space
+blocks > 0
+AND blocks_size > 0
+
+-- exclude external storage
+AND path NOT LIKE '/media%' AND path NOT LIKE '/mnt%'
+  
+-- exclude device drivers
+AND path NOT LIKE '/dev%' 
+
+-- exclude kernel-related mounts
+AND path NOT LIKE '/proc%'
+AND path NOT LIKE '/sys%'
+
+-- exclude process files
+AND path NOT LIKE '/run%'
+AND path NOT LIKE '/var/run%'
+
+-- exclude boot files
+AND path NOT LIKE '/boot%' 
+
+-- exclude snap packages
+AND path NOT LIKE '/snap%' AND path NOT LIKE '/var/snap%'
+
+-- exclude virtualized mounts, would double-count bare metal storage
+AND path NOT LIKE '/var/lib/docker%'
+AND path NOT LIKE '/var/lib/containers%'
+
+AND type IN (
+'ext4', 
+'ext3', 
+'ext2', 
+'xfs', 
+'btrfs', 
+'ntfs', 
+'vfat',
+'fuseblk', --seen on NTFS and exFAT volumes mounted via FUSE
+'zfs' --also valid storage
+)
+AND (
+device LIKE '/dev/sd%' 
+OR device LIKE '/dev/hd%' 
+OR device LIKE '/dev/vd%' 
+OR device LIKE '/dev/nvme%' 
+OR device LIKE '/dev/mapper%'
+OR device LIKE '/dev/md%'
+OR device LIKE '/dev/dm-%'
+)`
+
 // hostDetailQueries defines the detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the
 // fleet.Host data model (via IngestFunc).
@@ -373,16 +423,20 @@ var hostDetailQueries = map[string]DetailQuery{
 			}
 			host.Uptime = time.Duration(uptimeSeconds) * time.Second
 
+			// Update the last restart date of the host if it's changed more than 30 seconds.
+			maybeUpdateLastRestartedAt(time.Now(), host)
+
 			return nil
 		},
 		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 	},
 	"disk_space_unix": {
-		Query: `
-SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
-       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
-       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
-FROM mounts WHERE path = '/' LIMIT 1;`,
+		Query: fmt.Sprintf(`
+		SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
+		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
+					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts %s) AS gigs_all_disk_space
+		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestDiskSpace,
 	},
@@ -463,7 +517,21 @@ func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.H
 		return err
 	}
 
-	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable, gigsTotal)
+	var gigsAllForFnCall *float64
+	if fleet.IsLinux(host.Platform) {
+		strippedRawRes := strings.TrimSpace(rows[0]["gigs_all_disk_space"])
+		// write `nil`, not 0, if osquery returns `""`, since a host cannot have 0 disk space and
+		// therefore this must represent a problematic query result
+		if strippedRawRes != "" {
+			gigsAll, err := strconv.ParseFloat(strippedRawRes, 64)
+			if err != nil {
+				return err
+			}
+			gigsAllForFnCall = &gigsAll
+		}
+	}
+
+	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable, gigsTotal, gigsAllForFnCall)
 }
 
 func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
@@ -974,6 +1042,18 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
+  '' AS browser,
+  'npm_packages' AS source,
+  '' AS vendor,
+  0 AS last_opened_at,
+  path AS installed_path
+FROM npm_packages
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
   '' AS extension_for,
   'homebrew_packages' AS source,
   '' AS vendor,
@@ -1145,7 +1225,8 @@ SELECT
   '' AS extension_for,
   'programs' AS source,
   publisher AS vendor,
-  install_location AS installed_path
+  install_location AS installed_path,
+  upgrade_code AS upgrade_code
 FROM programs
 UNION
 SELECT
@@ -1155,7 +1236,8 @@ SELECT
   '' AS extension_for,
   'ie_extensions' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM ie_extensions
 UNION
 SELECT
@@ -1165,7 +1247,8 @@ SELECT
   browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -1175,7 +1258,8 @@ SELECT
   'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -1185,7 +1269,8 @@ SELECT
   '' AS extension_for,
   'chocolatey_packages' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM chocolatey_packages
 `),
 	Platforms:        []string{"windows"},
@@ -1884,6 +1969,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			row["extension_id"],
 			row["extension_for"],
 			row["last_opened_at"],
+			row["upgrade_code"],
 		)
 		if err != nil {
 			level.Debug(logger).Log(
@@ -1945,8 +2031,9 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 }
 
 var (
-	dcvVersionFormat   = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
-	basicAppSanitizers = []struct {
+	dcvVersionFormat         = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
+	tunnelblickVersionFormat = regexp.MustCompile(`^(.+?)\s*\(build\s+\d+\)$`)
+	basicAppSanitizers       = []struct {
 		matchBundleIdentifier string
 		matchName             string
 		mutate                func(*fleet.Software, log.Logger)
@@ -2036,6 +2123,14 @@ var (
 			matchName:             "sqldeveloper.sh/",
 			mutate: func(s *fleet.Software, logger log.Logger) {
 				s.Name = "Oracle SQLDeveloper"
+			},
+		},
+		{
+			matchBundleIdentifier: "net.tunnelblick.tunnelblick",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				if versionMatches := tunnelblickVersionFormat.FindStringSubmatch(s.Version); len(versionMatches) == 2 {
+					s.Version = versionMatches[1]
+				}
 			},
 		},
 		// end of #34159 cleanup in basic matchers
@@ -2290,6 +2385,18 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 			// as a possible status for Windows hosts (which would be otherwise be categorized as
 			// "Pending"). Currently, the "Pending" status is supported only for macOS hosts.
 			automatic = true
+			// We also must check the MDM Enrollment information on the fleet side here. If the host set the NotInOobe
+			// flag during enrollment, the enrollment is considered manual as it was user-initiated via the Settings app.
+			// There does not seem to be a way on the host to detect this via osquery.
+			windowsDevice, err := ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "checking windows enrolled device for AAD enrolled host")
+			}
+			// Not a big deal if we didn't find it - the query may not have been processed to link the host
+			// to the enrollment yet
+			if windowsDevice != nil {
+				automatic = !windowsDevice.MDMNotInOOBE
+			}
 		}
 	}
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
@@ -2562,7 +2669,58 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 	if len(rows) > 1 {
 		return ctxerr.Errorf(ctx, "directIngestMDMDeviceIDWindows invalid number of rows: %d", len(rows))
 	}
-	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
+	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating windows mdm device id")
+	}
+	if updated {
+		device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, rows[0]["data"])
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
+		}
+		if device != nil && microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
+			// Update the host's MDM enrolled flags to show it as a manual enrollment. THis is to avoid
+			// it taking two full refreshes to show this
+			if device.MDMNotInOOBE {
+				err = ds.UpdateMDMInstalledFromDEP(ctx, host.ID, false)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
+				}
+			}
+
+			mapping := []*fleet.HostDeviceMapping{
+				{
+					HostID: host.ID,
+					Email:  device.MDMEnrollUserID,
+					Source: fleet.DeviceMappingMDMIdpAccounts,
+				},
+			}
+			err = ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping, fleet.DeviceMappingMDMIdpAccounts)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "replacing host device mapping for windows mdm enrolled device")
+			}
+			// Check if the user is a valid SCIM user to manage the join table
+			scimUser, err := ds.ScimUserByUserNameOrEmail(ctx, device.MDMEnrollUserID, device.MDMEnrollUserID)
+			if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
+				return ctxerr.Wrap(ctx, err, "find SCIM user for Windows Azure enrollment linking by username or email")
+			}
+			if err == nil && scimUser != nil {
+				// User exists in SCIM, create/update the mapping for additional attributes
+				// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
+				if err := ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUser.ID); err != nil {
+					// Log the error but don't fail the request since the main IDP mapping succeeded
+					level.Debug(logger).Log("msg", "failed to set SCIM user mapping", "err", err)
+				}
+			} else {
+				// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
+				if err := ds.DeleteHostSCIMUserMapping(ctx, host.ID); err != nil && !fleet.IsNotFound(err) {
+					// Log the error but don't fail the request
+					level.Debug(logger).Log("msg", "failed to delete SCIM user mapping", "err", err)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 var luksVerifyQuery = DetailQuery{
@@ -2966,7 +3124,7 @@ func buildConfigProfilesWindowsQuery(
 	var sb strings.Builder
 	sb.WriteString("<SyncBody>")
 	gotProfiles := false
-	err := microsoft_mdm.LoopOverExpectedHostProfiles(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
+	err := microsoft_mdm.LoopOverExpectedHostProfiles(ctx, logger, ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
 		// Per the [docs][1], to `<Get>` configurations you must
 		// replace `/Policy/Config/` with `Policy/Result/`
 		// [1]: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider
@@ -3108,4 +3266,31 @@ func directIngestHostCertificates(
 	}
 
 	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs)
+}
+
+func maybeUpdateLastRestartedAt(now time.Time, host *fleet.Host) {
+	// If the uptime is 0, don't change the last restarted at time.
+	if host.Uptime == 0 {
+		return
+	}
+	// Calculate the last restart date.
+	newLastRestartedAt := now.Add(-host.Uptime)
+
+	// If we have a previous last restarted at time, compare it to the new one.
+	if !host.LastRestartedAt.IsZero() {
+		diff := newLastRestartedAt.Sub(host.LastRestartedAt)
+		// The new date should always be later, so if it's not, ignore.
+		if diff < 0 {
+			return
+		}
+		// If the new date is within 30 seconds of the previous one, ignore.
+		// This accounts for small differences between when the uptime
+		// reading was taken and when we process it here.
+		if diff < 30*time.Second {
+			return
+		}
+	}
+
+	// Update the last restarted at time.
+	host.LastRestartedAt = newLastRestartedAt
 }

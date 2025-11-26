@@ -9,8 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/ee/server/service/hydrant"
+	"github.com/fleetdm/fleet/v4/ee/server/service/est"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -118,6 +121,16 @@ func TestRequestCertificate(t *testing.T) {
 		APIToken:  ptr.String("test-api-token"),
 		ProfileID: ptr.String("test-profile-id"),
 	}
+	customESTCA := &fleet.CertificateAuthority{
+		ID:       3,
+		Name:     ptr.String("TestCustomESTCA"),
+		Type:     string(fleet.CATypeCustomESTProxy),
+		URL:      &mockHydrantServer.URL,
+		Username: ptr.String("test-username"),
+		Password: ptr.String("test-password"),
+	}
+
+	useDefaultAuthContext := true
 
 	baseSetupForTests := func() (*Service, context.Context) {
 		ds := new(mock.Store)
@@ -125,7 +138,7 @@ func TestRequestCertificate(t *testing.T) {
 		// Setup DS mocks
 		ds.GetCertificateAuthorityByIDFunc = func(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
 			require.True(t, includeSecrets, "RequestCertificate should always fetch secrets")
-			for _, ca := range []*fleet.CertificateAuthority{hydrantCA, digicertCA} {
+			for _, ca := range []*fleet.CertificateAuthority{hydrantCA, digicertCA, customESTCA} {
 				if ca.ID == id {
 					return ca, nil
 				}
@@ -142,12 +155,18 @@ func TestRequestCertificate(t *testing.T) {
 			logger: logger,
 			ds:     ds,
 			authz:  authorizer,
-			hydrantService: hydrant.NewService(
-				hydrant.WithTimeout(2*time.Second),
-				hydrant.WithLogger(logger),
+			estService: est.NewService(
+				est.WithTimeout(2*time.Second),
+				est.WithLogger(logger),
 			),
 		}
-		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		authCtx := &authz_ctx.AuthorizationContext{}
+		ctx := authz_ctx.NewContext(context.Background(), authCtx)
+		if useDefaultAuthContext {
+			authCtx.SetAuthnMethod(authz_ctx.AuthnUserToken)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		}
 
 		oauthIntrospectResponse = defaultOauthIntrospectResponse
 		oauthIntrospectStatus = http.StatusOK
@@ -187,6 +206,26 @@ func TestRequestCertificate(t *testing.T) {
 		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
 	})
 
+	t.Run("Request a certificate - Happy path, no IDP, http sig auth", func(t *testing.T) {
+		useDefaultAuthContext = false
+		defer func() { useDefaultAuthContext = true }()
+
+		svc, ctx := baseSetupForTests()
+
+		authCtx, ok := authz_ctx.FromContext(ctx)
+		require.True(t, ok)
+		authCtx.SetAuthnMethod(authz_ctx.AuthnHTTPMessageSignature)
+		ctx = httpsig.NewContext(ctx, types.HostIdentityCertificate{HostID: ptr.Uint(1), NotValidAfter: time.Now().Add(24 * time.Hour)})
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: goodCSR,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
+	})
+
 	t.Run("Request a certificate - Happy path, no IDP, UPN does not match IDP info(should pass)", func(t *testing.T) {
 		svc, ctx := baseSetupForTests()
 
@@ -210,7 +249,7 @@ func TestRequestCertificate(t *testing.T) {
 			IDPToken:    ptr.String("test-idp-token"),
 			IDPClientID: ptr.String("test-client-id"), // Missing client ID
 		})
-		require.ErrorContains(t, err, "Hydrant certificate request failed")
+		require.ErrorContains(t, err, "EST certificate request failed")
 		require.Nil(t, cert)
 	})
 
@@ -263,7 +302,18 @@ func TestRequestCertificate(t *testing.T) {
 		require.Nil(t, cert)
 	})
 
-	t.Run("Request certificate - non-Hydrant CA", func(t *testing.T) {
+	t.Run("Request a certificate - Custom EST CA", func(t *testing.T) {
+		svc, ctx := baseSetupForTests()
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  customESTCA.ID,
+			CSR: goodCSR,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
+	})
+
+	t.Run("Request certificate - non-Hydrant and non-EST CA", func(t *testing.T) {
 		svc, ctx := baseSetupForTests()
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:          digicertCA.ID,
@@ -272,7 +322,7 @@ func TestRequestCertificate(t *testing.T) {
 			IDPToken:    ptr.String("test-idp-token"),
 			IDPClientID: ptr.String("test-idp-client-id"),
 		})
-		require.ErrorContains(t, err, "This API currently only supports Hydrant Certificate Authorities.")
+		require.ErrorContains(t, err, "This API currently only supports Hydrant and EST Certificate Authorities.")
 	})
 
 	t.Run("Request certificate - nonexistent CA", func(t *testing.T) {

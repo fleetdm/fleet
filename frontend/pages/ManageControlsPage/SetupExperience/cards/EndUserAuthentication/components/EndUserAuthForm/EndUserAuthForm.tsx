@@ -4,13 +4,13 @@ import PATHS from "router/paths";
 import mdmAPI from "services/entities/mdm";
 import classnames from "classnames";
 
-import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import TooltipWrapper from "components/TooltipWrapper";
+import { Link } from "react-router";
 
 const baseClass = "end-user-auth-form";
 
@@ -64,6 +64,24 @@ const EndUserAuthForm = ({
   return (
     <div className={baseClass}>
       <form>
+        <p className={classes}>
+          Require end users to authenticate with your{" "}
+          <Link to={PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS}>
+            identity provider (IdP)
+          </Link>{" "}
+          when they set up their new hosts.
+          <br />
+          <TooltipWrapper tipContent={getTooltipCopy()}>
+            macOS
+          </TooltipWrapper>{" "}
+          hosts will also be required to agree to an{" "}
+          <Link
+            to={`${PATHS.ADMIN_INTEGRATIONS_MDM}#end-user-license-agreement`}
+          >
+            end user license agreement (EULA)
+          </Link>{" "}
+          if configured.
+        </p>
         <Checkbox
           disabled={gitOpsModeEnabled}
           value={isEndUserAuthEnabled}
@@ -71,24 +89,6 @@ const EndUserAuthForm = ({
         >
           Turn on
         </Checkbox>
-        <p className={classes}>
-          Require end users to authenticate with your identity provider (IdP)
-          and agree to an end user license agreement (EULA) when they setup
-          their new{" "}
-          <TooltipWrapper tipContent={getTooltipCopy()}>macOS</TooltipWrapper>,{" "}
-          <TooltipWrapper tipContent={getTooltipCopy()}>iOS</TooltipWrapper>,{" "}
-          <TooltipWrapper tipContent={getTooltipCopy()}>iPadOS</TooltipWrapper>{" "}
-          and{" "}
-          <TooltipWrapper tipContent={getTooltipCopy(true)}>
-            Android
-          </TooltipWrapper>{" "}
-          hosts.{" "}
-          <CustomLink
-            url={PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER}
-            text="View IdP"
-          />{" "}
-          and <CustomLink url={PATHS.ADMIN_INTEGRATIONS_MDM} text="EULA" />.
-        </p>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
             <Button

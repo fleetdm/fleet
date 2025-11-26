@@ -83,12 +83,15 @@ func TestParseOptions(t *testing.T) {
 			input:    []byte(`billing is not set,`),
 			expected: map[string]any{"billing": "is not set"},
 		},
-
-		// Tags are quite tricky to parse\
 		{
 			name:     "--tags",
 			input:    []byte(`tags=kolide-test-1,kolide-test-2,`),
-			expected: map[string]any{"tags": []string{"kolide-test-1", "kolide-test-2"}},
+			expected: map[string]any{"tags": "kolide-test-1,kolide-test-2"},
+		},
+		{
+			name:     "--tags with no tags",
+			input:    []byte(`Sensor grouping tags are not set`),
+			expected: map[string]any{"tags": "is not set"},
 		},
 		{
 			name:  "--rfm-state --rfm-reason --aph --tags",
@@ -98,19 +101,20 @@ func TestParseOptions(t *testing.T) {
 				"rfm-reason":      "None",
 				"rfm-reason-code": "0x0",
 				"rfm-state":       "false",
-				"tags":            []string{"kolide-test-1", "kolide-test-2"},
+				"tags":            "kolide-test-1,kolide-test-2",
 			},
 		},
 		{
-			name:  "-rfm-state --rfm-reason --aph --tags --version",
-			input: []byte("aph is not set, rfm-state=false, rfm-reason=None, code=0x0, version = 6.45.14203.0\ntags=kolide-test-1,kolide-test-2,"),
+			name: "-rfm-state --rfm-reason --aph --tags --version",
+			// extra space at the end represents real falconctl output and exercises the "if pair is an empty string continue" case
+			input: []byte("aph is not set, rfm-state=false, rfm-reason=None, code=0x0, version = 6.45.14203.0\ntags=kolide-test-1,kolide-test-2, "),
 			expected: map[string]any{
 				"aph":             "is not set",
 				"rfm-reason":      "None",
 				"rfm-reason-code": "0x0",
 				"rfm-state":       "false",
 				"version":         "6.45.14203.0",
-				"tags":            []string{"kolide-test-1", "kolide-test-2"},
+				"tags":            "kolide-test-1,kolide-test-2",
 			},
 		},
 
@@ -139,6 +143,23 @@ func TestParseOptions(t *testing.T) {
 			name:        "cid not set",
 			input:       readTestFile(t, path.Join("test-data", "cid-error.txt")),
 			expectedErr: true,
+		},
+		{
+			name:  "all options",
+			input: []byte("cid=\"deadbeefdeadbeefdeadbeefdeadbeef\", aid is not set, apd is not set, aph is not set, app is not set, feature is not set, metadata-query=enable (unset default), version = 7.30.18306.0\ntags=foo,bar, rfm-state is not set, rfm-reason is not set,"),
+			expected: map[string]any{
+				"cid":            "deadbeefdeadbeefdeadbeefdeadbeef",
+				"aid":            "is not set",
+				"apd":            "is not set",
+				"aph":            "is not set",
+				"app":            "is not set",
+				"feature":        "is not set",
+				"metadata-query": "enable",
+				"version":        "7.30.18306.0",
+				"tags":           "foo,bar",
+				"rfm-state":      "is not set",
+				"rfm-reason":     "is not set",
+			},
 		},
 	}
 

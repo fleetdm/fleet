@@ -3,7 +3,7 @@
 Log destinations can be used in Fleet to log:
 - Schedule query result logs
 - Fleet [audit logs](https://fleetdm.com/docs/using-fleet/audit-logs)
-- Satus logs from [osquery](https://osquery.readthedocs.io/en/stable/deployment/logging/#status-logs)
+- Status logs from [osquery](https://osquery.readthedocs.io/en/stable/deployment/logging/#status-logs)
 
 By default, logs are stored in the local filesystem on each host.
 

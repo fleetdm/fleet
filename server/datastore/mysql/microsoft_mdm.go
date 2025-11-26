@@ -45,6 +45,7 @@ func isWindowsHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext
 // MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
 // returns the device information.
 func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	// Only fetch the most recently enrolled entry which matches the one we enqueue commands for
 	stmt := `SELECT
 		id,
 		mdm_device_id,
@@ -60,7 +61,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		created_at,
 		updated_at,
 		host_uuid
-		FROM mdm_windows_enrollments WHERE mdm_device_id = ?`
+		FROM mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC LIMIT 1`
 
 	var winMDMDevice fleet.MDMWindowsEnrolledDevice
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &winMDMDevice, stmt, mdmDeviceID); err != nil {
@@ -68,6 +69,38 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(mdmDeviceID))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsGetEnrolledDeviceWithDeviceID")
+	}
+	return &winMDMDevice, nil
+}
+
+// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
+// returns the device information.
+func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	// Only fetch the most recently enrolled entry which matches the one we enqueue commands for
+	stmt := `SELECT
+		id,
+		mdm_device_id,
+		mdm_hardware_id,
+		device_state,
+		device_type,
+		device_name,
+		enroll_type,
+		enroll_user_id,
+		enroll_proto_version,
+		enroll_client_version,
+		not_in_oobe,
+		created_at,
+		updated_at,
+		host_uuid
+		FROM mdm_windows_enrollments WHERE host_uuid = ? ORDER BY created_at DESC LIMIT 1`
+
+	var winMDMDevice fleet.MDMWindowsEnrolledDevice
+	// use the writer because this is sometimes fetched soon after updating the host UUID
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &winMDMDevice, stmt, hostUUID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(hostUUID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsGetEnrolledDeviceWithHostUUID")
 	}
 	return &winMDMDevice, nil
 }
@@ -545,12 +578,19 @@ WHERE
 	return results, nil
 }
 
-func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) error {
-	stmt := `UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE mdm_device_id = ?`
-	if _, err := ds.writer(ctx).Exec(stmt, hostUUID, mdmDeviceID); err != nil {
-		return ctxerr.Wrap(ctx, err, "setting host_uuid for windows enrollment")
+func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error) {
+	// The final clause ensures we only update if the host UUID changes so we can tell the caller as this basically
+	// signals a new MDM enrollment in certain cases, as it is the first time we associate a host with an enrollment
+	stmt := `UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE mdm_device_id = ? AND host_uuid <> ?`
+	res, err := ds.writer(ctx).Exec(stmt, hostUUID, mdmDeviceID, hostUUID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "setting host_uuid for windows enrollment")
 	}
-	return nil
+	aff, err := res.RowsAffected()
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking rows affected when setting host_uuid for windows enrollment")
+	}
+	return aff > 0, nil
 }
 
 // whereBitLockerStatus returns a string suitable for inclusion within a SQL WHERE clause to filter by
@@ -1322,8 +1362,13 @@ const windowsMDMProfilesDesiredStateQuery = `
 		COUNT(mcpl.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels,
 		-- this helps avoid the case where the host is not a member of a label
-		-- just because it hasn't reported results for that label yet.
-		SUM(CASE WHEN lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
+		-- just because it hasn't reported results for that label yet. But we
+		-- only need consider this for dynamic labels - manual(type=1) can be
+		-- considered at any time
+		SUM(
+			CASE WHEN lbl.label_membership_type <> 1 AND lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at THEN 1
+			WHEN lbl.label_membership_type = 1 AND lbl.created_at IS NOT NULL THEN 1
+			ELSE 0 END) as count_host_updated_after_labels
 	FROM
 		mdm_windows_configuration_profiles mwcp
 			JOIN hosts h
@@ -2336,4 +2381,67 @@ func (ds *Datastore) WipeHostViaWindowsMDM(ctx context.Context, host *fleet.Host
 
 		return nil
 	})
+}
+
+func (ds *Datastore) UpdateOrDeleteHostMDMWindowsProfile(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error {
+	// Delete the host profile if it's remove and verified/verifying.
+	if profile.OperationType == fleet.MDMOperationTypeRemove && profile.Status != nil &&
+		(*profile.Status == fleet.MDMDeliveryVerifying || *profile.Status == fleet.MDMDeliveryVerified) {
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+          DELETE FROM host_mdm_windows_profiles
+          WHERE host_uuid = ? AND command_uuid = ?
+        `, profile.HostUUID, profile.CommandUUID)
+		return err
+	}
+
+	detail := profile.Detail
+
+	if profile.OperationType == fleet.MDMOperationTypeRemove && profile.Status != nil && *profile.Status == fleet.MDMDeliveryFailed {
+		detail = fmt.Sprintf("Failed to remove: %s", detail)
+	}
+
+	status := profile.Status
+	// We need to run with retry due to potential deadlocks with BulkSetPendingMDMHostProfiles.
+	// Deadlock seen in 2024/12/12 loadtest: https://docs.google.com/document/d/1-Q6qFTd7CDm-lh7MVRgpNlNNJijk6JZ4KO49R1fp80U
+
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `
+		UPDATE host_mdm_windows_profiles
+		SET status = ?, operation_type = ?, detail = ?
+		WHERE host_uuid = ? AND command_uuid = ?
+	`, status, profile.OperationType, detail, profile.HostUUID, profile.CommandUUID)
+
+		return err
+	})
+	return err
+}
+
+func (ds *Datastore) GetWindowsHostMDMCertificateProfile(ctx context.Context, hostUUID string,
+	profileUUID string, caName string,
+) (*fleet.HostMDMCertificateProfile, error) {
+	stmt := `
+	SELECT
+		hmwp.host_uuid,
+		hmwp.profile_uuid,
+		hmwp.status,
+		hmmc.challenge_retrieved_at,
+		hmmc.not_valid_before,
+		hmmc.not_valid_after,
+		hmmc.type,
+		hmmc.ca_name,
+		hmmc.serial
+	FROM
+		host_mdm_windows_profiles hmwp
+	JOIN host_mdm_managed_certificates hmmc
+		ON hmwp.host_uuid = hmmc.host_uuid AND hmwp.profile_uuid = hmmc.profile_uuid
+	WHERE
+		hmmc.host_uuid = ? AND hmmc.profile_uuid = ? AND hmmc.ca_name = ?`
+	var profile fleet.HostMDMCertificateProfile
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &profile, stmt, hostUUID, profileUUID, caName); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &profile, nil
 }

@@ -1,1 +1,0 @@
-Removing the software renaming fix introduced in 4.73.3 due to MySQL DB performance issues.

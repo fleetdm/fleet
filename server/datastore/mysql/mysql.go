@@ -17,6 +17,7 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	condaccessdepot "github.com/fleetdm/fleet/v4/ee/server/service/condaccess/depot"
 	hostidscepdepot "github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/depot"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -29,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
@@ -36,6 +38,9 @@ import (
 	"github.com/jmoiron/sqlx"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
+
+// Compile-time interface check
+var _ activities.ActivityStore = (*Datastore)(nil)
 
 const (
 	defaultSelectLimit   = 1000000
@@ -181,6 +186,12 @@ func (ds *Datastore) NewSCEPDepot() (scep_depot.Depot, error) {
 // underlying MySQL writer *sql.DB.
 func (ds *Datastore) NewHostIdentitySCEPDepot(logger log.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
 	return hostidscepdepot.NewHostIdentitySCEPDepot(ds.primary, ds, logger, cfg)
+}
+
+// NewConditionalAccessSCEPDepot returns a new conditional access SCEP depot that uses the
+// underlying MySQL writer *sql.DB.
+func (ds *Datastore) NewConditionalAccessSCEPDepot(logger log.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
+	return condaccessdepot.NewConditionalAccessSCEPDepot(ds.primary, ds, logger, cfg)
 }
 
 type entity struct {

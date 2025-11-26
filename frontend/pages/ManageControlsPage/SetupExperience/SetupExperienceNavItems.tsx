@@ -42,9 +42,9 @@ const SETUP_EXPERIENCE_NAV_ITEMS: ISideNavItem<ISetupExperienceCardProps>[] = [
     Card: RunScript,
   },
   {
-    title: "5. Setup assistant",
+    title: "5. macOS Setup Assistant",
     urlSection: "setup-assistant",
-    path: PATHS.CONTROLS_SETUP_ASSITANT,
+    path: PATHS.CONTROLS_SETUP_ASSISTANT,
     Card: SetupAssistant,
   },
 ];

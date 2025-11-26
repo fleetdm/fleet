@@ -23,11 +23,7 @@ These flaws are listed here publicly for two reasons. The first is so that peopl
   - I can talk too much.  On video calls, and especially during a screenshare session, I sometimes will keep talking longer than I otherwise would.  If you get lost, or overwhelmed, you can interrupt me or send a chat: "Hold up, I'm feeling out of phase from this conversation."
 
 
-<!--  Cutting back on some content just to make this more readable.  Prioritizing the ones that matter the most. -mike feb 2024.
 
-- I can be inconsistent about how certain I sound about the same topics at different times.  Even when I am probably still certain.  That's because I try to question blind certainty, even my own. The problem is, I don't always remember why I first became certain about every topic.  It is okay to stop and share what you observe: "You seem less sure about this.  What's up?"  If I am waffling, it can be helpful to say "Did we write down a decision on that?  I'll make a GitHub issue." ([Luke](https://fleetdm.com/handbook/engineering#team) is good at this.)
-- I sometimes will keep talking longer than I otherwise would (ESPECIALLY OVER ZOOM AND ESPECIALLY WHILE SCREENSHARING) when it is harder to see faces and pick up on subtle cues. This is exacerbated by me being afraid I’ll forget to come back to the topic, and feeling like I have to get to address it immediately or it will be lost. When you think I am riffing 🎸 /monologuing 🗣️ on a tangential topic that isn’t on the agenda, it's always ok to interrupt and tell me to my face, or send me a direct message.
--->
 
 > If you notice one of these flaws, and especially if you deliver feedback about it and don't feel heard, or you feel hurt, or you feel like I didn't "get it", please send me a link to this section of the handbook, or just interrupt me and give me [feedback in the moment](https://fleetdm.com/handbook/company/communications#performance-feedback).  I will be extremely grateful, and value your bravery in pursuit of what's in the best interest of the company.  (And if I don't, keep trying.  I'll come crawling back.  Promise.)
 
@@ -95,6 +91,9 @@ Departmental page structure:
 
 The board meeting and OKR planning happen during the first week of the third month of every quarter. Fleet uses the following agenda to prepare, execute, iterate on, and retro its in-person board meetings and quarterly Objective Key Results (OKRs):
 
+**Two weeks prior (virtual):**
+  - The CEO discusses the board meeting with his coach. 
+
 **Day 1 _Prepare_ (in-person):**
   - Board deck finalization:
   - The CEO preps keynote on plane, absorbs graphs in the airport, and derives top-level OKRs in the hotel.
@@ -159,7 +158,9 @@ Fleet uses [certain email templates](https://docs.google.com/document/d/1VAMWIH8
 
 At Fleet, we use the contact form and email to communicate with future team members. Community members will often inquire about positions that aren't currently being hired for.  The DRI for receiving applications is Fleet's VP of Customer Success, whose team uses a set of template responses and updates Fleet's HRIS with new applicants.  Fleet's SLA for responding to applicants is 1 business day, though this doesn't necessarily mean that the hiring manager has bandwidth to take further action after that initial reply.  In that initial reply, candidates are encouraged to apply for future positions if they don't hear back further within a few days.
 
-> Recommending someone for an [open position](https://fleetdm.com/handbook/company#open-positions) at Fleet? [Add their info to the spreadsheet](https://fleetdm.com/handbook/people#track-a-fleet-applicant) and leave a Google Doc comment at-mentioning the hiring manager or [Head of People](https://fleetdm.com/handbook/people#team). 
+> **Recommending someone for an [open position](https://fleetdm.com/handbook/company#open-positions) at Fleet?**
+>
+> [Add their info to the spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) and leave a Google Doc comment @-mentioning the hiring manager or [Head of People](https://fleetdm.com/handbook/people#team). 
 
 Department-specific interviewing instructions:
 - [Engineering](https://fleetdm.com/handbook/engineering#interview-a-developer-candidate)
@@ -188,7 +189,7 @@ Consultants [track time using the company's tools](https://fleetdm.com/handbook/
 
 > To update a consultant's fee, [submit an issue to 🧑‍🚀 People](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&title=Update%20consultant%20fee) with the consultant's name and new hourly rate.
 
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/e9d36657-fab9-44c1-9162-7bc640e2f3a0">
+
 
 
 ## Hiring a consultant

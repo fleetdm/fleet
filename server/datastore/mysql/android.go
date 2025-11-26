@@ -139,7 +139,8 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			err = ds.SetOrUpdateHostDisksSpace(ctx, host.Host.ID,
 				host.Host.GigsDiskSpaceAvailable,
 				host.Host.PercentDiskSpaceAvailable,
-				host.Host.GigsTotalDiskSpace)
+				host.Host.GigsTotalDiskSpace,
+				nil)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "setting Android host disk space")
 			}
@@ -232,7 +233,8 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			err = ds.SetOrUpdateHostDisksSpace(ctx, host.Host.ID,
 				host.Host.GigsDiskSpaceAvailable,
 				host.Host.PercentDiskSpaceAvailable,
-				host.Host.GigsTotalDiskSpace)
+				host.Host.GigsTotalDiskSpace,
+				nil)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating Android host disk space")
 			}
@@ -855,8 +857,13 @@ const androidApplicableProfilesQuery = `
 		COUNT(mcpl.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels,
 		-- this helps avoid the case where the host is not a member of a label
-		-- just because it hasn't reported results for that label yet.
-		SUM(CASE WHEN lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
+		-- just because it hasn't reported results for that label yet. But we
+		-- only need consider this for dynamic labels - manual(type=1) can be
+		-- considered at any time
+		SUM(
+			CASE WHEN lbl.label_membership_type <> 1 AND lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at THEN 1
+			WHEN lbl.label_membership_type = 1 AND lbl.created_at IS NOT NULL THEN 1
+		ELSE 0 END) as count_host_updated_after_labels
 	FROM
 		mdm_android_configuration_profiles macp
 			JOIN hosts h
@@ -1509,4 +1516,143 @@ func (ds *Datastore) ListAndroidEnrolledDevicesForReconcile(ctx context.Context)
 		return nil, ctxerr.Wrap(ctx, err, "list enrolled android devices for reconcile")
 	}
 	return devices, nil
+}
+
+func isAndroidHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, h *fleet.Host) (bool, error) {
+	var isEnrolled bool
+
+	err := sqlx.GetContext(ctx, q, &isEnrolled, `
+		SELECT 1 FROM host_mdm
+			WHERE host_id = ? AND enrolled = 1
+	`, h.ID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check android host mdm enrolled")
+	}
+
+	return isEnrolled, nil
+}
+
+// GetAndroidAppConfiguration retrieves the configuration for an Android app
+// identified by adam_id and global_or_team_id.
+func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*fleet.AndroidAppConfiguration, error) {
+	stmt := `
+		SELECT
+			id,
+			application_id,
+			team_id,
+			global_or_team_id,
+			configuration,
+			created_at,
+			updated_at
+		FROM android_app_configurations
+		WHERE application_id = ? AND global_or_team_id = ?
+	`
+
+	var config fleet.AndroidAppConfiguration
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, adamID, globalOrTeamID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get android app configuration")
+	}
+
+	return &config, nil
+}
+
+// InsertAndroidAppConfiguration creates a new Android app configuration entry.
+func (ds *Datastore) InsertAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
+	stmt := `
+		INSERT INTO android_app_configurations
+		(application_id, team_id, global_or_team_id, configuration)
+		VALUES (?, ?, ?, ?)
+	`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, config.ApplicationID, config.TeamID, config.GlobalOrTeamID, config.Configuration)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "insert android app configuration")
+	}
+
+	return nil
+}
+
+// UpdateAndroidAppConfiguration updates an existing Android app configuration.
+func (ds *Datastore) UpdateAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
+	stmt := `
+		UPDATE android_app_configurations
+		SET configuration = ?, updated_at = CURRENT_TIMESTAMP(6)
+		WHERE application_id = ? AND global_or_team_id = ?
+	`
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, config.Configuration, config.ApplicationID, config.GlobalOrTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update android app configuration")
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update android app configuration rows affected")
+	}
+
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
+	}
+
+	return nil
+}
+
+// DeleteAndroidAppConfiguration removes an Android app configuration.
+func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID string, globalOrTeamID uint) error {
+	stmt := `
+		DELETE FROM android_app_configurations
+		WHERE application_id = ? AND global_or_team_id = ?
+	`
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, appID, globalOrTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete android app configuration")
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete android app configuration rows affected")
+	}
+
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
+	}
+
+	return nil
+}
+
+// updateAndroidAppConfigurationTx inserts or updates an app configuration using a transaction
+func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID *uint, appID string, config json.RawMessage) error {
+	err := fleet.ValidateAndroidAppConfiguration(config)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "validating android app configuration")
+	}
+
+	var tid *uint
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+
+		if *teamID > 0 {
+			tid = teamID
+		}
+	}
+
+	stmt := `
+		INSERT INTO 
+			android_app_configurations (application_id, team_id, global_or_team_id, configuration)
+		VALUES (?, ?, ?, ?) 
+		ON DUPLICATE KEY UPDATE 
+			configuration = VALUES(configuration)
+	`
+
+	_, err = tx.ExecContext(ctx, stmt, appID, tid, globalOrTeamID, config)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updateAndroidAppConfiguration")
+	}
+	return nil
 }

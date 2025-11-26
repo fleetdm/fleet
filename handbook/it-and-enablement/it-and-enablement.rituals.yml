@@ -29,13 +29,27 @@
   autoIssue:   
     labels: [ ":help-it-and-enablement","#g-unicorns" ]
     repo: "confidential"
+- 
+  task: "Measure intent signals"
+  startedOn: "2024-08-09"
+  frequency: "Daily"
+  description: "Using the instructions in the [🦄⚡️🌐 Go-To-Market strategy doc](https://github.com/fleetdm/confidential/blob/main/go-to-market-strategy.md#daily), measure intent signals."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#measure-intent-signals"
+  dri: "Sampfluger88"
+-
+  task: "Manage duplicates in CRM"
+  startedOn: "2025-08-08"
+  frequency: "Daily"
+  description: "Daily, clean up any duplicate accounts."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#manage-duplicates-in-crm"
+  dri: "Sampfluger88"
 -
   task: "Downgrade unused license seats" 
   startedOn: "2024-03-31" 
   frequency: "Quarterly"
   description: "Downgrade unused or questionable license seats on the first Wednesday of every quarter" 
   moreInfoUrl: "https://fleetdm.com/handbook/it-and-enablement#downgrade-an-unused-license-seat"
-  dri: "sampfluger88"
+  dri: "Sampfluger88"
 -
   task: "Prepare board deck"
   startedOn: "2023-09-25"

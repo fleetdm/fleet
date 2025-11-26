@@ -1,3 +1,7 @@
+/** This modal is only used for VPP apps and their related installations.
+ * For iOS/iPadOS packages (e.g. .ipa packages software source is ios_apps or ipados_apps)
+ *  we use SoftwareIpaInstallDetailsModal with the command_uuid. */
+
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
@@ -19,7 +23,7 @@ import InventoryVersions from "pages/hosts/details/components/InventoryVersions"
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import IconStatusMessage from "components/IconStatusMessage";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import DeviceUserError from "components/DeviceUserError";
@@ -319,6 +323,11 @@ export const VppInstallDetailsModal = ({
   };
 
   const renderInstallDetailsSection = () => {
+    // Hide section if there's no details to display
+    if (!vppCommandResult?.result && !vppCommandResult?.payload) {
+      return null;
+    }
+
     return (
       <>
         <RevealButton
@@ -377,10 +386,11 @@ export const VppInstallDetailsModal = ({
     }
     return (
       <div className={`${baseClass}__modal-content`}>
-        <div className={`${baseClass}__status-message`}>
-          {!!iconName && <Icon name={iconName} />}
-          <span>{statusMessage}</span>
-        </div>
+        <IconStatusMessage
+          className={`${baseClass}__status-message`}
+          iconName={iconName}
+          message={<span>{statusMessage}</span>}
+        />
         {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
         {!isPendingInstall &&
           isInstalledByFleet &&

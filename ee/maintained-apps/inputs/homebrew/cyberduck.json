@@ -1,0 +1,8 @@
+{
+  "name": "Cyberduck",
+  "unique_identifier": "ch.sudo.cyberduck",
+  "token": "cyberduck",
+  "installer_format": "zip",
+  "slug": "cyberduck/darwin",
+  "default_categories": ["Productivity"]
+}

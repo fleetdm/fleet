@@ -27,6 +27,13 @@ agent_options:
     orbit: edge
     desktop: edge
 controls:
+  macos_setup:
+    bootstrap_package: ""
+    enable_end_user_authentication: true
+    macos_setup_assistant: 
+  macos_updates:
+    deadline:
+    minimum_version:
   enable_disk_encryption: true
   scripts:
     # macOS scripts
@@ -73,11 +80,12 @@ software:
         - "RPM-based Linux hosts"
   fleet_maintained_apps:
     # macOS apps
-    - slug: santa/darwin # Santa for macOS
+    - slug: privileges/darwin # Privileges for macOS
       self_service: true
-    - slug: vnc-viewer/darwin # VNC Viewer for macOS
+    - slug: cursor/darwin # Cursor for macOS
       self_service: true
-    - slug: beyond-compare/darwin # Beyond Compare for macOS
+    # Windows apps
+    - slug: google-chrome/windows # Google Chrome for Windows
       self_service: true
-    - slug: iterm2/darwin # iTerm2 for macOS
+    - slug: slack/windows # Slack for Windows
       self_service: true

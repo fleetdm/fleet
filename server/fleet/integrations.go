@@ -403,37 +403,37 @@ type Integrations struct {
 }
 
 // ValidateConditionalAccessIntegration validates "Conditional access" can be enabled on a team/"No team".
-// It checks the global setup of the feature has been made.
+// It checks the global setup of the feature has been made (either Microsoft Entra or Okta).
 func ValidateConditionalAccessIntegration(
 	ctx context.Context,
 	g interface {
 		ConditionalAccessMicrosoftGet(context.Context) (*ConditionalAccessMicrosoftIntegration, error)
 	},
+	conditionalAccessSettings *ConditionalAccessSettings,
 	currentConditionalAccessEnabled bool,
 	newConditionalAccessEnabled bool,
 ) error {
 	switch {
 	case currentConditionalAccessEnabled == newConditionalAccessEnabled:
-		// No change, mothing to do.
+		// No change, nothing to do.
 	case currentConditionalAccessEnabled && !newConditionalAccessEnabled:
 		// Disabling feature on team/no-team, nothing to do.
 	case !currentConditionalAccessEnabled && newConditionalAccessEnabled:
 		// Enabling feature on team/no-team.
-		var settings *ConditionalAccessSettings
+		// Check that at least one integration is configured (Microsoft Entra or Okta)
 		conditionalAccessIntegration, err := g.ConditionalAccessMicrosoftGet(ctx)
 		if err != nil {
 			return fmt.Errorf("load conditional access microsoft: %w", err)
 		}
-		if conditionalAccessIntegration != nil {
-			settings = &ConditionalAccessSettings{
-				MicrosoftEntraTenantID:             conditionalAccessIntegration.TenantID,
-				MicrosoftEntraConnectionConfigured: conditionalAccessIntegration.SetupDone,
-			}
-		}
-		if settings == nil || !settings.MicrosoftEntraConnectionConfigured {
+		entraConfigured := conditionalAccessIntegration != nil && conditionalAccessIntegration.SetupDone
+
+		// Check Okta configuration from ConditionalAccessSettings
+		oktaConfigured := conditionalAccessSettings.OktaConfigured()
+
+		if !entraConfigured && !oktaConfigured {
 			return NewInvalidArgumentError(
 				"integrations.conditional_access_enabled",
-				"Couldn't enable because the integration isn't configured",
+				"Couldn't enable because no conditional access integration is configured",
 			)
 		}
 	}

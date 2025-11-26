@@ -2,6 +2,11 @@ name: Build fleetdm/fleetctl and check vulnerabilities
 
 on:
   workflow_dispatch:
+    inputs:
+      skip_build:
+        description: "Test published Docker image instead of a local build"
+        type: boolean
+        default: false
   schedule:
     - cron: "0 6 * * *"
 
@@ -39,7 +44,12 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Build fleetdm/fleetctl
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.skip_build }}
         run: make fleetctl-docker
+
+      - name: Clean up Docker build cache
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.skip_build }}
+        run: docker builder prune -af
 
       - name: List VEX files
         id: generate_vex_files

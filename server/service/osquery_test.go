@@ -341,6 +341,9 @@ func TestEnrollOsqueryEnforceLimit(t *testing.T) {
 		ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
 			return nil, newNotFoundError()
 		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
 
 		redisWrapDS := mysqlredis.New(ds, pool, mysqlredis.WithEnforcedHostLimit(maxHosts))
 		svc, ctx := newTestService(t, redisWrapDS, nil, nil, &TestServerOpts{
@@ -1838,7 +1841,7 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, "foo", authToken)
 		return nil
 	}
-	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error {
+	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
 		require.Equal(t, 277.0, gigsAvailable)
 		require.Equal(t, 56.0, percentAvailable)
 		require.Equal(t, 500.1, gigsTotal)
@@ -2116,6 +2119,67 @@ func TestDetailQueries(t *testing.T) {
 			Source:           "source2",
 		},
 	}, gotSoftware)
+
+	// Since this is set directly in the ingest function, it doesn't use the mock clock.
+	// So the expected restarted at time is calculated based on the current time.
+	expectedLastRestartedAt := time.Now().Add(-1730893 * time.Second)
+	require.NoError(t, err)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
+
+	// Set the last restarted at date, then change the uptime result to simulate
+	// a small drift (less than 30s). Verify that the LastRestartedAt is not updated.
+	host.LastRestartedAt = expectedLastRestartedAt
+	results["fleet_detail_query_uptime"] = []map[string]string{
+		{
+			"days":          "21",
+			"hours":         "0",
+			"minutes":       "46",
+			"seconds":       "13",
+			"total_seconds": "1730865",
+		},
+	}
+	// Verify that results are ingested properly
+	require.NoError(
+		t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{}),
+	)
+	require.NotNil(t, gotHost)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
+
+	// Test again with _forward_ drift, which would push the last restarted at date
+	// back, and verify that we ignore it.
+	results["fleet_detail_query_uptime"] = []map[string]string{
+		{
+			"days":          "0",
+			"hours":         "0",
+			"minutes":       "30",
+			"seconds":       "0",
+			"total_seconds": "1740865",
+		},
+	}
+	// Verify that results are ingested properly
+	require.NoError(
+		t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{}),
+	)
+	require.NotNil(t, gotHost)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
+
+	// One final test -- change the uptime to just one minute, and verify that we do update last restarted at.
+	results["fleet_detail_query_uptime"] = []map[string]string{
+		{
+			"days":          "0",
+			"hours":         "0",
+			"minutes":       "1",
+			"seconds":       "0",
+			"total_seconds": "60",
+		},
+	}
+	// Verify that results are ingested properly
+	require.NoError(
+		t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{}),
+	)
+	require.NotNil(t, gotHost)
+	expectedLastRestartedAt = time.Now().Add(-60 * time.Second)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
 
 	host.Hostname = "computer.local"
 	host.Platform = "darwin"
@@ -3231,8 +3295,8 @@ func TestPolicyQueries(t *testing.T) {
 	) {
 		return nil, nil, nil
 	}
-	ds.TeamWithoutExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
-		return &fleet.Team{ID: 0}, nil
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: 0}, nil
 	}
 
 	ctx = hostctx.NewContext(ctx, host)
@@ -3505,11 +3569,11 @@ func TestPolicyWebhooks(t *testing.T) {
 	}
 
 	// Since the host doesn't have a team, DefaultTeamConfig will be called
-	ds.TeamWithoutExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		if id == 0 {
-			return &fleet.Team{
+			return &fleet.TeamLite{
 				ID: 0,
-				Config: fleet.TeamConfig{
+				Config: fleet.TeamConfigLite{
 					WebhookSettings: fleet.TeamWebhookSettings{
 						FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 							Enable:    true,

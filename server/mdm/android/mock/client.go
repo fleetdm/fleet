@@ -25,6 +25,8 @@ type EnterprisesDevicesGetFunc func(ctx context.Context, deviceName string) (*an
 
 type EnterprisesDevicesDeleteFunc func(ctx context.Context, deviceName string) error
 
+type EnterprisesDevicesListPartialFunc func(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error)
+
 type EnterprisesEnrollmentTokensCreateFunc func(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error)
 
 type EnterpriseDeleteFunc func(ctx context.Context, enterpriseName string) error
@@ -32,6 +34,10 @@ type EnterpriseDeleteFunc func(ctx context.Context, enterpriseName string) error
 type EnterprisesListFunc func(ctx context.Context, serverURL string) ([]*androidmanagement.Enterprise, error)
 
 type SetAuthenticationSecretFunc func(secret string) error
+
+type EnterprisesApplicationsFunc func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error)
+
+type EnterprisesPoliciesModifyPolicyApplicationsFunc func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error)
 
 type Client struct {
 	SignupURLsCreateFunc        SignupURLsCreateFunc
@@ -52,6 +58,9 @@ type Client struct {
 	EnterprisesDevicesDeleteFunc        EnterprisesDevicesDeleteFunc
 	EnterprisesDevicesDeleteFuncInvoked bool
 
+	EnterprisesDevicesListPartialFunc        EnterprisesDevicesListPartialFunc
+	EnterprisesDevicesListPartialFuncInvoked bool
+
 	EnterprisesEnrollmentTokensCreateFunc        EnterprisesEnrollmentTokensCreateFunc
 	EnterprisesEnrollmentTokensCreateFuncInvoked bool
 
@@ -63,6 +72,12 @@ type Client struct {
 
 	SetAuthenticationSecretFunc        SetAuthenticationSecretFunc
 	SetAuthenticationSecretFuncInvoked bool
+
+	EnterprisesApplicationsFunc        EnterprisesApplicationsFunc
+	EnterprisesApplicationsFuncInvoked bool
+
+	EnterprisesPoliciesModifyPolicyApplicationsFunc        EnterprisesPoliciesModifyPolicyApplicationsFunc
+	EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -109,6 +124,13 @@ func (p *Client) EnterprisesDevicesDelete(ctx context.Context, deviceName string
 	return p.EnterprisesDevicesDeleteFunc(ctx, deviceName)
 }
 
+func (p *Client) EnterprisesDevicesListPartial(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error) {
+	p.mu.Lock()
+	p.EnterprisesDevicesListPartialFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesDevicesListPartialFunc(ctx, enterpriseName, pageToken)
+}
+
 func (p *Client) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
 	p.mu.Lock()
 	p.EnterprisesEnrollmentTokensCreateFuncInvoked = true
@@ -135,4 +157,18 @@ func (p *Client) SetAuthenticationSecret(secret string) error {
 	p.SetAuthenticationSecretFuncInvoked = true
 	p.mu.Unlock()
 	return p.SetAuthenticationSecretFunc(secret)
+}
+
+func (p *Client) EnterprisesApplications(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+	p.mu.Lock()
+	p.EnterprisesApplicationsFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesApplicationsFunc(ctx, enterpriseName, packageName)
+}
+
+func (p *Client) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+	p.mu.Lock()
+	p.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesPoliciesModifyPolicyApplicationsFunc(ctx, policyName, appPolicies)
 }

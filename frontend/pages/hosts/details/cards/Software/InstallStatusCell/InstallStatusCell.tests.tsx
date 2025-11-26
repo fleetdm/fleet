@@ -31,6 +31,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -69,6 +70,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -99,6 +101,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -131,11 +134,13 @@ describe("InstallStatusCell - component", () => {
             software_package: createMockHostSoftwarePackage({
               name: "mock software.sh",
             }),
+            source: "sh_packages",
           }),
           ui_status: "ran_script",
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -166,6 +171,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -203,6 +209,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -239,6 +246,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -275,6 +283,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -315,6 +324,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -346,6 +356,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -363,7 +374,7 @@ describe("InstallStatusCell - component", () => {
     });
   });
 
-  it("renders 'Failed run' for a payload-free package that failed to run", async () => {
+  it("renders 'Failed' for a payload-free package that failed to run", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -376,18 +387,17 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />
     );
 
-    expect(
-      screen.getByRole("button", { name: /Failed run/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Failed/i })).toBeInTheDocument();
     expect(screen.getByTestId("error-icon")).toBeInTheDocument();
 
-    await user.hover(screen.getByText(/Failed run/));
+    await user.hover(screen.getByText(/Failed/));
     await waitFor(() => {
       expect(screen.getByText(/The script failed to run/i)).toBeInTheDocument();
     });
@@ -410,6 +420,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -441,6 +452,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -472,6 +484,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -500,6 +513,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -530,6 +544,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -562,6 +577,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -593,6 +609,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -623,6 +640,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -654,6 +672,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -688,6 +707,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -718,6 +738,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
@@ -750,6 +771,7 @@ describe("InstallStatusCell - component", () => {
         }}
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
