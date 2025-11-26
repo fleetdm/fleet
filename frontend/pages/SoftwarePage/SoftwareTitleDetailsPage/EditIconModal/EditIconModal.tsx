@@ -408,7 +408,7 @@ const EditIconModal = ({
           className={`${baseClass}__preview-card__fleet`}
         >
           <SoftwareDetailsSummary
-            displayName={displayName || name}
+            displayName={displayName || previewInfo.titleName}
             name={name}
             type={type}
             source={source}
@@ -516,7 +516,9 @@ const EditIconModal = ({
             />
           )}
           <div className={`${baseClass}__self-service-preview-name`}>
-            <TooltipTruncatedText value={displayName || previewInfo.name} />
+            <TooltipTruncatedText
+              value={displayName || previewInfo.titleName}
+            />
           </div>
         </div>
       </Card>
@@ -589,7 +591,7 @@ const EditIconModal = ({
         helpText={
           <>
             Optional. If left blank, Fleet will use{" "}
-            <strong>{software.name}</strong>.
+            <strong>{previewInfo.titleName}</strong>.
           </>
         }
         autofocus
@@ -678,25 +680,26 @@ const EditIconModal = ({
 
       if (canSaveDisplayName) {
         try {
+          const trimmedDisplayName = (displayName ?? "").trim();
           await (installerType === "package"
             ? softwareAPI.editSoftwarePackage({
-                data: { displayName },
+                data: { displayName: trimmedDisplayName },
                 softwareId,
                 teamId: teamIdForApi,
               })
             : softwareAPI.editAppStoreApp(softwareId, teamIdForApi, {
-                displayName,
+                displayName: trimmedDisplayName,
               }));
           nameSucceeded = true;
           nameSuccessMessage =
-            displayName === "" ? (
+            trimmedDisplayName === "" ? (
               <>
                 Successfully removed custom name for <b>{previewInfo.name}</b>.
               </>
             ) : (
               <>
                 Successfully renamed <b>{previewInfo.name}</b> to{" "}
-                <b>{displayName}</b>.
+                <b>{trimmedDisplayName}</b>.
               </>
             );
         } catch (e) {
