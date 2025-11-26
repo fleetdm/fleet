@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"text/template"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -20,6 +21,15 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 
 	if payload.IsNoopPayload(software) {
 		return existingInstaller, nil // no payload, noop
+	}
+
+	if payload.DisplayName != nil && *payload.DisplayName != software.DisplayName {
+		trimmed := strings.TrimSpace(*payload.DisplayName)
+		if trimmed == "" && *payload.DisplayName != "" {
+			return nil, fleet.NewInvalidArgumentError("display_name", "Cannot have a display name that is all whitespace.")
+		}
+
+		*payload.DisplayName = trimmed
 	}
 
 	payload.InstallerID = existingInstaller.InstallerID

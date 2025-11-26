@@ -555,6 +555,13 @@
       "description": "Omnissa Horizon Client is a tool end users use to access remote virtual desktops."
     },
     {
+      "name": "OneDrive",
+      "slug": "onedrive/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.OneDrive",
+      "description": "OneDrive is Microsoft's cloud storage client."
+    },
+    {
       "name": "Opera",
       "slug": "opera/darwin",
       "platform": "darwin",
@@ -763,6 +770,13 @@
       "platform": "darwin",
       "unique_identifier": "net.tunnelblick.tunnelblick",
       "description": "Tunnelblick is a free and open-source OpenVPN client."
+    },
+    {
+      "name": "Twingate",
+      "slug": "twingate/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.twingate.macos",
+      "description": "Twingate is a zero trust network access platform."
     },
     {
       "name": "Microsoft Visual Studio Code",
