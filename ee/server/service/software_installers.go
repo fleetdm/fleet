@@ -139,7 +139,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	var teamName *string
 	if payload.TeamID != nil && *payload.TeamID != 0 {
-		t, err := svc.ds.TeamWithExtras(ctx, *payload.TeamID)
+		t, err := svc.ds.TeamLite(ctx, *payload.TeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting team name on upload software installer")
 		}
@@ -327,21 +327,23 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	dirty := make(map[string]bool)
 
-	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
-	}
-
-	if len(catIDs) != len(payload.Categories) {
-		return nil, &fleet.BadRequestError{
-			Message:     "some or all of the categories provided don't exist",
-			InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
+	if payload.Categories != nil {
+		payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
+		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
 		}
-	}
 
-	payload.CategoryIDs = catIDs
-	dirty["Categories"] = true
+		if len(catIDs) != len(payload.Categories) {
+			return nil, &fleet.BadRequestError{
+				Message:     "some or all of the categories provided don't exist",
+				InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
+			}
+		}
+
+		payload.CategoryIDs = catIDs
+		dirty["Categories"] = true
+	}
 
 	// Handle in house apps separately
 	if software.InHouseAppCount == 1 {
@@ -360,15 +362,19 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "getting existing installer")
 	}
 
-	if payload.SelfService == nil && payload.InstallerFile == nil && payload.PreInstallQuery == nil &&
-		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil &&
-		payload.LabelsIncludeAny == nil && payload.LabelsExcludeAny == nil && software.DisplayName == payload.DisplayName {
+	if payload.IsNoopPayload(software) {
 		return existingInstaller, nil // no payload, noop
 	}
 
 	payload.InstallerID = existingInstaller.InstallerID
 
-	if software.DisplayName != payload.DisplayName {
+	if payload.DisplayName != nil && *payload.DisplayName != software.DisplayName {
+		trimmed := strings.TrimSpace(*payload.DisplayName)
+		if trimmed == "" && *payload.DisplayName != "" {
+			return nil, fleet.NewInvalidArgumentError("display_name", "Cannot have a display name that is all whitespace.")
+		}
+
+		*payload.DisplayName = trimmed
 		dirty["DisplayName"] = true
 	}
 
@@ -391,14 +397,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		actTeamID = payload.TeamID
 	}
 	activity := fleet.ActivityTypeEditedSoftware{
-		SoftwareTitle:       existingInstaller.SoftwareTitle,
-		TeamName:            teamName,
-		TeamID:              actTeamID,
-		SelfService:         existingInstaller.SelfService,
-		SoftwarePackage:     &existingInstaller.Name,
-		SoftwareTitleID:     payload.TitleID,
-		SoftwareIconURL:     existingInstaller.IconUrl,
-		SoftwareDisplayName: payload.DisplayName,
+		SoftwareTitle:   existingInstaller.SoftwareTitle,
+		TeamName:        teamName,
+		TeamID:          actTeamID,
+		SelfService:     existingInstaller.SelfService,
+		SoftwarePackage: &existingInstaller.Name,
+		SoftwareTitleID: payload.TitleID,
+		SoftwareIconURL: existingInstaller.IconUrl,
 	}
 
 	if payload.SelfService != nil && *payload.SelfService != existingInstaller.SelfService {
@@ -647,6 +652,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		if payload.SelfService != nil {
 			activity.SelfService = *payload.SelfService
 		}
+		if payload.DisplayName != nil {
+			activity.SoftwareDisplayName = *payload.DisplayName
+		}
 		if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "creating activity for edited software")
 		}
@@ -793,7 +801,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 
 	var teamName *string
 	if teamID != nil && *teamID != 0 {
-		t, err := svc.ds.TeamWithExtras(ctx, *teamID)
+		t, err := svc.ds.TeamLite(ctx, *teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting team name for deleted VPP app")
 		}
@@ -843,7 +851,7 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 
 	var teamName *string
 	if meta.TeamID != nil {
-		t, err := svc.ds.TeamWithExtras(ctx, *meta.TeamID)
+		t, err := svc.ds.TeamLite(ctx, *meta.TeamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting team name for deleted software")
 		}
@@ -2075,6 +2083,7 @@ func (svc *Service) softwareBatchUpload(
 				LabelsExcludeAny:   p.LabelsExcludeAny,
 				ValidatedLabels:    p.ValidatedLabels,
 				Categories:         p.Categories,
+				DisplayName:        p.DisplayName,
 			}
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload

@@ -202,6 +202,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 	if payload.Extension == "ipa" {
 		installerID, titleID, err := ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
 			TeamID:          payload.TeamID,
+			Title:           payload.Title,
 			Filename:        payload.Filename,
 			BundleID:        payload.BundleIdentifier,
 			StorageID:       payload.StorageID,
@@ -212,7 +213,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			SelfService:     payload.SelfService,
 		})
 		if err != nil {
-			return 0, 0, ctxerr.Wrap(ctx, err, "MatchOrCreateSoftwareInstaller")
+			return 0, 0, ctxerr.Wrap(ctx, err, "insert in house app")
 		}
 		return installerID, titleID, err
 	}
@@ -233,7 +234,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		if exists {
 			teamName := fleet.TeamNameNoTeam
 			if payload.TeamID != nil && *payload.TeamID > 0 {
-				tm, err := ds.TeamWithExtras(ctx, *payload.TeamID)
+				tm, err := ds.TeamLite(ctx, *payload.TeamID)
 				if err != nil {
 					return 0, 0, ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
 				}
@@ -702,8 +703,10 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 			}
 		}
 
-		if err := updateSoftwareTitleDisplayName(ctx, tx, payload.TeamID, payload.TitleID, payload.DisplayName); err != nil {
-			return ctxerr.Wrap(ctx, err, "update software title display name")
+		if payload.DisplayName != nil {
+			if err := updateSoftwareTitleDisplayName(ctx, tx, payload.TeamID, payload.TitleID, *payload.DisplayName); err != nil {
+				return ctxerr.Wrap(ctx, err, "update software title display name")
+			}
 		}
 
 		return nil
@@ -774,6 +777,18 @@ WHERE
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
 	}
+
+	var tmID uint
+	if dest.TeamID != nil {
+		tmID = *dest.TeamID
+	}
+
+	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, *dest.TitleID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get display name for software installer")
+	}
+
+	dest.DisplayName = displayName
 
 	return &dest, nil
 }
@@ -929,6 +944,13 @@ WHERE
 	if categories, ok := categoryMap[titleID]; ok {
 		dest.Categories = categories
 	}
+
+	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, titleID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get software title display name")
+	}
+
+	dest.DisplayName = displayName
 
 	if teamID != nil {
 		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, *teamID)
@@ -2191,7 +2213,7 @@ VALUES
 	teamName := fleet.TeamNameNoTeam
 	if tmID != nil {
 		globalOrTeamID = *tmID
-		tm, err := ds.TeamWithExtras(ctx, *tmID)
+		tm, err := ds.TeamLite(ctx, *tmID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "fetch team for batch set software installers")
 		}
@@ -2394,7 +2416,7 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
 		}
 
-		for _, installer := range installers {
+		for i, installer := range installers {
 			if installer.ValidatedLabels == nil {
 				return ctxerr.Errorf(ctx, "labels have not been validated for installer with name %s", installer.Filename)
 			}
@@ -2590,6 +2612,11 @@ VALUES
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "insert new/edited categories for installer with name %q", installer.Filename)
 				}
+			}
+
+			// update the display name for the software title
+			if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleIDs[i], installer.DisplayName); err != nil {
+				return ctxerr.Wrapf(ctx, err, "update software title display name for installer with name %q", installer.Filename)
 			}
 
 			// perform side effects if this was an update (related to pending (un)install requests)

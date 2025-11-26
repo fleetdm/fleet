@@ -37,6 +37,7 @@ spec:
     enable_disk_encryption: false
     windows_require_bitlocker_pin: null
     windows_migration_enabled: false
+    enable_turn_on_windows_mdm_manually: false
     macos_migration:
       enable: false
       mode: ""
@@ -47,6 +48,7 @@ spec:
       custom_settings: null
     android_settings:
       custom_settings: null
+      certificates: null
     macos_setup:
       bootstrap_package: %s
       enable_end_user_authentication: false

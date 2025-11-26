@@ -462,11 +462,9 @@ func (svc *Service) VerifyMDMAndroidConfigured(ctx context.Context) error {
 	return nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Apple or Windows MDM Middleware
-////////////////////////////////////////////////////////////////////////////////
-
-func (svc *Service) VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error {
+// VerifyAnyMDMConfigured checks that at least one MDM platform (Apple, Windows,
+// or Android) is configured so callers that rely on MDM functionality can proceed.
+func (svc *Service) VerifyAnyMDMConfigured(ctx context.Context) error {
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		// skipauth: Authorization is currently for user endpoints only.
@@ -474,8 +472,8 @@ func (svc *Service) VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error
 		return err
 	}
 
-	// Apple or Windows MDM configuration setting
-	if !appCfg.MDM.EnabledAndConfigured && !appCfg.MDM.WindowsEnabledAndConfigured {
+	// Apple, Windows, or Android MDM configuration setting
+	if !appCfg.MDM.EnabledAndConfigured && !appCfg.MDM.WindowsEnabledAndConfigured && !appCfg.MDM.AndroidEnabledAndConfigured {
 		// skipauth: Authorization is currently for user endpoints only.
 		svc.authz.SkipAuthorization(ctx)
 		return fleet.ErrMDMNotConfigured
@@ -1632,7 +1630,7 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 		Name:    profileName,
 		RawJSON: data,
 	}
-	if err := cp.ValidateUserProvided(); err != nil {
+	if err := cp.ValidateUserProvided(license.IsPremium(ctx)); err != nil {
 		err := &fleet.BadRequestError{Message: "Couldn't add. " + err.Error()}
 		return nil, ctxerr.Wrap(ctx, err, "validate profile")
 	}
@@ -2445,6 +2443,7 @@ func getAndroidProfiles(ctx context.Context,
 	appCfg *fleet.AppConfig,
 	profiles map[int]fleet.MDMProfileBatchPayload,
 	labelMap map[string]fleet.ConfigurationProfileLabel,
+	// isPremium bool,
 ) (map[int]*fleet.MDMAndroidConfigProfile, error) {
 	profs := make(map[int]*fleet.MDMAndroidConfigProfile, len(profiles))
 	for i, profile := range profiles {
@@ -2486,7 +2485,7 @@ func getAndroidProfiles(ctx context.Context,
 			}
 		}
 
-		if err := mdmProf.ValidateUserProvided(); err != nil {
+		if err := mdmProf.ValidateUserProvided(license.IsPremium(ctx)); err != nil {
 			msg := err.Error()
 			return nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", profile.Name), msg))
@@ -2593,7 +2592,7 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 
 	if teamID != nil && *teamID > 0 {
 		// confirm that team exists
-		if _, err := svc.ds.TeamWithExtras(ctx, *teamID); err != nil {
+		if _, err := svc.ds.TeamLite(ctx, *teamID); err != nil { // TODO see if we can use TeamExists here instead
 			return nil, nil, ctxerr.Wrap(ctx, err)
 		}
 	}

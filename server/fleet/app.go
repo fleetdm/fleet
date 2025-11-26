@@ -225,11 +225,12 @@ type MDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
-	MacOSSettings           MacOSSettings            `json:"macos_settings"`
-	MacOSSetup              MacOSSetup               `json:"macos_setup"`
-	MacOSMigration          MacOSMigration           `json:"macos_migration"`
-	WindowsMigrationEnabled bool                     `json:"windows_migration_enabled"`
-	EndUserAuthentication   MDMEndUserAuthentication `json:"end_user_authentication"`
+	MacOSSettings                  MacOSSettings            `json:"macos_settings"`
+	MacOSSetup                     MacOSSetup               `json:"macos_setup"`
+	MacOSMigration                 MacOSMigration           `json:"macos_migration"`
+	WindowsMigrationEnabled        bool                     `json:"windows_migration_enabled"`
+	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
+	EndUserAuthentication          MDMEndUserAuthentication `json:"end_user_authentication"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
@@ -1610,7 +1611,8 @@ var _ WithMDMProfileSpecs = WindowsSettings{}
 type AndroidSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings"`
+	CustomSettings optjson.Slice[MDMProfileSpec]          `json:"custom_settings"`
+	Certificates   optjson.Slice[CertificateTemplateSpec] `json:"certificates"`
 }
 
 func (ws AndroidSettings) GetMDMProfileSpecs() []MDMProfileSpec {
@@ -1619,6 +1621,20 @@ func (ws AndroidSettings) GetMDMProfileSpecs() []MDMProfileSpec {
 
 // Compile-time interface check
 var _ WithMDMProfileSpecs = AndroidSettings{}
+
+// only letters, numbers, spaces, dashes, and underscores
+var certificateNamePattern = regexp.MustCompile(`^[\w\s-]+$`)
+
+// CertificateTemplateSpec defines a certificate template to be deployed to devices.
+type CertificateTemplateSpec struct {
+	Name                     string `json:"name"`
+	CertificateAuthorityName string `json:"certificate_authority_name"`
+	SubjectName              string `json:"subject_name"`
+}
+
+func (c CertificateTemplateSpec) NameValid() bool {
+	return certificateNamePattern.MatchString(c.Name)
+}
 
 type YaraRuleSpec struct {
 	Path string `json:"path"`

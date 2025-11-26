@@ -227,6 +227,26 @@ type SoftwareVersion struct {
 	TitleID uint `db:"title_id" json:"-"`
 }
 
+// SoftwareTitleSummary contains a lightweight subset of the fields of a SoftwareTitle that are
+// useful for processing incoming software
+// TODO - embed this in `SoftwareTitle` to reduce redundancy
+type SoftwareTitleSummary struct {
+	ID uint `json:"id" db:"id"`
+	// Name is the name reported by osquery.
+	Name string `json:"name" db:"name"`
+	// Source is the source reported by osquery.
+	Source string `json:"source" db:"source"`
+	// ExtensionFor is the host software that this software is an extension for
+	ExtensionFor string `json:"extension_for" db:"extension_for"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See
+	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	// BundleIdentifier is used by Apple installers to uniquely identify
+	// the software installed. It's surfaced in software_titles to match
+	// with existing software entries.
+	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+}
+
 // SoftwareTitle represents a title backed by the `software_titles` table.
 type SoftwareTitle struct {
 	ID uint `json:"id" db:"id"`
@@ -636,9 +656,10 @@ type VPPBatchPayload struct {
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories []string `json:"categories"`
-	IconPath   string   `json:"-"`
-	IconHash   string   `json:"-"`
+	Categories  []string `json:"categories"`
+	DisplayName string   `json:"display_name"`
+	IconPath    string   `json:"-"`
+	IconHash    string   `json:"-"`
 }
 
 type VPPBatchPayloadWithPlatform struct {
@@ -652,6 +673,7 @@ type VPPBatchPayloadWithPlatform struct {
 	Categories []string `json:"categories"`
 	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
 	CategoryIDs []uint `json:"-"`
+	DisplayName string `json:"display_name"`
 }
 
 type SoftwareCategory struct {

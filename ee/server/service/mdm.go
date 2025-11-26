@@ -288,7 +288,9 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 	if err != nil {
 		return err
 	}
-	if !ac.MDM.EnabledAndConfigured {
+
+	// If anything besides enable_end_user_authentication is being updated, ensure MDM is on.
+	if (payload.RequireAllSoftware != nil || payload.EnableReleaseDeviceManually != nil || payload.ManualAgentInstall != nil) && !ac.MDM.EnabledAndConfigured {
 		return fleet.ErrMDMNotConfigured
 	}
 
@@ -474,7 +476,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 	}
 
 	if teamID != nil {
-		_, err := svc.ds.TeamWithExtras(ctx, tmID)
+		_, err := svc.ds.TeamLite(ctx, tmID) // TODO see if we can use TeamExists here instead
 		if err != nil {
 			return &fleet.MDMAppleBootstrapPackageSummary{}, err
 		}
@@ -586,7 +588,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 	var tm *fleet.Team
 	if asst.TeamID != nil {
 		var err error
-		tm, err = svc.ds.TeamWithExtras(ctx, *asst.TeamID)
+		tm, err = svc.ds.TeamWithExtras(ctx, *asst.TeamID) // TODO see if we can convert to TeamLite
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get team")
 		}
@@ -950,19 +952,22 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		return "", idpAcc.UUID, eulaToken, originalURL, ssoRequestData, nil
 	}
 
-	// get the automatic profile to access the authentication token.
-	depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
-	if err != nil {
-		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "listing profiles")
-	}
-
-	if depProf == nil {
-		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "missing profile")
+	var depProfToken string
+	// For automatic enrollments, get the automatic profile to access the authentication token.
+	if ssoRequestData.Initiator != "setup_experience" {
+		depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
+		if err != nil {
+			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "listing profiles")
+		}
+		if depProf == nil {
+			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, errors.New("missing profile"), "missing profile")
+		}
+		depProfToken = depProf.Token
 	}
 
 	// using the idp token as a reference just because that's the
 	// only thing we're referencing later on during enrollment.
-	return depProf.Token, idpAcc.UUID, eulaToken, originalURL, ssoRequestData, nil
+	return depProfToken, idpAcc.UUID, eulaToken, originalURL, ssoRequestData, nil
 }
 
 func (svc *Service) mdmAppleSyncDEPProfiles(ctx context.Context) error {
@@ -1493,7 +1498,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	token.IPadOSDefaultTeamID = nil
 
 	if macOSTeamID != nil && *macOSTeamID != 0 {
-		macOSTeam, err := svc.ds.TeamWithExtras(ctx, *macOSTeamID)
+		macOSTeam, err := svc.ds.TeamLite(ctx, *macOSTeamID)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
 				Message:     fmt.Sprintf("team with ID %d not found", *macOSTeamID),
@@ -1507,7 +1512,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	}
 
 	if iOSTeamID != nil && *iOSTeamID != 0 {
-		iOSTeam, err := svc.ds.TeamWithExtras(ctx, *iOSTeamID)
+		iOSTeam, err := svc.ds.TeamLite(ctx, *iOSTeamID)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
 				Message:     fmt.Sprintf("team with ID %d not found", *iOSTeamID),
@@ -1520,7 +1525,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	}
 
 	if iPadOSTeamID != nil && *iPadOSTeamID != 0 {
-		iPadOSTeam, err := svc.ds.TeamWithExtras(ctx, *iPadOSTeamID)
+		iPadOSTeam, err := svc.ds.TeamLite(ctx, *iPadOSTeamID)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
 				Message:     fmt.Sprintf("team with ID %d not found", *iPadOSTeamID),
