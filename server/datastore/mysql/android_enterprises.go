@@ -92,10 +92,20 @@ func (ds *AndroidDatastore) DeleteOtherEnterprises(ctx context.Context, id uint)
 }
 
 func (ds *AndroidDatastore) DeleteAllEnterprises(ctx context.Context) error {
-	stmt := `DELETE FROM android_enterprises`
-	_, err := ds.Writer(ctx).ExecContext(ctx, stmt)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting all enterprises")
-	}
-	return nil
+	return ds.WithTxx(ctx, func(tx sqlx.ExtContext) error {
+		stmt := `DELETE FROM android_enterprises`
+		_, err := tx.ExecContext(ctx, stmt)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting all enterprises")
+		}
+
+		// Aligns Fleet's state with the AMAPI state
+		_, err = tx.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE platform = 'android'`)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting all android app store apps")
+		}
+
+		return nil
+	})
+
 }

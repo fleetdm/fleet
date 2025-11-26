@@ -233,7 +233,7 @@ func (svc *Service) SandboxEnabled() bool {
 }
 
 func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) && !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) {
 		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 			return nil, err
 		}
@@ -1183,6 +1183,9 @@ func (svc *Service) validateMDM(
 	if mdm.WindowsMigrationEnabled && !license.IsPremium() {
 		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())
 	}
+	if mdm.EnableTurnOnWindowsMDMManually && !license.IsPremium() {
+		invalid.Append("enable_turn_on_windows_mdm_manually", ErrMissingLicense.Error())
+	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet
 	// server at startup and can't be modified by the user
@@ -1371,6 +1374,14 @@ func (svc *Service) validateMDM(
 	}
 	if !mdm.WindowsEnabledAndConfigured && mdm.WindowsMigrationEnabled {
 		invalid.Append("mdm.windows_migration_enabled", "Couldn't enable Windows MDM migration, Windows MDM is not enabled.")
+	}
+
+	if !mdm.WindowsEnabledAndConfigured && mdm.EnableTurnOnWindowsMDMManually {
+		invalid.Append("mdm.enable_turn_on_windows_mdm_manually", "Couldn't enable Turn on Windows MDM Manually, Windows MDM is not enabled.")
+	}
+
+	if mdm.WindowsMigrationEnabled && mdm.EnableTurnOnWindowsMDMManually {
+		invalid.Append("mdm.enable_turn_on_windows_mdm_manually", "Couldn't enable Turn on Windows MDM Manually, Windows MDM migration is also enabled. Please enable only one.")
 	}
 
 	if !mdm.EnableDiskEncryption.Value {

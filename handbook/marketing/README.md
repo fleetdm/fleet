@@ -7,13 +7,13 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Interim Head of Marketing          | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
+| Chief  Marketing Officer          | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
 | Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
 | Head of Demand Generation                  | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
 
 ## Contact us
 
-- To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-marketing&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
+- To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-marketing&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (if urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/94) for this department, including pending tasks and the status of new requests.
 
@@ -23,6 +23,22 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Responsibilities
 
 The Marketing department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
+
+
+### Organize work in GitHub issues with marketing labels
+
+In the Marketing department, we're using the following issue labels to organize our work into different categories/buckets.
+
+| Label | Definition (When to use it) |
+| :---- | :---- |
+| **:mktg-campaign** | For tasks related to a specific, multi-touch marketing initiative (e.g., a product launch, awareness campaign, Q4 demand-gen). |
+| **:mktg-content** | For creating or updating any marketing asset: blog posts, case studies, website copy, videos, white papers, etc. |
+| **:mktg-event** | For tasks related to any event, virtual or in-person (e.g., webinars, conference logistics, booth design, talk submissions). |
+| **:mktg-social** | For tasks related to managing organic social media channels or creating social posts. |
+| **:mktg-ops** | For internal "infrastructure" work: tooling (e.g., "Fix email automation"), analytics, reporting, list management, and process improvements. |
+| **:mktg-ar** | For tasks related to analyst relations - briefing, responding to reports, inquiries, etc. |
+| **:mktg-pr** | All tasks/effort related to public relations, press releases, earned media, interviews, responding to reporters, etc. |
+| **:mktg-enablement** | All work associated with designing, developing, delivering enablement content for sales, partners, etc. |
 
 
 ### Prepare "Let's get you set up!" meeting notes
@@ -230,5 +246,5 @@ Please see [handbook/company/communications#video](https://fleetdm.com/handbook/
 
 
 
-<meta name="maintainedBy" value="sampfluger88">
+<meta name="maintainedBy" value="akuthiala">
 <meta name="title" value="🫧 Marketing">

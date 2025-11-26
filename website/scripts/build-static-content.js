@@ -813,7 +813,7 @@ module.exports = {
             }
             let pageTitle = openPosition.jobTitle;
 
-            let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [Series B](https://www.businesswire.com/news/home/20250617550974/en/Fleet-Adds-%2427M-to-Usher-in-New-Era-of-Open-Device-Management) startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div><img alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"></div><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div><div purpose="quote-attribution"><strong>Dhruv Majumdar</strong><p>Director Of Cyber Risk & Advisory</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\n[Message us your Linkedin profile](/contact#message). \n\n\n >The salary range for this role is ${openPosition.onTargetEarnings ? openPosition.onTargetEarnings : '$48,000 - $480,000'}. Fleet provides competitive compensation based on our [compensation philosophy](https://fleetdm.com/handbook/company/communications#compensation), as well as comprehensive [benefits](https://fleetdm.com/handbook/company/communications#benefits).`;
+            let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [Series B](https://www.businesswire.com/news/home/20250617550974/en/Fleet-Adds-%2427M-to-Usher-in-New-Era-of-Open-Device-Management) startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div><img alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"></div><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\n[Message us your Linkedin profile](/contact#message). \n\n\n >The salary range for this role is ${openPosition.onTargetEarnings ? openPosition.onTargetEarnings : '$48,000 - $480,000'}. Fleet provides competitive compensation based on our [compensation philosophy](https://fleetdm.com/handbook/company/communications#compensation), as well as comprehensive [benefits](https://fleetdm.com/handbook/company/communications#benefits).`;
 
 
             let htmlStringForThisPosition = await sails.helpers.strings.toHtml.with({mdString: mdStringForThisOpenPosition});
@@ -1305,12 +1305,22 @@ module.exports = {
         let appLibrary = [];
         // Get app library json
         let appsJsonData = await sails.helpers.fs.readJson(path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/apps.json'));
+        // Read the same file as text. This is so we can determine the line number of apps to use in the edit page link.
+        let appsJsonDataAsAString = await sails.helpers.fs.read(path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/apps.json'));
+        let linesInAppsJsonFile = appsJsonDataAsAString.split('\n');
         // Then for each item in the json, build a configuration object to add to the sails.builtStaticContent.appLibrary array.
         await sails.helpers.flow.simultaneouslyForEach(appsJsonData.apps, async(app)=>{
           // FUTURE: add support for windows apps once the page is updated to be multi-platform.
           if(app.platform !== 'darwin'){
             return;
           }
+
+          // Determine the line in the JSON that the object for this app starts on.
+          // this will allow us to link users directly to the app's position in the JSON file when users want to make a change.
+          let lineWithTheAppsSlugKey = _.find(linesInAppsJsonFile, (line)=>{
+            return line.includes(`"slug": "${app.slug}"`);
+          });
+          let lineNumberForEdittingThisApp = linesInAppsJsonFile.indexOf(lineWithTheAppsSlugKey);
 
           let appInformation = {
             name: app.name,
@@ -1319,6 +1329,7 @@ module.exports = {
             bundleIdentifier: app.unique_identifier,
             description: app.description,
             platform: app.platform,
+            lineNumberInJson: lineNumberForEdittingThisApp,
           };
 
           // Grab the latest information about these apps from the the ee/maintained-apps folder in the repo.

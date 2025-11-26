@@ -162,37 +162,6 @@
      # - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
 
 
-- jobTitle: 🐋 VP of Sales
-  department: Sales
-  hiringManagerName: Alex Mitchell
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/alexandercmitchell/
-  hiringManagerGithubUsername: alexmitchelliii
-  onTargetEarnings: '$250,000 - $370,000'
-  responsibilities: |
-      - 🤝 Manage a geographically-diverse team of enterprise sellers to attain new and expansion revenue targets.
-      - 🎯 Direct and oversee prospecting across key strategic companies, guiding the team to identify key influencers and decision makers, match their pains to Fleet capabilities, and help create win-win commercial agreements.
-      - ⏫ Develop and maintain executive-level relationships with current and future customers, working with Customer Success to expand Fleet’s footprint in existing accounts.
-      - 🛩️ Build a culture of proactive, collaborative, relationship-based selling, encouraging face-to-face meetings whenever possible.
-      - ❔ Ensure the team follows MEDDPPICC to qualify and progress opportunities that best solve prospect problems.
-      - 🕴️ Use Salesforce and other tools to analyze pipeline data and keep all information accurate for leadership reporting.
-      - 📈 Use data to identify opportunities and trends across the pipeline, coaching the team to focus on the highest-impact activities.
-      - 🧑‍🔬 Lead and improve processes described in the Sales, Go-To-Market groups, and other handbook pages.
-      - 📣 Represent Fleet’s products and services at in-person events, meetups, and on social media.
-      - 🧠 Partner with Solutions Consultants to ensure the Account Executives understand where prospects are technically and remove blockers to providing value.
-      - 🦢 Bring order forms and proposals with customer requests to Product Design and Customer Success to advocate for prioritizing features based on market and customer feedback.
-      - 🤝 Collaborate with Marketing to achieve quarterly pipeline and revenue targets.
-  experience: |
-      - 🦉 You’ve taken revenue from $10M to $20M+. 
-      - 📣 Excellent communication and interpersonal skills, with a track record of motivating and developing teams.
-      - 🚀 Detail-oriented, highly organized, and able to solve complex problems with simple, scalable solutions.
-      - 🧑‍💻 Love technology and can explain how things work in detail.
-      - 🧪 Experience with Slack, Salesforce, Google Suite, GitHub, and other tools in an all-remote setting.
-      - ⏩ Thrive in a complex, fast-paced, results-driven environment and pivot easily to organizational changes.
-      - 📈 Shift gears between strategic planning and hands-on execution to partner with teams and stakeholders.
-      - 💭 Strong understanding of enterprise procurement and the ability to influence stakeholders from senior executives to engineering contacts on the ROI of using Fleet.
-      - 🧬 Care about delivering an outstanding customer experience and creating a customer-first culture.
-      - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
-
 
 - jobTitle: 🚀 Quality Assurance Engineer
   department: Engineering
@@ -245,3 +214,36 @@
       - 💬 Excellent collaboration and communication skills for cross-functional teamwork with engineers and QA teammates.
       - 🔄 Comfortable regularly repeating structured manual testing processes, regression testing, and feature validation.
       - ➕ Bonus: Hands-on experience testing across multiple operating systems and devices (macOS, Windows, Android, iOS, iPadOS).
+
+
+- jobTitle: 💻 IT Support Administrator
+  department: IT & Enablement
+  hiringManagerName: Allen Houchins
+  hiringManagerGithubUsername: allenhouchins
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/allenhouchins/
+  onTargetEarnings: '$80,000 - $130,000'
+  responsibilities: |
+      - 🖥️ Provide technical support to Fleet team members, troubleshooting hardware, software, and account access issues in a timely and professional manner.
+      - 📦 Manage hardware procurement, inventory, and distribution for company-issued equipment including laptops, YubiKeys, and other IT assets.
+      - 🔐 Provision and manage user accounts across various SaaS platforms (Google Workspace, Slack, Zoom, etc.) for new hires and role changes.
+      - 🛠️ Maintain and optimize IT infrastructure, tools, and systems to ensure smooth operations for a fully remote team.
+      - 📋 Process incoming and outgoing equipment, ensuring devices are properly configured, enrolled in device management, and securely shipped to team members.
+      - 🔄 Manage software licenses and subscriptions, including generating reports and performing audits to optimize costs.
+      - 🚀 Support onboarding new team members by provisioning necessary tools and ensuring they have all required equipment on day one.
+      - 📊 Track and manage IT assets in Fleet's device management system, maintaining accurate inventory records.
+      - 💡 Document IT processes and procedures in the handbook, ensuring knowledge is shared and processes are repeatable.
+      - 🤝 Collaborate with the IT & Enablement team to improve internal tooling, automation, and workflows.
+      - 🧹 Handle offboarding processes, including account deprovisioning, equipment recovery, and access revocation.
+      - 🌐 Assist with domain registrations, SaaS tool evaluations, and vendor management as requested.
+  experience: |
+      - 💼 3-5 years of experience in IT administration, help desk support, or similar technical support role.
+      - 🖥️ Strong technical skills with macOS, Windows, and Linux operating systems.
+      - 🍎 Experience with Apple Business Manager (ABM) and Apple Device Enrollment (ADE) for device procurement and management.
+      - 🔐 Experience with identity and access management, including provisioning accounts in Google Workspace, Slack, and other SaaS platforms.
+      - 📦 Familiarity with hardware procurement, inventory management, and asset tracking systems.
+      - 💬 Excellent communication and customer service skills, with the ability to explain technical concepts to non-technical users.
+      - 🎯 Strong attention to detail and organizational skills, with the ability to manage multiple tasks and priorities effectively.
+      - 📖 Experience documenting processes and procedures in a clear, concise manner.
+      - 🚀 Self-motivated and proactive, able to work independently in a fully remote environment.
+      - ➕ Bonus: Experience with Fleet, osquery, or other open-source IT tools. Familiarity with automation tools and scripting (Bash, PowerShell). Experience working in GitHub, with git, or in a code repository.
+

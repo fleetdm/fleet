@@ -901,17 +901,17 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 	return err
 }
 
-// ResendHostCustomSCEPProfile marks a custom SCEP profile to be resent to the host with the given UUID. It
-// also deactivates prior nano commands for the profile UUID and host UUID.
+// ResendHostCertificateProfile marks the given profile UUID to be resent to the host with the given UUID. It
+// also deactivates prior nano commands and resets the retry counter for the profile UUID and host UUID.
 //
-// FIXME: We really should have a more generic function to handle this, but our existing methods
-// for "resending" profiles don't reevaluate the profile variables so they aren't useful for
-// custom SCEP profiles where we need to regenerate the SCEP challenge. The main difference between
-// the existing flow and the implementation below is that we need to blank the command uuid in order
-// get the reconcile cron to reevaluate the command template to generate the challenge. Otherwise,
-// it just sends the old bytes again. It feels like we have some leaky abstrations somewhere that we need
-// to clean up.
-func (ds *Datastore) ResendHostCustomSCEPProfile(ctx context.Context, hostUUID string, profUUID string) error {
+// FIXME: We really should have a more generic function to handle this. Something seems off with our
+// existing methods for "resending" profiles. Scenarios have been observed where the old command
+// bytes are sent again without reevaluating the profile variables, which is particularly problematic
+// for certificate profiles where we need to regenerate the dynamic challenges. The main difference between
+// the existing flow and the implementation below is that it zeroes out prior retries and blanks the
+// command uuid to force the reconcile cron to reevaluate the command template to generate
+// the challenge. It feels like we have some leaky abstractions somewhere that we need to clean up.
+func (ds *Datastore) ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error {
 	deactivateNanoStmt := `
 UPDATE
 	nano_enrollment_queue
@@ -926,6 +926,7 @@ WHERE
 	hmap.profile_uuid = ? AND
 	hmap.host_uuid = ?`
 
+	// TODO: figure out variables_updated_at timing skew with jordan
 	updateStmt := `
 UPDATE
 	host_mdm_apple_profiles
@@ -3114,8 +3115,13 @@ func generateDesiredStateQuery(entityType string) string {
 		COUNT(mel.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels,
 		-- this helps avoid the case where the host is not a member of a label
-		-- just because it hasn't reported results for that label yet.
-		SUM(CASE WHEN lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
+		-- just because it hasn't reported results for that label yet. But we
+		-- only need consider this for dynamic labels - manual(type=1) can be
+		-- considered at any time
+		SUM(
+			CASE WHEN lbl.label_membership_type <> 1 AND lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at THEN 1
+			WHEN lbl.label_membership_type = 1 AND lbl.created_at IS NOT NULL THEN 1
+			ELSE 0 END) as count_host_updated_after_labels
 	FROM
 		${mdmAppleEntityTable} mae
 			JOIN hosts h
@@ -6801,7 +6807,7 @@ LIMIT 1`
 		}
 	} else {
 		// use the team settings
-		tm, err := ds.TeamWithoutExtras(ctx, *dest.TeamID)
+		tm, err := ds.TeamLite(ctx, *dest.TeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting team os update settings")
 		}

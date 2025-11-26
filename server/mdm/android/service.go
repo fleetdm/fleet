@@ -3,6 +3,8 @@ package android
 import (
 	"context"
 	"net/http"
+
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 type Service interface {
@@ -18,7 +20,19 @@ type Service interface {
 
 	// UnenrollAndroidHost triggers unenrollment (work profile removal) for the given Android host ID.
 	UnenrollAndroidHost(ctx context.Context, hostID uint) error
+
+	EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error)
+	AddAppToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string) error
+	AddFleetAgentToAndroidPolicy(ctx context.Context, enterpriseName string, hostConfigs map[string]AgentManagedConfiguration) error
 	EnableAppReportsOnDefaultPolicy(ctx context.Context) error
+	MigrateToPerDevicePolicy(ctx context.Context) error
+	PatchDevice(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (skip bool, apiErr error)
+	PatchPolicy(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (skip bool, err error)
+
+	// verifyExistingEnterpriseIfAny checks if there's an existing enterprise in the database
+	// and if so, verifies it still exists in Google API. If it doesn't exist, performs cleanup.
+	// Returns fleet.IsNotFound error if enterprise was deleted, nil if no enterprise exists or verification passed.
+	VerifyExistingEnterpriseIfAny(ctx context.Context) error
 }
 
 // /////////////////////////////////////////////

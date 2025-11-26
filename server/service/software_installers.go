@@ -48,7 +48,7 @@ type updateSoftwareInstallerRequest struct {
 	LabelsIncludeAny  []string
 	LabelsExcludeAny  []string
 	Categories        []string
-	DisplayName       string
+	DisplayName       *string
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -174,10 +174,10 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.Categories = categories
 	}
 
-	displayNameMultiPart := r.MultipartForm.Value["display_name"]
-	if len(displayNameMultiPart) > 0 {
-		decoded.DisplayName = displayNameMultiPart[0]
-		if len(decoded.DisplayName) > fleet.SoftwareTitleDisplayNameMaxLength {
+	displayNameMultiPart, existsDisplayName := r.MultipartForm.Value["display_name"]
+	if existsDisplayName && len(displayNameMultiPart) > 0 {
+		decoded.DisplayName = ptr.String(displayNameMultiPart[0])
+		if len(*decoded.DisplayName) > fleet.SoftwareTitleDisplayNameMaxLength {
 			return nil, &fleet.BadRequestError{
 				Message: "The maximum display name length is 255 characters.",
 			}
@@ -864,7 +864,7 @@ func submitDeviceSoftwareUninstall(ctx context.Context, request interface{}, svc
 }
 
 func (svc *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *fleet.Host) (bool, error) {
-	alreadyAuthenticated := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
+	alreadyAuthenticated := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate)
 	if !alreadyAuthenticated {
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 			return false, err

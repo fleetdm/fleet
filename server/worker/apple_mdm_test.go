@@ -171,7 +171,7 @@ func TestAppleMDM(t *testing.T) {
 			t.Cleanup(func() { enableAppCfg(false) })
 		} else {
 			enableTm := func(enable bool) {
-				tm, err := ds.Team(ctx, *teamID)
+				tm, err := ds.TeamWithExtras(ctx, *teamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
 				require.NoError(t, err)
 				tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(enable)
 				_, err = ds.SaveTeam(ctx, tm)
@@ -553,7 +553,7 @@ func TestAppleMDM(t *testing.T) {
 
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
 		require.NoError(t, err)
-		tm, err = ds.Team(ctx, tm.ID)
+		tm, err = ds.TeamWithExtras(ctx, tm.ID) // TODO see if we can convert to TeamLite (will require a new save DS method)
 		require.NoError(t, err)
 		tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
 		_, err = ds.SaveTeam(ctx, tm)
