@@ -250,7 +250,7 @@ The acting infrastructure engineer on-call rotation is reflected in the [📈KPI
 
 ### Respond to messages and alerts 
 
-Customer Support engineers are responsible for the first response to Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, MacAdmins Slack and dedicated customer Slack channels. 
+Customer Support Engineers (CSEs) are responsible for the first response to Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, MacAdmins Slack and dedicated customer Slack channels. 
 - The 24/7 infrastructure on-call engineer is responsible for alarms related to fleetdm.com and Fleet Managed Cloud, as well as delivering 24/7 support for Fleet Premium customers when tagged in for assistance. Use [on-call runbooks](https://github.com/fleetdm/confidential/tree/main/infrastructure/runbooks#readme) to guide your response. Runbooks provide detailed, step-by-step instructions to quickly and effectively respond to and resolve most 24/7 on-call alerts.
 - We respond within 1-hour or less during business hours and 4 hours outside business hours. Note that we do not need to have answers within 1 hour -- we need to at least acknowledge and collect any additional necessary information while researching/escalating to find answers internally.
 
