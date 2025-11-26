@@ -10,19 +10,28 @@
   &__info {
     flex-grow: 1;
     align-self: center;
+    min-width: 0; // Required to truncate name with edit icon
+
+    .truncated-tooltip {
+      font-weight: $regular;
+    }
   }
 
-  h1 {
-    font-size: $pad-large;
-    font-weight: bold;
-    margin-bottom: $pad-medium;
+  &__title-edit-icon {
     display: flex;
     align-items: center;
     gap: $pad-medium;
   }
 
+  h1 {
+    font-size: $pad-large;
+    font-weight: bold;
+    overflow: hidden; // Required to truncate name with edit icon
+  }
+
   &__description-list {
     display: flex;
+    flex-direction: row;
     gap: $pad-xxlarge;
   }
 }

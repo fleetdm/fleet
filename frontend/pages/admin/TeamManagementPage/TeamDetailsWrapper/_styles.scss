@@ -1,4 +1,6 @@
 .team-details {
+  @include vertical-page-layout;
+
   &__loading-spinner {
     // NOTE: this value was chosen just cause it looked right. Might want to
     // come back and change it later to be more exact.
@@ -8,7 +10,6 @@
   &__team-header {
     display: flex;
     justify-content: space-between;
-    margin-bottom: $pad-medium;
   }
 
   &__team-details {

@@ -11,7 +11,8 @@ import {
   isAppleDevice,
   isMobilePlatform,
 } from "interfaces/platform";
-import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
+import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
+import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
 
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -67,6 +68,7 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
     users.length === 4
       ? users
           .slice(-4)
+
           .map((u) => u.email)
           .reverse()
       : users
@@ -283,18 +285,25 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
-    accessor: "gigs_disk_space_available",
     id: "gigs_disk_space_available",
     Cell: (cellProps: IHostTableNumberCellProps) => {
-      const { platform, percent_disk_space_available } = cellProps.row.original;
+      const {
+        platform,
+        percent_disk_space_available,
+        gigs_disk_space_available,
+        gigs_total_disk_space,
+        gigs_all_disk_space,
+      } = cellProps.row.original;
       if (platform === "chrome") {
         return NotSupported;
       }
       return (
         <DiskSpaceIndicator
           inTableCell
-          gigsDiskSpaceAvailable={cellProps.cell.value}
+          gigsDiskSpaceAvailable={gigs_disk_space_available}
           percentDiskSpaceAvailable={percent_disk_space_available}
+          gigsTotalDiskSpace={gigs_total_disk_space}
+          gigsAllDiskSpace={gigs_all_disk_space}
           platform={platform}
         />
       );
@@ -312,25 +321,19 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     id: "os_version",
     // TODO(android): is Android supported? what about the os versions endpoint and dashboard card?
     Cell: (cellProps: IHostTableStringCellProps) => {
-      const value = cellProps.cell.value;
-      if (
-        value === "Arch Linux rolling" ||
-        value === "Arch Linux ARM rolling" ||
-        value === "Manjaro Linux rolling" ||
-        value === "Manjaro Linux ARM rolling"
-      ) {
-        return (
-          <TooltipTruncatedTextCell
-            value={
-              <span>
-                {value.slice(0, -7 /* removing lowercase rolling suffix */)}
-                <TooltipWrapperArchLinuxRolling />
-              </span>
-            }
-          />
-        );
-      }
-      return <TooltipTruncatedTextCell value={value} />;
+      const os_version = cellProps.cell.value;
+      const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(
+        os_version
+      ) ? (
+        // wrap a tooltip around the "rolling" suffix
+        <>
+          {os_version.slice(0, -8)}&nbsp;
+          <TooltipWrapperArchLinuxRolling />
+        </>
+      ) : (
+        os_version
+      );
+      return <TooltipTruncatedTextCell value={versionForRender} />;
     },
   },
   {
@@ -644,7 +647,9 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       // TODO(android): is iOS/iPadOS supported?
       if (
         isAndroid(cellProps.row.original.platform) ||
-        isPersonalEnrollmentInMdm(cellProps.row.original.mdm.enrollment_status)
+        isBYODAccountDrivenUserEnrollment(
+          cellProps.row.original.mdm.enrollment_status
+        )
       ) {
         return NotSupported;
       }

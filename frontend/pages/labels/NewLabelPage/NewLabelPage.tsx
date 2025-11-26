@@ -455,8 +455,8 @@ const NewLabelPage = ({
               />
             </span>
             <span className="form-field__help-text">
-              Currently, label criteria can be IdP group or department on macOS
-              hosts.
+              Currently, label criteria can be IdP group or department on macOS,
+              iOS, iPadOS, and Android hosts.
             </span>
           </div>
         );
@@ -567,7 +567,7 @@ const NewLabelPage = ({
       <>
         <MainContent className={baseClass}>
           <div className={`${baseClass}__header`}>
-            <h1>New label</h1>
+            <h1 className="page-header">New label</h1>
             <p className={`${baseClass}__page-description`}>
               Create a new label for targeting and filtering hosts.
             </p>

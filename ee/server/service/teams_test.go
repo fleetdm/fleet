@@ -6,10 +6,12 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -179,6 +181,18 @@ func TestObfuscateSecrets(t *testing.T) {
 	})
 }
 
+type bootstrapNotFoundError struct {
+	msg string
+}
+
+func (e *bootstrapNotFoundError) Error() string {
+	return e.msg
+}
+
+func (e *bootstrapNotFoundError) IsNotFound() bool {
+	return true
+}
+
 func TestUpdateTeamMDMAppleSetupManualAgent(t *testing.T) {
 	cases := []struct {
 		Name            string
@@ -246,6 +260,9 @@ func TestUpdateTeamMDMAppleSetupManualAgent(t *testing.T) {
 		return &fleet.Team{}, nil
 	}
 
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+
 	svc := &Service{
 		ds: ds,
 		config: config.FleetConfig{
@@ -253,12 +270,28 @@ func TestUpdateTeamMDMAppleSetupManualAgent(t *testing.T) {
 				PrivateKey: "something",
 			},
 		},
+		authz: authorizer,
 	}
 
-	ctx := context.Background()
+	// Add admin user to context
+	adminUser := &fleet.User{
+		ID:         2,
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+		Email:      "useradmin@example.com",
+	}
+	ctx := test.UserContext(context.Background(), adminUser)
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
+			ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+				if tc.MacOSSetup.BootstrapPackage.Value == "" {
+					return nil, &bootstrapNotFoundError{msg: "bootstrap package not found"}
+				}
+				return &fleet.MDMAppleBootstrapPackage{
+					Name: tc.MacOSSetup.BootstrapPackage.Value,
+				}, nil
+			}
+
 			ds.GetSetupExperienceCountFunc = func(ctx context.Context, platform string, teamID *uint) (*fleet.SetupExperienceCount, error) {
 				return &tc.Count, nil
 			}

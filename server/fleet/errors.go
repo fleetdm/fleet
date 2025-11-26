@@ -32,10 +32,12 @@ var (
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
 	CantWipePersonalHostsMessage                 = "Couldn't wipe. This command isn't available for personal hosts."
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
+	CantLockManualIOSIpadOSHostsMessage          = "Couldn't lock. This command isn't available for manually enrolled iOS/iPadOS hosts."
 	CantDisableDiskEncryptionIfPINRequiredErrMsg = "Couldn't disable disk encryption, you need to disable the BitLocker PIN requirement first."
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
 	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
 	CantResendWindowsProfilesMessage             = "Can't resend Windows configuration profiles."
+	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has a package or app available for install on the %s team."
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -631,11 +633,27 @@ func (fe FleetdError) ToMap() map[string]any {
 // with a failed request's response.
 type OrbitError struct {
 	Message string
+	code    int
 }
 
 // Error implements the error interface for the OrbitError.
 func (e OrbitError) Error() string {
 	return e.Message
+}
+
+// StatusCode implements the ErrWithStatusCode interface for the OrbitError.
+func (e OrbitError) StatusCode() int {
+	if e.code == 0 {
+		return http.StatusInternalServerError
+	}
+	return e.code
+}
+
+func NewOrbitIDPAuthRequiredError() *OrbitError {
+	return &OrbitError{
+		Message: "END_USER_AUTH_REQUIRED",
+		code:    http.StatusUnauthorized,
+	}
 }
 
 // Message that may surfaced by the server or the fleetctl client.

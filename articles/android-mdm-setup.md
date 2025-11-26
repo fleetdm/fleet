@@ -20,8 +20,8 @@ When you select **Connect Android Enterprise**, Fleet will open the Google signu
 
 ### Microsoft 365
 
-1. If your organization uses Microsoft 365, you can use your Microsoft email to signup for Android Enterprise. After you select **Connect Android Enterprise**, select **Sign in with Microsoft**. Your Microsoft account must have access to an email.
-2. Follow the steps in Google's signup flow.
+1. If your organization uses Microsoft 365, you can sign up for Android Enterprise with your Microsoft email. First, select **Connect Android Enterprise**. Then, enter your Microsoft email, click **Next**, and choose **Sign in with Microsoft**.
+2. After signing in with your Microsoft account, follow the steps in Google's signup process.
 3. After successful signup, a free Android Enterprise subscription is added to your Google Workspace. In Fleet, you can confirm Android MDM is turned on in **Settings > Integrations > MDM**.
 4. Go to your [Google Admin console](https://admin.google.com).
 5. Follow [these steps](https://support.google.com/a/answer/60216?hl=en) to verify your domain name. This way, only you can use your domain to sign up for Google Workspace.
@@ -58,7 +58,9 @@ To migrate hosts from other MDM solution, you must first unenroll hosts from you
 
 When you turn off Android MDM in Fleet, your Android Enterprise will be deleted, MDM will be turned off on all hosts, and the work profile will be deleted from all Android hosts.
 
-If you ever delete your Android Enterprise in your [Google Admin console](https://admin.google.com) instead of in Fleet, Android MDM will be turned off in Fleet, and the work profile will be deleted from all Android hosts.
+### Deleting Android Enterprise in Google Admin
+
+If you ever delete your Android Enterprise in your [Google Admin console](https://admin.google.com) instead of in Fleet, Android MDM will be turned off in Fleet, and the work profile will be deleted from all Android hosts. To re-enroll hosts, refer to the [Turn on](#turn-on) section.
 
 <meta name="articleTitle" value="Android MDM setup">
 <meta name="authorFullName" value="Marko Lisica">

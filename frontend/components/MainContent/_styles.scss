@@ -1,5 +1,5 @@
 .main-content {
-  max-width: 1280px;
+  max-width: $break-lg;
   margin: 0 auto;
   padding: $pad-page;
   flex-grow: 1;
@@ -18,11 +18,16 @@
     position: sticky; // Needed for settings page scroll
     z-index: 4; // Needed for settings page scroll
   }
+
+  &.manage-hosts,
+  &.query-details-page {
+    max-width: 100%;
+  }
 }
 
 @media (max-width: ($break-xs - 1)) {
   .main-content {
-    padding: $pad-large;
+    padding: $pad-large $pad-medium $pad-medium; // 24px top, 16px sides according to #32247
   }
 }
 

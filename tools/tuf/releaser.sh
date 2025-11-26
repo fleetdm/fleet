@@ -309,6 +309,15 @@ release_to_production () {
     echo "Release has been pushed to production!"
     echo "NOTE: You might see some clients failing to upgrade due to some sha256 mismatches."
     echo "These temporary failures are expected because it takes some time for caches to be invalidated (these errors should go away after a few minutes minutes)."
+
+    if [[ $COMPONENT == "fleetd" ]]; then
+        milestone_url=$(curl -s 'https://api.github.com/repos/fleetdm/fleet/milestones?per_page=100' | jq -r ".[]|select(.title | contains(\"$VERSION\")).html_url")
+        prompt "Sleep 5 minutes and trigger workflow to update orbit/TUF.md"
+        # Sleeping 5 minutes to allow for Cloudflare caches to clear.
+        sleep 300
+        gh workflow run "Update documentation of current versions of TUF fleetd components"
+        prompt "Make sure to close the issues and $milestone_url milestone following https://fleetdm.com/handbook/engineering#conclude-current-milestone."
+    fi
 }
 
 prompt () {
@@ -417,11 +426,18 @@ elif [[ $ACTION == "release-to-production" ]]; then
 elif [[ $ACTION == "create-fleetd-release-pr" ]]; then
     create_fleetd_release_pr
 elif [[ $ACTION == "update-osquery-schema" ]]; then
-    NODE_VERSION=$(node --version)
-    EXPECTED_NODE_VERSION=$(cat package.json | jq -r .engines.node)
-    if [[ $NODE_VERSION != "v${EXPECTED_NODE_VERSION}" ]]; then
-        echo "Seems your node version is $NODE_VERSION, version must be v${EXPECTED_NODE_VERSION} to generate schemas..."
-        exit 1
+    # Strip leading 'v' from `node --version` and get major
+    NODE_VERSION=$(node --version | sed 's/^v//')
+    NODE_MAJOR=${NODE_VERSION%%.*}
+
+    EXPECTED_NODE_RANGE=$(jq -r '.engines.node' package.json)
+    # Extract the first numeric sequence (major) from the range, e.g., 24 from "^24.10.0"
+    EXPECTED_MAJOR=$(echo "$EXPECTED_NODE_RANGE" | sed -E 's/^[^0-9]*([0-9]+).*/\1/')
+
+    if [[ "$NODE_MAJOR" != "$EXPECTED_MAJOR" ]]; then
+      echo "Your Node.js $NODE_VERSION does not satisfy engines.node ($EXPECTED_NODE_RANGE)."
+      echo "Please use Node $EXPECTED_MAJOR.x (e.g., 24.10.0)."
+      exit 1
     fi
     update_osquery_schema_and_flags "$VERSION"
 else

@@ -135,7 +135,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamWithExtras(ctx, teamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
 	if err != nil {
 		return nil, err
 	}
@@ -283,6 +283,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if payload.Integrations.ConditionalAccessEnabled.Set {
 			if err := fleet.ValidateConditionalAccessIntegration(ctx,
 				svc,
+				appCfg.ConditionalAccess,
 				team.Config.Integrations.ConditionalAccessEnabled.Value,
 				payload.Integrations.ConditionalAccessEnabled.Value,
 			); err != nil {
@@ -461,7 +462,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 		return nil, err
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamWithExtras(ctx, teamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
 	if err != nil {
 		return nil, err
 	}
@@ -530,7 +531,7 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 		}
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamWithExtras(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -563,7 +564,7 @@ func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fl
 		idMap[user.ID] = true
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamWithExtras(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -588,7 +589,7 @@ func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.Li
 		return nil, err
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamLite(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -646,7 +647,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		return err
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamLite(ctx, teamID)
 	if err != nil {
 		return err
 	}
@@ -742,7 +743,7 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 		return team, nil
 	}
 
-	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken)
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate)
 	if alreadyAuthd {
 		// device-authenticated request can only get the device's team
 		host, ok := hostctx.FromContext(ctx)
@@ -774,7 +775,7 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 		user = vc.User
 	}
 
-	team, err := svc.ds.Team(ctx, teamID)
+	team, err := svc.ds.TeamWithExtras(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -855,7 +856,7 @@ func (svc *Service) teamByIDOrName(ctx context.Context, id *uint, name *string) 
 		err error
 	)
 	if id != nil {
-		tm, err = svc.ds.Team(ctx, *id)
+		tm, err = svc.ds.TeamWithExtras(ctx, *id)
 		if err != nil {
 			return nil, err
 		}
@@ -1160,6 +1161,7 @@ func (svc *Service) createTeamFromSpec(
 	if spec.Integrations.ConditionalAccessEnabled != nil {
 		if err := fleet.ValidateConditionalAccessIntegration(ctx,
 			svc,
+			appCfg.ConditionalAccess,
 			false,
 			*spec.Integrations.ConditionalAccessEnabled,
 		); err != nil {
@@ -1377,6 +1379,15 @@ func (svc *Service) editTeamFromSpec(
 	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
 
+	didUpdateMacOSRequireAllSoftware := spec.MDM.MacOSSetup.RequireAllSoftware != oldMacOSSetup.RequireAllSoftware
+	if didUpdateMacOSRequireAllSoftware && spec.MDM.MacOSSetup.RequireAllSoftware {
+		if !appCfg.MDM.EnabledAndConfigured {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.require_all_software",
+				`Couldn't update macos_setup.require_all_software because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+		}
+	}
+	team.Config.MDM.MacOSSetup.RequireAllSoftware = spec.MDM.MacOSSetup.RequireAllSoftware
+
 	windowsEnabledAndConfigured := appCfg.MDM.WindowsEnabledAndConfigured
 	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
 		windowsEnabledAndConfigured = opts.DryRunAssumptions.WindowsEnabledAndConfigured.Value
@@ -1467,6 +1478,7 @@ func (svc *Service) editTeamFromSpec(
 	if spec.Integrations.ConditionalAccessEnabled != nil {
 		if err := fleet.ValidateConditionalAccessIntegration(ctx,
 			svc,
+			appCfg.ConditionalAccess,
 			team.Config.Integrations.ConditionalAccessEnabled.Value,
 			*spec.Integrations.ConditionalAccessEnabled,
 		); err != nil {
@@ -1774,9 +1786,21 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		}
 	}
 
+	if payload.RequireAllSoftware != nil && tm.Config.MDM.MacOSSetup.RequireAllSoftware != *payload.RequireAllSoftware {
+		tm.Config.MDM.MacOSSetup.RequireAllSoftware = *payload.RequireAllSoftware
+		didUpdate = true
+	}
+
 	if payload.ManualAgentInstall != nil {
 		if tm.Config.MDM.MacOSSetup.ManualAgentInstall.Value != *payload.ManualAgentInstall {
-			if *payload.ManualAgentInstall && (!tm.Config.MDM.MacOSSetup.BootstrapPackage.Set || tm.Config.MDM.MacOSSetup.BootstrapPackage.Value == "") {
+			// Try to load the bootstrap package to verify it exists.
+			_, err := svc.GetMDMAppleBootstrapPackageMetadata(ctx, tm.ID, false)
+			// If we got an error other than not found, return it.
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "checking bootstrap package")
+			}
+			// Otherwise if we got a not found error, we can't enable manual agent install.
+			if *payload.ManualAgentInstall && err != nil {
 				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first specify a bootstrap_package."), http.StatusUnprocessableEntity)
 			}
 			sec, err := svc.ds.GetSetupExperienceCount(ctx, string(fleet.MacOSPlatform), &tm.ID)

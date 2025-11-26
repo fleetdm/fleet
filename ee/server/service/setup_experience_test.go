@@ -226,13 +226,13 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 	svc, baseSvc := newTestServiceWithMock(t, ds)
 
 	appConfig := fleet.AppConfig{}
-	team := fleet.Team{}
+	team := fleet.TeamLite{}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &appConfig, nil
 	}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		return &team, nil
 	}
 
@@ -296,5 +296,4 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 
 	err = svc.SetSetupExperienceSoftware(ctx, "darwin", 1, []uint{})
 	require.NoError(t, err)
-
 }

@@ -11,7 +11,10 @@ import mdmAPI, {
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { ISoftwareTitle } from "interfaces/software";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 import { IConfig } from "interfaces/config";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import {
@@ -25,8 +28,8 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import CustomLink from "components/CustomLink";
 
-import InstallSoftwarePreview from "./components/InstallSoftwarePreview";
 import AddInstallSoftware from "./components/AddInstallSoftware";
 import SelectSoftwareModal from "./components/SelectSoftwareModal";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
@@ -43,6 +46,8 @@ export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
   "macos",
   "windows",
   "linux",
+  "ios",
+  "ipados",
 ];
 export interface InstallSoftwareLocation {
   search: string;
@@ -152,7 +157,9 @@ const InstallSoftware = ({
       const appleMdmAndAbmEnabled =
         globalConfig?.mdm.enabled_and_configured &&
         globalConfig?.mdm.apple_bm_enabled_and_configured;
-      const turnOnAppleMdm = platform === "macos" && !appleMdmAndAbmEnabled;
+      const turnOnAppleMdm =
+        (platform === "macos" || platform === "ios" || platform === "ipados") &&
+        !appleMdmAndAbmEnabled;
 
       const turnOnWindowsMdm =
         platform === "windows" &&
@@ -178,8 +185,12 @@ const InstallSoftware = ({
             softwareTitles={softwareTitles}
             onAddSoftware={() => setShowSelectSoftwareModal(true)}
             platform={platform}
+            savedRequireAllSoftwareMacOS={
+              currentTeamId
+                ? teamConfig?.mdm?.macos_setup?.require_all_software_macos
+                : globalConfig?.mdm?.macos_setup?.require_all_software_macos
+            }
           />
-          <InstallSoftwarePreview platform={platform} />
         </SetupExperienceContentContainer>
       );
     }
@@ -189,7 +200,16 @@ const InstallSoftware = ({
 
   return (
     <section className={baseClass}>
-      <SectionHeader title="Install software" />
+      <SectionHeader
+        title="Install software"
+        details={
+          <CustomLink
+            newTab
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-experience/install-software`}
+            text="Preview end user experience"
+          />
+        }
+      />
       <TabNav secondary>
         <Tabs
           selectedIndex={PLATFORM_BY_INDEX.indexOf(selectedPlatform)}
@@ -205,10 +225,18 @@ const InstallSoftware = ({
             <Tab>
               <TabText>Linux</TabText>
             </Tab>
+            <Tab>
+              <TabText>iOS</TabText>
+            </Tab>
+            <Tab>
+              <TabText>iPadOS</TabText>
+            </Tab>
           </TabList>
-          <TabPanel>{renderTabContent(PLATFORM_BY_INDEX[0])}</TabPanel>
-          <TabPanel>{renderTabContent(PLATFORM_BY_INDEX[1])}</TabPanel>
-          <TabPanel>{renderTabContent(PLATFORM_BY_INDEX[2])}</TabPanel>
+          {PLATFORM_BY_INDEX.map((platform) => {
+            return (
+              <TabPanel key={platform}>{renderTabContent(platform)}</TabPanel>
+            );
+          })}
         </Tabs>
       </TabNav>
       {showSelectSoftwareModal && softwareTitles && (

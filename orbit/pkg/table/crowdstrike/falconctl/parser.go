@@ -9,8 +9,8 @@ import (
 )
 
 // parseOptions parses the stdout returned from falconctl's displayed options. As far as we know, output is a single
-// line, comma-separated. We parse multiple lines, but assume data does not space that. Eg: linebreaks and commas
-// treated as seperators.
+// line, comma-separated. We parse multiple lines, but assume data does not space that. e.g. linebreaks and commas
+// treated as separators.
 func parseOptions(reader io.Reader) (any, error) {
 	results := make(map[string]interface{})
 	errors := make([]error, 0)
@@ -32,8 +32,11 @@ func parseOptions(reader io.Reader) (any, error) {
 		pairs := strings.Split(line, ", ")
 		for _, pair := range pairs {
 			pair = strings.TrimSpace(pair)
+			if pair == "" {
+				continue
+			}
 
-			// The format is quite inconsistent. The following sample shows 4 possible
+			// The format is quite inconsistent. The following sample shows 5 possible
 			// outputs. We'll try to parse them all:
 			//
 			//	cid="ac917ab****************************"
@@ -42,15 +45,20 @@ func parseOptions(reader io.Reader) (any, error) {
 			//	app is not set
 			//	rfm-state is not set
 			//	rfm-reason is not set
+			//  Sensor grouping tags are not set
 			//  rfm-reason=None, code=0x0,
 			//	feature is not set
 			//	metadata-query=enable (unset default)
 			//	version = 6.38.13501.0
-			// We see 4 different formats. We'll try to parse them all.
+			// We see 5 different formats. We'll try to parse them all.
 
 			if strings.HasSuffix(pair, " is not set") {
 				// What should this be set to? nil? "is not set"? TBD!
 				results[pair[:len(pair)-len(" is not set")]] = "is not set"
+				continue
+			}
+			if pair == "Sensor grouping tags are not set" {
+				results["tags"] = "is not set" // might as well be consistent with the above
 				continue
 			}
 
@@ -65,11 +73,6 @@ func parseOptions(reader io.Reader) (any, error) {
 
 				if lastKey == "rfm-reason" && kv[0] == "code" {
 					kv[0] = "rfm-reason-code"
-				}
-
-				if kv[0] == "tags" {
-					results[kv[0]] = strings.Split(kv[1], ",")
-					continue
 				}
 
 				results[kv[0]] = kv[1]

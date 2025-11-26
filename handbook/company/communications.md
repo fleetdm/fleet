@@ -20,7 +20,15 @@ The "[¶ 🗣 E-Group weekly [no shadows]](https://docs.google.com/document/d/13
 
 ### Strategy
 
-You can read about the company's positioning and product strategy in ["🎐 Why Fleet?" (private Google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#). You can read about Fleet's Go-To-Market (GTM) strategy on our [Go-To-Market groups page](https://fleetdm.com/handbook/company/go-to-market-groups).
+You can read background about how Fleet reached its positioning and product strategy in ["🎐 Why Fleet?" (private Google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#). You can read about Fleet's Go-To-Market (GTM) strategy on our [Go-To-Market groups page](https://fleetdm.com/handbook/company/go-to-market-groups).
+
+You can find all planned events in the ["🎪 Events" (private Google doc)](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1931288160#gid=1931288160).  And in the [📈 OKRs (private Google doc)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=1846478041), you can read about:
+- Current and upcoming quarterly goals, and the company's progress towards them
+- Planned marketing campaigns
+- Upcoming content
+- Marketing budgets
+
+The ambition of Fleet's product roadmap is to reach [product maturity](http://fleetdm.com/handbook/company/product-maturity-assessment) across every stage of the computing lifecycle, implemented in a way that delights customers by delivering on our core brand promises: openness, flexibility, accessibility, and clarity.  The priority of features is [weighed (private Google doc)](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=1189480063#gid=1189480063) against this framework while taking into account the timelines of customers as well as the competitive landscape.  At the start of every quarter, Fleet publishes a blog post and video about the roadmap for the next 3 months.
 
 
 ## Security 
@@ -54,8 +62,8 @@ Fleet is successful because of our customers and community, and those relationsh
 | SWAG                                 | <sup><sub>_See [🫧 Content Specialist](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Guides                               | <sup><sub>_See [🌦️ Customer Success &amp; VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Release article                      | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| Onboarding and training              | <sup><sub>_See [🧑‍🚀 Interim Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
-| Payroll and benefits                 | <sup><sub>_See [🧑‍🚀 Interim Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
+| Onboarding and training              | <sup><sub>_See [🧑‍🚀 Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
+| Payroll and benefits                 | <sup><sub>_See [🧑‍🚀 Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
 | Information technology (IT)          | <sup><sub>_See [🌐 IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#team)_</sup></sub>
 | Internal tools & equipment           | <sup><sub>_See [🌐 IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#team)_</sup></sub>
 | Bookkeeping, AR/AP                   | <sup><sub>_See [💸 Finance](https://fleetdm.com/handbook/finance#team)_</sup></sub>
@@ -65,9 +73,9 @@ Fleet is successful because of our customers and community, and those relationsh
 | Customer support                     | <sup><sub>_See [🌦️ Customer Success team](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Quality assurance (QA)               | <sup><sub>_See [🚀 Engineering team](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Features &amp; product adoption      | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| Feature prioritization               | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| Feature prioritization and roadmap   | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Intentionality of Fleet's interfaces | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| Design system for the [Fleet product](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=1328-1329) and fleetdm.com | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| Design system for the [Fleet product](https://www.figma.com/files/project/15701210) and fleetdm.com | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Best practices for using Fleet       | <sup><sub>_See [🦢 Product Design team](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | [API design](https://fleetdm.com/docs/rest-api/rest-api) | <sup><sub>[Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_</sup></sub>
 | Structure of the [docs](https://fleetdm.com/docs/get-started/why-fleet) | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
@@ -78,9 +86,8 @@ Fleet is successful because of our customers and community, and those relationsh
 | What goes in a release (Release DRI) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
+| Fleet-maintained apps                  | <sup><sub>_[Allen Houchins](https://fleetdm.com/handbook/it-and-enablement#team)_</sup></sub>
 
-
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/f67a88e3-ab0a-4eda-a44d-b0e68de523a9">
 
 
 ## Meetings
@@ -138,7 +145,9 @@ In some instances, you may need to record a call locally (i.e. save the recordin
 4. Upload the mp4 recording to the [whiteboards folder](https://drive.google.com/drive/u/0/folders/1prO98fmB2WKzpubZ2-z0sju9dQ4ijpNE) in Google Drive.
 
 
-> **Confidentiality reminder.** Fleet meetings titled with "▶️" are considered public by default unless [otherwise specified](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality). All public meeting transcripts and video are screened for confidential information before being published. If confidential information (e.g. customer names, IP addresses, GitHub secrets, etc.) is revealed via screen share or audio during the recording of a public meeting, any team member on the call that notices sensitive information should verbally say, "Pineapple, pineapple, pineapple." 
+> **Confidentiality reminder:**
+>
+> Fleet meetings titled with "▶️" are considered public by default unless [otherwise specified](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality). All public meeting transcripts and video are screened for confidential information before being published. If confidential information (e.g. customer names, IP addresses, GitHub secrets, etc.) is revealed via screen share or audio during the recording of a public meeting, any team member on the call that notices sensitive information should verbally say, "Pineapple, pineapple, pineapple." 
 >
 > 🍍🍍🍍 Why three times? This helps ensure that at least one of the "Pineapple" call-outs will be transcribed correctly. 🍍🍍🍍   
 
@@ -163,8 +172,6 @@ Our Zoom meetings are configured to let participants join before the host arrive
 It is important to [set your working hours](https://support.google.com/calendar/answer/7638168?hl=en&co=GENIE.Platform%3DDesktop) in Google Calendar and block out any personal time/events/PTO, so that team members do not inadvertently schedule a time when you are not available. Many team members use the free tier of [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into their work calendars. 
 
 It is also common practice to block out time for focused work. In an all-remote company, "face time" matters. Remember: even if someone's calendar is open, they have other work to do. Help each other by batching up internal meetings which enables longer, uninterrupted stretches of deep work.
-
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/0f453745-9ddc-4ae7-853a-2a73e3d2aa1a">
 
 
 ## Meeting agendas
@@ -218,7 +225,7 @@ There are [several special email addresses](https://docs.google.com/document/d/1
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company.  
 - **Public:**   _Share with anyone, anywhere in the world_
 - **Confidential:**  _Share only with team members who've signed an NDA, consulting agreement, or employment agreement_
-- **Classified:**  _Share only with the CEO, Executive Assitant, Interim Head of People, Head of Digital Workplace & GTM Systems, and/or the people involved.  e.g., US social security numbers during hiring_
+- **Classified:**  _Share only with the CEO, Executive Assitant, Head of People, Head of Digital Workplace & GTM Systems, and/or the people involved.  e.g., US social security numbers during hiring_
 
 
 ### Document titles
@@ -227,7 +234,7 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 - **"Public":** _(Available to public)_ 
 - _(Confidential - for Fleet eyes only)_     
 - **"¶":** _(E-group - Direct reports the the CEO)_
-- **"¶¶":** _(Classified - CEO, Executive Assistant, Interim Head of People, and Head of Digital Workplace & GTM Systems)_
+- **"¶¶":** _(Classified - CEO, Executive Assistant, Head of People, and Head of Digital Workplace & GTM Systems)_
 
 
 ## Company database
@@ -251,11 +258,19 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 ### Key Slack channels
 
 We use these prefixes to organize the Fleet Slack:
- - ***g-***: for cross-functional group channels (i.e. a product or GTM group) *(Note: "g-" is short for "grupo" or "group")*.
- - ***oooh-***: used to discuss and share interesting information about a topic.
- - ***help-***: for asking for help on specific topics.
- - ***at*** or ***fleet-at***: for customer channels.
- - ***2023-***: for temporary channels _(Note: specify the relevant year in four digits, like "YYYY-`)_
+ - ***2025-***: For temporary channels that will be closed in a matter of weeks or months. _(Note: specify the relevant year in four digits, like "YYYY-`)_
+ - ***_***: An automated feed.
+ - ***test-***: For testing custom Slack integrations before connecting to real channels.
+ - ***oooh-***: For sharing news/tips/cool finds about a non-political, work-related subject.
+ - ***2025-hiring-***: For private communication during the hiring process.
+ - ***help-***: For questions, assistance, and resources on a topic or from a vendor.
+   - ***help-`VENDOR_NAME`-vendor***: A channel for communication between one of Fleet's vendors and the internal stakeholders.
+   - ***help-`PARTNER_NAME`-partnership***: A channel for communication between one of Fleet's partners and the internal stakeholders. 
+ - ***g-***: A cross-functional group channel (i.e. a product or GTM group, "g-" is short for "grupo" or "group").
+ - ***op-***: A private internal channel about a new revenue opportunity.
+ - ***acc-***: A private internal channel about a customer account.
+ - ***fleet-at-***: A Fleet support+sales channel for a customer or prospect, with them in it.
+
 
 We have specific channels for various topics, but we also have more general channels for the teams at Fleet. The following Slack channels are useful for every fleetie:
 
@@ -285,7 +300,7 @@ To make our docs as helpful as possible, the Community team gathers these questi
 
 Fleet's goal is to answer every question with a link to the docs and/or result in a documentation update.
 
-> Fleet's philosophy on how to write useful documentation is public and open-source: ["Why read documentation?"](https://fleetdm.com/handbook/company/why-this-way#why-read-documentation)
+> Fleet's philosophy on how to write useful documentation is public and open-source. Check out the ["Why read documentation?"](https://fleetdm.com/handbook/company/why-this-way#why-read-documentation) section.
 
 The docs are separated into four categories:
 
@@ -383,8 +398,8 @@ Opinionated conventions help people work faster and spend less time figuring out
 
 _**Note:**_ There are only a few "special" labels that are exceptions to this rule:
 - `bug` A defect in the product.
-- `bug-` Defect category. For example, `bug-enrollment`, `bug-profiles-sync`, `bug-policies`. This allows us to track the areas of the product producing the most bugs.
 - `story` A user story.
+- `timebox` A timeboxed issue (a task or bug limited to a fixed duration, after which work stops regardless of completion).
 -  `prospect-` A customer prospect.
 - `P-` A [priority level](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs).
 
@@ -444,7 +459,7 @@ All issues are treated as standard priority by default. Some issues are assigned
 
 - Urgent: `P2`
   - Examples: A supported workflow is not functioning as intended, a newly drafted feature has an associated urgent Fleet need.
-  - Response: Issue is prioritized at the top of the next sprint. If opporunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
+  - Response: Issue is prioritized at the top of the next sprint. If opportunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
   - Impact: Low to medium impact. If prioritized into current sprint, may reduce overall velocity and require deprioritizing other work.
 
 Any fleetie can follow the process below to add a priority label to an issue.
@@ -452,14 +467,12 @@ Any fleetie can follow the process below to add a priority label to an issue.
 1. Add as much context as possible to the issue description and assign labels to help the team
    understand the problem and what is driving the urgency. 
 2. Add the `P0`, `P1`, or `P2` label based on the urgency of the issue. 
-3. Comment on the GitHub issue explaining why the issue is a priority, and assign the issue to the
-   [DRI for what goes in a
-   release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris).
-   For immediate action, follow up via Slack DM or by phone.
-4. The DRI for what goes in a release will review the issue to determine if it meets the criteria
-   for the assigned priority label. If so, they will assign the issue to the appropriate EM and PM. If not,
-   they will comment on the issue explaining why. 
+3. Comment on the GitHub issue explaining why the issue is a priority, and assign the issue to the [Engineering Manager for the associated product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups). For immediate action, follow up with the EM via Slack DM or by phone.
+4. The EM will review the issue to determine if it meets the criteria for the assigned priority label. If so, they will triage as needed based on priority level. If not, they will remove the priority label and add a comment on the issue explaining why.
 
+## Contributing to the handbook and docs
+
+> Fleet operates as a [handbook-first](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy) company.  If something has changed, it is up to you to update the handbook first.  If the change can't be handbooked in 1 business day, or if you are stuck waiting on a review before it can be merged, get a handbook coach.  They'll pair with you in a scheduled meeting on your calendar and help.  To get a handbook coach, ask [Sam Pfluger](https://fleetdm.slack.com/team/U05CS07KASK) in Slack.
 
 ### Making a pull request
 
@@ -574,6 +587,27 @@ The [Audit logs doc page](https://fleetdm.com/docs/Using-Fleet/Audit-logs) has a
 After making your changes, save them and run `make generate-doc`. This will generate a new `Audit-logs.md` file. Make sure you run the command in the top-level folder of your cloned Fleet repo.
 
 
+## Feedback
+
+At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Managers at Fleet will provide performance feedback [during scheduled 1:1 meetings](https://fleetdm.com/handbook/company/leadership#performance-feedback), if not sooner. When sharing feedback publicly, it's important to remember what feedback _is_: 
+- Feedback is something to share with the DRI, who has the context and mission to hear your feedback and decide what to do.
+- Feedback is better shared in a way that doesn't ping the customer. Reading it doesn't help them. 
+- Feedback is ready to share. If it's just an opinion without a solution or an opinion about a customer's contribution without specifically saying why the contribution would make the product worse, it's not feedback that's ready to share.
+- Feedback is how we improve. We encourage all Fleeties to share candid and helpful feedback with each other. We use the "4A" feedback pattern:
+
+When _giving_ feedback:
+
+1. **Aim to assist**: Feedback must be given with positive intent. Feedback must be framed around how it can help the individual or the company.
+2. **Actionable**: Feedback must be actionable and focus on what the recipient can do differently.
+
+When _receiving_ feedback:
+
+3. **Appreciate**: It is natural to feel defensive when hearing criticism. Rather than immediately reacting, listen carefully and be open-minded without becoming defensive or angry.
+4. **Accept or discard**: Listen and consider all feedback, then decide to accept or discard. The decision to react to the feedback is entirely up to the recipient.
+
+> When delivering feedback, you can also use the [other person's personality type](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0&range=AA1) as [a guide](https://drive.google.com/file/d/1iWHYJzc6WKdR95GBFAvjumouh0ej2DQM/view).  For example, when delivering feedback to a ["type 1" personality](https://www.enneagraminstitute.com/type-1/), it helps to focus on minimizing the extent to which the person spirals into self-blame.  In contrast, when delivering feedback to a ["type 7" personality](https://www.enneagraminstitute.com/type-7/), it is better to focus on being sensitive to the person's tendency to avoid negative emotions and reframe things positively.
+
+
 ## Spending company money
 
 As we continue to expand our company policies, we use [GitLab's open expense policy](https://handbook.gitlab.com/handbook/finance/spending-company-money/) as a guide for company spending.
@@ -585,9 +619,109 @@ In brief, this means that as a Fleet team member, you may:
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/finance/spending-company-money/).
 
 
+### Paying back company money
+
+If you have accidentally incurred a charge on your Brex card that was not intended and/or approved, you can initiate a "Repay" process in Brex that would allow you to pay back the company. 
+
+1. Login to [brex.com](http://brex.com/) with your Fleet email and navigate to the "[Wallet](https://dashboard.brex.com/wallet)".
+2. Select the transaction you'd like to repay.
+
+> If you need to split the transaction amount:
+>   - Ensure the transaction is in the "Approved" status. If it's not in "Approved" status yet, wait a few days and retry. 
+>   - Click "Itemize this expense."
+>   - Separate out the amount that needs to be repaid.
+>   - Click "Itemize" and proceed to the next step.
+
+3. On the bottom right-hand side, click on "Repay".
+4. Select the desired bank account and verify the account.
+5. Click "confirm repayment".
+
+After a short period of processing, your transaction will show as “denied”, and this means the repayment is in process. 
+  
+  
+## Travel
+
+When attending a conference or traveling for Fleet, keep the following in mind:
+- **No reimbursements:** Use your company Brex card.  Reimbursements are time-consuming, so Fleet does not offer reimbursements for spending on personal credit cards.
+- **Food:** Be efficient and use your own credit card when it makes sense.  There is a $100 allowance per day for your own personal food and beverage on your company Brex card. There are many good reasons to make exceptions to this allowance, such as dinners with customers.
+- **Tipping:** Tipping norms vary by culture.  How you tip when representing the company reflects on Fleet's brand.  When traveling in the United States and using your company Brex card, prepare to tip between 18-20% at restaurants.  For rideshare, takeout, delivery, and other situations where tipping comes up, tip between 10-20%.
+- **Personal credit card:** Please use your personal credit card for hotel incidentals, personal consumables, movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
+- **Company credit card:** We recommend you order a physical Brex card if you do not have one before traveling.
+- **Credit card limit increases:** The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as [booking your own travel](https://fleetdm.com/handbook/company/communications#flights).  You can [request that here](https://fleetdm.com/handbook/it-and-enablement#contact-us) by providing the following information:
+  - The start and end dates for your trip.
+  - The [price of your flight](https://fleetdm.com/handbook/company/communications#flights)
+  - The [price of your hotel or Airbnb](https://fleetdm.com/handbook/company/communications#lodging) per night
+  - The price of the admission fees (if attending a conference)
+
+
+### Flights
+
+Everyone at Fleet, including the CEO, uses the same [principles for booking flights](https://fleetdm.com/handbook/ceo#schedule-travel-for-the-ceo). For example, feel free to book a direct flight if there is one that is less than double the price of the cheapest non-direct flight.
+
+
+### Mileage reimbursement
+
+When you travel for work and choose to drive your own vehicle, you can use your Brex card to purchase fuel (or Electric Vehicle charging) *or* request reimbursement based on the mileage driven. To request reimbursement, you'll need:
+- A personal bank account to link to Brex. (This is required for reimbursement. Use your Brex card to purchase fuel if you would like to avoid providing your banking details.)
+- The start and end destination of your journey (Brex will automatically calculate the reimbursement amount based on this data).
+- The reason for the trip.
+
+To request reimbursement for miles driven: 
+1. Navigate to [Brex](https://dashboard.brex.com/wallet)
+2. Click "Request reimbursement," then "Mileage."
+3. Select your available Brex spending limit and the travel date.
+4. Enter your starting and ending destinations, and whether it was one-way or round-trip. Brex will automatically calculate your miles driven. If the distance doesn't match what you actually drove, edit it to be correct.
+5. In the memo line, describe the reason for your travel (E.g. Houston GitOps) and submit the request.
+
+Finance will review and process your request within 2 business days. 
+
+
+### Lodging
+
+- Choose a modest location with inexpensive lodging and [minimally-viable comfort](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
+- For events, check the event's website for travel & hotel accommodations and book as soon as the event is approved. As a general rule, do not spend more on lodging than the average listed hotel accommodations.
+- Avoid expensive neighborhoods and popular destination cities.
+- Please do not share bedrooms.  Shared bathrooms are OK, but make sure every hotel room or Airbnb has at least one bathroom per gender identity.   <!-- Make sure everyone is well-rested, efficiently primped, with sufficient privacy. -->
+- Be creative.  If Airbnb is the most efficient way to house the team, then do that.  If separate hotel rooms are more efficient, then do that.
+- If the stay is longer than 4 nights and an Airbnb with a washing machine is not available, then dry cleaning can be purchased with your Brex card.
+- If you need to meet with a large group that won't fit in your hotel room or Airbnb (e.g. more than 5 people), [contact People](https://fleetdm.com/handbook/people#contact-us) for their help approving and booking additional event space.
+
+> ***Tech Tip while traveling*** If you encounter issues connecting to airline or hotel Wi-Fi while on a Fleet-managed Mac, go to  > System Settings... > Network > Filters > Cloudflare DNS over HTTPS and temporarily toggle its status from Enabled to Disabled. Once you have an internet connection, you should toggle this status back to Enabled to stay protected while online. 
+
+
+### Attending conferences
+
+The Marketing department is responsible for executing and organizing all [marketing-related events](https://fleetdm.com/handbook/marketing#settle-event-strategy). When attending a conference for Fleet, treat it [like other travel for the company](https://fleetdm.com/handbook/company/communications#travel). The relevant department head should approve and organize all other event types (trainings, developer conferences, meetups, etc.).
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/8c3eeeb4-f322-44cf-8405-4f94f10fde6d">
+
+
+### Offsites
+
+From time to time, Fleet organizes offsites to bring team members together in person.  This encourages trust and makes the company more productive. Offsites are:
+  - Attended by a particular [product group](https://fleetdm.com/handbook/company#product-groups), a [department](https://fleetdm.com/handbook/company#org-chart), or a team such as the E-group.
+  - Sometimes also attended by founders or other team members on a case-by-case basis.
+  - 1-3 full days long (2-4 nights stay).
+  - A ritual of effective teams, not a reward or vacation.
+  - Driven by a detailed, thoughtful agenda of how time will be spent.  An intentional investment of valuable personal and company time, at great opportunity cost.
+  - An opportunity to spend time together, build relationships, and be human.  Shared meals and activities are important.
+
+Follow the process to [request an offsite](https://fleetdm.com/handbook/company/leadership#request-a-team-offsite) and [plan an offsite](https://fleetdm.com/handbook/company/leadership#plan-a-team-offsite).
+
+
+##### Sales kickoffs
+
+From time to time, Fleet holds a sales kickoff (SKO) meeting.  This is a type of [offsite](https://fleetdm.com/handbook/company/communications#offsites).
+
+
 ### Coworking
 
 Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the [Finance team](https://fleetdm.com/handbook/finance#contact-us).
+
+
+### Relocating
+
+When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please create a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-it-and-enablement&projects=&template=x-teammate-relocation.md) issue to [let the company know in advance](https://fleetdm.com/handbook/it-and-enablement#update-personnel-details) by following the directions listed in the relevant issue template.
 
 
 ## Tools and equipment
@@ -608,9 +742,100 @@ As soon as an offer is accepted, IT & Enablement will reach out to the new team 
 > If your Apple device is less than 3 years old, has normal battery condition, but is experiencing operating difficulties, you should first contact Apple support and troubleshoot performance issues before requesting a new device.
 
 
-### Requesting IT support
+#### Requesting IT support
 
 If you are in need of IT support, reach out to 🌐 [IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#contact-us) to assist with a software or hardware issue. [Open a support request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement%2C%3Ait-gtm&projects=&template=1-custom-request.md&title=) and a Fleet IT team member will attempt to correct your issue remotely using Fleet, and will notify you if any action is needed on your part.
+
+
+## Taking time off
+
+When you need to take time off, follow this process:
+- Let your manager and team know the days when you will be out by posting a message in your department Slack channel mentioning your manager, with when and how long.
+- Life happens and things come up.  But as soon as you know when you'll be out, let the company know.  (Extra notice helps!)
+- Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, [CODEOWNERS](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) coverage, anything where someone might be depending on you).
+- Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off, or for the hours that you will be off if less than a day. Google Calendar recognizes the event title "OOO" and will give you the option to decline existing and new meetings or just new meetings. You are expected to attend any meetings that you have accepted, so be sure to decline meetings you are not going to attend.
+  - If you are the DRI of meetings, especially external meetings with prospects and customers, be sure not to use an "Out of Office" (OOO) event, because it will cancel the meeting.  Instead, you can find someone else at Fleet to cover the meeting.
+- If you can’t complete these steps because you need to take the day off quickly due to an emergency, let your manager know and they will help you complete the handoff.
+- If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” Talk to your manager if you’re unsure, but it is perfectly OK to reschedule internal meetings that can wait so that you can take a day off.
+- This process is the same for any days you take off, whether it's a holiday or you just need a break.
+
+
+### Holidays
+
+At Fleet, we have team members with various employment classifications in many different countries worldwide. Fleet is a US company, but we think you should choose the days you want to work and what days you are on holiday, rather than being locked into any particular nation or culture's expectation about when to take time off. When a team member joins Fleet, they pick one of the following holiday schedules:
+ - **Traditional**: This is based on the country where you work. Non-US team members should let their managers know the dates of national holidays.
+ **Or**
+ - **Freestyle**: You have no set schedule and start with no holidays. Then you add the days that are holidays to you.
+
+Either way, it's up to you to make sure that your responsibilities are covered and that your team knows you're out of the office.
+
+
+## Benefits
+
+In this section, you can find information about Fleet's benefit strategies and decisions.
+
+
+### Paid time off
+
+What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work. Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.
+
+For team members working in jurisdictions that require certain mandatory sick leave or PTO policies, Fleet complies to the extent required by law.
+
+
+### New parent leave
+
+Fleet gives new parents six weeks of paid leave. After six weeks, if you don't feel ready to return yet, we'll set up a quick call to discuss and work together to come up with a plan to help you return to work gradually or when you're ready.
+
+
+### Retirement contributions
+
+**US-based team members:** Starting August 2023, Fleet offers the ability for US-based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 3% contribution unless they opt out or change their contribution amount within 30 days of commencement. Auto-enrolled employees' contributions will increase by 1% every year, on January 1, until 10% is reached. Fleet currently does not match any contributions made by team members to 401(k) plans.
+
+**Non-US team members**: Fleet meets the relevant country's retirement contribution requirements for team members outside the US.
+
+
+### Wellness budget 
+
+Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions.
+
+
+### Compensation
+
+Compensation at Fleet is determined by benchmarking using [Pave](https://pave.com). Annual raises are not guaranteed, instead we ensure teammates are compensated fairly based on the role, experience, location, and performance relative to benchmarks.
+
+
+#### Payroll dates
+
+US-based Fleeties get paid on the last business day of the month. International teammates' pay dates follow the same structure as US pay unless there are in-country requirements that dictate a more frequent cadence.
+
+Variable compensation (i.e. commission) is reviewed and submitted for processing by the [💸 Finance team](https://fleetdm.com/handbook/finance#team) by the 7th of each month for the previous month or quarter's contributions. US-based Fleeties that receive variable compensation will be paid by the 10th. International Fleeties will be paid no later than the last day of the month for the previous month's or quarter’s contributions.
+
+
+#### Compensation changes
+
+Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/it-and-enablement#update-a-team-members-compensation).
+
+
+#### Exercise stock options
+
+Fleet uses Carta to manage its cap table. Fleet option holders can [exercise shares via Carta](https://support.carta.com/kb/guide/en/how-to-exercise-your-options-on-carta-wTFnzZVVFs/Steps/3763569). Before exercising your options, consult your own independent tax advisors or counsel to determine whether you are subject to taxation in any jurisdiction.
+
+- For *Fleeties exercising Non-Qualified Stock Options (NSOs)*, once an exercise request is submitted, it will be reviewed by the CEO before the request is approved in Carta
+- For *Fleeties who are US tax residents and employees of the company*, Finance and People will update the withholding tax amount shown in Carta, based on estimates calculated by our US payroll system. If the "Fair Market Value" is less than or equal to the exercised price, the withholding tax amount is zero. If the withholding tax amount is larger than $500, Finance will reach out to confirm the total amount to be debited from your bank account before the request is approved.
+
+> FYI: You can calculate the "Taxable Income" by subtracting the exercised or "strike" price from the "Fair Market Value" of shares at the time of exercise. 
+> I.e. _"Fair Market Value" of shares at time of exercise_ - _strike price_ =  "*Taxable income*"
+
+As a US Fleetie, if you choose to "early exercise" your unvested options, you will need to file an 83(b) election within 30days of receiving the shares post exercise. As part of your exercise, Carta automatically generates the 83(b) election form when an option with early exercise enabled is issued. A tab for the 83(b) form will appear as soon as you decide to early exercise their option. This feature allows eligible U.S.-based equity holders to elect to be taxed at the time of grant rather than at the time of vesting. Additionally, Carta sends an email with instructions when a qualifying grant is accepted or an option is exercised. You can also access a pre-filled 83(b) election form directly within the platform.
+
+> Please note that the form must be printed, signed, and mailed to the IRS within 30 days of the grant date. You should also upload a signed copy to the platform for record-keeping purposes. Check out [how to track 83(b) election filings for early exercised option grants](https://support.carta.com/kb/guide/en/how-to-track-83-b-election-filings-for-early-exercised-option-grants-bZaiinjNng/Steps/3835066) for further guidance.
+
+- For *Fleeties who are non-US tax residents*, please follow the instructions on this [page](https://support.carta.com/kb/guide/en/how-to-exercise-your-options-on-carta-wTFnzZVVFs/Steps/3763569,3781094,3780904) to exercise your options
+
+
+## Workiversaries
+
+We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The team will celebrate your tenure at the monthly "All Hands" meeting to highlight your dedication and contribution to Fleet, giving teammates an opportunity to share their appreciation of your contribution!
 
 
 ## New Fleeties
@@ -620,7 +845,6 @@ If you are in need of IT support, reach out to 🌐 [IT & Enablement](https://fl
 > Fleet is open source. Anyone can contribute at any time. Before a core team member's start date, they are welcome to contribute, but not expected to.
 
 The first 3 weekdays (excluding days off) for **every new team member** at Fleet are reserved for completing their onboarding tasks issue.  New team members **should not work on anything else during this time**, whether or not other tasks are stacking up or assigned.  It is OK, expected, and appreciated for new team members to **remind their manager and colleagues** of this [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) responsibility. Even after the first 3 days, during the rest of their first 2 weeks, completing onboarding tasks on time is a new team member's [highest priority](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training). Onboarding time (all checkboxes checked) is a KPI for the People team, our goal is 14 days or less.
-
 
 
 ### Recommendations for new teammates
@@ -690,204 +914,25 @@ During their first week at Fleet, every new team member schedules a contributor 
 - Make sure you know how to share a Google Doc in the folder for all Fleeties to see and access.
 - Make sure new team members understand the expectations of, and [how to prepare](https://fleetdm.com/handbook/company/leadership#prepare-for-the-program) for, the [CEO shadow program](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program).
 
-
+<!--
 ### Onboarding retrospective
 
 At the end of their first two weeks of onboarding at Fleet, every new team member schedules an onboarding retro call.  Agenda: 
 > Welcome once again to the team! Please tell me about your first few weeks at Fleet. How did your onboarding/training go? What didn't you manage to get to? Anything you weren't sure how to do? Any feedback on how we can make the experience better for Fleet's next hire?
 
 Fleet prioritizes a [bias for action](https://fleetdm.com/handbook/company#ownership).  If possible, apply onboarding feedback to the handbook and issue templates in realtime, during this call.  This avoids backlogging tasks that may just get out of date before we get around to them anyway.
-
-
-## Feedback
-
-At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Managers at Fleet will provide performance feedback [during scheduled 1:1 meetings](https://fleetdm.com/handbook/company/leadership#performance-feedback), if not sooner. When sharing feedback publicly, it's important to remember what feedback _is_: 
-- Feedback is something to share with the DRI, who has the context and mission to hear your feedback and decide what to do.
-- Feedback is better shared in a way that doesn't ping the customer. Reading it doesn't help them. 
-- Feedback is ready to share. If it's just an opinion without a solution or an opinion about a customer's contribution without specifically saying why the contribution would make the product worse, it's not feedback that's ready to share.
-- Feedback is how we improve. We encourage all Fleeties to share candid and helpful feedback with each other. We use the "4A" feedback pattern:
-
-When _giving_ feedback:
-
-1. **Aim to assist**: Feedback must be given with positive intent. Feedback must be framed around how it can help the individual or the company.
-2. **Actionable**: Feedback must be actionable and focus on what the recipient can do differently.
-
-When _receiving_ feedback:
-
-3. **Appreciate**: It is natural to feel defensive when hearing criticism. Rather than immediately reacting, listen carefully and be open-minded without becoming defensive or angry.
-4. **Accept or discard**: Listen and consider all feedback, then decide to accept or discard. The decision to react to the feedback is entirely up to the recipient.
-
-> When delivering feedback, you can also use the [other person's personality type](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0&range=AA1) as [a guide](https://drive.google.com/file/d/1iWHYJzc6WKdR95GBFAvjumouh0ej2DQM/view).  For example, when delivering feedback to a ["type 1" personality](https://www.enneagraminstitute.com/type-1/), it helps to focus on minimizing the extent to which the person spirals into self-blame.  In contrast, when delivering feedback to a ["type 7" personality](https://www.enneagraminstitute.com/type-7/), it is better to focus on being sensitive to the person's tendency to avoid negative emotions and reframe things positively.
-
-
-
-## Travel
-
-When attending a conference or traveling for Fleet, keep the following in mind:
-- **No reimbursements:** Use your company Brex card.  Reimbursements are time-consuming, so Fleet does not offer reimbursements for spending on personal credit cards.
-- **Food:** Be efficient and use your own credit card when it makes sense.  There is a $100 allowance per day for your own personal food and beverage on your company Brex card. There are many good reasons to make exceptions to this allowance, such as dinners with customers.
-- **Tipping:** Tipping norms vary by culture.  How you tip when representing the company reflects on Fleet's brand.  When traveling in the United States and using your company Brex card, prepare to tip between 18-20% at restaurants.  For rideshare, takeout, delivery, and other situations where tipping comes up, tip between 10-20%.
-- **Personal credit card:** Please use your personal credit card for hotel incidentals, personal consumables, movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
-- **Company credit card:** We recommend you order a physical Brex card if you do not have one before traveling.
-- **Credit card limit increases:** The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as [booking your own travel](https://fleetdm.com/handbook/company/communications#flights).  You can [request that here](https://fleetdm.com/handbook/it-and-enablement#contact-us) by providing the following information:
-  - The start and end dates for your trip.
-  - The [price of your flight](https://fleetdm.com/handbook/company/communications#flights)
-  - The [price of your hotel or Airbnb](https://fleetdm.com/handbook/company/communications#lodging) per night
-  - The price of the admission fees (if attending a conference)
-
-
-### Flights
-
-Everyone at Fleet, including the CEO, uses the same [principles for booking flights](https://fleetdm.com/handbook/ceo#schedule-travel-for-the-ceo). For example, feel free to book a direct flight if there is one that is less than double the price of the cheapest non-direct flight.
-
-
-### Lodging
-
-- Choose a modest location with inexpensive lodging and [minimally-viable comfort](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
-- For events, check the event's website for travel & hotel accommodations and book as soon as the event is approved. As a general rule, do not spend more on lodging than the average listed hotel accommodations.
-- Avoid expensive neighborhoods and popular destination cities.
-- Please do not share bedrooms.  Shared bathrooms are OK, but make sure every hotel room or Airbnb has at least one bathroom per gender identity.   <!-- Make sure everyone is well-rested, efficiently primped, with sufficient privacy. -->
-- Be creative.  If Airbnb is the most efficient way to house the team, then do that.  If separate hotel rooms are more efficient, then do that.
-- If the stay is longer than 4 nights and an Airbnb with a washing machine is not available, then dry cleaning can be purchased with your Brex card.
-- If you need to meet with a large group that won't fit in your hotel room or Airbnb (e.g. more than 5 people), [contact People](https://fleetdm.com/handbook/people#contact-us) for their help approving and booking additional event space.
-
-> ***Tech Tip while traveling*** If you encounter issues connecting to airline or hotel Wi-Fi while on a Fleet-managed Mac, go to  > System Settings... > Network > Filters > Cloudflare DNS over HTTPS and temporarily toggle its status from Enabled to Disabled. Once you have an internet connection, you should toggle this status back to Enabled to stay protected while online. 
-
-
-### Attending conferences
-
-The Marketing department is responsible for executing and organizing all [marketing-related events](https://fleetdm.com/handbook/marketing#settle-event-strategy). When attending a conference for Fleet, treat it [like other travel for the company](https://fleetdm.com/handbook/company/communications#travel).
-
-The relevant department head should approve and organize all other event types (trainings, developer conferences, meetups, etc.).
-
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/8c3eeeb4-f322-44cf-8405-4f94f10fde6d">
-
-
-### Offsites
-
-From time to time, Fleet organizes offsites to bring team members together in person.  This encourages trust and makes the company more productive.
-
-Offsites are:
-  - Attended by a particular [product group](https://fleetdm.com/handbook/company#product-groups), a [department](https://fleetdm.com/handbook/company#org-chart), or a team such as the E-group.
-  - Sometimes also attended by founders or other team members on a case-by-case basis.
-  - 1-3 full days long (2-4 nights stay).
-  - A ritual of effective teams, not a reward or vacation.
-  - Driven by a detailed, thoughtful agenda of how time will be spent.  An intentional investment of valuable personal and company time, at great opportunity cost.
-  - An opportunity to spend time together, build relationships, and be human.  Shared meals and activities are important.
-
-Follow the process to [request an offsite](https://fleetdm.com/handbook/company/leadership#request-a-team-offsite) and [plan an offsite](https://fleetdm.com/handbook/company/leadership#plan-a-team-offsite).
-
-
-### Sales kickoffs
-
-From time to time, Fleet holds a sales kickoff (SKO) meeting.  This is a type of [offsite](https://fleetdm.com/handbook/company/communications#offsites).
-
-
-## Holidays
-
-At Fleet, we have team members with various employment classifications in many different countries worldwide. Fleet is a US company, but we think you should choose the days you want to work and what days you are on holiday, rather than being locked into any particular nation or culture's expectation about when to take time off. When a team member joins Fleet, they pick one of the following holiday schedules:
- - **Traditional**: This is based on the country where you work. Non-US team members should let their managers know the dates of national holidays.
- **Or**
- - **Freestyle**: You have no set schedule and start with no holidays. Then you add the days that are holidays to you.
-
-Either way, it's up to you to make sure that your responsibilities are covered and that your team knows you're out of the office.
-
-
-## Taking time off
-
-When you need to take time off, follow this process:
-- Let your manager and team know the days when you will be out by posting a message in your department Slack channel mentioning your manager, with when and how long.
-- Life happens and things come up.  But as soon as you know when you'll be out, let the company know.  (Extra notice helps!)
-- Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, [CODEOWNERS](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) coverage, anything where someone might be depending on you).
-- Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off, or for the hours that you will be off if less than a day. Google Calendar recognizes the event title "OOO" and will give you the option to decline existing and new meetings or just new meetings. You are expected to attend any meetings that you have accepted, so be sure to decline meetings you are not going to attend.
-  - If you are the DRI of meetings, especially external meetings with prospects and customers, be sure not to use an "Out of office" event, because it will cancel the meeting.  Instead, you can find someone else at Fleet to cover the meeting.
-- If you can’t complete these steps because you need to take the day off quickly due to an emergency, let your manager know and they will help you complete the handoff.
-- If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” Talk to your manager if you’re unsure, but it is perfectly OK to reschedule internal meetings that can wait so that you can take a day off.
-- This process is the same for any days you take off, whether it's a holiday or you just need a break.
-
-
-## Benefits
-
-In this section, you can find information about Fleet's benefit strategies and decisions.
-
-
-### Paid time off
-
-What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work. Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.
-
-For team members working in jurisdictions that require certain mandatory sick leave or PTO policies, Fleet complies to the extent required by law.
-
-
-### New parent leave
-
-Fleet gives new parents six weeks of paid leave. After six weeks, if you don't feel ready to return yet, we'll set up a quick call to discuss and work together to come up with a plan to help you return to work gradually or when you're ready.
-
-
-### Retirement contributions
-
-**US-based team members:** Starting August 2023, Fleet offers the ability for US-based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 3% contribution unless they opt out or change their contribution amount within 30 days of commencement. Auto-enrolled employees' contributions will increase by 1% every year, on January 1, until 10% is reached. Fleet currently does not match any contributions made by team members to 401(k) plans.
-
-**Non-US team members**: Fleet meets the relevant country's retirement contribution requirements for team members outside the US.
-
-
-### Wellness budget 
-
-Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions.
-
-
-### Compensation
-
-Compensation at Fleet is determined by benchmarking using [Pave](https://pave.com). Annual raises are not guaranteed, instead we ensure teammates are compensated fairly based on the role, experience, location, and performance relative to benchmarks.
-
-
-#### Payroll dates
-
-US-based Fleeties get paid on the last business day of the month. International teammates' pay dates follow the same structure as US pay unless there are in-country requirements that dictate a more frequent cadence.
-
-Variable compensation (i.e. commission) is reviewed and submitted for processing by the [💸 Finance team](https://fleetdm.com/handbook/finance#team) by the 7th of each month for the previous month or quarter's contributions. US-based Fleeties that receive variable compensation will be paid by the 10th. International Fleeties will be paid no later than the last day of the month for the previous month's or quarter’s contributions.
-
-
-#### Compensation changes
-
-Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Interim Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/it-and-enablement#update-a-team-members-compensation).
-
-
-#### Exercise stock options
-
-Fleet uses Carta to manage its cap table. Fleet option holders can [exercise shares via Carta](https://support.carta.com/kb/guide/en/how-to-exercise-your-options-on-carta-wTFnzZVVFs/Steps/3763569). Before exercising your options, consult your own independent tax advisors or counsel to determine whether you are subject to taxation in any jurisdiction.
-
-- For *Fleeties exercising Non-Qualified Stock Options (NSOs)*, once an exercise request is submitted, it will be reviewed by the CEO before the request is approved in Carta
-- For *Fleeties who are US tax residents and employees of the company*, Finance and People will update the withholding tax amount shown in Carta, based on estimates calculated by our US payroll system. If the "Fair Market Value" is less than or equal to the exercised price, the withholding tax amount is zero. If the withholding tax amount is larger than $500, Finance will reach out to confirm the total amount to be debited from your bank account before the request is approved.
-
-> FYI: You can calculate the "Taxable Income" by subtracting the exercised or "strike" price from the "Fair Market Value" of shares at the time of exercise. 
-> I.e. _"Fair Market Value" of shares at time of exercise_ - _strike price_ =  "*Taxable income*"
-
-As a US Fleetie, if you choose to "early exercise" your unvested options, you will need to file an 83(b) election within 30days of receiving the shares post exercise. As part of your exercise, Carta automatically generates the 83(b) election form when an option with early exercise enabled is issued. A tab for the 83(b) form will appear as soon as you decide to early exercise their option. This feature allows eligible U.S.-based equity holders to elect to be taxed at the time of grant rather than at the time of vesting. Additionally, Carta sends an email with instructions when a qualifying grant is accepted or an option is exercised. You can also access a pre-filled 83(b) election form directly within the platform.
-
-> Please note that the form must be printed, signed, and mailed to the IRS within 30 days of the grant date. You should also upload a signed copy to the platform for record-keeping purposes. Check out [how to track 83(b) election filings for early exercised option grants](https://support.carta.com/kb/guide/en/how-to-track-83-b-election-filings-for-early-exercised-option-grants-bZaiinjNng/Steps/3835066) for further guidance.
-
-- For *Fleeties who are non-US tax residents*, please follow the instructions on this [page](https://support.carta.com/kb/guide/en/how-to-exercise-your-options-on-carta-wTFnzZVVFs/Steps/3763569,3781094,3780904) to exercise your options
-
-
-## Workiversaries
-
-We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The team will celebrate your tenure at the monthly "All Hands" meeting to highlight your dedication and contribution to Fleet, giving teammates an opportunity to share their appreciation of your contribution!
-
-
-## Relocating
-
-When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please create a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-it-and-enablement&projects=&template=x-teammate-relocation.md) issue to [let the company know in advance](https://fleetdm.com/handbook/it-and-enablement#update-personnel-details) by following the directions listed in the relevant issue template.
+-->
 
 
 ## Writing
 
 Learn how to write as Fleet: 
-- [Writing style](https://fleetdm.com/handbook/company/communication#writing-style)
-- [Writing types](https://fleetdm.com/handbook/company/communication#writing-types)
-- [Editing and publishing](https://fleetdm.com/handbook/company/communication#editing-and-publishing)
-- [Writing assistance](https://fleetdm.com/handbook/company/communication#writing-assistance).
-- [Writing mechanics](https://fleetdm.com/handbook/company/communication#writing-mechanics)
-- [Writing in Fleet-flavored Markdown](https://fleetdm.com/handbook/company/communication#writing-in-fleet-flavored-markdown)
+- [Writing style](https://fleetdm.com/handbook/company/communications#writing-style)
+- [Writing types](https://fleetdm.com/handbook/company/communications#writing-types)
+- [Editing and publishing](https://fleetdm.com/handbook/company/communications#editing-and-publishing)
+- [Writing assistance](https://fleetdm.com/handbook/company/communications#writing-assistance).
+- [Writing mechanics](https://fleetdm.com/handbook/company/communications#writing-mechanics)
+- [Writing in Fleet-flavored Markdown](https://fleetdm.com/handbook/company/communications#writing-in-fleet-flavored-markdown)
 
 
 ### Writing style
@@ -1044,7 +1089,8 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
   - "Does it work with MySQL?"
   - "Does it use APNs (the Apple Push Notification service)?"
 
-> ***Struggling with this?*** It takes some adjustment, and you need repetitions of seeing things written this way and correcting yourself. Contributors have given feedback that this [opinionated solution](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-use-sentence-case) is a huge relief once you build the habit of sentence case capitalization. You don't have to think as hard, nor choose between flouting and diligently adhering to the style guide.
+> ***Struggling with this?***
+> It takes some adjustment, and you need repetitions of seeing things written this way and correcting yourself. Contributors have given feedback that this [opinionated solution](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-use-sentence-case) is a huge relief once you build the habit of sentence case capitalization. You don't have to think as hard, nor choose between flouting and diligently adhering to the style guide.
 
 
 #### Capitalization and proper nouns
@@ -1064,7 +1110,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 - Link to existing pages instead of duplicating content.
 - Favor permalinks and headings that make good anchors (people link to sections).
 
-> > **Note:** We run grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' . in CI to make sure those link anchors don't slip in.
+> **Note:** We run grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' . in CI to make sure those link anchors don't slip in.
 
 
 #### Device vs endpoint
@@ -1082,12 +1128,12 @@ Headings and titles should:
 
 ##### Static headings
 
-Use static headings (a `noun` or `noun phrase`) e.g., “Log destinations,” for concept or reference topics. Be as short and specific as possible.
+Use static headings (a `noun` or `noun phrase`) e.g., _“Log destinations,”_ for concept or reference topics. Be as short and specific as possible.
 
 
 ##### Task-based headings
 
-Use task-based headings (`verb` + `topic`) e.g., _“Configure a log destination”_ for guides and tutorials where the heading should reveal the task that the reader is trying to achieve. 
+Use task-based headings (`verb` + `topic`) e.g., _“Configure a log destination,”_ for guides and tutorials where the heading should reveal the task that the reader is trying to achieve. 
 
 
 ##### Avoid _-ing_ verb forms in headings

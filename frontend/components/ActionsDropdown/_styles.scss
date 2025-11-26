@@ -8,4 +8,25 @@
 .actions-dropdown__wrapper {
   display: flex;
   align-items: center;
+
+  button .children-wrapper {
+    gap: $pad-xsmall;
+
+    .actions-dropdown__icon svg {
+      transition: transform 0.25s ease;
+      transform: rotate(0deg);
+    }
+
+    .actions-dropdown__icon--open svg {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+//  react-select does not actually move the browser’s focus
+// (which governs :focus-visible) between each option
+// Remove blue default outline that only attaches to first option
+// and rely on grey :focus for keyboard accessibility
+.actions-dropdown__option:focus-visible {
+  outline: none;
 }

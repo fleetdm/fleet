@@ -113,6 +113,7 @@ type ServerConfig struct {
 	PrivateKeySecretSTSExternalID    string        `yaml:"private_key_sts_external_id"`
 	VPPVerifyTimeout                 time.Duration `yaml:"vpp_verify_timeout"`
 	VPPVerifyRequestDelay            time.Duration `yaml:"vpp_verify_request_delay"`
+	CleanupDistTargetsAge            time.Duration `yaml:"cleanup_dist_targets_age"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -736,7 +737,8 @@ type MDMConfig struct {
 	microsoftWSTEPCertPEM []byte
 	microsoftWSTEPKeyPEM  []byte
 
-	SSORateLimitPerMinute int `yaml:"sso_rate_limit_per_minute"`
+	SSORateLimitPerMinute             int  `yaml:"sso_rate_limit_per_minute"`
+	EnableCustomOSUpdatesAndFileVault bool `yaml:"enable_custom_os_updates_and_filevault"`
 }
 
 type CalendarConfig struct {
@@ -1129,8 +1131,9 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.private_key_arn", "", "ARN of AWS Secrets Manager secret containing server private key")
 	man.addConfigString("server.private_key_sts_assume_role_arn", "", "ARN of role to assume for accessing private key secret")
 	man.addConfigString("server.private_key_sts_external_id", "", "External ID for STS role assumption when accessing private key secret")
-	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amout of time to wait for VPP app install verification")
+	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
+	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")
@@ -1471,6 +1474,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
 	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
+	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Experimental feature: allows usage of specific Apple MDM profiles for OS updates and FileVault")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -1574,6 +1578,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			PrivateKeySecretSTSExternalID:    man.getConfigString("server.private_key_sts_external_id"),
 			VPPVerifyTimeout:                 man.getConfigDuration("server.vpp_verify_timeout"),
 			VPPVerifyRequestDelay:            man.getConfigDuration("server.vpp_verify_request_delay"),
+			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
@@ -1738,30 +1743,31 @@ func (man Manager) LoadConfig() FleetConfig {
 			},
 		},
 		MDM: MDMConfig{
-			AppleAPNsCert:                   man.getConfigString("mdm.apple_apns_cert"),
-			AppleAPNsCertBytes:              man.getConfigString("mdm.apple_apns_cert_bytes"),
-			AppleAPNsKey:                    man.getConfigString("mdm.apple_apns_key"),
-			AppleAPNsKeyBytes:               man.getConfigString("mdm.apple_apns_key_bytes"),
-			AppleSCEPCert:                   man.getConfigString("mdm.apple_scep_cert"),
-			AppleSCEPCertBytes:              man.getConfigString("mdm.apple_scep_cert_bytes"),
-			AppleSCEPKey:                    man.getConfigString("mdm.apple_scep_key"),
-			AppleSCEPKeyBytes:               man.getConfigString("mdm.apple_scep_key_bytes"),
-			AppleBMServerToken:              man.getConfigString("mdm.apple_bm_server_token"),
-			AppleBMServerTokenBytes:         man.getConfigString("mdm.apple_bm_server_token_bytes"),
-			AppleBMCert:                     man.getConfigString("mdm.apple_bm_cert"),
-			AppleBMCertBytes:                man.getConfigString("mdm.apple_bm_cert_bytes"),
-			AppleBMKey:                      man.getConfigString("mdm.apple_bm_key"),
-			AppleBMKeyBytes:                 man.getConfigString("mdm.apple_bm_key_bytes"),
-			AppleEnable:                     man.getConfigBool("mdm.apple_enable"),
-			AppleSCEPSignerValidityDays:     man.getConfigInt("mdm.apple_scep_signer_validity_days"),
-			AppleSCEPSignerAllowRenewalDays: man.getConfigInt("mdm.apple_scep_signer_allow_renewal_days"),
-			AppleSCEPChallenge:              man.getConfigString("mdm.apple_scep_challenge"),
-			AppleDEPSyncPeriodicity:         man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
-			WindowsWSTEPIdentityCert:        man.getConfigString("mdm.windows_wstep_identity_cert"),
-			WindowsWSTEPIdentityKey:         man.getConfigString("mdm.windows_wstep_identity_key"),
-			WindowsWSTEPIdentityCertBytes:   man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
-			WindowsWSTEPIdentityKeyBytes:    man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
-			SSORateLimitPerMinute:           man.getConfigInt("mdm.sso_rate_limit_per_minute"),
+			AppleAPNsCert:                     man.getConfigString("mdm.apple_apns_cert"),
+			AppleAPNsCertBytes:                man.getConfigString("mdm.apple_apns_cert_bytes"),
+			AppleAPNsKey:                      man.getConfigString("mdm.apple_apns_key"),
+			AppleAPNsKeyBytes:                 man.getConfigString("mdm.apple_apns_key_bytes"),
+			AppleSCEPCert:                     man.getConfigString("mdm.apple_scep_cert"),
+			AppleSCEPCertBytes:                man.getConfigString("mdm.apple_scep_cert_bytes"),
+			AppleSCEPKey:                      man.getConfigString("mdm.apple_scep_key"),
+			AppleSCEPKeyBytes:                 man.getConfigString("mdm.apple_scep_key_bytes"),
+			AppleBMServerToken:                man.getConfigString("mdm.apple_bm_server_token"),
+			AppleBMServerTokenBytes:           man.getConfigString("mdm.apple_bm_server_token_bytes"),
+			AppleBMCert:                       man.getConfigString("mdm.apple_bm_cert"),
+			AppleBMCertBytes:                  man.getConfigString("mdm.apple_bm_cert_bytes"),
+			AppleBMKey:                        man.getConfigString("mdm.apple_bm_key"),
+			AppleBMKeyBytes:                   man.getConfigString("mdm.apple_bm_key_bytes"),
+			AppleEnable:                       man.getConfigBool("mdm.apple_enable"),
+			AppleSCEPSignerValidityDays:       man.getConfigInt("mdm.apple_scep_signer_validity_days"),
+			AppleSCEPSignerAllowRenewalDays:   man.getConfigInt("mdm.apple_scep_signer_allow_renewal_days"),
+			AppleSCEPChallenge:                man.getConfigString("mdm.apple_scep_challenge"),
+			AppleDEPSyncPeriodicity:           man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
+			WindowsWSTEPIdentityCert:          man.getConfigString("mdm.windows_wstep_identity_cert"),
+			WindowsWSTEPIdentityKey:           man.getConfigString("mdm.windows_wstep_identity_key"),
+			WindowsWSTEPIdentityCertBytes:     man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
+			WindowsWSTEPIdentityKeyBytes:      man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
+			SSORateLimitPerMinute:             man.getConfigInt("mdm.sso_rate_limit_per_minute"),
+			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),

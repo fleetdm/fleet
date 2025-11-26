@@ -685,7 +685,7 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 		return nil
 	}
 
-	ds.ReconcileSoftwareTitlesFunc = func(ctx context.Context) error {
+	ds.CleanupSoftwareTitlesFunc = func(ctx context.Context) error {
 		return nil
 	}
 

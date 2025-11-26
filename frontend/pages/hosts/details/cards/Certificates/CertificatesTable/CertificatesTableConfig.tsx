@@ -105,7 +105,7 @@ const generateTableConfig = (): IHostCertificatesTableConfig[] => {
             noLink
             rowHover
             excludeChevron
-            customContent="View details"
+            customText="View details"
           />
         );
       },

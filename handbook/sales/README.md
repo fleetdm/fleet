@@ -11,11 +11,12 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Channel Manager, North America        | [Eric Comeau](https://www.linkedin.com/in/escomeau/) _([@escomeau](https://github.com/escomeau))_
 | VP of Security Solutions              | [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/) _([@karmine05](https://github.com/karmine05))_
 | Account Executive (AE)                | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
+| Solutions Specialist                  | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
 
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV)).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (if urgent, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV)).
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/74) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
@@ -23,6 +24,13 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Responsibilities
 
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
+
+
+### Add an account to your patch
+
+Use the following steps to add an account to Salesforce if one doesn't exist already:
+1. Obtain the company name, website, and LinkedIn company url of the account you would like to create and search Salesforce to be sure a duplicate, parent, or child account doesn't already exist. 
+2. If the account already exists, reach out to the [Head of Digital Workspace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) with the account data and request the account be created and/or added to your patch.
 
 
 ### Respond to a customer feature comparison request
@@ -144,7 +152,6 @@ The following stubs are included only to make links backward compatible.
 ##### Fleet Free
 ##### Emergency (P0) request communications
 Please see [handbook/company/communications#customer-support-service-level-agreements-slas](https://fleetdm.com/handbook/company/communications#customer-support-service-level-agreements-slas) for all sections above.
-
 ##### Submit a customer contract for legal review
 ##### Standard terms
 ##### Non-standard NDAs

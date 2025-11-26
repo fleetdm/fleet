@@ -25,14 +25,20 @@ import CustomSCEPForm from "../CustomSCEPForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import HydrantForm from "../HydrantForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
-import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
+import SmallstepForm, {
+  ISmallstepFormData,
+} from "../SmallstepForm/SmallstepForm";
+import CustomESTForm, {
+  ICustomESTFormData,
+} from "../CustomESTForm/CustomESTForm";
 
 export type ICertFormData =
   | IDigicertFormData
   | IHydrantFormData
   | INDESFormData
   | ICustomSCEPFormData
-  | ISmallstepFormData;
+  | ISmallstepFormData
+  | ICustomESTFormData;
 
 const baseClass = "add-cert-authority-modal";
 
@@ -47,10 +53,18 @@ const AddCertAuthorityModal = ({
 }: IAddCertAuthorityModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
+  const dropdownOptions = useMemo(() => {
+    return generateDropdownOptions(
+      certAuthorities.some((cert) => cert.type === "ndes_scep_proxy")
+    );
+  }, [certAuthorities]);
+
   const [
     certAuthorityType,
     setCertAuthorityType,
-  ] = useState<ICertificateAuthorityType>("digicert");
+  ] = useState<ICertificateAuthorityType>(
+    dropdownOptions[0].value as ICertificateAuthorityType
+  );
   const [isAdding, setIsAdding] = useState(false);
   const [digicertFormData, setDigicertFormData] = useState<IDigicertFormData>({
     name: "",
@@ -92,6 +106,16 @@ const AddCertAuthorityModal = ({
     password: "",
   });
 
+  const [
+    customESTFormData,
+    setCustomESTFormData,
+  ] = useState<ICustomESTFormData>({
+    name: "",
+    url: "",
+    username: "",
+    password: "",
+  });
+
   const onChangeDropdown = (value: ICertificateAuthorityType) => {
     setCertAuthorityType(value);
   };
@@ -119,6 +143,10 @@ const AddCertAuthorityModal = ({
       case "smallstep":
         setFormData = setSmallstepFormData;
         formData = smallstepFormData;
+        break;
+      case "custom_est_proxy":
+        setFormData = setCustomESTFormData;
+        formData = customESTFormData;
         break;
       default:
         return;
@@ -148,6 +176,9 @@ const AddCertAuthorityModal = ({
       case "smallstep":
         formData = smallstepFormData;
         break;
+      case "custom_est_proxy":
+        formData = customESTFormData;
+        break;
       default:
         return;
     }
@@ -169,12 +200,6 @@ const AddCertAuthorityModal = ({
     }
     setIsAdding(false);
   };
-
-  const dropdownOptions = useMemo(() => {
-    return generateDropdownOptions(
-      certAuthorities.some((cert) => cert.type === "ndes_scep_proxy")
-    );
-  }, [certAuthorities]);
 
   const renderForm = () => {
     const submitBtnText = "Add CA";
@@ -219,6 +244,30 @@ const AddCertAuthorityModal = ({
         return (
           <CustomSCEPForm
             formData={customSCEPFormData}
+            certAuthorities={certAuthorities}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            onChange={onChangeForm}
+            onSubmit={onAddCertAuthority}
+            onCancel={onExit}
+          />
+        );
+      case "smallstep":
+        return (
+          <SmallstepForm
+            formData={smallstepFormData}
+            certAuthorities={certAuthorities}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            onChange={onChangeForm}
+            onSubmit={onAddCertAuthority}
+            onCancel={onExit}
+          />
+        );
+      case "custom_est_proxy":
+        return (
+          <CustomESTForm
+            formData={customESTFormData}
             certAuthorities={certAuthorities}
             submitBtnText={submitBtnText}
             isSubmitting={isAdding}

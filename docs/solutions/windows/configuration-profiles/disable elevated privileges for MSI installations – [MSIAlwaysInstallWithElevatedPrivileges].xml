@@ -1,0 +1,11 @@
+<Replace>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/ApplicationManagement/MSIAlwaysInstallWithElevatedPrivileges</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Data>0</Data>
+  </Item>
+</Replace>

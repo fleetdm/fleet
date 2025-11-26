@@ -29,11 +29,6 @@ github.com/fleetdm/fleet/v4/server/fleet/TeamIntegrations	ConditionalAccessEnabl
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Value	bool
-github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	Features	fleet.Features
-github.com/fleetdm/fleet/v4/server/fleet/Features	EnableHostUsers	bool
-github.com/fleetdm/fleet/v4/server/fleet/Features	EnableSoftwareInventory	bool
-github.com/fleetdm/fleet/v4/server/fleet/Features	AdditionalQueries	*json.RawMessage
-github.com/fleetdm/fleet/v4/server/fleet/Features	DetailQueryOverrides	map[string]*string
 github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	MDM	fleet.TeamMDM
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	EnableDiskEncryption	bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	RequireBitLockerPIN	bool
@@ -72,6 +67,7 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[*github.com/fleetdm/fleet/v4/serve
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetupSoftware	AppStoreID	string
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetupSoftware	PackagePath	string
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	ManualAgentInstall	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	RequireAllSoftware	bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	WindowsSettings	fleet.WindowsSettings
 github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	CustomSettings	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Set	bool
@@ -79,6 +75,18 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Value	[]fleet.MDMProfileSpec
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	AndroidSettings	fleet.AndroidSettings
 github.com/fleetdm/fleet/v4/server/fleet/AndroidSettings	CustomSettings	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]
+github.com/fleetdm/fleet/v4/server/fleet/AndroidSettings	Certificates	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.CertificateTemplateSpec]
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.CertificateTemplateSpec]	Set	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.CertificateTemplateSpec]	Valid	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.CertificateTemplateSpec]	Value	[]fleet.CertificateTemplateSpec
+github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	Name	string
+github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	CertificateAuthorityName	string
+github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectName	string
+github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	Features	fleet.Features
+github.com/fleetdm/fleet/v4/server/fleet/Features	EnableHostUsers	bool
+github.com/fleetdm/fleet/v4/server/fleet/Features	EnableSoftwareInventory	bool
+github.com/fleetdm/fleet/v4/server/fleet/Features	AdditionalQueries	*json.RawMessage
+github.com/fleetdm/fleet/v4/server/fleet/Features	DetailQueryOverrides	map[string]*string
 github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	Scripts	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
@@ -103,6 +111,7 @@ github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Slug	*string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	ReferencedYamlPath	string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	SHA256	string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Categories	[]string
+github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	DisplayName	string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwareSpec	FleetMaintainedApps	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MaintainedAppSpec]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MaintainedAppSpec]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MaintainedAppSpec]	Valid	bool
@@ -129,3 +138,4 @@ github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	LabelsExcludeAny	[]
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Categories	[]string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	InstallDuringSetup	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Icon	fleet.TeamSpecSoftwareAsset
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	DisplayName	string

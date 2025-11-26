@@ -1,0 +1,8 @@
+{
+  "name": "Privileges",
+  "unique_identifier": "corp.sap.privileges",
+  "token": "privileges",
+  "installer_format": "dmg",
+  "slug": "privileges/darwin",
+  "default_categories": ["Productivity"]
+}

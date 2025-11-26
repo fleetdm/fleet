@@ -1,4 +1,4 @@
-# Enabling Fleet Desktop on Fedora, Debian, and OpenSUSE
+# Enabling Fleet Desktop on Fedora, Debian, and openSUSE
 
 [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop) is a menu bar icon for macOS, Linux, and Windows that gives end users visibility into how their device is managed by Fleet and functions as a self-service portal.
 
@@ -8,10 +8,10 @@ This article explains how admins can enable Fleet Desktop on Linux by using poli
 
 ## Policy and script execution
 
-The policy query defined in [check-fleet-desktop-extension-enabled.yml](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/policies/check-fleet-desktop-extension-enabled.yml) (from our Dogfood environment) checks if the extension needed for Fleet Desktop is installed and enabled on Fedora, Debian, and OpenSUSE hosts.
+The policy query defined in [check-fleet-desktop-extension-enabled.yml](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/policies/check-fleet-desktop-extension-enabled.yml) (from our Dogfood environment) checks if the extension needed for Fleet Desktop is installed and enabled on Fedora, Debian, and openSUSE hosts.
 > NOTE: fleetd 1.41.0 is required (the policy query relies on a table added to that version).
 
-Starting in version v4.58.0, Fleet supports running scripts to remediate failing policies (see the [Automatically run scripts](./policy-automation-run-script.md) article for more information). Admins can therefore configure Fleet to run [install-fleet-desktop-required-extension.sh](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/scripts/install-fleet-desktop-required-extension.sh) on devices where the policy detects the extension is missing ([check-fleet-desktop-extension-enabled.yml](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/policies/check-fleet-desktop-extension-enabled.yml) contains both the policy and remediation script).
+Starting in version v4.58.0, Fleet supports running scripts to remediate failing policies (see the [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script) article for more information). Admins can therefore configure Fleet to run [install-fleet-desktop-required-extension.sh](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/scripts/install-fleet-desktop-required-extension.sh) on devices where the policy detects the extension is missing ([check-fleet-desktop-extension-enabled.yml](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/policies/check-fleet-desktop-extension-enabled.yml) contains both the policy and remediation script).
 
 ### End-user experience
 
@@ -36,5 +36,5 @@ After the extension is installed your users will see the Fleet icon on their men
 <meta name="authorGitHubUsername" value="lucasmrod">
 <meta name="authorFullName" value="Lucas Rodriguez">
 <meta name="publishedOn" value="2025-04-01">
-<meta name="articleTitle" value="Enabling Fleet Desktop on Fedora, Debian, and OpenSUSE">
+<meta name="articleTitle" value="Enabling Fleet Desktop on Fedora, Debian, and openSUSE">
 <meta name="category" value="guides">

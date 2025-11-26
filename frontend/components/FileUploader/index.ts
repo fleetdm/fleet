@@ -1,1 +1,1 @@
-export { default } from "./FileUploader";
+export { default, ISupportedGraphicNames } from "./FileUploader";

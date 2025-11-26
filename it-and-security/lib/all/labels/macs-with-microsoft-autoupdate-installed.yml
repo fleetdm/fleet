@@ -1,0 +1,5 @@
+- name: Microsoft AutoUpdate installed
+  description: macOS hosts with Microsoft AutoUpdate installed
+  query: SELECT * FROM apps WHERE name LIKE '%Microsoft AutoUpdate%';
+  label_membership_type: dynamic
+  platform: darwin

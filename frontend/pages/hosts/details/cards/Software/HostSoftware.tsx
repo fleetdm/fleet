@@ -128,8 +128,7 @@ const HostSoftware = ({
 }: IHostSoftwareProps) => {
   const { isPremiumTier } = useContext(AppContext);
 
-  const isUnsupported =
-    isAndroid(platform) || (isIPadOrIPhone(platform) && queryParams.vulnerable); // no Android software and no vulnerable software for iOS
+  const isUnsupported = isIPadOrIPhone(platform) && queryParams.vulnerable; // no Android software and no vulnerable software for iOS
 
   const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
     false
@@ -187,7 +186,7 @@ const HostSoftware = ({
     ({ queryKey }) => deviceAPI.getDeviceSoftware(queryKey[0]),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isSoftwareEnabled && isMyDevicePage, // if disabled, we'll always show a generic "No software detected" message. No DUP for iPad/iPhone
+      enabled: isSoftwareEnabled && isMyDevicePage, // if disabled, we'll always show a generic "No software detected" message. No My Device Page for iPad/iPhone
       keepPreviousData: true,
       staleTime: 7000,
     }

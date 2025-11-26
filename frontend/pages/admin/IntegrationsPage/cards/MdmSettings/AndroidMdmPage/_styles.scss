@@ -1,12 +1,5 @@
 .android-mdm-page {
-  &__back-to-mdm {
-    margin-bottom: $pad-xlarge;
-  }
-
-  h1 {
-    margin-bottom: $pad-large;
-    font-size: $large;
-  }
+  @include vertical-page-layout;
 
   &__content {
     display: flex;

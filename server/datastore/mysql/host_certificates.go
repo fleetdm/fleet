@@ -120,7 +120,8 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 				continue
 			}
 			for _, certToInsert := range toInsert {
-				if strings.Contains(certToInsert.SubjectCommonName, "fleet-"+hostMDMManagedCert.ProfileUUID) {
+				renewalIDString := "fleet-" + hostMDMManagedCert.ProfileUUID
+				if strings.Contains(certToInsert.SubjectCommonName, renewalIDString) || strings.Contains(certToInsert.SubjectOrganizationalUnit, renewalIDString) {
 					managedCertToUpdate := &fleet.MDMManagedCertificate{
 						ProfileUUID:          hostMDMManagedCert.ProfileUUID,
 						HostUUID:             hostMDMManagedCert.HostUUID,
@@ -340,22 +341,56 @@ func replaceHostCertsSourcesDB(ctx context.Context, tx sqlx.ExtContext, toReplac
 		return nil
 	}
 
+	// Sort by host_certificate_id to ensure consistent lock ordering and prevent deadlocks
+	slices.SortFunc(toReplaceSources, func(a, b *fleet.HostCertificateRecord) int {
+		if a.ID != b.ID {
+			if a.ID < b.ID {
+				return -1
+			}
+			return 1
+		}
+		// Secondary sort by source/username for determinism
+		if a.Source != b.Source {
+			return strings.Compare(string(a.Source), string(b.Source))
+		}
+		return strings.Compare(a.Username, b.Username)
+	})
+
+	// Build unique certificate IDs for deletion (already sorted from above)
 	certIDs := make([]uint, 0, len(toReplaceSources))
-	for _, source := range toReplaceSources {
-		certIDs = append(certIDs, source.ID)
+	var lastID uint
+	for i, source := range toReplaceSources {
+		// Deduplicate: only add if this ID is different from the last one
+		if i == 0 || source.ID != lastID {
+			certIDs = append(certIDs, source.ID)
+			lastID = source.ID
+		}
 	}
 
-	// delete existing sources
-	stmtDelete := `DELETE FROM host_certificate_sources WHERE host_certificate_id IN (?)`
-	stmtDelete, args, err := sqlx.In(stmtDelete, certIDs)
+	// Check if any sources exist before deleting to avoid unnecessary gap locks
+	stmtCheck := `SELECT EXISTS(SELECT 1 FROM host_certificate_sources WHERE host_certificate_id IN (?))`
+	stmtCheck, args, err := sqlx.In(stmtCheck, certIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building delete host cert sources query")
+		return ctxerr.Wrap(ctx, err, "building check host cert sources query")
 	}
-	if _, err := tx.ExecContext(ctx, stmtDelete, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting host cert sources")
+	var exists bool
+	if err := sqlx.GetContext(ctx, tx, &exists, stmtCheck, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host cert sources exist")
 	}
 
-	// create incoming sources
+	// Only delete if sources exist
+	if exists {
+		stmtDelete := `DELETE FROM host_certificate_sources WHERE host_certificate_id IN (?)`
+		stmtDelete, args, err := sqlx.In(stmtDelete, certIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building delete host cert sources query")
+		}
+		if _, err := tx.ExecContext(ctx, stmtDelete, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting host cert sources")
+		}
+	}
+
+	// Insert new sources
 	stmtInsert := `
 	INSERT INTO host_certificate_sources (
 		host_certificate_id,

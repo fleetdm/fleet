@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -40,8 +41,9 @@ type Client struct {
 	token         string
 	customHeaders map[string]string
 
-	outputWriter io.Writer
-	errWriter    io.Writer
+	outputWriter       io.Writer
+	errWriter          io.Writer
+	seenLicenseExpired bool
 }
 
 type ClientOption func(*Client) error
@@ -138,8 +140,9 @@ func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, ra
 		return nil, ctxerr.Wrap(ctx, err, "do request")
 	}
 
-	if resp.Header.Get(fleet.HeaderLicenseKey) == fleet.HeaderLicenseValueExpired {
+	if !c.seenLicenseExpired && resp.Header.Get(fleet.HeaderLicenseKey) == fleet.HeaderLicenseValueExpired {
 		fleet.WriteExpiredLicenseBanner(c.errWriter)
+		c.seenLicenseExpired = true
 	}
 
 	return resp, nil
@@ -504,6 +507,19 @@ var errConflictingVPPSetupExperienceDeclarations = errors.New("Couldn't edit app
 // properly plan that separation and refactor so that gitops can be
 // significantly cleaned up and simplified going forward.
 
+func numberWithPluralization(n int, singular string, plural string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, singular)
+	}
+	return fmt.Sprintf("%d %s", n, plural)
+}
+
+const (
+	dryRunAppliedFormat = "[+] would've applied %s\n"
+	appliedFormat       = "[+] applied %s\n"
+	applyingTeamFormat  = "[+] applying %s for team %s\n"
+)
+
 // ApplyGroup applies the given spec group to Fleet.
 func (c *Client) ApplyGroup(
 	ctx context.Context,
@@ -531,7 +547,7 @@ func (c *Client) ApplyGroup(
 			if err := c.ApplyQueries(specs.Queries); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying queries: %w", err)
 			}
-			logfn("[+] applied %d queries\n", len(specs.Queries))
+			logfn(appliedFormat, numberWithPluralization(len(specs.Queries), "query", "queries"))
 		}
 	}
 
@@ -547,7 +563,7 @@ func (c *Client) ApplyGroup(
 			if err := c.ApplyLabels(specs.Labels); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying labels: %w", err)
 			}
-			logfn("[+] applied %d labels\n", len(specs.Labels))
+			logfn(appliedFormat, numberWithPluralization(len(specs.Labels), "label", "labels"))
 		}
 	}
 
@@ -558,7 +574,7 @@ func (c *Client) ApplyGroup(
 			if err := c.ApplyPacks(specs.Packs); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying packs: %w", err)
 			}
-			logfn("[+] applied %d packs\n", len(specs.Packs))
+			logfn(appliedFormat, numberWithPluralization(len(specs.Packs), "pack", "packs"))
 		}
 	}
 
@@ -872,6 +888,7 @@ func (c *Client) ApplyGroup(
 					LabelsExcludeAny:   app.LabelsExcludeAny,
 					LabelsIncludeAny:   app.LabelsIncludeAny,
 					Categories:         app.Categories,
+					DisplayName:        app.DisplayName,
 					IconPath:           app.Icon.Path,
 					IconHash:           iconHash,
 				})
@@ -1003,7 +1020,7 @@ func (c *Client) ApplyGroup(
 			for tmName, software := range tmSoftwarePackagesPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
-				logfn("[+] applying %d software packages for team %s\n", len(software), tmName)
+				logfn(applyingTeamFormat, numberWithPluralization(len(software), "software package", "software packages"), tmName)
 				installers, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
@@ -1015,7 +1032,7 @@ func (c *Client) ApplyGroup(
 			for tmName, apps := range tmSoftwareAppsPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
-				logfn("[+] applying %d app store apps for team %s\n", len(apps), tmName)
+				logfn(applyingTeamFormat, numberWithPluralization(len(apps), "app store app", "app store apps"), tmName)
 				appsResponse, err := c.ApplyTeamAppStoreAppsAssociation(currentTeamName, apps, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying app store apps for team: %q: %w", tmName, err)
@@ -1024,9 +1041,9 @@ func (c *Client) ApplyGroup(
 			}
 		}
 		if opts.DryRun {
-			logfn("[+] would've applied %d teams\n", len(specs.Teams))
+			logfn(dryRunAppliedFormat, numberWithPluralization(len(specs.Teams), "team", "teams"))
 		} else {
-			logfn("[+] applied %d teams\n", len(specs.Teams))
+			logfn(appliedFormat, numberWithPluralization(len(specs.Teams), "team", "teams"))
 		}
 	}
 
@@ -1050,7 +1067,8 @@ func (c *Client) ApplyGroup(
 			if err := c.ApplyPolicies(specs.Policies); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying policies: %w", err)
 			}
-			logfn("[+] applied %d policies\n", len(specs.Policies))
+
+			logfn(appliedFormat, numberWithPluralization(len(specs.Policies), "policy", "policies"))
 		}
 	}
 
@@ -1223,6 +1241,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			LabelsExcludeAny:   si.LabelsExcludeAny,
 			SHA256:             si.SHA256,
 			Categories:         si.Categories,
+			DisplayName:        si.DisplayName,
 			IconPath:           si.Icon.Path,
 			IconHash:           iconHash,
 		}
@@ -1974,6 +1993,11 @@ func (c *Client) DoGitOps(
 		if incoming.Controls.WindowsMigrationEnabled == nil {
 			mdmAppConfig["windows_migration_enabled"] = false
 		}
+		// Put in default values for enable_turn_on_windows_mdm_manually
+		mdmAppConfig["enable_turn_on_windows_mdm_manually"] = incoming.Controls.EnableTurnOnWindowsMDMManually
+		if incoming.Controls.EnableTurnOnWindowsMDMManually == nil {
+			mdmAppConfig["enable_turn_on_windows_mdm_manually"] = false
+		}
 		if windowsEnabledAndConfiguredAssumption, ok := mdmAppConfig["windows_enabled_and_configured"].(bool); ok {
 			teamAssumptions = &fleet.TeamSpecsDryRunAssumptions{
 				WindowsEnabledAndConfigured: optjson.SetBool(windowsEnabledAndConfiguredAssumption),
@@ -2281,16 +2305,36 @@ func (c *Client) DoGitOps(
 		return nil, nil, err
 	}
 
+	if !incoming.IsNoTeam() {
+		// Apply Android certificates if present
+		err = c.doGitOpsAndroidCertificates(incoming, logFn, dryRun)
+		if err != nil {
+			var gitOpsErr *gitOpsValidationError
+			if errors.As(err, &gitOpsErr) {
+				return nil, nil, gitOpsErr.WithFileContext(baseDir, filename)
+			}
+			return nil, nil, err
+		}
+	}
+
 	// apply icon changes from software installers and VPP apps
 	if len(teamSoftwareInstallers) > 0 || len(teamVPPApps) > 0 {
 		iconUpdates := fleet.IconChanges{}.WithUploadedHashes(iconSettings.UploadedHashes).WithSoftware(teamSoftwareInstallers, teamVPPApps)
 		if dryRun {
-			logFn("[+] Would've set icons on %d software titles and deleted icons on %d titles\n", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
+			logFn(
+				"[+] Would've set icons on %s and deleted icons on %s\n",
+				numberWithPluralization(len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), "software title", "software titles"),
+				numberWithPluralization(len(iconUpdates.TitleIDsToRemoveIconsFrom), "title", "titles"),
+			)
 		} else {
 			if err = c.doGitOpsIcons(iconUpdates, iconSettings.ConcurrentUploads, iconSettings.ConcurrentUpdates); err != nil {
 				return nil, nil, err
 			}
-			logFn("[+] Set icons on %d software titles and deleted icons on %d titles\n", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
+			logFn(
+				"[+] Set icons on %s and deleted icons on %s\n",
+				numberWithPluralization(len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), "software title", "software titles"),
+				numberWithPluralization(len(iconUpdates.TitleIDsToRemoveIconsFrom), "title", "titles"),
+			)
 			iconSettings.UploadedHashes = iconUpdates.UploadedHashes
 		}
 	}
@@ -2429,6 +2473,7 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				AppStoreID:         vppApp.AppStoreID,
 				SelfService:        vppApp.SelfService,
 				InstallDuringSetup: &installDuringSetup,
+				DisplayName:        vppApp.DisplayName,
 				IconPath:           vppApp.Icon.Path,
 				IconHash:           iconHash,
 			})
@@ -2453,12 +2498,12 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		}
 	}
 
-	logFn("[+] applying %d software packages for 'No team'\n", len(swPkgPayload))
+	logFn(applyingTeamFormat, numberWithPluralization(len(swPkgPayload), "software package", "software packages"), "'No team'")
 	softwareInstallers, err = c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
 	}
-	logFn("[+] applying %d app store apps for 'No team'\n", len(appsPayload))
+	logFn(applyingTeamFormat, numberWithPluralization(len(appsPayload), "app store app", "app store apps"), "'No team'")
 	vppApps, err := c.ApplyNoTeamAppStoreAppsAssociation(appsPayload, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying app store apps: %w", err)
@@ -2537,13 +2582,6 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 	return nil
 }
 
-func pluralize(count int, ifSingle string, ifPlural string) string {
-	if count == 1 {
-		return ifSingle
-	}
-	return ifPlural
-}
-
 func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) ([]string, error) {
 	persistedLabels, err := c.GetLabels()
 	if err != nil {
@@ -2567,15 +2605,15 @@ func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, a
 			logFn("[-] would've deleted label '%s'\n", labelToDelete)
 		}
 		if numNew > 0 {
-			logFn("[+] would've created %d label%s\n", numNew, pluralize(numNew, "", "s"))
+			logFn("[+] would've created %s\n", numberWithPluralization(numNew, "label", "labels"))
 		}
 		if numUpdates > 0 {
-			logFn("[+] would've updated %d label%s\n", numUpdates, pluralize(numUpdates, "", "s"))
+			logFn("[+] would've updated %s\n", numberWithPluralization(numUpdates, "label", "labels"))
 		}
 		return nil, nil
 	}
 
-	logFn("[+] syncing %d label%s (%d new and %d updated)\n", len(config.Labels), pluralize(len(config.Labels), "", "s"), len(config.Labels)-numUpdates, numUpdates)
+	logFn("[+] syncing %s (%d new and %d updated)\n", numberWithPluralization(len(config.Labels), "label", "labels"), len(config.Labels)-numUpdates, numUpdates)
 	err = c.ApplyLabels(config.Labels)
 	if err != nil {
 		return nil, err
@@ -2698,7 +2736,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 
 	if len(config.Policies) > 0 {
 		numPolicies := len(config.Policies)
-		logFn("[+] syncing %d policies\n", numPolicies)
+		logFn("[+] syncing %s\n", numberWithPluralization(numPolicies, "policy", "policies"))
 		if !dryRun {
 			totalApplied := 0
 			for i := 0; i < len(config.Policies); i += batchSize {
@@ -2716,7 +2754,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				if err := c.ApplyPolicies(policiesSpec); err != nil {
 					return fmt.Errorf("error applying policies: %w", err)
 				}
-				logFn("[+] synced %d policies\n", totalApplied)
+				logFn("[+] synced %s\n", numberWithPluralization(totalApplied, "policy", "policies"))
 			}
 		}
 	}
@@ -2739,7 +2777,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		}
 	}
 	if len(policiesToDelete) > 0 {
-		logFn("[-] deleting %d policies\n", len(policiesToDelete))
+		logFn("[-] deleting %s\n", numberWithPluralization(len(policiesToDelete), "policy", "policies"))
 		if !dryRun {
 			totalDeleted := 0
 			for i := 0; i < len(policiesToDelete); i += batchSize {
@@ -2760,7 +2798,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				if err := c.DeletePolicies(teamID, policiesToDelete[i:end]); err != nil {
 					return fmt.Errorf("error deleting policies: %w", err)
 				}
-				logFn("[-] deleted %d policies\n", totalDeleted)
+				logFn("[-] deleted %s\n", numberWithPluralization(totalDeleted, "policy", "policies"))
 			}
 		}
 	}
@@ -2776,7 +2814,7 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 	}
 	if len(config.Queries) > 0 {
 		numQueries := len(config.Queries)
-		logFn("[+] syncing %d queries\n", numQueries)
+		logFn("[+] syncing %s\n", numberWithPluralization(numQueries, "query", "queries"))
 		if !dryRun {
 			appliedCount := 0
 			for i := 0; i < len(config.Queries); i += batchSize {
@@ -2789,7 +2827,7 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 				if err := c.ApplyQueries(config.Queries[i:end]); err != nil {
 					return fmt.Errorf("error applying queries: %w", err)
 				}
-				logFn("[+] synced %d queries\n", appliedCount)
+				logFn("[+] synced %s\n", numberWithPluralization(appliedCount, "query", "queries"))
 			}
 		}
 	}
@@ -2812,7 +2850,7 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 		}
 	}
 	if len(queriesToDelete) > 0 {
-		logFn("[-] deleting %d queries\n", len(queriesToDelete))
+		logFn("[-] deleting %s\n", numberWithPluralization(len(queriesToDelete), "query", "queries"))
 		if !dryRun {
 			deleteCount := 0
 			for i := 0; i < len(queriesToDelete); i += batchSize {
@@ -2824,10 +2862,123 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 				if err := c.DeleteQueries(queriesToDelete[i:end]); err != nil {
 					return fmt.Errorf("error deleting queries: %w", err)
 				}
-				logFn("[-] deleted %d queries\n", deleteCount)
+				logFn("[-] deleted %s\n", numberWithPluralization(deleteCount, "query", "queries"))
 			}
 		}
 	}
+	return nil
+}
+
+func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
+	certificates := make([]fleet.CertificateTemplateSpec, 0)
+
+	// Extract Android certificates from config if there are any.
+	if config.Controls.AndroidSettings != nil {
+		androidSettings, ok := config.Controls.AndroidSettings.(fleet.AndroidSettings)
+		if ok && androidSettings.Certificates.Valid && len(androidSettings.Certificates.Value) > 0 {
+			certificates = androidSettings.Certificates.Value
+		}
+	}
+
+	numCerts := len(certificates)
+
+	teamID := ""
+	if config.TeamID != nil {
+		teamID = fmt.Sprintf("%d", *config.TeamID)
+	} else {
+		// TODO -- implement "no team" certs
+		return nil
+		// return errors.New("applying Android certificates: Team ID is required")
+	}
+
+	if numCerts > 0 {
+		logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+	}
+
+	// existing certificate templates
+	existingCertificates, err := c.GetCertificateTemplates(teamID)
+	if err != nil {
+		return fmt.Errorf("applying Android certificates: getting existing Android certificates: %w", err)
+	}
+
+	// getting certificate authorities
+	cas, err := c.GetCertificateAuthorities()
+	if err != nil {
+		return fmt.Errorf("getting certificate authorities: %w", err)
+	}
+	caIDsByName := make(map[string]uint)
+	for _, ca := range cas {
+		caIDsByName[ca.Name] = ca.ID
+	}
+
+	certRequests := make([]*fleet.CertificateRequestSpec, len(certificates))
+	certsToBeAdded := make(map[string]struct{})
+	for i := range certificates {
+		if !certificates[i].NameValid() {
+			return newGitOpsValidationError(
+				`Invalid characters in "name" field. Only letters, numbers, spaces, dashes, and underscores allowed.`,
+			)
+		}
+
+		caID, ok := caIDsByName[certificates[i].CertificateAuthorityName]
+		if !ok {
+			return fmt.Errorf("certificate authority %q not found for certificate %q",
+				certificates[i].CertificateAuthorityName, certificates[i].Name)
+		}
+
+		certRequests[i] = &fleet.CertificateRequestSpec{
+			Name:                   certificates[i].Name,
+			Team:                   teamID,
+			CertificateAuthorityId: caID,
+			SubjectName:            certificates[i].SubjectName,
+		}
+		if _, ok := certsToBeAdded[certificates[i].Name]; ok {
+			return newGitOpsValidationError(
+				fmt.Sprintf(
+					`The name %q is already used by another certificate. Please choose a different name and try again.`,
+					certificates[i].Name,
+				),
+			)
+		}
+
+		certsToBeAdded[certificates[i].Name] = struct{}{}
+	}
+
+	var certificatesToDelete []uint
+	for _, cert := range existingCertificates {
+		if cert != nil {
+			if _, ok := certsToBeAdded[cert.Name]; !ok {
+				certificatesToDelete = append(certificatesToDelete, cert.ID)
+			}
+		}
+	}
+
+	if len(certificatesToDelete) > 0 {
+		if dryRun {
+			logFn("[-] would've deleted %s\n", numberWithPluralization(len(certificatesToDelete), "Android certificate", "Android certificates"))
+		} else {
+			logFn("[-] deleting %s\n", numberWithPluralization(len(certificatesToDelete), "Android certificate", "Android certificates"))
+			tmId, err := strconv.ParseUint(teamID, 10, 0)
+			if err != nil {
+				return fmt.Errorf("applying Android certificates: parsing team ID: %w", err)
+			}
+			if err := c.DeleteCertificateTemplates(certificatesToDelete, uint(tmId)); err != nil {
+				return fmt.Errorf("applying Android certificates: deleting existing Android certificates: %w", err)
+			}
+		}
+	}
+
+	if numCerts > 0 {
+		if dryRun {
+			logFn("[+] would've applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+		} else {
+			if err := c.ApplyCertificateSpecs(certRequests); err != nil {
+				return fmt.Errorf("applying Android certificates: %w", err)
+			}
+			logFn("[+] applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+		}
+	}
+
 	return nil
 }
 

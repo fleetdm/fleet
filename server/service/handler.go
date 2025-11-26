@@ -337,6 +337,13 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.PATCH("/api/_version_/fleet/teams/{team_id}/policies/{policy_id}", modifyTeamPolicyEndpoint, modifyTeamPolicyRequest{})
 	ue.POST("/api/_version_/fleet/spec/policies", applyPolicySpecsEndpoint, applyPolicySpecsRequest{})
 
+	ue.POST("/api/_version_/fleet/certificates", createCertificateTemplateEndpoint, createCertificateTemplateRequest{})
+	ue.GET("/api/_version_/fleet/certificates", listCertificateTemplatesEndpoint, listCertificateTemplatesRequest{})
+	ue.GET("/api/_version_/fleet/certificates/{id:[0-9]+}", getCertificateTemplateEndpoint, getCertificateTemplateRequest{})
+	ue.DELETE("/api/_version_/fleet/certificates/{id:[0-9]+}", deleteCertificateTemplateEndpoint, deleteCertificateTemplateRequest{})
+	ue.POST("/api/_version_/fleet/spec/certificates", applyCertificateTemplateSpecsEndpoint, applyCertificateTemplateSpecsRequest{})
+	ue.DELETE("/api/_version_/fleet/spec/certificates", deleteCertificateTemplateSpecsEndpoint, deleteCertificateTemplateSpecsRequest{})
+
 	ue.GET("/api/_version_/fleet/queries/{id:[0-9]+}", getQueryEndpoint, getQueryRequest{})
 	ue.GET("/api/_version_/fleet/queries", listQueriesEndpoint, listQueriesRequest{})
 	ue.GET("/api/_version_/fleet/queries/{id:[0-9]+}/report", getQueryReportEndpoint, getQueryReportRequest{})
@@ -406,6 +413,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Setup experience software endpoints:
 	ue.PUT("/api/_version_/fleet/setup_experience/software", putSetupExperienceSoftware, putSetupExperienceSoftwareRequest{})
 	ue.GET("/api/_version_/fleet/setup_experience/software", getSetupExperienceSoftware, getSetupExperienceSoftwareRequest{})
+
 	// Setup experience script endpoints:
 	ue.GET("/api/_version_/fleet/setup_experience/script", getSetupExperienceScriptEndpoint, getSetupExperienceScriptRequest{})
 	ue.POST("/api/_version_/fleet/setup_experience/script", setSetupExperienceScriptEndpoint, setSetupExperienceScriptRequest{})
@@ -434,13 +442,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/hosts/transfer", addHostsToTeamEndpoint, addHostsToTeamRequest{})
 	ue.POST("/api/_version_/fleet/hosts/transfer/filter", addHostsToTeamByFilterEndpoint, addHostsToTeamByFilterRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/refetch", refetchHostEndpoint, refetchHostRequest{})
-	// Deprecated: Emails are now included in host details endpoint: /api/_version_/fleet/hosts/{id}
+	// Deprecated: Device mappings are included in the host details endpoint: /api/_version_/fleet/hosts/{id}
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/device_mapping", listHostDeviceMappingEndpoint, listHostDeviceMappingRequest{})
-	// Deprecated: Because the corresponding GET endpoint is deprecated.
-	// /api/fleet/orbit/device_mapping can be used instead.
-	// FIXME(sarah): Is this really deprecated? The orbit-authenticated endpoint is not a substitute
-	// for the user-authenticated endpoint?
 	ue.PUT("/api/_version_/fleet/hosts/{id:[0-9]+}/device_mapping", putHostDeviceMappingEndpoint, putHostDeviceMappingRequest{})
+	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/device_mapping/idp", deleteHostIDPEndpoint, deleteHostIDPRequest{})
 	ue.GET("/api/_version_/fleet/hosts/report", hostsReportEndpoint, hostsReportRequest{})
 	ue.GET("/api/_version_/fleet/os_versions", osVersionsEndpoint, osVersionsRequest{})
 	ue.GET("/api/_version_/fleet/os_versions/{id:[0-9]+}", getOSVersionEndpoint, getOSVersionRequest{})
@@ -560,6 +565,15 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmEndpoint, conditionalAccessMicrosoftConfirmRequest{})
 	ue.DELETE("/api/_version_/fleet/conditional-access/microsoft", conditionalAccessMicrosoftDeleteEndpoint, conditionalAccessMicrosoftDeleteRequest{})
 
+	// Okta Conditional Access
+	ue.GET("/api/_version_/fleet/conditional_access/idp/signing_cert", conditionalAccessGetIdPSigningCertEndpoint, conditionalAccessGetIdPSigningCertRequest{})
+	ue.GET("/api/_version_/fleet/conditional_access/idp/apple/profile", conditionalAccessGetIdPAppleProfileEndpoint, nil)
+
+	// Deprecated: PATCH /mdm/apple/setup is now deprecated, replaced by the
+	// PATCH /setup_experience endpoint.
+	ue.PATCH("/api/_version_/fleet/mdm/apple/setup", updateMDMAppleSetupEndpoint, updateMDMAppleSetupRequest{})
+	ue.PATCH("/api/_version_/fleet/setup_experience", updateMDMAppleSetupEndpoint, updateMDMAppleSetupRequest{})
+
 	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
 	// NOTE: remember to update
 	// `service.mdmConfigurationRequiredEndpoints` when you add an
@@ -677,11 +691,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// TODO: Confirm if response should be updated to include Windows profiles and use mdmAnyMW
 	mdmAppleMW.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
 
-	// Deprecated: PATCH /mdm/apple/setup is now deprecated, replaced by the
-	// PATCH /setup_experience endpoint.
-	mdmAppleMW.PATCH("/api/_version_/fleet/mdm/apple/setup", updateMDMAppleSetupEndpoint, updateMDMAppleSetupRequest{})
-	mdmAppleMW.PATCH("/api/_version_/fleet/setup_experience", updateMDMAppleSetupEndpoint, updateMDMAppleSetupRequest{})
-
 	// Deprecated: GET /mdm/apple is now deprecated, replaced by the
 	// GET /apns endpoint.
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple", getAppleMDMEndpoint, nil)
@@ -714,7 +723,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileEndpoint, preassignMDMAppleProfileRequest{})
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentEndpoint, matchMDMApplePreassignmentRequest{})
 
-	mdmAnyMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleOrWindowsMDM())
+	mdmAnyMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAnyMDM())
 
 	// Deprecated: POST /mdm/commands/run is now deprecated, replaced by the
 	// POST /commands/run endpoint.
@@ -853,6 +862,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/desktop", getFleetDesktopEndpoint, getFleetDesktopRequest{})
 	de.WithCustomMiddleware(errorLimiter).HEAD("/api/_version_/fleet/device/{token}/ping", devicePingEndpoint, deviceAuthPingRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/refetch", refetchDeviceHostEndpoint, refetchDeviceHostRequest{})
+	// Deprecated: Device mapping data is now included in host details endpoint
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/device_mapping", listDeviceHostDeviceMappingEndpoint, listDeviceHostDeviceMappingRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/macadmins", getDeviceMacadminsDataEndpoint, getDeviceMacadminsDataRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/policies", listDevicePoliciesEndpoint, listDevicePoliciesRequest{})
@@ -896,6 +906,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		POST("/api/osquery/log", submitLogsEndpoint, submitLogsRequest{})
 	he.WithAltPaths("/api/v1/osquery/yara/{name}").
 		POST("/api/osquery/yara/{name}", getYaraEndpoint, getYaraRequest{})
+	he.WithAltPaths("/api/v1/fleetd/certificates/{id:[0-9]+}").
+		GET("/api/fleetd/certificates/{id:[0-9]+}", getDeviceCertificateTemplateEndpoint, getDeviceCertificateTemplateRequest{})
+	he.WithAltPaths("/api/v1/fleetd/certificates/{id:[0-9]+}/status").
+		PUT("/api/fleetd/certificates/{id:[0-9]+}/status", updateCertificateStatusEndpoint, updateCertificateStatusRequest{})
 
 	// orbit authenticated endpoints
 	oe := newOrbitAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
@@ -990,7 +1004,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// This endpoint is unauthenticated and is used by to retrieve the MDM enrollment Terms of Use
 	neWindowsMDM.GET(microsoft_mdm.MDE2TOSPath, mdmMicrosoftTOSEndpoint, MDMWebContainer{})
 
-	ne.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, contract.EnrollOrbitRequest{})
+	// These endpoints are unauthenticated and made from orbit, and add the orbit capabilities header.
+	neOrbit := newOrbitNoAuthEndpointer(svc, opts, r, apiVersions...)
+	neOrbit.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, contract.EnrollOrbitRequest{})
+
+	ne.GET("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/in_house_app", getInHouseAppPackageEndpoint, getInHouseAppPackageRequest{})
+	ne.GET("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/in_house_app/manifest", getInHouseAppManifestEndpoint, getInHouseAppManifestRequest{})
 
 	// For some reason osquery does not provide a node key with the block data.
 	// Instead the carve session ID should be verified in the service method.

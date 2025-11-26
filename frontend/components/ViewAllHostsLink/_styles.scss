@@ -1,4 +1,7 @@
 .view-all-hosts-button {
+  display: flex;
+  align-items: center;
+
   &__text {
     &--responsive {
       @media (max-width: $break-md) {

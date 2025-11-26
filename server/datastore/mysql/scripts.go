@@ -504,7 +504,7 @@ func (ds *Datastore) UpdateScriptContents(ctx context.Context, scriptID uint, sc
 		// Update the script to point to the new content
 		if newContentID != oldContentID {
 			updateStmt := `
-				UPDATE scripts 
+				UPDATE scripts
 				SET script_content_id = ?
 				WHERE id = ?
 			`
@@ -638,8 +638,8 @@ func (ds *Datastore) cleanupScriptContent(ctx context.Context, tx sqlx.ExtContex
 			UNION ALL
 			SELECT 1 FROM setup_experience_scripts WHERE script_content_id = ?
 			UNION ALL
-			SELECT 1 FROM software_installers WHERE 
-				install_script_content_id = ? 
+			SELECT 1 FROM software_installers WHERE
+				install_script_content_id = ?
 				OR uninstall_script_content_id = ?
 				OR post_install_script_content_id = ?
 			UNION ALL
@@ -992,9 +992,9 @@ WITH all_latest_activities AS (
 			canceled = 0
 	) completed_ranked
 	WHERE row_num = 1
-	
+
 	UNION ALL
-	
+
 	-- latest from upcoming_activities
 	SELECT * FROM (
 		SELECT
@@ -1035,7 +1035,7 @@ FROM
 				*,
 				ROW_NUMBER() OVER (
 					PARTITION BY script_id
-					ORDER BY 
+					ORDER BY
 						CASE WHEN source = 'upcoming' THEN 1 ELSE 2 END,  -- Prefer upcoming over completed
 						created_at DESC,
 						id DESC
@@ -1412,10 +1412,13 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 
 	switch fleetPlatform {
 	case "darwin", "ios", "ipados":
-		if mdmActions.UnlockPIN != nil {
+		if mdmActions.UnlockPIN != nil && fleetPlatform == "darwin" {
+			// Unlock PIN is only available for macOS hosts
 			status.UnlockPIN = *mdmActions.UnlockPIN
 		}
-		if mdmActions.UnlockRef != nil {
+		if mdmActions.UnlockRef != nil && fleetPlatform == "darwin" {
+			// the unlock reference is a timestamp
+			// (we only store the timestamp for macOS unlocks)
 			var err error
 			status.UnlockRequestedAt, err = time.Parse(time.DateTime, *mdmActions.UnlockRef)
 			if err != nil {
@@ -1425,6 +1428,14 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 				// directly in the DB and messes up the format).
 				status.UnlockRequestedAt = time.Now().UTC()
 			}
+		} else if mdmActions.UnlockRef != nil && fleetPlatform != "darwin" {
+			// the unlock reference is an MDM command uuid
+			cmd, cmdRes, err := ds.getHostMDMAppleCommand(ctx, *mdmActions.UnlockRef, host.UUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get unlock reference")
+			}
+			status.UnlockMDMCommand = cmd
+			status.UnlockMDMCommandResult = cmdRes
 		}
 
 		if mdmActions.LockRef != nil {
@@ -1775,6 +1786,10 @@ func (ds *Datastore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Cont
 	case "DeviceLock":
 		refCol = "lock_ref"
 		setUnlockRef = true
+	case "EnableLostMode":
+		refCol = "lock_ref"
+	case "DisableLostMode":
+		refCol = "unlock_ref"
 	default:
 		return nil
 	}
@@ -2392,7 +2407,7 @@ FROM (
     ba.created_at                           AS created_at,
     j.not_before                            AS not_before,
     ba.id                                   AS id
-  FROM batch_activities ba 
+  FROM batch_activities ba
   LEFT JOIN batch_activity_host_results bahr
          ON ba.execution_id = bahr.batch_execution_id
   LEFT JOIN host_script_results hsr

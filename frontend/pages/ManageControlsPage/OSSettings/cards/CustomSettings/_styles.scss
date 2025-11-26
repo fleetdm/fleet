@@ -10,7 +10,7 @@
         display: none;
       }
       :hover:not(.component__tooltip-wrapper__tip-text):not(.custom-link--tooltip-link) {
-        background-color: $ui-fleet-black-10;
+        background-color: $ui-off-white;
         .list-item__labels {
           display: none;
         }

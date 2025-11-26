@@ -6,6 +6,7 @@
   font-size: $x-small;
   font-weight: $regular;
   color: $core-fleet-black;
+  line-height: $line-height;
 
   &__page-banner {
     padding: $pad-large $pad-xlarge;
@@ -14,9 +15,8 @@
   }
 
   &__info {
-    display: flex;
-    align-items: center;
-
+    // Do not use display flex as it will have adverse effects on spacing around HTML tags
+    align-content: center;
     p {
       margin: $pad-small 0 0 0; // TOFIX: this causes weird top margin noticed in #28110
     }

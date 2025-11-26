@@ -271,6 +271,11 @@ func (s *SwiftDialog) SetMessageKeepListItems(message string) error {
 	return s.sendMultiCommand(fmt.Sprintf("message: %s", sanitize(message)), "list: show")
 }
 
+// HideMessage hides the message area.
+func (s *SwiftDialog) HideMessage() error {
+	return s.sendCommand("message", "none")
+}
+
 ///////////
 // Image //
 ///////////
@@ -453,7 +458,7 @@ func (s *SwiftDialog) SetIconAlignment(alignment Alignment) error {
 
 // Hide the icon
 func (s *SwiftDialog) HideIcon() error {
-	return s.sendCommand("icon", "hide")
+	return s.sendCommand("icon", "none")
 }
 
 // Changes the size of the displayed icon

@@ -13,7 +13,7 @@ Create a new SAML app in Okta:
 
 ![Example Okta IdP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
 
-If you're configuring [end user authentication](../Using%20Fleet/MDM-macOS-setup-experience.md#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the **Single sign on URL** instead.
+If you're configuring [end user authentication](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the **Single sign on URL** instead.
 
 Once configured, you will need to retrieve the issuer URI from **View Setup Instructions** and metadata URL from the **Identity Provider metadata** link within the application **Sign on** settings. See below for where to find them:
 
@@ -22,6 +22,8 @@ Once configured, you will need to retrieve the issuer URI from **View Setup Inst
 > The Provider Sign-on URL within **View Setup Instructions** has a similar format as the Provider SAML Metadata URL, but this link provides a redirect to _sign into_ the application, not the metadata necessary for dynamic configuration.
 
 ## Google Workspace
+
+If you're configuring [end user authentication](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the **Single sign on URL** instead.
 
 Create a new SAML app in Google Workspace:
 
@@ -38,7 +40,7 @@ Create a new SAML app in Google Workspace:
   ![Download metadata](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
 4. Configure the **Service provider details**:
-    - For **ACS URL**, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
+    - For **ACS URL**, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
     - For Entity ID, use **the same unique identifier from step four** (e.g., "fleet.example.com").
     - For **Name ID format**, choose `EMAIL`.
     - For **Name ID**, choose `Basic Information > Primary email`.
@@ -63,6 +65,7 @@ Create a new SAML app in Google Workspace:
 8. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
 
 ## Entra
+
 Create a new SAML app in Microsoft Entra Admin Center:
 1. From the left sidebar, navigate to **Applications > Enterprise Applications**.
 2. At the top of the page, click **+ New Application**.
@@ -73,14 +76,14 @@ Create a new SAML app in Microsoft Entra Admin Center:
 4. In your newly crated Fleet app, select **Single sign-on** from the menu on the left. Then, on the Single sign-on page, select **SAML**.
 5. Click the **Edit** button in the (1) Basic SAML Configuration Box.
    - For **Identifier (Entity ID)**, click **Add identifier** and enter `fleet`.
-   - For **Reply URL (Assertion Consumer Service URL)**, enter `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
+   - For **Reply URL (Assertion Consumer Service URL)**, enter `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
    - Click **Save**.
 6. In the **(3) SAML Certificates** box, click the copy button in the **App Federation Metadata Url** field.
  ![The new SAML app's details page in Enta Admin Center](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/entra-sso-configuration-step-6.png)
 
 On your Fleet server: 
-1. Navigate to **Settings > Organization settings > Single sign-on options**.
-2. On the **Single sign-on options** page:
+1. Navigate to **Settings > Organization settings > Single sign-on (SSO)**.
+2. On the **Single sign-on (SSO)** page:
    - Check the box to **Enable single sign-on**.
    - For **Identity provider name**, enter `Entra`.
    - For **Entity ID**, enter `fleet`.
@@ -108,7 +111,7 @@ Fleet can be configured to use authentik as an identity provider. To continue, y
     - For **Authorization flow**, choose `default-provider-authorization-implicit-consent (Authorize Application)`.
     - In the **Protocol settings** section, configure the following:
       - For **Assertion Consumer Service URL** use `https://<your_fleet_url>/api/v1/fleet/sso/callback`.
-        - If you're configuring **[end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula)**, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback`.
+        - If you're configuring **[end user authentication](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula)**, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback`.
       - For **Issuer**, use `authentik`.
       - For **Service Provider Binding**, choose `Post`.
       - For **audience**, use `https://<your_fleet_url>`.
@@ -161,11 +164,8 @@ If you're configuring end user authentication head to **Settings > Integrations 
 
 Fleet automates user creation using just-in-time (JIT) provisioning. Fleet uses System for Cross-domain Identity Management (SCIM) to [map end users' identity provider (IdP) information to host vitals](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts). SCIM for user provisioning is coming soon.
 
-This section explains how JIT user provisioning works. With JIT, Fleet will automatically create a user account when someone logs in for the first time using your configured SSO. This removes the need to create individual user accounts for a large organization.
+When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. This removes the need to create individual user accounts for a large organization. The new account's email and full name are copied from the user data in the SSO response.
 
-When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO.
-
-The new account's email and full name are copied from the user data in the SSO response.
 By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions).
 To assign different roles for accounts created via JIT provisioning, see [Customization of user roles](#customization-of-user-roles) below.
 

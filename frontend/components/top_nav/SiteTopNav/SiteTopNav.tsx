@@ -137,7 +137,7 @@ const SiteTopNav = ({
 
   const renderNavItem = (navItem: INavItem) => {
     const { name, iconName, withParams } = navItem;
-    const orgLogoURL = config.org_info.org_logo_url;
+    const orgLogoURL = config.org_info.org_logo_url_light_background;
     const active = navItem.location.regex.test(currentPath);
 
     const navItemBaseClass = "site-nav-item";
@@ -248,6 +248,7 @@ const SiteTopNav = ({
             onLogout={onLogoutUser}
             onUserMenuItemClick={onUserMenuItemClick}
             currentUser={currentUser}
+            currentTeam={currentTeam}
             isAnyTeamAdmin={isAnyTeamAdmin}
             isGlobalAdmin={isGlobalAdmin}
           />
