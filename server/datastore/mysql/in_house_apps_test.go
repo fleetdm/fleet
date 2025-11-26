@@ -1591,6 +1591,7 @@ func testSoftwareTitleDisplayNameInHouse(t *testing.T, ds *Datastore) {
 
 	// Delete in-house app, display name should be deleted
 	err = ds.DeleteInHouseApp(ctx, installerID)
+	require.NoError(t, err)
 	_, err = ds.getSoftwareTitleDisplayName(ctx, 0, titleID)
 	require.ErrorContains(t, err, "not found")
 }
