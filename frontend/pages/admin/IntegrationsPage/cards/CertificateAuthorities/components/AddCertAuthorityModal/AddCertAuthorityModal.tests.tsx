@@ -8,16 +8,16 @@ import { renderWithSetup } from "test/test-utils";
 import AddCertAuthorityModal from "./AddCertAuthorityModal";
 
 describe("AddCertAuthorityModal", () => {
-  it("renders the Digicert form by default", () => {
+  it("renders the Custom EST form by default", () => {
     render(<AddCertAuthorityModal certAuthorities={[]} onExit={noop} />);
 
+    expect(
+      screen.getByText("Custom EST (Enrollment Over Secure Transport)")
+    ).toBeVisible();
     expect(screen.getByLabelText("Name")).toBeVisible();
     expect(screen.getByLabelText("URL")).toBeVisible();
-    expect(screen.getByLabelText("API token")).toBeVisible();
-    expect(screen.getByLabelText("Profile GUID")).toBeVisible();
-    expect(screen.getByLabelText("Certificate common name (CN)")).toBeVisible();
-    expect(screen.getByLabelText("User principal name (UPN)")).toBeVisible();
-    expect(screen.getByLabelText("Certificate seat ID")).toBeVisible();
+    expect(screen.getByLabelText("Username")).toBeVisible();
+    expect(screen.getByLabelText("Password")).toBeVisible();
   });
 
   it("shows the correct form when the corresponding value in the dropdown is selected.", async () => {

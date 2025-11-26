@@ -481,7 +481,7 @@ func createVPPAppInstallRequest(t *testing.T, ds *Datastore, host *fleet.Host, a
 
 	err := ds.InsertHostVPPSoftwareInstall(ctx, host.ID, fleet.VPPAppID{
 		AdamID:   adamID,
-		Platform: fleet.AppleDevicePlatform(host.Platform),
+		Platform: fleet.InstallableDevicePlatform(host.Platform),
 	}, cmdUUID, eventID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 	return cmdUUID
@@ -2122,7 +2122,7 @@ func testSoftwareTitleDisplayNameVPP(t *testing.T, ds *Datastore) {
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID:    fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform},
-			DisplayName: "vpp_update1",
+			DisplayName: ptr.String("vpp_update1"),
 		},
 	}, nil)
 	require.NoError(t, err)
@@ -2166,7 +2166,7 @@ func testSoftwareTitleDisplayNameVPP(t *testing.T, ds *Datastore) {
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID:    fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform},
-			DisplayName: "vpp_update2",
+			DisplayName: ptr.String("vpp_update2"),
 		},
 	}, nil)
 	require.NoError(t, err)
@@ -2192,7 +2192,8 @@ func testSoftwareTitleDisplayNameVPP(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform},
+			DisplayName: ptr.String(""),
+			VPPAppID:    fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform},
 		},
 	}, nil)
 	require.NoError(t, err)
@@ -2213,4 +2214,10 @@ func testSoftwareTitleDisplayNameVPP(t *testing.T, ds *Datastore) {
 	title, err = ds.SoftwareTitleByID(ctx, titleID, ptr.Uint(0), fleet.TeamFilter{})
 	require.NoError(t, err)
 	assert.Empty(t, title.DisplayName)
+
+	// Delete vpp app, display name should be deleted
+	err = ds.DeleteVPPAppFromTeam(ctx, ptr.Uint(0), fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform})
+	require.NoError(t, err)
+	_, err = ds.getSoftwareTitleDisplayName(ctx, 0, titleID)
+	require.ErrorContains(t, err, "not found")
 }

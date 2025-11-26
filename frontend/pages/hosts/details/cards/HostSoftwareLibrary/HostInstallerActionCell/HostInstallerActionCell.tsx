@@ -73,10 +73,16 @@ export const getActionButtonState = ({
   hostScriptsEnabled,
   status,
   appStoreApp,
+  softwarePackage,
   hostMDMEnrolled,
   isMyDevicePage,
   installedVersionsDetected,
 }: IGetActionButtonStateProps): IActionButtonState => {
+  // Determine platform and management method
+  const platform = softwarePackage?.platform || "";
+  const isIpaOrAppStore = ["ipados", "ios"].includes(platform) || !!appStoreApp;
+
+  // Pending states take priority
   const isPending = ["pending_install", "pending_uninstall"].includes(
     status || ""
   );
@@ -105,7 +111,8 @@ export const getActionButtonState = ({
 
   /** If scripts are not enabled, software actions disabled with tooltip on
    * Host details > Software > Library but doesn't show to Fleet Desktop > Self-service. */
-  if (!hostScriptsEnabled && !appStoreApp) {
+  const requiresScripts = !isIpaOrAppStore;
+  if (requiresScripts && !hostScriptsEnabled) {
     return {
       installDisabled: true,
       uninstallDisabled: true,
@@ -116,8 +123,8 @@ export const getActionButtonState = ({
   }
 
   /** If MDM is not enrolled, software actions disabled with tooltip on
-    Host details > Software > Library but doesn't show Fleet Desktop > Self-service */
-  if (appStoreApp) {
+   * Host details > Software > Library but doesn't show Fleet Desktop > Self-service */
+  if (isIpaOrAppStore) {
     return {
       installDisabled: !hostMDMEnrolled,
       uninstallDisabled: true,
@@ -127,7 +134,12 @@ export const getActionButtonState = ({
     };
   }
 
-  return { installDisabled: false, uninstallDisabled: false };
+  // Default: actions enabled, no tooltips
+  return {
+    installDisabled: false,
+    uninstallDisabled: false,
+    moreDisabled: false,
+  };
 };
 
 const getMoreActionsDropdownOptions = (

@@ -316,6 +316,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
@@ -628,17 +631,17 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	// Track default team config for team 0
 	defaultTeamConfig := &fleet.TeamConfig{}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid == 0 {
 			// Return a mock team 0 with the default config
-			return &fleet.Team{
+			return &fleet.TeamLite{
 				ID:     0,
 				Name:   fleet.ReservedNameNoTeam,
-				Config: *defaultTeamConfig,
+				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
 		if tid == team.ID {
-			return savedTeam, nil
+			return savedTeam.ToTeamLite(), nil
 		}
 		return nil, nil
 	}
@@ -684,6 +687,9 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
@@ -702,6 +708,14 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	}
 	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
+	}
+
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
+
+	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+		return nil, nil
 	}
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -1159,6 +1173,14 @@ func TestGitOpsFullTeam(t *testing.T) {
 		return nil
 	}
 
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
+
+	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+		return nil, nil
+	}
+
 	// Mock DefaultTeamConfig functions for No Team webhook settings
 	setupDefaultTeamConfigMocks(ds)
 
@@ -1179,9 +1201,15 @@ func TestGitOpsFullTeam(t *testing.T) {
 		}
 		return nil, &notFoundError{}
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid == savedTeam.ID {
 			return savedTeam, nil
+		}
+		return nil, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		if tid == savedTeam.ID {
+			return savedTeam.ToTeamLite(), nil
 		}
 		return nil, nil
 	}
@@ -1205,8 +1233,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 		return team, nil
 	}
 
-	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
-		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 	}
 
 	// Policies
@@ -1282,6 +1310,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 		if teamID != nil && *teamID != 0 {
 			appliedSoftwareInstallers = installers
 		}
+		return nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
@@ -1589,17 +1620,17 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	// Track default team config for team 0
 	defaultTeamConfig := &fleet.TeamConfig{}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid == 0 {
 			// Return a mock team 0 with the default config
-			return &fleet.Team{
+			return &fleet.TeamLite{
 				ID:     0,
 				Name:   fleet.ReservedNameNoTeam,
-				Config: *defaultTeamConfig,
+				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
 		if tid == team.ID {
-			return savedTeam, nil
+			return savedTeam.ToTeamLite(), nil
 		}
 		return nil, nil
 	}
@@ -1635,6 +1666,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		return team, nil
 	}
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
@@ -1693,6 +1727,14 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	}
 	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
 		return nil
+	}
+
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
+
+	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+		return nil, nil
 	}
 
 	createFakeITunesAndVPPServices(t)
@@ -1830,15 +1872,15 @@ software:
 	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 		return []*fleet.Team{teamToDelete, team}, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		switch tid {
 		case team.ID:
-			return team, nil
+			return team.ToTeamLite(), nil
 		case teamToDeleteID:
-			return teamToDelete, nil
+			return teamToDelete.ToTeamLite(), nil
 		}
 		assert.Fail(t, fmt.Sprintf("unexpected team ID %d", tid))
-		return teamToDelete, nil
+		return teamToDelete.ToTeamLite(), nil
 	}
 	ds.DeleteTeamFunc = func(ctx context.Context, tid uint) error {
 		assert.Equal(t, teamToDeleteID, tid)
@@ -1962,17 +2004,17 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	// Track default team config for team 0
 	defaultTeamConfig := &fleet.TeamConfig{}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid == 0 {
 			// Return a mock team 0 with the default config
-			return &fleet.Team{
+			return &fleet.TeamLite{
 				ID:     0,
 				Name:   fleet.ReservedNameNoTeam,
-				Config: *defaultTeamConfig,
+				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
 		if tid == team.ID {
-			return savedTeam, nil
+			return savedTeam.ToTeamLite(), nil
 		}
 		return nil, nil
 	}
@@ -2010,6 +2052,9 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
@@ -2033,6 +2078,14 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	}
 	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
 		return nil
+	}
+
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
+
+	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+		return nil, nil
 	}
 
 	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
@@ -2379,8 +2432,8 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
 		return 0, nil
 	}
-	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
-		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 	}
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 		return []uint{}, nil
@@ -2425,6 +2478,14 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 				Name: "b",
 			},
 		}, nil
+	}
+
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
+
+	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+		return nil, nil
 	}
 
 	globalFile := "./testdata/gitops/global_config_no_paths.yml"
@@ -2617,6 +2678,14 @@ func TestGitOpsCustomSettings(t *testing.T) {
 			}
 			ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 				return nil
+			}
+
+			ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+				return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+			}
+
+			ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+				return nil, nil
 			}
 
 			_, err := RunAppNoChecks([]string{"gitops", "-f", c.file})
@@ -2958,6 +3027,14 @@ software:
 			}
 			ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 				return nil
+			}
+
+			ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+				return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+			}
+
+			ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+				return nil, nil
 			}
 
 			args := []string{"gitops"}
@@ -3636,4 +3713,421 @@ org_settings:
 			tt.realRunAssertion(t, ds, out.String(), err)
 		})
 	}
+}
+
+// setupAndroidCertificatesTestMocks sets up common mocks for Android certificate GitOps tests
+func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.CertificateAuthority {
+	// Set up certificate authority mocks
+	certAuthorities := []*fleet.CertificateAuthority{
+		{
+			ID:        1,
+			Name:      ptr.String("Test CA 1"),
+			Type:      string(fleet.CATypeCustomSCEPProxy),
+			URL:       ptr.String("https://ca1.example.com"),
+			Challenge: ptr.String("challenge1"),
+		},
+		{
+			ID:        2,
+			Name:      ptr.String("Test CA 2"),
+			Type:      string(fleet.CATypeCustomSCEPProxy),
+			URL:       ptr.String("https://ca2.example.com"),
+			Challenge: ptr.String("challenge2"),
+		},
+	}
+
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+		androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+
+	ds.BulkSetPendingMDMHostProfilesFunc = func(
+		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+
+	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+		summaries := make([]*fleet.CertificateAuthoritySummary, 0, len(certAuthorities))
+		for _, ca := range certAuthorities {
+			summaries = append(summaries, &fleet.CertificateAuthoritySummary{
+				ID:   ca.ID,
+				Name: *ca.Name,
+				Type: ca.Type,
+			})
+		}
+		return summaries, nil
+	}
+
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		cas := make([]*fleet.CertificateAuthority, len(certAuthorities))
+		copy(cas, certAuthorities)
+		grouped, err := fleet.GroupCertificateAuthoritiesByType(cas)
+		return grouped, err
+	}
+
+	// Override LabelIDsByNameFunc to handle empty labels
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		if len(labels) == 0 {
+			return map[string]uint{}, nil
+		}
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+
+	return certAuthorities
+}
+
+// TestGitOpsAndroidCertificatesAdd tests adding Android certificates via GitOps
+func TestGitOpsAndroidCertificatesAdd(t *testing.T) {
+	ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+	setupAndroidCertificatesTestMocks(t, ds)
+
+	// Track certificate templates that are created
+	var createdCertificates []fleet.CertificateTemplate
+
+	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) error {
+		createdCertificates = nil
+		for _, cert := range certificates {
+			createdCertificates = append(createdCertificates, *cert)
+		}
+		return nil
+	}
+
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
+
+	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) error {
+		return nil
+	}
+
+	// Create team config
+	teamConfig := `
+name: %s
+team_settings:
+  secrets:
+    - secret: TestSecret
+agent_options:
+  config:
+    options:
+      pack_delimiter: /
+  overrides: {}
+controls:
+  android_settings:
+    certificates:
+      - name: "Certificate 1"
+        certificate_authority_name: "Test CA 1"
+        subject_name: "CN=Device Certificate 1"
+      - name: "Certificate 2"
+        certificate_authority_name: "Test CA 2"
+        subject_name: "CN=Device Certificate 2"
+policies: []
+queries: []
+software: null
+`
+
+	tmpDir := t.TempDir()
+	teamFile, err := os.CreateTemp(tmpDir, "team-*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, teamName))
+	require.NoError(t, err)
+
+	// Run GitOps
+	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	require.NoError(t, err)
+
+	// Verify certificates were created
+	require.Len(t, createdCertificates, 2)
+	assert.Equal(t, "Certificate 1", createdCertificates[0].Name)
+	assert.Equal(t, uint(1), createdCertificates[0].CertificateAuthorityID)
+	assert.Equal(t, "CN=Device Certificate 1", createdCertificates[0].SubjectName)
+	assert.Equal(t, "Certificate 2", createdCertificates[1].Name)
+	assert.Equal(t, uint(2), createdCertificates[1].CertificateAuthorityID)
+	assert.Equal(t, "CN=Device Certificate 2", createdCertificates[1].SubjectName)
+
+	// Verify team was created
+	require.Contains(t, savedTeams, teamName)
+}
+
+// TestGitOpsAndroidCertificatesChange tests changing existing Android certificates via GitOps
+func TestGitOpsAndroidCertificatesChange(t *testing.T) {
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+	setupAndroidCertificatesTestMocks(t, ds)
+
+	// Track certificate templates
+	var updatedCertificates []fleet.CertificateTemplate
+
+	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) error {
+		updatedCertificates = nil
+		for _, cert := range certificates {
+			updatedCertificates = append(updatedCertificates, *cert)
+		}
+		return nil
+	}
+
+	// Simulate existing certificates
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		existing := []*fleet.CertificateTemplateResponseSummary{
+			{
+				ID:                     1,
+				Name:                   "Certificate 1",
+				CertificateAuthorityId: 1,
+			},
+			{
+				ID:                     2,
+				Name:                   "Certificate 2",
+				CertificateAuthorityId: 2,
+			},
+		}
+		return existing, &fleet.PaginationMetadata{}, nil
+	}
+
+	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) error {
+		return nil
+	}
+
+	// Create team config with modified certificates
+	teamConfig := `
+name: %s
+team_settings:
+  secrets:
+    - secret: TestSecret
+  mdm:
+    macos_updates:
+      minimum_version: null
+      deadline: null
+    macos_settings:
+      custom_settings: null
+    macos_setup:
+      bootstrap_package: null
+      enable_end_user_authentication: false
+      macos_setup_assistant: null
+    windows_updates:
+      deadline_days: null
+      grace_period_days: null
+    windows_settings:
+      custom_settings: null
+agent_options:
+  config:
+    options:
+      pack_delimiter: /
+  overrides: {}
+controls:
+  android_settings:
+    certificates:
+      - name: "Certificate 1"
+        certificate_authority_name: "Test CA 1"
+        subject_name: "CN=Updated Subject 1"
+      - name: "Certificate 2"
+        certificate_authority_name: "Test CA 2"
+        subject_name: "CN=Updated Subject 2"
+policies: []
+queries: []
+software: null
+`
+
+	tmpDir := t.TempDir()
+	teamFile, err := os.CreateTemp(tmpDir, "team-*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, teamName))
+	require.NoError(t, err)
+
+	// Run GitOps
+	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	require.NoError(t, err)
+
+	// Verify certificates were updated with new subject names
+	require.Len(t, updatedCertificates, 2)
+	assert.Equal(t, "Certificate 1", updatedCertificates[0].Name)
+	assert.Equal(t, "CN=Updated Subject 1", updatedCertificates[0].SubjectName)
+	assert.Equal(t, "Certificate 2", updatedCertificates[1].Name)
+	assert.Equal(t, "CN=Updated Subject 2", updatedCertificates[1].SubjectName)
+}
+
+// TestGitOpsAndroidCertificatesDeleteOne tests deleting one certificate while leaving others via GitOps
+func TestGitOpsAndroidCertificatesDeleteOne(t *testing.T) {
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+	setupAndroidCertificatesTestMocks(t, ds)
+
+	// Track what was deleted
+	var deletedCertificateIDs []uint
+	var remainingCertificates []fleet.CertificateTemplate
+
+	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) error {
+		deletedCertificateIDs = ids
+		return nil
+	}
+
+	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) error {
+		remainingCertificates = nil
+		for _, cert := range certificates {
+			remainingCertificates = append(remainingCertificates, *cert)
+		}
+		return nil
+	}
+
+	// Simulate existing certificates
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		existing := []*fleet.CertificateTemplateResponseSummary{
+			{
+				ID:                     1,
+				Name:                   "Certificate 1",
+				CertificateAuthorityId: 1,
+			},
+			{
+				ID:                     2,
+				Name:                   "Certificate 2",
+				CertificateAuthorityId: 2,
+			},
+		}
+		return existing, &fleet.PaginationMetadata{}, nil
+	}
+
+	// Create team config with only one certificate (Certificate 1 removed)
+	teamConfig := `
+name: %s
+team_settings:
+  secrets:
+    - secret: TestSecret
+  mdm:
+    macos_updates:
+      minimum_version: null
+      deadline: null
+    macos_settings:
+      custom_settings: null
+    macos_setup:
+      bootstrap_package: null
+      enable_end_user_authentication: false
+      macos_setup_assistant: null
+    windows_updates:
+      deadline_days: null
+      grace_period_days: null
+    windows_settings:
+      custom_settings: null
+agent_options:
+  config:
+    options:
+      pack_delimiter: /
+  overrides: {}
+controls:
+  android_settings:
+    certificates:
+      - name: "Certificate 2"
+        certificate_authority_name: "Test CA 2"
+        subject_name: "CN=Device Certificate 2"
+policies: []
+queries: []
+software: null
+`
+
+	tmpDir := t.TempDir()
+	teamFile, err := os.CreateTemp(tmpDir, "team-*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, teamName))
+	require.NoError(t, err)
+
+	// Run GitOps
+	out, err := RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	require.NoError(t, err)
+
+	// Verify output mentions deletion
+	output := out.String()
+	assert.True(t, strings.Contains(output, "deleting") || strings.Contains(output, "deleted"),
+		"Expected deletion message in output: %s", output)
+
+	// Verify Certificate 1 was deleted (ID 1)
+	require.Len(t, deletedCertificateIDs, 1)
+	assert.Contains(t, deletedCertificateIDs, uint(1))
+
+	// Verify Certificate 2 remains
+	require.Len(t, remainingCertificates, 1)
+	assert.Equal(t, "Certificate 2", remainingCertificates[0].Name)
+	assert.Equal(t, "CN=Device Certificate 2", remainingCertificates[0].SubjectName)
+}
+
+// TestGitOpsAndroidCertificatesDeleteAll tests deleting all certificates via GitOps
+func TestGitOpsAndroidCertificatesDeleteAll(t *testing.T) {
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+	setupAndroidCertificatesTestMocks(t, ds)
+
+	// Track what was deleted
+	var deletedCertificateIDs []uint
+
+	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) error {
+		deletedCertificateIDs = ids
+		return nil
+	}
+
+	// Simulate existing certificates
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		existing := []*fleet.CertificateTemplateResponseSummary{
+			{
+				ID:                     1,
+				Name:                   "Certificate 1",
+				CertificateAuthorityId: 1,
+			},
+			{
+				ID:                     2,
+				Name:                   "Certificate 2",
+				CertificateAuthorityId: 2,
+			},
+		}
+		return existing, &fleet.PaginationMetadata{}, nil
+	}
+
+	// Create team config with no certificates
+	teamConfig := `
+name: %s
+team_settings:
+  secrets:
+    - secret: TestSecret
+  mdm:
+    macos_updates:
+      minimum_version: null
+      deadline: null
+    macos_settings:
+      custom_settings: null
+    macos_setup:
+      bootstrap_package: null
+      enable_end_user_authentication: false
+      macos_setup_assistant: null
+    windows_updates:
+      deadline_days: null
+      grace_period_days: null
+    windows_settings:
+      custom_settings: null
+agent_options:
+  config:
+    options:
+      pack_delimiter: /
+  overrides: {}
+controls:
+  android_settings:
+    certificates: []
+policies: []
+queries: []
+software: null
+`
+
+	tmpDir := t.TempDir()
+	teamFile, err := os.CreateTemp(tmpDir, "team-*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, teamName))
+	require.NoError(t, err)
+
+	// Run GitOps
+	out, err := RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	require.NoError(t, err)
+
+	// Verify output mentions deletion
+	output := out.String()
+	assert.True(t, strings.Contains(output, "deleting") || strings.Contains(output, "deleted"),
+		"Expected deletion message in output: %s", output)
+
+	// Verify both certificates were deleted
+	require.Len(t, deletedCertificateIDs, 2)
+	assert.Contains(t, deletedCertificateIDs, uint(1))
+	assert.Contains(t, deletedCertificateIDs, uint(2))
 }

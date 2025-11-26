@@ -24,9 +24,10 @@ The Finance department is directly responsible for accounts receivable including
 
 ### Prepare for OCV meeting
 
-Mike meets with OCV on the last Wednesday of every month. Use the following steps to help him prepare for that meeting:
-1. In the "📈 Longer-term plan" section of the doc, update the "Gross new ARR (QTD)", "New logo pipeline $ generated (QTD)", "ARR, cumulative" numbers using the [📈 OKRs (quarterly goals) + KPIs (everyday metrics) (confidential)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0) spreadsheet.
-2. In the "😬 CEO's top-of-mind goals" section, use the [📈 OKRs (quarterly goals) + KPIs (everyday metrics) (confidential)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0) spreadsheet to update the numbers in the goal column for the current month to be correct.
+Mike meets with OCV on the last Wednesday of every month. Use the following steps to update the [OCV GOH document (confidential)](https://docs.google.com/document/d/17VK0_pRrFGTqKCRfppIjUgfjdL012Ssirks8Jxk4SE4/edit?tab=t.0) to help him prepare for that meeting:
+1. Update the actual attainment in the "**What actually happened?  Why?**" column against goals set for the current month.
+2. Review and update the "**Goal**" column for the following month.
+3. Insert comment and tag Mike once the update is done for review.
 
 
 ### Reconcile monthly recurring expenses
@@ -117,10 +118,10 @@ Use the following steps to update the [💸Finance department KPIs](https://docs
 - Open the ["Time-to-invoice" tab](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=1835263594) in the [💸 Finance  metrics spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0). Enter the year and month + customer name in column A, then the # of days between the close date and the invoice date in column B. After entering new entries you will probably have to adjust the formula in column D to include the new cells in the average and make sure the formula includes no further back than the last three months of invoices.
 
 **Overdue delinquent invoices**: 
-- Using the [Invoice status and upcoming bill dates](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000010r8b2AA/view) report, check the invoice date of any entries without a payment received date against the payment terms.
-  - If the elapsed time exceeds the payment terms the invoice is overdue. If so, click on the link in the "Billing cycle name," and in the billing cycle object, update the billing status to "Overdue."
-  - Enter the number of invoices overdue in the KPI spreadsheet, and leave a comment on that cell with the names of the companies of overdue customers, if any.  
-  - If any new customers are overdue, notify the CRO by posting a Slack message in the #g-sales channel and @ mention him.
+- Download the [“Accounts receivable agings detail” report](https://qbo.intuit.com/app/report/builder?rptId=sbg:73f15f2c-2671-4831-9f24-1faef280cfa2&type=system&token=AR_AGING_DET&previousRoute=standardreports&previousRouteText=Back%20to%20standard%20reports) from accounting system. 
+- Identify the invoices that are overdue.
+- Enter the number of invoices overdue in the KPI spreadsheet, and leave a comment on that cell with the names of the companies of overdue customers, if any.
+- Follow the steps outlined in "Communicate the status of customer financial actions" in the handbook to follow-up on payment for the outstanding invoices. 
 
 **Commission payroll**: 
 - Make sure commission payroll was run on time by logging into [Gusto](https://www.gusto.com) and [Plane](https://plane.com/) to check for off-cycle payrolls in line with expected commission calculated in the [Commission calculator spreadsheet](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing).
@@ -178,7 +179,7 @@ Thanks,
 ```
 
 6. Update the opportunity and the opportunity billing cycle in Salesforce to include the "Invoice date" as the day the invoice was sent.
-8. Notify the AE/CSM that the invoice has been sent.
+8. Update github ticket that invoice was sent out on YYYY-MM-DD.
 
 > Certain vendors require invoices submitted via a payment portal (such as Coupa). Once you've generated the invoice using the steps above, upload it to the relevant payment portal and email the billing contact to let them know you've submitted the invoice.
 
@@ -196,12 +197,15 @@ For Fleet customers outside of the United States or instances where a customer i
 
 This reporting is performed to update the status of open or upcoming customer actions regarding the financial health of the opportunity. To complete the report:
 1. Check [SVB](https://connect.svb.com/#/) and [Brex](https://accounts.brex.com/login) for any recently received payments from customers and record them in SFDC.
-2. Go to this [report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001oc9Z2AQ/view) and this [report](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00BUG000001Z3iP2AS) in SFDC.
-3. Copy the template below and paste it into the [#help-sales slack channel](https://fleetdm.slack.com/archives/C030A767HQV) and complete all "todos" using the data from SFDC before sending.
+2. Download the “Accounts receivable agings detail” [report](https://qbo.intuit.com/app/report/builder?rptId=sbg:73f15f2c-2671-4831-9f24-1faef280cfa2&type=system&token=AR_AGING_DET&previousRoute=standardreports&previousRouteText=Back%20to%20standard%20reports) from accounting system.
+3. Copy the template below and paste it into the [#help-sales slack channel](https://fleetdm.slack.com/archives/C030A767HQV) and complete all "todos" using the data from accounting system before sending.
 
 ```
 Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
-- Number accounts with outstanding balances = `todo`
+- Key summary on accounts receivables
+	- 90+ days past due: `todo`
+	- 31 - 60 days past due: `todo`
+	- 1 - 30 days past due: `todo`
 - Number of customers awaiting invoices = `todo`
 - Number of past-due renewals = `todo`
 ```
@@ -210,17 +214,16 @@ Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
 
 ```
 Hello,
-This is a reminder that you have a coming due balance due for your Fleet Device Management premium subscription.
-We have included the invoice here for your convenience.
-For payment instructions, please refer to your invoice and reach out to [Fleet's billing contact] with any questions.
+
+We are writing to follow-up on invoice [invoice number].
+Could you provide an update as to when payment could be expected? 
+Please reach out to [Fleet's billing contact] with any questions.
 
 Thanks,
 [name]
 ```
 
-5. If any accounts will become overdue within a week, reply in thread to the slack post, mention the opportunity owner of the account, and ask them to notify their contact that Fleet is still awaiting payment.
-6. If Finance is still awaiting a PO one week after the opportunity has been closed/won, reply to the thread in the Slack post, mention the CSM, and ask them to follow up with their customer contact.
-7. Review the [Accounts receivable](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001oc9Z2AQ/view) report in SFDC for customers on multiyear deals. For any customers due for invoicing within the next week, create an issue on the Finance board.
+5. If Finance is still awaiting a PO one week after the opportunity has been closed/won, reply to the thread in the Slack post, mention the CSM, and ask them to follow up with their customer contact.
 
 
 ### Create an offer in AWS Marketplace
@@ -356,7 +359,7 @@ Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up 
 
 Follow these steps to perform quarterly reporting for Fleet's investors:
 1. Login to Chronograph and upload our profit and loss statement (P&L), balance sheet and cash flow statements for CRV (all in one book saved in [Google Drive](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM).
-2. Provide updated metrics for the following items using Fleet's [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+2. Provide updated metrics for the following items using Fleet's [Operating model (Confidential)](https://docs.google.com/spreadsheets/d/1CgMAad-vzBoVS_FfovglX0XbqVKlaD-ssjGTL3ayxMw/edit?gid=86625913#gid=86625913).
     - Headcount at end of the previous quarter.
     - Starting ARR for the previous quarter.
     - Total new ARR for the previous quarter.
@@ -366,11 +369,8 @@ Follow these steps to perform quarterly reporting for Fleet's investors:
     - Starting number of customers, churned customers, and the number of new customers Fleet gained during the previous quarter.
     - Total amount of Fleet customers at the end of the previous quarter.
     - Gross margin % 
-      - How to calculate: (total revenue for the quarter - cost of goods sold for the quarter)/total revenue for the quarter (these metrics can be found in our books from Pilot). Chronograph will automatically conver this number to a %.
     - Net dollar retention rate
-      - How to calculate: (starting ARR + new subscriptions and expansions - churn)/starting ARR. 
     - Cash burn
-      - How to calculate: start of quarter runway - end of quarter runway. 
 
 
 ### Deliver annual report for venture line

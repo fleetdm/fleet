@@ -63,6 +63,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
@@ -785,14 +786,15 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
+			activitiesModule := activities.NewActivityModule(ds, logger)
 			androidSvc, err := android_service.NewService(
 				ctx,
 				logger,
 				ds,
-				svc,
 				config.License.Key,
 				config.Server.PrivateKey,
 				ds,
+				activitiesModule,
 			)
 			if err != nil {
 				initFatal(err, "initializing android service")
@@ -897,6 +899,7 @@ the way that the Fleet server works.
 					redis_key_value.New(redisPool),
 					scepConfigMgr,
 					digiCertService,
+					androidSvc,
 					hydrantService,
 				)
 				if err != nil {
@@ -969,7 +972,7 @@ the way that the Fleet server works.
 				func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 					return newCleanupsAndAggregationSchedule(
-						ctx, instanceID, ds, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore,
+						ctx, instanceID, ds, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore, androidSvc,
 					)
 				},
 			); err != nil {
@@ -1024,7 +1027,7 @@ the way that the Fleet server works.
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, bootstrapPackageStore, vppInstaller)
+				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, bootstrapPackageStore, vppInstaller, androidSvc)
 			}); err != nil {
 				initFatal(err, "failed to register worker integrations schedule")
 			}
@@ -1093,6 +1096,12 @@ the way that the Fleet server works.
 				return cronEnableAndroidAppReportsOnDefaultPolicy(ctx, instanceID, ds, logger, androidSvc)
 			}); err != nil {
 				initFatal(err, "failed to register enable_android_app_reports_on_default_policy cron")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return cronMigrateToPerHostPolicy(ctx, instanceID, ds, logger, androidSvc)
+			}); err != nil {
+				initFatal(err, "failed to register migrate_to_per_host_policy cron")
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
@@ -1347,7 +1356,7 @@ the way that the Fleet server works.
 				if err = scim.RegisterSCIM(rootMux, ds, svc, logger, &config); err != nil {
 					initFatal(err, "setup SCIM")
 				}
-				// Host identify SCEP feature only works if a private key has been set up
+				// Host identify and conditional access SCEP feature only works if a private key has been set up
 				if len(config.Server.PrivateKey) > 0 {
 					hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(kitlog.With(logger, "component", "host-id-scep-depot"), &config)
 					if err != nil {
@@ -1362,11 +1371,17 @@ the way that the Fleet server works.
 					if err != nil {
 						initFatal(err, "setup conditional access SCEP depot")
 					}
-					if err = condaccess.RegisterSCEP(rootMux, condAccessSCEPDepot, ds, logger, &config); err != nil {
+					if err = condaccess.RegisterSCEP(ctx, rootMux, condAccessSCEPDepot, ds, logger, &config); err != nil {
 						initFatal(err, "setup conditional access SCEP")
 					}
+
+					// Conditional Access IdP (Okta)
+					if err = condaccess.RegisterIdP(rootMux, ds, logger, &config); err != nil {
+						initFatal(err, "setup conditional access IdP")
+					}
 				} else {
-					level.Warn(logger).Log("msg", "Host identity SCEP is not available because no server private key has been set up.")
+					level.Warn(logger).Log("msg",
+						"Host identity and conditional access SCEP is not available because no server private key has been set up.")
 				}
 			}
 

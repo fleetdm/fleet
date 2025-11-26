@@ -18,7 +18,8 @@
         <h3>How does it affect me?</h3>
         <p v-if="showSecureframeBanner">Secureframe Agent has to monitor compliance with a bunch of security requirements. But we also realize you have a job to do. So we want to be as un-intrusive as possible.</p>
         <p v-else>Your IT team has to maintain your computer and keep it compliant with a bunch of security requirements. But they also realize you have a job to do. So they want to be as un-intrusive as possible.</p>
-        <p>That’s why they chose Fleet. It’s compatible with everything, including Linux, so it doesn’t limit what operating system you use. And it’s open source, meaning if you want to, you can <a href="https://github.com/fleetdm/fleet" target="_blank">take it apart</a> and see what it’s doing to your computer.</p>
+        <p>That’s why they chose Fleet. It’s compatible with everything, including Linux, so it doesn’t limit what operating system you use. And it’s open source, meaning if you want to, you can <a href="https://github.com/fleetdm/fleet" target="_blank" no-icon>take it apart</a> and see what it’s doing to your computer.</p>
+        <a purpose="video-button"  @click="clickOpenVideoModal('fleet-in-three-minutes')"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png">Why is Fleet on my computer?</a>
         <!-- <div purpose="swag-cta" v-if="showSwagForm">
           <a purpose="swag-link" style="text-decoration: none;" class="d-inline" href="https://kqphpqst851.typeform.com/to/Whm2imZc">
             <div class="d-flex flex-row justify-content-center align-items-center">
@@ -263,9 +264,12 @@
     </div>
     </div>
   </div>
-    <div purpose="bottom-gradient">
-      <parallax-city></parallax-city>
-    </div>
-    <signup-modal></signup-modal>
+  <div purpose="bottom-gradient">
+    <parallax-city></parallax-city>
+  </div>
+  <signup-modal></signup-modal>
+  <modal purpose="video-modal" v-if="modal === 'fleet-in-three-minutes'" @close="closeModal()">
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/mHFr-tBy3h8?rel=0&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

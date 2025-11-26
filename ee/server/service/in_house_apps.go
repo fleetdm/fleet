@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"text/template"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, vc viewer.Viewer, teamName *string, software *fleet.SoftwareTitle) (*fleet.SoftwareInstaller, error) {
@@ -17,10 +19,17 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		return nil, ctxerr.Wrap(ctx, err, "getting existing installer")
 	}
 
-	if payload.SelfService == nil && payload.InstallerFile == nil && payload.PreInstallQuery == nil &&
-		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil &&
-		payload.LabelsIncludeAny == nil && payload.LabelsExcludeAny == nil {
+	if payload.IsNoopPayload(software) {
 		return existingInstaller, nil // no payload, noop
+	}
+
+	if payload.DisplayName != nil && *payload.DisplayName != software.DisplayName {
+		trimmed := strings.TrimSpace(*payload.DisplayName)
+		if trimmed == "" && *payload.DisplayName != "" {
+			return nil, fleet.NewInvalidArgumentError("display_name", "Cannot have a display name that is all whitespace.")
+		}
+
+		*payload.DisplayName = trimmed
 	}
 
 	payload.InstallerID = existingInstaller.InstallerID
@@ -36,13 +45,20 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	if payload.TeamID != nil && *payload.TeamID != 0 {
 		actTeamID = payload.TeamID
 	}
+	selfService := existingInstaller.SelfService
+	if payload.SelfService != nil {
+		selfService = *payload.SelfService
+	}
+	displayName := ptr.ValOrZero(payload.DisplayName)
 	activity := fleet.ActivityTypeEditedSoftware{
-		SoftwareTitle:   existingInstaller.SoftwareTitle,
-		TeamName:        teamName,
-		TeamID:          actTeamID,
-		SoftwarePackage: &existingInstaller.Name,
-		SoftwareTitleID: payload.TitleID,
-		SoftwareIconURL: existingInstaller.IconUrl,
+		SoftwareTitle:       existingInstaller.SoftwareTitle,
+		TeamName:            teamName,
+		TeamID:              actTeamID,
+		SoftwarePackage:     &existingInstaller.Name,
+		SoftwareTitleID:     payload.TitleID,
+		SoftwareIconURL:     existingInstaller.IconUrl,
+		SelfService:         selfService,
+		SoftwareDisplayName: displayName,
 	}
 
 	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload
@@ -89,6 +105,10 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		payload.Version = existingInstaller.Version
 	}
 
+	if payload.SelfService == nil {
+		payload.SelfService = &existingInstaller.SelfService
+	}
+
 	// persist changes starting here, now that we've done all the validation/diffing we can
 	if payloadForNewInstallerFile != nil {
 		if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {
@@ -115,6 +135,10 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	activity.LabelsExcludeAny = actLabelsExcl
 	if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating activity for edited in house app")
+	}
+
+	if payload.DisplayName != nil {
+		activity.SoftwareDisplayName = *payload.DisplayName
 	}
 
 	// re-pull installer from database to ensure any side effects are accounted for; may be able to optimize this out later

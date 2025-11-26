@@ -15,7 +15,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
@@ -1248,11 +1247,6 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 	return htmlBuf.String(), nil
 }
 
-// isValidUPN checks if the provided user ID is a valid UPN
-func isValidUPN(userID string) bool {
-	return upnRegex.MatchString(userID)
-}
-
 // isTrustedRequest checks if the incoming request was sent from MDM enrolled device
 func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) error {
 	if reqSyncML == nil {
@@ -1308,9 +1302,6 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 	return errors.New("calling device is not trusted")
 }
 
-// regex to validate UPN
-var upnRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-
 // isFleetdPresentOnDevice checks if the device requires Fleetd to be deployed
 func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, deviceID string) (bool, error) {
 	// checking first if the device was enrolled through programmatic flow
@@ -1321,7 +1312,7 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, deviceID string
 
 	// If user identity is a MS-MDM UPN it means that the device was enrolled through user-driven flow
 	// This means that fleetd might not be installed
-	if isValidUPN(enrolledDevice.MDMEnrollUserID) {
+	if microsoft_mdm.IsValidUPN(enrolledDevice.MDMEnrollUserID) {
 		var isPresent bool
 		if enrolledDevice.HostUUID != "" {
 			host, err := svc.ds.HostLiteByIdentifier(ctx, enrolledDevice.HostUUID)
@@ -1806,6 +1797,15 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		return fmt.Errorf("%s %v", error_tag, err)
 	}
 
+	reqNotInOOBE := false
+	notInOOBEStr, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemNotInOobe)
+	if err != nil {
+		return fmt.Errorf("%s %v", error_tag, err)
+	}
+	if notInOOBEStr == "true" {
+		reqNotInOOBE = true
+	}
+
 	// Getting the Windows Enrolled Device Information
 	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            reqDeviceID,
@@ -1817,7 +1817,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		MDMEnrollUserID:        userID, // This could be Host UUID or UPN email
 		MDMEnrollProtoVersion:  reqEnrollVersion,
 		MDMEnrollClientVersion: reqAppVersion,
-		MDMNotInOOBE:           false,
+		MDMNotInOOBE:           reqNotInOOBE,
 		HostUUID:               hostUUID,
 	}
 
@@ -1826,7 +1826,9 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 	}
 
 	// TODO: azure enrollments come with an empty uuid, I haven't figured
-	// out a good way to identify the device.
+	// out a good way to identify the device here.
+	// Note that we currently do the Enrollment->Host mapping during the next
+	// refetch of the host
 	displayName := reqDeviceName
 	var serial string
 	if hostUUID != "" {
@@ -2315,11 +2317,18 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		return ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
-	params := microsoft_mdm.PreprocessingParameters{
-		HostIDForUUIDCache: make(map[string]uint),
-	}
-
 	managedCertificatePayloads := &[]*fleet.MDMManagedCertificate{}
+	deps := microsoft_mdm.ProfilePreprocessDependenciesForDeploy{
+		ProfilePreprocessDependenciesForVerify: microsoft_mdm.ProfilePreprocessDependenciesForVerify{
+			Context:            ctx,
+			Logger:             logger,
+			DataStore:          ds,
+			HostIDForUUIDCache: make(map[string]uint),
+		},
+		AppConfig:                  appConfig,
+		CustomSCEPCAs:              groupedCAs.ToCustomSCEPProxyCAMap(),
+		ManagedCertificatePayloads: managedCertificatePayloads,
+	}
 
 	for profUUID, target := range installTargets {
 		p, ok := profileContents[profUUID]
@@ -2349,11 +2358,12 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 					continue
 				}
 
-				// Create a unique command UUID for this host since the content is unique
-				hostCmdUUID := uuid.New().String()
-
 				// Preprocess the profile content for this specific host
-				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(ctx, logger, ds, appConfig, hostUUID, hostCmdUUID, profUUID, groupedCAs, string(p.SyncML), managedCertificatePayloads, params)
+				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(
+					deps,
+					microsoft_mdm.ProfilePreprocessParams{HostUUID: hostUUID, ProfileUUID: profUUID},
+					string(p.SyncML),
+				)
 				var profileProcessingError *microsoft_mdm.MicrosoftProfileProcessingError
 				if err != nil && !errors.As(err, &profileProcessingError) {
 					return ctxerr.Wrapf(ctx, err, "preprocessing profile contents for host %s and profile %s", hostUUID, profUUID)
@@ -2362,6 +2372,9 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 					hp.Detail = profileProcessingError.Error()
 					continue
 				}
+
+				// Create a unique command UUID for this host since the content is unique
+				hostCmdUUID := uuid.New().String()
 
 				// Build the command with the processed content
 				command, err := buildCommandFromProfileBytes([]byte(processedContent), hostCmdUUID)
@@ -2388,8 +2401,8 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		}
 	}
 
-	// Store list of failed profiles to avoid updating other stuff for that, such as managed certs.
-	failedProfilesUUIDs := make(map[string]bool)
+	// Store list of failed profiles (profile UUID + host UUID to create uniqueness) to avoid updating other stuff for that, such as managed certs.
+	failedProfileHostUUIDs := make(map[string]bool)
 
 	// Since we are not using DB transactions here, there is a small chance that the profile contents don't match
 	// the checksum we retrieved earlier. Update the checksums if needed.
@@ -2399,7 +2412,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		}
 
 		if p.Status != nil && *p.Status == fleet.MDMDeliveryFailed {
-			failedProfilesUUIDs[p.ProfileUUID] = true
+			failedProfileHostUUIDs[p.ProfileUUID+p.HostUUID] = true
 		}
 	}
 
@@ -2417,7 +2430,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 	// Run through managed certs and remove all those that belong to failed profiles
 	filteredManagedCerts := []*fleet.MDMManagedCertificate{}
 	for _, mc := range *managedCertificatePayloads {
-		if _, failed := failedProfilesUUIDs[mc.ProfileUUID]; !failed {
+		if _, failed := failedProfileHostUUIDs[mc.ProfileUUID+mc.HostUUID]; !failed {
 			filteredManagedCerts = append(filteredManagedCerts, mc)
 		}
 	}

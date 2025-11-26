@@ -261,7 +261,7 @@ type Service interface {
 
 	NewLabel(ctx context.Context, p LabelPayload) (label *Label, hostIDs []uint, err error)
 	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, []uint, error)
-	ListLabels(ctx context.Context, opt ListOptions) (labels []*Label, err error)
+	ListLabels(ctx context.Context, opt ListOptions, includeHostCounts bool) (labels []*Label, err error)
 	LabelsSummary(ctx context.Context) (labels []*LabelSummary, err error)
 	GetLabel(ctx context.Context, id uint) (label *Label, hostIDs []uint, err error)
 
@@ -354,6 +354,10 @@ type Service interface {
 	// AuthenticateDevice loads host identified by the device's auth token.
 	// Returns an error if the auth token doesn't exist.
 	AuthenticateDevice(ctx context.Context, authToken string) (host *Host, debug bool, err error)
+	// AuthenticateDeviceByCertificate loads host identified by certificate serial and UUID.
+	// This is used for iOS/iPadOS devices accessing My Device page via client certificates.
+	// Returns an error if the certificate doesn't match the host or if the host is not iOS/iPadOS.
+	AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (host *Host, debug bool, err error)
 
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
 	// GetHost returns the host with the provided ID.
@@ -396,6 +400,7 @@ type Service interface {
 	// The source parameter determines the type: "custom" for manually set
 	// mappings or DeviceMappingIDP for identity provider mappings.
 	SetHostDeviceMapping(ctx context.Context, id uint, email, source string) ([]*HostDeviceMapping, error)
+	DeleteHostIDP(ctx context.Context, id uint) error
 	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
@@ -625,6 +630,18 @@ type Service interface {
 	ApplyUserRolesSpecs(ctx context.Context, specs UsersRoleSpec) error
 
 	// /////////////////////////////////////////////////////////////////////////////
+	// Certificate Templates
+
+	CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*CertificateTemplateResponseFull, error)
+	ListCertificateTemplates(ctx context.Context, teamID uint, page int, perPage int) ([]*CertificateTemplateResponseSummary, *PaginationMetadata, error)
+	GetDeviceCertificateTemplate(ctx context.Context, id uint) (*CertificateTemplateResponseFull, error)
+	GetCertificateTemplate(ctx context.Context, id uint, hostUUID *string) (*CertificateTemplateResponseFull, error)
+	DeleteCertificateTemplate(ctx context.Context, id uint) error
+	ApplyCertificateTemplateSpecs(ctx context.Context, specs []*CertificateRequestSpec) error
+	DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
+	UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status MDMDeliveryStatus) error
+
+	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalScheduleService
 
 	GlobalScheduleQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
@@ -712,7 +729,7 @@ type Service interface {
 
 	// AddAppStoreApp persists a VPP app onto a team and returns the resulting title ID
 	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) (uint, error)
-	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string) (*VPPAppStoreApp, error)
+	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload AppStoreAppUpdatePayload) (*VPPAppStoreApp, error)
 
 	// GetInHouseAppManifest returns a manifest XML file that points at the download URL for the given in-house app.
 	GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error)
@@ -978,10 +995,10 @@ type Service interface {
 	// error can be raised to the user.
 	VerifyMDMWindowsConfigured(ctx context.Context) error
 
-	// VerifyMDMAppleOrWindowsConfigured verifies that the server is configured
-	// for either Apple or Windows MDM. If an error is returned, authorization is
+	// VerifyAnyMDMConfigured verifies that the server is configured for any MDM
+	// (Apple, Windows, or Android). If an error is returned, authorization is
 	// skipped so the error can be raised to the user.
-	VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error
+	VerifyAnyMDMConfigured(ctx context.Context) error
 
 	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error
 
@@ -1271,7 +1288,9 @@ type Service interface {
 	GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetFailedSetupSteps bool) (*SetupExperienceStatusPayload, error)
 	// GetSetupExperienceScript gets the current setup experience script for the given team.
 	GetSetupExperienceScript(ctx context.Context, teamID *uint, downloadRequested bool) (*Script, []byte, error)
-	// SetSetupExperienceScript sets the setup experience script for the given team.
+	// SetSetupExperienceScript sets the setup experience script for a given team, deleting the existing one if it exists
+	// and is different and replacing it with a new one. Effectively an upsert operation which does nothing if the contents
+	// do not change
 	SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error
 	// DeleteSetupExperienceScript deletes the setup experience script for the given team.
 	DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error
@@ -1341,6 +1360,16 @@ type Service interface {
 	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, setupError string, err error)
 	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Okta conditional access
+
+	// ConditionalAccessGetIdPSigningCert returns the Okta IdP signing certificate (public key only)
+	// for administrators to download and configure in Okta.
+	ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error)
+	// ConditionalAccessGetIdPAppleProfile returns the Apple MDM configuration profile
+	// (for user scope) to configure Okta conditional access on the host.
+	ConditionalAccessGetIdPAppleProfile(ctx context.Context) (profileData []byte, err error)
 
 	//////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities
