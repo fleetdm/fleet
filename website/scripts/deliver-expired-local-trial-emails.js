@@ -44,7 +44,7 @@ module.exports = {
 
     }
 
-    sails.log(`Sent expired trial emails for ${usersWithRecentlyExpiredLocalTrials.length} user(s).`)
+    sails.log(`Sent expired trial emails for ${usersWithRecentlyExpiredLocalTrials.length} user(s).`);
 
   }
 
