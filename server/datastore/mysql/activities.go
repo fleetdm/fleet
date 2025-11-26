@@ -168,18 +168,20 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 	if opt.StartCreatedAt != "" || opt.EndCreatedAt != "" {
 		start := opt.StartCreatedAt
 		end := opt.EndCreatedAt
-		if start == "" && end != "" {
+		switch {
+		case start == "" && end != "":
 			// Only EndCreatedAt is set, so filter up to end
 			activitiesQ += " AND a.created_at <= ?"
 			args = append(args, end)
-		} else if start != "" && end == "" {
+		case start != "" && end == "":
 			// Only StartCreatedAt is set, so filter from start to now
 			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
 			args = append(args, start, time.Now())
-		} else if start != "" && end != "" {
+		case start != "" && end != "":
 			// Both are set
 			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
 			args = append(args, start, end)
+
 		}
 	}
 

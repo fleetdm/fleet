@@ -2,7 +2,6 @@ import React, { useRef, useMemo } from "react";
 import classnames from "classnames";
 import Select, {
   components,
-  InputProps,
   MenuListProps,
   SelectInstance,
   SingleValue,
@@ -20,8 +19,6 @@ import {
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Icon from "components/Icon";
 import FormField from "components/forms/FormField";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
-import TooltipWrapper from "components/TooltipWrapper";
 
 import { PADDING } from "styles/var/padding";
 import { FONT_SIZES } from "styles/var/fonts";
@@ -32,7 +29,7 @@ declare module "react-select-5/dist/declarations/src/Select" {
     Option,
     IsMulti extends boolean,
     Group extends GroupBase<Option>
-    > {
+  > {
     searchQuery?: string;
     onChangeSearchQuery?: (event: React.ChangeEvent<HTMLInputElement>) => void;
     onClickSearchInput?: React.MouseEventHandler<HTMLInputElement>;
