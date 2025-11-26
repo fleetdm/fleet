@@ -257,6 +257,7 @@ const ActivityTypeDropdown = ({
       <div onClick={toggleMenu}>
         <Select<CustomOptionType, false>
           ref={selectRef}
+          classNamePrefix="activity-type-select"
           styles={customStyles}
           menuIsOpen={menuIsOpen}
           options={options}
