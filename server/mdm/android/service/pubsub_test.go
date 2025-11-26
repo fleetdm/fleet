@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1008,8 +1009,13 @@ func createEnrollmentMessageWithMultipleExternalDetectedEvents(t *testing.T, dev
 }
 
 func createStatusReportMessage(t *testing.T, deviceId, name, policyName string, policyVersion *int, nonComplianceDetails []*androidmanagement.NonComplianceDetail) android.PubSubMessage {
+	return createStatusAppReportMessage(t, deviceId, name, policyName, policyVersion, nil, nonComplianceDetails)
+}
+
+func createStatusAppReportMessage(t *testing.T, deviceId, name, policyName string, policyVersion *int, appReports []*androidmanagement.ApplicationReport, nonComplianceDetails []*androidmanagement.NonComplianceDetail) android.PubSubMessage {
 	device := androidmanagement.Device{
 		Name:                 createAndroidDeviceId(name),
+		ApplicationReports:   appReports,
 		NonComplianceDetails: nonComplianceDetails,
 		HardwareInfo: &androidmanagement.HardwareInfo{
 			EnterpriseSpecificId: deviceId,
@@ -1117,5 +1123,342 @@ func TestBuildNonComplianceErrorMessage(t *testing.T) {
 }
 
 func TestStatusReportAppInstallVerification(t *testing.T) {
-	t.Fatal("IMPLEMENT ME!")
+	svc, mockDS := createAndroidService(t)
+
+	androidDevice := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			UUID: uuid.NewString(),
+		},
+		Device: &android.Device{
+			DeviceID: createAndroidDeviceId("test"),
+		},
+	}
+	mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+		return androidDevice, nil
+	}
+	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				AndroidEnabledAndConfigured: true,
+			},
+		}, nil
+	}
+	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+		return nil
+	}
+	mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+		return nil, nil
+	}
+	mockDS.BulkUpsertMDMAndroidHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
+		return nil
+	}
+	mockDS.BulkDeleteMDMAndroidHostProfilesFunc = func(ctx context.Context, hostUUID string, policyVersionID int64) error {
+		return nil
+	}
+	mockDS.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		return &fleet.UpdateHostSoftwareDBResult{}, nil
+	}
+	mockDS.GetAndroidPolicyRequestByUUIDFunc = func(ctx context.Context, id string) (*android.MDMAndroidPolicyRequest, error) {
+		return nil, &notFoundError{}
+	}
+
+	t.Run("no pending app install", func(t *testing.T) {
+		t.Cleanup(func() {
+			mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = false
+			mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked = false
+			mockDS.BulkSetVPPInstallsAsFailedFuncInvoked = false
+		})
+
+		policyVersion := ptr.Int(1)
+
+		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+			return nil, nil
+		}
+		mockDS.BulkSetVPPInstallsAsVerifiedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+			return nil
+		}
+		mockDS.BulkSetVPPInstallsAsFailedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+			return nil
+		}
+
+		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, nil)
+		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
+		require.NoError(t, err)
+
+		require.True(t, mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked)
+		require.False(t, mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked)
+		require.False(t, mockDS.BulkSetVPPInstallsAsFailedFuncInvoked)
+	})
+
+	t.Run("pending app but in a future version", func(t *testing.T) {
+		t.Cleanup(func() {
+			mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = false
+			mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked = false
+			mockDS.BulkSetVPPInstallsAsFailedFuncInvoked = false
+		})
+
+		pendingApp := &fleet.HostAndroidVPPSoftwareInstall{
+			AdamID:            "com.example.app",
+			CommandUUID:       "a",
+			AssociatedEventID: "2", // future policy version
+		}
+		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+			appVersion, _ := strconv.Atoi(pendingApp.AssociatedEventID)
+			if int64(appVersion) <= version {
+				return []*fleet.HostAndroidVPPSoftwareInstall{pendingApp}, nil
+			}
+			return nil, nil
+		}
+		mockDS.BulkSetVPPInstallsAsVerifiedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+			return nil
+		}
+		mockDS.BulkSetVPPInstallsAsFailedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+			return nil
+		}
+
+		policyVersion := ptr.Int(1)
+		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, nil)
+		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
+		require.NoError(t, err)
+
+		require.True(t, mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked)
+		require.False(t, mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked)
+		require.False(t, mockDS.BulkSetVPPInstallsAsFailedFuncInvoked)
+	})
+
+	t.Run("pending app verified", func(t *testing.T) {
+		t.Cleanup(func() {
+			mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = false
+			mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked = false
+			mockDS.BulkSetVPPInstallsAsFailedFuncInvoked = false
+		})
+
+		pendingApp := &fleet.HostAndroidVPPSoftwareInstall{
+			AdamID:            "com.example.app",
+			CommandUUID:       "a",
+			AssociatedEventID: "2",
+		}
+		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+			appVersion, _ := strconv.Atoi(pendingApp.AssociatedEventID)
+			if int64(appVersion) <= version {
+				return []*fleet.HostAndroidVPPSoftwareInstall{pendingApp}, nil
+			}
+			return nil, nil
+		}
+		mockDS.BulkSetVPPInstallsAsVerifiedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+			require.Equal(t, []string{pendingApp.CommandUUID}, cmdUUIDs)
+			return nil
+		}
+		mockDS.BulkSetVPPInstallsAsFailedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+			require.Empty(t, cmdUUIDs)
+			return nil
+		}
+
+		policyVersion := ptr.Int(2)
+		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
+			{PackageName: pendingApp.AdamID, State: "INSTALLED"},
+		}, nil)
+		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
+		require.NoError(t, err)
+
+		require.True(t, mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked)
+		require.True(t, mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked)
+		require.True(t, mockDS.BulkSetVPPInstallsAsFailedFuncInvoked)
+	})
+
+	t.Run("pending app verified with unrelated non-compliance event", func(t *testing.T) {
+		t.Cleanup(func() {
+			mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = false
+			mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked = false
+			mockDS.BulkSetVPPInstallsAsFailedFuncInvoked = false
+		})
+
+		pendingApp := &fleet.HostAndroidVPPSoftwareInstall{
+			AdamID:            "com.example.app",
+			CommandUUID:       "a",
+			AssociatedEventID: "2",
+		}
+		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+			appVersion, _ := strconv.Atoi(pendingApp.AssociatedEventID)
+			if int64(appVersion) <= version {
+				return []*fleet.HostAndroidVPPSoftwareInstall{pendingApp}, nil
+			}
+			return nil, nil
+		}
+		mockDS.BulkSetVPPInstallsAsVerifiedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+			require.Equal(t, []string{pendingApp.CommandUUID}, cmdUUIDs)
+			return nil
+		}
+		mockDS.BulkSetVPPInstallsAsFailedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+			require.Empty(t, cmdUUIDs)
+			return nil
+		}
+
+		policyVersion := ptr.Int(2)
+		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
+			{PackageName: pendingApp.AdamID, State: "INSTALLED"},
+		}, []*androidmanagement.NonComplianceDetail{
+			{SettingName: "DefaultPermissionPolicy", NonComplianceReason: "INVALID_VALUE"},
+		})
+		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
+		require.NoError(t, err)
+
+		require.True(t, mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked)
+		require.True(t, mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked)
+		require.True(t, mockDS.BulkSetVPPInstallsAsFailedFuncInvoked)
+	})
+
+	t.Run("pending app failed with non-compliance", func(t *testing.T) {
+		t.Cleanup(func() {
+			mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = false
+			mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked = false
+			mockDS.BulkSetVPPInstallsAsFailedFuncInvoked = false
+		})
+
+		pendingApp := &fleet.HostAndroidVPPSoftwareInstall{
+			AdamID:            "com.example.app",
+			CommandUUID:       "a",
+			AssociatedEventID: "2",
+		}
+		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+			appVersion, _ := strconv.Atoi(pendingApp.AssociatedEventID)
+			if int64(appVersion) <= version {
+				return []*fleet.HostAndroidVPPSoftwareInstall{pendingApp}, nil
+			}
+			return nil, nil
+		}
+		mockDS.BulkSetVPPInstallsAsVerifiedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+			require.Empty(t, cmdUUIDs)
+			return nil
+		}
+		mockDS.BulkSetVPPInstallsAsFailedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+			require.Equal(t, []string{pendingApp.CommandUUID}, cmdUUIDs)
+			return nil
+		}
+
+		policyVersion := ptr.Int(2)
+		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
+			{PackageName: pendingApp.AdamID, State: "APPLICATION_STATE_UNSPECIFIED"},
+		}, []*androidmanagement.NonComplianceDetail{
+			{PackageName: pendingApp.AdamID, NonComplianceReason: "APP_NOT_INSTALLED", InstallationFailureReason: "NOT_FOUND"},
+		})
+		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
+		require.NoError(t, err)
+
+		require.True(t, mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked)
+		require.True(t, mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked)
+		require.True(t, mockDS.BulkSetVPPInstallsAsFailedFuncInvoked)
+	})
+
+	t.Run("pending app in progress", func(t *testing.T) {
+		t.Cleanup(func() {
+			mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = false
+			mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked = false
+			mockDS.BulkSetVPPInstallsAsFailedFuncInvoked = false
+		})
+
+		pendingApp := &fleet.HostAndroidVPPSoftwareInstall{
+			AdamID:            "com.example.app",
+			CommandUUID:       "a",
+			AssociatedEventID: "2",
+		}
+		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+			appVersion, _ := strconv.Atoi(pendingApp.AssociatedEventID)
+			if int64(appVersion) <= version {
+				return []*fleet.HostAndroidVPPSoftwareInstall{pendingApp}, nil
+			}
+			return nil, nil
+		}
+		mockDS.BulkSetVPPInstallsAsVerifiedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+			require.Empty(t, cmdUUIDs)
+			return nil
+		}
+		mockDS.BulkSetVPPInstallsAsFailedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+			require.Empty(t, cmdUUIDs)
+			return nil
+		}
+
+		policyVersion := ptr.Int(2)
+		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, nil, []*androidmanagement.NonComplianceDetail{
+			{PackageName: pendingApp.AdamID, NonComplianceReason: "PENDING", InstallationFailureReason: "IN_PROGRESS"},
+		})
+		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
+		require.NoError(t, err)
+
+		require.True(t, mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked)
+		require.True(t, mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked)
+		require.True(t, mockDS.BulkSetVPPInstallsAsFailedFuncInvoked)
+	})
+
+	t.Run("multiple apps in various states", func(t *testing.T) {
+		t.Cleanup(func() {
+			mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = false
+			mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked = false
+			mockDS.BulkSetVPPInstallsAsFailedFuncInvoked = false
+		})
+
+		// 4 apps installed in the same policy, so same version,
+		// and 1 more in a future policy (not possible for setup experience, but
+		// tests the logic)
+		pendingApps := []*fleet.HostAndroidVPPSoftwareInstall{
+			{
+				AdamID:            "com.example.app1",
+				CommandUUID:       "a",
+				AssociatedEventID: "2",
+			},
+			{
+				AdamID:            "com.example.app2",
+				CommandUUID:       "b",
+				AssociatedEventID: "2",
+			},
+			{
+				AdamID:            "com.example.app3",
+				CommandUUID:       "c",
+				AssociatedEventID: "2",
+			},
+			{
+				AdamID:            "com.example.app4",
+				CommandUUID:       "d",
+				AssociatedEventID: "2",
+			},
+			{
+				AdamID:            "com.example.app5",
+				CommandUUID:       "e",
+				AssociatedEventID: "3",
+			},
+		}
+		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+			switch version {
+			case 0, 1:
+				return nil, nil
+			case 2:
+				return pendingApps[:4], nil
+			default:
+				return pendingApps, nil
+			}
+		}
+		mockDS.BulkSetVPPInstallsAsVerifiedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+			require.ElementsMatch(t, []string{"a", "b"}, cmdUUIDs)
+			return nil
+		}
+		mockDS.BulkSetVPPInstallsAsFailedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+			require.ElementsMatch(t, []string{"c", "d"}, cmdUUIDs)
+			return nil
+		}
+
+		policyVersion := ptr.Int(2)
+		// app1 and app2 verified, app3 not reported at all so failed, app4 failed with compliance report
+		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
+			{PackageName: pendingApps[0].AdamID, State: "INSTALLED"},
+			{PackageName: pendingApps[1].AdamID, State: "INSTALLED"},
+		}, []*androidmanagement.NonComplianceDetail{
+			{PackageName: pendingApps[3].AdamID, NonComplianceReason: "APP_NOT_INSTALLED", InstallationFailureReason: "NOT_APPROVED"},
+		})
+		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
+		require.NoError(t, err)
+
+		require.True(t, mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked)
+		require.True(t, mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked)
+		require.True(t, mockDS.BulkSetVPPInstallsAsFailedFuncInvoked)
+	})
 }

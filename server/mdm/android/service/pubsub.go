@@ -733,7 +733,8 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 
 		if report := nonCompliantByPackageName[packageName]; report != nil {
 			if report.NonComplianceReason == "PENDING" || report.InstallationFailureReason == "IN_PROGRESS" {
-				// keep as pending
+				// keep as pending, the understanding is that another pub-sub will follow when the app's state
+				// chances to installed or failed.
 				level.Debug(svc.logger).Log("msg", "Software not reported as installed yet", "host_uuid", hostUUID, "package_name", packageName,
 					"non_compliance_reason", report.NonComplianceReason,
 					"installation_failure_reason", report.InstallationFailureReason)
@@ -760,6 +761,8 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 
 	var toVerifyUUIDs, toFailUUIDs []string
 	for packageName, install := range pendingByPackageName {
+		// ignore those not in markVerified, as they will enter a final state in a future
+		// pub-sub message.
 		if verified, ok := markVerified[packageName]; ok {
 			if verified {
 				toVerifyUUIDs = append(toVerifyUUIDs, install.CommandUUID)

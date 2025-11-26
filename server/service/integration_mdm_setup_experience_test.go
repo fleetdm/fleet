@@ -3517,7 +3517,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 
 	// send a pub-sub with the software installed, to make it verified
 	policyName := fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host.UUID)
-	reportMsg := enrollmentMessageWithEnterpriseSpecificID(
+	reportMsg := statusReportMessageWithEnterpriseSpecificID(
 		t,
 		androidmanagement.Device{
 			Name:                 deviceID,
@@ -3558,4 +3558,76 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
 	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
 	require.Nil(t, getHostSw.Software[1].Status)
+
+	// add app 2 to Android setup experience
+	putResp = putSetupExperienceSoftwareResponse{}
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+		Platform: string(fleet.AndroidPlatform),
+		TeamID:   0,
+		TitleIDs: []uint{app1TitleID, app2TitleID},
+	}, http.StatusOK, &putResp)
+
+	// enroll another Android device
+	deviceID2 := createAndroidDeviceID("test-android-2")
+	enterpriseSpecificID2 := strings.ToUpper(uuid.New().String())
+	enrollmentMessage = enrollmentMessageWithEnterpriseSpecificID(
+		t,
+		androidmanagement.Device{
+			Name:                deviceID2,
+			EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
+		},
+		enterpriseSpecificID2,
+	)
+
+	req = android_service.PubSubPushRequest{
+		PubSubMessage: *enrollmentMessage,
+	}
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
+
+	hosts = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "order_key", "id")
+	require.Len(t, hosts.Hosts, 2)
+	host2 := hosts.Hosts[1]
+	require.EqualValues(t, fleet.AndroidPlatform, host.Platform)
+	require.NotEqual(t, host.ID, host2.ID)
+
+	patchAppsCallCount = 0
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		patchAppsCallCount++
+		switch patchAppsCallCount {
+		case 1:
+			// first call to make apps available for self-install
+			require.Len(t, appPolicies, 2, "initial call to make apps available for self-install should have 2 apps")
+			require.Equal(t, appPolicies[0].InstallType, "AVAILABLE")
+			require.Equal(t, appPolicies[0].PackageName, app1.VPPAppID.AdamID)
+			require.Equal(t, appPolicies[1].InstallType, "AVAILABLE")
+			require.Equal(t, appPolicies[1].PackageName, app2.VPPAppID.AdamID)
+		case 2:
+			// second call for setup experience, should have both apps
+			require.Len(t, appPolicies, 2, "second call for setup experience should have 2 apps")
+			require.Equal(t, appPolicies[0].InstallType, "FORCE_INSTALLED")
+			require.Equal(t, appPolicies[0].PackageName, app1.VPPAppID.AdamID)
+			require.Equal(t, appPolicies[1].InstallType, "FORCE_INSTALLED")
+			require.Equal(t, appPolicies[1].PackageName, app2.VPPAppID.AdamID)
+		default:
+			t.Fatalf("unexpected call count %d to EnterprisesPoliciesModifyPolicyApplications", patchAppsCallCount)
+		}
+
+		return &androidmanagement.Policy{Version: int64(patchAppsCallCount)}, nil
+	}
+	s.runWorkerUntilDone()
+
+	// the pending installs should show up in the host software
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host2.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"order_key", "name")
+	require.Len(t, getHostSw.Software, 2)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[1].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[1].Status)
 }
