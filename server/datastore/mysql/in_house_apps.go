@@ -305,11 +305,18 @@ func (ds *Datastore) DeleteInHouseApp(ctx context.Context, id uint) error {
 		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "delete in house app: remove pending in house app installs")
 		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM software_title_display_names WHERE (software_title_id, team_id) IN
+			(SELECT title_id, global_or_team_id FROM in_house_apps WHERE id = ?)`, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete software title display name")
+		}
+
 		_, err = tx.ExecContext(ctx, `DELETE FROM in_house_apps WHERE id = ?`, id)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete in house app")
 		}
-		return err
+		return nil
 	})
 	return err
 }
