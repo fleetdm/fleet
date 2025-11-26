@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "125.10.7",
+      "version": "125.10.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.figma.Desktop';"
       },
-      "installer_url": "https://desktop.figma.com/mac-arm/Figma-125.10.7.zip",
+      "installer_url": "https://desktop.figma.com/mac-arm/Figma-125.10.8.zip",
       "install_script_ref": "86648375",
       "uninstall_script_ref": "d5a2e180",
-      "sha256": "1efbded052eb3eb29e6db9a1893bd1a67488a0f8f472b7592aee1dd0b58b8eb3",
+      "sha256": "890114f864d386a68d75f5e3effe38f7ac7c5c1dee3e4b8f10fc98fb43171e9b",
       "default_categories": [
         "Productivity"
       ]

@@ -147,10 +147,19 @@ Business reviews are conducted quarterly or bi-annually to ensure initial succes
     - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for #g-mdm and #g-endpoint-ops
 3. After the business review, save the presentation as a PDF and share it with your customer.
 
+### Track a customer promise
+
+Customer promises are contractually obligated feature requests, with guaranteed completion in specific timeframes. These are always represented in a signed contract with the customer. The [Customer promises internal spreadsheet](https://docs.google.com/spreadsheets/d/11Z6zDD4UQktc34IZTtRpNmYZMqndjfLDgFP92P4s7cI/edit?gid=0#gid=0) is our current source of truth. It will be maintained and updated by the Customer Success team. Each CSM is responsible for adding in the following when they are assigned a new customer with contractual promises: 
+1. The name of the customer
+2. The feature that was promised
+3. The date that it's due
+4. The current status of that feature
+
+The SVP of Customer Success is the DRI for ensuring customer promise delivery and communicating delays in delivery to the CSM team, in conjunction with the Head of Product Design. Any potential delays in customer promises are addressed with a contract amendment highlighting the updated delivery timeline and is to be signed by the customer via DocuSign, or via an email highlighting the updated delivery time which requires a written response from the customer acknowledging the new timeline. 
 
 ### Close out a completed customer promise
 
-Customer promises are contractually obligated feature requests, with guaranteed completion in specific timeframes. These are always represented in a signed contract with the customer. Document the completion of a customer promise through the following steps:
+Document the completion of a customer promise through the following steps:
 1. When a customer promise is thought to be complete, Fleet's product team will reach out and ask the assigned CSM for confirmation from the customer.
 2. Once notified, reach out to your customer and schedule a meeting to review the work that has been done, and to make sure it meets their requirements.
 3. At the end of the customer promise review meeting, tell your customer that you will be sending over an email going over the discussion and completion of their promise.
