@@ -1017,6 +1017,9 @@ func TestListHosts(t *testing.T) {
 			{ID: 1},
 		}, nil
 	}
+	ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+		return make(map[uint]*fleet.HostLockWipeStatus), nil
+	}
 
 	userContext := test.UserContext(ctx, test.UserAdmin)
 	hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{})
