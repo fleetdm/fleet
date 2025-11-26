@@ -102,8 +102,7 @@ The following terms apply to Professional Services delivered by Fleet to Custome
 Customer will reasonably cooperate and use good faith efforts with Fleet to facilitate the performance of the Professional Services which shall include, but not be limited, to the following: (i) assigning a project manager with the requisite skills and training to serve as Customer’s primary point of contact; (ii) allocating sufficient resources to ensure Customer’s ability to meet its obligations; (iii) establishing the overall project direction, including assigning and managing the Customer’s project personnel team; and (iv) providing Fleet with, or access to, such facilities (if applicable), equipment and support as are reasonably necessary for Fleet to provide Professional Services, including remote access to the hardware and systems software configuration on which Fleet supports use of the Subscription Products licensed by Fleet to Customer.  
 
 
-*This work, "Fleet Subscription Terms",  is a derivative of "[GitLab Subscription Terms](https://about.gitlab.com/terms/#subscription)", by [GitLab B.V.](https://about.gitlab.com/company/), used [under CC BY-SA 4.0](https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/96c14468bbd29236dc1c3556bdf9514d966ca3d1/source/includes/cc-license.html.haml). "Fleet Subscription Terms" is licensed under CC BY-SA 4.0 by Fleet Device Management Inc.*  
-[![][image1]](https://creativecommons.org/licenses/by-sa/4.0/)
+*This work, "Fleet Subscription Terms",  is a derivative of "[GitLab Subscription Terms](https://about.gitlab.com/terms/#subscription)", by [GitLab B.V.](https://about.gitlab.com/company/), used [under CC BY-SA 4.0](https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/96c14468bbd29236dc1c3556bdf9514d966ca3d1/source/includes/cc-license.html.haml). "Fleet Subscription Terms" is licensed under CC BY-SA 4.0 by Fleet Device Management Inc.*
 
 
 <meta name="maintainedBy" value="mikermcneil">
