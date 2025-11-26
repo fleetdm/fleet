@@ -23,9 +23,9 @@ class ScepClientImplTest {
     }
 
     @Test
-    fun `enroll with invalid URL throws ScepNetworkException`() = runTest {
+    fun `enroll with malformed URL throws ScepNetworkException`() = runTest {
         val config = ScepConfig(
-            url = "not-a-valid-url",
+            url = "http://[invalid",
             challenge = "secret",
             alias = "cert",
             subject = "CN=Test",

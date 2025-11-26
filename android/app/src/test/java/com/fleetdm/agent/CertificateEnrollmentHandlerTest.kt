@@ -191,6 +191,39 @@ class CertificateEnrollmentHandlerTest {
         assertTrue(failure.reason.contains("Invalid configuration"))
     }
 
+    @Test
+    fun `handler rejects URL without scheme`() = runTest {
+        val certData = JSONObject().apply {
+            put("scep_url", "scep.example.com/path")
+            put("challenge", "secret123")
+            put("alias", "device-cert")
+            put("subject", "CN=Device123,O=FleetDM")
+        }
+
+        val result = handler.handleEnrollment(certData.toString())
+
+        assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
+        val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
+        assertTrue(failure.reason.contains("Invalid configuration"))
+    }
+
+    @Test
+    fun `handler rejects key length below 2048`() = runTest {
+        val certData = JSONObject().apply {
+            put("scep_url", "https://scep.example.com/path")
+            put("challenge", "secret123")
+            put("alias", "device-cert")
+            put("subject", "CN=Device123,O=FleetDM")
+            put("key_length", 1024)
+        }
+
+        val result = handler.handleEnrollment(certData.toString())
+
+        assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
+        val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
+        assertTrue(failure.reason.contains("Invalid configuration"))
+    }
+
     // Helper functions
 
     private fun createValidCertDataJson(): JSONObject = JSONObject().apply {

@@ -72,6 +72,11 @@ class ScepClientImpl : ScepClient {
                 throw ScepNetworkException("Invalid SCEP URL: ${config.url}", e)
             }
 
+            // OptimisticCertificateVerifier is used intentionally because:
+            // 1. SCEP URL is provided by the authenticated MDM server
+            // 2. Challenge password authenticates the enrollment request
+            // 3. Enterprise SCEP servers often use internal CAs not in system trust stores
+            // 4. The enrolled certificate itself is validated when used
             val verifier = OptimisticCertificateVerifier()
             val client = Client(server, verifier)
 

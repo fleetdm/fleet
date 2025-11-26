@@ -84,27 +84,49 @@ class ScepConfigTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
-    fun `key length below 1024 throws exception`() {
+    fun `key length below 2048 throws exception`() {
         ScepConfig(
-            url = "https://scep.example.com",
-            challenge = "secret",
-            alias = "cert",
-            subject = "CN=Test",
-            keyLength = 512,
-        )
-    }
-
-    @Test
-    fun `minimum key length 1024 is accepted`() {
-        val config = ScepConfig(
             url = "https://scep.example.com",
             challenge = "secret",
             alias = "cert",
             subject = "CN=Test",
             keyLength = 1024,
         )
+    }
 
-        assertEquals(1024, config.keyLength)
+    @Test
+    fun `minimum key length 2048 is accepted`() {
+        val config = ScepConfig(
+            url = "https://scep.example.com",
+            challenge = "secret",
+            alias = "cert",
+            subject = "CN=Test",
+            keyLength = 2048,
+        )
+
+        assertEquals(2048, config.keyLength)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `url without scheme throws exception`() {
+        ScepConfig(
+            url = "scep.example.com",
+            challenge = "secret",
+            alias = "cert",
+            subject = "CN=Test",
+        )
+    }
+
+    @Test
+    fun `http url is accepted`() {
+        val config = ScepConfig(
+            url = "http://scep.example.com",
+            challenge = "secret",
+            alias = "cert",
+            subject = "CN=Test",
+        )
+
+        assertEquals("http://scep.example.com", config.url)
     }
 
     @Test

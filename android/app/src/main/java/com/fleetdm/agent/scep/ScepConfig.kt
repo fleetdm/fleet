@@ -20,9 +20,13 @@ data class ScepConfig(
 ) {
     init {
         require(url.isNotBlank()) { "SCEP URL cannot be blank" }
+        require(url.startsWith("http://") || url.startsWith("https://")) {
+            "SCEP URL must start with http:// or https://"
+        }
         require(challenge.isNotBlank()) { "Challenge password cannot be blank" }
         require(alias.isNotBlank()) { "Certificate alias cannot be blank" }
         require(subject.isNotBlank()) { "Subject cannot be blank" }
-        require(keyLength >= 1024) { "Key length must be at least 1024 bits" }
+        require(keyLength >= 2048) { "Key length must be at least 2048 bits" }
+        require(signatureAlgorithm.isNotBlank()) { "Signature algorithm cannot be blank" }
     }
 }

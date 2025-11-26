@@ -41,9 +41,7 @@ class CertificateService : Service() {
             // Launch the SCEP process in a coroutine on the IO dispatcher
             serviceScope.launch {
                 try {
-                    val result = enrollmentHandler.handleEnrollment(certDataJson)
-
-                    when (result) {
+                    when (val result = enrollmentHandler.handleEnrollment(certDataJson)) {
                         is CertificateEnrollmentHandler.EnrollmentResult.Success -> {
                             Log.i(TAG, "Certificate successfully enrolled and installed with alias: ${result.alias}")
                         }
