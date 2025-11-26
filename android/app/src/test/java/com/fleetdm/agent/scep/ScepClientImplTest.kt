@@ -73,11 +73,6 @@ class ScepClientImplTest {
         }
     }
 
-    @Test
-    fun `ScepClientImpl is properly initialized`() {
-        assertNotNull(scepClient)
-    }
-
     // Note: Testing successful enrollment requires a mock SCEP server or extensive mocking
     // of jScep's Client class. Integration tests should be used for this scenario.
 }
