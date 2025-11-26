@@ -49,7 +49,7 @@ class CertificateEnrollmentHandler(private val scepClient: ScepClient, private v
             val installed = certificateInstaller.installCertificate(
                 config.alias,
                 result.privateKey,
-                result.certificateChain,
+                result.certificateChain.toTypedArray(),
             )
 
             if (installed) {

@@ -96,7 +96,7 @@ class ScepClientImpl : ScepClient {
 
                     ScepResult(
                         privateKey = keyPair.private,
-                        certificateChain = certificates.toTypedArray(),
+                        certificateChain = certificates,
                     )
                 }
                 response.isPending -> {

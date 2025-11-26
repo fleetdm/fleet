@@ -59,7 +59,7 @@ class MockScepClient : ScepClient {
 
         return ScepResult(
             privateKey = keyPair.private,
-            certificateChain = arrayOf(cert),
+            certificateChain = listOf(cert),
         )
     }
 

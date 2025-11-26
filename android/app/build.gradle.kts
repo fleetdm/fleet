@@ -185,11 +185,11 @@ dependencies {
     implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
 
     // Apache Commons - Utilities used by jScep
-    implementation("commons-codec:commons-codec:1.17.1")
+    implementation("commons-codec:commons-codec:1.20.0")
 
     // Logging - Required by jScep
-    implementation("org.slf4j:slf4j-api:2.0.16")
-    implementation("org.slf4j:slf4j-simple:2.0.16")
+    implementation("org.slf4j:slf4j-api:2.0.17")
+    implementation("org.slf4j:slf4j-simple:2.0.17")
 
     // Testing
     testImplementation(libs.junit)
