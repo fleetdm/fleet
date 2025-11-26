@@ -409,7 +409,7 @@ const EditIconModal = ({
         >
           <SoftwareDetailsSummary
             displayName={displayName || previewInfo.titleName}
-            name={name}
+            name={previewInfo.titleName}
             type={type}
             source={source}
             iconUrl={
@@ -509,7 +509,7 @@ const EditIconModal = ({
             // Known limitation: we cannot see VPP app icons as the fallback when a custom icon
             // is set as VPP icon is not returned by the API if a custom icon is returned
             <SoftwareIcon
-              name={previewInfo.name}
+              name={previewInfo.titleName}
               source={previewInfo.source}
               url={isSoftwarePackage ? undefined : software.icon_url} // fallback PNG icons only exist for VPP apps
               uploadedAt={iconUploadedAt}
