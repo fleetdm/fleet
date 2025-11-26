@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -2304,6 +2305,18 @@ func (c *Client) DoGitOps(
 		return nil, nil, err
 	}
 
+	if !incoming.IsNoTeam() {
+		// Apply Android certificates if present
+		err = c.doGitOpsAndroidCertificates(incoming, logFn, dryRun)
+		if err != nil {
+			var gitOpsErr *gitOpsValidationError
+			if errors.As(err, &gitOpsErr) {
+				return nil, nil, gitOpsErr.WithFileContext(baseDir, filename)
+			}
+			return nil, nil, err
+		}
+	}
+
 	// apply icon changes from software installers and VPP apps
 	if len(teamSoftwareInstallers) > 0 || len(teamVPPApps) > 0 {
 		iconUpdates := fleet.IconChanges{}.WithUploadedHashes(iconSettings.UploadedHashes).WithSoftware(teamSoftwareInstallers, teamVPPApps)
@@ -2853,6 +2866,119 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 			}
 		}
 	}
+	return nil
+}
+
+func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
+	certificates := make([]fleet.CertificateTemplateSpec, 0)
+
+	// Extract Android certificates from config if there are any.
+	if config.Controls.AndroidSettings != nil {
+		androidSettings, ok := config.Controls.AndroidSettings.(fleet.AndroidSettings)
+		if ok && androidSettings.Certificates.Valid && len(androidSettings.Certificates.Value) > 0 {
+			certificates = androidSettings.Certificates.Value
+		}
+	}
+
+	numCerts := len(certificates)
+
+	teamID := ""
+	if config.TeamID != nil {
+		teamID = fmt.Sprintf("%d", *config.TeamID)
+	} else {
+		// TODO -- implement "no team" certs
+		return nil
+		// return errors.New("applying Android certificates: Team ID is required")
+	}
+
+	if numCerts > 0 {
+		logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+	}
+
+	// existing certificate templates
+	existingCertificates, err := c.GetCertificateTemplates(teamID)
+	if err != nil {
+		return fmt.Errorf("applying Android certificates: getting existing Android certificates: %w", err)
+	}
+
+	// getting certificate authorities
+	cas, err := c.GetCertificateAuthorities()
+	if err != nil {
+		return fmt.Errorf("getting certificate authorities: %w", err)
+	}
+	caIDsByName := make(map[string]uint)
+	for _, ca := range cas {
+		caIDsByName[ca.Name] = ca.ID
+	}
+
+	certRequests := make([]*fleet.CertificateRequestSpec, len(certificates))
+	certsToBeAdded := make(map[string]struct{})
+	for i := range certificates {
+		if !certificates[i].NameValid() {
+			return newGitOpsValidationError(
+				`Invalid characters in "name" field. Only letters, numbers, spaces, dashes, and underscores allowed.`,
+			)
+		}
+
+		caID, ok := caIDsByName[certificates[i].CertificateAuthorityName]
+		if !ok {
+			return fmt.Errorf("certificate authority %q not found for certificate %q",
+				certificates[i].CertificateAuthorityName, certificates[i].Name)
+		}
+
+		certRequests[i] = &fleet.CertificateRequestSpec{
+			Name:                   certificates[i].Name,
+			Team:                   teamID,
+			CertificateAuthorityId: caID,
+			SubjectName:            certificates[i].SubjectName,
+		}
+		if _, ok := certsToBeAdded[certificates[i].Name]; ok {
+			return newGitOpsValidationError(
+				fmt.Sprintf(
+					`The name %q is already used by another certificate. Please choose a different name and try again.`,
+					certificates[i].Name,
+				),
+			)
+		}
+
+		certsToBeAdded[certificates[i].Name] = struct{}{}
+	}
+
+	var certificatesToDelete []uint
+	for _, cert := range existingCertificates {
+		if cert != nil {
+			if _, ok := certsToBeAdded[cert.Name]; !ok {
+				certificatesToDelete = append(certificatesToDelete, cert.ID)
+			}
+		}
+	}
+
+	if len(certificatesToDelete) > 0 {
+		if dryRun {
+			logFn("[-] would've deleted %s\n", numberWithPluralization(len(certificatesToDelete), "Android certificate", "Android certificates"))
+		} else {
+			logFn("[-] deleting %s\n", numberWithPluralization(len(certificatesToDelete), "Android certificate", "Android certificates"))
+			tmId, err := strconv.ParseUint(teamID, 10, 0)
+			if err != nil {
+				return fmt.Errorf("applying Android certificates: parsing team ID: %w", err)
+			}
+			if err := c.DeleteCertificateTemplates(certificatesToDelete, uint(tmId)); err != nil {
+				return fmt.Errorf("applying Android certificates: deleting existing Android certificates: %w", err)
+			}
+		}
+	}
+
+	if numCerts > 0 {
+		if dryRun {
+			logFn("[+] would've applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+		} else {
+			if err := c.ApplyCertificateSpecs(certRequests); err != nil {
+				return fmt.Errorf("applying Android certificates: %w", err)
+			}
+			logFn("[+] applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+		}
+	}
+
 	return nil
 }
 
