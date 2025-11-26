@@ -1505,10 +1505,8 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 	}
 
 	// Build map of host ID to host for lookups
-	hostMap := make(map[uint]*fleet.Host, len(hosts))
 	hostIDs := make([]uint, 0, len(hosts))
 	for _, host := range hosts {
-		hostMap[host.ID] = host
 		hostIDs = append(hostIDs, host.ID)
 	}
 
