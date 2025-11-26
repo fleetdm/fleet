@@ -891,6 +891,10 @@ func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterprise
 ) error {
 	var errs []error
 	if packageName := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE"); packageName != "" {
+		sha256Fingerprint := os.Getenv("FLEET_DEV_ANDROID_AGENT_SHA256")
+		if sha256Fingerprint == "" {
+			return ctxerr.New(ctx, "FLEET_DEV_ANDROID_AGENT_SHA256 must be set when FLEET_DEV_ANDROID_AGENT_PACKAGE is set")
+		}
 		for uuid, managedConfig := range hostConfigs {
 			policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, uuid)
 
@@ -907,6 +911,16 @@ func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterprise
 				DefaultPermissionPolicy: "GRANT",
 				DelegatedScopes:         []string{"CERT_INSTALL"},
 				ManagedConfiguration:    managedConfigJSON,
+				SigningKeyCerts: []*androidmanagement.ApplicationSigningKeyCert{
+					{
+						SigningKeyCertFingerprintSha256: sha256Fingerprint,
+					},
+				},
+				Roles: []*androidmanagement.Role{
+					{
+						RoleType: "COMPANION_APP",
+					},
+				},
 			}
 			_, err = svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName,
 				[]*androidmanagement.ApplicationPolicy{fleetAgentApp})

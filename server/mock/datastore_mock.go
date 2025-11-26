@@ -1515,6 +1515,10 @@ type DeleteMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID str
 
 type GetMDMAndroidProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
+type GetMDMProfileSummaryFromHostCertificateTemplatesFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
+
+type GetHostCertificateTemplatesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error)
+
 type GetHostMDMAndroidProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAndroidProfile, error)
 
 type NewAndroidPolicyRequestFunc func(ctx context.Context, req *fleet.MDMAndroidPolicyRequest) error
@@ -3873,6 +3877,12 @@ type DataStore struct {
 
 	GetMDMAndroidProfilesSummaryFunc        GetMDMAndroidProfilesSummaryFunc
 	GetMDMAndroidProfilesSummaryFuncInvoked bool
+
+	GetMDMProfileSummaryFromHostCertificateTemplatesFunc        GetMDMProfileSummaryFromHostCertificateTemplatesFunc
+	GetMDMProfileSummaryFromHostCertificateTemplatesFuncInvoked bool
+
+	GetHostCertificateTemplatesFunc        GetHostCertificateTemplatesFunc
+	GetHostCertificateTemplatesFuncInvoked bool
 
 	GetHostMDMAndroidProfilesFunc        GetHostMDMAndroidProfilesFunc
 	GetHostMDMAndroidProfilesFuncInvoked bool
@@ -9277,6 +9287,20 @@ func (s *DataStore) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *ui
 	s.GetMDMAndroidProfilesSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAndroidProfilesSummaryFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetMDMProfileSummaryFromHostCertificateTemplates(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	s.mu.Lock()
+	s.GetMDMProfileSummaryFromHostCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMProfileSummaryFromHostCertificateTemplatesFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetHostCertificateTemplates(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error) {
+	s.mu.Lock()
+	s.GetHostCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostCertificateTemplatesFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetHostMDMAndroidProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAndroidProfile, error) {
