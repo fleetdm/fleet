@@ -58,8 +58,8 @@ const generateDateFilter = (dateFilter: string) => {
   switch (dateFilter) {
     case "all":
       return {
-        startDate: "",
-        endDate: "",
+        startDate: undefined,
+        endDate: undefined,
       };
     case "today":
       startDate.setHours(0, 0, 0, 0);
@@ -88,9 +88,9 @@ const generateDateFilter = (dateFilter: string) => {
   }
 
   return {
-    startDate: startDate.toISOString(),
-    endDate: endDate.toISOString(),
-  };
+    startDate: Math.floor(startDate.getTime() / 1000),
+    endDate: Math.ceil(endDate.getTime() / 1000),
+  }; // We convert to seconds since epoch as that is what the backend expects
 };
 
 const ActivityFeed = ({
@@ -163,8 +163,8 @@ const ActivityFeed = ({
       perPage: number;
       query?: string;
       orderDirection?: string;
-      startDate?: string;
-      endDate?: string;
+      startDate?: number;
+      endDate?: number;
       typeFilter?: string[];
     }>
   >(

@@ -26,8 +26,8 @@ import (
 type listActivitiesRequest struct {
 	ListOptions    fleet.ListOptions `url:"list_options"`
 	ActivityType   string            `query:"activity_type,optional"`
-	StartCreatedAt string            `query:"start_created_at,optional"`
-	EndCreatedAt   string            `query:"end_created_at,optional"`
+	StartCreatedAt *int64            `query:"start_created_at,optional"`
+	EndCreatedAt   *int64            `query:"end_created_at,optional"`
 }
 
 type listActivitiesResponse struct {

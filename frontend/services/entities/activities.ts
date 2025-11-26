@@ -44,8 +44,8 @@ export default {
     perPage = DEFAULT_PAGE_SIZE,
     searchQuery = DEFAULT_SEARCH_QUERY,
     orderDirection = ORDER_DIRECTION,
-    startDate = "",
-    endDate = "",
+    startDate?: number,
+    endDate?: number,
     typeFilter = [""]
   ): Promise<IActivitiesResponse> => {
     const { ACTIVITIES } = endpoints;
