@@ -96,6 +96,14 @@ WHERE
 
 	app.DisplayName = displayName
 
+	config, err := ds.GetAndroidAppConfiguration(ctx, app.AdamID, tmID) // tmID can be used as globalOrTeamID
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get android configuration for app store app")
+	}
+	if config != nil && config.Configuration != nil {
+		app.Configuration = config.Configuration
+	}
+
 	if teamID != nil {
 		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, *teamID)
 		if err != nil {
@@ -642,6 +650,12 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			}
 		}
 
+		if app.Configuration != nil && app.Platform == fleet.AndroidPlatform {
+			if err := ds.updateAndroidAppConfigurationTx(ctx, tx, teamID, app.AdamID, app.Configuration); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting configuration for android app")
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -886,6 +900,7 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 			if count > 0 {
 				return errDeleteInstallerWithAssociatedPolicy
 			}
+
 		}
 		return ctxerr.Wrap(ctx, err, "delete VPP app from team")
 	}
@@ -905,13 +920,35 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 		return notFound("VPPApp").WithMessage(fmt.Sprintf("adam id %s platform %s for team id %d", appID.AdamID, appID.Platform,
 			globalOrTeamID))
 	}
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM software_title_display_names 	WHERE team_id = ? AND 
+		software_title_id IN (SELECT title_id FROM vpp_apps WHERE adam_id = ?)`, globalOrTeamID, appID.AdamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete software title display name")
+	}
+
+	if appID.Platform == fleet.AndroidPlatform {
+		err := ds.DeleteAndroidAppConfiguration(ctx, appID.AdamID, globalOrTeamID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "deleting android app configuration")
+		}
+	}
+
 	return nil
 }
 
 func (ds *Datastore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error) {
+	stmt := `
+	SELECT
+		va.name AS name,
+		va.title_id AS title_id,
+		COALESCE(stdn.display_name, '') AS display_name
+	FROM vpp_apps va
+    JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND vat.platform = va.platform AND vat.id = ?
+    LEFT JOIN software_title_display_names stdn ON stdn.software_title_id = va.title_id AND stdn.team_id = vat.global_or_team_id`
+
 	var info fleet.PolicySoftwareTitle
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &info, `SELECT name, title_id FROM vpp_apps va
-    	JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND vat.platform = va.platform AND vat.id = ?`, vppAppsTeamsID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &info, stmt, vppAppsTeamsID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP title info from VPP apps teams ID")

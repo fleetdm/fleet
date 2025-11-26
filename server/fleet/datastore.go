@@ -1007,6 +1007,8 @@ type Datastore interface {
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollRef string, isPersonalEnrollment bool) error
 	// UpdateMDMData updates the `enrolled` field of the host with the given ID.
 	UpdateMDMData(ctx context.Context, hostID uint, enrolled bool) error
+	// UpdateMDMInstalledFromDEP updates the `installed_from_dep` field of the host with the given ID.
+	UpdateMDMInstalledFromDEP(ctx context.Context, hostID uint, installedFromDep bool) error
 	// GetHostEmails returns the emails associated with the provided host for a given source, such as "google_chrome_profiles"
 	GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error)
 	// SetOrUpdateHostDisksSpace sets or updates the gigs_total_disk_space and gigs_all_disk_space
@@ -1692,6 +1694,9 @@ type Datastore interface {
 	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
 	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
 
+	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
+	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)
+
 	// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id
 	MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error
 
@@ -1710,7 +1715,7 @@ type Datastore interface {
 	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
 
 	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID.
-	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) error
+	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
 
 	// GetMDMWindowsConfigProfile returns the Windows MDM profile corresponding
 	// to the specified profile uuid.
@@ -2333,6 +2338,13 @@ type Datastore interface {
 	// assigned to any team).
 	GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
+	// GetCertificateStatusSummary GetCertificateTemplatesSummary returns a summary of the current state of certificate templates on each host in
+	// the specified team (or, if no team is specified, each host that is not assigned to any team).
+	GetMDMProfileSummaryFromHostCertificateTemplates(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
+
+	// GetHostCertificateTemplates returns what certificate templates are currently associated with the specified host.
+	GetHostCertificateTemplates(ctx context.Context, hostUUID string) ([]HostCertificateTemplate, error)
+
 	// GetHostMDMAndroidProfiles retrieves the Android MDM profiles for a specific host.
 	GetHostMDMAndroidProfiles(ctx context.Context, hostUUID string) ([]HostMDMAndroidProfile, error)
 
@@ -2355,6 +2367,19 @@ type Datastore interface {
 	// that are currently marked as enrolled in Fleet (host_mdm.enrolled=1).
 	// It returns a minimal device struct with host and device identifiers.
 	ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error)
+
+	// GetAndroidAppConfiguration retrieves the configuration for an Android app
+	// identified by adam_id and global_or_team_id.
+	GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*AndroidAppConfiguration, error)
+
+	// InsertAndroidAppConfiguration creates a new Android app configuration entry.
+	InsertAndroidAppConfiguration(ctx context.Context, config *AndroidAppConfiguration) error
+
+	// UpdateAndroidAppConfiguration updates an existing Android app configuration.
+	UpdateAndroidAppConfiguration(ctx context.Context, config *AndroidAppConfiguration) error
+
+	// DeleteAndroidAppConfiguration removes an Android app configuration.
+	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
@@ -2482,6 +2507,21 @@ type Datastore interface {
 	// update, delete). Deletes are processed first based on name and type. Adds and updates are
 	// processed together as upserts using INSERT...ON DUPLICATE KEY UPDATE.
 	BatchApplyCertificateAuthorities(ctx context.Context, ops CertificateAuthoritiesBatchOperations) error
+	// UpdateCertificateStatus allows a host to update the installation status of a certificate given its template.
+	UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status MDMDeliveryStatus) error
+
+	// BatchUpsertCertificateTemplates upserts a batch of certificates.
+	BatchUpsertCertificateTemplates(ctx context.Context, certificates []*CertificateTemplate) error
+	// BatchDeleteCertificateTemplates deletes a batch of certificates.
+	BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) error
+	// CreateCertificateTemplate creates a new certificate template.
+	CreateCertificateTemplate(ctx context.Context, certificateTemplate *CertificateTemplate) (*CertificateTemplateResponseFull, error)
+	// DeleteCertificateTemplate deletes a certificate template by its ID.
+	DeleteCertificateTemplate(ctx context.Context, id uint) error
+	// GetCertificateTemplateById gets a certificate template by its ID.
+	GetCertificateTemplateById(ctx context.Context, id uint) (*CertificateTemplateResponseFull, error)
+	// GetCertificateTemplatesByTeamID gets all certificate templates for a team.
+	GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, page, perPage int) ([]*CertificateTemplateResponseSummary, *PaginationMetadata, error)
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)

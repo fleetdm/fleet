@@ -725,6 +725,8 @@ type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, isServer bool
 
 type UpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool) error
 
+type UpdateMDMInstalledFromDEPFunc func(ctx context.Context, hostID uint, installedFromDep bool) error
+
 type GetHostEmailsFunc func(ctx context.Context, hostUUID string, source string) ([]string, error)
 
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64, gigsAll *float64) error
@@ -1123,6 +1125,8 @@ type MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc func(ctx context.Context, 
 
 type MDMWindowsGetEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
+type MDMWindowsGetEnrolledDeviceWithHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error)
+
 type MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) error
 
 type MDMWindowsInsertCommandForHostsFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error
@@ -1133,7 +1137,7 @@ type MDMWindowsSaveResponseFunc func(ctx context.Context, deviceID string, enric
 
 type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
 
-type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostUUID string, mdmDeviceID string) error
+type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
 
 type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
 
@@ -1511,6 +1515,10 @@ type DeleteMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID str
 
 type GetMDMAndroidProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
+type GetMDMProfileSummaryFromHostCertificateTemplatesFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
+
+type GetHostCertificateTemplatesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error)
+
 type GetHostMDMAndroidProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAndroidProfile, error)
 
 type NewAndroidPolicyRequestFunc func(ctx context.Context, req *fleet.MDMAndroidPolicyRequest) error
@@ -1520,6 +1528,14 @@ type ListMDMAndroidProfilesToSendFunc func(ctx context.Context) ([]*fleet.MDMAnd
 type GetMDMAndroidProfilesContentsFunc func(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
 
 type ListAndroidEnrolledDevicesForReconcileFunc func(ctx context.Context) ([]*android.Device, error)
+
+type GetAndroidAppConfigurationFunc func(ctx context.Context, adamID string, globalOrTeamID uint) (*fleet.AndroidAppConfiguration, error)
+
+type InsertAndroidAppConfigurationFunc func(ctx context.Context, config *fleet.AndroidAppConfiguration) error
+
+type UpdateAndroidAppConfigurationFunc func(ctx context.Context, config *fleet.AndroidAppConfiguration) error
+
+type DeleteAndroidAppConfigurationFunc func(ctx context.Context, adamID string, globalOrTeamID uint) error
 
 type CreateScimUserFunc func(ctx context.Context, user *fleet.ScimUser) (uint, error)
 
@@ -1604,6 +1620,20 @@ type DeleteCertificateAuthorityFunc func(ctx context.Context, certificateAuthori
 type UpdateCertificateAuthorityByIDFunc func(ctx context.Context, id uint, certificateAuthority *fleet.CertificateAuthority) error
 
 type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error
+
+type UpdateCertificateStatusFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus) error
+
+type BatchUpsertCertificateTemplatesFunc func(ctx context.Context, certificates []*fleet.CertificateTemplate) error
+
+type BatchDeleteCertificateTemplatesFunc func(ctx context.Context, certificateTemplateIDs []uint) error
+
+type CreateCertificateTemplateFunc func(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponseFull, error)
+
+type DeleteCertificateTemplateFunc func(ctx context.Context, id uint) error
+
+type GetCertificateTemplateByIdFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error)
+
+type GetCertificateTemplatesByTeamIDFunc func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
 
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
@@ -2663,6 +2693,9 @@ type DataStore struct {
 	UpdateMDMDataFunc        UpdateMDMDataFunc
 	UpdateMDMDataFuncInvoked bool
 
+	UpdateMDMInstalledFromDEPFunc        UpdateMDMInstalledFromDEPFunc
+	UpdateMDMInstalledFromDEPFuncInvoked bool
+
 	GetHostEmailsFunc        GetHostEmailsFunc
 	GetHostEmailsFuncInvoked bool
 
@@ -3260,6 +3293,9 @@ type DataStore struct {
 	MDMWindowsGetEnrolledDeviceWithDeviceIDFunc        MDMWindowsGetEnrolledDeviceWithDeviceIDFunc
 	MDMWindowsGetEnrolledDeviceWithDeviceIDFuncInvoked bool
 
+	MDMWindowsGetEnrolledDeviceWithHostUUIDFunc        MDMWindowsGetEnrolledDeviceWithHostUUIDFunc
+	MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked bool
+
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc        MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked bool
 
@@ -3842,6 +3878,12 @@ type DataStore struct {
 	GetMDMAndroidProfilesSummaryFunc        GetMDMAndroidProfilesSummaryFunc
 	GetMDMAndroidProfilesSummaryFuncInvoked bool
 
+	GetMDMProfileSummaryFromHostCertificateTemplatesFunc        GetMDMProfileSummaryFromHostCertificateTemplatesFunc
+	GetMDMProfileSummaryFromHostCertificateTemplatesFuncInvoked bool
+
+	GetHostCertificateTemplatesFunc        GetHostCertificateTemplatesFunc
+	GetHostCertificateTemplatesFuncInvoked bool
+
 	GetHostMDMAndroidProfilesFunc        GetHostMDMAndroidProfilesFunc
 	GetHostMDMAndroidProfilesFuncInvoked bool
 
@@ -3856,6 +3898,18 @@ type DataStore struct {
 
 	ListAndroidEnrolledDevicesForReconcileFunc        ListAndroidEnrolledDevicesForReconcileFunc
 	ListAndroidEnrolledDevicesForReconcileFuncInvoked bool
+
+	GetAndroidAppConfigurationFunc        GetAndroidAppConfigurationFunc
+	GetAndroidAppConfigurationFuncInvoked bool
+
+	InsertAndroidAppConfigurationFunc        InsertAndroidAppConfigurationFunc
+	InsertAndroidAppConfigurationFuncInvoked bool
+
+	UpdateAndroidAppConfigurationFunc        UpdateAndroidAppConfigurationFunc
+	UpdateAndroidAppConfigurationFuncInvoked bool
+
+	DeleteAndroidAppConfigurationFunc        DeleteAndroidAppConfigurationFunc
+	DeleteAndroidAppConfigurationFuncInvoked bool
 
 	CreateScimUserFunc        CreateScimUserFunc
 	CreateScimUserFuncInvoked bool
@@ -3982,6 +4036,27 @@ type DataStore struct {
 
 	BatchApplyCertificateAuthoritiesFunc        BatchApplyCertificateAuthoritiesFunc
 	BatchApplyCertificateAuthoritiesFuncInvoked bool
+
+	UpdateCertificateStatusFunc        UpdateCertificateStatusFunc
+	UpdateCertificateStatusFuncInvoked bool
+
+	BatchUpsertCertificateTemplatesFunc        BatchUpsertCertificateTemplatesFunc
+	BatchUpsertCertificateTemplatesFuncInvoked bool
+
+	BatchDeleteCertificateTemplatesFunc        BatchDeleteCertificateTemplatesFunc
+	BatchDeleteCertificateTemplatesFuncInvoked bool
+
+	CreateCertificateTemplateFunc        CreateCertificateTemplateFunc
+	CreateCertificateTemplateFuncInvoked bool
+
+	DeleteCertificateTemplateFunc        DeleteCertificateTemplateFunc
+	DeleteCertificateTemplateFuncInvoked bool
+
+	GetCertificateTemplateByIdFunc        GetCertificateTemplateByIdFunc
+	GetCertificateTemplateByIdFuncInvoked bool
+
+	GetCertificateTemplatesByTeamIDFunc        GetCertificateTemplatesByTeamIDFunc
+	GetCertificateTemplatesByTeamIDFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -6449,6 +6524,13 @@ func (s *DataStore) UpdateMDMData(ctx context.Context, hostID uint, enrolled boo
 	return s.UpdateMDMDataFunc(ctx, hostID, enrolled)
 }
 
+func (s *DataStore) UpdateMDMInstalledFromDEP(ctx context.Context, hostID uint, installedFromDep bool) error {
+	s.mu.Lock()
+	s.UpdateMDMInstalledFromDEPFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateMDMInstalledFromDEPFunc(ctx, hostID, installedFromDep)
+}
+
 func (s *DataStore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {
 	s.mu.Lock()
 	s.GetHostEmailsFuncInvoked = true
@@ -7842,6 +7924,13 @@ func (s *DataStore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context,
 	return s.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc(ctx, mdmDeviceID)
 }
 
+func (s *DataStore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	s.mu.Lock()
+	s.MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error {
 	s.mu.Lock()
 	s.MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked = true
@@ -7877,7 +7966,7 @@ func (s *DataStore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID
 	return s.GetMDMWindowsCommandResultsFunc(ctx, commandUUID)
 }
 
-func (s *DataStore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) error {
+func (s *DataStore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error) {
 	s.mu.Lock()
 	s.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked = true
 	s.mu.Unlock()
@@ -9200,6 +9289,20 @@ func (s *DataStore) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *ui
 	return s.GetMDMAndroidProfilesSummaryFunc(ctx, teamID)
 }
 
+func (s *DataStore) GetMDMProfileSummaryFromHostCertificateTemplates(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	s.mu.Lock()
+	s.GetMDMProfileSummaryFromHostCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMProfileSummaryFromHostCertificateTemplatesFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetHostCertificateTemplates(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error) {
+	s.mu.Lock()
+	s.GetHostCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostCertificateTemplatesFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) GetHostMDMAndroidProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAndroidProfile, error) {
 	s.mu.Lock()
 	s.GetHostMDMAndroidProfilesFuncInvoked = true
@@ -9233,6 +9336,34 @@ func (s *DataStore) ListAndroidEnrolledDevicesForReconcile(ctx context.Context) 
 	s.ListAndroidEnrolledDevicesForReconcileFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListAndroidEnrolledDevicesForReconcileFunc(ctx)
+}
+
+func (s *DataStore) GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*fleet.AndroidAppConfiguration, error) {
+	s.mu.Lock()
+	s.GetAndroidAppConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAndroidAppConfigurationFunc(ctx, adamID, globalOrTeamID)
+}
+
+func (s *DataStore) InsertAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
+	s.mu.Lock()
+	s.InsertAndroidAppConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertAndroidAppConfigurationFunc(ctx, config)
+}
+
+func (s *DataStore) UpdateAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
+	s.mu.Lock()
+	s.UpdateAndroidAppConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateAndroidAppConfigurationFunc(ctx, config)
+}
+
+func (s *DataStore) DeleteAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) error {
+	s.mu.Lock()
+	s.DeleteAndroidAppConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteAndroidAppConfigurationFunc(ctx, adamID, globalOrTeamID)
 }
 
 func (s *DataStore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (uint, error) {
@@ -9527,6 +9658,55 @@ func (s *DataStore) BatchApplyCertificateAuthorities(ctx context.Context, ops fl
 	s.BatchApplyCertificateAuthoritiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchApplyCertificateAuthoritiesFunc(ctx, ops)
+}
+
+func (s *DataStore) UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus) error {
+	s.mu.Lock()
+	s.UpdateCertificateStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateCertificateStatusFunc(ctx, hostUUID, certificateTemplateID, status)
+}
+
+func (s *DataStore) BatchUpsertCertificateTemplates(ctx context.Context, certificates []*fleet.CertificateTemplate) error {
+	s.mu.Lock()
+	s.BatchUpsertCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchUpsertCertificateTemplatesFunc(ctx, certificates)
+}
+
+func (s *DataStore) BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) error {
+	s.mu.Lock()
+	s.BatchDeleteCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchDeleteCertificateTemplatesFunc(ctx, certificateTemplateIDs)
+}
+
+func (s *DataStore) CreateCertificateTemplate(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponseFull, error) {
+	s.mu.Lock()
+	s.CreateCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateCertificateTemplateFunc(ctx, certificateTemplate)
+}
+
+func (s *DataStore) DeleteCertificateTemplate(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteCertificateTemplateFunc(ctx, id)
+}
+
+func (s *DataStore) GetCertificateTemplateById(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
+	s.mu.Lock()
+	s.GetCertificateTemplateByIdFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCertificateTemplateByIdFunc(ctx, id)
+}
+
+func (s *DataStore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.GetCertificateTemplatesByTeamIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCertificateTemplatesByTeamIDFunc(ctx, teamID, page, perPage)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {
