@@ -709,6 +709,13 @@
       "description": "Sublime Text is a text editor for code, markup, and prose."
     },
     {
+      "name": "Tableau Desktop",
+      "slug": "tableau/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.tableausoftware.Desktop.app",
+      "description": "Tableau Desktop is a powerful data visualization and business intelligence platform for analyzing and presenting data insights."
+    },
+    {
       "name": "TablePlus",
       "slug": "tableplus/darwin",
       "platform": "darwin",
