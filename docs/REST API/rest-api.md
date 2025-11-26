@@ -10183,7 +10183,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple 
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | **Required**. Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, .ipa, `.sh`, and `.ps1`. |
+| software        | file    | form | **Required**. Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`. |
 | team_id         | integer | form | The team ID. Adds a software package to the specified team. If not specified, it will add the software for hosts with no team. |
 | install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
 | uninstall_script  | string | form | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
@@ -10281,7 +10281,7 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | id | integer | path | ID of the software title being updated. |
-| software        | file    | form | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, .ipa , `.sh`, and `.ps1`.   |
+| software        | file    | form | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`.   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
 | display_name    | string  | form | Optional override for the default `name`. |
 | categories        | string[] | form | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
