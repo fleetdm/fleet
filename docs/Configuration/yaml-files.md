@@ -942,14 +942,6 @@ Can only be configured for all teams (`org_settings`).
 
 Can only be configured for all teams (`org_settings`).
 
-#### smallstep
-
-- `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
-- `url` is the **SCEP URL** from Smallstep.
-- `challenge_url` is the **Webhook URL** from Smallstep.
-- `username` is the **Challenge Basic Authentication Username** from Smallstep.
-- `password` is the **Challenge Basic Authentication Password** from Smallstep.
-
 ### webhook_settings
 
 The `webhook_settings` section lets you define webhook settings for failing policy, vulnerability, and host status [automations](https://fleetdm.com/docs/using-fleet/automations).

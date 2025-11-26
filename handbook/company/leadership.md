@@ -158,7 +158,9 @@ Fleet uses [certain email templates](https://docs.google.com/document/d/1VAMWIH8
 
 At Fleet, we use the contact form and email to communicate with future team members. Community members will often inquire about positions that aren't currently being hired for.  The DRI for receiving applications is Fleet's VP of Customer Success, whose team uses a set of template responses and updates Fleet's HRIS with new applicants.  Fleet's SLA for responding to applicants is 1 business day, though this doesn't necessarily mean that the hiring manager has bandwidth to take further action after that initial reply.  In that initial reply, candidates are encouraged to apply for future positions if they don't hear back further within a few days.
 
-> Recommending someone for an [open position](https://fleetdm.com/handbook/company#open-positions) at Fleet? [Add their info to the spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) and leave a Google Doc comment @-mentioning the hiring manager or [Head of People](https://fleetdm.com/handbook/people#team). 
+> **Recommending someone for an [open position](https://fleetdm.com/handbook/company#open-positions) at Fleet?**
+>
+> [Add their info to the spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) and leave a Google Doc comment @-mentioning the hiring manager or [Head of People](https://fleetdm.com/handbook/people#team). 
 
 Department-specific interviewing instructions:
 - [Engineering](https://fleetdm.com/handbook/engineering#interview-a-developer-candidate)
@@ -187,7 +189,7 @@ Consultants [track time using the company's tools](https://fleetdm.com/handbook/
 
 > To update a consultant's fee, [submit an issue to 🧑‍🚀 People](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&title=Update%20consultant%20fee) with the consultant's name and new hourly rate.
 
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/e9d36657-fab9-44c1-9162-7bc640e2f3a0">
+
 
 
 ## Hiring a consultant

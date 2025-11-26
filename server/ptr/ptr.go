@@ -76,3 +76,15 @@ func Duration(x time.Duration) *time.Duration {
 func T[T any](x T) *T {
 	return &x
 }
+
+// ValOrZero returns the value of x if x is not nil, and the zero value
+// for T otherwise.
+func ValOrZero[T any](x *T) T {
+	var ret T
+
+	if x != nil {
+		return *x
+	}
+
+	return ret
+}

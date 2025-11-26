@@ -6,7 +6,10 @@
 - [File carving](#file-carving)
 - [Hosts](#hosts)
 - [Labels](#labels)
-- [Mobile device management (MDM)](#mobile-device-management-mdm)
+- [OS Settings](#os-settings)
+- [Setup Experience](#setup-experience)
+- [Commands](#commands)
+- [Integrations](#integrations-1)
 - [Policies](#policies)
 - [Queries](#queries)
 - [Schedule (deprecated)](#schedule)
@@ -6535,7 +6538,7 @@ Get information about a bootstrap package that was uploaded to Fleet.
 
 In the response above:
 
-- `token` is the value you can use to [download a bootstrap package](#download-a-bootstrap-package)
+- `token` is the value you can use to [download a bootstrap package](#download-bootstrap-package)
 - `sha256` is the SHA256 digest of the bytes of the bootstrap package file.
 
 
@@ -10389,8 +10392,8 @@ Add a package (.pkg, .ipa, .msi, .exe, .deb, .rpm, .tar.gz) to install on Apple 
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | **Required**. Installer package file. Supported packages are .pkg, .ipa, .msi, .exe, .deb, .rpm, and .tar.gz |
-| team_id         | integer | form | **Required**. The team ID. Adds a software package to the specified team. |
+| software        | file    | form | **Required**. Installer package file. Supported packages are .pkg, .msi, .exe, .deb, .rpm, .tar.gz, and .ipa   |
+| team_id         | integer | form | The team ID. Adds a software package to the specified team. If not specified, it will add the software for hosts with no team. |
 | install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
 | uninstall_script  | string | form | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |

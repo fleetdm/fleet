@@ -155,6 +155,7 @@ export const SoftwareActionButtons = ({
 
 interface ISoftwareInstallerCardProps {
   softwareTitleName: string;
+  softwareDisplayName: string;
   isScriptPackage?: boolean;
   isIosOrIpadosApp?: boolean;
   name: string;
@@ -183,6 +184,7 @@ interface ISoftwareInstallerCardProps {
 // of packages we should consider refactoring this to be more dynamic.
 const SoftwareInstallerCard = ({
   softwareTitleName,
+  softwareDisplayName,
   isScriptPackage = false,
   isIosOrIpadosApp = false,
   name,
@@ -383,7 +385,8 @@ const SoftwareInstallerCard = ({
         <DeleteSoftwareModal
           gitOpsModeEnabled={gitOpsModeEnabled}
           softwareId={softwareId}
-          softwareInstallerName={softwareInstaller?.name}
+          softwareDisplayName={softwareDisplayName}
+          softwareTitleName={softwareTitleName}
           teamId={teamId}
           onExit={() => setShowDeleteModal(false)}
           onSuccess={onDeleteSuccess}

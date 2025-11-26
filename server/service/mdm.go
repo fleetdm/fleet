@@ -1032,7 +1032,12 @@ func (svc *Service) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *ui
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	return ps, nil
+	hcts, err := svc.ds.GetMDMProfileSummaryFromHostCertificateTemplates(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	return ps.Add(hcts), nil
 }
 
 // authorizeAllHostsTeams is a helper function that loads the hosts
@@ -1630,7 +1635,7 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 		Name:    profileName,
 		RawJSON: data,
 	}
-	if err := cp.ValidateUserProvided(); err != nil {
+	if err := cp.ValidateUserProvided(license.IsPremium(ctx)); err != nil {
 		err := &fleet.BadRequestError{Message: "Couldn't add. " + err.Error()}
 		return nil, ctxerr.Wrap(ctx, err, "validate profile")
 	}
@@ -2484,7 +2489,7 @@ func getAndroidProfiles(ctx context.Context,
 			}
 		}
 
-		if err := mdmProf.ValidateUserProvided(); err != nil {
+		if err := mdmProf.ValidateUserProvided(license.IsPremium(ctx)); err != nil {
 			msg := err.Error()
 			return nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", profile.Name), msg))

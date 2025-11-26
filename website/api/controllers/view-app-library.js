@@ -23,7 +23,9 @@ module.exports = {
     }
 
     let allApps = sails.config.builtStaticContent.appLibrary;
-    allApps = _.sortBy(allApps, 'name');
+    allApps = _.sortBy(allApps, (app)=>{
+      return app.name.toLowerCase();
+    });
     // Respond with view.
     return {
       allApps,

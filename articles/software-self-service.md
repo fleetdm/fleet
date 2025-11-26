@@ -24,35 +24,6 @@ You can also add the software and later make it available in self-service:
 
 If a software item isn't made available in self-service, end users will not see it in **Fleet Desktop > Self-service**. IT admins can still install, update, and uninstall the software from Fleet.
 
-## Deploy self-service on iOS and iPadOS
-
-Install this configuration profile to add the self‑service web app to the home screen on iPhone and iPad. When users open it, they’ll be signed in automatically using the certificate that was installed during enrollment.
-
-### Prerequisites
-
-- Safari must be installed on the host.
-- Infrastructure: load balancers must forward client certificate information to the server via request headers. Fleet [best practice hosting](https://fleetdm.com/docs/deploy/deploy-fleet) methods do this by default.
-
-> **Note:** Self‑service won’t work on Fleet deployments hosted on Render. Render terminates HTTPS connections itself, so the server can’t receive the device certificate information needed to authenticate users.
-
-### Create the self-service configuration profile
-
-On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). Create a new profile and add a **Web Clip** payload with these settings:
-
-#### Under the **General** tab:
-
-- **Name**: Friendly name like "iOS self-service".
-- **Identifier and UUID**: You can use default values.
-
-#### Under the **Web Clip** tab:
-
-- **Label:** Type "Self-service". This name will display as the app name on the home screen.
-- **URL:** `<your_server_url>/device/$FLEET_VAR_HOST_UUID/self-service`
-- **Removable:** Uncheck it.
-- **Icon:** Upload square icon that will be displayed as app icon on the home screen.
-- **Full Screen:** Check this field, and **Ignore Web Clip manifest scope**.
-- **Target Application Bundle Identifier:** Select **Choose...**, type "safari" in search box, and select **Safari - com.apple.mobilesafari** 
-
 ## IT admin experience
 
 How to view, update, install, or uninstall self-service software:
@@ -74,13 +45,8 @@ Tips:
 
 How to update, install, or uninstall self-service software:
 
-**macOS and Windows:**
-1. Find the Fleet icon in your menu bar (macOS) or system tray (Windows) and select **Self-service.** This will open your default web browser to the list of self-service software available to update, install, or uninstall.
-
-**iOS and iPadOS:**
-1. Tap the **Self-service** icon on your home screen. This opens the self-service software catalog where you can update, install, or uninstall approved apps.
-
-If updates are available, end users can update one or all available self-service software. They can also view update progress and error details directly.
+1. Find the Fleet icon in your menu bar and select **Self-service.** This will open your default web browser to the list of self-service software available to update, install, or uninstall.
+2. If updates are available, end users can update one or all available self-service software. They can also view update progress and error details directly.
 
 ## API
 
