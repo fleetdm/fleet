@@ -419,7 +419,7 @@ type HostSoftwareInstallerResult struct {
 const (
 	SoftwareInstallerQueryFailCopy          = "Query didn't return result or failed\nInstall stopped"
 	SoftwareInstallerQuerySuccessCopy       = "Query returned result\nProceeding to install..."
-	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --scripts-enabled."
+	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --enable-scripts."
 	SoftwareInstallerInstallFailCopy        = "Installing software...\nFailed\n%s"
 	SoftwareInstallerInstallSuccessCopy     = "Installing software...\nSuccess\n%s"
 	SoftwareInstallerPostInstallSuccessCopy = "Running script...\nExit code: 0 (Success)\n%s"

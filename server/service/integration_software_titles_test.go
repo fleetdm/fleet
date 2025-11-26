@@ -70,6 +70,17 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		DisplayName:       ptr.String(strings.Repeat("a", 256)),
 	}, http.StatusBadRequest, "The maximum display name length is 255 characters.")
 
+	// Display name can't be all whitespace
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		SelfService:       ptr.Bool(true),
+		InstallScript:     ptr.String("some install script"),
+		PreInstallQuery:   ptr.String("some pre install query"),
+		PostInstallScript: ptr.String("some post install script"),
+		Filename:          "ruby.deb",
+		TitleID:           titleID,
+		TeamID:            &team.ID,
+		DisplayName:       ptr.String(strings.Repeat(" ", 5)),
+	}, http.StatusUnprocessableEntity, "Cannot have a display name that is all whitespace.")
 	// Should update the display name even if no other fields are passed
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:     titleID,
@@ -241,10 +252,15 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	macOSTitleID := addAppResp.TitleID
 
-	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated1")}
+	// Attempt to set name to be all whitespace, should fail
+	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String(strings.Repeat(" ", 5))}
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusUnprocessableEntity)
+	s.Assert().Contains(extractServerErrorText(res.Body), "Cannot have a display name that is all whitespace.")
+
+	// This display name edit should succeed
+	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated1")}
 	var updateAppResp updateAppStoreAppResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK, &updateAppResp)
-
 	s.Assert().Equal(*updateAppReq.DisplayName, updateAppResp.AppStoreApp.DisplayName)
 
 	// Entity has display name
@@ -369,6 +385,11 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &titleID, "SELECT title_id FROM in_house_apps WHERE filename = 'ipa_test.ipa'")
 	})
+
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:     titleID,
+		TeamID:      &team.ID,
+		DisplayName: ptr.String(strings.Repeat(" ", 5))}, http.StatusUnprocessableEntity, "Cannot have a display name that is all whitespace.")
 
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:     titleID,
