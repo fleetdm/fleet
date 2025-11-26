@@ -676,6 +676,9 @@ func TestMDMCommonAuthorization(t *testing.T) {
 	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 		return fleet.DiskEncryptionConfig{}, nil
 	}
+	ds.GetMDMProfileSummaryFromHostCertificateTemplatesFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+		return &fleet.MDMProfilesSummary{}, nil
+	}
 
 	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
 		res := make(map[string]bool, len(hosts))
