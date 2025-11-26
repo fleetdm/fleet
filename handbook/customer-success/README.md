@@ -214,7 +214,7 @@ The acting infrastructure engineer on-call rotation is reflected in the [📈KPI
 - To reach the infrastructure engineer on-call for assistance, a CSE or developer should mention them in Slack using `@infrastructure-oncall` in the [#help-infrastructure](https://fleetdm.slack.com/archives/C051QJU3D0V) channel or in the customer channel where the original request lives. 
   - Support issues must be handled in the relevant customer or internal Slack channel rather than Direct Messages (DMs). This will ensure that questions and solutions can be easily referenced in the future and help the infrastructure engineering team focused on their planned work.
   - A CSE or CSA must always triage and process suspected infrastructure issues before tagging in the infrastructure engineer on-call.
-  - If your request for infrastructure is not urgent and/or not related to a suspected bug or performance issue impacting a customer, please create an issue on the [#help-customers GitHub project](https://github.com/orgs/fleetdm/projects/79/views/1?filterQuery=) and @ mention the SVP of Customer Success to request prioritization. 
+  - If your request for infrastructure is not urgent and/or not related to a suspected bug or performance issue impacting a customer, please create an issue on the [#help-customers kanban board](https://github.com/orgs/fleetdm/projects/79/views/1?filterQuery=) and @ mention the SVP of Customer Success to request prioritization. 
 
 
 ### Onboard a customer success team member
