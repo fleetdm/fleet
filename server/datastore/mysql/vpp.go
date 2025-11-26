@@ -1884,9 +1884,6 @@ FROM vpp_apps`
 }
 
 func (ds *Datastore) GetUnverifiedVPPInstallsForHost(ctx context.Context, hostUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
-	// TODO(mna): currently this is called for Apple-only verification of VPP installs,
-	// might create something similar to this to work for Android and return the additional_event_id field
-	// to support policy-version-based verification.
 	stmt := `
 SELECT
 	hvsi.host_id AS host_id,
