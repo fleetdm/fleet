@@ -1080,9 +1080,6 @@ func (ds *Datastore) GetMDMAppleCommandRequestType(ctx context.Context, commandU
 }
 
 func (ds *Datastore) GetVPPCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
-	// TODO(mna): should we make that work for Android too? For now, relying on the fact that it doesn't
-	// return an error if the result does not exist but the VPP command does exist.
-
 	var results []*fleet.MDMCommandResult
 	err := sqlx.SelectContext(
 		ctx,
@@ -1105,8 +1102,8 @@ LEFT JOIN
 	host_vpp_software_installs hvsi ON ncr.command_uuid = hvsi.command_uuid
 LEFT JOIN
 	upcoming_activities ua ON ncr.command_uuid = ua.execution_id AND ua.activity_type = 'software_install'
-WHERE 
-	ua.id IS NOT NULL OR 
+WHERE
+	ua.id IS NOT NULL OR
 	hvsi.id IS NOT NULL
 `, hostUUID, commandUUID)
 
