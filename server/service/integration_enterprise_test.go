@@ -53,6 +53,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
+	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -12827,7 +12828,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	}
 	http.DefaultTransport = mockTransport
 
-	// jahz: will need something like this to serve the mAanifest - e.g. fake Fleet GitHub
 	// Mock server to serve manifest with no_check/latest
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var versions []*ma.FMAManifestApp
@@ -18183,6 +18183,218 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	addMAResp = addFleetMaintainedAppResponse{}
 	r = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(r.Body), `Only one of "labels_include_any" or "labels_exclude_any" can be included`)
+}
+
+func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
+	// This specifically to test that upgrade_code is correctly correlated with host software has
+	// first been added via FMA. For a more robust handling of possible error scenarios when adding
+	// Maintained Apps, see `TestMaintainedApps`
+
+	t := s.T()
+	ctx := context.Background()
+
+	warpUpgradeCode := "{1BF42825-7B65-4CA9-AFFF-B7B5E1CE27B4}"
+	// mock installer server for when user adds a supporteed FMA (use)
+	installerBytes := []byte("abc")
+
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/badinstaller":
+			_, _ = w.Write([]byte("badinstaller"))
+		case "/timeout":
+			time.Sleep(3 * time.Second)
+			_, _ = w.Write([]byte("timeout"))
+		default:
+			_, _ = w.Write(installerBytes)
+		}
+	}))
+	defer installerServer.Close()
+
+	// Insert the list of maintained apps
+	// TODO - ensure WARP here contains upgrade_code
+	maintained_apps.SyncApps(t, s.ds)
+	// insertedApps := maintained_apps.SyncApps(t, s.ds)
+	// expectedApps := insertedApps
+
+	// verify WARP is in `fleet_maintained_apps` table but not in `software_installers`
+	// name = "Cloudflare WARP" platform = "windows"
+	var warpFma *fleet.MaintainedApp
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &warpFma, "SELECT * FROM fleet_maintained_apps WHERE name = 'Cloudflare WARP' AND platform = 'windows'")
+	})
+	require.NotNil(t, warpFma)
+
+	var warpInstaller *fleet.SoftwareInstaller
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &warpFma, "SELECT * FROM software_installers WHERE filename LIKE '%Cloudflare%WARP%' AND platform = 'windows'")
+	})
+	require.Nil(t, warpInstaller)
+
+	// Mock server to serve manifest with no_check/latest
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// slug := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".json"), "/")
+		var versions []*ma.FMAManifestApp
+		versions = append(versions, &ma.FMAManifestApp{
+			Version: "latest",
+			Queries: ma.FMAQueries{
+				Exists: "SELECT 1 FROM osquery_info;",
+			},
+			InstallerURL: installerServer.URL + "/installer.zip",
+			// InstallerURL:       "https://downloads.cloudflareclient.com/v1/download/windows/version/2025.9.558.0",
+			InstallScriptRef:   "foobaz",
+			UninstallScriptRef: "foobaz",
+			SHA256:             "no_check",
+		})
+
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs: map[string]string{
+				"foobaz": "Hello World!",
+			},
+		}
+		// switch slug {
+		// case "fail":
+		// 	w.WriteHeader(http.StatusInternalServerError)
+		// 	return
+
+		// case "notfound":
+		// 	w.WriteHeader(http.StatusNotFound)
+		// 	return
+
+		// case "badinstaller":
+		// 	manifest.Versions[0].InstallerURL = installerServer.URL + "/badinstaller"
+
+		// case "timeout":
+		// 	manifest.Versions[0].InstallerURL = installerServer.URL + "/timeout"
+		// }
+
+		err := json.NewEncoder(w).Encode(manifest)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(manifestServer.Close)
+	// defer manifestServer.Close()
+
+	// os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	// defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+
+	mockTransport := &mockRoundTripper{
+		mockServer:  manifestServer.URL,
+		origBaseURL: "https://raw.githubusercontent.com",
+		next:        http.DefaultTransport,
+	}
+	http.DefaultTransport = mockTransport
+
+	// Create a team
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	var addMAresp addFleetMaintainedAppResponse
+	req := &addFleetMaintainedAppRequest{
+		// TODO: confirm app id for cloudflare-wwarp
+		AppID:             1,
+		TeamID:            &team.ID,
+		SelfService:       true,
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "echo done",
+	}
+
+	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAresp)
+	require.Nil(t, addMAresp.Err)
+
+	// Verify WARP is now in `software_installers`, a `software_tiles`s row has been created, and they
+	// are associated
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &warpFma, "SELECT * FROM software_installers WHERE filename LIKE '%Cloudflare%WARP%' AND platform = 'windows'")
+	})
+	require.NotNil(t, warpInstaller)
+
+	var lSTResp listSoftwareTitlesResponse
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &lSTResp,
+		"per_page", "1",
+		"order_key", "name",
+		"order_direction", "desc",
+		"available_for_install", "true",
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	title := lSTResp.SoftwareTitles[0]
+	require.Equal(t, warpInstaller.TitleID, title.ID)
+	require.Equal(t, warpInstaller.UpgradeCode, title.UpgradeCode)
+
+	// Create a host on the team
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "windows",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	// mock osquery software ingestion
+
+	ac, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features, osquery_utils.Integrations{}, nil)
+
+	rows := []map[string]string{
+		{
+			"name":         "Cloudflare WARP",
+			"version":      "25.9.558.0",
+			"source":       "programs",
+			"vendor":       "Cloudflare, Inc.",
+			"upgrade_code": warpUpgradeCode,
+		},
+	}
+	err = detailQueries["software_windows"].DirectIngestFunc(
+		context.Background(),
+		kitlog.NewNopLogger(),
+		&fleet.Host{ID: host.ID},
+		s.ds,
+		rows,
+	)
+	require.NoError(t, err)
+
+	// or like this:
+	// software := []fleet.Software{
+	// 	{Name: "DummyApp", Version: "0.0.2", Source: "apps"},
+	// }
+	// // we must ingest the title with an empty bundle identifier for this
+	// // test to be valid
+	// require.Empty(t, software[0].BundleIdentifier)
+	// _, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	// require.NoError(t, err)
+	// require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+	// require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// TODO confirm SW, SW title, host software in db with upgrade codes
+	var swId *uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &swId, "SELECT id FROM software WHERE upgrade_code = ?", warpUpgradeCode)
+	})
+	require.NotNil(t, swId)
+
+	// GET host software endpoint(s), confirm upgrade_code in versions
+	var hSWRes getHostSoftwareResponse
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID),
+		getHostSoftwareRequest{},
+		http.StatusOK, &hSWRes,
+	)
+	// should only be the single software and software title in the database
+	require.Equal(t, hSWRes.Count, 1)
+	require.Equal(t, len(hSWRes.Software), 1)
+	sw0 := hSWRes.Software[0]
+	require.Equal(t, sw0.UpgradeCode, warpUpgradeCode)
 }
 
 func (s *integrationEnterpriseTestSuite) TestWindowsMigrateMDMNotEnabled() {
