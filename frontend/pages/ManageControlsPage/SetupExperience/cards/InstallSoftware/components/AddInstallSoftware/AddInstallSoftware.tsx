@@ -82,7 +82,7 @@ const AddInstallSoftware = ({
         platformText = "iPadOS";
         break;
       default:
-        platformText = capitalize(platform);
+        platformText = capitalize(platform); // e.g. Windows, Android
     }
 
     if (noSoftwareUploaded) {
@@ -101,15 +101,21 @@ const AddInstallSoftware = ({
       );
     }
 
+    const orderTooltip =
+      platform === "android"
+        ? "Software order will vary."
+        : "Installation order will depend on software name, starting with 0-9 then A-Z.";
+
     return installSoftwareDuringSetupCount === 0 ? (
       "No software selected."
     ) : (
       <>
         {installSoftwareDuringSetupCount} software item
         {installSoftwareDuringSetupCount > 1 && "s"} will be{" "}
-        <TooltipWrapper tipContent="Installation order will depend on software name, starting with 0-9 then A-Z.">
-          installed during setup.
+        <TooltipWrapper tipContent={orderTooltip}>
+          installed during setup
         </TooltipWrapper>
+        .
       </>
     );
   };
