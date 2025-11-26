@@ -4,5 +4,5 @@
   "unique_identifier": "at.obdev.LittleSnitch",
   "token": "little-snitch",
   "installer_format": "dmg",
-  "default_categories": ["Security"]
+  "default_categories": ["Developer tools"]
 }
