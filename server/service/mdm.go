@@ -1032,7 +1032,12 @@ func (svc *Service) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *ui
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	return ps, nil
+	hcts, err := svc.ds.GetMDMProfileSummaryFromHostCertificateTemplates(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	return ps.Add(hcts), nil
 }
 
 // authorizeAllHostsTeams is a helper function that loads the hosts
@@ -2443,7 +2448,6 @@ func getAndroidProfiles(ctx context.Context,
 	appCfg *fleet.AppConfig,
 	profiles map[int]fleet.MDMProfileBatchPayload,
 	labelMap map[string]fleet.ConfigurationProfileLabel,
-	// isPremium bool,
 ) (map[int]*fleet.MDMAndroidConfigProfile, error) {
 	profs := make(map[int]*fleet.MDMAndroidConfigProfile, len(profiles))
 	for i, profile := range profiles {
