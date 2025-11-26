@@ -402,6 +402,8 @@ type ApplyCertificateTemplateSpecsFunc func(ctx context.Context, specs []*fleet.
 
 type DeleteCertificateTemplateSpecsFunc func(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
 
+type UpdateCertificateStatusFunc func(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus) error
+
 type GlobalScheduleQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
 
 type GetGlobalScheduledQueriesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
@@ -1440,6 +1442,9 @@ type Service struct {
 
 	DeleteCertificateTemplateSpecsFunc        DeleteCertificateTemplateSpecsFunc
 	DeleteCertificateTemplateSpecsFuncInvoked bool
+
+	UpdateCertificateStatusFunc        UpdateCertificateStatusFunc
+	UpdateCertificateStatusFuncInvoked bool
 
 	GlobalScheduleQueryFunc        GlobalScheduleQueryFunc
 	GlobalScheduleQueryFuncInvoked bool
@@ -3479,6 +3484,13 @@ func (s *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certificat
 	s.DeleteCertificateTemplateSpecsFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteCertificateTemplateSpecsFunc(ctx, certificateTemplateIDs, teamID)
+}
+
+func (s *Service) UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus) error {
+	s.mu.Lock()
+	s.UpdateCertificateStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateCertificateStatusFunc(ctx, certificateTemplateID, status)
 }
 
 func (s *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {

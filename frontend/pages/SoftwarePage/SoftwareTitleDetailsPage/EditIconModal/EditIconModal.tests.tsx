@@ -89,6 +89,11 @@ describe("EditIconModal", () => {
       const displayNameInput = screen.getByLabelText("Display name");
       expect(displayNameInput).toBeInTheDocument();
       expect(displayNameInput).toHaveValue("New Custom Name");
+      const helpText = screen.getByText(
+        /Optional. If left blank, Fleet will use/
+      );
+
+      expect(helpText).toHaveTextContent(MODIFIED_PROPS.previewInfo.titleName);
     });
 
     it("only edits the display name when icon is not changed", async () => {
@@ -105,13 +110,13 @@ describe("EditIconModal", () => {
       const { user } = render(<EditIconModal {...MOCK_PROPS} />);
 
       const displayNameInput = screen.getByLabelText("Display name");
-      await user.type(displayNameInput, "New Name");
+      await user.type(displayNameInput, "New Name     ");
 
       const saveButton = screen.getByRole("button", { name: "Save" });
       await user.click(saveButton);
 
       expect(editSoftwarePackageSpy).toHaveBeenCalledWith({
-        data: { displayName: "New Name" },
+        data: { displayName: "New Name" }, // whitespace was trimmed
         softwareId: 123,
         teamId: 456,
       });
