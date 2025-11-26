@@ -62,7 +62,6 @@ func (ds *Datastore) ListCertificateTemplatesForHosts(ctx context.Context, hostU
 		return nil, ctxerr.Wrap(ctx, err, "build query for certificate templates")
 	}
 
-	query = ds.reader(ctx).Rebind(query)
 	var results []fleet.CertificateTemplateForHost
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list certificate templates for android hosts")

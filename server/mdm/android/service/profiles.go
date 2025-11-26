@@ -568,7 +568,7 @@ func (r *profileReconciler) processCertificateTemplateBatch(ctx context.Context,
 		}
 	}
 
-	// If no new certificates, we're done
+	// no new certificates to send, we're done
 	if len(newCertificates) == 0 {
 		return nil
 	}
