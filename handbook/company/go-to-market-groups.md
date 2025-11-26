@@ -175,11 +175,11 @@ Schedule a Zoom call with the team **at least one week before** the event.
 
 **On-site responsibilities (DRI)** 
 
-- Make sure the booth/demo area is set up correctly.  
+- Make sure the booth/demo area is set up neatly and correctly.  
 - Ensure **1–2 team members** are at the booth when coverage is needed, based on the event schedule.  
 - Keep the team aligned and on track.  
-- Make sure contacts are created and updated in `Popl', and can be transferred into Salesforce.  
-- Handle any issues that come up and escalate if needed.  
+- Make sure contacts are scanned into `Popl'.  
+- Handle any issues that come up and escalate if needed.
 - Confirm demos, materials, and setups are working.
 
 
@@ -188,22 +188,6 @@ Schedule a Zoom call with the team **at least one week before** the event.
 - Confirm all contacts and leads are recorded, and the team knows any follow-up actions.  
 - Capture lessons learned for future events.  
 - Coordinate content with the **Content Specialist**.
-
-
-##### Creating contacts in the wild
-
-Often, Fleeties will engage with new contacts from current and future customers. These profiles are added to Fleet's CRM quickly. If you're at an event, whether it's a conference, dinner with a prospect, training event, or any other in-person meeting. Fleeties can use the [#help-create-contact Slack channel](https://fleetdm.slack.com/archives/C091MLXQKQV) to collect information and get the person [added to Fleet's CRM quickly](https://fleetdm.com/handbook/marketing#monitor-the-help-create-contact-channel). To do this:
-1. Locate the [help-create-contact](https://fleetdm.slack.com/archives/C091MLXQKQV) channel in Fleet Slack.
-2. Add the person's full name and any other details that can help the team identify the correct person. E.g.:
-  - LinkedIn profile URL (this is the best option)
-  - Company name
-  - Company website
-  - Email
-
-> Please use the following guidelines when posting in the channel:
->   - Use only one top-level message per contact. Don't batch contacts inside one message, and don't create multiple messages for a single person. Use thread replies to add context.
->   - Add as much context as possible to help the team find the right info. At least a full name + one other piece of information is required, but more is preferred.
-
 
 #### SWAG
 
