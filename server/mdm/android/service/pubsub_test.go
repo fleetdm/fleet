@@ -1161,6 +1161,9 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 	mockDS.GetAndroidPolicyRequestByUUIDFunc = func(ctx context.Context, id string) (*android.MDMAndroidPolicyRequest, error) {
 		return nil, &notFoundError{}
 	}
+	mockDS.GetPastActivityDataForAndroidVPPAppInstallFunc = func(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+		return nil, nil, nil
+	}
 
 	t.Run("no pending app install", func(t *testing.T) {
 		t.Cleanup(func() {

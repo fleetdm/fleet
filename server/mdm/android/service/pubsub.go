@@ -788,12 +788,17 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 				return false
 			}
 			// otherwise it's a DB error and we should fail
-			level.Error(svc.logger).Log("msg", "error getting past activity for installed softwaer", "err", err, "host_uuid", hostUUID)
+			level.Error(svc.logger).Log("msg", "error getting past activity for installed software", "err", err, "host_uuid", hostUUID)
 			return true
+		}
+		if act == nil {
+			// could happen if command is not found, but shouldn't
+			level.Debug(svc.logger).Log("msg", "getting past activity for installed software did not find the command", "host_uuid", hostUUID)
+			return false
 		}
 		act.FromSetupExperience = true // currently, all Android app installs are from setup experience
 		if err := svc.activityModule.NewActivity(ctx, user, act); err != nil {
-			level.Error(svc.logger).Log("msg", "error creating past activity for installed softwaer", "err", err, "host_uuid", hostUUID)
+			level.Error(svc.logger).Log("msg", "error creating past activity for installed software", "err", err, "host_uuid", hostUUID)
 			return true
 		}
 		return false
