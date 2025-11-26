@@ -141,7 +141,7 @@ const InstallSoftware = ({
     teamConfig
   );
 
-  const isAndroidMdmEnabled = !globalConfig?.mdm.android_enabled_and_configured;
+  const isAndroidMdmEnabled = globalConfig?.mdm.android_enabled_and_configured;
 
   const renderTabContent = (platform: SetupExperiencePlatform) => {
     if (
