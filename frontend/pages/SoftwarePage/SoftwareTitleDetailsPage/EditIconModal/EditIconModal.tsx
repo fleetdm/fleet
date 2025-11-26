@@ -408,8 +408,8 @@ const EditIconModal = ({
           className={`${baseClass}__preview-card__fleet`}
         >
           <SoftwareDetailsSummary
-            displayName={displayName || name}
-            name={name}
+            displayName={displayName || previewInfo.titleName}
+            name={previewInfo.titleName}
             type={type}
             source={source}
             iconUrl={
@@ -509,14 +509,16 @@ const EditIconModal = ({
             // Known limitation: we cannot see VPP app icons as the fallback when a custom icon
             // is set as VPP icon is not returned by the API if a custom icon is returned
             <SoftwareIcon
-              name={previewInfo.name}
+              name={previewInfo.titleName}
               source={previewInfo.source}
               url={isSoftwarePackage ? undefined : software.icon_url} // fallback PNG icons only exist for VPP apps
               uploadedAt={iconUploadedAt}
             />
           )}
           <div className={`${baseClass}__self-service-preview-name`}>
-            <TooltipTruncatedText value={displayName || previewInfo.name} />
+            <TooltipTruncatedText
+              value={displayName || previewInfo.titleName}
+            />
           </div>
         </div>
       </Card>
@@ -589,7 +591,7 @@ const EditIconModal = ({
         helpText={
           <>
             Optional. If left blank, Fleet will use{" "}
-            <strong>{software.name}</strong>.
+            <strong>{previewInfo.titleName}</strong>.
           </>
         }
         autofocus
@@ -678,25 +680,26 @@ const EditIconModal = ({
 
       if (canSaveDisplayName) {
         try {
+          const trimmedDisplayName = (displayName ?? "").trim();
           await (installerType === "package"
             ? softwareAPI.editSoftwarePackage({
-                data: { displayName },
+                data: { displayName: trimmedDisplayName },
                 softwareId,
                 teamId: teamIdForApi,
               })
             : softwareAPI.editAppStoreApp(softwareId, teamIdForApi, {
-                displayName,
+                displayName: trimmedDisplayName,
               }));
           nameSucceeded = true;
           nameSuccessMessage =
-            displayName === "" ? (
+            trimmedDisplayName === "" ? (
               <>
                 Successfully removed custom name for <b>{previewInfo.name}</b>.
               </>
             ) : (
               <>
                 Successfully renamed <b>{previewInfo.name}</b> to{" "}
-                <b>{displayName}</b>.
+                <b>{trimmedDisplayName}</b>.
               </>
             );
         } catch (e) {

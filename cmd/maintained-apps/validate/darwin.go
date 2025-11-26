@@ -152,6 +152,15 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 			result.Name = software.Name
 
 			level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s, Bundled Version: %s", result.Name, result.Path, result.Version, result.BundledVersion))
+
+			// OneDrive auto-updates immediately after installation, so the installed version
+			// might be newer than the installer version. For OneDrive, we only verify that
+			// the app exists rather than checking the version.
+			if uniqueAppIdentifier == "com.microsoft.OneDrive" {
+				level.Info(logger).Log("msg", "OneDrive detected - skipping version check due to auto-update behavior")
+				return true, nil
+			}
+
 			// Check exact match first
 			if result.Version == appVersion || result.BundledVersion == appVersion {
 				return true, nil
