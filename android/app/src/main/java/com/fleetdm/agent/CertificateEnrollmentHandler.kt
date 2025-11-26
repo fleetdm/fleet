@@ -13,10 +13,7 @@ import java.security.cert.Certificate
  * Handles certificate enrollment business logic without Android framework dependencies.
  * Can be easily tested without Robolectric.
  */
-class CertificateEnrollmentHandler(
-    private val scepClient: ScepClient,
-    private val certificateInstaller: CertificateInstaller,
-) {
+class CertificateEnrollmentHandler(private val scepClient: ScepClient, private val certificateInstaller: CertificateInstaller) {
 
     /**
      * Interface for certificate installation - allows different implementations

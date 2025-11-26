@@ -2,7 +2,6 @@ package com.fleetdm.agent.scep
 
 import com.fleetdm.agent.IntegrationTest
 import com.fleetdm.agent.IntegrationTestRule
-import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -10,6 +9,7 @@ import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import kotlinx.coroutines.test.runTest
 
 /**
  * Integration tests for ScepClientImpl with a real SCEP server.

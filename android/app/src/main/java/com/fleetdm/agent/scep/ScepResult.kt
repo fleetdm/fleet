@@ -9,10 +9,7 @@ import java.security.cert.Certificate
  * @property privateKey The generated private key
  * @property certificateChain The certificate chain from the SCEP server (leaf certificate first)
  */
-data class ScepResult(
-    val privateKey: PrivateKey,
-    val certificateChain: Array<Certificate>,
-) {
+data class ScepResult(val privateKey: PrivateKey, val certificateChain: Array<Certificate>) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

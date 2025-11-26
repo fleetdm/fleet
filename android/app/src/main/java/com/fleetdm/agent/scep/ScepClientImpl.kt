@@ -1,8 +1,6 @@
 package com.fleetdm.agent.scep
 
 import android.util.Log
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.bouncycastle.asn1.DERPrintableString
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers
 import org.bouncycastle.asn1.x500.X500Name
@@ -19,6 +17,8 @@ import java.security.KeyPairGenerator
 import java.security.Security
 import java.security.cert.Certificate
 import java.util.Date
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Implementation of ScepClient using jScep library and BouncyCastle cryptography.
@@ -127,11 +127,7 @@ class ScepClientImpl : ScepClient {
         throw ScepKeyGenerationException("Failed to generate RSA key pair", e)
     }
 
-    private fun createSelfSignedCertificate(
-        entity: X500Name,
-        keyPair: java.security.KeyPair,
-        signatureAlgorithm: String,
-    ) = try {
+    private fun createSelfSignedCertificate(entity: X500Name, keyPair: java.security.KeyPair, signatureAlgorithm: String) = try {
         val now = System.currentTimeMillis()
         val validityEnd = now + (1000L * 60 * 60 * 24 * SELF_SIGNED_CERT_VALIDITY_DAYS)
 
@@ -152,12 +148,7 @@ class ScepClientImpl : ScepClient {
         throw ScepCertificateException("Failed to create self-signed certificate", e)
     }
 
-    private fun buildCsr(
-        entity: X500Name,
-        keyPair: java.security.KeyPair,
-        challenge: String,
-        signatureAlgorithm: String,
-    ) = try {
+    private fun buildCsr(entity: X500Name, keyPair: java.security.KeyPair, challenge: String, signatureAlgorithm: String) = try {
         val csrBuilder = JcaPKCS10CertificationRequestBuilder(entity, keyPair.public)
 
         // Add challenge password attribute

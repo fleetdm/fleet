@@ -1,7 +1,6 @@
 package com.fleetdm.agent
 
 import com.fleetdm.agent.scep.MockScepClient
-import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -12,6 +11,7 @@ import org.junit.Before
 import org.junit.Test
 import java.security.PrivateKey
 import java.security.cert.Certificate
+import kotlinx.coroutines.test.runTest
 
 /**
  * Unit tests for CertificateEnrollmentHandler.
@@ -50,11 +50,7 @@ class CertificateEnrollmentHandlerTest {
         var capturedCertificateChain: Array<Certificate>? = null
         var shouldSucceed = true
 
-        override fun installCertificate(
-            alias: String,
-            privateKey: PrivateKey,
-            certificateChain: Array<Certificate>,
-        ): Boolean {
+        override fun installCertificate(alias: String, privateKey: PrivateKey, certificateChain: Array<Certificate>): Boolean {
             wasInstallCalled = true
             capturedAlias = alias
             capturedPrivateKey = privateKey

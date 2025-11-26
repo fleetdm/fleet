@@ -69,11 +69,7 @@ class CertificateService : Service() {
      * Android-specific certificate installer using DevicePolicyManager.
      */
     inner class AndroidCertificateInstaller : CertificateEnrollmentHandler.CertificateInstaller {
-        override fun installCertificate(
-            alias: String,
-            privateKey: PrivateKey,
-            certificateChain: Array<Certificate>,
-        ): Boolean {
+        override fun installCertificate(alias: String, privateKey: PrivateKey, certificateChain: Array<Certificate>): Boolean {
             val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
 
             // The admin component is null because the caller is a DELEGATED application,
