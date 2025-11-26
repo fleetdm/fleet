@@ -22,7 +22,9 @@ Fleet's Go codebase has grown to over 680,000 lines of code across over 2,300 Go
 
 The pain points of Fleet's current layered architecture are largely the same as for GitLab's monolith and touched upon in [ADR-0001](0001-pilot-service-layer-packages.md).
 
-Here's a recent example. In Sprint 49, two product groups added features that touched the exact same lines of code. The security and compliance team added `upgrade_code` field and the software team added custom titles to the software tables. This cross-team conflict was not caught or flagged by the tech leads. After merging the custom titles feature, the `upgrade_code` PR broke. It took ~1.5 engineer days to identify and fix the issue, impacting sprint velocity and reducing the number of bug fixes delivered. With bounded contexts and clear ownership of the DB tables, this issue should not have happened because, among other reasons, the required sequencing of changes would have been obvious to the team owning the bounded context.
+In Sprint 49, overlapping changes from multiple product groups led to a conflict in the same database tables. The Security and Compliance product group introduced an `upgrade_code` field, while the Software product group simultaneously added custom titles to the same schema. This cross-team collision went unnoticed during review, resulting in a broken pull request after the merge. Resolving the issue required approximately 1.5 engineer-days, slowing sprint velocity and reducing capacity for other planned work.
+
+This incident highlights the lack of clear ownership and bounded contexts within the codebase. With well-defined domain boundaries and team ownership of database tables, the sequencing of changes would have been clearer and the conflict likely avoided.
 
 ### Fleet's activities
 
