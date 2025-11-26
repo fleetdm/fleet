@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/uuid"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
@@ -218,7 +219,6 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 
 func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 	hostUUID string, hostEnrollTeamID uint, enterpriseName string) error {
-
 	host, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "getting android host lite by uuid %s", hostUUID)
@@ -258,11 +258,32 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 		}
-		_ = hostToPolicyRequest
 
-		// TODO(mna): insert each app install into host_vpp_software_installs with status pending,
-		// and store the policy version in associated_event_id (? or a new column?) to track for
-		// install verification.
+		// if it succeeded, it's guaranteed that only one entry exists in that map (as there's only one host)
+		var policyRequest *android.MDMAndroidPolicyRequest
+		for _, req := range hostToPolicyRequest {
+			policyRequest = req
+		}
+		for _, appID := range appIDs {
+			// NOTE: there is a unique index on the command uuid, so we cannot use the
+			// Android request's UUID for this, as we currently add many apps in the same request
+			// per host. For the moment, this is fine as we don't store any response of the request
+			// so there's nothing to show in the UI in the details of the install. When we work
+			// on "standard" Android app install support, we'll have to revisit this and either
+			// make one API request per app per host (which we may have to do anyway to support the
+			// unified queue), or make some DB changes.
+			//
+			// So in the meantime we use a random uuid in this place.
+			err := v.Datastore.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
+				HostID:            host.Host.ID,
+				AdamID:            appID,
+				CommandUUID:       uuid.NewString(),
+				AssociatedEventID: fmt.Sprint(policyRequest.PolicyVersion.V),
+			})
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting android setup experience install request")
+			}
+		}
 	}
 
 	return nil

@@ -1280,7 +1280,15 @@ func createAndroidDeviceID(name string) string {
 	return "enterprises/mock-enterprise-id/devices/" + name
 }
 
+func statusReportMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
+	return messageWithEnterpriseSpecificID(t, android.PubSubStatusReport, deviceInfo, enterpriseSpecificID)
+}
+
 func enrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
+	return messageWithEnterpriseSpecificID(t, android.PubSubEnrollment, deviceInfo, enterpriseSpecificID)
+}
+
+func messageWithEnterpriseSpecificID(t *testing.T, notificationType android.NotificationType, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
 	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
 		EnterpriseSpecificId: enterpriseSpecificID,
 		Brand:                "TestBrand",
@@ -1322,7 +1330,7 @@ func enrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidm
 
 	return &android.PubSubMessage{
 		Attributes: map[string]string{
-			"notificationType": string(android.PubSubEnrollment),
+			"notificationType": string(notificationType),
 		},
 		Data: encodedData,
 	}
