@@ -18290,10 +18290,10 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 	// Verify WARP is now in `software_installers`, a `software_tiles`s row has been created, and they
 	// are associated
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &warpInstaller, "SELECT id, title_id, upgrade_code, filename FROM software_installers LIMIT 1")
+		return sqlx.GetContext(ctx, q, &warpInstaller, "SELECT id, title_id, upgrade_code, filename FROM software_installers WHERE upgrade_code = ?", warpUpgradeCode)
 	})
 	require.NotNil(t, warpInstaller)
-	require.Equal(t, warpUpgradeCode, warpInstaller.UpgradeCode)
+	require.NotNil(t, warpInstaller.Name)
 
 	var lSTResp listSoftwareTitlesResponse
 	s.DoJSON(
