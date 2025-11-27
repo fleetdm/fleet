@@ -19,6 +19,11 @@ type Service interface {
 	// UnenrollAndroidHost triggers unenrollment (work profile removal) for the given Android host ID.
 	UnenrollAndroidHost(ctx context.Context, hostID uint) error
 	EnableAppReportsOnDefaultPolicy(ctx context.Context) error
+
+	// verifyExistingEnterpriseIfAny checks if there's an existing enterprise in the database
+	// and if so, verifies it still exists in Google API. If it doesn't exist, performs cleanup.
+	// Returns fleet.IsNotFound error if enterprise was deleted, nil if no enterprise exists or verification passed.
+	VerifyExistingEnterpriseIfAny(ctx context.Context) error
 }
 
 // /////////////////////////////////////////////

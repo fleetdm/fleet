@@ -124,7 +124,7 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 
 	// Before checking if Android is already configured, verify if existing enterprise still exists
 	// This ensures we detect enterprise deletion even if user goes directly to signup page
-	if err := svc.verifyExistingEnterpriseIfAny(ctx); err != nil {
+	if err := svc.VerifyExistingEnterpriseIfAny(ctx); err != nil {
 		// If verification returns NotFound (enterprise was deleted), continue with signup
 		// Other errors should be returned as-is
 		if !fleet.IsNotFound(err) {
@@ -391,11 +391,6 @@ func (svc *Service) GetEnterprise(ctx context.Context) (*android.Enterprise, err
 		return nil, fleet.NewInvalidArgumentError("enterprise", "No enterprise found").WithStatus(http.StatusNotFound)
 	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err, "getting enterprise")
-	}
-
-	// Verify the enterprise still exists via Google API using shared method
-	if err := svc.verifyEnterpriseExistsWithGoogle(ctx, enterprise); err != nil {
-		return nil, err
 	}
 
 	return enterprise, nil
@@ -746,15 +741,12 @@ func (svc *Service) verifyEnterpriseExistsWithGoogle(ctx context.Context, enterp
 	return fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
 }
 
-// verifyExistingEnterpriseIfAny checks if there's an existing enterprise in the database
-// and if so, verifies it still exists in Google API. If it doesn't exist, performs cleanup.
-// Returns fleet.IsNotFound error if enterprise was deleted, nil if no enterprise exists or verification passed.
-func (svc *Service) verifyExistingEnterpriseIfAny(ctx context.Context) error {
+func (svc *Service) VerifyExistingEnterpriseIfAny(ctx context.Context) error {
 	// Check if there's an existing enterprise
 	enterprise, err := svc.ds.GetEnterprise(ctx)
 	switch {
 	case fleet.IsNotFound(err):
-		// No enterprise exists - this is fine for signup
+		// No enterprise exists - this is fine
 		return nil
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "checking for existing enterprise")
