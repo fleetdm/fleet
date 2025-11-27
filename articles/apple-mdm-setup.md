@@ -58,30 +58,28 @@ Hosts that automatically enroll will be assigned to a default team. You can conf
 
 > A host can be transferred to a new (not default) team before it enrolls. In the Fleet UI, you can do this under **Settings** > **Teams**.
 
-## Manual enrollment
+## Turn on MDM on a host
 
-Fleet supports manual MDM enrollment for macOS devices that are already enrolled in Fleet but not yet managed via MDM.
+Fleet supports manually turning on MDM for macOS hosts that are already enrolled in Fleet.
 
-End users can start manual enrollment directly from their **My device** page.
+End users can turn on MDM from their **Fleet Desktop > My device** page.
 
-### Enroll a macOS host that’s in Apple Business Manager (ABM)
+### Host is in Apple Business Manager (ABM)
 
-If a macOS host is listed in your organization’s ABM:
+If a macOS host is listed in ABM:
 
 1. The end user will see a **Turn on MDM** banner at the top of their **My device** page.
-2. Clicking **Turn on MDM** opens a modal with a step-by-step instruction on how to turn on MDM on their device.
-3. After completing the steps, the device is added to Fleet’s MDM.
+2. Clicking **Turn on MDM** opens a modal with a step-by-step instruction on how to turn on MDM on their host.
+3. After completing the steps, the host has MDM features turned on.
 
-### Enroll a macOS host that’s **not** in Apple Business Manager
+### Host isn't in ABM
 
-If the host isn’t part of ABM, users can still manually enroll:
+If the host isn’t in ABM, users can still turn on MDM:
 
 1. On the **My device** page, the end user sees the same **Turn on MDM** banner.
 2. Clicking **Turn on MDM** opens a new tab.
-   - If **End user authentication** is turned on (in **Controls > Setup experience > End user authentication**), the end user is prompted to sign in with the organization’s identity provider (IdP).
-   - If authentication is successful, or if **End user authentication** is disabled, the end user is taken
-     to an enrollment page and shown instructions to download the enrollment profile and install it
-     on their macOS device to complete MDM enrollment.
+   - If [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) is enabled, the end user is prompted to sign in with your organization’s identity provider (IdP).
+   - If authentication is successful, or if end user authentication is disabled, the end user is taken to a page with instructions to download the manual enrollment profile and install it on their macOS host.
 
 ## Volume Purchasing Program (VPP)
 
