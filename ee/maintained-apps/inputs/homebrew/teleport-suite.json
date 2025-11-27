@@ -1,6 +1,6 @@
 {
   "name": "Teleport Suite",
-  "unique_identifier": "com.gravitational.teleport.tsh",
+  "unique_identifier": "com.gravitational.teleport",
   "token": "teleport-suite",
   "installer_format": "pkg",
   "slug": "teleport-suite/darwin",
