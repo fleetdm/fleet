@@ -18287,7 +18287,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAresp)
 	require.Nil(t, addMAresp.Err)
 
-	// Verify WARP is now in `software_installers`, a `software_tiles`s row has been created, and they
+	// Verify WARP is now in `software_installers`, a `software_tiles` row has been created, and they
 	// are associated
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &warpInstaller, "SELECT id, title_id, upgrade_code, filename FROM software_installers WHERE upgrade_code = ?", warpUpgradeCode)
