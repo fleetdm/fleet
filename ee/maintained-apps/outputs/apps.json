@@ -751,6 +751,13 @@
       "description": "Telegram is a messaging app with a focus on speed and security."
     },
     {
+      "name": "Teleport Connect",
+      "slug": "teleport-connect/darwin",
+      "platform": "darwin",
+      "unique_identifier": "gravitational.teleport.connect",
+      "description": "Teleport Connect is a developer-friendly browser for cloud infrastructure."
+    },
+    {
       "name": "Thunderbird",
       "slug": "thunderbird/darwin",
       "platform": "darwin",
