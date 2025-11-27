@@ -1,3 +1,5 @@
+## Orbit 1.50.1 (Nov 27, 2025)
+
 ## Orbit 1.50.0 (Nov 14, 2025)
 
 * Upgraded macadmins osquery-extension to v1.2.7.
