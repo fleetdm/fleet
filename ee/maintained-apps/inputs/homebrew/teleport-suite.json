@@ -1,0 +1,8 @@
+{
+  "name": "Teleport Suite",
+  "unique_identifier": "com.gravitational.teleport.tsh",
+  "token": "teleport-suite",
+  "installer_format": "pkg",
+  "slug": "teleport-suite/darwin",
+  "default_categories": ["Developer tools"]
+}

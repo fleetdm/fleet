@@ -758,6 +758,13 @@
       "description": "Teleport Connect is a developer-friendly browser for cloud infrastructure."
     },
     {
+      "name": "Teleport Suite",
+      "slug": "teleport-suite/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.gravitational.teleport.tsh",
+      "description": "Teleport Suite is a modern SSH server for teams managing distributed infrastructure."
+    },
+    {
       "name": "Thunderbird",
       "slug": "thunderbird/darwin",
       "platform": "darwin",
