@@ -197,8 +197,8 @@ Notes:
 - `slug` uses `<app-name>/windows` (lowercase, dash-separated name)
 - `unique_identifier` must match `programs.name` exactly
 
-### Step 6: Generate outputs
-From the repo root:
+4. Run the following command from the root of the Fleet repo to generate the app's output data:
+
 ```bash
 go run cmd/maintained-apps/main.go --slug="box-drive/windows" --debug
 ```
