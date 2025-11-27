@@ -249,8 +249,8 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		}
 	}
 
+	var upgradeCode string
 	if (input.InstallerType == installerTypeMSI || input.UninstallType == installerTypeMSI) && input.InstallerScope == machineScope {
-		var upgradeCode string
 		for _, fe := range m.AppsAndFeaturesEntries {
 			if fe.UpgradeCode != "" {
 				upgradeCode = fe.UpgradeCode
@@ -287,6 +287,10 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 	productCode = strings.Split(productCode, ".")[0]
 
+	if upgradeCode != "" {
+		out.UpgradeCode = upgradeCode
+	}
+
 	out.Name = input.Name
 	out.Slug = input.Slug
 	out.InstallerURL = selectedInstaller.InstallerURL
@@ -305,6 +309,8 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if input.UniqueIdentifier != "" {
 		name = input.UniqueIdentifier
 	}
+
+	// TODO - consider UpgradeCode here?
 	existsTemplate := "SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';"
 	if input.FuzzyMatchName {
 		existsTemplate = "SELECT 1 FROM programs WHERE name LIKE '%s %%' AND publisher = '%s';"
