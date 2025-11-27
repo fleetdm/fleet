@@ -103,6 +103,10 @@ forget_pkg '(.*).com.gravitational.teleport.tsh'
 remove_pkg_files 'com.gravitational.teleport'
 forget_pkg 'com.gravitational.teleport'
 
+# Explicitly remove apps from /Applications (in case pkgutil removal didn't catch them)
+sudo rm -rf '/Applications/tctl.app'
+sudo rm -rf '/Applications/tsh.app'
+
 # Remove binaries
 sudo rm -rf '/usr/local/bin/fdpass-teleport'
 sudo rm -rf '/usr/local/bin/tbot'
