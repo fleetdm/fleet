@@ -14693,6 +14693,7 @@ INSERT INTO host_certificate_templates (
 		templateID              uint
 		nodeKey                 string
 		newStatus               string
+		detail                  *string
 		expectedResponseStatus  int
 		expectedResponseMessage string
 	}{
@@ -14701,6 +14702,7 @@ INSERT INTO host_certificate_templates (
 			templateID:             certificateTemplateID,
 			nodeKey:                nodeKey,
 			newStatus:              "verified",
+			detail:                 ptr.String("Certificate Verified"),
 			expectedResponseStatus: http.StatusOK,
 		},
 		{
@@ -14735,6 +14737,7 @@ INSERT INTO host_certificate_templates (
 			s.DoJSON("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", tc.templateID), updateCertificateStatusRequest{
 				NodeKey: tc.nodeKey,
 				Status:  tc.newStatus,
+				Detail:  tc.detail,
 			}, tc.expectedResponseStatus, &resp)
 		})
 	}
