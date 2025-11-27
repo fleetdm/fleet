@@ -550,9 +550,9 @@ software:
 
 - `display_name` is the package name that will be displayed in the UI. If not set, `name` will be used instead.
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
-- `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
-- `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
-- `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
+- `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg). Not supported for `.sh` and `.ps1` files.
+- `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg). Not supported for `.sh` and `.ps1` files.
+- `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default. Not supported for `.sh` and `.ps1` files.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon built into Fleet. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
 
 #### Example
@@ -926,14 +926,6 @@ Can only be configured for all teams (`org_settings`).
 - `password` is the **Challenge Basic Authentication Password** from Smallstep.
 
 Can only be configured for all teams (`org_settings`).
-
-#### smallstep
-
-- `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
-- `url` is the **SCEP URL** from Smallstep.
-- `challenge_url` is the **Webhook URL** from Smallstep.
-- `username` is the **Challenge Basic Authentication Username** from Smallstep.
-- `password` is the **Challenge Basic Authentication Password** from Smallstep.
 
 ### webhook_settings
 
