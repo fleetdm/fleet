@@ -18255,14 +18255,11 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 	})
 	require.NotNil(t, warpFmaId)
 
-	var warpInstaller fleet.SoftwareInstaller
+	var count uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		err := sqlx.GetContext(ctx, q, &warpInstaller, "SELECT id, title_id, upgrade_code FROM software_installers WHERE filename LIKE 'installer.msi' AND platform = 'windows'")
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil
-		}
-		return err
+		return sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM software_installers")
 	})
+	require.Zero(t, count)
 
 	// Create a team
 	var newTeamResp teamResponse
@@ -18289,6 +18286,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	// Verify WARP is now in `software_installers`, a `software_tiles` row has been created, and they
 	// are associated
+	var warpInstaller fleet.SoftwareInstaller
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &warpInstaller, "SELECT id, title_id, upgrade_code, filename FROM software_installers WHERE upgrade_code = ?", warpUpgradeCode)
 	})
