@@ -38,7 +38,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 
-	/* android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service" */
+	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/tests"
 	"google.golang.org/api/androidmanagement/v1"
@@ -125,6 +125,7 @@ type integrationMDMTestSuite struct {
 	appleGDMFSrv              *httptest.Server
 	mockedDownloadFleetdmMeta fleetdbase.Metadata
 	scepConfig                *eeservice.SCEPConfigService
+	androidSvc                *android_service.Service
 	androidAPIClient          *android_mock.Client
 	proxyCallbackURL          string
 }
@@ -203,17 +204,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		wlog = kitlog.NewNopLogger()
 	}
-
-	androidMockClient := &android_mock.Client{}
-	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
-		return nil
-	}
-	/* androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, svc, "test-private-key", s.ds)
-	if err != nil {
-		panic(err)
-	}
-	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true */
-	// TODO: FIX ANDROID SVC INIT
 
 	macosJob := &worker.MacosSetupAssistant{
 		Datastore:  s.ds,
@@ -362,24 +352,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			},
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
-					const name = string(fleet.CronCleanupsThenAggregation)
-					logger := cronLog
-					cleanupsSchedule = schedule.New(
-						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
-						schedule.WithLogger(logger),
-						schedule.WithJob("cleanup_android_enterprise", func(ctx context.Context) error {
-							if s.onCleanupScheduleDone != nil {
-								defer s.onCleanupScheduleDone()
-							}
-							return nil
-							/* return androidSvc.VerifyExistingEnterpriseIfAny(ctx) */
-						}),
-					)
-					return cleanupsSchedule, nil
-				}
-			},
-			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
-				return func() (fleet.CronSchedule, error) {
 					const name = string(fleet.CronAppleMDMIPhoneIPadRefetcher)
 					logger := cronLog
 					refetcherSchedule := schedule.New(
@@ -414,10 +386,21 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	// initialization pattern works fine in our normal fleet server setup
 	appleMDMJob.VPPInstaller = svc
 
+	androidMockClient := &android_mock.Client{}
+	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
+		return nil
+	}
+	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, svc, "test-private-key", s.ds)
+	if err != nil {
+		panic(err)
+	}
+	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true
+
+	serverConfig.AndroidSvc = androidSvc.(*android_service.Service)
 	users, server := RunServerForTestsWithServiceWithDS(s.T(), ctx, s.ds, svc, &serverConfig)
 
-	s.server = server
 	s.users = users
+	s.server = server
 	s.token = s.getTestAdminToken()
 	s.cachedAdminToken = s.token
 	s.fleetCfg = fleetCfg
@@ -429,6 +412,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.mdmStorage = mdmStorage
 	s.mdmCommander = mdmCommander
 	s.logger = serverLogger
+	s.androidSvc = androidSvc.(*android_service.Service)
+	s.androidAPIClient = androidMockClient
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)
@@ -9412,12 +9397,23 @@ func (s *integrationMDMTestSuite) runIntegrationsSchedule() {
 	<-ch
 }
 
+func runCleanup(ctx context.Context, s *integrationMDMTestSuite) {
+	if s.onCleanupScheduleDone != nil {
+		defer s.onCleanupScheduleDone()
+	}
+
+	_ = s.androidSvc.VerifyExistingEnterpriseIfAny(ctx)
+	// Don't return the error, since actual crons does not do that.
+}
+
 func (s *integrationMDMTestSuite) awaitRunCleanupSchedule() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	s.onCleanupScheduleDone = wg.Done
-	_, err := s.cleanupsSchedule.Trigger()
-	require.NoError(s.T(), err)
+
+	// This is a hacku workaround for a cherry pick PR, that created this new cleanups schedule, but only calls this method
+
+	runCleanup(s.T().Context(), s)
 	// Add timeout detection
 	done := make(chan struct{})
 	go func() {

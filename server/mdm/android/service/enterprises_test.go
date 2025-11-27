@@ -262,8 +262,8 @@ func TestGetEnterprise(t *testing.T) {
 			return nil, &notFoundError{}
 		}
 
-		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+		fleetSvc := mockService{}
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key", &fleetDS.DataStore)
 		require.NoError(t, err)
 
 		enterprise, err := svc.GetEnterprise(ctx)
