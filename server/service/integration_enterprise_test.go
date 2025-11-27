@@ -18348,12 +18348,14 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 	)
 	require.NoError(t, err)
 
-	// confirm software row now in the database with corresponding upgrade code
-	var swId *uint
+	// confirm software row now in the database and `upgrade_code`s match for that row, the associated
+	// `software_titles` row, and the associated `software_installers` row
+	var swTitleId *uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &swId, "SELECT id FROM software WHERE upgrade_code = ?", warpUpgradeCode)
+		return sqlx.GetContext(ctx, q, &swTitleId, "SELECT title_id FROM software WHERE upgrade_code = ?", warpUpgradeCode)
 	})
-	require.NotNil(t, swId)
+	require.Equal(t, title.ID, *swTitleId)
+	require.Equal(t, *warpInstaller.TitleID, *swTitleId)
 
 	// GET host software endpoint, confirm upgrade_code is present
 	var hSWRes getHostSoftwareResponse
