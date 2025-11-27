@@ -59,12 +59,12 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val enrollSecret by remember { mutableStateOf(appRestrictions.getString("enrollSecret")) }
-            val delegatedScopes by remember { mutableStateOf(dpm.getDelegatedScopes(null, packageName)) }
+            val delegatedScopes by remember { mutableStateOf(dpm.getDelegatedScopes(null, packageName).toList()) }
             val delegatedCertScope by remember {
                 mutableStateOf(delegatedScopes.contains(DevicePolicyManager.DELEGATION_CERT_INSTALL))
             }
             val androidID by remember { mutableStateOf(Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)) }
-            val enrollmentSpecificID by remember { mutableStateOf(appRestrictions.getString("enrollmentSpecificID")) }
+            val enrollmentSpecificID by remember { mutableStateOf(appRestrictions.getString("hostUUID")) }
             val certRequestList by remember {
                 mutableStateOf(appRestrictions.getParcelableArray("certificates", Bundle::class.java)?.toList())
             }
@@ -83,10 +83,10 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
-                mutableStateOf(grantedPermissions)
+                mutableStateOf(grantedPermissions.toList())
             }
             val fleetBaseUrl by remember {
-                mutableStateOf(appRestrictions.getString("fleetBaseUrl"))
+                mutableStateOf(appRestrictions.getString("serverURL"))
             }
             var enrollBody by remember { mutableStateOf("enroll not run") }
             var installedCertificates: List<CertificateInfo> by remember { mutableStateOf(listOf()) }
@@ -107,12 +107,14 @@ class MainActivity : ComponentActivity() {
                         ) {
                             StatusScreen()
                             KeyValue("packageName", packageName)
+                            KeyValue("versionName", packageManager.getPackageInfo(packageName, 0   ).versionName)
+                            KeyValue("longVersionCode", packageManager.getPackageInfo(packageName, 0).longVersionCode.toString())
                             KeyValue("enrollSecret", enrollSecret)
                             KeyValue("delegatedScopes", delegatedScopes.toString())
                             KeyValue("delegated cert scope", delegatedCertScope.toString())
                             KeyValue("android id", androidID)
-                            KeyValue("enrollmentSpecificID (MC)", enrollmentSpecificID)
-                            KeyValue("fleetBaseUrl (MC)", fleetBaseUrl)
+                            KeyValue("hostUUID (MC)", enrollmentSpecificID)
+                            KeyValue("serverURL (MC)", fleetBaseUrl)
                             KeyValue("orbit_node_key (datastore)", apiKey)
                             KeyValue("base_url (datastore)", baseUrl)
                             KeyValue("certificate_ids", certIds.toString())

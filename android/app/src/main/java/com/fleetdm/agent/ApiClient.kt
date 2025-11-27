@@ -145,6 +145,7 @@ object ApiClient {
             body = EnrollRequest(
                 enrollSecret = enrollSecret,
                 hardwareUUID = hardwareUUID,
+                hardwareSerial = hardwareUUID,
                 computerName = computerName,
             ),
             authenticated = false,
@@ -168,6 +169,8 @@ data class EnrollRequest(
     val enrollSecret: String,
     @SerialName("hardware_uuid")
     val hardwareUUID: String,
+    @SerialName("hardware_serial")
+    val hardwareSerial: String,
     @SerialName("platform")
     val platform: String = "android",
     @SerialName("computer_name")
