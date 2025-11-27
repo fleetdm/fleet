@@ -2130,8 +2130,8 @@ type enrolledHostInfo struct {
 // guaranteed to match a single host. For that reason, we only attempt the
 // serial number lookup if Fleet MDM is enabled on the server (as we must be
 // able to match by serial in this scenario, since this is the only information
-// we get when enrolling hosts via Apple DEP) AND if the matched host is on the
-// macOS platform (darwin).
+// we get when enrolling hosts via Apple DEP or Android EMM) AND if the matched
+// host is on a supported MDM platform (darwin, ios, ipados, or android).
 func matchHostDuringEnrollment(
 	ctx context.Context,
 	q sqlx.QueryerContext,
