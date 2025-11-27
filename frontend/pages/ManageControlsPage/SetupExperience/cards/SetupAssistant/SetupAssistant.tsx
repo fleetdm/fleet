@@ -94,8 +94,7 @@ const SetupAssistant = ({
       <SetupExperienceContentContainer>
         <div className={`${baseClass}__upload-container`}>
           <p className={`${baseClass}__section-description`}>
-            Add an automatic enrollment profile to customize the macOS Setup
-            Assistant.
+            Add an automatic enrollment profile to customize Setup Assistant.
           </p>
           {enrollmentProfileNotFound || !enrollmentProfileData ? (
             <SetupAssistantProfileUploader
@@ -131,7 +130,7 @@ const SetupAssistant = ({
       return (
         <TurnOnMdmMessage
           header="Additional configuration required"
-          info="Supported on macOS. To customize, first turn on automatic enrollment."
+          info="To customize, first turn on automatic enrollment."
           buttonText="Turn on"
           router={router}
         />
@@ -143,7 +142,7 @@ const SetupAssistant = ({
   return (
     <section className={baseClass}>
       <SectionHeader
-        title="macOS Setup Assistant"
+        title="Setup Assistant"
         details={
           <CustomLink
             url="https://fleetdm.com/learn-more-about/setup-assistant"
