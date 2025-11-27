@@ -127,7 +127,6 @@ type integrationMDMTestSuite struct {
 	scepConfig                *eeservice.SCEPConfigService
 	androidSvc                *android_service.Service
 	androidAPIClient          *android_mock.Client
-	proxyCallbackURL          string
 }
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
