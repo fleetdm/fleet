@@ -18327,6 +18327,8 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	// mock osquery ingesting matching software from the host
 	ac, err = s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+
 	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features, osquery_utils.Integrations{}, nil)
 
 	rows := []map[string]string{
