@@ -30,14 +30,11 @@ These flaws are listed here publicly for two reasons. The first is so that peopl
 **Still want to contact the CEO?** You can send `@mikermcneil` a DM in Fleet Slack, at-mention him in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo).
 
 
-please get scheduling help from the [Executive Assistant](https://www.fleetdm.com/handbook/it-and-enablement#team)).
-
-
 ### Schedule time with the CEO
 
 All invitations to meetings are welcome, and quickly considering them is a top priority for the CEO. However, please do not add events to the CEO's calendar, even if the CEO asks you to set up a meeting or add him to a call. **Events added directly to the CEO's calendar will be declined and removed.**
 
-To request time with the CEO, @-mention the Executive Assistant (`@Savannah Friend`) in the [#help-ea Slack channel](https://fleetdm.slack.com/archives/C08HKQ84UCD). Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
+To request time with the CEO, @-mention the Executive Assistant (`@Savannah Friend`) in the [#help-&nbsp;ea](https://fleetdm.slack.com/archives/C08HKQ84UCD) Slack channel. Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
 
 - **Why the extra step?** There are not enough hours in the day for the CEO to accept every request to meet, so [we have to prioritize](https://www.fleetdm.com/handbook/ceo#process-the-ceos-calendar).
 - **Self-service scheduling:** Unlike other team members, who you can schedule with by simply dropping an event on their calendar unless requested directly from Mike, please do not directly schedule a meeting onto the CEO's calendar without using this process to confirm with the Executive Assistant first.
