@@ -88,7 +88,6 @@ class MainActivity : ComponentActivity() {
             var installedCertificates: List<CertificateInfo> by remember { mutableStateOf(listOf()) }
             val apiKey by ApiClient.apiKeyFlow.collectAsState(initial = null)
             val baseUrl by ApiClient.baseUrlFlow.collectAsState(initial = null)
-            val scope = rememberCoroutineScope()
 
             LaunchedEffect(Unit) {
                 installedCertificates = listKeystoreCertificates()

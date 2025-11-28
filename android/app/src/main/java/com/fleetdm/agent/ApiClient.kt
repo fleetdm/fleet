@@ -187,10 +187,14 @@ object ApiClient {
 
     private suspend fun getEnrollmentCredentials(): EnrollmentCredentials? {
         val prefs = dataStore.data.first()
-        val enrollSecret = prefs[ENROLL_SECRET] ?: return null
-        val hardwareUUID = prefs[HARDWARE_UUID] ?: return null
-        val computerName = prefs[COMPUTER_NAME] ?: return null
-        val baseUrl = prefs[BASE_URL_KEY] ?: return null
+        val enrollSecret = prefs[ENROLL_SECRET]
+        val hardwareUUID = prefs[HARDWARE_UUID]
+        val computerName = prefs[COMPUTER_NAME]
+        val baseUrl = prefs[BASE_URL_KEY]
+
+        if (enrollSecret == null || hardwareUUID == null || computerName == null || baseUrl == null) {
+            return null
+        }
 
         return EnrollmentCredentials(
             baseUrl = baseUrl,
