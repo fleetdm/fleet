@@ -66,5 +66,11 @@ jobs:
       # Run sanity checks
       - run: cd website/ && npm test
 
+      # Scan for malicious packages
+      - name: Security Scan with Shai-Hulud Detector
+        run: |
+          chmod +x ./shai-hulud-detector.sh
+          ./shai-hulud-detector.sh .
+
       # Compile assets
       - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.FLEET_GITHUB_TOKEN_FOR_WEBSITE_TEST }}" npm run build-for-prod
