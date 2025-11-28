@@ -25,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -54,7 +53,7 @@ class MainActivity : ComponentActivity() {
         val restrictionsManager = getSystemService(Context.RESTRICTIONS_SERVICE) as android.content.RestrictionsManager
         val appRestrictions = restrictionsManager.applicationRestrictions
         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-        
+
         setContent {
             val enrollSecret by remember { mutableStateOf(appRestrictions.getString("enrollSecret")) }
             val delegatedScopes by remember { mutableStateOf(dpm.getDelegatedScopes(null, packageName).toList()) }
