@@ -43,7 +43,7 @@ To request time with the CEO, @-mention the Executive Assistant (`@Savannah Frie
 
 ### Request the CEO on-site
 
-To summon the CEO to meet in-person with a customer or prospect, join a team on-site, give a talk at a conference, etc., @-mention the Executive Assistant (`@Savannah Friend`) in the [#help-ea Slack channel](https://fleetdm.slack.com/archives/C08HKQ84UCD) and provide the following information:
+To summon the CEO to meet in-person with a customer or prospect, join a team on-site, give a talk at a conference, etc., @-mention the Executive Assistant (`@Savannah Friend`) in the [#help-&nbsp;ea](https://fleetdm.slack.com/archives/C08HKQ84UCD) Slack channel and provide the following information:
 1. **Who is the Fleet DRI?** Who is responsible for communicating with the internal and external stakeholders? The requester will be the assumed DRI unless otherwise specified.
 1. **Who is attending?** Anyone who is, or might be attending, both Fleeties or otherwise.
 1. **What is the CEO's role?** What does the company gain by having the *CEO* there? What's the strategy and why? Is he having dinner with a customer to gain knowledge on how they use the product? Is he attending a conference to give a talk to promote Fleet's newest feature? Who else could provide the same value if the CEO is unavailable?
