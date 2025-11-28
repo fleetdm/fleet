@@ -59,9 +59,7 @@ object KeystoreManager {
 
     fun decrypt(ciphertext: String): String {
         val parts = ciphertext.split(IV_SEPARATOR)
-        if (parts.size != 2) {
-            throw IllegalArgumentException("Invalid ciphertext format")
-        }
+        require(parts.size != 2)
 
         val iv = Base64.decode(parts[0], Base64.NO_WRAP)
         val encryptedBytes = Base64.decode(parts[1], Base64.NO_WRAP)
