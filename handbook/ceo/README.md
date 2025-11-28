@@ -114,11 +114,13 @@ The Executive Assistant will verify daily that the CEO's calendar is accurate fo
 
 
 ### Asking CEO to travel
+
 To have the CEO meet with a customer or prospect, you will need to bring information to the Executive Assitant to confirm with the CEO. Such as:
 1. What will it be?
 2. What's the value to the company of having the CEO there?
 3. Where is it? 
 4. What's the minimum number of nights he will need to be there?
+
 
 ### Schedule CEO interview
 
