@@ -50,4 +50,4 @@ If you’re considering a migration and want to avoid surprises, let us know. We
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2025-11-26">
-<meta name="description" value="MDM migration is less disruptive than before, but still demands careful planning. Device reassignment doesn’t move your configurations, apps, or integrations.">
+<meta name="description" value="MDM migration is less disruptive than before, but still demands careful planning.">
