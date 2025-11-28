@@ -11,11 +11,30 @@ style:
   MagicNumber:
     active: false # Color hex values are standard in Compose
   MaxLineLength:
-    maxLineLength: 140 # Align with ktlint
+    active: false # Handled by ktlint
 
 complexity:
+  CognitiveComplexMethod:
+    active: false
+  ComplexCondition:
+    active: false
+  ComplexInterface:
+    active: false
+  CyclomaticComplexMethod:
+    active: false # Up to engineers to determine if method is too complex
+  LargeClass:
+    active: false
+  LongMethod:
+    active: false # Up to engineers to determine if method is too long
+  LongParameterList:
+    active: false
+  NamedArguments:
+    threshold: 5
+    ignoreArgumentsMatchingNames: true
   NestedBlockDepth:
     threshold: 5 # Android receivers often need nested blocks
+  TooManyFunctions:
+    active: false
 
 exceptions:
   TooGenericExceptionCaught:

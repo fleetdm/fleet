@@ -32,6 +32,7 @@ func TestInHouseApps(t *testing.T) {
 		{"BatchSetInHouseInstallersScopedViaLabels", testBatchSetInHouseInstallersScopedViaLabels},
 		{"EditDeleteInHouseInstallersActivateNextActivity", testEditDeleteInHouseInstallersActivateNextActivity},
 		{"Categories", testInHouseAppsCategories},
+		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayNameInHouse},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1558,4 +1559,39 @@ func testEditDeleteInHouseInstallersActivateNextActivity(t *testing.T, ds *Datas
 	checkUpcomingActivities(t, ds, host1, host1Script.ExecutionID)
 	checkUpcomingActivities(t, ds, host2)
 	checkUpcomingActivities(t, ds, host3, host3Script.ExecutionID)
+}
+
+func testSoftwareTitleDisplayNameInHouse(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	payload := fleet.UploadSoftwareInstallerPayload{
+		UserID:           user1.ID,
+		Title:            "foo",
+		BundleIdentifier: "com.foo",
+		StorageID:        "testingtesting123",
+		Platform:         "ios",
+		Extension:        "ipa",
+		Version:          "1.2.3",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	}
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+	require.NoError(t, err)
+
+	err = ds.SaveInHouseAppUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:     titleID,
+		InstallerID: installerID,
+		Filename:    "new_foo_file.ipa",
+		StorageID:   "new_storage_id",
+		Version:     "2.0.0",
+		SelfService: ptr.Bool(true),
+		DisplayName: ptr.String("super foo"),
+	})
+	require.NoError(t, err)
+
+	// Delete in-house app, display name should be deleted
+	err = ds.DeleteInHouseApp(ctx, installerID)
+	require.NoError(t, err)
+	_, err = ds.getSoftwareTitleDisplayName(ctx, 0, titleID)
+	require.ErrorContains(t, err, "not found")
 }

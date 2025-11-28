@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -221,4 +222,90 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 	// Should have hit the android API endpoint
 	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 
+	// Test Android app configurations
+
+	// Title with no configuration should omit it from response
+	var getAppResp map[string]any
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addAppResp.TitleID), &getSoftwareTitleRequest{
+		ID:     addAppResp.TitleID,
+		TeamID: nil,
+	}, http.StatusOK, &getAppResp)
+	require.Nil(t, getAppResp["configuration"])
+
+	// Android app with configuration
+	appConfiguration := json.RawMessage(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
+	androidAppWithConfig := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.fooooooo",
+				Platform: fleet.AndroidPlatform,
+			},
+			Configuration: appConfiguration,
+		},
+		Name:             "foo",
+		BundleIdentifier: "com.fooooooo",
+		IconURL:          "https://example.com/images/2",
+	}
+
+	// Add Android app
+	var appWithConfigResp addAppStoreAppResponse
+	s.DoJSON(
+		"POST",
+		"/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{
+			AppStoreID:    androidAppWithConfig.AdamID,
+			Platform:      androidAppWithConfig.VPPAppID.Platform,
+			Configuration: androidAppWithConfig.Configuration,
+		},
+		http.StatusOK,
+		&appWithConfigResp,
+	)
+
+	// Verify that activity includes configuration
+	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "platform": "%s", "self_service": true,"configuration": %s}`,
+			"", "Test App", appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", androidAppWithConfig.Platform, androidAppWithConfig.Configuration), 0)
+
+	// Should see it in host software library
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
+	assert.Len(t, getHostSw.Software, 2)
+	s.Assert().NotNil(getHostSw.Software[1].AppStoreApp)
+	s.Assert().Equal(androidAppWithConfig.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+
+	// Edit app without changing configuration
+	s.DoJSON(
+		"PATCH",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", appWithConfigResp.TitleID),
+		&updateAppStoreAppRequest{},
+		http.StatusOK,
+		&addAppResp,
+	)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), "", 0)
+
+	var titleWithConfigResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", appWithConfigResp.TitleID), &getSoftwareTitleRequest{
+		ID:     appWithConfigResp.TitleID,
+		TeamID: nil,
+	}, http.StatusOK, &titleWithConfigResp)
+
+	var responseConf map[string]any
+	require.NoError(t, json.Unmarshal(titleWithConfigResp.SoftwareTitle.AppStoreApp.Configuration, &responseConf))
+	require.Contains(t, responseConf, "workProfileWidgets")
+
+	// Edit app and change configuration
+	newConfig := json.RawMessage(`{"managedConfiguration": {"key": "value"}}`)
+	s.DoJSON(
+		"PATCH",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", appWithConfigResp.TitleID),
+		&updateAppStoreAppRequest{
+			Configuration: newConfig,
+		},
+		http.StatusOK,
+		&addAppResp,
+	)
+
+	// Verify that configuration changed and last activity is correct
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_icon_url":"https://example.com/1.jpg", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "software_display_name":"", "platform": "%s", "self_service": true,"configuration": %s}`,
+			"", "Test App", appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", androidAppWithConfig.Platform, newConfig), 0)
 }

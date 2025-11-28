@@ -660,10 +660,10 @@ When you travel for work and choose to drive your own vehicle, you can use your 
 
 To request reimbursement for miles driven: 
 1. Navigate to [Brex](https://dashboard.brex.com/wallet)
-2. Click "Request reimbursement". then "Mileage".
+2. Click "Request reimbursement," then "Mileage."
 3. Select your available Brex spending limit and the travel date.
 4. Enter your starting and ending destinations, and whether it was one-way or round-trip. Brex will automatically calculate your miles driven. If the distance doesn't match what you actually drove, edit it to be correct.
-5. In the memo line, describe the reason for your travel (E.g. Houston GetOps) and submit the request.
+5. In the memo line, describe the reason for your travel (E.g. Houston GitOps) and submit the request.
 
 Finance will review and process your request within 2 business days. 
 
