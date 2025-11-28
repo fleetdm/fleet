@@ -896,7 +896,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			newTitlesNeeded := make(map[string]fleet.SoftwareTitle)
 			for checksum, sw := range batchSoftware {
 				if _, ok := incomingChecksumsToExistingTitleSummaries[checksum]; !ok {
-					titleName := sw.Name
+					// there is not an existing software title corresponding to this incoming software version
+					newTitleName := sw.Name
 					if sw.BundleIdentifier != "" {
 						key := titleKey{
 							bundleID:     sw.BundleIdentifier,
@@ -904,27 +905,27 @@ func (ds *Datastore) preInsertSoftwareInventory(
 							extensionFor: sw.ExtensionFor,
 						}
 						if computedName, exists := bestTitleNames[key]; exists {
-							titleName = computedName
+							newTitleName = computedName
 						}
 					}
 
-					st := fleet.SoftwareTitle{
-						Name:         titleName,
+					newTitle := fleet.SoftwareTitle{
+						Name:         newTitleName,
 						Source:       sw.Source,
 						ExtensionFor: sw.ExtensionFor,
 						IsKernel:     sw.IsKernel,
 					}
 					if sw.BundleIdentifier != "" {
-						st.BundleIdentifier = ptr.String(sw.BundleIdentifier)
+						newTitle.BundleIdentifier = ptr.String(sw.BundleIdentifier)
 					}
 					if sw.ApplicationID != nil && *sw.ApplicationID != "" {
-						st.ApplicationID = sw.ApplicationID
+						newTitle.ApplicationID = sw.ApplicationID
 					}
 					if sw.UpgradeCode != nil {
 						// intentionally write both empty and non-empty strings as upgrade codes
-						st.UpgradeCode = sw.UpgradeCode
+						newTitle.UpgradeCode = sw.UpgradeCode
 					}
-					newTitlesNeeded[checksum] = st
+					newTitlesNeeded[checksum] = newTitle
 				}
 			}
 
@@ -2915,7 +2916,6 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 	return result, nil
 }
 
-// TODO(jacob) SoftwareUpgradeCode ? SoftwareUpgradeCodeList ?
 type hostSoftware struct {
 	fleet.HostSoftwareWithInstaller
 
@@ -2931,7 +2931,6 @@ type hostSoftware struct {
 	SoftwareID            *uint      `db:"software_id"`
 	SoftwareSource        *string    `db:"software_source"`
 	SoftwareExtensionFor  *string    `db:"software_extension_for"`
-	UpgradeCode           *string    `db:"upgrade_code"`
 	InstallerID           *uint      `db:"installer_id"`
 	PackageSelfService    *bool      `db:"package_self_service"`
 	PackageName           *string    `db:"package_name"`
