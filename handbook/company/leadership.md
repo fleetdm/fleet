@@ -22,15 +22,35 @@ These flaws are listed here publicly for two reasons. The first is so that peopl
   - I get grumpy when I am tired and I worry that I'll forget to follow up about things.  So I try to say them all.
   - I can talk too much.  On video calls, and especially during a screenshare session, I sometimes will keep talking longer than I otherwise would.  If you get lost, or overwhelmed, you can interrupt me or send a chat: "Hold up, I'm feeling out of phase from this conversation."
 
-
-
-
 > If you notice one of these flaws, and especially if you deliver feedback about it and don't feel heard, or you feel hurt, or you feel like I didn't "get it", please send me a link to this section of the handbook, or just interrupt me and give me [feedback in the moment](https://fleetdm.com/handbook/company/communications#performance-feedback).  I will be extremely grateful, and value your bravery in pursuit of what's in the best interest of the company.  (And if I don't, keep trying.  I'll come crawling back.  Promise.)
 
 
 ## Contact the CEO
 
-**Still want to contact the CEO?** You can send `@mikermcneil` a DM in Fleet Slack, at-mention him in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
+**Still want to contact the CEO?** You can send `@mikermcneil` a DM in Fleet Slack, at-mention him in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo).
+
+
+please get scheduling help from the [Executive Assistant](https://www.fleetdm.com/handbook/it-and-enablement#team)).
+
+
+### Schedule time with the CEO
+
+All invitations to meetings are welcome, and quickly considering them is a top priority for the CEO. However, please do not add events to the CEO's calendar, even if the CEO asks you to set up a meeting or add him to a call. **Events added directly to the CEO's calendar will be declined and removed.**
+
+To request time with the CEO, @-mention the Executive Assistant (`@Savannah Friend`) in the [#help-ea Slack channel](https://fleetdm.slack.com/archives/C08HKQ84UCD). Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
+
+- **Why the extra step?** There are not enough hours in the day for the CEO to accept every request to meet, so [we have to prioritize](https://www.fleetdm.com/handbook/ceo#process-the-ceos-calendar).
+- **Self-service scheduling:** Unlike other team members, who you can schedule with by simply dropping an event on their calendar unless requested directly from Mike, please do not directly schedule a meeting onto the CEO's calendar without using this process to confirm with the Executive Assistant first.
+- **Rescheduling:** All items on Mike's calendar are subject to change by the CEO to better serve the company.  Send last-minute changes or cancellations to Mike [via direct message (DM)](https://www.fleetdm.com/handbook/company/why-this-way#why-not-mention-the-ceo-in-slack-threads).
+
+
+### Request the CEO on-site
+
+To summon the CEO to meet in-person with a customer or prospect, join a team on-site, give a talk at a conference, etc., @-mention the Executive Assistant (`@Savannah Friend`) in the [#help-ea Slack channel](https://fleetdm.slack.com/archives/C08HKQ84UCD) and provide the following information:
+1. **Who is the Fleet DRI?** Who is responsible for communicating with the internal and external stakeholders? The requester will be the assumed DRI unless otherwise specified.
+1. **Who is attending?** Anyone who is, or might be attending, both Fleeties or otherwise.
+1. **What is the CEO's role?** What does the company gain by having the *CEO* there? What's the strategy and why? Is he having dinner with a customer to gain knowledge on how they use the product? Is he attending a conference to give a talk to promote Fleet's newest feature? Who else could provide the same value if the CEO is unavailable?
+1. **When and where is the on-site?** What are the dates and times of the actual events you would like the CEO to attend? "Nov 21st - 23rd." Just leads to more questions. Be as granular and specific as possible, e.g., "We're meeting the prospect's team at their office from 2PM to 5PM PT, then dinner is at 7PM PT."
 
 
 ## CEO responsibilities
