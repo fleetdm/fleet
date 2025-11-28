@@ -85,7 +85,6 @@ class MainActivity : ComponentActivity() {
             val fleetBaseUrl by remember {
                 mutableStateOf(appRestrictions.getString("serverURL"))
             }
-            var enrollBody by remember { mutableStateOf("enroll not run") }
             var installedCertificates: List<CertificateInfo> by remember { mutableStateOf(listOf()) }
             val apiKey by ApiClient.apiKeyFlow.collectAsState(initial = null)
             val baseUrl by ApiClient.baseUrlFlow.collectAsState(initial = null)
@@ -118,30 +117,6 @@ class MainActivity : ComponentActivity() {
                             PermissionList(
                                 permissionsList = permissionsList,
                             )
-                            Button(onClick = {
-                                scope.launch {
-                                    enrollBody = "launched!!"
-                                    if (enrollSecret == null) {
-                                        enrollBody = "no enroll secret"
-                                    }
-                                    if (fleetBaseUrl == null) {
-                                        enrollBody = "no fleet URL"
-                                    }
-                                    try {
-                                        Log.d("main_activity", "sending request!")
-                                        val resp = ApiClient.enroll(
-                                            baseUrl = fleetBaseUrl ?: "",
-                                            enrollSecret = enrollSecret ?: "",
-                                            hardwareUUID = enrollmentSpecificID ?: "",
-                                            computerName = Build.MODEL,
-                                        )
-                                        enrollBody = resp.toString()
-                                    } catch (e: Exception) {
-                                        enrollBody = e.toString()
-                                    }
-                                }
-                            }) { Text("enroll") }
-                            Text(enrollBody)
                             CertificateList(certificateList = installedCertificates)
                         }
                     },
