@@ -29,6 +29,7 @@ object ApiClient {
     private val BASE_URL_KEY = stringPreferencesKey("base_url")
 
     fun initialize(context: Context) {
+        Log.d("fleet-apiClient", "initializing api client")
         if (!::dataStore.isInitialized) {
             dataStore = context.applicationContext.credentialStore
         }

@@ -20,6 +20,7 @@ class AgentApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "Fleet agent process started")
+        ApiClient.initialize(this)
         schedulePeriodicConfigCheck()
     }
 

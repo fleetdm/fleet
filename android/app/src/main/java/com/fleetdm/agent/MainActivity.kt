@@ -54,9 +54,7 @@ class MainActivity : ComponentActivity() {
         val restrictionsManager = getSystemService(Context.RESTRICTIONS_SERVICE) as android.content.RestrictionsManager
         val appRestrictions = restrictionsManager.applicationRestrictions
         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-
-        ApiClient.initialize(this)
-
+        
         setContent {
             val enrollSecret by remember { mutableStateOf(appRestrictions.getString("enrollSecret")) }
             val delegatedScopes by remember { mutableStateOf(dpm.getDelegatedScopes(null, packageName).toList()) }
