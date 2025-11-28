@@ -107,7 +107,7 @@ class MainActivity : ComponentActivity() {
                         ) {
                             StatusScreen()
                             KeyValue("packageName", packageName)
-                            KeyValue("versionName", packageManager.getPackageInfo(packageName, 0   ).versionName)
+                            KeyValue("versionName", packageManager.getPackageInfo(packageName, 0).versionName)
                             KeyValue("longVersionCode", packageManager.getPackageInfo(packageName, 0).longVersionCode.toString())
                             KeyValue("enrollSecret", enrollSecret)
                             KeyValue("delegatedScopes", delegatedScopes.toString())
