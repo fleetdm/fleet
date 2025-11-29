@@ -741,11 +741,19 @@ INSERT INTO host_certificate_templates (
 		templateID       uint
 		newStatus        string
 		expectedErrorMsg string
+		detail           *string
 	}{
 		{
 			name:             "Valid Update",
 			templateID:       certificateTemplateID,
 			newStatus:        "verified",
+			expectedErrorMsg: "",
+		},
+		{
+			name:             "Valid Update with some details",
+			templateID:       certificateTemplateID,
+			newStatus:        "failed",
+			detail:           ptr.String("some details"),
 			expectedErrorMsg: "",
 		},
 		{
@@ -764,7 +772,7 @@ INSERT INTO host_certificate_templates (
 
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("TestUpdateHostCertificateTemplate:%s", tc.name), func(t *testing.T) {
-			err := db.UpdateCertificateStatus(context.Background(), host.UUID, tc.templateID, fleet.MDMDeliveryStatus(tc.newStatus))
+			err := db.UpdateCertificateStatus(context.Background(), host.UUID, tc.templateID, fleet.MDMDeliveryStatus(tc.newStatus), tc.detail)
 			if tc.expectedErrorMsg == "" {
 				require.NoError(t, err)
 				// Verify the update
@@ -828,7 +836,6 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Set the installation status on the certificate templates
-	// TODO: Refactor this to use UpdateStatus DB method when available
 	_, err = ds.writer(ctx).ExecContext(ctx,
 		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
 		h2.UUID, ct1.ID, "test-challenge", fleet.OSSettingsVerified,
@@ -836,8 +843,8 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, err)
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
-		h2.UUID, ct2.ID, "test-challenge", fleet.OSSettingsFailed,
+		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, detail) VALUES (?, ?, ?, ?, ?)",
+		h2.UUID, ct2.ID, "test-challenge", fleet.OSSettingsFailed, "some error yooo",
 	)
 	require.NoError(t, err)
 
@@ -876,6 +883,7 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 
 				require.Equal(t, ct2.Name, templates[1].Name)
 				require.Equal(t, fleet.MDMDeliveryFailed, templates[1].Status)
+				require.Equal(t, "some error yooo", *templates[1].Detail)
 			},
 		},
 	}

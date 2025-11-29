@@ -3,6 +3,7 @@ package fleet
 import (
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,7 +36,16 @@ func TestHostCertificateTemplate(t *testing.T) {
 					require.Equal(t, "HostCertificate", profile.Name)
 					require.Equal(t, "android", profile.Platform)
 					require.Equal(t, MDMDeliveryVerified, *profile.Status)
-
+					require.Empty(t, profile.Detail)
+				},
+			},
+			{
+				name: "maps detail correctly",
+				template: &HostCertificateTemplate{
+					Detail: ptr.String("some error"),
+				},
+				expectation: func(t *testing.T, profile HostMDMProfile) {
+					require.Equal(t, "some error", profile.Detail)
 				},
 			},
 		}

@@ -1363,6 +1363,8 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				profiles = append(profiles, p.ToHostMDMProfile())
 			}
 
+			// Retrieve certificate templates associated with the host and marshal them into
+			// HostMDMProfile structs so that we can display them in the list of OS Settings items.
 			hCertTemplates, err := svc.ds.GetHostCertificateTemplates(ctx, host.UUID)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get host certificate templates")
