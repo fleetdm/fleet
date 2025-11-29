@@ -202,21 +202,22 @@ Fleet invites guests to discuss the future of IT and security on the [ExpedITion
 - Use the show notes to complete the Podbean description and [create a new article](https://github.com/fleetdm/fleet/tree/main/articles) on Fleet's website.
 - Publish on social media
 
-### **Website Traffic Looker Dashboard**
+### Website traffic Looker dashboard 
+<!-- 2025-11-29 This heading doesn't follow the format of a responsibility (https://fleetdm.com/handbook/company/leadership#outline-of-departmental-page-structure). However, we will leave the title as is in preparation for moving it to a separate page, not yet created-->
 
 This dashboard is the first iteration of a tracking website that monitors performance, traffic acquisition, and key event conversions. It is updated daily and is essential for tracking the success of marketing initiatives.
 
 **Dashboard Link:** [Website Traffic by Source](https://lookerstudio.google.com/reporting/612ee012-b35a-42d3-8806-3ff0728dde58)
 
-#### **Simple Summary**
+#### Simple summary
 
 The Website Traffic Dashboard provides a comprehensive view of how users interact with the Fleet website. It tracks overall health metrics, such as **Total Users**, **Bounce Rate**, and **Sessions per user**, alongside detailed breakdowns of **traffic sources** and **conversion performance**. It is a critical tool for measuring the effectiveness of our organic and paid strategies, identifying high-performing content, and spotting trends in user behavior and goal completion.
 
-#### **Key Views Description**
+#### Key views description
 
 The dashboard is structured with a side navigation menu that allows you to dive into specific areas of performance:
 
-##### **1\. WebTraffic Dashboard (Overview)**
+##### 1\. WebTraffic dashboard (overview)
 
 This is the main landing page, providing a high-level snapshot of website performance for the selected date range.
 
@@ -224,36 +225,36 @@ This is the main landing page, providing a high-level snapshot of website perfor
 * **Volume Chart:** Tracks the daily/monthly volume of Views, Total users, and Sessions.  
 * **Acquisition Table:** The table further down breaks down traffic by **Session / medium** (e.g., google / organic, google / cpc, (direct) / (none)), providing total users, engagement rate, and key event volume for each channel.
 
-##### **2\. Organic Traffic**
+##### 2\. Organic traffic
 
 This view isolates the performance of all non-paid traffic, which is a major focus for content and SEO efforts.
 
 * **Channel Trends:** The chart shows the total users over time broken down by specific organic channels: **Organic Search**, Organic Video, Organic Social, and Organic Shopping.  
 * **Usage:** Used to track the growth of our SEO efforts and the health of our overall content visibility.
 
-##### **3\. Traffic by Landing Page**
+##### 3\. Traffic by landing page
 
 This view is crucial for understanding how specific pages on the site are performing in attracting and engaging users.
 
 * **Performance Table:** Lists the top-performing **Landing Pages** by **Total users** and displays their corresponding **Bounce rate**.  
 * **Key Pages:** Allows us to quickly identify our most popular entry points (e.g., the homepage /, /docs/get-started/why-fleet, /pricing) and assess content quality based on bounce rate.
 
-##### **4\. Key Events**
+##### 4\. Key events
 
 This section tracks the **volume** of our most important user actions on the website, allowing us to see how marketing activity correlates with goal completion.
 
 * **Events over time:** The chart tracks the total number of key events (e.g., form\_submit, purchase, fleet\_website\_contact\_forms, and fleet\_website\_swag\_request) completed over the time range.  
 * **Usage:** Helps identify peak periods for event completion and measure the absolute success of lead generation forms.
 
-##### **5\. Key Event Conversion Rates**
+##### 5\. Key event conversion rates
 
 This view displays the website's efficiency by tracking the rate at which users complete a key event. Conversion rate is generally a stronger indicator of performance than event volume alone.
 
-* **Conversion Rates:** Displays the **User Key Event Rate** for primary goals, including:  
-  * **Sign Up Form (Sign up for FleetDM):** Tracks the rate of fleet\_website\_sign\_up.  
-  * **Contact Us (or Request Demo):** Tracks the rate of fleet website contact forms.  
-  * **Swag:** Tracks the rate of fleet\_website\_swag\_request.  
-* **Usage:** Used to monitor A/B test results, measure the quality of traffic from different channels, and ensure key pathways in the product/website are optimized.
+- **Conversion Rates:** Displays the **User Key Event Rate** for primary goals, including:  
+  - **Sign Up Form (Sign up for FleetDM):** Tracks the rate of fleet\_website\_sign\_up.  
+  - **Contact Us (or Request Demo):** Tracks the rate of fleet website contact forms.  
+  - **Swag:** Tracks the rate of fleet\_website\_swag\_request.  
+- **Usage:** Used to monitor A/B test results, measure the quality of traffic from different channels, and ensure key pathways in the product/website are optimized.
 
 ## Rituals
 
