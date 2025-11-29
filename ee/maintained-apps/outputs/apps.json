@@ -72,6 +72,13 @@
       "description": "Adobe Digital Editions is an E-book reader."
     },
     {
+      "name": "AnyDesk",
+      "slug": "anydesk/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.philandro.anydesk",
+      "description": "AnyDesk is an app that allows connection to a computer remotely."
+    },
+    {
       "name": "Asana",
       "slug": "asana/darwin",
       "platform": "darwin",
