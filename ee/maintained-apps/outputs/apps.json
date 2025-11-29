@@ -737,6 +737,13 @@
       "description": "Tailscale is mesh VPN based on WireGuard."
     },
     {
+      "name": "Tailscale",
+      "slug": "tailscale/windows",
+      "platform": "windows",
+      "unique_identifier": "Tailscale",
+      "description": "Tailscale is mesh VPN based on WireGuard."
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
