@@ -15,8 +15,10 @@ Download and install [Node.js](https://nodejs.org/en).
 Install fleetctl with npm (included in Node.js).
 
 ```sh
-sudo npm install -g fleetctl
+npm install -g fleetctl
 ```
+
+Some configurations may require you to use `sudo` to install fleetctl. 
 
 Alternatively, and for Windows and Linux, you can download the fleetctl binary from [GitHub](https://github.com/fleetdm/fleet/releases). 
 
