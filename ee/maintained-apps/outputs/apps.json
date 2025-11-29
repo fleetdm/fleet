@@ -65,6 +65,13 @@
       "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
     },
     {
+      "name": "Adobe Digital Editions",
+      "slug": "adobe-digital-editions/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adobe.adobedigitaleditions.app",
+      "description": "Adobe Digital Editions is an E-book reader."
+    },
+    {
       "name": "Asana",
       "slug": "asana/darwin",
       "platform": "darwin",
