@@ -1219,6 +1219,7 @@ None.
   "mdm": {
     "android_enabled_and_configured": true,
     "windows_enabled_and_configured": true,
+    "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
     "macos_updates": {
@@ -1528,6 +1529,7 @@ Modifies the Fleet's configuration with the supplied information.
     "enabled_and_configured": false,
     "android_enabled_and_configured": false,
     "windows_enabled_and_configured": false,
+    "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
     "macos_updates": {
@@ -2081,6 +2083,7 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
+| enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that belong to no team will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
@@ -2214,6 +2217,7 @@ _Available in Fleet Premium._
 {
   "mdm": {
     "windows_enabled_and_configured": false,
+    "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
     "macos_updates": {
@@ -6692,7 +6696,7 @@ List software that can be automatically installed during setup. If `install_duri
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| platform | string  | query |   Platform to show compatible software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, or `"ipados"`. Defaults to `"macos"`. |
+| platform | string  | query |   Platform to show compatible software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, `"ipados"`, or `"android"`. Defaults to `"macos"`. |
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
@@ -6765,7 +6769,7 @@ Set software that will be automatically installed during setup. Software that is
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| platform | string  | query |   Platform to install software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, or `"ipados"`. Defaults to `"macos"`. |
+| platform | string  | query | Platform to install software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, `"ipados"`, or `"android"`. Defaults to `"macos"`. |
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
 | software_title_ids | array | body | The ID of software titles to install during setup. |
 
@@ -9435,9 +9439,9 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Update software icon](#update-software-icon)
 - [Download software icon](#download-software-icon)
 - [Delete software icon](#delete-software-icon)
-- [List App Store apps](#list-app-store-apps)
-- [Create App Store app](#create-app-store-app)
-- [Update App Store app](#update-app-store-app)
+- [List app store apps](#list-app-store-apps)
+- [Add app store app](#add-app-store-app)
+- [Update app store app](#update-app-store-app)
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
 - [Create Fleet-maintained app](#create-fleet-maintained-app)
@@ -10474,7 +10478,7 @@ Delete a custom icon added via [Update software icon](#update-software-icon). Th
 
 `Status: 204`
 
-### List App Store apps
+### List app store apps
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -10527,13 +10531,13 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
 }
 ```
 
-### Create App Store app
+### Add app store app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
-Add App Store (VPP) app purchased in Apple Business Manager.
+Add Apple or Google App Store app. Apple apps must be added in Apple Business Manager (ABM) before adding them to Fleet.
 
 `POST /api/v1/fleet/software/app_store_apps`
 
@@ -10548,6 +10552,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
+| configuration | object | form | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -10578,12 +10583,12 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 }
 ```
 
-### Update App Store app
+### Update app store app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 _Available in Fleet Premium._
 
-Modify App Store (VPP) app's options.
+Modify Apple or Google App Store apps.
 
 `PATCH /api/v1/fleet/software/titles/:title_id/app_store_app`
 
@@ -10597,6 +10602,7 @@ Modify App Store (VPP) app's options.
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
+| configuration | object | form | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
