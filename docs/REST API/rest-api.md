@@ -10595,6 +10595,8 @@ Modify App Store (VPP) app's options.
 | display_name    | string  | form | Optional override for the default `name`. |
 | categories | string[] | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
+| auto_update_start_time | string | body | UTC time (HH:MM) when iOS/iPadOS App Store (VPP) apps begin auto updating. Updates apply at each host’s next check-in. Required if `auto_update_enabled` is `true`. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
 
@@ -10665,6 +10667,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 List available Fleet-maintained apps.
 
 `GET /api/v1/fleet/software/fleet_maintained_apps`
+
 
 #### Parameters
 
