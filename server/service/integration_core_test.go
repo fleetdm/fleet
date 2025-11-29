@@ -7977,7 +7977,31 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	require.NoError(t, err)
 
 	// apply certificate templates
+
 	var applyResp applyCertificateTemplateSpecsResponse
+	// invalid template (subject name validation fails)
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Invalid Template",
+				Team:                   fmt.Sprint(team.ID),
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$INVALID_VARIABLE/OU=$FLEET_VAR_HOST_UUID",
+			},
+		},
+	}, http.StatusBadRequest, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Invalid Template",
+				Team:                   fmt.Sprint(team.ID),
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_NOT_VALID/OU=$FLEET_VAR_HOST_UUID",
+			},
+		},
+	}, http.StatusBadRequest, &applyResp)
+
+	// valid templates
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
 		Specs: []*fleet.CertificateRequestSpec{
 			{
@@ -7990,7 +8014,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 				Name:                   "Template 2",
 				Team:                   fmt.Sprint(team.ID),
 				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
 			},
 		},
 	}, http.StatusOK, &applyResp)

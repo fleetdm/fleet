@@ -2920,6 +2920,13 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 			)
 		}
 
+		// Validate Fleet variables in subject name
+		if err := validateCertificateTemplateFleetVariables(certificates[i].SubjectName); err != nil {
+			return newGitOpsValidationError(
+				fmt.Sprintf(`Invalid Fleet variable in certificate %q: %s`, certificates[i].Name, err.Error()),
+			)
+		}
+
 		caID, ok := caIDsByName[certificates[i].CertificateAuthorityName]
 		if !ok {
 			return fmt.Errorf("certificate authority %q not found for certificate %q",
