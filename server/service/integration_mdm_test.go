@@ -814,10 +814,12 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		return err
 	})
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `DELETE FROM android_enterprises`)
-		return err
-	})
+	err = s.ds.DeleteAllEnterprises(ctx)
+	require.NoError(t, err)
+
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = false
+	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
+	s.androidAPIClient.EnterprisesDevicesPatchFuncInvoked = false
 }
 
 func (s *integrationMDMTestSuite) mockDEPResponse(orgName string, handler http.Handler) {

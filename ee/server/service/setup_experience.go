@@ -176,6 +176,12 @@ func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uin
 }
 
 func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Host) (bool, error) {
+	// NOTE: currently, the Android platform does not go through the step-by-step setup experience flow as it
+	// doesn't support any on-device UI (such as the screen showing setup progress) nor any
+	// ordering of installs - all software to install is provided as part of the Android policy
+	// when the host enrolls in Fleet.
+	// See https://github.com/fleetdm/fleet/issues/33761#issuecomment-3548996114
+
 	hostUUID, err := fleet.HostUUIDForSetupExperience(host)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")

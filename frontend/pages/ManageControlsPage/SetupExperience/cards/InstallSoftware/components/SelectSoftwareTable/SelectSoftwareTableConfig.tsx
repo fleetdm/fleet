@@ -3,14 +3,14 @@ import { CellProps, Column } from "react-table";
 
 import { IStringCellProps } from "interfaces/datatable_config";
 import { ISoftwareTitle, SoftwareSource } from "interfaces/software";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { SetupExperiencePlatform } from "interfaces/platform";
-
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 
 type ISelectSoftwareTableConfig = Column<ISoftwareTitle>;
 type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
@@ -80,6 +80,21 @@ const generateTableConfig = (
       Header: "Version",
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => {
+        if (platform === "android") {
+          const androidPlayStoreId =
+            cellProps.row.original.app_store_app?.app_store_id;
+
+          return (
+            <TextCell
+              value={
+                <AndroidLatestVersionWithTooltip
+                  androidPlayStoreId={androidPlayStoreId || ""}
+                />
+              }
+            />
+          );
+        }
+
         const title = cellProps.row.original;
         let versionFoRender = title.software_package?.version;
         if (platform === "linux") {

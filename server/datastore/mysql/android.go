@@ -730,7 +730,7 @@ func sqlCaseMDMAndroidStatus() string {
 `
 }
 
-func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDMAndroidPolicyRequest) error {
+func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *android.MDMAndroidPolicyRequest) error {
 	const stmt = `
 	INSERT INTO android_policy_requests
 		(request_uuid, request_name, policy_id, payload, status_code, error_details, applied_policy_version, policy_version)
@@ -754,7 +754,7 @@ func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDM
 	return ctxerr.Wrap(ctx, err, "inserting android policy request")
 }
 
-func (ds *Datastore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*fleet.MDMAndroidPolicyRequest, error) {
+func (ds *Datastore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error) {
 	const stmt = `
 		SELECT
 			request_uuid,
@@ -771,7 +771,7 @@ func (ds *Datastore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestU
 			request_uuid = ?
 	`
 
-	req := fleet.MDMAndroidPolicyRequest{}
+	req := android.MDMAndroidPolicyRequest{}
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &req, stmt, requestUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

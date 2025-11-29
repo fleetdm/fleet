@@ -286,7 +286,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			PolicyRequestUUID:       &policyRequestUUID,
 		}
 
-		mockDS.GetAndroidPolicyRequestByUUIDFunc = func(ctx context.Context, id string) (*fleet.MDMAndroidPolicyRequest, error) {
+		mockDS.GetAndroidPolicyRequestByUUIDFunc = func(ctx context.Context, id string) (*android.MDMAndroidPolicyRequest, error) {
 			if id == policyRequestUUID {
 				payload, err := json.Marshal(map[string]any{
 					"policy": map[string]any{
@@ -301,7 +301,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 					},
 				})
 				require.NoError(t, err)
-				return &fleet.MDMAndroidPolicyRequest{
+				return &android.MDMAndroidPolicyRequest{
 					Payload: payload,
 				}, nil
 			}

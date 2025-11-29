@@ -18,8 +18,9 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 
 import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
-
+import TextCell from "components/TableContainer/DataTable/TextCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
+import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 import HostInstallerActionCell from "../HostInstallerActionCell";
 import InstallStatusCell from "../../Software/InstallStatusCell";
 import { installStatusSortType } from "../../Software/helpers";
@@ -182,9 +183,20 @@ export const generateHostSWLibraryTableHeaders = ({
           !!softwareTitle.app_store_app &&
           softwareTitle.source === "android_apps";
 
-        // For Android Play Store apps, we do not show the version in the library
+        // For Android Play Store apps, we show "Latest" in the UI
         if (isAndroidPlayStoreApp) {
-          return <span>Latest</span>;
+          const androidPlayStoreId =
+            cellProps.row.original.app_store_app?.app_store_id;
+
+          return (
+            <TextCell
+              value={
+                <AndroidLatestVersionWithTooltip
+                  androidPlayStoreId={androidPlayStoreId || ""}
+                />
+              }
+            />
+          );
         }
 
         return (

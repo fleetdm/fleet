@@ -27,17 +27,28 @@ func (v *SoftwareWorker) Name() string {
 	return softwareWorkerJobName
 }
 
-const makeAndroidAppsAvailableForHostTask SoftwareWorkerTask = "make_android_apps_available_for_host"
-const makeAndroidAppAvailableTask SoftwareWorkerTask = "make_android_app_available"
+const (
+	makeAndroidAppsAvailableForHostTask SoftwareWorkerTask = "make_android_apps_available_for_host"
+	makeAndroidAppAvailableTask         SoftwareWorkerTask = "make_android_app_available"
+	runAndroidSetupExperienceTask       SoftwareWorkerTask = "run_android_setup_experience"
+)
 
 type softwareWorkerArgs struct {
 	Task           SoftwareWorkerTask `json:"task"`
-	HostUUID       string             `json:"host_uuid"`
-	ApplicationID  string             `json:"application_id"`
-	EnterpriseName string             `json:"enterprise_name"`
-	AppTeamID      uint               `json:"app_team_id"`
-	HostID         uint               `json:"host_id"`
-	PolicyID       string             `json:"policy_id"`
+	HostUUID       string             `json:"host_uuid,omitempty"`
+	ApplicationID  string             `json:"application_id,omitempty"`
+	EnterpriseName string             `json:"enterprise_name,omitempty"`
+	AppTeamID      uint               `json:"app_team_id,omitempty"`
+	HostID         uint               `json:"host_id,omitempty"`
+
+	// HostEnrollTeamID is the team ID associated with the host at the time
+	// of enrollment, which is the one used to run the setup experience.
+	// A value of 0 is used to represent "no team".
+	HostEnrollTeamID uint `json:"host_enroll_team_id,omitempty"`
+
+	// PolicyID is the Android Management API Policy ID associated with the host, *not*
+	// a Fleet policy ID.
+	PolicyID string `json:"policy_id,omitempty"`
 }
 
 func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) error {
@@ -47,8 +58,9 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 	}
 
 	switch args.Task {
-
 	case makeAndroidAppsAvailableForHostTask:
+		// this task is deprecated (its logic is part of the run setup experience task), but must
+		// be kept here in case some pending jobs are still in the queue.
 		return ctxerr.Wrapf(
 			ctx,
 			v.makeAndroidAppsAvailableForHost(ctx, args.HostUUID, args.HostID, args.EnterpriseName, args.PolicyID),
@@ -64,6 +76,14 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 			makeAndroidAppAvailableTask,
 		)
 
+	case runAndroidSetupExperienceTask:
+		return ctxerr.Wrapf(
+			ctx,
+			v.runAndroidSetupExperience(ctx, args.HostUUID, args.HostEnrollTeamID, args.EnterpriseName),
+			"running %s task",
+			runAndroidSetupExperienceTask,
+		)
+
 	default:
 		return ctxerr.Errorf(ctx, "unknown task: %v", args.Task)
 	}
@@ -76,7 +96,7 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 	}
 
 	// Update Android MDM policy to include the app in self service
-	err = v.AndroidModule.AddAppToAndroidPolicy(ctx, enterpriseName, []string{applicationID}, hosts)
+	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, []string{applicationID}, hosts, "AVAILABLE")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 	}
@@ -103,7 +123,7 @@ func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, lo
 
 func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, hostUUID string, hostID uint, enterpriseName, policyID string) error {
 
-	if policyID == "1" {
+	if policyID == fmt.Sprint(android.DefaultAndroidPolicyID) {
 		// Get the host once for both enroll secret and device patching
 		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
 		if err != nil {
@@ -188,7 +208,7 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return nil
 	}
 
-	err = v.AndroidModule.AddAppToAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{hostUUID: hostUUID})
+	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{hostUUID: hostUUID}, "AVAILABLE")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 	}
@@ -196,13 +216,70 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 	return nil
 }
 
-func QueueMakeAndroidAppsAvailableForHostJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, hostUUID string, hostID uint, enterpriseName, policyID string) error {
+func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
+	hostUUID string, hostEnrollTeamID uint, enterpriseName string) error {
+
+	host, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "getting android host lite by uuid %s", hostUUID)
+	}
+
+	// first step is to make the apps available for self-service available on the host
+	// we do this first because it also takes care of assigning the host-specific policy
+	// to the host if necessary.
+	policyID := fmt.Sprint(android.DefaultAndroidPolicyID)
+	if host.AppliedPolicyID != nil {
+		policyID = *host.AppliedPolicyID
+	}
+
+	// TODO(mna): obviously it would be ideal to define a single policy at enroll time with
+	// everything it needs at once (instead of that call to add self-service app, and the subsequent
+	// one to install setup experience apps). I'll keep this as a follow-up optimization if we
+	// have a bit of time at the end of this story - it will require a somewhat significant refactor.
+	// Also, this may be more API-efficient, but less portable to our ordered, unified queue framework
+	// that eventually Android apps will have to fit into
+	// (see https://github.com/fleetdm/fleet/issues/33761#issuecomment-3553434984).
+	if err := v.makeAndroidAppsAvailableForHost(ctx, hostUUID, host.Host.ID, enterpriseName, policyID); err != nil {
+		return ctxerr.Wrapf(ctx, err, "making android apps available for host %s", hostUUID)
+	}
+
+	// TODO(mna): if the host has been transferred to another team before it had a chance to install
+	// the enrollment team's setup experience software, do we still run those installs?
+	// my guess is yes (because we don't _uninstall_ on team transfers, so it should be
+	// expected that the original team's software gets installed despite being transferred).
+	appIDs, err := v.Datastore.GetVPPAppsToInstallDuringSetupExperience(ctx, &hostEnrollTeamID, string(fleet.AndroidPlatform))
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "getting vpp apps to install during setup experience for team %d", hostEnrollTeamID)
+	}
+
+	if len(appIDs) > 0 {
+		// assign those apps to the host's Android policy
+		hostToPolicyRequest, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{hostUUID: hostUUID}, "FORCE_INSTALLED")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
+		}
+		_ = hostToPolicyRequest
+
+		// TODO(mna): insert each app install into host_vpp_software_installs with status pending,
+		// and store the policy version in associated_event_id (? or a new column?) to track for
+		// install verification.
+	}
+
+	return nil
+}
+
+func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
+	hostUUID string, hostEnrollTeamID *uint, enterpriseName string) error {
+
+	var enrollTeamID uint
+	if hostEnrollTeamID != nil {
+		enrollTeamID = *hostEnrollTeamID
+	}
 	args := &softwareWorkerArgs{
-		Task:           makeAndroidAppsAvailableForHostTask,
-		HostUUID:       hostUUID,
-		HostID:         hostID,
-		EnterpriseName: enterpriseName,
-		PolicyID:       policyID,
+		Task:             runAndroidSetupExperienceTask,
+		HostUUID:         hostUUID,
+		EnterpriseName:   enterpriseName,
+		HostEnrollTeamID: enrollTeamID,
 	}
 
 	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
@@ -210,6 +287,6 @@ func QueueMakeAndroidAppsAvailableForHostJob(ctx context.Context, ds fleet.Datas
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", makeAndroidAppsAvailableForHostTask)
+	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
 	return nil
 }
