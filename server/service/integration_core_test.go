@@ -14675,8 +14675,8 @@ func (s *integrationTestSuite) TestUpdateHostCertificateTemplate() {
 	// Create a record in host_certificate_templates using ad hoc SQL
 	sql := `
 INSERT INTO host_certificate_templates (
-	host_uuid, 
-	certificate_template_id, 
+	host_uuid,
+	certificate_template_id,
 	status,
 	fleet_challenge
 ) VALUES (?, ?, ?, ?);
