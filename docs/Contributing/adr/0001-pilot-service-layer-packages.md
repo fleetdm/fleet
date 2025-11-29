@@ -2,7 +2,7 @@
 
 ## Status 🚦
 
-Accepted
+Superseded by [ADR-0007: Refactor Android](0007-refactor-android.md)
 
 ## Date 📅
 
