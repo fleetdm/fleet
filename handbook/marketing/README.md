@@ -251,7 +251,7 @@ This section tracks the **volume** of our most important user actions on the web
 This view displays the website's efficiency by tracking the rate at which users complete a key event. Conversion rate is generally a stronger indicator of performance than event volume alone.
 
 - **Conversion Rates:** Displays the **User Key Event Rate** for primary goals, including:  
-  - **Sign Up Form (Sign up for FleetDM):** Tracks the rate of fleet\_website\_sign\_up.  
+  - **Sign Up Form (Sign up for Fleet):** Tracks the rate of fleet\_website\_sign\_up.  
   - **Contact Us (or Request Demo):** Tracks the rate of fleet website contact forms.  
   - **Swag:** Tracks the rate of fleet\_website\_swag\_request.  
 - **Usage:** Used to monitor A/B test results, measure the quality of traffic from different channels, and ensure key pathways in the product/website are optimized.
