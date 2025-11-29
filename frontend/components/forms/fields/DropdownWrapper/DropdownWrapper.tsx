@@ -31,6 +31,65 @@ import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import { TooltipContent } from "interfaces/dropdownOption";
 
+interface CustomOptionProps
+  extends Omit<OptionProps<CustomOptionType, false>, "data"> {
+  data: CustomOptionType;
+}
+
+const baseClass = "dropdown-wrapper";
+
+const CustomOption = (props: CustomOptionProps) => {
+  const { data, ...rest } = props;
+
+  const optionContent = (
+    <div className={`${baseClass}__option`}>
+      {data.label}
+      {data.helpText && (
+        <span className={`${baseClass}__help-text`}>{data.helpText}</span>
+      )}
+    </div>
+  );
+
+  return (
+    <components.Option {...rest} data={data}>
+      {data.tooltipContent ? (
+        <DropdownOptionTooltipWrapper tipContent={data.tooltipContent}>
+          {optionContent}
+        </DropdownOptionTooltipWrapper>
+      ) : (
+        optionContent
+      )}
+    </components.Option>
+  );
+};
+
+export const CustomDropdownIndicator = (
+  props: DropdownIndicatorProps<
+    CustomOptionType,
+    false,
+    GroupBase<CustomOptionType>
+  >
+) => {
+  const { isFocused, selectProps } = props;
+  const color =
+    isFocused || selectProps.menuIsOpen
+      ? "ui-fleet-black-75-over"
+      : "ui-fleet-black-75";
+
+  return (
+    <components.DropdownIndicator
+      {...props}
+      className={`${baseClass}__indicator`}
+    >
+      <Icon
+        name="chevron-down"
+        color={color}
+        className={`${baseClass}__icon`}
+      />
+    </components.DropdownIndicator>
+  );
+};
+
 export interface CustomOptionType {
   label: React.ReactNode;
   value: string;
@@ -86,121 +145,15 @@ const getOptionFontWeight = (
   return state.isSelected ? "600" : "normal";
 };
 
-const baseClass = "dropdown-wrapper";
-
-const DropdownWrapper = ({
-  options,
-  value,
-  onChange,
-  name,
-  className,
-  labelClassname,
-  wrapperClassname,
-  error,
-  label,
-  helpText,
-  isSearchable = false,
+/** generates the default custom styles for the dropdown component.
+ * NOTE: we export this from DropdownWrapper components so that other more
+ * customisable dropdown components can use this for consistency in styling */
+export const generateCustomDropdownStyles = (
+  variant?: DropdownWrapperVariant,
   isDisabled = false,
-  iconName,
-  placeholder,
-  onMenuOpen,
-  variant,
-  nowrapMenu,
-}: IDropdownWrapper) => {
-  const wrapperClassNames = classnames(baseClass, className, {
-    [`${baseClass}__table-filter`]: variant === "table-filter",
-    [`${wrapperClassname}`]: !!wrapperClassname,
-  });
-
-  const handleChange = (newValue: SingleValue<CustomOptionType>) => {
-    onChange(newValue);
-  };
-
-  // Ability to handle value of type string or CustomOptionType
-  const getCurrentValue = () => {
-    if (typeof value === "string") {
-      return options.find((option) => option.value === value) || null;
-    }
-    return value;
-  };
-
-  interface CustomOptionProps
-    extends Omit<OptionProps<CustomOptionType, false>, "data"> {
-    data: CustomOptionType;
-  }
-
-  const CustomOption = (props: CustomOptionProps) => {
-    const { data, ...rest } = props;
-
-    const optionContent = (
-      <div className={`${baseClass}__option`}>
-        {data.label}
-        {data.helpText && (
-          <span className={`${baseClass}__help-text`}>{data.helpText}</span>
-        )}
-      </div>
-    );
-
-    return (
-      <components.Option {...rest} data={data}>
-        {data.tooltipContent ? (
-          <DropdownOptionTooltipWrapper tipContent={data.tooltipContent}>
-            {optionContent}
-          </DropdownOptionTooltipWrapper>
-        ) : (
-          optionContent
-        )}
-      </components.Option>
-    );
-  };
-
-  const CustomDropdownIndicator = (
-    props: DropdownIndicatorProps<
-      CustomOptionType,
-      false,
-      GroupBase<CustomOptionType>
-    >
-  ) => {
-    const { isFocused, selectProps } = props;
-    const color =
-      isFocused || selectProps.menuIsOpen
-        ? "ui-fleet-black-75-over"
-        : "ui-fleet-black-75";
-
-    return (
-      <components.DropdownIndicator
-        {...props}
-        className={`${baseClass}__indicator`}
-      >
-        <Icon
-          name="chevron-down"
-          color={color}
-          className={`${baseClass}__icon`}
-        />
-      </components.DropdownIndicator>
-    );
-  };
-
-  const ValueContainer = ({
-    children,
-    ...props
-  }: ValueContainerProps<CustomOptionType, false>) => {
-    const iconToDisplay =
-      iconName || (variant === "table-filter" ? "filter" : null);
-
-    return (
-      components.ValueContainer && (
-        <components.ValueContainer {...props}>
-          {!!children && iconToDisplay && (
-            <Icon name={iconToDisplay} className="filter-icon" />
-          )}
-          {children}
-        </components.ValueContainer>
-      )
-    );
-  };
-
-  const customStyles: StylesConfig<CustomOptionType, false> = {
+  nowrapMenu = false
+): StylesConfig<CustomOptionType, false> => {
+  return {
     container: (provided) => {
       const buttonVariantContainer = {
         borderRadius: "6px",
@@ -467,6 +420,62 @@ const DropdownWrapper = ({
       padding: "10px 8px",
     }),
   };
+};
+
+const DropdownWrapper = ({
+  options,
+  value,
+  onChange,
+  name,
+  className,
+  labelClassname,
+  wrapperClassname,
+  error,
+  label,
+  helpText,
+  isSearchable = false,
+  isDisabled = false,
+  iconName,
+  placeholder,
+  onMenuOpen,
+  variant,
+  nowrapMenu,
+}: IDropdownWrapper) => {
+  const wrapperClassNames = classnames(baseClass, className, {
+    [`${baseClass}__table-filter`]: variant === "table-filter",
+    [`${wrapperClassname}`]: !!wrapperClassname,
+  });
+
+  const handleChange = (newValue: SingleValue<CustomOptionType>) => {
+    onChange(newValue);
+  };
+
+  // Ability to handle value of type string or CustomOptionType
+  const getCurrentValue = () => {
+    if (typeof value === "string") {
+      return options.find((option) => option.value === value) || null;
+    }
+    return value;
+  };
+
+  const ValueContainer = ({
+    children,
+    ...props
+  }: ValueContainerProps<CustomOptionType, false>) => {
+    const iconToDisplay =
+      iconName || (variant === "table-filter" ? "filter" : null);
+
+    return (
+      components.ValueContainer && (
+        <components.ValueContainer {...props}>
+          {!!children && iconToDisplay && (
+            <Icon name={iconToDisplay} className="filter-icon" />
+          )}
+          {children}
+        </components.ValueContainer>
+      )
+    );
+  };
 
   const renderLabel = () => {
     const labelWrapperClasses = classnames(
@@ -500,7 +509,7 @@ const DropdownWrapper = ({
       <Select<CustomOptionType, false>
         classNamePrefix="react-select"
         isSearchable={isSearchable}
-        styles={customStyles}
+        styles={generateCustomDropdownStyles(variant, isDisabled, nowrapMenu)}
         options={options}
         components={{
           Option: CustomOption,
