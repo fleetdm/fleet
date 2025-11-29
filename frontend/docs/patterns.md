@@ -204,6 +204,7 @@ export default PackComposerPage;
 
 ## Forms
 
+
 ### Form submission
 
 When building a React-controlled form:
@@ -216,7 +217,23 @@ handler's logic.
   - does nothing (e.g., returns `null`) if the form is in an invalid state, preventing submission by any means.
 - Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`)
 
-### Data validation
+### Form UX - Rendering inside modals
+
+- When rendering a form inside a modal, the first field of that form should have `autofocus` set so
+  that the user can immediately edit the form.
+
+### Form UX - Styling
+- Fleet form styles defined in `frontend/styles/global/_global.scss`:
+  -  `form, .form {...}` defines the overall form styles, while `form-field {...}` defines styles
+     for specific form fields. To have these styles automatically target your form, ensure the
+     warpper is either an actual `form` element or that it contains the `.form` classname (TODO:
+     write a `Form` wrapper that encapsulates this), and that
+     each form field contains the `.form-field` class (by using our form field components e.g.
+     `InputField`, this is likely already taken care of).
+
+
+### Form UX - Validation
+*there is an updated validation paradigm, this is out of date as of 11/19/25*
 
 #### How to validate
 
@@ -516,8 +533,10 @@ then the [app's context](#react-context) should be used.
 
 ### Reading and updating configs
 
-If you are dealing with a page that *updates* any kind of config, you'll want to access that config
-with a fresh API call to be sure you have the updated values. Otherwise, that is, you are dealing
+If you are dealing with a page that *updates* any kind of config, set the local `AppContext.config`
+with the response directly from the `PUT` call to ensure the latest values are represented in the UI
+and to avoid propagation delay issues (a follow-up `GET` may hit a reader database replica which
+doesn't have the updated config yet). Otherwise, that is, you are dealing
 with a page that is only *reading* config values, get them from context.
 
 ### Rendering flash messages
