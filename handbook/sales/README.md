@@ -152,8 +152,6 @@ The “Attributed to” field is associated with a Salesforce user. The opportun
 - Channel: If a deal was referred to us from a Channel partner (deal-reg approved by Channel manager), update the field with Channel manager’s name.
 - All other sources: For opportunities that do not fall under any of the above categories, update the field with the CMO's name
 
-AE’s should update all the new business opportunities created since 2025-Q4.
-
 
 ## Rituals
 
