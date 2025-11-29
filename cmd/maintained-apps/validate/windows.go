@@ -64,7 +64,7 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion
 		return false, fmt.Errorf("parsing osquery JSON output: %w", err)
 	}
 
-		if len(results) > 0 {
+	if len(results) > 0 {
 		for _, result := range results {
 			software := &fleet.Software{
 				Name:    result.Name,
