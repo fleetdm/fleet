@@ -429,6 +429,13 @@
       "description": "Linear is an app to manage software development and track bugs."
     },
     {
+      "name": "Little Snitch",
+      "slug": "little-snitch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "at.obdev.LittleSnitch",
+      "description": "Little Snitch is a network monitor and application firewall that provides real-time visibility and control over network connections for macOS."
+    },
+    {
       "name": "Logi Options+",
       "slug": "logi-options+/darwin",
       "platform": "darwin",
