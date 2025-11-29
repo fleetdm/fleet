@@ -338,6 +338,7 @@ controls:
   macos_updates: # Available in Fleet Premium
     deadline: "2024-12-31"
     minimum_version: "15.1"
+    update_new_hosts: true
   ios_updates: # Available in Fleet Premium
     deadline: "2024-12-31"
     minimum_version: "18.1"
@@ -381,6 +382,7 @@ controls:
 
 - `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time for hosts on macOS 14 and above, 20:00 UTC for hosts on older macOS versions. (default: `""`).
 - `minimum_version` specifies the minimum required macOS version (default: `""`).
+- `update_new_hosts` - macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`.
 
 ### ios_updates
 
@@ -512,6 +514,7 @@ software:
       setup_experience: true
   fleet_maintained_apps:
     - slug: slack/darwin
+      pin_version: "4.47.59"
       install_script:
         path: ../lib/software/slack-install-script.sh
       uninstall_script:
@@ -537,7 +540,7 @@ software:
   - `Communication`: shown as **👬 Communication**
   - `Developer tools`: shown as **🧰 Developer tools**
   - `Productivity`: shown as **🖥️ Productivity**
-- `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/macos-setup-experience).
+- `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
 
 ### packages
 
@@ -585,6 +588,7 @@ You can view the hash for existing software in the software detail page in the F
 - `app_store_id` is the ID of the Apple App Store app. You can find this at the end of the app's App Store URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" and the `app_store_id` is `1016366447`.
   + Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
+- `configuration.path` is the Android Play Store app's managed configuration in JSON format. Currently only supported for Android.
 
 Currently, one app for each of an App Store app's supported platforms are added, along with all specified settings (e.g. `self_service`). If software for one platform is deleted in the UI, it will come back when GitOps is re-run. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet. Specifying specific platforms is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
@@ -592,7 +596,7 @@ Currently, one app for each of an App Store app's supported platforms are added,
 
 - `fleet_maintained_apps` is a list of Fleet-maintained apps. Provide the `slug` field to include a Fleet-maintained app on a team. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app, then select **Show details**. You can also see the [list of app slugs on GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
 
-Currently, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs.
+By default, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs.
 
 The below fields are all optional.
 
@@ -600,6 +604,7 @@ The below fields are all optional.
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
+- `pin_version` specifies the version of the package that will be downloaded by Fleet. Version can be set only to the version that is available in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If version isn't specified, Fleet downloads the latest version as soon as it's available in the app's metadata.
 
 The below fields are optional, and if omitted will default to values specified in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
 

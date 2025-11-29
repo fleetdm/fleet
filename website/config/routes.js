@@ -1018,7 +1018,9 @@ module.exports.routes = {
   'GET /learn-more-about/setup-experience/end-user-authentication': '/guides/macos-setup-experience#end-user-authentication',
   'GET /learn-more-about/setup-experience/bootstrap-package': '/guides/macos-setup-experience#bootstrap-package',
   'GET /learn-more-about/built-in-variables': '/docs/configuration/yaml-files#variables',
+  'GET /learn-more-about/apple-available-os-updates': 'guides/enforce-os-updates',
   'GET /learn-more-about/disable-entra-conditional-access': '/guides/entra-conditional-access-integration#disable',
+  'GET /learn-more-about/available-fma-versions': 'https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs',
 
   // Sitemap
   // =============================================================================================================
