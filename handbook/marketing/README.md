@@ -224,6 +224,7 @@ Fleet invites guests to discuss the future of IT and security on the [ExpedITion
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
 
 
+
 #### Stubs
 The following stubs are included only to make links backward compatible
 
