@@ -222,7 +222,7 @@ Fleet invites guests to discuss the future of IT and security on the [ExpedITion
 ## Rituals
 
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
-- Need to add a ritual? - [Here's a video overview of the process](https://us-65885.app.gong.io/call?id=762393910108301882&email_type=collaborate-invitation-sent&xtid=59gug817r4n09e81ftf).
+
 
 
 #### Stubs
