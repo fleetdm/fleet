@@ -9,6 +9,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import kotlinx.coroutines.runBlocking
 
 @RunWith(RobolectricTestRunner::class)
 class ConfigCheckWorkerTest {
@@ -25,8 +26,8 @@ class ConfigCheckWorkerTest {
             TestListenableWorkerBuilder<ConfigCheckWorker>(context)
                 .build()
 
-        // Execute the worker
-        val result = worker.doWork()
+        // Execute the worker (doWork is now a suspend function)
+        val result = runBlocking { worker.doWork() }
         assertEquals(ListenableWorker.Result.success(), result)
     }
 }
