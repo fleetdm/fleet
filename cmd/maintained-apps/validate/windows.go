@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -63,7 +64,7 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion
 		return false, fmt.Errorf("parsing osquery JSON output: %w", err)
 	}
 
-	if len(results) > 0 {
+		if len(results) > 0 {
 		for _, result := range results {
 			software := &fleet.Software{
 				Name:    result.Name,
@@ -75,7 +76,13 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion
 			result.Name = software.Name
 
 			level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s", result.Name, result.InstallLocation, result.Version))
+			// Check exact match first
 			if result.Version == appVersion {
+				return true, nil
+			}
+			// Check if found version starts with expected version (handles suffixes like ".0")
+			// This handles cases where the app version is "3.5.4.0" but expected is "3.5.4"
+			if strings.HasPrefix(result.Version, appVersion+".") {
 				return true, nil
 			}
 		}
