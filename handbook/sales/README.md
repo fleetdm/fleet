@@ -135,21 +135,21 @@ To complete a security questionnaire, the AE assigned to the account will:
 
 1. Create an issue linking the questionnaire and any other context needed. 
 2. [Use the handbook](https://fleetdm.com/handbook/finance/security#vendor-questionnaires) to answer the questions with links to appropriate sections in the handbook.
-3. If there are outstanding questions, the AE will assign the issue to the Solutions Consultant (SC) associated to the opportunity.
+3. If there are outstanding questions, the AE will assign the issue to the Solutions Consultant (SC) associated with the opportunity.
 4. The SC will search for unanswered questions and confirm again that nothing was missed from the handbook. Content missing from the handbook will need to be added via PR by the AE.
-5. If there are still unanswered questions, the AE will route the issue to the relevant department. Once complete, the team will leave a comment in the issue `@`mentioning the AE with the requested information. Any questions answered by other departments will be added to the handbook by the AE.
+5. If there are still unanswered questions, the AE will route the issue to the relevant department. Once complete, the team will leave a comment in the issue, @`mentioning the AE with the requested information. Any questions answered by other departments will be added to the handbook by the AE.
 
 
 ### Update Salesforce “Attributed to” field on an opportunity
 
-The “Attributed to” field in Salesforce opportunity page will be used to track where each new business opportunity created can be attributed to. This is a temporary solution put in place until we have built-out the process that would automate how we track attribution, and measure ROI associated with our program spend.  
+The “Attributed to” field in the Salesforce opportunity page will be used to track where each new business opportunity created can be attributed to. This is a temporary solution put in place until we have built out the process that would automate how we track attribution and measure ROI associated with our program spend.  
 
 The “Attributed to” field is associated with a Salesforce user. The opportunity owner will have to determine the correct user to add to the field when the opportunity is created. The rule to determine which user to add to the field:
 
-- Inbound: For all opportunities created based on inbound leads (e.g. digital ads, brand, events, GitOps workshops, organic web traffic, etc), update the field with CMO’s name
+- Inbound: For all opportunities created based on inbound leads (e.g., digital ads, brand, events, GitOps workshops, organic web traffic, etc), update the field with the CMO’s name
 - Outbound-AE: If the opportunity was created as a result of the AE’s outbound efforts, update the field with the AE's name.
 - Outbound-SDR: If the opportunity was created as a result of the AE’s outbound efforts, update the field with the SDR’s name
-- Channel: If a deal was referred to us from a Channel partner (deal-reg approved by Channel manager), update the field with Channel manager’s name.
+- Channel: If a deal was referred to us from a Channel Partner (deal-reg approved by Channel Manager), update the field with the Channel Manager’s name.
 - All other sources: For opportunities that do not fall under any of the above categories, update the field with the CMO's name
 
 
