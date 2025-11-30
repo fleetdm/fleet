@@ -30,5 +30,5 @@ func NewService(store Datastore) (*Service, error) {
 // This is a placeholder method for the scaffold phase.
 func (svc *Service) Ping(ctx context.Context) error {
 	svc.authz.SkipAuthorization(ctx)
-	return nil
+	return svc.store.Ping(ctx)
 }
