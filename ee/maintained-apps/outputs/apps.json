@@ -723,6 +723,13 @@
       "description": "Sublime Text is a text editor for code, markup, and prose."
     },
     {
+      "name": "Sublime Text",
+      "slug": "sublime-text/windows",
+      "platform": "windows",
+      "unique_identifier": "Sublime Text",
+      "description": "Sublime Text is a text editor for code, markup, and prose."
+    },
+    {
       "name": "TablePlus",
       "slug": "tableplus/darwin",
       "platform": "darwin",
