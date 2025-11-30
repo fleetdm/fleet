@@ -17,4 +17,3 @@ func CamtasiaVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintaine
 	}
 	return app, nil
 }
-
