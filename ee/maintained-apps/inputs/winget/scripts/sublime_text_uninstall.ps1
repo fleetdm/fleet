@@ -24,9 +24,10 @@ if (-not $uninstall -or -not $uninstall.UninstallString) {
 
 # Kill any running Sublime Text processes before uninstalling
 Stop-Process -Name "sublime_text" -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
 
 $uninstallCommand = $uninstall.UninstallString
-$uninstallArgs = "/VERYSILENT /NORESTART /LOG=C:\Windows\Logs\Software\SublimeText-Uninstall.log"
+$uninstallArgs = "/VERYSILENT /NORESTART"
 
 # Parse the uninstall command to separate executable from existing arguments
 $splitArgs = $uninstallCommand.Split('"')
