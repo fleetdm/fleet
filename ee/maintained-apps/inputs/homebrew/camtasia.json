@@ -4,5 +4,6 @@
   "token": "camtasia",
   "installer_format": "dmg",
   "slug": "camtasia/darwin",
-  "default_categories": ["Productivity"]
+  "default_categories": ["Productivity"],
+  "frozen": true
 }
