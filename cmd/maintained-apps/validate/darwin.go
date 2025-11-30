@@ -161,6 +161,23 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 				return true, nil
 			}
 
+			// Camtasia uses year-based versioning where Homebrew reports "26.0.2" but osquery reports "2026.0.2"
+			// Check if the found version matches "20" + expected version
+			// Strip trailing asterisk if present (some identifiers use wildcards)
+			identifierForCheck := strings.TrimSuffix(uniqueAppIdentifier, "*")
+			if identifierForCheck == "com.techsmith.camtasia" {
+				expectedWithYear := "20" + appVersion
+				if result.Version == expectedWithYear || result.BundledVersion == expectedWithYear {
+					level.Info(logger).Log("msg", fmt.Sprintf("Camtasia version match: expected %s matches found %s (with year prefix)", appVersion, result.Version))
+					return true, nil
+				}
+				// Also check if found version starts with expected version with year prefix
+				if strings.HasPrefix(result.Version, expectedWithYear+".") || strings.HasPrefix(result.BundledVersion, expectedWithYear+".") {
+					level.Info(logger).Log("msg", fmt.Sprintf("Camtasia version match: expected %s matches found %s (with year prefix and suffix)", appVersion, result.Version))
+					return true, nil
+				}
+			}
+
 			// Check exact match first
 			if result.Version == appVersion || result.BundledVersion == appVersion {
 				return true, nil
