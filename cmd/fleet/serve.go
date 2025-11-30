@@ -32,6 +32,8 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_mysql "github.com/fleetdm/fleet/v4/server/activity/mysql"
+	activity_service "github.com/fleetdm/fleet/v4/server/activity/service"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -243,11 +245,20 @@ the way that the Fleet server works.
 				opts = append(opts, mysql.TracingEnabled(&config.Logging))
 			}
 
-			mds, err := mysql.New(config.Mysql, clock.C, opts...)
+			// Create database connections that can be shared across datastores
+			dbConns, err := mysql.NewDBConnections(config.Mysql, opts...)
+			if err != nil {
+				initFatal(err, "initializing database connections")
+			}
+
+			mds, err := mysql.NewDatastore(dbConns, config.Mysql, clock.C)
 			if err != nil {
 				initFatal(err, "initializing datastore")
 			}
 			ds = mds
+
+			// Initialize activity bounded context datastore using shared connections
+			activityStore := activity_mysql.NewDatastore(dbConns.Primary, dbConns.Replica)
 
 			if config.S3.CarvesBucket != "" || config.S3.Bucket != "" {
 				carveStore, err = s3.NewCarveStore(config.S3, ds)
@@ -800,6 +811,12 @@ the way that the Fleet server works.
 				initFatal(err, "initializing android service")
 			}
 
+			// Initialize activity bounded context service
+			activitySvc, err := activity_service.NewService(activityStore)
+			if err != nil {
+				initFatal(err, "initializing activity service")
+			}
+
 			var softwareInstallStore fleet.SoftwareInstallerStore
 			var bootstrapPackageStore fleet.MDMBootstrapPackageStore
 			var softwareTitleIconStore fleet.SoftwareTitleIconStore
@@ -1248,7 +1265,10 @@ the way that the Fleet server works.
 				extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
 
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool,
-					[]endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc)}, extra...)
+					[]endpoint_utils.HandlerRoutesFunc{
+						android_service.GetRoutes(svc, androidSvc),
+						activity_service.GetRoutes(svc, activitySvc),
+					}, extra...)
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
 				if err != nil {
