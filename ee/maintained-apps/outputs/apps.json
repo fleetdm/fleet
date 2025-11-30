@@ -135,6 +135,13 @@
       "description": "Camtasia is a screen recorder and video editor."
     },
     {
+      "name": "Camtasia",
+      "slug": "camtasia/windows",
+      "platform": "windows",
+      "unique_identifier": "Camtasia",
+      "description": "Camtasia is a screen recorder and video editor."
+    },
+    {
       "name": "Canva",
       "slug": "canva/darwin",
       "platform": "darwin",

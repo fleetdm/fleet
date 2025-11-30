@@ -1,6 +1,6 @@
 {
   "name": "Camtasia",
-  "unique_identifier": "com.techsmith.camtasia*",
+  "unique_identifier": "com.techsmith.camtasia",
   "token": "camtasia",
   "installer_format": "dmg",
   "slug": "camtasia/darwin",
