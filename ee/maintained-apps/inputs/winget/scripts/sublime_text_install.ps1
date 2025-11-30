@@ -14,13 +14,13 @@ try {
     
     # Add arguments to install silently
     # Sublime Text uses an Inno Setup-based installer
-    # Based on: https://silentinstallhq.com/sublime-text-install-and-uninstall-powershell/
-    # /VERYSILENT = Very silent installation (no dialogs)
+    # Based on winget manifest: https://github.com/microsoft/winget-pkgs/blob/master/manifests/s/SublimeHQ/SublimeText/4/4.0.0.420000/SublimeHQ.SublimeText.4.installer.yaml
+    # /VERYSILENT = Very silent installation (no dialogs, no progress bar)
+    # /SUPPRESSMSGBOXES = Suppress message boxes
     # /NORESTART = Do not restart the computer
-    # /TASKS=contextentry = Add context menu entry (optional, can be removed if not needed)
     $processOptions = @{
         FilePath = "$exeFilePath"
-        ArgumentList = "/VERYSILENT /NORESTART /LOG=C:\Windows\Logs\Software\SublimeText-Install.log"
+        ArgumentList = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
         PassThru = $true
         Wait = $true
         NoNewWindow = $true
