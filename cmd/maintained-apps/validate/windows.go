@@ -75,6 +75,14 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion
 			result.Name = software.Name
 
 			level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s", result.Name, result.InstallLocation, result.Version))
+
+			// Sublime Text's Inno Setup installer may not write version to registry properly
+			// If app is found but version is empty, check if it's Sublime Text and skip version check
+			if appName == "Sublime Text" && result.Version == "" {
+				level.Info(logger).Log("msg", "Sublime Text detected with empty version - skipping version check (installer may not write version to registry)")
+				return true, nil
+			}
+
 			if result.Version == appVersion {
 				return true, nil
 			}
