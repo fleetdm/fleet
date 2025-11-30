@@ -131,7 +131,7 @@
       "name": "Camtasia",
       "slug": "camtasia/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.techsmith.camtasia*",
+      "unique_identifier": "com.techsmith.camtasia",
       "description": "Camtasia is a screen recorder and video editor."
     },
     {
