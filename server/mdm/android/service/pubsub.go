@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -711,6 +713,11 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 	appliedPolicyVersion := device.AppliedPolicyVersion
 	hostUUID := host.UUID
 
+	fmt.Println(">>>>>> verify device software for ", hostUUID, appliedPolicyVersion)
+	defer fmt.Println("<<<<<< DONE verify device software for ", hostUUID, appliedPolicyVersion)
+	dump := spew.Sdump(device)
+	_ = os.WriteFile(fmt.Sprintf("host_%s_version_%d.txt", hostUUID, appliedPolicyVersion), []byte(dump), 0644)
+
 	level.Debug(svc.logger).Log("msg", "Verifying Android device software", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
 
 	// Get all host_vpp_software_installs that are pending, and set in a policy version <= device.AppliedPolicyVersion.
@@ -721,6 +728,7 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 		level.Error(svc.logger).Log("msg", "error getting pending vpp installs", "err", err)
 		return
 	}
+	fmt.Println(">>>>>> looking for apps: ", spew.Sdump(pendingInstallApps))
 	if len(pendingInstallApps) == 0 {
 		return
 	}
@@ -749,11 +757,19 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 			// and how do we even know it was installed at all? Does it matter? Not handling for
 			// now, could be something to improve when we implement standard app install support
 			// for Android.
-			if appReport.State == "INSTALLED" && nonCompliantByPackageName[appReport.PackageName] == nil {
+
+			// NOTE: I've seen appReport.State == INSTALLED while a non-compliant report says
+			// "IN_PROGRESS", but on the device the app was indeed installed and no further
+			// pub-sub report came in, so I think the best approach is to mark it as successfully
+			// installed (regardless of any non-compliance report) if its state is INSTALLED.
+			if appReport.State == "INSTALLED" {
 				// definitely installed successfully
 				markVerified[appReport.PackageName] = true
+				level.Debug(svc.logger).Log("msg", "Software marked as verified", "host_uuid", hostUUID, "package_name", appReport.PackageName)
+				continue
 			}
 		}
+		level.Debug(svc.logger).Log("msg", "Software not marked as verified, checking if failed", "host_uuid", hostUUID, "package_name", appReport.PackageName)
 	}
 
 	// for the remaining apps, mark as failed if non-conformant
@@ -767,7 +783,7 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 			if report.NonComplianceReason == "PENDING" || report.InstallationFailureReason == "IN_PROGRESS" {
 				// keep as pending, the understanding is that another pub-sub will follow when the app's state
 				// chances to installed or failed.
-				level.Debug(svc.logger).Log("msg", "Software not reported as installed yet", "host_uuid", hostUUID, "package_name", packageName,
+				level.Debug(svc.logger).Log("msg", "Software not reported as installed yet, will remain pending", "host_uuid", hostUUID, "package_name", packageName,
 					"non_compliance_reason", report.NonComplianceReason,
 					"installation_failure_reason", report.InstallationFailureReason)
 				continue
@@ -787,7 +803,7 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 		// failed, we don't know how long it might take for the device to receive another
 		// policy, it may never happen.
 		markVerified[packageName] = false
-		level.Error(svc.logger).Log("msg", "Software failed to install", "host_uuid", hostUUID, "package_name", packageName,
+		level.Error(svc.logger).Log("msg", "Software failed to install without non-compliance report", "host_uuid", hostUUID, "package_name", packageName,
 			"installation_failure_reason", "unknown - no non-compliance report received")
 	}
 
