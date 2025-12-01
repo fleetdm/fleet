@@ -99,7 +99,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
-	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(
+	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(
 		ctx,
 		windowsEnrollment.HostUUID,
 		windowsEnrollment.MDMDeviceID,
@@ -151,7 +151,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Len(t, cmds, 1)
 	require.Equal(t, winCmd.CommandUUID, cmds[0].CommandUUID)
 	require.Equal(t, winCmd.TargetLocURI, cmds[0].RequestType)
-	require.Equal(t, "Pending", cmds[0].Status)
+	require.Equal(t, "101", cmds[0].Status)
 
 	appleCmdUUID := uuid.New().String()
 	appleCmd := createRawAppleCmd("ProfileList", appleCmdUUID)
@@ -173,7 +173,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Pending", cmds[0].Status)
 	require.Equal(t, winCmd.CommandUUID, cmds[1].CommandUUID)
 	require.Equal(t, winCmd.TargetLocURI, cmds[1].RequestType)
-	require.Equal(t, "Pending", cmds[1].Status)
+	require.Equal(t, "101", cmds[1].Status)
 
 	// store results for both commands
 	err = appleCommanderStorage.StoreCommandReport(&mdm.Request{

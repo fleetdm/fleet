@@ -17,6 +17,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"cisco-jabber/darwin":           {CiscoJabberVersionTransformer},
 	"parallels/darwin":              {ParallelsVersionShortener},
 	"github/darwin":                 {GitHubDesktopVersionShortener},
+	"onedrive/darwin":               {OneDriveVersionTransformer},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {

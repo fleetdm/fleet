@@ -908,6 +908,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		POST("/api/osquery/yara/{name}", getYaraEndpoint, getYaraRequest{})
 	he.WithAltPaths("/api/v1/fleetd/certificates/{id:[0-9]+}").
 		GET("/api/fleetd/certificates/{id:[0-9]+}", getDeviceCertificateTemplateEndpoint, getDeviceCertificateTemplateRequest{})
+	he.WithAltPaths("/api/v1/fleetd/certificates/{id:[0-9]+}/status").
+		PUT("/api/fleetd/certificates/{id:[0-9]+}/status", updateCertificateStatusEndpoint, updateCertificateStatusRequest{})
 
 	// orbit authenticated endpoints
 	oe := newOrbitAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
