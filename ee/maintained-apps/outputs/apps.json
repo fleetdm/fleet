@@ -72,6 +72,13 @@
       "description": "Adobe Digital Editions is an E-book reader."
     },
     {
+      "name": "Android Studio",
+      "slug": "android-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.android.studio",
+      "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
+    },
+    {
       "name": "AnyDesk",
       "slug": "anydesk/darwin",
       "platform": "darwin",
@@ -618,6 +625,13 @@
       "description": "PhpStorm is a PHP IDE by JetBrains."
     },
     {
+      "name": "Podman Desktop",
+      "slug": "podman-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.podmandesktop.PodmanDesktop",
+      "description": "Open source tool for developers to work with containers and Kubernetes."
+    },
+    {
       "name": "Postman",
       "slug": "postman/darwin",
       "platform": "darwin",
@@ -737,6 +751,13 @@
       "description": "Sublime Text is a text editor for code, markup, and prose."
     },
     {
+      "name": "Sublime Text",
+      "slug": "sublime-text/windows",
+      "platform": "windows",
+      "unique_identifier": "Sublime Text",
+      "description": "Sublime Text is a text editor for code, markup, and prose."
+    },
+    {
       "name": "TablePlus",
       "slug": "tableplus/darwin",
       "platform": "darwin",
@@ -748,6 +769,13 @@
       "slug": "tailscale-app/darwin",
       "platform": "darwin",
       "unique_identifier": "io.tailscale.ipn.macsys",
+      "description": "Tailscale is mesh VPN based on WireGuard."
+    },
+    {
+      "name": "Tailscale",
+      "slug": "tailscale/windows",
+      "platform": "windows",
+      "unique_identifier": "Tailscale",
       "description": "Tailscale is mesh VPN based on WireGuard."
     },
     {
