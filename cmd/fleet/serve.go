@@ -32,7 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
-	activity_mysql "github.com/fleetdm/fleet/v4/server/activity/mysql"
+	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	activity_service "github.com/fleetdm/fleet/v4/server/activity/service"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -257,8 +257,11 @@ the way that the Fleet server works.
 			}
 			ds = mds
 
-			// Initialize activity bounded context datastore using shared connections
-			activityStore := activity_mysql.NewDatastore(dbConns.Primary, dbConns.Replica)
+			// Initialize activity bounded context service using shared connections
+			activitySvc, err := activity_bootstrap.NewService(dbConns.Primary, dbConns.Replica)
+			if err != nil {
+				initFatal(err, "initializing activity service")
+			}
 
 			if config.S3.CarvesBucket != "" || config.S3.Bucket != "" {
 				carveStore, err = s3.NewCarveStore(config.S3, ds)
@@ -809,12 +812,6 @@ the way that the Fleet server works.
 			)
 			if err != nil {
 				initFatal(err, "initializing android service")
-			}
-
-			// Initialize activity bounded context service
-			activitySvc, err := activity_service.NewService(activityStore)
-			if err != nil {
-				initFatal(err, "initializing activity service")
 			}
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
