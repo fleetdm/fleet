@@ -2628,6 +2628,7 @@ the `software` table.
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host, including Fleet-maintained policies. |
 | populate_users     | boolean | query | If `true`, the response will include user data for each host. |
 | populate_labels     | boolean | query | If `true`, the response will include labels for each host. |
+| populate_device_status     | boolean | query | If `true`, the response will include lock and wipe status information for each host. |
 | profile_uuid | string | query |  **Requires `profile_status`**. The UUID of the profile to download. |
 | profile_status | string | query | **Requires `profile_uuid`**. Valid options are 'verified', 'verifying', 'pending', or 'failed'. |
 
@@ -2648,6 +2649,9 @@ If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings
 If `munki_issue_id` is specified, an additional top-level key `munki_issue` is returned with the information corresponding to the `munki_issue_id`.
 
 If `after` is being used with `created_at` or `updated_at`, the table must be specified in `order_key`. Those columns become `h.created_at` and `h.updated_at`.
+
+If `populate_device_status` is set to `true`, `device_status` and `pending_action` are included in the MDM information for each host. `device_status` indicates the current lock/wipe state of the device with possible values: `unlocked`, `locked`, `locking`, `unlocking`, `wiped`, `wiping`. `pending_action` indicates if a lock, unlock, or wipe command is pending with possible values: `lock`, `unlock`, `wipe`, or an empty string (no pending action).
+
 
 #### Example
 
@@ -2762,7 +2766,9 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
         "enrollment_status": "Pending",
         "dep_profile_error": true,
         "name": "Fleet",
-        "server_url": "https://example.fleetdm.com/mdm/apple/mdm"
+        "server_url": "https://example.fleetdm.com/mdm/apple/mdm",
+        "device_status": "unlocked",
+        "pending_action": ""
       },
       "software": [
         {
