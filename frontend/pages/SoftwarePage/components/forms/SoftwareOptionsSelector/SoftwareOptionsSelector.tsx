@@ -6,7 +6,7 @@ import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
+import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
 import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
@@ -106,7 +106,7 @@ const SoftwareOptionsSelector = ({
 
   const isPlatformIosOrIpados =
     platform === "ios" || platform === "ipados" || isIpaPackage;
-  const isSelfServiceDisabled = disableOptions;
+  const isSelfServiceDisabled = disableOptions || isPlatformIosOrIpados;
   const isAutomaticInstallDisabled =
     disableOptions ||
     isPlatformIosOrIpados ||
@@ -154,9 +154,9 @@ const SoftwareOptionsSelector = ({
     // Render unavailable description for iOS or iPadOS add software form only
     return isPlatformIosOrIpados && !isEditingSoftware ? (
       <p>
-        Automatic install for iOS and iPadOS is coming soon. Today, you can
-        manually install it from the <strong>Host details</strong> page for each
-        host.
+        Automatic install and self-service for iOS and iPadOS are coming soon.
+        Today, you can manually install from the <strong>Host details</strong>{" "}
+        page for each host.
       </p>
     ) : null;
   };
@@ -170,12 +170,7 @@ const SoftwareOptionsSelector = ({
           value={formData.selfService}
           onChange={(newVal: boolean) => onToggleSelfService(newVal)}
           className={`${baseClass}__self-service-checkbox`}
-          labelTooltipContent={
-            !isSelfServiceDisabled &&
-            getSelfServiceTooltip(
-              isIpaPackage || isPlatformIosOrIpados || false
-            )
-          }
+          labelTooltipContent={!isSelfServiceDisabled && SELF_SERVICE_TOOLTIP}
           labelTooltipClickable // Allow interaction with link in tooltip
           disabled={isSelfServiceDisabled}
         >
