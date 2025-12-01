@@ -604,7 +604,7 @@ The below fields are all optional.
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
-- `pin_version` pins the version of the Fleet-maintained app. Version can be set only to the current version available in [Fleet's software catalog]([https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs](https://fleetdm.com/software-catalog)). If `pin_version` isn't specified, the app is updated to the version in the catalog on every GitOps run.
+- `pin_version` pins the version of the Fleet-maintained app. Currently, version can be set only to the version available in [Fleet's software catalog]([https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs](https://fleetdm.com/software-catalog)). If `pin_version` isn't specified, the app is updated to the version in the catalog on every GitOps run.
 
 The below fields are optional, and if omitted will default to values specified in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
 
