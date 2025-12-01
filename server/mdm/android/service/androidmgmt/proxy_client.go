@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -41,7 +42,13 @@ func NewProxyClient(ctx context.Context, logger kitlog.Logger, licenseKey string
 	}
 
 	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelDebug,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if slices.Contains(groups, "request") && slices.Contains(groups, "headers") && a.Key == "Authorization" {
+				// Redact request Authorization headers
+				a.Value = slog.StringValue("REDACTED")
+			}
+			return a
+		},
 	}))
 	// We use the same client that we use to directly connect to Google to minimize issues/maintenance.
 	// But we point it to our proxy endpoint instead of Google.

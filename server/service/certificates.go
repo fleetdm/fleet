@@ -338,6 +338,9 @@ type updateCertificateStatusRequest struct {
 	CertificateTemplateID uint   `url:"id"`
 	NodeKey               string `json:"node_key"`
 	Status                string `json:"status"`
+	// Detail provides additional information about the status change.
+	// For example, it can be used to provide a reason for a failed status change.
+	Detail *string `json:"detail,omitempty"`
 }
 
 func (r *updateCertificateStatusRequest) hostNodeKey() string {
@@ -356,7 +359,7 @@ func updateCertificateStatusEndpoint(ctx context.Context, request interface{}, s
 		return nil, errors.New("invalid request")
 	}
 
-	err := svc.UpdateCertificateStatus(ctx, req.CertificateTemplateID, fleet.MDMDeliveryStatus(req.Status))
+	err := svc.UpdateCertificateStatus(ctx, req.CertificateTemplateID, fleet.MDMDeliveryStatus(req.Status), req.Detail)
 	if err != nil {
 		return updateCertificateStatusResponse{Err: err}, nil
 	}
@@ -364,7 +367,12 @@ func updateCertificateStatusEndpoint(ctx context.Context, request interface{}, s
 	return updateCertificateStatusResponse{}, nil
 }
 
-func (svc *Service) UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus) error {
+func (svc *Service) UpdateCertificateStatus(
+	ctx context.Context,
+	certificateTemplateID uint,
+	status fleet.MDMDeliveryStatus,
+	detail *string,
+) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
@@ -379,5 +387,5 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, certificateTemp
 		return fleet.NewInvalidArgumentError("status", string(status))
 	}
 
-	return svc.ds.UpdateCertificateStatus(ctx, host.UUID, certificateTemplateID, status)
+	return svc.ds.UpdateCertificateStatus(ctx, host.UUID, certificateTemplateID, status, detail)
 }

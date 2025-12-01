@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20251114102941(t *testing.T) {
+func TestUp_20251117020200(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Apply current migration.
