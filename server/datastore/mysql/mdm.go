@@ -85,6 +85,8 @@ WHERE TRUE
 		appleStmtWithFilter, windowsStmtWithFilter,
 	)
 
+	fmt.Println(stmt)
+
 	return stmt, params
 }
 
@@ -227,7 +229,7 @@ SELECT
 	mwe.host_uuid,
 	wq.command_uuid,
 	COALESCE(wcr.updated_at, wc.created_at) AS updated_at,
-	COALESCE(NULLIF(wcr.status_code, ''), 'Pending') AS status,
+	COALESCE(NULLIF(wcr.status_code, ''), '101') AS status,
 	wc.target_loc_uri AS request_type
 FROM
 	windows_mdm_command_queue wq
