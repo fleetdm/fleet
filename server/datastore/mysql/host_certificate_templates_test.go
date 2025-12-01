@@ -7,6 +7,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,9 +19,10 @@ func TestHostCertificateTemplates(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"ListAndroidHostUUIDsWithCertificateTemplates", testListAndroidHostUUIDsWithCertificateTemplates},
+		{"ListAndroidHostUUIDsWithDeliverableCertificateTemplates", testListAndroidHostUUIDsWithDeliverableCertificateTemplates},
 		{"ListCertificateTemplatesForHosts", testListCertificateTemplatesForHosts},
 		{"BulkInsertHostCertificateTemplates", testBulkInsertHostCertificateTemplates},
+		{"UpdateHostCertificateTemplateStatus", testUpdateHostCertificateTemplateStatus},
 	}
 
 	for _, c := range cases {
@@ -30,8 +33,8 @@ func TestHostCertificateTemplates(t *testing.T) {
 	}
 }
 
-func testListAndroidHostUUIDsWithCertificateTemplates(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+func testListAndroidHostUUIDsWithDeliverableCertificateTemplates(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
 
 	testCases := []struct {
 		name     string
@@ -86,7 +89,7 @@ func testListAndroidHostUUIDsWithCertificateTemplates(t *testing.T, ds *Datastor
 				)
 				require.NoError(t, err)
 			}, func(t *testing.T, ds *Datastore) {
-				results, err := ds.ListAndroidHostUUIDsWithCertificateTemplates(ctx, 0, 10)
+				results, err := ds.ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx, 0, 10)
 				require.NoError(t, err)
 				require.Len(t, results, 1)
 				require.Equal(t, "test-host-uuid", results[0])
@@ -149,12 +152,12 @@ func testListAndroidHostUUIDsWithCertificateTemplates(t *testing.T, ds *Datastor
 					host.UUID,
 					uint(lastID), //nolint:gosec
 					"challenge",
-					"pending",
+					fleet.MDMDeliveryPending,
 				)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, ds *Datastore) {
-				results, err := ds.ListAndroidHostUUIDsWithCertificateTemplates(ctx, 0, 10)
+				results, err := ds.ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx, 0, 10)
 				require.NoError(t, err)
 				require.Len(t, results, 0)
 			},
@@ -203,7 +206,7 @@ func testListAndroidHostUUIDsWithCertificateTemplates(t *testing.T, ds *Datastor
 				require.NoError(t, err)
 			},
 			func(t *testing.T, ds *Datastore) {
-				results, err := ds.ListAndroidHostUUIDsWithCertificateTemplates(ctx, 0, 10)
+				results, err := ds.ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx, 0, 10)
 				require.NoError(t, err)
 				require.Len(t, results, 0)
 			},
@@ -251,7 +254,7 @@ func testListAndroidHostUUIDsWithCertificateTemplates(t *testing.T, ds *Datastor
 				require.NoError(t, err)
 			},
 			func(t *testing.T, ds *Datastore) {
-				results, err := ds.ListAndroidHostUUIDsWithCertificateTemplates(ctx, 0, 10)
+				results, err := ds.ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx, 0, 10)
 				require.NoError(t, err)
 				require.Len(t, results, 0)
 			},
@@ -270,7 +273,7 @@ func testListAndroidHostUUIDsWithCertificateTemplates(t *testing.T, ds *Datastor
 }
 
 func testListCertificateTemplatesForHosts(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	var templateWithHostRecordId uint
 	testCases := []struct {
@@ -389,7 +392,7 @@ func testListCertificateTemplatesForHosts(t *testing.T, ds *Datastore) {
 							host.UUID,
 							lastID,
 							"challenge",
-							"pending",
+							fleet.MDMDeliveryPending,
 						)
 						require.NoError(t, err)
 					}
@@ -406,7 +409,7 @@ func testListCertificateTemplatesForHosts(t *testing.T, ds *Datastore) {
 					require.NotEmpty(t, res.CertificateTemplateID)
 					if res.CertificateTemplateID == templateWithHostRecordId {
 						require.Equal(t, ptr.String("challenge"), res.FleetChallenge)
-						require.Equal(t, ptr.String("pending"), res.Status)
+						require.Equal(t, &fleet.MDMDeliveryPending, res.Status)
 					} else {
 						require.Nil(t, res.FleetChallenge)
 						require.Nil(t, res.Status)
@@ -428,7 +431,7 @@ func testListCertificateTemplatesForHosts(t *testing.T, ds *Datastore) {
 }
 
 func testBulkInsertHostCertificateTemplates(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	var certificateTemplateID uint
 	testCases := []struct {
@@ -479,13 +482,13 @@ func testBulkInsertHostCertificateTemplates(t *testing.T, ds *Datastore) {
 						HostUUID:              "host-uuid-1",
 						CertificateTemplateID: certificateTemplateID,
 						FleetChallenge:        "challenge-1",
-						Status:                "pending",
+						Status:                fleet.MDMDeliveryPending,
 					},
 					{
 						HostUUID:              "host-uuid-2",
 						CertificateTemplateID: certificateTemplateID,
 						FleetChallenge:        "challenge-2",
-						Status:                "issued",
+						Status:                fleet.MDMDeliveryVerified,
 					},
 				}
 				err := ds.BulkInsertHostCertificateTemplates(ctx, hostCertTemplates)
@@ -506,6 +509,125 @@ func testBulkInsertHostCertificateTemplates(t *testing.T, ds *Datastore) {
 			tc.before(ds)
 
 			tc.testFunc(t, ds)
+		})
+	}
+}
+
+func testUpdateHostCertificateTemplateStatus(t *testing.T, ds *Datastore) {
+	nodeKey := uuid.New().String()
+	uuid := uuid.New().String()
+	hostName := "test-update-host-certificate-template"
+
+	ctx := t.Context()
+
+	// Create a test team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
+	require.NoError(t, err)
+	teamID := team.ID
+
+	// Create a test certificate authority
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("Test SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID := ca.ID
+
+	certTemplate := &fleet.CertificateTemplate{
+		Name:                   "Cert1",
+		TeamID:                 teamID,
+		CertificateAuthorityID: caID,
+		SubjectName:            "CN=Test Subject 1",
+	}
+	savedTemplate, err := ds.CreateCertificateTemplate(ctx, certTemplate)
+	require.NoError(t, err)
+	require.NotNil(t, savedTemplate)
+
+	// Create a host
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		NodeKey:  &nodeKey,
+		UUID:     uuid,
+		Hostname: hostName,
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	// TODO -- add a host certificate template when we have a foreign key set up.
+	certificateTemplateID := savedTemplate.ID
+
+	// Create a record in host_certificate_templates using ad hoc SQL
+	sql := `
+INSERT INTO host_certificate_templates (
+	host_uuid,
+	certificate_template_id,
+	status,
+	fleet_challenge
+) VALUES (?, ?, ?, ?);
+	`
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err = q.ExecContext(context.Background(), sql, host.UUID, certificateTemplateID, "pending", "some_challenge_value")
+		require.NoError(t, err)
+		return nil
+	})
+
+	// Test cases
+	cases := []struct {
+		name             string
+		templateID       uint
+		newStatus        string
+		expectedErrorMsg string
+		detail           *string
+	}{
+		{
+			name:             "Valid Update",
+			templateID:       certificateTemplateID,
+			newStatus:        "verified",
+			expectedErrorMsg: "",
+		},
+		{
+			name:             "Valid Update with some details",
+			templateID:       certificateTemplateID,
+			newStatus:        "failed",
+			detail:           ptr.String("some details"),
+			expectedErrorMsg: "",
+		},
+		{
+			name:             "Invalid Status",
+			templateID:       certificateTemplateID,
+			newStatus:        "invalid_status",
+			expectedErrorMsg: fmt.Sprintf("Invalid status '%s'", "invalid_status"),
+		},
+		{
+			name:             "Wrong Template ID",
+			templateID:       9999,
+			newStatus:        "verified",
+			expectedErrorMsg: fmt.Sprintf("No certificate found for host UUID '%s' and template ID '%d'", host.UUID, 9999),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("TestUpdateHostCertificateTemplate:%s", tc.name), func(t *testing.T) {
+			err := ds.UpdateCertificateStatus(context.Background(), host.UUID, tc.templateID, fleet.MDMDeliveryStatus(tc.newStatus), tc.detail)
+			if tc.expectedErrorMsg == "" {
+				require.NoError(t, err)
+				// Verify the update
+				var status string
+				query := `
+SELECT status FROM host_certificate_templates
+WHERE host_uuid = ? AND certificate_template_id = ?;
+				`
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					return sqlx.GetContext(context.Background(), q, &status, query, host.UUID, tc.templateID)
+				})
+				require.NoError(t, err)
+				require.Equal(t, tc.newStatus, status)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedErrorMsg)
+			}
 		})
 	}
 }

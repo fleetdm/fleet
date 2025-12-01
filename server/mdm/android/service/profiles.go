@@ -507,9 +507,12 @@ func (r *profileReconciler) reconcileCertificateTemplates(ctx context.Context) e
 	const batchSize = 1000 // Process 1000 hosts at a time
 	offset := 0
 
+	// Cache enroll secrets by team ID
+	enrollSecretsCache := make(map[uint][]*fleet.EnrollSecret)
+
 	for {
 		// Get a batch of host UUIDs that have certificate templates
-		hostUUIDs, err := r.DS.ListAndroidHostUUIDsWithCertificateTemplates(ctx, offset, batchSize)
+		hostUUIDs, err := r.DS.ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx, offset, batchSize)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list android host uuids with certificate templates")
 		}
@@ -525,7 +528,7 @@ func (r *profileReconciler) reconcileCertificateTemplates(ctx context.Context) e
 		}
 
 		// Process this batch of hosts with all their certificates
-		if err := r.processCertificateTemplateBatch(ctx, allTemplates); err != nil {
+		if err := r.processCertificateTemplateBatch(ctx, allTemplates, enrollSecretsCache); err != nil {
 			return err
 		}
 
@@ -540,7 +543,7 @@ func (r *profileReconciler) reconcileCertificateTemplates(ctx context.Context) e
 	return nil
 }
 
-func (r *profileReconciler) processCertificateTemplateBatch(ctx context.Context, allTemplates []fleet.CertificateTemplateForHost) error {
+func (r *profileReconciler) processCertificateTemplateBatch(ctx context.Context, allTemplates []fleet.CertificateTemplateForHost, enrollSecretsCache map[uint][]*fleet.EnrollSecret) error {
 	hostsWithNewCerts := make(map[string]struct{})
 	newCertificates := make([]fleet.HostCertificateTemplate, 0)
 
@@ -568,7 +571,7 @@ func (r *profileReconciler) processCertificateTemplateBatch(ctx context.Context,
 		}
 	}
 
-	// If no new certificates, we're done
+	// no new certificates to send, we're done
 	if len(newCertificates) == 0 {
 		return nil
 	}
@@ -587,13 +590,34 @@ func (r *profileReconciler) processCertificateTemplateBatch(ctx context.Context,
 		return ctxerr.Wrap(ctx, err, "get app config")
 	}
 
+	// Helper function to get enroll secrets with caching across batches
+	getEnrollSecretsForTeam := func(teamID *uint) ([]*fleet.EnrollSecret, error) {
+		// Use 0 as key for nil team ID (no team)
+		cacheKey := uint(0)
+		if teamID != nil {
+			cacheKey = *teamID
+		}
+
+		if secrets, ok := enrollSecretsCache[cacheKey]; ok {
+			return secrets, nil
+		}
+
+		secrets, err := r.DS.GetEnrollSecrets(ctx, teamID)
+		if err != nil {
+			return nil, err
+		}
+
+		enrollSecretsCache[cacheKey] = secrets
+		return secrets, nil
+	}
+
 	for hostUUID, certTemplates := range hostsNeedingUpdate {
 		androidHost, err := r.DS.AndroidHostLiteByHostUUID(ctx, hostUUID)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "get android host %s", hostUUID)
 		}
 
-		enrollSecrets, err := r.DS.GetEnrollSecrets(ctx, androidHost.Host.TeamID)
+		enrollSecrets, err := getEnrollSecretsForTeam(androidHost.Host.TeamID)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "get enroll secrets for team %v", androidHost.Host.TeamID)
 		}
@@ -601,28 +625,17 @@ func (r *profileReconciler) processCertificateTemplateBatch(ctx context.Context,
 			return ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
 		}
 
-		// Build certificate list with ALL certificates for this host
-		agentCerts := make([]android.AgentCertificateTemplate, len(certTemplates))
+		// Build certificate list with ALL certificate template ids for this host
+		certificateTemplateIDs := make([]android.AgentCertificateTemplate, len(certTemplates))
 		for i, ct := range certTemplates {
-			// FleetChallenge should never be nil at this point since we only process hosts with new certs
-			// But we'll dereference safely
-			challenge := ""
-			if ct.FleetChallenge != nil {
-				challenge = *ct.FleetChallenge
-			}
-			agentCerts[i] = android.NewAgentCertificateTemplate(
-				appConfig.ServerSettings.ServerURL,
-				ct.CertificateTemplateID,
-				hostUUID,
-				challenge,
-			)
+			certificateTemplateIDs[i] = android.AgentCertificateTemplate{ID: ct.CertificateTemplateID}
 		}
 
 		hostConfigs[hostUUID] = android.AgentManagedConfiguration{
-			ServerURL:            appConfig.ServerSettings.ServerURL,
-			HostUUID:             hostUUID,
-			EnrollSecret:         enrollSecrets[0].Secret,
-			CertificateTemplates: agentCerts,
+			ServerURL:              appConfig.ServerSettings.ServerURL,
+			HostUUID:               hostUUID,
+			EnrollSecret:           enrollSecrets[0].Secret,
+			CertificateTemplateIDs: certificateTemplateIDs,
 		}
 	}
 

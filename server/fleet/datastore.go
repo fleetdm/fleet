@@ -2522,8 +2522,8 @@ type Datastore interface {
 	GetCertificateTemplateById(ctx context.Context, id uint) (*CertificateTemplateResponseFull, error)
 	// GetCertificateTemplatesByTeamID gets all certificate templates for a team.
 	GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, page, perPage int) ([]*CertificateTemplateResponseSummary, *PaginationMetadata, error)
-	// ListAndroidHostUUIDsWithCertificateTemplates returns a paginated list of Android host UUIDs that have certificate templates.
-	ListAndroidHostUUIDsWithCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error)
+	// ListAndroidHostUUIDsWithDeliverableCertificateTemplates returns a paginated list of Android host UUIDs that have certificate templates.
+	ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error)
 	// ListCertificateTemplatesForHosts returns ALL certificate templates for the given host UUIDs.
 	ListCertificateTemplatesForHosts(ctx context.Context, hostUUIDs []string) ([]CertificateTemplateForHost, error)
 	// GetCertificateTemplateForHost returns a certificate template for the given host UUID and certificate template ID.

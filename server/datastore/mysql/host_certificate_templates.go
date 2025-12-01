@@ -10,8 +10,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// ListAndroidHostUUIDsWithCertificateTemplates returns a batch of host UUIDs that have certificate templates to deliver
-func (ds *Datastore) ListAndroidHostUUIDsWithCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {
+// ListAndroidHostUUIDsWithDeliverableCertificateTemplates returns a batch of host UUIDs that have certificate templates to deliver
+func (ds *Datastore) ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {
 	const stmt = `
 		SELECT DISTINCT
 			hosts.uuid
@@ -65,7 +65,6 @@ func (ds *Datastore) ListCertificateTemplatesForHosts(ctx context.Context, hostU
 		return nil, ctxerr.Wrap(ctx, err, "build query for certificate templates")
 	}
 
-	query = ds.reader(ctx).Rebind(query)
 	var results []fleet.CertificateTemplateForHost
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list certificate templates for android hosts")
@@ -154,6 +153,40 @@ func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hos
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk insert host_certificate_templates")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) UpdateCertificateStatus(
+	ctx context.Context,
+	hostUUID string,
+	certificateTemplateID uint,
+	status fleet.MDMDeliveryStatus,
+	detail *string,
+) error {
+	// Validate the status.
+	if !status.IsValid() {
+		return ctxerr.Wrap(ctx, fmt.Errorf("Invalid status '%s'", string(status)))
+	}
+
+	// Attempt to update the certificate status for the given host and template.
+	result, err := ds.writer(ctx).ExecContext(ctx, `
+    UPDATE host_certificate_templates
+    SET status = ?, detail = ?
+    WHERE host_uuid = ? AND certificate_template_id = ?
+`, status, detail, hostUUID, certificateTemplateID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ctxerr.Wrap(ctx, notFound("Label").WithMessage(fmt.Sprintf("No certificate found for host UUID '%s' and template ID '%d'", hostUUID, certificateTemplateID)))
 	}
 
 	return nil
