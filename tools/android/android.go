@@ -40,6 +40,7 @@ func main() {
 	command := flag.String("command", "", "")
 	enterpriseID := flag.String("enterprise_id", "", "")
 	deviceID := flag.String("device_id", "", "")
+	policyID := flag.String("policy_id", "", "")
 	flag.Parse()
 
 	// Normalize enterprise_id by stripping "enterprises/" prefix if present
@@ -62,6 +63,8 @@ func main() {
 		enterprisesWebTokensCreate(mgmt, *enterpriseID)
 	case "policies.list":
 		policiesList(mgmt, *enterpriseID)
+	case "policies.delete":
+		policiesDelete(mgmt, *enterpriseID, *policyID)
 	case "devices.list":
 		devicesList(mgmt, *enterpriseID)
 	case "devices.delete":
@@ -113,6 +116,17 @@ func policiesList(mgmt *androidmanagement.Service, enterpriseID string) {
 	for _, policy := range result.Policies {
 		log.Printf("Policy: %+v", *policy)
 	}
+}
+
+func policiesDelete(mgmt *androidmanagement.Service, enterpriseID, policyID string) {
+	if enterpriseID == "" || policyID == "" {
+		log.Fatalf("enterprise_id and policy_id must be set")
+	}
+	_, err := mgmt.Enterprises.Policies.Delete("enterprises/" + enterpriseID + "/policies/" + policyID).Do()
+	if err != nil {
+		log.Fatalf("Error deleting policy: %v", err)
+	}
+	log.Printf("Policy %s deleted", policyID)
 }
 
 func devicesList(mgmt *androidmanagement.Service, enterpriseID string) {
