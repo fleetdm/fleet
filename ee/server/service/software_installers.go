@@ -2346,6 +2346,11 @@ func (svc *Service) softwareBatchUpload(
 				installer.Title = installer.Filename
 			}
 
+			// Validate self-service is not enabled for IPA files
+			if installer.Extension == "ipa" && installer.SelfService {
+				return fleet.NewInvalidArgumentError("self_service", "Self-service is not supported for iOS and iPadOS apps.")
+			}
+
 			// if this is an .ipa and there is no extra installer, create it here
 			if installer.Extension == "ipa" && len(extraInstallers) == 0 {
 				extraPayload := *installer
