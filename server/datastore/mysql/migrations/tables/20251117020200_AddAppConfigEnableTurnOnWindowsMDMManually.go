@@ -9,10 +9,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251114102941, Down_20251114102941)
+	MigrationClient.AddMigration(Up_20251117020200, Down_20251117020200)
 }
 
-func Up_20251114102941(tx *sql.Tx) error {
+func Up_20251117020200(tx *sql.Tx) error {
 	var raw json.RawMessage
 	var id uint
 	row := tx.QueryRow(`SELECT id, json_value FROM app_config_json LIMIT 1;`)
@@ -49,6 +49,6 @@ func Up_20251114102941(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20251114102941(tx *sql.Tx) error {
+func Down_20251117020200(tx *sql.Tx) error {
 	return nil
 }
