@@ -535,8 +535,6 @@ type SetVPPInstallAsFailedFunc func(ctx context.Context, hostID uint, installUUI
 
 type MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc func(ctx context.Context, jobName string) error
 
-type MarkAllPendingAndroidVPPInstallsAsFailedFunc func(ctx context.Context) error
-
 type GetHostOperatingSystemFunc func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error)
 
 type ListOperatingSystemsFunc func(ctx context.Context) ([]fleet.OperatingSystem, error)
@@ -1519,6 +1517,8 @@ type BulkSetVPPInstallsAsFailedFunc func(ctx context.Context, hostID uint, comma
 
 type GetPastActivityDataForAndroidVPPAppInstallFunc func(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
 
+type MarkAllPendingAndroidVPPInstallsAsFailedFunc func(ctx context.Context) error
+
 type NewMDMAndroidConfigProfileFunc func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error)
 
 type GetMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMAndroidConfigProfile, error)
@@ -2421,9 +2421,6 @@ type DataStore struct {
 
 	MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc        MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc
 	MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFuncInvoked bool
-
-	MarkAllPendingAndroidVPPInstallsAsFailedFunc        MarkAllPendingAndroidVPPInstallsAsFailedFunc
-	MarkAllPendingAndroidVPPInstallsAsFailedFuncInvoked bool
 
 	GetHostOperatingSystemFunc        GetHostOperatingSystemFunc
 	GetHostOperatingSystemFuncInvoked bool
@@ -3897,6 +3894,9 @@ type DataStore struct {
 
 	GetPastActivityDataForAndroidVPPAppInstallFunc        GetPastActivityDataForAndroidVPPAppInstallFunc
 	GetPastActivityDataForAndroidVPPAppInstallFuncInvoked bool
+
+	MarkAllPendingAndroidVPPInstallsAsFailedFunc        MarkAllPendingAndroidVPPInstallsAsFailedFunc
+	MarkAllPendingAndroidVPPInstallsAsFailedFuncInvoked bool
 
 	NewMDMAndroidConfigProfileFunc        NewMDMAndroidConfigProfileFunc
 	NewMDMAndroidConfigProfileFuncInvoked bool
@@ -5892,13 +5892,6 @@ func (s *DataStore) MarkAllPendingAppleVPPAndInHouseInstallsAsFailed(ctx context
 	s.MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFuncInvoked = true
 	s.mu.Unlock()
 	return s.MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc(ctx, jobName)
-}
-
-func (s *DataStore) MarkAllPendingAndroidVPPInstallsAsFailed(ctx context.Context) error {
-	s.mu.Lock()
-	s.MarkAllPendingAndroidVPPInstallsAsFailedFuncInvoked = true
-	s.mu.Unlock()
-	return s.MarkAllPendingAndroidVPPInstallsAsFailedFunc(ctx)
 }
 
 func (s *DataStore) GetHostOperatingSystem(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
@@ -9336,6 +9329,13 @@ func (s *DataStore) GetPastActivityDataForAndroidVPPAppInstall(ctx context.Conte
 	s.GetPastActivityDataForAndroidVPPAppInstallFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetPastActivityDataForAndroidVPPAppInstallFunc(ctx, cmdUUID, status)
+}
+
+func (s *DataStore) MarkAllPendingAndroidVPPInstallsAsFailed(ctx context.Context) error {
+	s.mu.Lock()
+	s.MarkAllPendingAndroidVPPInstallsAsFailedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkAllPendingAndroidVPPInstallsAsFailedFunc(ctx)
 }
 
 func (s *DataStore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
