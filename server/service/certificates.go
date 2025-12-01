@@ -93,12 +93,25 @@ func (svc *Service) ListCertificateTemplates(ctx context.Context, teamID uint, o
 		return nil, nil, err
 	}
 
-	certificates, paginationMetaData, err := svc.ds.GetCertificateTemplatesByTeamID(ctx, teamID, opts)
+	// cursor-based pagination is not supported
+	opts.After = ""
+
+	// custom ordering is not supported, always by sort by id
+	opts.OrderKey = "certificate_templates.id"
+	opts.OrderDirection = fleet.OrderAscending
+
+	// no matching query support
+	opts.MatchQuery = ""
+
+	// always include metadata
+	opts.IncludeMetadata = true
+
+	certificates, metaData, err := svc.ds.GetCertificateTemplatesByTeamID(ctx, teamID, opts)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return certificates, paginationMetaData, nil
+	return certificates, metaData, nil
 }
 
 type getDeviceCertificateTemplateRequest struct {
