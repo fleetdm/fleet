@@ -48,17 +48,13 @@ The Fleet app is available in the Okta Integration Network catalog. This is the 
 3. Click **Browse App Catalog**
 4. Search for "Fleet" and select the Fleet application
 5. Click **Add Integration**
-6. On the General Settings page, configure the application label (optional) and click **Done**
+6. Put in an appropriate name for your Fleet instance as the **Application Label** (e.g., `Fleet Production`)
+7. For **Entity ID**, use the **exact same value** you entered in Fleet under **Settings > Integrations > Single-sign on (SSO)** (e.g., `fleet`).
+<img width="1196" height="994" alt="A screenshot of the SSO settings screen in Fleet" src="https://github.com/user-attachments/assets/faace0e0-210f-494a-8cec-bed9769b6417" />
 
-#### Configure SAML settings
+8. For **Fleet instance base URL**, put in the URL of your Fleet instance as listed under **Settings > Organization settings > Fleet web address** (e.g., `https://fleetprod.cloud.fleetdm.com`).
+<img width="1124" height="479" alt="A screenshot of the Fleet web address settings screen in Fleet" src="https://github.com/user-attachments/assets/ce45244d-6627-4a19-949a-f7723b21e739" />
 
-1. In the Fleet application, go to the **General** tab
-2. Click **Edit** in the App Settings section
-3. Configure:
-   - **Application label**: Fleet (or whatever you want users to see)
-   - **Entity ID**: Choose any unique identifier (e.g., `fleet` or `fleet.example.com`) - you'll use this same value in Fleet later
-   - **Fleet Instance Base URL**: Your Fleet server domain without https:// (e.g., `acmeco.cloud.fleetdm.com`)
-4. Click **Save**
 
 #### Assign users to Fleet
 
