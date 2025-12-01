@@ -1110,7 +1110,7 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "delete obsolete in-house installers")
 		}
 
-		for _, installer := range installers {
+		for i, installer := range installers {
 			if installer.ValidatedLabels == nil {
 				return ctxerr.Errorf(ctx, "labels have not been validated for in-house app with name %s", installer.Filename)
 			}
@@ -1262,6 +1262,11 @@ VALUES
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "insert new/edited categories for in-house with name %q", installer.Filename)
 				}
+			}
+
+			// update the display name for the software title
+			if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleIDs[i], installer.DisplayName); err != nil {
+				return ctxerr.Wrapf(ctx, err, "update software title display name for in-house with name %q", installer.Filename)
 			}
 
 			// perform side effects if this was an update (related to pending install requests)
