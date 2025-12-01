@@ -178,6 +178,13 @@ will be disabled and/or hidden in the UI.
                 throw new Error('Cannot attach view local `me`, because this view local already exists!  (Is it being attached somewhere else?)');
               }
               res.locals.me = undefined;
+
+              // Set security headers for all GET and HEAD requests.
+              res.setHeader(`x-content-type-options`, `nosniff`);//[?]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Content-Type-Options
+              res.setHeader('x-frame-options', 'SAMEORIGIN');// [?]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Frame-Options
+              res.setHeader(`referrer-policy`, `strict-origin-when-cross-origin`);// [?]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Referrer-Policy
+              res.setHeader('strict-transport-security', 'max-age=31536000; includeSubDomains;');// [?]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Strict-Transport-Security
+              res.setHeader(`permissions-policy`, `camera=(), microphone=(), usb=()`);// [?]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Permissions-Policy
             }//ﬁ
 
             // Check for query parameters set by ad clicks.
