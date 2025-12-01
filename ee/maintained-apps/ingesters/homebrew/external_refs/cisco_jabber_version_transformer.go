@@ -10,4 +10,3 @@ func CiscoJabberVersionTransformer(app *maintained_apps.FMAManifestApp) (*mainta
 	app.Version = "15.2.0"
 	return app, nil
 }
-
