@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: MIT Expat
 package logging
 
 import (
