@@ -411,9 +411,6 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	if payload.SelfService != nil && *payload.SelfService != existingInstaller.SelfService {
-		if existingInstaller.Extension == "ipa" && *payload.SelfService {
-			return nil, fleet.NewInvalidArgumentError("self_service", "Self-service is not supported for iOS and iPadOS apps.")
-		}
 		dirty["SelfService"] = true
 		activity.SelfService = *payload.SelfService
 	}
