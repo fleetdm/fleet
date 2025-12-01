@@ -65,6 +65,13 @@
       "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
     },
     {
+      "name": "Android Studio",
+      "slug": "android-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.android.studio",
+      "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
+    },
+    {
       "name": "Adobe Digital Editions",
       "slug": "adobe-digital-editions/darwin",
       "platform": "darwin",
@@ -325,6 +332,13 @@
     },
     {
       "name": "GitHub Desktop",
+      "slug": "github-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "GitHub Desktop",
+      "description": "GitHub Desktop is a desktop client for GitHub repositories."
+    },
+    {
+      "name": "GitHub Desktop",
       "slug": "github/darwin",
       "platform": "darwin",
       "unique_identifier": "com.github.GitHubClient",
@@ -441,6 +455,13 @@
       "platform": "darwin",
       "unique_identifier": "com.linear",
       "description": "Linear is an app to manage software development and track bugs."
+    },
+    {
+      "name": "Little Snitch",
+      "slug": "little-snitch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "at.obdev.LittleSnitch",
+      "description": "Little Snitch is a network monitor and application firewall that provides real-time visibility and control over network connections for macOS."
     },
     {
       "name": "Logi Options+",
@@ -737,6 +758,13 @@
       "description": "Sublime Text is a text editor for code, markup, and prose."
     },
     {
+      "name": "Sublime Text",
+      "slug": "sublime-text/windows",
+      "platform": "windows",
+      "unique_identifier": "Sublime Text",
+      "description": "Sublime Text is a text editor for code, markup, and prose."
+    },
+    {
       "name": "TablePlus",
       "slug": "tableplus/darwin",
       "platform": "darwin",
@@ -748,6 +776,13 @@
       "slug": "tailscale-app/darwin",
       "platform": "darwin",
       "unique_identifier": "io.tailscale.ipn.macsys",
+      "description": "Tailscale is mesh VPN based on WireGuard."
+    },
+    {
+      "name": "Tailscale",
+      "slug": "tailscale/windows",
+      "platform": "windows",
+      "unique_identifier": "Tailscale",
       "description": "Tailscale is mesh VPN based on WireGuard."
     },
     {
@@ -853,6 +888,13 @@
       "slug": "webex/darwin",
       "platform": "darwin",
       "unique_identifier": "Cisco-Systems.Spark",
+      "description": "Webex is a video communication and virtual meeting platform."
+    },
+    {
+      "name": "Webex",
+      "slug": "webex/windows",
+      "platform": "windows",
+      "unique_identifier": "Cisco Webex",
       "description": "Webex is a video communication and virtual meeting platform."
     },
     {

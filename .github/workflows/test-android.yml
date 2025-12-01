@@ -157,3 +157,76 @@ jobs:
           path: |
             android/app/build/reports/androidTests/
             android/app/build/outputs/androidTest-results/
+
+  scep-integration-test:
+    name: SCEP integration test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v5.0.0
+
+      - name: Grant execute permission for gradlew
+        working-directory: android
+        run: chmod +x gradlew
+
+      - name: Clone and build SCEP server
+        run: |
+          git clone https://github.com/micromdm/scep.git /tmp/scep
+          cd /tmp/scep
+          # Checkout v2.3.0 release
+          git checkout 8eb5412c850c98aaa83c3b96b2facae3710777d6
+          CGO_ENABLED=0 go build -o scepserver ./cmd/scepserver
+
+      - name: Start SCEP server
+        run: |
+          mkdir -p /tmp/scep-depot
+          cd /tmp/scep
+          ./scepserver ca -init -depot /tmp/scep-depot
+          ./scepserver -depot /tmp/scep-depot -port 8080 -challenge test-challenge-123 &
+
+      - name: Wait for SCEP server to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -s http://localhost:8080/scep?operation=GetCACaps > /dev/null 2>&1; then
+              echo "SCEP server is ready"
+              exit 0
+            fi
+            echo "Waiting for SCEP server... ($i/30)"
+            sleep 2
+          done
+          echo "SCEP server failed to start"
+          exit 1
+
+      - name: Run SCEP integration tests
+        working-directory: android
+        run: |
+          ./gradlew test -PrunIntegrationTests=true \
+            -Pscep.url=http://localhost:8080/scep \
+            -Pscep.challenge=test-challenge-123 \
+            --console=plain
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: scep-integration-test-reports
+          path: |
+            android/app/build/reports/tests/
+            android/app/build/test-results/
