@@ -281,11 +281,25 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 			return ctxerr.Wrap(ctx, herr, "get host for deleted android device (ENROLLMENT)")
 		}
 		if host != nil {
-			// TODO(mna): cancel any apps pending install for this host
-
 			if _, err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state (ENROLLMENT)")
 			}
+
+			// cancel any apps pending install for this host
+			users, acts, err := svc.ds.MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx, host.Host.ID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "mark pending vpp installs as failed for deleted android host")
+			}
+			if len(users) != len(acts) {
+				return ctxerr.New(ctx, "number of users and activities must match, this is a Fleet development bug")
+			}
+			for i, act := range acts {
+				user := users[i]
+				if err := svc.activityModule.NewActivity(ctx, user, act); err != nil {
+					return ctxerr.Wrap(ctx, err, "create failed app install activity")
+				}
+			}
+
 			displayName := svc.getComputerName(&device)
 			_ = svc.activityModule.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
 				HostSerial:       "",
