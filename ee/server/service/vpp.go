@@ -602,10 +602,9 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	selfServiceVal := meta.SelfService
 	if selfService != nil {
 		selfServiceVal = *selfService
-	}
-
-	if selfServiceVal && (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) {
-		return nil, fleet.NewInvalidArgumentError("self_service", "Self-service is not supported for iOS and iPadOS apps.")
+		if selfServiceVal && (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) {
+			return nil, fleet.NewInvalidArgumentError("self_service", "Self-service is not supported for iOS and iPadOS apps.")
+		}
 	}
 
 	appToWrite := &fleet.VPPApp{

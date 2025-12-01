@@ -20,19 +20,6 @@ func TestSoftwareInstallerSelfServiceRestrictions(t *testing.T) {
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	ctx = authz_ctx.NewContext(ctx, &authz_ctx.AuthorizationContext{})
 
-	t.Run("UploadSoftwareInstaller", func(t *testing.T) {
-		t.Run("fails for ipa with self-service", func(t *testing.T) {
-			// We mock addMetadataToSoftwarePayload to return "ipa" extension
-			// But since we can't easily mock private methods, we'll rely on the fact that
-			// UploadSoftwareInstaller calls addMetadataToSoftwarePayload which we can't mock directly
-			// However, we can construct a payload that would result in extension being "ipa"
-			// if we could control it.
-			// Since we can't easily mock the private method, we might need to rely on integration tests
-			// or just test the logic we added if we could.
-			// Actually, we can test UpdateSoftwareInstaller more easily as it uses existing metadata.
-		})
-	})
-
 	t.Run("UpdateSoftwareInstaller", func(t *testing.T) {
 		ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, filter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
 			return &fleet.SoftwareTitle{
@@ -65,7 +52,6 @@ func TestSoftwareInstallerSelfServiceRestrictions(t *testing.T) {
 	})
 
 	t.Run("updateInHouseAppInstaller", func(t *testing.T) {
-		// This is called via UpdateSoftwareInstaller when InHouseAppCount == 1
 		ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, filter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
 			return &fleet.SoftwareTitle{
 				InHouseAppCount: 1,
