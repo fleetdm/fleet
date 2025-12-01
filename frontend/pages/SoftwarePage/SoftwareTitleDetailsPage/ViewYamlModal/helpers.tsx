@@ -150,7 +150,7 @@ interface CreatePackageYamlParams {
   postInstallScript?: string;
   uninstallScript?: string;
   iconUrl: string | null;
-  displayName: string | null;
+  displayName?: string;
   isScriptPackage?: boolean;
 }
 

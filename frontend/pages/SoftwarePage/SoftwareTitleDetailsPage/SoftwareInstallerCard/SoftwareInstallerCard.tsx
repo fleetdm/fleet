@@ -169,7 +169,7 @@ interface ISoftwareInstallerCardProps {
   isSelfService: boolean;
   softwareId: number;
   iconUrl?: string | null;
-  displayName?: string | null;
+  displayName?: string;
   teamId: number;
   teamIdForApi?: number;
   softwareInstaller: ISoftwarePackage | IAppStoreApp;
