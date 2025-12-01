@@ -811,7 +811,7 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 		}
 	}
 	for _, cmd := range toFailUUIDs {
-		if stop := createPastActivity(cmd, fleet.SoftwareInstalled); stop {
+		if stop := createPastActivity(cmd, fleet.SoftwareInstallFailed); stop {
 			return
 		}
 	}

@@ -1398,6 +1398,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = false
 			mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked = false
 			mockDS.BulkSetVPPInstallsAsFailedFuncInvoked = false
+			mockDS.GetPastActivityDataForAndroidVPPAppInstallFuncInvoked = false
 		})
 
 		// 4 apps installed in the same policy, so same version,
@@ -1440,6 +1441,12 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 				return pendingApps, nil
 			}
 		}
+		commandsToStatus := map[string]fleet.SoftwareInstallerStatus{
+			"a": fleet.SoftwareInstalled,
+			"b": fleet.SoftwareInstalled,
+			"c": fleet.SoftwareInstallFailed,
+			"d": fleet.SoftwareInstallFailed,
+		}
 		mockDS.BulkSetVPPInstallsAsVerifiedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
 			require.ElementsMatch(t, []string{"a", "b"}, cmdUUIDs)
 			return nil
@@ -1447,6 +1454,12 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 		mockDS.BulkSetVPPInstallsAsFailedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
 			require.ElementsMatch(t, []string{"c", "d"}, cmdUUIDs)
 			return nil
+		}
+		mockDS.GetPastActivityDataForAndroidVPPAppInstallFunc = func(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+			want, ok := commandsToStatus[cmdUUID]
+			require.True(t, ok, "unexpected command UUID: %s", cmdUUID)
+			require.Equal(t, want, status)
+			return &fleet.User{}, &fleet.ActivityInstalledAppStoreApp{CommandUUID: cmdUUID, Status: string(status)}, nil
 		}
 
 		policyVersion := ptr.Int(2)
@@ -1463,5 +1476,6 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 		require.True(t, mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked)
 		require.True(t, mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked)
 		require.True(t, mockDS.BulkSetVPPInstallsAsFailedFuncInvoked)
+		require.True(t, mockDS.GetPastActivityDataForAndroidVPPAppInstallFuncInvoked)
 	})
 }
