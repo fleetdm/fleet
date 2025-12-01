@@ -236,7 +236,7 @@ module.exports.custom = {
 
     // Website (fleetdm.com)
     'website': ['mikermcneil', 'eashaw'],// (default for website)
-    'website/views': ['eashaw', 'mike-j-thomas'],
+    'website/views': ['eashaw', 'mike-j-thomas', 'johnjeremiah', 'akuthiala'],
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
     'website/package.json': 'eashaw',

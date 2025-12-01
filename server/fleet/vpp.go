@@ -49,7 +49,7 @@ type VPPAppTeam struct {
 	AddedAutomaticInstallPolicy *Policy `json:"-"`
 	DisplayName                 *string `json:"display_name"`
 	// Configuration is a json file used to customize Android app
-	// behavior/settings. Relevant to Android only.
+	// behavior/settings. Applicable to Android apps only.
 	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 
@@ -106,9 +106,11 @@ type VPPAppStoreApp struct {
 	AddedAt time.Time `db:"added_at" json:"created_at"`
 	// Categories is the list of categories to which this software belongs: e.g. "Productivity",
 	// "Browsers", etc.
-	Categories    []string        `json:"categories"`
-	DisplayName   string          `json:"display_name"`
-	Configuration json.RawMessage `json:"configuration"`
+	Categories  []string `json:"categories"`
+	DisplayName string   `json:"display_name"`
+	// Configuration is a json file used to customize Android app
+	// behavior/settings. Applicable to Android apps only.
+	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.

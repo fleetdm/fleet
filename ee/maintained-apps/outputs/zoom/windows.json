@@ -11,7 +11,8 @@
       "sha256": "53e1eca704589e41a19c061bfe1bb7cd917ef230c21eb9fdd629d963f58926db",
       "default_categories": [
         "Communication"
-      ]
+      ],
+      "upgrade_code": "{C819B794-A45C-4F27-9860-0C86492A52CC}"
     }
   ],
   "refs": {

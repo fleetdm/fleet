@@ -2224,6 +2224,12 @@ func testSoftwareTitleDisplayNameVPP(t *testing.T, ds *Datastore) {
 	title, err = ds.SoftwareTitleByID(ctx, titleID, ptr.Uint(0), fleet.TeamFilter{})
 	require.NoError(t, err)
 	assert.Empty(t, title.DisplayName)
+
+	// Delete vpp app, display name should be deleted
+	err = ds.DeleteVPPAppFromTeam(ctx, ptr.Uint(0), fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform})
+	require.NoError(t, err)
+	_, err = ds.getSoftwareTitleDisplayName(ctx, 0, titleID)
+	require.ErrorContains(t, err, "not found")
 }
 
 func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
