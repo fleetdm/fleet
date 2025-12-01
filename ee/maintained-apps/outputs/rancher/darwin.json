@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "1.20.1",
+      "version": "1.21.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.rancherdesktop.app';"
       },
-      "installer_url": "https://github.com/rancher-sandbox/rancher-desktop/releases/download/v1.20.1/Rancher.Desktop-1.20.1.aarch64.dmg",
+      "installer_url": "https://github.com/rancher-sandbox/rancher-desktop/releases/download/v1.21.0/Rancher.Desktop-1.21.0.aarch64.dmg",
       "install_script_ref": "aab5d115",
       "uninstall_script_ref": "e2117bd5",
-      "sha256": "6e3f9de4dd663bd4c36d422e44ec1b332aad094a07eda703ae9e4569c9245b97",
+      "sha256": "c152e8e72306d5c88cf9b541cb34f4c0901e08292b9edd7238c7eeaf0ece277f",
       "default_categories": [
         "Developer tools"
       ]

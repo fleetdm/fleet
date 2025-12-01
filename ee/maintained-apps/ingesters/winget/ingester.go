@@ -210,6 +210,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			installerType = strings.Trim(filepath.Ext(installer.InstallerURL), ".")
 		}
 
+		// Normalize wix (WiX Toolset) to msi since wix installers are MSI files
+		if installerType == installerTypeWix {
+			installerType = installerTypeMSI
+		}
+
 		scope := m.Scope
 		if scope == "" {
 			scope = installer.Scope
@@ -230,12 +235,25 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			installer.InstallerLocale = ""
 		}
 
-		if installer.Architecture == input.InstallerArch &&
+		// Check if this installer matches our criteria
+		matches := installer.Architecture == input.InstallerArch &&
 			scope == input.InstallerScope &&
 			installer.InstallerLocale == input.InstallerLocale &&
-			installerType == input.InstallerType {
-			selectedInstaller = &installer
-			break
+			installerType == input.InstallerType
+
+		if matches {
+			// Prefer installers where the URL extension matches the desired installer type
+			// This ensures we select the actual MSI installer over burn (EXE) installers
+			urlExt := strings.Trim(filepath.Ext(installer.InstallerURL), ".")
+			if urlExt == input.InstallerType {
+				// Perfect match - URL extension matches desired type
+				selectedInstaller = &installer
+				break
+			}
+			// Keep as fallback candidate if we haven't found a perfect match yet
+			if selectedInstaller == nil {
+				selectedInstaller = &installer
+			}
 		}
 
 	}
@@ -250,8 +268,8 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		}
 	}
 
+	var upgradeCode string
 	if (input.InstallerType == installerTypeMSI || input.UninstallType == installerTypeMSI) && input.InstallerScope == machineScope {
-		var upgradeCode string
 		for _, fe := range m.AppsAndFeaturesEntries {
 			if fe.UpgradeCode != "" {
 				upgradeCode = fe.UpgradeCode
@@ -288,6 +306,10 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 	productCode = strings.Split(productCode, ".")[0]
 
+	if upgradeCode != "" {
+		out.UpgradeCode = upgradeCode
+	}
+
 	out.Name = input.Name
 	out.Slug = input.Slug
 	out.InstallerURL = selectedInstaller.InstallerURL
@@ -306,6 +328,8 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if input.UniqueIdentifier != "" {
 		name = input.UniqueIdentifier
 	}
+
+	// TODO - consider UpgradeCode here?
 	existsTemplate := "SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';"
 	if input.FuzzyMatchName {
 		existsTemplate = "SELECT 1 FROM programs WHERE name LIKE '%s %%' AND publisher = '%s';"

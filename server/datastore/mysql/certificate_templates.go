@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -178,7 +179,13 @@ func (ds *Datastore) BatchDeleteCertificateTemplates(ctx context.Context, certif
 	return nil
 }
 
-func (ds *Datastore) UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus) error {
+func (ds *Datastore) UpdateCertificateStatus(
+	ctx context.Context,
+	hostUUID string,
+	certificateTemplateID uint,
+	status fleet.MDMDeliveryStatus,
+	detail *string,
+) error {
 	// Validate the status.
 	if !status.IsValid() {
 		return ctxerr.Wrap(ctx, fmt.Errorf("Invalid status '%s'", string(status)))
@@ -187,9 +194,9 @@ func (ds *Datastore) UpdateCertificateStatus(ctx context.Context, hostUUID strin
 	// Attempt to update the certificate status for the given host and template.
 	result, err := ds.writer(ctx).ExecContext(ctx, `
     UPDATE host_certificate_templates
-    SET status = ?
+    SET status = ?, detail = ?
     WHERE host_uuid = ? AND certificate_template_id = ?
-`, status, hostUUID, certificateTemplateID)
+`, status, detail, hostUUID, certificateTemplateID)
 	if err != nil {
 		return err
 	}
@@ -204,4 +211,84 @@ func (ds *Datastore) UpdateCertificateStatus(ctx context.Context, hostUUID strin
 	}
 
 	return nil
+}
+
+func (ds *Datastore) GetHostCertificateTemplates(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error) {
+	if hostUUID == "" {
+		return nil, errors.New("hostUUID cannot be empty")
+	}
+
+	stmt := `
+SELECT 
+	ct.name, 
+	hct.status,
+	hct.detail
+FROM host_certificate_templates hct
+	INNER JOIN certificate_templates ct ON ct.id = hct.certificate_template_id 
+WHERE hct.host_uuid = ?`
+
+	var hTemplates []fleet.HostCertificateTemplate
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hTemplates, stmt, hostUUID); err != nil {
+		return nil, err
+	}
+	return hTemplates, nil
+}
+
+func (ds *Datastore) GetMDMProfileSummaryFromHostCertificateTemplates(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	var stmt string
+	var args []interface{}
+
+	if teamID != nil && *teamID > 0 {
+		stmt = `
+SELECT
+	hct.status AS status,
+	COUNT(DISTINCT hct.host_uuid) AS n
+FROM host_certificate_templates hct
+INNER JOIN certificate_templates ct ON hct.certificate_template_id = ct.id
+WHERE ct.team_id = ?
+GROUP BY hct.status`
+		args = append(args, *teamID)
+	} else {
+		stmt = `
+SELECT
+	hct.status AS status,
+	COUNT(DISTINCT hct.host_uuid) AS n
+FROM host_certificate_templates hct
+GROUP BY hct.status`
+	}
+
+	var dest []struct {
+		Count  uint   `db:"n"`
+		Status string `db:"status"`
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...); err != nil {
+		return nil, err
+	}
+
+	byStatus := make(map[string]uint)
+	for _, s := range dest {
+		if _, ok := byStatus[s.Status]; ok {
+			return nil, fmt.Errorf("duplicate status %s found", s.Status)
+		}
+		byStatus[s.Status] = s.Count
+	}
+
+	var res fleet.MDMProfilesSummary
+	for s, c := range byStatus {
+		switch fleet.MDMDeliveryStatus(s) {
+		case fleet.MDMDeliveryFailed:
+			res.Failed = c
+		case fleet.MDMDeliveryPending:
+			res.Pending = c
+		case fleet.MDMDeliveryVerifying:
+			res.Verifying = c
+		case fleet.MDMDeliveryVerified:
+			res.Verified = c
+		default:
+			return nil, fmt.Errorf("unknown status %s", s)
+		}
+	}
+
+	return &res, nil
 }

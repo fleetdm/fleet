@@ -3,10 +3,13 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"sort"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -25,6 +28,8 @@ func TestCertificates(t *testing.T) {
 		{"DeleteCertificateTemplate", testDeleteCertificateTemplate},
 		{"BatchUpsertCertificates", testBatchUpsertCertificates},
 		{"BatchDeleteCertificateTemplates", testBatchDeleteCertificateTemplates},
+		{"GetHostCertificateTemplates", testGetHostCertificateTemplates},
+		{"GetMDMProfileSummaryFromHostCertificateTemplates", testGetMDMProfileSummaryFromHostCertificateTemplates},
 	}
 
 	for _, c := range cases {
@@ -736,11 +741,19 @@ INSERT INTO host_certificate_templates (
 		templateID       uint
 		newStatus        string
 		expectedErrorMsg string
+		detail           *string
 	}{
 		{
 			name:             "Valid Update",
 			templateID:       certificateTemplateID,
 			newStatus:        "verified",
+			expectedErrorMsg: "",
+		},
+		{
+			name:             "Valid Update with some details",
+			templateID:       certificateTemplateID,
+			newStatus:        "failed",
+			detail:           ptr.String("some details"),
 			expectedErrorMsg: "",
 		},
 		{
@@ -759,7 +772,7 @@ INSERT INTO host_certificate_templates (
 
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("TestUpdateHostCertificateTemplate:%s", tc.name), func(t *testing.T) {
-			err := db.UpdateCertificateStatus(context.Background(), host.UUID, tc.templateID, fleet.MDMDeliveryStatus(tc.newStatus))
+			err := db.UpdateCertificateStatus(context.Background(), host.UUID, tc.templateID, fleet.MDMDeliveryStatus(tc.newStatus), tc.detail)
 			if tc.expectedErrorMsg == "" {
 				require.NoError(t, err)
 				// Verify the update
@@ -777,6 +790,221 @@ WHERE host_uuid = ? AND certificate_template_id = ?;
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tc.expectedErrorMsg)
 			}
+		})
+	}
+}
+
+func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
+	defer TruncateTables(t, ds)
+
+	ctx := context.Background()
+
+	h1 := test.NewHost(t, ds, "host_1", "127.0.0.1", "1", "1", time.Now())
+	h2 := test.NewHost(t, ds, "host_2", "127.0.0.2", "2", "2", time.Now())
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
+	require.NoError(t, err)
+
+	h2.TeamID = &team.ID
+	err = ds.UpdateHost(ctx, h2)
+	require.NoError(t, err)
+
+	// Create a test certificate authority
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("Test SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+
+	// Create some certificate templates
+	ct1, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "AAA",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Test Subject 1",
+	})
+	require.NoError(t, err)
+
+	ct2, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "BBB",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Test Subject 2",
+	})
+	require.NoError(t, err)
+
+	// Set the installation status on the certificate templates
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
+		h2.UUID, ct1.ID, "test-challenge", fleet.OSSettingsVerified,
+	)
+
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, detail) VALUES (?, ?, ?, ?, ?)",
+		h2.UUID, ct2.ID, "test-challenge", fleet.OSSettingsFailed, "some error yooo",
+	)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name string
+		do   func(*testing.T, *Datastore)
+	}{
+		{
+			"hostUUID is not provided",
+			func(t *testing.T, ds *Datastore) {
+				_, err := ds.GetHostCertificateTemplates(ctx, "")
+				require.Error(t, err)
+			},
+		},
+
+		{
+			"No certificate templates found",
+			func(t *testing.T, ds *Datastore) {
+				templates, err := ds.GetHostCertificateTemplates(ctx, h1.UUID)
+				require.NoError(t, err)
+				require.Empty(t, templates)
+			},
+		},
+		{
+			"Returns the certificates available for the host",
+			func(t *testing.T, datastore *Datastore) {
+				templates, err := ds.GetHostCertificateTemplates(ctx, h2.UUID)
+				require.NoError(t, err)
+				require.Len(t, templates, 2)
+
+				// Sort the templates by name to make results deterministic
+				sort.Slice(templates, func(i, j int) bool { return templates[i].Name < templates[j].Name })
+
+				require.Equal(t, ct1.Name, templates[0].Name)
+				require.Equal(t, fleet.MDMDeliveryVerified, templates[0].Status)
+
+				require.Equal(t, ct2.Name, templates[1].Name)
+				require.Equal(t, fleet.MDMDeliveryFailed, templates[1].Status)
+				require.Equal(t, "some error yooo", *templates[1].Detail)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.do(t, ds)
+		})
+	}
+}
+
+func testGetMDMProfileSummaryFromHostCertificateTemplates(t *testing.T, ds *Datastore) {
+	defer TruncateTables(t, ds)
+
+	ctx := context.Background()
+
+	// Doing this with no data in the table should be ok
+	result, err := ds.GetMDMProfileSummaryFromHostCertificateTemplates(ctx, nil)
+	require.NoError(t, err)
+	require.Equal(t, uint(0), result.Pending)
+	require.Equal(t, uint(0), result.Failed)
+	require.Equal(t, uint(0), result.Verified)
+	require.Equal(t, uint(0), result.Verifying)
+
+	h1 := test.NewHost(t, ds, "host_1", "127.0.0.1", "1", "1", time.Now())
+	h2 := test.NewHost(t, ds, "host_2", "127.0.0.2", "2", "2", time.Now())
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
+	require.NoError(t, err)
+
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 2"})
+	require.NoError(t, err)
+
+	h1.TeamID = &team1.ID
+	err = ds.UpdateHost(ctx, h2)
+	require.NoError(t, err)
+
+	h2.TeamID = &team2.ID
+	err = ds.UpdateHost(ctx, h2)
+	require.NoError(t, err)
+
+	// Create a test certificate authority
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("Test SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+
+	// Create some certificate templates
+	ct1, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "AAA",
+		TeamID:                 team1.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Test Subject 1",
+	})
+	require.NoError(t, err)
+
+	ct2, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "BBB",
+		TeamID:                 team2.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Test Subject 2",
+	})
+	require.NoError(t, err)
+
+	// Set the installation status on the certificate templates
+	// TODO: Refactor this to use UpdateStatus DB method when available
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
+		h1.UUID, ct1.ID, "test-challenge", fleet.OSSettingsPending,
+	)
+	require.NoError(t, err)
+
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
+		h2.UUID, ct1.ID, "test-challenge", fleet.OSSettingsVerified,
+	)
+	require.NoError(t, err)
+
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
+		h2.UUID, ct2.ID, "test-challenge", fleet.OSSettingsFailed,
+	)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name string
+		do   func(*testing.T, *Datastore)
+	}{
+		{
+			"no teamID provided",
+			func(t *testing.T, ds *Datastore) {
+				result, err := ds.GetMDMProfileSummaryFromHostCertificateTemplates(ctx, nil)
+
+				require.NoError(t, err)
+				require.NotNil(t, result)
+				require.Equal(t, uint(1), result.Pending)
+				require.Equal(t, uint(1), result.Verified)
+				require.Equal(t, uint(1), result.Failed)
+			},
+		},
+		{
+			"teamID provided",
+			func(t *testing.T, ds *Datastore) {
+				result, err := ds.GetMDMProfileSummaryFromHostCertificateTemplates(ctx, &team1.ID)
+
+				require.NoError(t, err)
+				require.NotNil(t, result)
+
+				require.Equal(t, uint(0), result.Failed)
+				require.Equal(t, uint(1), result.Verified)
+				require.Equal(t, uint(1), result.Pending)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.do(t, ds)
 		})
 	}
 }

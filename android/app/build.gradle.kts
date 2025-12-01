@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.spotless)
     alias(libs.plugins.detekt)
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.2.20"
 }
 
 android {
@@ -21,6 +22,47 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Pass integration test flag from project property to instrumentation runner
+        if (project.hasProperty("runIntegrationTests")) {
+            testInstrumentationRunnerArguments["runIntegrationTests"] = "true"
+        }
+    }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = false
+            all {
+                it.apply {
+                    // Validate integration test configuration
+                    if (project.hasProperty("runIntegrationTests")) {
+                        // Check for required SCEP configuration
+                        if (!project.hasProperty("scep.url") || !project.hasProperty("scep.challenge")) {
+                            throw GradleException(
+                                """
+                                |
+                                |ERROR: Integration tests require SCEP server configuration.
+                                |
+                                |Please provide both required properties:
+                                |  -Pscep.url=<SCEP_SERVER_URL>
+                                |  -Pscep.challenge=<SCEP_CHALLENGE>
+                                |
+                                |Example:
+                                |  ./gradlew test -PrunIntegrationTests=true \
+                                |    -Pscep.url=https://your-scep-server.com/scep \
+                                |    -Pscep.challenge=your-challenge-password
+                                |
+                                """.trimMargin(),
+                            )
+                        }
+
+                        systemProperty("runIntegrationTests", "true")
+                        systemProperty("scep.url", project.property("scep.url").toString())
+                        systemProperty("scep.challenge", project.property("scep.challenge").toString())
+                    }
+                }
+            }
+        }
     }
 
     // Load keystore properties for release signing
@@ -60,11 +102,42 @@ android {
     buildFeatures {
         compose = true
     }
+    packaging {
+        resources {
+            excludes +=
+                setOf(
+                    "META-INF/DEPENDENCIES",
+                    "META-INF/DEPENDENCIES.txt",
+                    "META-INF/LICENSE",
+                    "META-INF/LICENSE.txt",
+                    "META-INF/LICENSE.md",
+                    "META-INF/LICENSE-notice.md",
+                    "META-INF/NOTICE",
+                    "META-INF/NOTICE.txt",
+                    "META-INF/NOTICE.md",
+                    "META-INF/notice.txt",
+                    "META-INF/license.txt",
+                    "META-INF/license.md",
+                    "META-INF/dependencies.txt",
+                    "META-INF/LGPL2.1",
+                    "META-INF/AL2.0",
+                    "META-INF/LGPL3.0",
+                    "META-INF/*.kotlin_module",
+                )
+        }
+    }
 }
 
 kotlin {
+    jvmToolchain(17)
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+    }
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
     }
 }
 
@@ -83,14 +156,7 @@ spotless {
     kotlin {
         target("**/*.kt")
         targetExclude("**/build/**/*.kt")
-        ktlint().editorConfigOverride(
-            mapOf(
-                // Jetpack Compose requires Composable functions to start with uppercase (PascalCase)
-                "ktlint_standard_function-naming" to "disabled",
-                // Android conventionally uses uppercase TAG constants for logging
-                "ktlint_standard_property-naming" to "disabled",
-            ),
-        )
+        ktlint()
     }
     kotlinGradle {
         target("*.gradle.kts")
@@ -99,6 +165,7 @@ spotless {
 }
 
 dependencies {
+    // AndroidX and Compose
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -107,11 +174,39 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.amapi.sdk)
+
+    // SCEP (Simple Certificate Enrollment Protocol)
+    implementation("com.google.code.jscep:jscep:3.0.1")
+
+    // Bouncy Castle - Cryptography provider
+    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
+
+    // Apache Commons - Utilities used by jScep
+    implementation("commons-codec:commons-codec:1.20.0")
+
+    // Logging - Required by jScep
+    implementation("org.slf4j:slf4j-api:2.0.17")
+    implementation("org.slf4j:slf4j-simple:2.0.17")
+
+    // Testing
     testImplementation(libs.junit)
+    testImplementation(libs.androidx.work.testing)
+    testImplementation(libs.robolectric)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("org.json:json:20231013") // For JSON parsing in unit tests
+
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation("io.mockk:mockk-android:1.13.13")
+
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    // Preferences DataStore (SharedPreferences like APIs)
+    implementation("androidx.datastore:datastore-preferences:1.2.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
 }

@@ -32,6 +32,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsInsertCommandForHosts", testMDMWindowsInsertCommandForHosts},
 		{"TestMDMWindowsGetPendingCommands", testMDMWindowsGetPendingCommands},
 		{"TestMDMWindowsCommandResults", testMDMWindowsCommandResults},
+		{"TestMDMWindowsCommandResultsWithPendingResult", testMDMWindowsCommandResultsWithPendingResult},
 		{"TestMDMWindowsProfileManagement", testMDMWindowsProfileManagement},
 		{"TestBulkOperationsMDMWindowsHostProfiles", testBulkOperationsMDMWindowsHostProfiles},
 		{"TestBulkOperationsMDMWindowsHostProfilesBatch2", testBulkOperationsMDMWindowsHostProfilesBatch2},
@@ -1255,12 +1256,8 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 
 	err := ds.MDMWindowsInsertEnrolledDevice(ctx, d1)
 	require.NoError(t, err)
-	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, d1.HostUUID, d1.MDMDeviceID)
-	require.NoError(t, err)
 
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, d2)
-	require.NoError(t, err)
-	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, d2.HostUUID, d2.MDMDeviceID)
 	require.NoError(t, err)
 
 	cmd := &fleet.MDMWindowsCommand{
@@ -1320,8 +1317,6 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	time.Sleep(time.Second) // ensure it gets a latest created_at
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, d3)
 	require.NoError(t, err)
-	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, d3.HostUUID, d3.MDMDeviceID)
-	require.NoError(t, err)
 
 	// commands can still be enqueued, will be enqueued for the latest enrolled device
 	// when a duplicate host uuid/device id exists (i.e. for d3 even if d2 is passed -
@@ -1357,8 +1352,6 @@ func testMDMWindowsGetPendingCommands(t *testing.T, ds *Datastore) {
 		HostUUID:               uuid.NewString(),
 	}
 	err := ds.MDMWindowsInsertEnrolledDevice(ctx, d)
-	require.NoError(t, err)
-	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, d.HostUUID, d.MDMDeviceID)
 	require.NoError(t, err)
 
 	// device without commands
@@ -1466,6 +1459,81 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.Empty(t, results)
 }
 
+func testMDMWindowsCommandResultsWithPendingResult(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	insertDB := func(t *testing.T, query string, args ...interface{}) (int64, error) {
+		t.Helper()
+		res, err := ds.writer(ctx).Exec(query, args...)
+		if err != nil {
+			return 0, err
+		}
+		return res.LastInsertId()
+	}
+
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-win-host-name",
+		OsqueryHostID: ptr.String("1337"),
+		NodeKey:       ptr.String("1337"),
+		UUID:          "test-win-host-uuid",
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	dev := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            "test-device-id",
+		MDMHardwareID:          "test-hardware-id",
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "dt",
+		MDMDeviceName:          "dn",
+		MDMEnrollType:          "et",
+		MDMEnrollUserID:        "euid",
+		MDMEnrollProtoVersion:  "epv",
+		MDMEnrollClientVersion: "ecv",
+		MDMNotInOOBE:           false,
+		HostUUID:               h.UUID,
+	}
+
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, dev))
+	var enrollmentID uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &enrollmentID, `SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, dev.MDMDeviceID))
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE id = ?`, dev.HostUUID, enrollmentID)
+	require.NoError(t, err)
+
+	rawCmd := "some-command"
+	cmdUUID := "some-uuid"
+	cmdTarget := "some-target-loc-uri"
+	_, err = insertDB(t, `INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri) VALUES (?, ?, ?)`, cmdUUID, rawCmd, cmdTarget)
+	require.NoError(t, err)
+
+	_, err = insertDB(t, `INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES (?, ? )`, enrollmentID, cmdUUID)
+	require.NoError(t, err)
+
+	p, err := ds.GetMDMCommandPlatform(ctx, cmdUUID)
+	require.NoError(t, err)
+	require.Equal(t, "windows", p)
+
+	results, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, dev.HostUUID, results[0].HostUUID)
+	require.Equal(t, cmdUUID, results[0].CommandUUID)
+	require.Equal(t, []byte{}, results[0].Result)
+	require.Equal(t, cmdTarget, results[0].RequestType)
+	require.Equal(t, "101", results[0].Status)
+	require.Empty(t, results[0].Hostname) // populated only at the service layer
+	require.Equal(t, rawCmd, string(results[0].Payload))
+
+	p, err = ds.GetMDMCommandPlatform(ctx, "unknown-cmd-uuid")
+	require.True(t, fleet.IsNotFound(err))
+	require.Empty(t, p)
+
+	results, err = ds.GetMDMWindowsCommandResults(ctx, "unknown-cmd-uuid")
+	require.NoError(t, err) // expect no error here, just no results
+	require.Empty(t, results)
+}
+
 // enrolls the host in Windows MDM and returns the device's enrollment ID.
 func windowsEnroll(t *testing.T, ds fleet.Datastore, h *fleet.Host) string {
 	ctx := context.Background()
@@ -1483,8 +1551,6 @@ func windowsEnroll(t *testing.T, ds fleet.Datastore, h *fleet.Host) string {
 		HostUUID:               h.UUID,
 	}
 	err := ds.MDMWindowsInsertEnrolledDevice(ctx, d1)
-	require.NoError(t, err)
-	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, d1.HostUUID, d1.MDMDeviceID)
 	require.NoError(t, err)
 	return d1.MDMDeviceID
 }
