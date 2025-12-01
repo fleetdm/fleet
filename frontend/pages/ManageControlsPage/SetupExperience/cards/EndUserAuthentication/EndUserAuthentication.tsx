@@ -9,7 +9,7 @@ import { ITeamConfig } from "interfaces/team";
 
 import SectionHeader from "components/SectionHeader/SectionHeader";
 import Spinner from "components/Spinner";
-import TurnOnMessage from "components/TurnOnMessage";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
@@ -83,7 +83,7 @@ const EndUserAuthentication = ({
     return (
       <SetupExperienceContentContainer>
         {!isIdPConfigured(mdmConfig) ? (
-          <TurnOnMessage
+          <GenericMsgWithNavButton
             header="Require end user authentication during setup"
             info="Connect Fleet to your identity provider (IdP) to get started."
             buttonText="Connect"
