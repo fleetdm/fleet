@@ -179,7 +179,13 @@ func (ds *Datastore) BatchDeleteCertificateTemplates(ctx context.Context, certif
 	return nil
 }
 
-func (ds *Datastore) UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus) error {
+func (ds *Datastore) UpdateCertificateStatus(
+	ctx context.Context,
+	hostUUID string,
+	certificateTemplateID uint,
+	status fleet.MDMDeliveryStatus,
+	detail *string,
+) error {
 	// Validate the status.
 	if !status.IsValid() {
 		return ctxerr.Wrap(ctx, fmt.Errorf("Invalid status '%s'", string(status)))
@@ -188,9 +194,9 @@ func (ds *Datastore) UpdateCertificateStatus(ctx context.Context, hostUUID strin
 	// Attempt to update the certificate status for the given host and template.
 	result, err := ds.writer(ctx).ExecContext(ctx, `
     UPDATE host_certificate_templates
-    SET status = ?
+    SET status = ?, detail = ?
     WHERE host_uuid = ? AND certificate_template_id = ?
-`, status, hostUUID, certificateTemplateID)
+`, status, detail, hostUUID, certificateTemplateID)
 	if err != nil {
 		return err
 	}
@@ -215,7 +221,8 @@ func (ds *Datastore) GetHostCertificateTemplates(ctx context.Context, hostUUID s
 	stmt := `
 SELECT 
 	ct.name, 
-	hct.status
+	hct.status,
+	hct.detail
 FROM host_certificate_templates hct
 	INNER JOIN certificate_templates ct ON ct.id = hct.certificate_template_id 
 WHERE hct.host_uuid = ?`
@@ -239,7 +246,7 @@ SELECT
 FROM host_certificate_templates hct
 INNER JOIN certificate_templates ct ON hct.certificate_template_id = ct.id
 WHERE ct.team_id = ?
-GROUP BY 1`
+GROUP BY hct.status`
 		args = append(args, *teamID)
 	} else {
 		stmt = `
@@ -247,7 +254,7 @@ SELECT
 	hct.status AS status,
 	COUNT(DISTINCT hct.host_uuid) AS n
 FROM host_certificate_templates hct
-GROUP BY 1`
+GROUP BY hct.status`
 	}
 
 	var dest []struct {
