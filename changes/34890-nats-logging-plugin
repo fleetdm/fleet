@@ -1,2 +1,2 @@
-- Added NATS as a logging destination option for osquery status logs, result logs, and audit logs. NATS subjects support dynamic routing using expression templates to route logs based on log content (e.g., hostname, query name).
+- Added NATS as a logging destination.
 
