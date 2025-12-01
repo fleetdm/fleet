@@ -16238,7 +16238,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	// Invalid profile identifier
 	scepRes := s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"invalid_identifier,p1234-uuid", nil, http.StatusBadRequest, nil, "operation", "GetCACaps")
 	scepResErr := extractServerErrorText(scepRes.Body)
-	require.Contains(t, scepResErr, "invalid profile UUID (only Apple and Windows")
+	require.Contains(t, scepResErr, "invalid profile UUID (only Apple, Windows, and Android")
 
 	// Verify Windows profiles is allowed (with dummy values that will fail lookup)
 	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"invalid_identifier,w1234-uuid", nil, http.StatusBadRequest, nil, "operation", "GetCACaps")
