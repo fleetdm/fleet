@@ -142,6 +142,8 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 			return ctxerr.Wrap(ctx, err, "get host for deleted android device")
 		}
 		if host != nil {
+			// TODO(mna): cancel any apps pending install for this host
+
 			didUnenroll, err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state")
@@ -265,6 +267,8 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 			return ctxerr.Wrap(ctx, herr, "get host for deleted android device (ENROLLMENT)")
 		}
 		if host != nil {
+			// TODO(mna): cancel any apps pending install for this host
+
 			if _, err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state (ENROLLMENT)")
 			}

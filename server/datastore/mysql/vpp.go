@@ -925,7 +925,7 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 			globalOrTeamID))
 	}
 
-	_, err = tx.ExecContext(ctx, `DELETE FROM software_title_display_names 	WHERE team_id = ? AND 
+	_, err = tx.ExecContext(ctx, `DELETE FROM software_title_display_names 	WHERE team_id = ? AND
 		software_title_id IN (SELECT title_id FROM vpp_apps WHERE adam_id = ?)`, globalOrTeamID, appID.AdamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete software title display name")
@@ -2026,7 +2026,7 @@ WHERE command_uuid = ?
 	})
 }
 
-func (ds *Datastore) MarkAllPendingVPPAndInHouseInstallsAsFailed(ctx context.Context, jobName string) error {
+func (ds *Datastore) MarkAllPendingAppleVPPAndInHouseInstallsAsFailed(ctx context.Context, jobName string) error {
 	// this is called on an Apple-only event, when APNS cert is deleted, so it should only
 	// affect Apple platforms. Currently, VPP installs in the upcoming queue are Apple only,
 	// but those in host_vpp_software_installs could be Android as well.
