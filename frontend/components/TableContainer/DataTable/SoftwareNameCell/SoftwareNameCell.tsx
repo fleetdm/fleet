@@ -1,7 +1,7 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
 
-import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
+import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
@@ -23,7 +23,6 @@ export type PageContext = "deviceUser" | "hostDetails" | "hostDetailsLibrary";
 interface InstallIconTooltip {
   automaticInstallPoliciesCount?: number;
   pageContext?: PageContext;
-  isIosOrIpados?: boolean;
 }
 
 interface InstallIconConfig {
@@ -51,8 +50,7 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
   },
   selfService: {
     iconName: "user",
-    tooltip: ({ isIosOrIpados = false }) =>
-      getSelfServiceTooltip(isIosOrIpados),
+    tooltip: () => SELF_SERVICE_TOOLTIP,
   },
   automatic: {
     iconName: "refresh",
@@ -78,7 +76,6 @@ interface IInstallIconWithTooltipProps {
   isSelfService: boolean;
   automaticInstallPoliciesCount?: number;
   pageContext?: PageContext;
-  isIosOrIpados?: boolean;
 }
 
 const getInstallIconType = (
@@ -95,7 +92,6 @@ const InstallIconWithTooltip = ({
   isSelfService,
   automaticInstallPoliciesCount,
   pageContext,
-  isIosOrIpados = false,
 }: IInstallIconWithTooltipProps) => {
   const iconType = getInstallIconType(
     isSelfService,
@@ -111,7 +107,6 @@ const InstallIconWithTooltip = ({
   const tipContent = tooltip({
     automaticInstallPoliciesCount,
     pageContext,
-    isIosOrIpados,
   });
 
   return (

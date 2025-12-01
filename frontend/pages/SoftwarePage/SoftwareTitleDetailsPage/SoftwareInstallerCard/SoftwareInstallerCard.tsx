@@ -13,7 +13,7 @@ import {
 import { Platform } from "interfaces/platform";
 import softwareAPI from "services/entities/software";
 
-import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
+import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 
 import Card from "components/Card";
 
@@ -308,7 +308,7 @@ const SoftwareInstallerCard = ({
                 <TooltipWrapper
                   showArrow
                   position="top"
-                  tipContent={getSelfServiceTooltip(isIosOrIpadosApp)}
+                  tipContent={SELF_SERVICE_TOOLTIP}
                   underline={false}
                 >
                   <Tag icon="user" text="Self-service" />
