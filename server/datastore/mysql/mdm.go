@@ -63,7 +63,7 @@ WHERE
 SELECT
     mwe.host_uuid,
     wmc.command_uuid,
-    COALESCE(NULLIF(wmcr.status_code, ''), 'Pending') as status,
+    COALESCE(NULLIF(wmcr.status_code, ''), '101') as status,
     COALESCE(wmc.updated_at, wmc.created_at) as updated_at,
     wmc.target_loc_uri as request_type,
     h.hostname,
