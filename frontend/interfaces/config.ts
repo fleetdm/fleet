@@ -229,6 +229,7 @@ export type LogDestination =
   | "lambda"
   | "pubsub"
   | "kafta"
+  | "nats"
   | "stdout"
   | "webhook"
   | "";
