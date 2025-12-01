@@ -10,7 +10,7 @@ In the next 3 months, Fleet will ship...
 
 - 🛡️ Integration with Okta for conditional access on macOS
 - 🤖 Manage company-owned (fully managed) Android
-- 🎡 One queue for MDM commands, software, and scripts
+- 🎡 See completed (past) and pending (upcoming) MDM commands
 - 🔧 Self-service scripts on macOS
 - 📡 Okta SCEP certificate deployment with dynamic challenge handling
 - 👨‍💻 More Windows Fleet-maintained apps
