@@ -53,24 +53,90 @@ fi
 
 # Extract CFBundleIconFile from Info.plist
 ICON_FILE=$(defaults read "$INFO_PLIST" CFBundleIconFile 2>/dev/null || plutil -extract CFBundleIconFile raw "$INFO_PLIST" 2>/dev/null || echo "")
+
+# If CFBundleIconFile not found, try modern approach with CFBundleIconName (Asset Catalog)
 if [[ -z "$ICON_FILE" ]]; then
-  echo "Error: CFBundleIconFile not found in Info.plist"
-  exit 1
-fi
+  ICON_NAME=$(defaults read "$INFO_PLIST" CFBundleIconName 2>/dev/null || plutil -extract CFBundleIconName raw "$INFO_PLIST" 2>/dev/null || echo "")
 
-# Handle case where extension might or might not be included
-if [[ "$ICON_FILE" != *.icns ]]; then
-  ICON_FILE="${ICON_FILE}.icns"
-fi
+  if [[ -n "$ICON_NAME" ]]; then
+    echo "CFBundleIconFile not found, but CFBundleIconName found: $ICON_NAME"
+    echo "Extracting icon from Asset Catalog using macOS Workspace API..."
 
-# Find the exact icon file in Resources folder
-ICNS_PATH="$APP_PATH/Contents/Resources/$ICON_FILE"
-if [[ ! -f "$ICNS_PATH" ]]; then
-  echo "Error: Icon file '$ICON_FILE' not found in $APP_PATH/Contents/Resources"
-  exit 1
-fi
+    # Create temporary directory for extraction
+    TMP_EXTRACT_DIR=$(mktemp -d)
+    EXTRACTED_ICON="$TMP_EXTRACT_DIR/app-icon.png"
 
-echo "Using icon file: $ICON_FILE"
+    # Use osascript to extract icon via NSWorkspace
+    osascript <<EOF
+use framework "Foundation"
+use framework "AppKit"
+
+set appPath to "$APP_PATH"
+set outputPath to "$EXTRACTED_ICON"
+
+set workspace to current application's NSWorkspace's sharedWorkspace()
+set appIcon to workspace's iconForFile:appPath
+
+set imageData to appIcon's TIFFRepresentation()
+set imageRep to (current application's NSBitmapImageRep's imageRepWithData:imageData)
+set pngData to (imageRep's representationUsingType:(current application's NSPNGFileType) |properties|:(missing value))
+
+pngData's writeToFile:outputPath atomically:true
+EOF
+
+    if [[ ! -f "$EXTRACTED_ICON" ]]; then
+      echo "Error: Failed to extract icon from Asset Catalog"
+      exit 1
+    fi
+
+    # Create a temporary icns file from the extracted PNG for compatibility with rest of script
+    TMP_ICNS="$TMP_EXTRACT_DIR/app-icon.icns"
+
+    # Create iconset directory
+    ICONSET_DIR="$TMP_EXTRACT_DIR/AppIcon.iconset"
+    mkdir -p "$ICONSET_DIR"
+
+    # Generate multiple sizes for iconset
+    sips -z 16 16 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_16x16.png" > /dev/null 2>&1
+    sips -z 32 32 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_16x16@2x.png" > /dev/null 2>&1
+    sips -z 32 32 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_32x32.png" > /dev/null 2>&1
+    sips -z 64 64 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_32x32@2x.png" > /dev/null 2>&1
+    sips -z 128 128 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_128x128.png" > /dev/null 2>&1
+    sips -z 256 256 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_128x128@2x.png" > /dev/null 2>&1
+    sips -z 256 256 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_256x256.png" > /dev/null 2>&1
+    sips -z 512 512 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_256x256@2x.png" > /dev/null 2>&1
+    sips -z 512 512 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_512x512.png" > /dev/null 2>&1
+    sips -z 1024 1024 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_512x512@2x.png" > /dev/null 2>&1
+
+    # Create icns from iconset
+    iconutil -c icns "$ICONSET_DIR" -o "$TMP_ICNS"
+
+    if [[ ! -f "$TMP_ICNS" ]]; then
+      echo "Error: Failed to create icns file from extracted icon"
+      exit 1
+    fi
+
+    ICNS_PATH="$TMP_ICNS"
+    echo "Successfully extracted icon from Asset Catalog"
+  else
+    echo "Error: Neither CFBundleIconFile nor CFBundleIconName found in Info.plist"
+    exit 1
+  fi
+else
+  # Handle case where extension might or might not be included
+  if [[ "$ICON_FILE" != *.icns ]]; then
+    ICON_FILE="${ICON_FILE}.icns"
+  fi
+
+  # Find the exact icon file in Resources folder
+  ICNS_PATH="$APP_PATH/Contents/Resources/$ICON_FILE"
+  if [[ ! -f "$ICNS_PATH" ]]; then
+    echo "Error: Icon file '$ICON_FILE' not found in $APP_PATH/Contents/Resources"
+    exit 1
+  fi
+
+  echo "Using icon file: $ICON_FILE"
+fi
 
 # Extract iconset
 TMP_DIR=$(mktemp -d)

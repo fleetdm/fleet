@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -47,6 +48,9 @@ type VPPAppTeam struct {
 	// app creation if AddAutoInstallPolicy is true.
 	AddedAutomaticInstallPolicy *Policy `json:"-"`
 	DisplayName                 *string `json:"display_name"`
+	// Configuration is a json file used to customize Android app
+	// behavior/settings. Applicable to Android apps only.
+	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,
@@ -104,6 +108,9 @@ type VPPAppStoreApp struct {
 	// "Browsers", etc.
 	Categories  []string `json:"categories"`
 	DisplayName string   `json:"display_name"`
+	// Configuration is a json file used to customize Android app
+	// behavior/settings. Applicable to Android apps only.
+	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.
@@ -138,3 +145,12 @@ const (
 	DefaultVPPInstallVerifyTimeout = 10 * time.Minute
 	DefaultVPPVerifyRequestDelay   = 5 * time.Second
 )
+
+type AppStoreAppUpdatePayload struct {
+	SelfService      *bool
+	LabelsIncludeAny []string
+	LabelsExcludeAny []string
+	Categories       []string
+	DisplayName      *string
+	Configuration    json.RawMessage
+}

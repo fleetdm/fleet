@@ -34,7 +34,9 @@ try {
         Wait     = $true
     }
     if ($uninstallArgs -ne '') {
-        $processOptions.ArgumentList = "$uninstallArgs"
+        $processOptions.ArgumentList = "$uninstallArgs --quiet"
+    } else {
+        $processOptions.ArgumentList = "--quiet"
     }
 
     # Start uninstall process
