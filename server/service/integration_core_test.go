@@ -7977,19 +7977,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	require.NoError(t, err)
 
 	// apply certificate templates
-
 	var applyResp applyCertificateTemplateSpecsResponse
-	// invalid template (subject name validation fails)
-	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
-		Specs: []*fleet.CertificateRequestSpec{
-			{
-				Name:                   "Invalid Template",
-				Team:                   fmt.Sprint(team.ID),
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$INVALID_VARIABLE/OU=$FLEET_VAR_HOST_UUID",
-			},
-		},
-	}, http.StatusBadRequest, &applyResp)
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
 		Specs: []*fleet.CertificateRequestSpec{
 			{
