@@ -1033,8 +1033,8 @@ VALUES
 
 			args = append(
 				args,
-				providedTitle,                                  // if IPA is downloaded as part of the GitOps run, we'll have this via metadata extraction
-				installer.StorageID,                            // if the IPA already exists in the DB, pull the name from an existing title if possible
+				providedTitle,       // if IPA is downloaded as part of the GitOps run, we'll have this via metadata extraction
+				installer.StorageID, // if the IPA already exists in the DB, pull the name from an existing title if possible
 				strings.TrimSuffix(installer.Filename, ".ipa"), // if neither of the above turns up anything, fall back to filename
 				installer.Source,
 				"",
