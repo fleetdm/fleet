@@ -19,7 +19,7 @@ import SectionHeader from "components/SectionHeader";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import TurnOnMessage from "components/TurnOnMessage";
 
 import SetupExperienceScriptUploader from "./components/SetupExperienceScriptUploader";
 import SetupExperienceScriptCard from "./components/SetupExperienceScriptCard";
@@ -91,7 +91,7 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
       )
     ) {
       return (
-        <TurnOnMdmMessage
+        <TurnOnMessage
           header="Additional configuration required"
           info="Supported on macOS. To customize, first turn on automatic enrollment."
           buttonText="Turn on"

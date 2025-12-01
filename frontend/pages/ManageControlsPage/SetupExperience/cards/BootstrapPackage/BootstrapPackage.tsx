@@ -20,7 +20,7 @@ import {
 } from "utilities/constants";
 
 import Spinner from "components/Spinner";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import TurnOnMessage from "components/TurnOnMessage";
 import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
 
@@ -215,7 +215,7 @@ const BootstrapPackage = ({
       )
     ) {
       return (
-        <TurnOnMdmMessage
+        <TurnOnMessage
           header="Additional configuration required"
           info="Supported on macOS. To customize, first turn on automatic enrollment."
           buttonText="Turn on"

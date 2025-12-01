@@ -2,11 +2,11 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
-import TurnOnMdmMessage from "./TurnOnMdmMessage";
+import TurnOnMessage from "./TurnOnMessage";
 
-describe("TurnOnMdmMessage", () => {
+describe("TurnOnMessage", () => {
   it("renders with default header and info", () => {
-    render(<TurnOnMdmMessage router={createMockRouter()} />);
+    render(<TurnOnMessage router={createMockRouter()} />);
 
     expect(screen.getByText("Manage your hosts")).toBeInTheDocument();
     expect(
@@ -18,7 +18,7 @@ describe("TurnOnMdmMessage", () => {
 
   it("renders with custom header and info", () => {
     render(
-      <TurnOnMdmMessage
+      <TurnOnMessage
         router={createMockRouter()}
         header="Custom header"
         info="Custom info"
@@ -38,7 +38,7 @@ describe("TurnOnMdmMessage", () => {
       },
     });
 
-    customRender(<TurnOnMdmMessage router={createMockRouter()} />);
+    customRender(<TurnOnMessage router={createMockRouter()} />);
 
     fireEvent.click(screen.getByText("Turn on"));
     expect(createMockRouter().push).toHaveBeenCalledWith(
@@ -55,7 +55,7 @@ describe("TurnOnMdmMessage", () => {
       },
     });
 
-    customRender(<TurnOnMdmMessage router={createMockRouter()} />);
+    customRender(<TurnOnMessage router={createMockRouter()} />);
 
     expect(screen.queryByText("Turn on")).not.toBeInTheDocument();
   });

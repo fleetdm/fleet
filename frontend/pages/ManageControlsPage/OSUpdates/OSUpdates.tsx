@@ -17,7 +17,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 
-import TurnOnMdmMessage from "../../../components/TurnOnMdmMessage/TurnOnMdmMessage";
+import TurnOnMessage from "../../../components/TurnOnMessage/TurnOnMessage";
 import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";
 import { parseOSUpdatesCurrentVersionsQueryParams } from "./components/CurrentVersionSection/CurrentVersionSection";
@@ -117,7 +117,7 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
     !config?.mdm.enabled_and_configured &&
     !config?.mdm.windows_enabled_and_configured
   ) {
-    return <TurnOnMdmMessage router={router} />;
+    return <TurnOnMessage router={router} />;
   }
 
   // If the user has not selected a platform yet, we default to the platform that

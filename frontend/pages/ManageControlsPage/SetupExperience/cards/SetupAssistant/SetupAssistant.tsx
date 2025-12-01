@@ -14,7 +14,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import TurnOnMessage from "components/TurnOnMessage";
 
 import SetupAssistantProfileUploader from "./components/SetupAssistantProfileUploader";
 import SetupAssistantProfileCard from "./components/SetupAssistantProfileCard/SetupAssistantProfileCard";
@@ -128,7 +128,7 @@ const SetupAssistant = ({
       )
     ) {
       return (
-        <TurnOnMdmMessage
+        <TurnOnMessage
           header="Additional configuration required"
           info="To customize, first turn on automatic enrollment."
           buttonText="Turn on"

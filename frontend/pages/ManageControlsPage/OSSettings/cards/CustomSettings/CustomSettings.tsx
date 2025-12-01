@@ -15,7 +15,7 @@ import SectionHeader from "components/SectionHeader";
 import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import TurnOnMessage from "components/TurnOnMessage";
 
 import Pagination from "components/Pagination";
 
@@ -221,7 +221,7 @@ const CustomSettings = ({
         }
       />
       {!mdmEnabled ? (
-        <TurnOnMdmMessage
+        <TurnOnMessage
           router={router}
           info="MDM must be turned on to apply custom settings."
         />
