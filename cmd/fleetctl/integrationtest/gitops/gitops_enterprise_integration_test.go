@@ -2044,7 +2044,7 @@ team_settings:
 	require.NoError(t, err)
 	_, err = noTeamFile.WriteString(fmt.Sprintf(noTeamTemplate, `
       - url: ${SOFTWARE_INSTALLER_URL}/ipa_test.ipa
-        self_service: true
+        self_service: false
 `))
 	require.NoError(t, err)
 	err = noTeamFile.Close()
@@ -2081,7 +2081,7 @@ team_settings:
 
 		meta, err := s.DS.GetInHouseAppMetadataByTeamAndTitleID(ctx, nil, title.ID)
 		require.NoError(t, err)
-		require.True(t, meta.SelfService)
+		require.False(t, meta.SelfService)
 		require.Empty(t, meta.LabelsExcludeAny)
 		require.Empty(t, meta.LabelsIncludeAny)
 	}
