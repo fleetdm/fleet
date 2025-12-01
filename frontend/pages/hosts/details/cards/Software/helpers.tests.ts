@@ -309,6 +309,13 @@ describe("getUiStatus", () => {
     });
     expect(getUiStatus(sw, true)).toBe("installed");
   });
+  it("returns 'installed' for regular package, no installed versions present", () => {
+    const sw = createMockHostSoftware({
+      status: "installed",
+      installed_versions: null,
+    });
+    expect(getUiStatus(sw, true)).toBe("installed");
+  });
 
   it("returns 'installed' for regular package, installed version higher than library version", () => {
     const sw = createMockHostSoftware({
