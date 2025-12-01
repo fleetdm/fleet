@@ -579,11 +579,19 @@ INSERT INTO host_certificate_templates (
 		templateID       uint
 		newStatus        string
 		expectedErrorMsg string
+		detail           *string
 	}{
 		{
 			name:             "Valid Update",
 			templateID:       certificateTemplateID,
 			newStatus:        "verified",
+			expectedErrorMsg: "",
+		},
+		{
+			name:             "Valid Update with some details",
+			templateID:       certificateTemplateID,
+			newStatus:        "failed",
+			detail:           ptr.String("some details"),
 			expectedErrorMsg: "",
 		},
 		{
@@ -602,7 +610,7 @@ INSERT INTO host_certificate_templates (
 
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("TestUpdateHostCertificateTemplate:%s", tc.name), func(t *testing.T) {
-			err := ds.UpdateCertificateStatus(context.Background(), host.UUID, tc.templateID, fleet.MDMDeliveryStatus(tc.newStatus))
+			err := ds.UpdateCertificateStatus(context.Background(), host.UUID, tc.templateID, fleet.MDMDeliveryStatus(tc.newStatus), tc.detail)
 			if tc.expectedErrorMsg == "" {
 				require.NoError(t, err)
 				// Verify the update

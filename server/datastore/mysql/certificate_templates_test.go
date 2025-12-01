@@ -845,7 +845,6 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Set the installation status on the certificate templates
-	// TODO: Refactor this to use UpdateStatus DB method when available
 	_, err = ds.writer(ctx).ExecContext(ctx,
 		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
 		h2.UUID, ct1.ID, "test-challenge", fleet.OSSettingsVerified,
@@ -853,8 +852,8 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, err)
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
-		h2.UUID, ct2.ID, "test-challenge", fleet.OSSettingsFailed,
+		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, detail) VALUES (?, ?, ?, ?, ?)",
+		h2.UUID, ct2.ID, "test-challenge", fleet.OSSettingsFailed, "some error yooo",
 	)
 	require.NoError(t, err)
 
@@ -893,6 +892,7 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 
 				require.Equal(t, ct2.Name, templates[1].Name)
 				require.Equal(t, fleet.MDMDeliveryFailed, templates[1].Status)
+				require.Equal(t, "some error yooo", *templates[1].Detail)
 			},
 		},
 	}
@@ -961,7 +961,6 @@ func testGetMDMProfileSummaryFromHostCertificateTemplates(t *testing.T, ds *Data
 	require.NoError(t, err)
 
 	// Set the installation status on the certificate templates
-	// TODO: Refactor this to use UpdateStatus DB method when available
 	_, err = ds.writer(ctx).ExecContext(ctx,
 		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
 		h1.UUID, ct1.ID, "test-challenge", fleet.OSSettingsPending,
@@ -975,8 +974,8 @@ func testGetMDMProfileSummaryFromHostCertificateTemplates(t *testing.T, ds *Data
 	require.NoError(t, err)
 
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
-		h2.UUID, ct2.ID, "test-challenge", fleet.OSSettingsFailed,
+		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, detail) VALUES (?, ?, ?, ?, ?)",
+		h2.UUID, ct2.ID, "test-challenge", fleet.OSSettingsFailed, "some error yooo",
 	)
 	require.NoError(t, err)
 

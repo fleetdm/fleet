@@ -7,6 +7,7 @@ type HostCertificateTemplate struct {
 	CertificateTemplateID uint              `db:"certificate_template_id"`
 	FleetChallenge        string            `db:"fleet_challenge"`
 	Status                MDMDeliveryStatus `db:"status"`
+	Detail                *string           `db:"detail" json:"-"`
 	CreatedAt             string            `db:"created_at"`
 	UpdatedAt             string            `db:"updated_at"`
 }
@@ -17,12 +18,16 @@ func (p *HostCertificateTemplate) ToHostMDMProfile() HostMDMProfile {
 		return HostMDMProfile{}
 	}
 
-	return HostMDMProfile{
+	profile := HostMDMProfile{
 		HostUUID: p.HostUUID,
 		Name:     p.Name,
 		Platform: "android",
 		Status:   &p.Status,
 	}
+	if p.Detail != nil {
+		profile.Detail = *p.Detail
+	}
+	return profile
 }
 
 type CertificateTemplateForHost struct {

@@ -104,7 +104,13 @@ func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hos
 	return nil
 }
 
-func (ds *Datastore) UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus) error {
+func (ds *Datastore) UpdateCertificateStatus(
+	ctx context.Context,
+	hostUUID string,
+	certificateTemplateID uint,
+	status fleet.MDMDeliveryStatus,
+	detail *string,
+) error {
 	// Validate the status.
 	if !status.IsValid() {
 		return ctxerr.Wrap(ctx, fmt.Errorf("Invalid status '%s'", string(status)))
@@ -113,9 +119,9 @@ func (ds *Datastore) UpdateCertificateStatus(ctx context.Context, hostUUID strin
 	// Attempt to update the certificate status for the given host and template.
 	result, err := ds.writer(ctx).ExecContext(ctx, `
     UPDATE host_certificate_templates
-    SET status = ?
+    SET status = ?, detail = ?
     WHERE host_uuid = ? AND certificate_template_id = ?
-`, status, hostUUID, certificateTemplateID)
+`, status, detail, hostUUID, certificateTemplateID)
 	if err != nil {
 		return err
 	}
