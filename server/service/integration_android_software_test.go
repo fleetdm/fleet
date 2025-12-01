@@ -161,6 +161,14 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 
 	// Test Android app configurations
 
+	// Title with no configuration should omit it from response
+	var getAppResp map[string]any
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addAppResp.TitleID), &getSoftwareTitleRequest{
+		ID:     addAppResp.TitleID,
+		TeamID: nil,
+	}, http.StatusOK, &getAppResp)
+	require.Nil(t, getAppResp["configuration"])
+
 	// Android app with configuration
 	appConfiguration := json.RawMessage(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
 	androidAppWithConfig := &fleet.VPPApp{

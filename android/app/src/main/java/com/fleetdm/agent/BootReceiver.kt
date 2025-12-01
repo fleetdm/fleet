@@ -6,7 +6,9 @@ import android.content.Intent
 import android.util.Log
 
 class BootReceiver : BroadcastReceiver() {
-    private val TAG = "CertCompanionBoot"
+    companion object {
+        private const val TAG = "fleet-boot"
+    }
 
     override fun onReceive(context: Context?, intent: Intent?) {
         if (intent?.action == Intent.ACTION_BOOT_COMPLETED) {
