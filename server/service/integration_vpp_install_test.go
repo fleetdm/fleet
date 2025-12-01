@@ -917,97 +917,18 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// Test iOS VPP app self service installation
 	// ========================================================
 
-	type SSVPPTestData struct {
-		host       *fleet.Host
-		app        *fleet.VPPApp
-		device     *mdmtest.TestAppleMDMClient
-		platform   string
-		titleID    uint
-		certSerial uint64
-	}
-	// Edit iOS app to enable self service
+	// Verify self-service is not supported for iOS/iPadOS VPP apps
 	require.NotZero(t, iosTitleID)
 	require.NotZero(t, ipadosTitleID)
 
-	ssVppData := []SSVPPTestData{
-		{platform: "ios", titleID: iosTitleID, app: iOSApp, certSerial: uint64(1111)},
-		{platform: "ipados", titleID: ipadosTitleID, app: iPadOSApp, certSerial: uint64(2222)}}
+	// Attempting to enable self-service for iOS VPP app should fail
+	updateAppResp := updateAppStoreAppResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", iosTitleID),
+		&updateAppStoreAppRequest{TitleID: iosTitleID, TeamID: &team.ID, SelfService: ptr.Bool(true)}, http.StatusUnprocessableEntity, &updateAppResp)
 
-	for i, data := range ssVppData {
-		// Enroll device, add serial number to fake Apple server, and transfer to team
-		data.host, data.device = s.createAppleMobileHostThenEnrollMDM(data.platform)
-		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, data.device.SerialNumber)
-		s.Do("POST", "/api/latest/fleet/hosts/transfer",
-			&addHostsToTeamRequest{HostIDs: []uint{data.host.ID}, TeamID: &team.ID}, http.StatusOK)
-
-		// Refresh host to get UUID
-		data.host, err = s.ds.Host(context.Background(), data.host.ID)
-		require.NoError(t, err)
-
-		// Use certificate authentication
-		headers := map[string]string{
-			"X-Client-Cert-Serial": fmt.Sprintf("%d", data.certSerial),
-		}
-		s.addHostIdentityCertificate(data.host.UUID, data.certSerial)
-
-		// self-install with no authentication
-		s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, 999), nil, http.StatusUnauthorized)
-
-		// self-install a non-existing title
-		res := s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, 999), nil, http.StatusBadRequest, headers)
-		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Software title is not available for install.")
-
-		// self-install an existing title not available for self-install
-		res = s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), nil, http.StatusBadRequest, headers)
-		errMsg = extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Software title is not available through self-service")
-
-		// Enable self-service for vpp app
-		updateAppResp := updateAppStoreAppResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", data.titleID),
-			&updateAppStoreAppRequest{TitleID: data.titleID, TeamID: &team.ID, SelfService: ptr.Bool(true)}, http.StatusOK, &updateAppResp)
-
-		// Install self-service app correctly
-		s.DoRawWithHeaders("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), nil, http.StatusAccepted, headers)
-
-		// Verify pending status
-		countResp = countHostsResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
-			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(data.titleID))
-		require.Equal(t, 1, countResp.Count)
-
-		// Simulate successful installation on device
-		opts := vppInstallOpts{
-			appInstallTimeout:  false,
-			appInstallVerified: true,
-			failOnInstall:      false,
-			bundleID:           data.app.BundleIdentifier,
-		}
-		installCmdUUID = processVPPInstallOnClient(data.device, opts)
-
-		// Verify successful installation
-		listResp = listHostsResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
-			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(data.titleID))
-		assert.Len(t, listResp.Hosts, 2-i)
-		assert.Equal(t, data.host.ID, listResp.Hosts[len(listResp.Hosts)-1].ID)
-
-		// Verify activity log entry
-		s.lastActivityMatches(
-			fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(
-				`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": true, "policy_id": null, "policy_name": null}`,
-				data.host.ID,
-				data.host.DisplayName(),
-				data.app.Name,
-				data.app.AdamID,
-				installCmdUUID,
-				fleet.SoftwareInstalled,
-			),
-			0,
-		)
-	}
+	// Attempting to enable self-service for iPadOS VPP app should fail
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", ipadosTitleID),
+		&updateAppStoreAppRequest{TitleID: ipadosTitleID, TeamID: &team.ID, SelfService: ptr.Bool(true)}, http.StatusUnprocessableEntity, &updateAppResp)
 }
 
 // for https://github.com/fleetdm/fleet/issues/31083
@@ -1582,46 +1503,4 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstallNotSupported() {
 	// because self-service is not supported for iOS/iPadOS apps
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{SelfService: ptr.Bool(true), TitleID: titleID, TeamID: nil},
 		http.StatusUnprocessableEntity, "Self-service is not supported for iOS and iPadOS apps")
-}
-
-func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostUUID string, certSerial uint64) {
-	t := s.T()
-	s.setSkipWorkerJobs(t)
-	ctx := context.Background()
-
-	// Generate a real certificate for the device with proper SHA256 hash
-	certPEM, certHash, _ := generateTestCertForDeviceAuth(t, certSerial, hostUUID)
-
-	// Insert certificate data using the new nanomdm tables
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		// Insert serial number
-		_, err := db.ExecContext(ctx, `INSERT INTO scep_serials (serial) VALUES (?)`, certSerial)
-		if err != nil {
-			return err
-		}
-
-		// Insert certificate
-		_, err = db.ExecContext(ctx, `
-			INSERT INTO scep_certificates
-			(serial, name, not_valid_before, not_valid_after, certificate_pem, revoked)
-			VALUES (?, ?, ?, ?, ?, ?)
-		`,
-			certSerial,
-			hostUUID,
-			time.Now().Add(-24*time.Hour),
-			time.Now().Add(365*24*time.Hour),
-			certPEM,
-			false,
-		)
-		if err != nil {
-			return err
-		}
-
-		// Insert certificate association for device authentication
-		_, err = db.ExecContext(ctx, `
-			INSERT INTO nano_cert_auth_associations (id, sha256)
-			VALUES (?, ?)
-		`, hostUUID, certHash)
-		return err
-	})
 }

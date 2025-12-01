@@ -12133,10 +12133,10 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Insert/deletion flow for iPadOS app
 	addedApp = expectedApps[1]
 	addAppResp = addAppStoreAppResponse{}
-	// Accepts self-service for iPadOS
+	// Self-service is not supported for iPadOS
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
 		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID, Platform: addedApp.Platform, SelfService: true},
-		http.StatusOK, &addAppResp)
+		http.StatusUnprocessableEntity, &addAppResp)
 	// No auto-install for iPadOS
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
 		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID, Platform: addedApp.Platform, AutomaticInstall: true},
