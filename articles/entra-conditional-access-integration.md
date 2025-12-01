@@ -69,7 +69,7 @@ We will need to create a dynamic label to determine which macOS devices have "Co
 
 We will use this label to conditionally deploy a Platform SSO configuration profile (next step).
 
-Head to **Labels > Add label.
+Select the avatar on the right side of the top navigation and select **Labels > Add label**.
 
 - Name: `Company Portal installed`
 - Description: `Company Portal is installed on the host.`
