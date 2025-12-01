@@ -23,7 +23,8 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
-	app.Version = "latest"
+	// Override installer URL to use Google's PKG installer instead of Homebrew's DMG
+	// Version is kept from Homebrew (not set to "latest")
 	app.InstallerURL = "https://dl.google.com/dl/chrome/mac/universal/stable/gcem/GoogleChrome.pkg"
 
 	return app, nil
