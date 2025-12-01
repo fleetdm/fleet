@@ -714,6 +714,7 @@ type Datastore interface {
 	// it was installed on the host).
 	SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
 	MarkAllPendingAppleVPPAndInHouseInstallsAsFailed(ctx context.Context, jobName string) error
+	MarkAllPendingAndroidVPPInstallsAsFailed(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore

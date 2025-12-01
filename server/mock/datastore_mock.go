@@ -535,6 +535,8 @@ type SetVPPInstallAsFailedFunc func(ctx context.Context, hostID uint, installUUI
 
 type MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc func(ctx context.Context, jobName string) error
 
+type MarkAllPendingAndroidVPPInstallsAsFailedFunc func(ctx context.Context) error
+
 type GetHostOperatingSystemFunc func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error)
 
 type ListOperatingSystemsFunc func(ctx context.Context) ([]fleet.OperatingSystem, error)
@@ -2419,6 +2421,9 @@ type DataStore struct {
 
 	MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc        MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc
 	MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFuncInvoked bool
+
+	MarkAllPendingAndroidVPPInstallsAsFailedFunc        MarkAllPendingAndroidVPPInstallsAsFailedFunc
+	MarkAllPendingAndroidVPPInstallsAsFailedFuncInvoked bool
 
 	GetHostOperatingSystemFunc        GetHostOperatingSystemFunc
 	GetHostOperatingSystemFuncInvoked bool
@@ -5887,6 +5892,13 @@ func (s *DataStore) MarkAllPendingAppleVPPAndInHouseInstallsAsFailed(ctx context
 	s.MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFuncInvoked = true
 	s.mu.Unlock()
 	return s.MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc(ctx, jobName)
+}
+
+func (s *DataStore) MarkAllPendingAndroidVPPInstallsAsFailed(ctx context.Context) error {
+	s.mu.Lock()
+	s.MarkAllPendingAndroidVPPInstallsAsFailedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkAllPendingAndroidVPPInstallsAsFailedFunc(ctx)
 }
 
 func (s *DataStore) GetHostOperatingSystem(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {

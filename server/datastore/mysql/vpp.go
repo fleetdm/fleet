@@ -2068,25 +2068,45 @@ AND state = ?
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if _, err := tx.ExecContext(ctx, clearVPPUpcomingActivitiesStmt, "vpp_app_install"); err != nil {
-			return ctxerr.Wrap(ctx, err, "clear vpp install upcoming activities")
+			return ctxerr.Wrap(ctx, err, "clear apple vpp install upcoming activities")
 		}
 
 		if _, err := tx.ExecContext(ctx, installVPPFailStmt); err != nil {
-			return ctxerr.Wrap(ctx, err, "set all vpp install as failed")
+			return ctxerr.Wrap(ctx, err, "set all apple vpp install as failed")
 		}
 
 		if _, err := tx.ExecContext(ctx, clearInHouseUpcomingActivitiesStmt, "in_house_app_install"); err != nil {
-			return ctxerr.Wrap(ctx, err, "clear in-house install upcoming activities")
+			return ctxerr.Wrap(ctx, err, "clear apple in-house install upcoming activities")
 		}
 
 		if _, err := tx.ExecContext(ctx, installInHouseFailStmt); err != nil {
-			return ctxerr.Wrap(ctx, err, "set all in-house install as failed")
+			return ctxerr.Wrap(ctx, err, "set all apple in-house install as failed")
 		}
 
 		if _, err := tx.ExecContext(ctx, deletePendingJobsStmt, jobName, fleet.JobStateQueued); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete pending jobs")
+			return ctxerr.Wrap(ctx, err, "delete apple pending jobs")
 		}
 
+		return nil
+	})
+}
+
+func (ds *Datastore) MarkAllPendingAndroidVPPInstallsAsFailed(ctx context.Context) error {
+	// this is called on an Android-only event, when the enterprise is deleted
+	// (Android MDM turned off globally), so it should only affect Android
+	// platforms. Currently, only VPP installs in host_vpp_software_installs
+	// can be Android.
+
+	installVPPFailStmt := `
+UPDATE host_vpp_software_installs
+SET verification_failed_at = CURRENT_TIMESTAMP(6)
+WHERE verification_failed_at IS NULL AND verification_at IS NULL AND platform = 'android'
+`
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, installVPPFailStmt); err != nil {
+			return ctxerr.Wrap(ctx, err, "set all android vpp install as failed")
+		}
 		return nil
 	})
 }
