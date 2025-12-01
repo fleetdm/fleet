@@ -52,6 +52,8 @@ interface ISoftwareDetailsSummaryProps {
   iconPreviewUrl?: string | null;
   /** timestamp of when icon was last uploaded, used to force refresh of cached icon */
   iconUploadedAt?: string;
+  gitOpsModeEnabled?: boolean;
+  repoURL?: string;
 }
 
 const SoftwareDetailsSummary = ({
@@ -68,6 +70,8 @@ const SoftwareDetailsSummary = ({
   onClickEditIcon,
   iconPreviewUrl,
   iconUploadedAt,
+  gitOpsModeEnabled,
+  repoURL,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
@@ -122,17 +126,52 @@ const SoftwareDetailsSummary = ({
                 <TooltipTruncatedText value={displayName} />
               )}
             </h1>
-            {onClickEditIcon && (
-              <div className={`${baseClass}__edit-icon`}>
-                <Button
-                  onClick={onClickEditIcon}
-                  className={`${baseClass}__edit-icon-btn`}
-                  variant="icon"
-                >
-                  <Icon name="pencil" />
-                </Button>
-              </div>
-            )}
+            {onClickEditIcon &&
+              (() => {
+                const button = (
+                  <div className={`${baseClass}__edit-icon`}>
+                    <Button
+                      onClick={onClickEditIcon}
+                      className={`${baseClass}__edit-icon-btn`}
+                      variant="icon"
+                      disabled={gitOpsModeEnabled}
+                    >
+                      <Icon name="pencil" />
+                    </Button>
+                  </div>
+                );
+
+                if (gitOpsModeEnabled) {
+                  const tooltipContent = (
+                    <>
+                      {repoURL && (
+                        <>
+                          Manage in{" "}
+                          <CustomLink
+                            newTab
+                            text="YAML"
+                            variant="tooltip-link"
+                            url={repoURL}
+                          />
+                          <br />
+                        </>
+                      )}
+                      (GitOps mode enabled)
+                    </>
+                  );
+
+                  return (
+                    <TooltipWrapper
+                      tipContent={tooltipContent}
+                      underline={false}
+                    >
+                      {button}
+                    </TooltipWrapper>
+                  );
+                }
+
+                return button;
+              })()}
           </div>
           <dl className={`${baseClass}__description-list`}>
             {!!type && <DataSet title="Type" value={type} />}

@@ -49,6 +49,7 @@ const SoftwareSummaryCard = ({
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamMaintainerOrTeamAdmin,
+    config,
   } = useContext(AppContext);
 
   const [iconUploadedAt, setIconUploadedAt] = useState("");
@@ -72,6 +73,9 @@ const SoftwareSummaryCard = ({
     setShowEditIconModal(!showEditIconModal);
   };
 
+  const { gitops_mode_enabled: gitOpsModeEnabled, repository_url: repoURL } =
+    config?.gitops || {};
+
   return (
     <>
       <Card borderRadiusSize="xxlarge" className={baseClass}>
@@ -90,6 +94,8 @@ const SoftwareSummaryCard = ({
           iconUrl={title.icon_url}
           iconUploadedAt={iconUploadedAt}
           onClickEditIcon={canEditIcon ? onClickEditIcon : undefined}
+          gitOpsModeEnabled={gitOpsModeEnabled}
+          repoURL={repoURL}
         />
         {showVersionsTable && (
           <TitleVersionsTable
