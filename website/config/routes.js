@@ -571,6 +571,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /legal/terms': {
+    action: 'legal/view-terms',
+  },
+
+  'GET /legal/privacy': {
+    action: 'legal/view-privacy',
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
@@ -1035,8 +1043,6 @@ module.exports.routes = {
   'GET /apply': '/jobs',
   'GET /jobs': 'https://fleetdm.com/handbook/company#open-positions',
   'GET /company/stewardship': 'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
-  'GET /legal/terms': 'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
-  'GET /legal/privacy': 'https://docs.google.com/document/d/17i_g1aGpnuSmlqj35-yHJiwj7WRrLdC_Typc1Yb7aBE/edit',
   'GET /logout': '/api/v1/account/logout',
   'GET /defcon': 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
   'GET /osquery-stickers': 'https://kqphpqst851.typeform.com/to/JxJ8YnxG',

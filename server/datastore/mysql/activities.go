@@ -155,6 +155,64 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 	}
 	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
 
+	// Searching activites currently only supports searching by user name or email.
+	if opt.ListOptions.MatchQuery != "" {
+
+		activitiesQ += " AND (a.user_name LIKE ? OR a.user_email LIKE ?" // Final ')' will be added at the bottom of this IF
+		args = append(args, opt.ListOptions.MatchQuery+"%", opt.ListOptions.MatchQuery+"%")
+
+		// Also search the users table here to get the most up to date information
+		users, err := ds.ListUsers(ctx, fleet.UserListOptions{
+			ListOptions: fleet.ListOptions{
+				MatchQuery: opt.ListOptions.MatchQuery,
+			},
+		})
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "list users for activity search")
+		}
+
+		if len(users) != 0 {
+			userIds := make([]uint, 0, len(users))
+			for _, u := range users {
+				userIds = append(userIds, u.ID)
+			}
+
+			inQ, inArgs, err := sqlx.In("a.user_id IN (?)", userIds)
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "bind user IDs for IN clause")
+			}
+			inQ = ds.reader(ctx).Rebind(inQ)
+			activitiesQ += " OR " + inQ
+			args = append(args, inArgs...)
+		}
+
+		activitiesQ += ")"
+	}
+
+	if opt.ActivityType != "" {
+		activitiesQ += " AND a.activity_type = ?"
+		args = append(args, opt.ActivityType)
+	}
+
+	if opt.StartCreatedAt != "" || opt.EndCreatedAt != "" {
+		start := opt.StartCreatedAt
+		end := opt.EndCreatedAt
+		switch {
+		case start == "" && end != "":
+			// Only EndCreatedAt is set, so filter up to end
+			activitiesQ += " AND a.created_at <= ?"
+			args = append(args, end)
+		case start != "" && end == "":
+			// Only StartCreatedAt is set, so filter from start to now
+			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
+			args = append(args, start, time.Now().UTC())
+		case start != "" && end != "":
+			// Both are set
+			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
+			args = append(args, start, end)
+		}
+	}
+
 	activitiesQ, args = appendListOptionsWithCursorToSQL(activitiesQ, args, &opt.ListOptions)
 
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, activitiesQ, args...)
@@ -206,6 +264,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 	}
 
 	if len(lookup) != 0 {
+		// TODO: We left this query here for user replacement, to keep the scope simple, and the users table is never going to be super big, so it won't tank performance.
 		usersQ := `
 			SELECT u.id, u.name, u.gravatar_url, u.email, u.api_only
 			FROM users u
