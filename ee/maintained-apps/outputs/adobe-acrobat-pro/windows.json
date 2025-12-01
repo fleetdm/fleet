@@ -8,7 +8,7 @@
       "installer_url": "https://trials.adobe.com/AdobeProducts/APRO/Acrobat_HelpX/win32/Acrobat_DC_Web_x64_WWMUI.zip",
       "install_script_ref": "19a15256",
       "uninstall_script_ref": "2b267612",
-      "sha256": "ba3fca7dbc740a82fd6686011f059c543853f882ff1d83b4728f20f197dac6af",
+      "sha256": "no_check",
       "default_categories": [
         "Productivity"
       ]
