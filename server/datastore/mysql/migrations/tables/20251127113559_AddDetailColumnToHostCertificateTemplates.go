@@ -12,7 +12,7 @@ func init() {
 func Up_20251127113559(tx *sql.Tx) error {
 	stmt := `
 		ALTER TABLE host_certificate_templates
-		ADD COLUMN detail TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL`)
+		ADD COLUMN detail TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL
 	`
 	if _, err := tx.Exec(stmt); err != nil {
 		return fmt.Errorf("add detail to host_certificate_templates: %w", err)
