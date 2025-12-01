@@ -219,6 +219,14 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			installerType = installerTypeMSI
 		}
 
+		// For ZIP installers with nested installer types, use the nested type for matching
+		// but keep the ZIP URL for downloading. The nested type indicates what the actual
+		// installer is inside the ZIP (e.g., exe, msi).
+		matchType := installerType
+		if installerType == installerTypeZip && m.NestedInstallerType != "" {
+			matchType = m.NestedInstallerType
+		}
+
 		scope := m.Scope
 		if scope == "" {
 			scope = installer.Scope
@@ -232,6 +240,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		if !isFileType(installerType) && scope == machineScope {
 			// assume we're an MSI
 			installerType = installerTypeMSI
+			matchType = installerType
 		}
 
 		if input.InstallerLocale == "" {
@@ -240,10 +249,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		}
 
 		// Check if this installer matches our criteria
+		// Use matchType for comparison to support nested installer types in ZIP files
 		matches := installer.Architecture == input.InstallerArch &&
 			scope == input.InstallerScope &&
 			installer.InstallerLocale == input.InstallerLocale &&
-			installerType == input.InstallerType
+			matchType == input.InstallerType
 
 		if matches {
 			// Prefer installers where the URL extension matches the desired installer type
@@ -378,6 +388,7 @@ var fileTypes = map[string]struct{}{
 	installerTypeMSI:  {},
 	installerTypeMSIX: {},
 	installerTypeExe:  {},
+	installerTypeZip:  {},
 }
 
 func isFileType(installerType string) bool {
@@ -413,6 +424,7 @@ type installerManifest struct {
 	PackageVersion         string                   `yaml:"PackageVersion"`
 	Installers             []installer              `yaml:"Installers"`
 	InstallerType          string                   `yaml:"InstallerType"`
+	NestedInstallerType    string                   `yaml:"NestedInstallerType"`
 	AppsAndFeaturesEntries []appsAndFeaturesEntries `yaml:"AppsAndFeaturesEntries,omitempty"`
 	ProductCode            string                   `yaml:"ProductCode"`
 	Scope                  string                   `yaml:"Scope"`
@@ -471,6 +483,7 @@ const (
 	installerTypeMSI      = "msi"
 	installerTypeMSIX     = "msix"
 	installerTypeExe      = "exe"
+	installerTypeZip      = "zip"
 	installerTypeWix      = "wix"
 	installerTypeNullSoft = "nullsoft"
 	installerTypeInno     = "inno"
