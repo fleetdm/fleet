@@ -15,4 +15,4 @@ queries:
 software:
   packages:
     - url: ${SOFTWARE_INSTALLER_URL}/ipa_test.ipa
-      self_service: true
+      self_service: false

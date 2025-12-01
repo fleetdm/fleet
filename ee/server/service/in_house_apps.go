@@ -47,6 +47,9 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	}
 	selfService := existingInstaller.SelfService
 	if payload.SelfService != nil {
+		if *payload.SelfService {
+			return nil, fleet.NewInvalidArgumentError("self_service", "Self-service is not supported for iOS and iPadOS apps.")
+		}
 		selfService = *payload.SelfService
 	}
 	displayName := ptr.ValOrZero(payload.DisplayName)
@@ -223,7 +226,6 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
 		Name     string
 		URL      string
 	}{meta.BundleIdentifier, meta.Version, meta.SoftwareTitle, downloadUrl})
-
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "rendering app manifest")
 	}

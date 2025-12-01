@@ -87,6 +87,10 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "adding metadata to payload")
 	}
 
+	if payload.Extension == "ipa" && payload.SelfService {
+		return nil, fleet.NewInvalidArgumentError("self_service", "Self-service is not supported for iOS and iPadOS apps.")
+	}
+
 	if payload.AutomaticInstall && payload.AutomaticInstallQuery == "" {
 		switch {
 		//
@@ -2340,6 +2344,11 @@ func (svc *Service) softwareBatchUpload(
 			}
 			if installer.Title == "" {
 				installer.Title = installer.Filename
+			}
+
+			// Validate self-service is not enabled for IPA files
+			if installer.Extension == "ipa" && installer.SelfService {
+				return fleet.NewInvalidArgumentError("self_service", "Self-service is not supported for iOS and iPadOS apps.")
 			}
 
 			// if this is an .ipa and there is no extra installer, create it here

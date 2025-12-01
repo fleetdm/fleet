@@ -410,11 +410,11 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		}
 	}
 
+	// Note: self-service is not supported for iOS/iPadOS apps (in-house apps)
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:     titleID,
 		TeamID:      &team.ID,
 		DisplayName: ptr.String("InHouseAppUpdate2"),
-		SelfService: ptr.Bool(true),
 		Categories:  []string{"Developer tools", "Browsers"},
 	}, http.StatusOK, "")
 
@@ -438,7 +438,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 			"software_icon_url": null,
 			"team_name": "%s",
 		    "team_id": %d,
-			"self_service": true,
+			"self_service": false,
 			"software_title_id": %d,
 			"software_display_name": "%s"
 		}`,
@@ -454,8 +454,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	// Entity has display name
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal("InHouseAppUpdate2", stResp.SoftwareTitle.DisplayName)
-	// PATCH semantics, so we shouldn't overwrite self service or categories
-	s.Assert().True(stResp.SoftwareTitle.SoftwarePackage.SelfService)
+	// PATCH semantics, so we shouldn't overwrite categories
 	s.Assert().ElementsMatch([]string{"Developer tools", "Browsers"}, stResp.SoftwareTitle.SoftwarePackage.Categories)
 
 	// List software titles has display name
@@ -464,8 +463,6 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	for _, t := range resp.SoftwareTitles {
 		if t.ID == titleID {
 			s.Assert().Equal("InHouseAppUpdate2", t.DisplayName)
-			// PATCH semantics, so we shouldn't overwrite self service
-			s.Assert().True(*t.SoftwarePackage.SelfService)
 		}
 	}
 

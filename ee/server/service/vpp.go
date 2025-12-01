@@ -74,7 +74,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		// import vpp apps as self-service for ios or ipados
 		payloadsWithPlatform = append(payloadsWithPlatform, []fleet.VPPBatchPayloadWithPlatform{{
 			AppStoreID:         payload.AppStoreID,
-			SelfService:        payload.SelfService,
+			SelfService:        false,
 			InstallDuringSetup: payload.InstallDuringSetup,
 			Platform:           fleet.IOSPlatform,
 			LabelsExcludeAny:   payload.LabelsExcludeAny,
@@ -82,7 +82,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			Categories:         payload.Categories,
 		}, {
 			AppStoreID:         payload.AppStoreID,
-			SelfService:        payload.SelfService,
+			SelfService:        false,
 			InstallDuringSetup: payload.InstallDuringSetup,
 			Platform:           fleet.IPadOSPlatform,
 			LabelsExcludeAny:   payload.LabelsExcludeAny,
@@ -356,6 +356,10 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			fmt.Sprintf("platform must be one of '%s', '%s', or '%s", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform))
 	}
 
+	if appID.SelfService && (appID.Platform == fleet.IOSPlatform || appID.Platform == fleet.IPadOSPlatform) {
+		return 0, fleet.NewInvalidArgumentError("self_service", "Self-service is not supported for iOS and iPadOS apps.")
+	}
+
 	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, appID.LabelsIncludeAny, appID.LabelsExcludeAny)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "validating software labels for adding vpp app")
@@ -598,6 +602,9 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	selfServiceVal := meta.SelfService
 	if selfService != nil {
 		selfServiceVal = *selfService
+		if selfServiceVal && (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) {
+			return nil, fleet.NewInvalidArgumentError("self_service", "Self-service is not supported for iOS and iPadOS apps.")
+		}
 	}
 
 	appToWrite := &fleet.VPPApp{
