@@ -1,8 +1,13 @@
 package http
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"reflect"
+	"regexp"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -106,9 +111,65 @@ func (e *UserMessageError) StatusCode() int {
 	return http.StatusUnprocessableEntity
 }
 
-// UserMessage returns the user-friendly error message.
+var rxJSONUnknownField = regexp.MustCompile(`^json: unknown field "(.+)"$`)
+
+// IsJSONUnknownFieldError returns true if err is a JSON unknown field error.
+// There is no exported type or value for this error, so we have to match the
+// error message.
+func IsJSONUnknownFieldError(err error) bool {
+	return rxJSONUnknownField.MatchString(err.Error())
+}
+
+// GetJSONUnknownField returns the unknown field name from a JSON unknown field error.
+func GetJSONUnknownField(err error) *string {
+	errCause := Cause(err)
+	if IsJSONUnknownFieldError(errCause) {
+		substr := rxJSONUnknownField.FindStringSubmatch(errCause.Error())
+		return &substr[1]
+	}
+	return nil
+}
+
+// UserMessage implements the user-friendly translation of the error if its
+// root cause is one of the supported types, otherwise it returns the error
+// message.
 func (e *UserMessageError) UserMessage() string {
-	return e.Error()
+	cause := Cause(e.error)
+	switch cause := cause.(type) {
+	case *json.UnmarshalTypeError:
+		var sb strings.Builder
+		curType := cause.Type
+		for curType.Kind() == reflect.Slice || curType.Kind() == reflect.Array {
+			sb.WriteString("array of ")
+			curType = curType.Elem()
+		}
+		sb.WriteString(curType.Name())
+		if curType != cause.Type {
+			// it was an array
+			sb.WriteString("s")
+		}
+
+		return fmt.Sprintf("invalid value type at '%s': expected %s but got %s", cause.Field, sb.String(), cause.Value)
+
+	default:
+		// there's no specific error type for the strict json mode
+		// (DisallowUnknownFields), so resort to message-matching.
+		if matches := rxJSONUnknownField.FindStringSubmatch(cause.Error()); matches != nil {
+			return fmt.Sprintf("unsupported key provided: %q", matches[1])
+		}
+		return e.Error()
+	}
+}
+
+// Cause returns the root error in err's chain.
+func Cause(err error) error {
+	for {
+		uerr := errors.Unwrap(err)
+		if uerr == nil {
+			return err
+		}
+		err = uerr
+	}
 }
 
 // ErrWithRetryAfter is an interface for errors that should set a specific HTTP
