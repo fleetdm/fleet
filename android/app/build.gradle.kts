@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.spotless)
     alias(libs.plugins.detekt)
     id("org.jetbrains.kotlin.plugin.serialization") version "2.2.20"
+    id("jacoco")
 }
 
 android {
@@ -84,6 +85,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            enableUnitTestCoverage = true
+            enableAndroidTestCoverage = true
+        }
         release {
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
@@ -146,6 +151,12 @@ detekt {
     allRules = false
     config.setFrom("$projectDir/detekt.yml")
 }
+
+jacoco {
+    toolVersion = "0.8.14"
+}
+
+apply(from = "gradle/jacoco.gradle.kts")
 
 // Don't run Detekt automatically in local builds, only in CI
 tasks.named("check") {

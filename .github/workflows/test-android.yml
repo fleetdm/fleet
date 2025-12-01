@@ -62,9 +62,9 @@ jobs:
         working-directory: android
         run: ./gradlew spotlessCheck --console=plain 2>&1 | tee /tmp/gradle.log
 
-      - name: Run static analysis and build
+      - name: Run static analysis, build, and tests with coverage
         working-directory: android
-        run: ./gradlew detekt build --continue --console=plain 2>&1 | tee -a /tmp/gradle.log
+        run: ./gradlew detekt build jacocoTestReport --continue --console=plain 2>&1 | tee -a /tmp/gradle.log
 
       - name: Upload build reports
         if: always()
@@ -95,6 +95,13 @@ jobs:
         with:
           name: app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Save coverage
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: build-coverage
+          path: android/app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+          if-no-files-found: error
 
       - name: Generate summary of errors
         if: failure()
@@ -195,6 +202,13 @@ jobs:
             android/app/build/outputs/androidTest-results/
             /tmp/gradle.log
 
+      - name: Save coverage
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: instrumented-coverage
+          path: android/app/build/reports/coverage/androidTest/debug/connected/report.xml
+          if-no-files-found: error
+
       - name: Generate summary of errors
         if: failure()
         run: |
@@ -285,7 +299,7 @@ jobs:
       - name: Run SCEP integration tests
         working-directory: android
         run: |
-          ./gradlew test -PrunIntegrationTests=true \
+          ./gradlew test jacocoTestReport -PrunIntegrationTests=true \
             -Pscep.url=http://localhost:8080/scep \
             -Pscep.challenge=test-challenge-123 \
             --console=plain 2>&1 | tee /tmp/gradle.log
@@ -299,6 +313,13 @@ jobs:
             android/app/build/reports/tests/
             android/app/build/test-results/
             /tmp/gradle.log
+
+      - name: Save coverage
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: scep-coverage
+          path: android/app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+          if-no-files-found: error
 
       - name: Generate summary of errors
         if: failure()
@@ -330,3 +351,26 @@ jobs:
           RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  upload-coverage:
+    needs: [build, instrumented-tests, scep-integration-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: '*-coverage'
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673 # v4.5.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: android
