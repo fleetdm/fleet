@@ -1583,15 +1583,32 @@ FROM upcoming
 
 func (ds *Datastore) vppAppJoin(appID fleet.VPPAppID, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
 	// for pending status, we'll join through upcoming_activities
+	// EXCEPT for android VPP apps, which currently bypass upcoming activities
+	// NOTE: this should change when standard VPP app installs are supported for Android
+	// (in https://github.com/fleetdm/fleet/issues/25595)
 	if status == fleet.SoftwarePending || status == fleet.SoftwareInstallPending || status == fleet.SoftwareUninstallPending {
 		stmt := `JOIN (
 SELECT DISTINCT
 	host_id
-FROM
-	upcoming_activities ua
-	JOIN vpp_app_upcoming_activities vppua ON ua.id = vppua.upcoming_activity_id
-WHERE
-	%s) hss ON hss.host_id = h.id`
+FROM (
+	SELECT host_id
+	FROM upcoming_activities ua
+		JOIN vpp_app_upcoming_activities vppua ON ua.id = vppua.upcoming_activity_id
+	WHERE
+		%s
+
+	UNION
+
+	SELECT host_id
+	FROM host_vpp_software_installs hvsi
+	WHERE 
+		hvsi.adam_id = ? AND
+		hvsi.platform = ? AND
+		hvsi.platform = 'android' AND 
+		hvsi.verification_at IS NULL AND 
+		hvsi.verification_failed_at IS NULL
+	) combined_pending
+) hss ON hss.host_id = h.id`
 
 		filter := "vppua.adam_id = ? AND vppua.platform = ?"
 		switch status {
@@ -1605,7 +1622,7 @@ WHERE
 			// activity type that is associated with the app (i.e. both install and uninstall)
 		}
 
-		return fmt.Sprintf(stmt, filter), []interface{}{appID.AdamID, appID.Platform}, nil
+		return fmt.Sprintf(stmt, filter), []any{appID.AdamID, appID.Platform, appID.AdamID, appID.Platform}, nil
 	}
 
 	// TODO: Update this when VPP supports uninstall so that we map for now we map the generic failed status to the install statuses
@@ -1621,7 +1638,7 @@ SELECT
 	hvsi.host_id
 FROM
 	host_vpp_software_installs hvsi
-	INNER JOIN
+	LEFT JOIN
 		nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 	LEFT JOIN host_vpp_software_installs hvsi2
 		ON hvsi.host_id = hvsi2.host_id AND
@@ -1634,6 +1651,7 @@ WHERE
 	AND hvsi.adam_id = :adam_id
 	AND hvsi.platform = :platform
 	AND hvsi.canceled = 0
+	AND (ncr.id IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
 	AND (%s) = :status
 	AND NOT EXISTS (
 		SELECT 1

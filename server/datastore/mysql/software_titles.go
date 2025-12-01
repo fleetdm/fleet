@@ -554,7 +554,7 @@ GROUP BY
 		for _, platform := range platforms {
 			args = append(args, platform)
 		}
-		// for VPP apps; could micro-optimize later by dropping non-Apple platforms
+		// for VPP apps; could micro-optimize later by dropping non-Apple, non-Android platforms
 		for _, platform := range platforms {
 			args = append(args, platform)
 		}

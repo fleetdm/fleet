@@ -210,7 +210,8 @@ past AS (
 				:software_status_failed
 			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
 				:software_status_failed
-			WHEN ncr.status = :mdm_status_acknowledged THEN
+			WHEN ncr.id IS NULL OR ncr.status = :mdm_status_acknowledged THEN
+				-- if ncr join is null this is an android vpp app
 				:software_status_pending
 			ELSE
 				NULL -- either pending or not installed via VPP App
@@ -218,7 +219,9 @@ past AS (
 	FROM
 		host_vpp_software_installs hvsi
 		JOIN hosts h ON host_id = h.id
-		JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hvsi.command_uuid
+		LEFT JOIN nano_command_results ncr ON
+			ncr.id = h.uuid AND
+			ncr.command_uuid = hvsi.command_uuid
 		LEFT JOIN host_vpp_software_installs hvsi2
 			ON hvsi.host_id = hvsi2.host_id AND
 				 hvsi.adam_id = hvsi2.adam_id AND
@@ -230,6 +233,7 @@ past AS (
 		hvsi2.id IS NULL
 		AND hvsi.adam_id = :adam_id
 		AND hvsi.platform = :platform
+		AND (ncr.id IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
 		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
 		AND hvsi.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 		AND hvsi.removed = 0
@@ -310,7 +314,7 @@ func vppAppHostStatusNamedQuery(hvsiAlias, ncrAlias, colAlias string) string {
 		WHEN %sstatus = :mdm_status_error OR %sstatus = :mdm_status_format_error THEN
 			:software_status_failed
 		ELSE
-		    :software_status_pending
+			:software_status_pending
 	END %s
 	`, hvsiAlias, hvsiAlias, ncrAlias, ncrAlias, colAlias)
 }
@@ -1109,6 +1113,8 @@ VALUES
 
 func (ds *Datastore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error) {
 	var adamIds []string
+	// this is Apple-only VPP installs, which is fine currently as Android does not support
+	// policy-based automatic installs (the context in which this is called).
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &adamIds, `SELECT hvsi.adam_id
 			FROM host_vpp_software_installs hvsi
 			JOIN nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid AND nvq.status IS NULL
@@ -1121,6 +1127,14 @@ func (ds *Datastore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) 
 	}
 
 	return adamMap, nil
+}
+
+func (ds *Datastore) GetPastActivityDataForAndroidVPPAppInstall(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	mdmStatus := fleet.MDMAppleStatusAcknowledged
+	if status != fleet.SoftwareInstalled {
+		mdmStatus = fleet.MDMAppleStatusError
+	}
+	return ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: cmdUUID, Status: mdmStatus})
 }
 
 func (ds *Datastore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
@@ -1151,7 +1165,7 @@ FROM
 WHERE
 	hvsi.command_uuid = :command_uuid AND
 	hvsi.canceled = 0
-	`
+`
 
 	type result struct {
 		HostID          uint    `db:"host_id"`
@@ -1909,7 +1923,6 @@ func (s softwareType) getInstallMappingTableName() string {
 	}
 
 	return tableNames[s]
-
 }
 
 func (ds *Datastore) AssociateMDMInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID, hostUUID string) error {
@@ -2014,12 +2027,17 @@ WHERE command_uuid = ?
 }
 
 func (ds *Datastore) MarkAllPendingVPPAndInHouseInstallsAsFailed(ctx context.Context, jobName string) error {
+	// this is called on an Apple-only event, when APNS cert is deleted, so it should only
+	// affect Apple platforms. Currently, VPP installs in the upcoming queue are Apple only,
+	// but those in host_vpp_software_installs could be Android as well.
+
 	clearVPPUpcomingActivitiesStmt := `
 DELETE ua FROM
 	upcoming_activities ua
 JOIN
 	host_vpp_software_installs hvsi ON hvsi.command_uuid = ua.execution_id
-WHERE ua.activity_type = ? AND hvsi.verification_failed_at IS NULL AND hvsi.verification_at IS NULL
+WHERE ua.activity_type = ? AND hvsi.verification_failed_at IS NULL
+AND hvsi.verification_at IS NULL AND hvsi.platform != 'android'
 `
 
 	clearInHouseUpcomingActivitiesStmt := `
@@ -2033,7 +2051,7 @@ WHERE ua.activity_type = ? AND hihs.verification_failed_at IS NULL AND hihs.veri
 	installVPPFailStmt := `
 UPDATE host_vpp_software_installs
 SET verification_failed_at = CURRENT_TIMESTAMP(6)
-WHERE verification_failed_at IS NULL AND verification_at IS NULL
+WHERE verification_failed_at IS NULL AND verification_at IS NULL AND platform != 'android'
 `
 
 	installInHouseFailStmt := `
@@ -2085,6 +2103,8 @@ WHERE
 	AND host_id = ?
 	AND canceled = 0
 `
+	// TODO(mna): should probably be updated to support Android VPP apps, and be called
+	// when Android MDM is turned off (for the host or globally)?
 	var failedCmds []string
 	if err := sqlx.SelectContext(ctx, tx, &failedCmds, loadFailedCmdsStmt, hostID); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "load pending vpp install commands for host")

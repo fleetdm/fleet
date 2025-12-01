@@ -2369,6 +2369,10 @@ type Datastore interface {
 	// It returns a minimal device struct with host and device identifiers.
 	ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error)
 
+	// InsertAndroidSetupExperienceSoftwareInstall inserts a new Android
+	// VPP app install record for the setup experience flow.
+	InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *HostAndroidVPPSoftwareInstall) error
+
 	// GetAndroidAppConfiguration retrieves the configuration for an Android app
 	// identified by adam_id and global_or_team_id.
 	GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*AndroidAppConfiguration, error)
@@ -2575,6 +2579,25 @@ type AndroidDatastore interface {
 	// SetLockCommandForLostModeCheckin sets the lock reference for a lost mode check-in.
 	// This is used when an iphone or ipados checks in after being deleted, with lost mode enabled.
 	SetLockCommandForLostModeCheckin(ctx context.Context, hostID uint, commandUUID string) error
+
+	// ListHostMDMAndroidVPPAppsPendingInstallWithVersion lists the Android
+	// VPP apps pending install for a host that were requested in a policy
+	// version <= the provided policy version.
+	ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*HostAndroidVPPSoftwareInstall, error)
+
+	// BulkSetVPPInstallsAsVerified marks all VPP apps identified by the command UUIDs
+	// as verified. This is for Android hosts, where the verification uuid is not important,
+	// so the implementation generates a random one.
+	BulkSetVPPInstallsAsVerified(ctx context.Context, hostID uint, commandUUIDs []string) error
+
+	// BulkSetVPPInstallsAsFailed marks all VPP apps identified by the command UUIDs
+	// as failed. This is for Android hosts, where the verification uuid is not important,
+	// so the implementation generates a random one.
+	BulkSetVPPInstallsAsFailed(ctx context.Context, hostID uint, commandUUIDs []string) error
+
+	// GetPastActivityDataForAndroidVPPAppInstall is like GetPastActivityDataForVPPAppInstall
+	// but available to the android datastore and without the Apple-based args.
+	GetPastActivityDataForAndroidVPPAppInstall(ctx context.Context, cmdUUID string, status SoftwareInstallerStatus) (*User, *ActivityInstalledAppStoreApp, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
