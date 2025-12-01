@@ -2528,8 +2528,6 @@ type Datastore interface {
 	ListCertificateTemplatesForHosts(ctx context.Context, hostUUIDs []string) ([]CertificateTemplateForHost, error)
 	// GetCertificateTemplateForHost returns a certificate template for the given host UUID and certificate template ID.
 	GetCertificateTemplateForHost(ctx context.Context, hostUUID string, certificateTemplateID uint) (*CertificateTemplateForHost, error)
-	// GetHostCertificateTemplate returns the host_certificate_templates record for the given host UUID and certificate template ID.
-	GetHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) (*HostCertificateTemplate, error)
 	// BulkInsertHostCertificateTemplates inserts multiple host_certificate_templates records.
 	BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []HostCertificateTemplate) error
 

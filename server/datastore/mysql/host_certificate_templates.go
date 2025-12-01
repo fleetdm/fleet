@@ -101,29 +101,6 @@ func (ds *Datastore) GetCertificateTemplateForHost(ctx context.Context, hostUUID
 	return &result, nil
 }
 
-// GetHostCertificateTemplate returns a specific host certificate template
-func (ds *Datastore) GetHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.HostCertificateTemplate, error) {
-	const stmt = `
-		SELECT
-			id,
-			host_uuid,
-			certificate_template_id,
-			fleet_challenge,
-			status,
-			created_at,
-			updated_at
-		FROM host_certificate_templates
-		WHERE host_uuid = ? AND certificate_template_id = ?
-	`
-
-	var result fleet.HostCertificateTemplate
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, hostUUID, certificateTemplateID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host certificate template")
-	}
-
-	return &result, nil
-}
-
 // BulkInsertHostCertificateTemplates inserts multiple host_certificate_templates records
 func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error {
 	if len(hostCertTemplates) == 0 {
