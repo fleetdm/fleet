@@ -35,6 +35,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
+
+	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/tests"
+	"google.golang.org/api/androidmanagement/v1"
+
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
@@ -99,8 +107,10 @@ type integrationMDMTestSuite struct {
 	depStorage                 nanodep_storage.AllDEPStorage
 	profileSchedule            *schedule.Schedule
 	integrationsSchedule       *schedule.Schedule
+	cleanupsSchedule           *schedule.Schedule
 	onProfileJobDone           func() // function called when profileSchedule.Trigger() job completed
 	onIntegrationsScheduleDone func() // function called when integrationsSchedule.Trigger() job completed
+	onCleanupScheduleDone      func() // function called when cleanupsSchedule.Trigger() job completed
 	mdmStorage                 *mysql.NanoMDMStorage
 	worker                     *worker.Worker
 	// Flag to skip jobs processing by worker
@@ -115,6 +125,8 @@ type integrationMDMTestSuite struct {
 	appleGDMFSrv              *httptest.Server
 	mockedDownloadFleetdmMeta fleetdbase.Metadata
 	scepConfig                *eeservice.SCEPConfigService
+	androidSvc                *android_service.Service
+	androidAPIClient          *android_mock.Client
 }
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
@@ -191,6 +203,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		wlog = kitlog.NewNopLogger()
 	}
+
 	macosJob := &worker.MacosSetupAssistant{
 		Datastore:  s.ds,
 		Log:        wlog,
@@ -221,6 +234,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	var integrationsSchedule *schedule.Schedule
 	var profileSchedule *schedule.Schedule
+	var cleanupsSchedule *schedule.Schedule
 	cronLog := kitlog.NewJSONLogger(os.Stdout)
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		cronLog = kitlog.NewNopLogger()
@@ -371,10 +385,21 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	// initialization pattern works fine in our normal fleet server setup
 	appleMDMJob.VPPInstaller = svc
 
+	androidMockClient := &android_mock.Client{}
+	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
+		return nil
+	}
+	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, svc, "test-private-key", s.ds)
+	if err != nil {
+		panic(err)
+	}
+	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true
+
+	serverConfig.AndroidSvc = androidSvc.(*android_service.Service)
 	users, server := RunServerForTestsWithServiceWithDS(s.T(), ctx, s.ds, svc, &serverConfig)
 
-	s.server = server
 	s.users = users
+	s.server = server
 	s.token = s.getTestAdminToken()
 	s.cachedAdminToken = s.token
 	s.fleetCfg = fleetCfg
@@ -382,9 +407,12 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.depStorage = depStorage
 	s.integrationsSchedule = integrationsSchedule
 	s.profileSchedule = profileSchedule
+	s.cleanupsSchedule = cleanupsSchedule
 	s.mdmStorage = mdmStorage
 	s.mdmCommander = mdmCommander
 	s.logger = serverLogger
+	s.androidSvc = androidSvc.(*android_service.Service)
+	s.androidAPIClient = androidMockClient
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)
@@ -756,6 +784,11 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_apps;")
+		return err
+	})
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM android_enterprises`)
 		return err
 	})
 }
@@ -9361,6 +9394,38 @@ func (s *integrationMDMTestSuite) runIntegrationsSchedule() {
 	_, err := s.integrationsSchedule.Trigger()
 	require.NoError(s.T(), err)
 	<-ch
+}
+
+func runCleanup(ctx context.Context, s *integrationMDMTestSuite) {
+	if s.onCleanupScheduleDone != nil {
+		defer s.onCleanupScheduleDone()
+	}
+
+	_ = s.androidSvc.VerifyExistingEnterpriseIfAny(ctx)
+	// Don't return the error, since actual crons does not do that.
+}
+
+func (s *integrationMDMTestSuite) awaitRunCleanupSchedule() {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	s.onCleanupScheduleDone = wg.Done
+
+	// This is a hacku workaround for a cherry pick PR, that created this new cleanups schedule, but only calls this method
+
+	runCleanup(s.T().Context(), s)
+	// Add timeout detection
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Completed successfully
+	case <-time.After(5 * time.Minute):
+		s.T().Fatalf("Cleanup schedule jobs timed out after 5 minutes")
+	}
 }
 
 func (s *integrationMDMTestSuite) getRawTokenValue(content string) string {
@@ -18076,4 +18141,88 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", newHost.ID), nil, http.StatusOK, &wipeResp)
 	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
 	require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
+}
+
+func (s *integrationMDMTestSuite) TestAndroidEnterpriseDeletedDetection() {
+	t := s.T()
+	ctx := t.Context()
+
+	// ----- SETUP
+
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	originalAppConfig := *appConfig
+	appConfig.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		err := s.ds.SaveAppConfig(context.Background(), &originalAppConfig)
+		require.NoError(t, err)
+	})
+
+	// ---- SETUP DONE
+
+	s.androidAPIClient.InitCommonMocks()
+
+	var proxyCallbackURL string
+	s.androidAPIClient.SignupURLsCreateFunc = func(_ context.Context, _, callbackURL string) (*android.SignupDetails, error) {
+		url, err := url.Parse(callbackURL)
+		require.NoError(t, err)
+		proxyCallbackURL = url.EscapedPath() + "?" + url.RawQuery
+		return &android.SignupDetails{
+			Url:  tests.EnterpriseSignupURL,
+			Name: "signupUrls/Cb0812d0999c464f",
+		}, nil
+	}
+	s.androidAPIClient.EnterprisesCreateFunc = func(_ context.Context, _ androidmgmt.EnterprisesCreateRequest) (androidmgmt.EnterprisesCreateResponse, error) {
+		return androidmgmt.EnterprisesCreateResponse{
+			EnterpriseName: "enterprises/" + tests.EnterpriseID,
+			TopicName:      "projects/android/topics/ae98ed130-5ce2-4ddb-a90a-191ec76976d5",
+		}, nil
+	}
+	s.androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{}, nil
+	}
+
+	// First, create an enterprise to test with
+	var signupResp android.EnterpriseSignupResponse
+	s.DoJSON("GET", "/api/latest/fleet/android_enterprise/signup_url", nil, http.StatusOK, &signupResp)
+
+	const enterpriseToken = "enterpriseToken"
+	s.Do("GET", proxyCallbackURL, nil, http.StatusOK, "enterpriseToken", enterpriseToken)
+
+	// Update LIST mock to return the enterprise after "creation"
+	s.androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{
+			{Name: "enterprises/" + tests.EnterpriseID},
+		}, nil
+	}
+
+	// Verify enterprise exists
+	var resp android.GetEnterpriseResponse
+	s.DoJSON("GET", "/api/latest/fleet/android_enterprise", nil, http.StatusOK, &resp)
+	assert.Equal(t, tests.EnterpriseID, resp.EnterpriseID)
+
+	t.Run("enterprise deleted detection", func(t *testing.T) {
+		// Mock EnterprisesListFunc to return empty list (enterprise deleted)
+		s.androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+			return []*androidmanagement.Enterprise{}, nil
+		}
+
+		// Attempt to get enterprise - should return 200 until cron is ran
+		var getResp android.GetEnterpriseResponse
+		s.DoJSON("GET", "/api/latest/fleet/android_enterprise", nil, http.StatusOK, &getResp)
+		// Verify LIST API was not called
+		assert.False(t, s.androidAPIClient.EnterprisesListFuncInvoked)
+
+		// Trigger cron
+		s.awaitRunCleanupSchedule()
+
+		// Verify LIST API was called
+		assert.True(t, s.androidAPIClient.EnterprisesListFuncInvoked)
+
+		// Attempt to get enterprise - should now return 404 since cron detected deletion
+		s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusNotFound, &getResp)
+	})
 }

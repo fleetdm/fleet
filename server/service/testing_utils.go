@@ -33,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
@@ -393,6 +394,7 @@ type TestServerOpts struct {
 	ConditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 	HostIdentity                    *HostIdentity
 	ConditionalAccess               *ConditionalAccess
+	AndroidSvc                      *android_service.Service
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -498,6 +500,9 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	var featureRoutes []endpoint_utils.HandlerRoutesFunc
 	if len(opts) > 0 && len(opts[0].FeatureRoutes) > 0 {
 		featureRoutes = opts[0].FeatureRoutes
+	}
+	if len(opts) > 0 && opts[0].AndroidSvc != nil {
+		featureRoutes = append(featureRoutes, android_service.GetRoutes(svc, opts[0].AndroidSvc))
 	}
 	var extra []ExtraHandlerOption
 	extra = append(extra, WithLoginRateLimit(throttled.PerMin(1000)))

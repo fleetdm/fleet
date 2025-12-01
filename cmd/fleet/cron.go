@@ -839,6 +839,7 @@ func newCleanupsAndAggregationSchedule(
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
+	androidSvc android.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -1059,6 +1060,9 @@ func newCleanupsAndAggregationSchedule(
 				level.Info(logger).Log("msg", "revoked old conditional access certificates", "count", count)
 			}
 			return nil
+		}),
+		schedule.WithJob("cleanup_android_enterprise", func(ctx context.Context) error {
+			return androidSvc.VerifyExistingEnterpriseIfAny(ctx)
 		}),
 	)
 
