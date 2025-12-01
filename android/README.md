@@ -192,6 +192,45 @@ This runs:
 ./gradlew test
 ```
 
+### Integration tests (with real SCEP server)
+
+Integration tests are skipped by default. To run them:
+
+```bash
+./gradlew test -PrunIntegrationTests=true \
+  -Pscep.url=https://your-scep-server.com/scep \
+  -Pscep.challenge=your-challenge-password
+```
+
+#### Setting Up a Test SCEP Server
+
+Integration tests require a real SCEP server. Options:
+
+1. **Production-grade SCEP servers:**
+   - Microsoft NDES (Network Device Enrollment Service)
+   - OpenXPKI
+   - Ejbca
+
+2. **Lightweight test servers:**
+   - micromdm/scep (Docker)
+   - jscep test server
+
+### Docker SCEP Server (Easiest)
+
+```bash
+docker run -p 8080:8080 \
+  -e SCEP_CHALLENGE=test-challenge-123 \
+  micromdm/scep:latest
+```
+
+### Running Integration Tests
+
+```bash
+./gradlew test -PrunIntegrationTests=true \
+  -Pscep.url=http://localhost:8080/scep \
+  -Pscep.challenge=test-challenge-123
+```
+
 ### Instrumented tests (requires emulator/device)
 
 ```bash
