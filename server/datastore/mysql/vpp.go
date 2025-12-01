@@ -2119,6 +2119,11 @@ WHERE verification_failed_at IS NULL AND verification_at IS NULL AND platform = 
 	})
 }
 
+func (ds *Datastore) MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx context.Context, tx sqlx.ExtContext,
+	hostID uint) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
+	return ds.markAllPendingVPPInstallsAsFailedForHost(ctx, ds.writer(ctx), hostID, "android")
+}
+
 func (ds *Datastore) markAllPendingVPPInstallsAsFailedForHost(ctx context.Context, tx sqlx.ExtContext,
 	hostID uint, hostPlatform string) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
 	const loadFailedCmdsStmt = `

@@ -2600,6 +2600,8 @@ type AndroidDatastore interface {
 	GetPastActivityDataForAndroidVPPAppInstall(ctx context.Context, cmdUUID string, status SoftwareInstallerStatus) (*User, *ActivityInstalledAppStoreApp, error)
 
 	MarkAllPendingAndroidVPPInstallsAsFailed(ctx context.Context) error
+	MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx context.Context, tx sqlx.ExtContext,
+		hostID uint) (users []*User, activities []ActivityDetails, err error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
