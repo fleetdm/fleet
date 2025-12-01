@@ -842,6 +842,13 @@
       "description": "Webex is a video communication and virtual meeting platform."
     },
     {
+      "name": "Webex",
+      "slug": "webex/windows",
+      "platform": "windows",
+      "unique_identifier": "Cisco Webex",
+      "description": "Webex is a video communication and virtual meeting platform."
+    },
+    {
       "name": "WebStorm",
       "slug": "webstorm/darwin",
       "platform": "darwin",
