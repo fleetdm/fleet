@@ -3,9 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"slices"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -20,17 +18,6 @@ var fleetVarsSupportedInCertificateTemplates = []fleet.FleetVarName{
 }
 
 func validateCertificateTemplateFleetVariables(subjectName string) error {
-	// reject any variable that doesn't use the FLEET_VAR_ prefix.
-	re := regexp.MustCompile(`\$(?:\{)?([A-Za-z_][A-Za-z0-9_]*)\}?`)
-	matches := re.FindAllStringSubmatch(subjectName, -1)
-	for _, m := range matches {
-		name := m[1]
-		if !strings.HasPrefix(name, "FLEET_VAR_") {
-			return fmt.Errorf("variable $%s is not allowed; certificate template variables must be FLEET_VAR_*", name)
-		}
-	}
-
-	// check that all FLEET_VAR_* variables are supported
 	fleetVars := variables.Find(subjectName)
 	if len(fleetVars) == 0 {
 		return nil
