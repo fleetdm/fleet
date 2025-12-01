@@ -42,7 +42,7 @@ const LogDestinationIndicator = ({
         return "AWS Lambda";
       case "pubsub":
         return "Google Cloud Pub/Sub";
-      case "kafta":
+      case "kafka":
         return "Apache Kafka";
       case "stdout":
         return "Standard output (stdout)";
@@ -93,7 +93,7 @@ const LogDestinationIndicator = ({
             / Sub.
           </>
         );
-      case "kafta":
+      case "kafka":
         return (
           <>
             Each time a query runs, the data <br /> is sent to Apache Kafka.
