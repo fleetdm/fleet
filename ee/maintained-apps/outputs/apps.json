@@ -86,6 +86,13 @@
       "description": "Asana is an app to manage team projects and tasks."
     },
     {
+      "name": "Basecamp",
+      "slug": "basecamp/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.basecamp.basecamp",
+      "description": "Basecamp is an all-in-one toolkit for working remotely."
+    },
+    {
       "name": "BBEdit",
       "slug": "bbedit/darwin",
       "platform": "darwin",

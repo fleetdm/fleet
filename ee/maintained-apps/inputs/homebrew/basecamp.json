@@ -1,0 +1,8 @@
+{
+  "name": "Basecamp",
+  "unique_identifier": "com.basecamp.basecamp",
+  "token": "basecamp",
+  "installer_format": "zip",
+  "slug": "basecamp/darwin",
+  "default_categories": ["Productivity"]
+}

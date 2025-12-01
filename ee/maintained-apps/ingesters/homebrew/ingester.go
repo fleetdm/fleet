@@ -147,7 +147,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	}
 
 	out.Name = input.Name
-	out.Version = strings.Split(cask.Version, ",")[0]
+	out.Version = cask.Version
 	out.InstallerURL = cask.URL
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.SHA256 = cask.SHA256

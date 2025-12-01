@@ -20,6 +20,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"onedrive/darwin":               {OneDriveVersionTransformer},
 	"twingate/darwin":               {TwingateVersionShortener},
 	"citrix-workspace/darwin":       {CitrixWorkspaceVersionShortener},
+	"microsoft-edge/darwin":         {MicrosoftEdgeVersionTransformer},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
