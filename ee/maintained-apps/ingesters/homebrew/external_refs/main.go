@@ -17,6 +17,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"parallels/darwin":              {ParallelsVersionShortener},
 	"github/darwin":                 {GitHubDesktopVersionShortener},
 	"onedrive/darwin":               {OneDriveVersionTransformer},
+	"cisco-jabber/darwin":           {CiscoJabberVersionTransformer},
 	"twingate/darwin":               {TwingateVersionShortener},
 	"citrix-workspace/darwin":       {CitrixWorkspaceVersionShortener},
 }
