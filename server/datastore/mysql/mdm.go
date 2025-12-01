@@ -85,8 +85,6 @@ WHERE TRUE
 		appleStmtWithFilter, windowsStmtWithFilter,
 	)
 
-	fmt.Println(stmt)
-
 	return stmt, params
 }
 
