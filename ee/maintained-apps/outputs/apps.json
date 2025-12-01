@@ -65,6 +65,20 @@
       "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
     },
     {
+      "name": "Adobe Digital Editions",
+      "slug": "adobe-digital-editions/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adobe.adobedigitaleditions.app",
+      "description": "Adobe Digital Editions is an E-book reader."
+    },
+    {
+      "name": "AnyDesk",
+      "slug": "anydesk/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.philandro.anydesk",
+      "description": "AnyDesk is an app that allows connection to a computer remotely."
+    },
+    {
       "name": "Asana",
       "slug": "asana/darwin",
       "platform": "darwin",
@@ -825,6 +839,13 @@
       "slug": "webex/darwin",
       "platform": "darwin",
       "unique_identifier": "Cisco-Systems.Spark",
+      "description": "Webex is a video communication and virtual meeting platform."
+    },
+    {
+      "name": "Webex",
+      "slug": "webex/windows",
+      "platform": "windows",
+      "unique_identifier": "Cisco Webex",
       "description": "Webex is a video communication and virtual meeting platform."
     },
     {
