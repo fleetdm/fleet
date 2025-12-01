@@ -1,5 +1,5 @@
 - name: Windows - MDM Enabled
-  description: This policy checks if the computer's has MDM enabled.
+  description: This policy checks if the computer has MDM enabled.
   resolution: Enable Fleet MDM by setting up a work account in Windows Settings.
   query: SELECT 1 FROM mdm_bridge WHERE enrollment_status = 'device_enrolled';
   platform: windows
