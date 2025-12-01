@@ -32,7 +32,7 @@ permissions:
 
 jobs:
   build:
-    name: Build and Test
+    name: Build and test
     runs-on: ubuntu-latest
 
     steps:
@@ -60,20 +60,21 @@ jobs:
 
       - name: Run formatting checks
         working-directory: android
-        run: ./gradlew spotlessCheck --console=plain
+        run: ./gradlew spotlessCheck --console=plain 2>&1 | tee /tmp/gradle.log
 
       - name: Run static analysis and build
         working-directory: android
-        run: ./gradlew detekt build --continue --console=plain
+        run: ./gradlew detekt build --continue --console=plain 2>&1 | tee -a /tmp/gradle.log
 
       - name: Upload build reports
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: build-reports
           path: |
             android/app/build/reports/
             android/app/build/test-results/
+            /tmp/gradle.log
 
       - name: Upload Detekt report
         if: always()
@@ -94,6 +95,41 @@ jobs:
         with:
           name: app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Generate summary of errors
+        if: failure()
+        run: |
+          c1grep() { grep "$@" || test $? = 1; }
+          # Capture test failures (JUnit format: "ClassName > testName FAILED")
+          c1grep -E '.+ > .+ FAILED$' /tmp/gradle.log > /tmp/summary.txt
+          # Capture Kotlin compilation errors (e: file.kt: (line, col): message)
+          c1grep -E '^e: ' /tmp/gradle.log >> /tmp/summary.txt
+          # Capture task failures ("> Task :app:taskName FAILED")
+          c1grep -E '> Task :.+ FAILED$' /tmp/gradle.log >> /tmp/summary.txt
+          # Capture Spotless formatting violations
+          c1grep -E 'The following files had format violations:' /tmp/gradle.log >> /tmp/summary.txt
+          # Capture Detekt issues summary
+          c1grep -E 'detekt found [0-9]+ issue' /tmp/gradle.log >> /tmp/summary.txt
+          # Capture Gradle's "What went wrong" section
+          c1grep -A 3 '^\* What went wrong:' /tmp/gradle.log >> /tmp/summary.txt
+          ANDROID_FAIL_SUMMARY=$(head -n 5 /tmp/summary.txt | sed ':a;N;$!ba;s/\n/\\n/g')
+          echo "ANDROID_FAIL_SUMMARY=$ANDROID_FAIL_SUMMARY"
+          if [[ -z "$ANDROID_FAIL_SUMMARY" ]]; then
+            ANDROID_FAIL_SUMMARY="Unknown error, please check the build URL"
+          fi
+          ANDROID_JOB_NAME="build and test" ANDROID_FAIL_SUMMARY=$ANDROID_FAIL_SUMMARY envsubst < .github/workflows/config/slack_payload_android_template.json > ./payload.json
+
+      - name: Slack Notification
+        if: github.event_name == 'schedule' && failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload-file-path: ./payload.json
+        env:
+          JOB_STATUS: ${{ job.status }}
+          EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
   instrumented-tests:
     name: Instrumented Tests
@@ -147,7 +183,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
-          script: cd android && ./gradlew connectedCheck
+          script: cd android && ./gradlew connectedCheck --console=plain 2>&1 | tee /tmp/gradle.log
 
       - name: Upload instrumented test reports
         if: always()
@@ -157,6 +193,38 @@ jobs:
           path: |
             android/app/build/reports/androidTests/
             android/app/build/outputs/androidTest-results/
+            /tmp/gradle.log
+
+      - name: Generate summary of errors
+        if: failure()
+        run: |
+          c1grep() { grep "$@" || test $? = 1; }
+          # Capture test failures (JUnit format: "ClassName > testName FAILED")
+          c1grep -E '.+ > .+ FAILED$' /tmp/gradle.log > /tmp/summary.txt
+          # Capture Kotlin compilation errors (e: file.kt: (line, col): message)
+          c1grep -E '^e: ' /tmp/gradle.log >> /tmp/summary.txt
+          # Capture task failures ("> Task :app:taskName FAILED")
+          c1grep -E '> Task :.+ FAILED$' /tmp/gradle.log >> /tmp/summary.txt
+          # Capture Gradle's "What went wrong" section
+          c1grep -A 3 '^\* What went wrong:' /tmp/gradle.log >> /tmp/summary.txt
+          ANDROID_FAIL_SUMMARY=$(head -n 5 /tmp/summary.txt | sed ':a;N;$!ba;s/\n/\\n/g')
+          echo "ANDROID_FAIL_SUMMARY=$ANDROID_FAIL_SUMMARY"
+          if [[ -z "$ANDROID_FAIL_SUMMARY" ]]; then
+            ANDROID_FAIL_SUMMARY="Unknown error, please check the build URL"
+          fi
+          ANDROID_JOB_NAME="instrumented tests" ANDROID_FAIL_SUMMARY=$ANDROID_FAIL_SUMMARY envsubst < .github/workflows/config/slack_payload_android_template.json > ./payload.json
+
+      - name: Slack Notification
+        if: github.event_name == 'schedule' && failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload-file-path: ./payload.json
+        env:
+          JOB_STATUS: ${{ job.status }}
+          EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
   scep-integration-test:
     name: SCEP integration test
@@ -220,7 +288,7 @@ jobs:
           ./gradlew test -PrunIntegrationTests=true \
             -Pscep.url=http://localhost:8080/scep \
             -Pscep.challenge=test-challenge-123 \
-            --console=plain
+            --console=plain 2>&1 | tee /tmp/gradle.log
 
       - name: Upload test reports
         if: always()
@@ -230,3 +298,35 @@ jobs:
           path: |
             android/app/build/reports/tests/
             android/app/build/test-results/
+            /tmp/gradle.log
+
+      - name: Generate summary of errors
+        if: failure()
+        run: |
+          c1grep() { grep "$@" || test $? = 1; }
+          # Capture test failures (JUnit format: "ClassName > testName FAILED")
+          c1grep -E '.+ > .+ FAILED$' /tmp/gradle.log > /tmp/summary.txt
+          # Capture Kotlin compilation errors (e: file.kt: (line, col): message)
+          c1grep -E '^e: ' /tmp/gradle.log >> /tmp/summary.txt
+          # Capture task failures ("> Task :app:taskName FAILED")
+          c1grep -E '> Task :.+ FAILED$' /tmp/gradle.log >> /tmp/summary.txt
+          # Capture Gradle's "What went wrong" section
+          c1grep -A 3 '^\* What went wrong:' /tmp/gradle.log >> /tmp/summary.txt
+          ANDROID_FAIL_SUMMARY=$(head -n 5 /tmp/summary.txt | sed ':a;N;$!ba;s/\n/\\n/g')
+          echo "ANDROID_FAIL_SUMMARY=$ANDROID_FAIL_SUMMARY"
+          if [[ -z "$ANDROID_FAIL_SUMMARY" ]]; then
+            ANDROID_FAIL_SUMMARY="Unknown error, please check the build URL"
+          fi
+          ANDROID_JOB_NAME="SCEP integration test" ANDROID_FAIL_SUMMARY=$ANDROID_FAIL_SUMMARY envsubst < .github/workflows/config/slack_payload_android_template.json > ./payload.json
+
+      - name: Slack Notification
+        if: github.event_name == 'schedule' && failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload-file-path: ./payload.json
+        env:
+          JOB_STATUS: ${{ job.status }}
+          EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
