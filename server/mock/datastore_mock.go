@@ -1519,7 +1519,7 @@ type GetPastActivityDataForAndroidVPPAppInstallFunc func(ctx context.Context, cm
 
 type MarkAllPendingAndroidVPPInstallsAsFailedFunc func(ctx context.Context) error
 
-type MarkAllPendingVPPInstallsAsFailedForAndroidHostFunc func(ctx context.Context, tx sqlx.ExtContext, hostID uint) (users []*fleet.User, activities []fleet.ActivityDetails, err error)
+type MarkAllPendingVPPInstallsAsFailedForAndroidHostFunc func(ctx context.Context, hostID uint) (users []*fleet.User, activities []fleet.ActivityDetails, err error)
 
 type NewMDMAndroidConfigProfileFunc func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error)
 
@@ -9343,11 +9343,11 @@ func (s *DataStore) MarkAllPendingAndroidVPPInstallsAsFailed(ctx context.Context
 	return s.MarkAllPendingAndroidVPPInstallsAsFailedFunc(ctx)
 }
 
-func (s *DataStore) MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx context.Context, tx sqlx.ExtContext, hostID uint) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
+func (s *DataStore) MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx context.Context, hostID uint) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
 	s.mu.Lock()
 	s.MarkAllPendingVPPInstallsAsFailedForAndroidHostFuncInvoked = true
 	s.mu.Unlock()
-	return s.MarkAllPendingVPPInstallsAsFailedForAndroidHostFunc(ctx, tx, hostID)
+	return s.MarkAllPendingVPPInstallsAsFailedForAndroidHostFunc(ctx, hostID)
 }
 
 func (s *DataStore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
