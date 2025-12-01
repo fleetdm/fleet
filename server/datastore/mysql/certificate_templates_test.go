@@ -1009,6 +1009,42 @@ func testGetMDMProfileSummaryFromHostCertificateTemplates(t *testing.T, ds *Data
 				require.Equal(t, uint(1), result.Pending)
 			},
 		},
+		{
+			"multiple hosts with same status",
+			func(t *testing.T, ds *Datastore) {
+				h3 := test.NewHost(t, ds, "host_3", "127.0.0.3", "3", "3", time.Now())
+				h4 := test.NewHost(t, ds, "host_4", "127.0.0.4", "4", "4", time.Now())
+
+				h3.TeamID = &team1.ID
+				err := ds.UpdateHost(ctx, h3)
+				require.NoError(t, err)
+
+				h4.TeamID = &team1.ID
+				err = ds.UpdateHost(ctx, h4)
+				require.NoError(t, err)
+
+				_, err = ds.writer(ctx).ExecContext(ctx,
+					"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
+					h3.UUID, ct1.ID, "test-challenge-3", fleet.OSSettingsPending,
+				)
+				require.NoError(t, err)
+
+				_, err = ds.writer(ctx).ExecContext(ctx,
+					"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
+					h4.UUID, ct1.ID, "test-challenge-4", fleet.OSSettingsPending,
+				)
+				require.NoError(t, err)
+
+				result, err := ds.GetMDMProfileSummaryFromHostCertificateTemplates(ctx, &team1.ID)
+
+				require.NoError(t, err)
+				require.NotNil(t, result)
+
+				require.Equal(t, uint(0), result.Failed)
+				require.Equal(t, uint(1), result.Verified)
+				require.Equal(t, uint(3), result.Pending)
+			},
+		},
 	}
 
 	for _, tc := range testCases {

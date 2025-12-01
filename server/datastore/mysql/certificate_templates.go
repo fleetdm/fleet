@@ -233,7 +233,7 @@ SELECT
 FROM host_certificate_templates hct
 INNER JOIN certificate_templates ct ON hct.certificate_template_id = ct.id
 WHERE ct.team_id = ?
-GROUP BY 1`
+GROUP BY hct.status`
 		args = append(args, *teamID)
 	} else {
 		stmt = `
@@ -241,7 +241,7 @@ SELECT
 	hct.status AS status,
 	COUNT(DISTINCT hct.host_uuid) AS n
 FROM host_certificate_templates hct
-GROUP BY 1`
+GROUP BY hct.status`
 	}
 
 	var dest []struct {
