@@ -1,6 +1,8 @@
 import java.io.FileInputStream
 import java.util.Properties
 
+// ==================== PLUGINS ====================
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -10,6 +12,8 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization") version "2.2.20"
     id("jacoco")
 }
+
+// ==================== ANDROID CONFIG ====================
 
 android {
     namespace = "com.fleetdm.agent"
@@ -133,6 +137,8 @@ android {
     }
 }
 
+// ==================== KOTLIN & JAVA TOOLCHAIN ====================
+
 kotlin {
     jvmToolchain(17)
     compilerOptions {
@@ -146,22 +152,67 @@ java {
     }
 }
 
+// ==================== CODE QUALITY ====================
+
 detekt {
     buildUponDefaultConfig = true
     allRules = false
     config.setFrom("$projectDir/detekt.yml")
 }
 
-jacoco {
-    toolVersion = "0.8.14"
-}
-
-apply(from = "gradle/jacoco.gradle.kts")
-
 // Don't run Detekt automatically in local builds, only in CI
 tasks.named("check") {
     setDependsOn(dependsOn.filterNot { it.toString().contains("detekt") })
 }
+
+// ==================== JACOCO COVERAGE ====================
+
+jacoco {
+    toolVersion = "0.8.14"
+}
+
+tasks.register<JacocoReport>("jacocoTestReport") {
+    dependsOn("testDebugUnitTest")
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+
+    val fileFilter = listOf(
+        "**/R.class",
+        "**/R\$*.class",
+        "**/BuildConfig.*",
+        "**/Manifest*.*",
+        "**/*Test*.*",
+        "android/**/*.*",
+        "**/compose/**/*.*",
+    )
+
+    val debugTree = fileTree("${layout.buildDirectory.get()}/tmp/kotlin-classes/debug") {
+        exclude(fileFilter)
+    }
+
+    val mainSrc = listOf(
+        "${project.projectDir}/src/main/java",
+        "${project.projectDir}/src/main/kotlin",
+    )
+
+    sourceDirectories.setFrom(files(mainSrc))
+    classDirectories.setFrom(files(debugTree))
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include(
+                // Unit test coverage
+                "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec",
+                // Instrumented test coverage
+                "outputs/code_coverage/debugAndroidTest/connected/**/*.ec",
+            )
+        },
+    )
+}
+
+// ==================== SPOTLESS FORMATTING ====================
 
 spotless {
     kotlin {
@@ -174,6 +225,8 @@ spotless {
         ktlint()
     }
 }
+
+// ==================== DEPENDENCIES ====================
 
 dependencies {
     // AndroidX and Compose
