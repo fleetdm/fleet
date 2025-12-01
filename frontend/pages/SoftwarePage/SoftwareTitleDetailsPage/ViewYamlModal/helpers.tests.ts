@@ -169,6 +169,29 @@ describe("createPackageYaml", () => {
     expect(yaml).not.toContain("uninstall_script");
     expect(yaml).not.toContain("pre_install_query");
   });
+
+  it("generates icon url and display name", () => {
+    const yaml = createPackageYaml({
+      softwareTitle: "Falcon Sensor Test Package",
+      packageName: name,
+      iconUrl: "falcon",
+      displayName: "Falcon",
+      version,
+      url: undefined,
+      sha256,
+      preInstallQuery: undefined,
+      installScript: undefined,
+      postInstallScript: undefined,
+      uninstallScript: undefined,
+    });
+
+    expect(yaml)
+      .toBe(`# Falcon Sensor Test Package (TestPackage-1.2.3.pkg) version 1.2.3
+- hash_sha256: abcd1234
+  display_name: Falcon
+  icon:
+    path: ./icons/falcon-sensor-test-package-icon.png`);
+  });
 });
 
 describe("renderYamlHelperText", () => {
