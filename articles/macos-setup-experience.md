@@ -18,7 +18,7 @@ Here's what you can configure, and in what order each happen, to your macOS host
 
 6. [Run a script](#run-script).
 
-7. Customize the [macOS Setup Assistant](#macos-setup-assistant) by choosing to show or hide specific panes.
+7. Customize the [Setup Assistant](#setup-assistant) by choosing to show or hide specific panes.
 
 In addition to the customization above, Fleet automatically installs the fleetd agent during out-of-the-box macOS setup. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
 
@@ -141,8 +141,6 @@ To sign the package we need a valid Developer ID Installer certificate:
 
 ## Software and script
 
-> As of Fleet 4.59.0, there is a known bug in which, if [GitOps](https://fleetdm.com/docs/configuration/yaml-files) runs while a new Mac is going through Setup Assistant, the script will not run. Follow the [GitHub issue](https://github.com/fleetdm/fleet/issues/35309) to learn more.
-
 You can configure software installations and a script to be executed during Setup Assistant. This capability allows you to configure your end users' machines during the unboxing experience, speeding up their onboarding and reducing setup time.
 
 If you configure software and/or a script for setup experience, users will see a window like this pop open after their device enrolls in MDM via ADE:
@@ -210,17 +208,17 @@ The Fleet setup experience for macOS will exit if any of the following occurs:
 * The user presses Command (⌘) + Shift + X at any time during the setup process.
 
 
-## macOS Setup Assistant
+## Setup Assistant
 
-When an end user unboxes their new Mac, or starts up a freshly wiped Mac, they're presented with the macOS Setup Assistant. Here they see panes that allow them to configure accessibility, appearance, and more.
+When an end user unboxes their new Apple device, or starts up a freshly wiped device, they're presented with the Setup Assistant. Here they see panes that allow them to configure accessibility, appearance, and more.
 
-In Fleet, you can customize the macOS Setup Assistant by using an automatic enrollment profile. Fleet uses [these options](https://github.com/fleetdm/fleet/blob/cf6343cbd4d02ce92df13339aca78cba2f5b43ff/server/mdm/apple/apple_mdm.go#L96-L126) by default. See all options in the [Apple docs](https://developer.apple.com/documentation/devicemanagement/profile).
+In Fleet, you can customize the Setup Assistant by using an automatic enrollment profile. Fleet uses [these options](https://github.com/fleetdm/fleet/blob/cf6343cbd4d02ce92df13339aca78cba2f5b43ff/server/mdm/apple/apple_mdm.go#L96-L126) by default. See all options in the [Apple docs](https://developer.apple.com/documentation/devicemanagement/profile).
 
-To customize the macOS Setup Assistant, we will do the following steps:
+To customize the Setup Assistant, we will do the following steps:
 
 1. Create an automatic enrollment profile
 2. Upload the profile to Fleet
-3. Test the custom macOS Setup Assistant
+3. Test the custom Setup Assistant
 
 > [Automatic enrollment profile delivery can take up to ten minutes](https://github.com/fleetdm/fleet/issues/27854#issuecomment-2811275551).
 
@@ -230,25 +228,25 @@ To customize the macOS Setup Assistant, we will do the following steps:
 
 2. Open the automatic enrollment profile and replace the `profile_name` key with your organization's name.
 
-3. View the list of macOS Setup Assistant properties (panes) [here in Apple's Device Management documentation](https://developer.apple.com/documentation/devicemanagement/skipkeys) and choose which panes to hide from your end users.
+3. View the list of Setup Assistant properties (panes) [here in Apple's Device Management documentation](https://developer.apple.com/documentation/devicemanagement/skipkeys) and choose which panes to hide from your end users.
 
 4. In your automatic enrollment profile, edit the `skip_setup_items` array so that it includes the panes you want to hide.
 
   > You can modify properties other than `skip_setup_items`. See [Apple's profile documentation](https://developer.apple.com/documentation/devicemanagement/profile) for valid fields.
     The `await_device_configured` option is always set to `true` to allow Fleet to take actions like running scripts and installing software packages during the enrollment process.
-    If you'd like to release devices manually, you can check the "Release device manually" option in Setup experience > Setup assistant > Show advanced options.
+    If you'd like to release devices manually, you can check the "Release device manually" option in Setup experience > Setup Assistant > Show advanced options.
 
 ### Step 2: Upload the profile to Fleet
 
-1. Head to the **Controls > Setup experience > Setup assistant** page.
+1. Head to the **Controls > Setup experience > Setup Assistant** page.
 
 2. Choose which team you want to add the profile to by selecting the desired team in the teams dropdown in the upper left corner.
 
 3. Select **Add profile** and choose your profile package.
 
-### Step 3: Test the custom macOS Setup Assistant
+### Step 3: Test the custom Setup Assistant
 
-Testing requires a test Mac that is present in your Apple Business Manager (ABM) account. We will wipe this Mac and use it to test the custom macOS Setup Assistant.
+Testing requires a test Mac that is present in your Apple Business Manager (ABM) account. We will wipe this Mac and use it to test the custom Setup Assistant.
 
 1. Wipe the test Mac by selecting the Apple icon in top left corner of the screen, selecting **System Settings** or **System Preference**, and searching for "Erase all content and settings." Select **Erase All Content and Settings**.
 

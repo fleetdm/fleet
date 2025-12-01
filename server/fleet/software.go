@@ -227,6 +227,26 @@ type SoftwareVersion struct {
 	TitleID uint `db:"title_id" json:"-"`
 }
 
+// SoftwareTitleSummary contains a lightweight subset of the fields of a SoftwareTitle that are
+// useful for processing incoming software
+// TODO - embed this in `SoftwareTitle` to reduce redundancy
+type SoftwareTitleSummary struct {
+	ID uint `json:"id" db:"id"`
+	// Name is the name reported by osquery.
+	Name string `json:"name" db:"name"`
+	// Source is the source reported by osquery.
+	Source string `json:"source" db:"source"`
+	// ExtensionFor is the host software that this software is an extension for
+	ExtensionFor string `json:"extension_for" db:"extension_for"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See
+	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	// BundleIdentifier is used by Apple installers to uniquely identify
+	// the software installed. It's surfaced in software_titles to match
+	// with existing software entries.
+	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+}
+
 // SoftwareTitle represents a title backed by the `software_titles` table.
 type SoftwareTitle struct {
 	ID uint `json:"id" db:"id"`
@@ -377,6 +397,12 @@ type SoftwareTitleListOptions struct {
 	MaximumCVSS         float64 `query:"max_cvss_score,optional"`
 	PackagesOnly        bool    `query:"packages_only,optional"`
 	Platform            string  `query:"platform,optional"`
+
+	// ForSetupExperience is an internal flag set when listing software via the
+	// setup experience endpoint, so that it filters out any software available
+	// for install that is not supported for setup experience. It cannot be set
+	// via the query parameters.
+	ForSetupExperience bool
 }
 
 type HostSoftwareTitleListOptions struct {
@@ -630,22 +656,24 @@ type VPPBatchPayload struct {
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories []string `json:"categories"`
-	IconPath   string   `json:"-"`
-	IconHash   string   `json:"-"`
+	Categories  []string `json:"categories"`
+	DisplayName string   `json:"display_name"`
+	IconPath    string   `json:"-"`
+	IconHash    string   `json:"-"`
 }
 
 type VPPBatchPayloadWithPlatform struct {
-	AppStoreID         string              `json:"app_store_id"`
-	SelfService        bool                `json:"self_service"`
-	Platform           AppleDevicePlatform `json:"platform"`
-	InstallDuringSetup *bool               `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
-	LabelsExcludeAny   []string            `json:"labels_exclude_any"`
-	LabelsIncludeAny   []string            `json:"labels_include_any"`
+	AppStoreID         string                    `json:"app_store_id"`
+	SelfService        bool                      `json:"self_service"`
+	Platform           InstallableDevicePlatform `json:"platform"`
+	InstallDuringSetup *bool                     `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
+	LabelsExcludeAny   []string                  `json:"labels_exclude_any"`
+	LabelsIncludeAny   []string                  `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
 	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
 	CategoryIDs []uint `json:"-"`
+	DisplayName string `json:"display_name"`
 }
 
 type SoftwareCategory struct {

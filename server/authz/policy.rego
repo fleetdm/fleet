@@ -74,9 +74,9 @@ allow {
   action == write
 }
 
-# Global admin, gitops, maintainer, observer_plus and observer can read Okta IdP certificate.
+# Global admin, gitops, maintainer, observer_plus and observer can read Okta IdP assets.
 allow {
-  object.type == "conditional_access_idp_cert"
+  object.type == "conditional_access_idp_assets"
   subject.global_role == [admin, gitops, maintainer, observer_plus, observer][_]
   action == read
 }
@@ -1139,4 +1139,23 @@ allow {
   object.type == "certificate_request"
   subject.global_role == [admin, maintainer][_]
   action == write
+}
+
+##
+# Certificate Templates
+##
+# Global admins, maintainers and gitops can read and write certificate templates.
+allow {
+  object.type == "certificate_template"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == [read, write][_]
+}
+
+# Team admins, maintainers and gitops can read and write certificate templates on their teams.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "certificate_template"
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  action == [read, write][_]
 }

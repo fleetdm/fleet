@@ -158,6 +158,7 @@ func (svc *Service) populatePolicyInstallSoftware(ctx context.Context, p *fleet.
 		p.InstallSoftware = &fleet.PolicySoftwareTitle{
 			SoftwareTitleID: *installerMetadata.TitleID,
 			Name:            installerMetadata.SoftwareTitle,
+			DisplayName:     installerMetadata.DisplayName,
 		}
 		return nil
 	} else if p.VPPAppsTeamsID != nil {
@@ -255,7 +256,7 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	}
 
 	if teamID > 0 {
-		if _, err := svc.ds.TeamWithExtras(ctx, teamID); err != nil {
+		if _, err := svc.ds.TeamLite(ctx, teamID); err != nil { // TODO see if we can use TeamExists here instead
 			return nil, nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 		}
 	}
@@ -326,7 +327,7 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 	}
 
 	if teamID > 0 {
-		if _, err := svc.ds.TeamWithExtras(ctx, teamID); err != nil {
+		if _, err := svc.ds.TeamLite(ctx, teamID); err != nil { // TODO see if we can use TeamExists here instead
 			return 0, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 		}
 	}
@@ -422,7 +423,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	}
 
 	if teamID > 0 {
-		if _, err := svc.ds.TeamWithExtras(ctx, teamID); err != nil {
+		if _, err := svc.ds.TeamLite(ctx, teamID); err != nil { // TODO see if we can use TeamExists here instead
 			return nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 		}
 	}

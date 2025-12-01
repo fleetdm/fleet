@@ -98,10 +98,11 @@ type GitOpsControls struct {
 	MacOSSetup     *fleet.MacOSSetup `json:"macos_setup"`
 	MacOSMigration interface{}       `json:"macos_migration"`
 
-	WindowsUpdates              interface{} `json:"windows_updates"`
-	WindowsSettings             interface{} `json:"windows_settings"`
-	WindowsEnabledAndConfigured interface{} `json:"windows_enabled_and_configured"`
-	WindowsMigrationEnabled     interface{} `json:"windows_migration_enabled"`
+	WindowsUpdates                 interface{} `json:"windows_updates"`
+	WindowsSettings                interface{} `json:"windows_settings"`
+	WindowsEnabledAndConfigured    interface{} `json:"windows_enabled_and_configured"`
+	WindowsMigrationEnabled        interface{} `json:"windows_migration_enabled"`
+	EnableTurnOnWindowsMDMManually interface{} `json:"enable_turn_on_windows_mdm_manually"`
 
 	AndroidEnabledAndConfigured interface{} `json:"android_enabled_and_configured"`
 	AndroidSettings             interface{} `json:"android_settings"`
@@ -762,6 +763,21 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 				}
 			}
 		}
+
+		if androidSettings.Certificates.Valid {
+			for i, cert := range androidSettings.Certificates.Value {
+				if cert.Name == "" {
+					multiError = multierror.Append(multiError, fmt.Errorf("android_settings.certificates[%d]: name is required", i))
+				}
+				if cert.CertificateAuthorityName == "" {
+					multiError = multierror.Append(multiError, fmt.Errorf("android_settings.certificates[%d]: certificate_authority_name is required", i))
+				}
+				if cert.SubjectName == "" {
+					multiError = multierror.Append(multiError, fmt.Errorf("android_settings.certificates[%d]: subject_name is required", i))
+				}
+			}
+		}
+
 		// Since we already unmarshalled and updated the path, we need to update the result struct.
 		result.Controls.AndroidSettings = androidSettings
 	}
@@ -1235,6 +1251,12 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			continue
 		}
 
+		// Validate display_name length (matches database VARCHAR(255))
+		if len(item.DisplayName) > 255 {
+			multiError = multierror.Append(multiError, fmt.Errorf("app_store_id %q display_name is too long (max 255 characters)", item.AppStoreID))
+			continue
+		}
+
 		item = item.ResolvePaths(baseDir)
 
 		result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
@@ -1386,6 +1408,12 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					multiError = multierror.Append(multiError, fmt.Errorf("software URL %s refers to a .tar.gz archive, which requires both install_script and uninstall_script", softwarePackageSpec.URL))
 					continue
 				}
+			}
+
+			// Validate display_name length (matches database VARCHAR(255))
+			if len(softwarePackageSpec.DisplayName) > 255 {
+				multiError = multierror.Append(multiError, fmt.Errorf("software package %q display_name is too long (max 255 characters)", softwarePackageSpec.URL))
+				continue
 			}
 
 			result.Software.Packages = append(result.Software.Packages, softwarePackageSpec)

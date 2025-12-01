@@ -373,10 +373,26 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		return nil, &notFoundError{}
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		for _, tm := range savedTeams {
 			if (*tm).ID == tid {
 				return *tm, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		for _, tm := range savedTeams {
+			if (*tm).ID == tid {
+				teamToCopy := *tm
+				return &fleet.TeamLite{
+					ID:          teamToCopy.ID,
+					Filename:    teamToCopy.Filename,
+					CreatedAt:   teamToCopy.CreatedAt,
+					Name:        teamToCopy.Name,
+					Description: teamToCopy.Description,
+					Config:      teamToCopy.Config.ToLite(),
+				}, nil
 			}
 		}
 		return nil, &notFoundError{}
@@ -466,6 +482,14 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 		return nil
+	}
+
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
+
+	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+		return nil, nil
 	}
 
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)

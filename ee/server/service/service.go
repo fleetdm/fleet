@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/sso"
@@ -34,6 +35,7 @@ type Service struct {
 	keyValueStore          fleet.KeyValueStore
 	scepConfigService      fleet.SCEPConfigService
 	digiCertService        fleet.DigiCertService
+	androidModule          android.Service
 	estService             fleet.ESTService
 }
 
@@ -55,6 +57,7 @@ func NewService(
 	keyValueStore fleet.KeyValueStore,
 	scepConfigService fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
+	androidService android.Service,
 	estService fleet.ESTService,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
@@ -81,6 +84,7 @@ func NewService(
 		keyValueStore:          keyValueStore,
 		scepConfigService:      scepConfigService,
 		digiCertService:        digiCertService,
+		androidModule:          androidService,
 		estService:             estService,
 	}
 

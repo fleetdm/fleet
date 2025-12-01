@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -26,8 +27,8 @@ func createAndroidService(t *testing.T) (android.Service, *AndroidMockDS) {
 	androidAPIClient.InitCommonMocks()
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	mockDS := InitCommonDSMocks()
-	fleetSvc := mockService{}
-	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, &fleetSvc, "test-private-key", &mockDS.DataStore)
+	activityModule := activities.NewActivityModule(mockDS, logger)
+	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, "test-private-key", &mockDS.DataStore, activityModule)
 	require.NoError(t, err)
 
 	return svc, mockDS
@@ -142,7 +143,7 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 
 			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
-				return nil, nil // We do not care about return value here
+				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 			}
 
 			enrollmentToken := enrollmentTokenRequest{
@@ -171,7 +172,7 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 
 			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
-				return nil, nil // We do not care about return value here
+				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 			}
 			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
 				return nil

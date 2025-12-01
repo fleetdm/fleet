@@ -248,6 +248,7 @@
       "webhook_url": "https://some-macos-migration-webhook-url.com"
     },
     "windows_migration_enabled": true,
+    "enable_turn_on_windows_mdm_manually": false,
     "end_user_authentication": {
       "entity_id": "some-mdm-entity-id.com",
       "issuer_uri": "https://some-mdm-issuer-uri.com",

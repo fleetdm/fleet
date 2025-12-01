@@ -1,0 +1,12 @@
+{
+  "name": "Google Drive",
+  "slug": "google-drive/windows",
+  "package_identifier": "Google.GoogleDrive",
+  "unique_identifier": "Google Drive",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/google_drive_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/google_drive_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

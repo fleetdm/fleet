@@ -61,7 +61,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
    - Add a link to the issue in the PR description.
    - Attach the `~api-or-yaml-design` label. (This helps the [API design DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) prioritize API/YAML PR review.)
    - Mark the PR ready for review. (Draft PRs do not auto-request reviews.)
-   - After your changes are approved by the API design DRI, they will merge your changes into the docs release branch.
+   - After your changes are approved by the API design DRI, they will merge your changes into the docs release branch. Changes to the activity feed (audit logs) are closed instead of merged because the [audit-logs.md file is auto-generated](https://fleetdm.com/handbook/company/communications#audit-logs).
 
 5. Add links to the user story as specified in the [issue template](https://github.com/fleetdm/fleet/issues/new?template=story.md).
 
@@ -74,7 +74,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 Additionally:
 
-- To make changes to the design system or a component (e.g. button border-radius or modal width), [make a new request](#making-a-request) and attach the `:improve design system` label.
+- To make changes to the design system or a component (e.g. button border-radius or modal width), [make a new request](https://fleetdm.com/handbook/company/product-groups#making-a-request).
 
 - If the story has a requester and the title and/or description change during drafting (scope change), notify the requester. The customer DRI should confirm that the updated scope still meets the requester's needs.
 

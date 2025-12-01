@@ -663,6 +663,7 @@ func newWorkerIntegrationsSchedule(
 	commander *apple_mdm.MDMAppleCommander,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	vppInstaller fleet.AppleMDMVPPInstaller,
+	androidModule android.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -726,7 +727,12 @@ func newWorkerIntegrationsSchedule(
 		Datastore: ds,
 		Log:       logger,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify)
+	softwareWorker := &worker.SoftwareWorker{
+		Datastore:     ds,
+		Log:           logger,
+		AndroidModule: androidModule,
+	}
+	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify, softwareWorker)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -839,6 +845,7 @@ func newCleanupsAndAggregationSchedule(
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
+	androidSvc android.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -1059,6 +1066,9 @@ func newCleanupsAndAggregationSchedule(
 				level.Info(logger).Log("msg", "revoked old conditional access certificates", "count", count)
 			}
 			return nil
+		}),
+		schedule.WithJob("cleanup_android_enterprise", func(ctx context.Context) error {
+			return androidSvc.VerifyExistingEnterpriseIfAny(ctx)
 		}),
 	)
 
@@ -1879,6 +1889,32 @@ func cronEnableAndroidAppReportsOnDefaultPolicy(
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob(name, func(ctx context.Context) error {
 			return androidSvc.EnableAppReportsOnDefaultPolicy(ctx)
+		}),
+	)
+	return s, nil
+}
+
+func cronMigrateToPerHostPolicy(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	androidSvc android.Service,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMigrateToPerHostPolicy)
+		defaultInterval = 24 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+	logger = kitlog.With(logger, "cron", name, "component", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithRunOnce(true),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return androidSvc.MigrateToPerDevicePolicy(ctx)
 		}),
 	)
 	return s, nil

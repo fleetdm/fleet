@@ -3472,7 +3472,7 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	host0 := test.NewHost(t, ds, "host0", "", "host0key", "host0uuid", time.Now())
 
-	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallerFile:    tfr1,
 		Extension:        "msi",
 		StorageID:        "storageid",
@@ -3505,7 +3505,7 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	assert.Empty(t, title.DisplayName)
 
 	err = ds.SaveInstallerUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
-		DisplayName:       "update1",
+		DisplayName:       ptr.String("update1"),
 		TitleID:           titleID,
 		InstallerFile:     &fleet.TempFileReader{},
 		InstallScript:     new(string),
@@ -3573,7 +3573,7 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 
 	// Update the display name again, should see the change
 	err = ds.SaveInstallerUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
-		DisplayName:       "update2",
+		DisplayName:       ptr.String("update2"),
 		TitleID:           titleID,
 		InstallerFile:     &fleet.TempFileReader{},
 		InstallScript:     new(string),
@@ -3623,6 +3623,7 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 		PostInstallScript: new(string),
 		SelfService:       ptr.Bool(false),
 		UninstallScript:   new(string),
+		DisplayName:       ptr.String(""),
 	})
 	require.NoError(t, err)
 
@@ -3655,6 +3656,13 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, titleID, *software.TitleID)
 	assert.Empty(t, software.DisplayName)
+
+	// Delete software installer, display name should be deleted
+	_, err = ds.DeleteTeamPolicies(ctx, 0, []uint{1})
+	require.NoError(t, err)
+	require.NoError(t, ds.DeleteSoftwareInstaller(ctx, installerID))
+	_, err = ds.getSoftwareTitleDisplayName(ctx, 0, titleID)
+	require.ErrorContains(t, err, "not found")
 }
 
 func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore) {

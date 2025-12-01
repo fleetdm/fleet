@@ -112,6 +112,9 @@ const generateTableHeaders = (
           cellProps.row.original,
           teamId
         );
+        const isAndroidPlayStoreApp =
+          !!cellProps.row.original.app_store_app &&
+          cellProps.row.original.source === "android_apps";
 
         return (
           <SoftwareNameCell
@@ -126,6 +129,7 @@ const generateTableHeaders = (
             automaticInstallPoliciesCount={
               nameCellData.automaticInstallPoliciesCount
             }
+            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );
       },

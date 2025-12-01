@@ -296,6 +296,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_enabled_and_configured not found")
 				_, ok = gitops.Controls.WindowsMigrationEnabled.(bool)
 				assert.True(t, ok, "windows_migration_enabled not found")
+				_, ok = gitops.Controls.EnableTurnOnWindowsMDMManually.(bool)
+				assert.True(t, ok, "enable_turn_on_windows_mdm_manually not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
 				assert.Equal(t, "fleet_secret", gitops.FleetSecrets["FLEET_SECRET_FLEET_SECRET_"])
@@ -1385,6 +1387,65 @@ func TestInvalidSoftwareInstallerHash(t *testing.T) {
 	}
 	_, err := GitOpsFromFile("testdata/team_config_invalid_sha.yml", "./testdata", appConfig, nopLogf)
 	assert.ErrorContains(t, err, "must be a valid lower-case hex-encoded (64-character) SHA-256 hash value")
+}
+
+func TestSoftwareDisplayNameValidation(t *testing.T) {
+	t.Parallel()
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+
+	// Create a string with 256 'a' characters (exceeds 255 limit)
+	longDisplayName := strings.Repeat("a", 256)
+
+	t.Run("package_display_name_too_long", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "software"})
+		// Use hash instead of URL to avoid script validation before display_name validation
+		config += `name: Test Team
+software:
+  packages:
+    - hash_sha256: "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
+      display_name: "` + longDisplayName + `"
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		assert.ErrorContains(t, err, "display_name is too long (max 255 characters)")
+	})
+
+	t.Run("app_store_display_name_too_long", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "software"})
+		config += `name: Test Team
+software:
+  app_store_apps:
+    - app_store_id: "12345"
+      display_name: "` + longDisplayName + `"
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		assert.ErrorContains(t, err, "display_name is too long (max 255 characters)")
+	})
+
+	t.Run("valid_display_name", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "software"})
+		// Use hash instead of URL to avoid network calls, and no scripts required
+		config += `name: Test Team
+software:
+  packages:
+    - hash_sha256: "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
+      display_name: "Custom Package Name"
+  app_store_apps:
+    - app_store_id: "12345"
+      display_name: "Custom VPP App Name"
+`
+		path, basePath := createTempFile(t, "", config)
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		assert.Equal(t, "Custom Package Name", result.Software.Packages[0].DisplayName)
+		require.Len(t, result.Software.AppStoreApps, 1)
+		assert.Equal(t, "Custom VPP App Name", result.Software.AppStoreApps[0].DisplayName)
+	})
 }
 
 func TestWebhookPolicyIDsValidation(t *testing.T) {

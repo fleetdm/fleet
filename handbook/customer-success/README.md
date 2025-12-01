@@ -103,6 +103,28 @@ Sometimes there is a change in the champion within the customer's organization.
 4. Fill out all the required fields making sure to pick "Expansion" in the  "Type" dropdown menu and then click "Save".
 
 
+### Schedule a Fast-track engagement
+
+Fast-track is Fleet's service delivery package for new MDM customers. Check with your team to learn about the options available and the differences between them (virtual vs on site, migration vs no migration). If your customer has a Fast-track engagement, it will be included in their contract. Follow the directions below to get a Fast-track set up and collect the training pre-requisites.
+
+1. When a deal including Fast-track closes, add a TODO on the final page of the partnership kickoff presentation, to confirm the details around their services purchase and to coordinate scheduling. Be sure to make the customer aware that delays in confirming service delivery date can cause the date to move out further.
+2. Prior to the Fast-track kickoff, schedule a Pre-requisite planning meeting with the customer and the assigned CSA to collect the following information:
+- What is the target migration date and when does the previous MDM contract end?
+- Which critical workflows will Fleet be used for?
+  - Onboarding workflow?
+  - Offboarding workflow?
+  - Automated device enrollment (ADE)? Autopilot?
+  - Setup experience?
+  - Self-service software?
+- Which integrations will be required for migration? Which integrations will be required post-migration (no hard timeline)?
+  - IAM?
+  - Log shipping to SIEM?
+  - Zendesk/JIRA?
+  - Others?
+- Gather a list of which policies and profiles need to be replicated or replaced
+3. For managed cloud customers, send a request to the [:help-customers board](https://github.com/orgs/fleetdm/projects/79/views/1?filterQuery=) requesting that an infrastructure engineer double check the configuration variables to ensure they support the size and scale of the upcoming deployment. For self-hosted customers, schedule a dedicated session with the customer and the assigned CSA to review their server configuration and ensure that it supports the size and scale of the upcoming deployment.
+
+
 ### Conduct a health check
 
 Health checks are conducted quarterly or bi-annually, in preparation for a quarterly business review (QBR). The purpose of a health check is to understand what features and functionality the customer is currently using in Fleet. This information will be used to provide guidance to the customer during their QBR. For more information around QBRs, please see the section below, titled "Conduct a quarterly business review".
@@ -125,10 +147,19 @@ Business reviews are conducted quarterly or bi-annually to ensure initial succes
     - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for #g-mdm and #g-endpoint-ops
 3. After the business review, save the presentation as a PDF and share it with your customer.
 
+### Track a customer promise
+
+Customer promises are contractually obligated feature requests, with guaranteed completion in specific timeframes. These are always represented in a signed contract with the customer. The [Customer promises internal spreadsheet](https://docs.google.com/spreadsheets/d/11Z6zDD4UQktc34IZTtRpNmYZMqndjfLDgFP92P4s7cI/edit?gid=0#gid=0) is our current source of truth. It will be maintained and updated by the Customer Success team. Each CSM is responsible for adding in the following when they are assigned a new customer with contractual promises: 
+1. The name of the customer
+2. The feature that was promised
+3. The date that it's due
+4. The current status of that feature
+
+The SVP of Customer Success is the DRI for ensuring customer promise delivery and communicating delays in delivery to the CSM team, in conjunction with the Head of Product Design. Any potential delays in customer promises are addressed with a contract amendment highlighting the updated delivery timeline and is to be signed by the customer via DocuSign, or via an email highlighting the updated delivery time which requires a written response from the customer acknowledging the new timeline. 
 
 ### Close out a completed customer promise
 
-Customer promises are contractually obligated feature requests, with guaranteed completion in specific timeframes. These are always represented in a signed contract with the customer. Document the completion of a customer promise through the following steps:
+Document the completion of a customer promise through the following steps:
 1. When a customer promise is thought to be complete, Fleet's product team will reach out and ask the assigned CSM for confirmation from the customer.
 2. Once notified, reach out to your customer and schedule a meeting to review the work that has been done, and to make sure it meets their requirements.
 3. At the end of the customer promise review meeting, tell your customer that you will be sending over an email going over the discussion and completion of their promise.
@@ -176,6 +207,7 @@ During the window of time available to investigate an issue, use the resources a
   - Escalate to other CSE's or CSA's.
   - Contact the developer on-call.
 
+Note: For non-CSA engaged customer requests, CSE's are responsible for escalations to a CSA as needed. 
 
 ### Contact the developer on-call
 
@@ -184,6 +216,14 @@ The acting developer on-call rotation is reflected in the [📈KPIs spreadsheet 
   - Support issues should be handled in the relevant Slack channel rather than Direct Messages (DMs). This will ensure that questions and solutions can be easily referenced in the future. If it is necessary to use DMs to share sensitive information, a summary of the conversation should be posted in the Slack channel as well. 
 
 - An automated weekly [on-call handoff](https://fleetdm.com/handbook/engineering#handoff) Slack thread in #g-engineering provides the opportunity to discuss highlights, improvements, and hand off ongoing issues.
+
+### Contact the infrastructure engineer on-call
+
+The acting infrastructure engineer on-call rotation is reflected in the [📈KPIs spreadsheet (confidential Google sheet)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0&range=F2 ). The individual on-call is responsible for responding to infrastructure-related Slack comments, Slack threads, and GitHub issues raised by customers and the community that the CSE team cannot address. These may be related to self-hosted or Fleet Managed cloud bugs or performance issues, which are suspected to be infrastructure-related. 
+- To reach the infrastructure engineer on-call for assistance, a CSE or developer should mention them in Slack using `@infrastructure-oncall` in the [#help-infrastructure](https://fleetdm.slack.com/archives/C051QJU3D0V) channel or in the customer channel where the original request lives. 
+  - Support issues must be handled in the relevant customer or internal Slack channel rather than Direct Messages (DMs). This will ensure that questions and solutions can be easily referenced in the future and help the infrastructure engineering team focused on their planned work.
+  - A CSE or CSA must always triage and process suspected infrastructure issues before tagging in the infrastructure engineer on-call.
+  - If your request for infrastructure is not urgent and/or not related to a suspected bug or performance issue impacting a customer, please create an issue on the [#help-customers kanban board](https://github.com/orgs/fleetdm/projects/79/views/1?filterQuery=) and @ mention the SVP of Customer Success to request prioritization. 
 
 
 ### Onboard a customer success team member
@@ -219,20 +259,20 @@ The acting developer on-call rotation is reflected in the [📈KPIs spreadsheet 
 
 ### Respond to messages and alerts 
 
-Customer Support and 24/7 on-call Engineers are responsible for the first response to Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, and other public Slacks. 
-- The 24/7 on-call is responsible for alarms related to fleetdm.com and Fleet Managed Cloud, as well as delivering 24/7 support for Fleet Premium customers. Use [on-call runbooks](https://github.com/fleetdm/confidential/tree/main/infrastructure/runbooks#readme) to guide your response. Runbooks provided detailed, step-by-step instructions to quickly and effectively respond to and resolve most 24/7 on-call alerts.
-- We respond within 1-hour during business hours and 4 hours outside business hours. Note that we do not need to have answers within 1 hour -- we need to at least acknowledge and collect any additional necessary information while researching/escalating to find answers internally.
+Customer Support Engineers (CSEs) are responsible for the first response to Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, MacAdmins Slack and dedicated customer Slack channels. 
+- The 24/7 infrastructure on-call engineer is responsible for alarms related to fleetdm.com and Fleet Managed Cloud, as well as delivering 24/7 support for Fleet Premium customers when tagged in for assistance. Use [on-call runbooks](https://github.com/fleetdm/confidential/tree/main/infrastructure/runbooks#readme) to guide your response. Runbooks provide detailed, step-by-step instructions to quickly and effectively respond to and resolve most 24/7 on-call alerts.
+- We respond within 1-hour or less during business hours and 4 hours outside business hours. Note that we do not need to have answers within 1 hour -- we need to at least acknowledge and collect any additional necessary information while researching/escalating to find answers internally.
 
 
 ### Maintain first responder SLA
 
 The first responder on-call for Managed Cloud will take ownership of the @infrastructure-oncall alias in Slack first thing Monday morning. The previous week's on-call will provide a summary in the #help-customers Slack channel with an update on alarms that came up the week before, open issues with or without direct end-user impact, and other issues to keep an eye out for.
-- **First responders:** Robert Fairburn, Kathy Satterlee
+- **First responders:** Robert Fairburn, Jorge Falcon
 
 Escalation of alarms will be done manually by the first responder according to the escalation contacts mentioned above. A [suspected outage issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23outage%2C%23g-cx%2C%3Arelease&projects=&template=outage.md&title=Suspected+outage%3A+YYYY-MM-DD) should be created to track the escalation and determine root cause. 
 - **Escalations (in order):** » Eric Shaw (fleetdm.com) » Zay Hanlon » Luke Heath » Mike McNeil
 
-All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. When the current 24/7 on-call engineer is unable to meet the response time SLAs, it is their responsibility to arrange and designate a replacement who will assume the @oncall-infrastructure Slack alias.
+All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. When the current 24/7 on-call engineer is unable to meet the response time SLAs, it is their responsibility to arrange and designate a replacement who will assume the @infrastructure-oncall Slack alias.
 
 
 ### Communicate feedback on prioritized customer requests
