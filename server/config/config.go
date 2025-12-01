@@ -551,6 +551,7 @@ type NatsConfig struct {
 	TLSClientCrtFile string        `json:"tls_client_crt_file" yaml:"tls_client_crt_file"`
 	TLSClientKeyFile string        `json:"tls_client_key_file" yaml:"tls_client_key_file"`
 	CACrtFile        string        `json:"ca_crt_file" yaml:"ca_crt_file"`
+	Compression      string        `json:"compression" yaml:"compression"`
 	JetStream        bool          `json:"jetstream" yaml:"jetstream"`
 	Timeout          time.Duration `json:"timeout" yaml:"timeout"`
 }
@@ -1409,6 +1410,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("nats.tls_client_crt_file", "", "NATS TLS client certificate file")
 	man.addConfigString("nats.tls_client_key_file", "", "NATS TLS client key file")
 	man.addConfigString("nats.ca_crt_file", "", "NATS CA certificate file")
+	man.addConfigString("nats.compression", "", "NATS compression algorithm (gzip, snappy, zstd)")
 	man.addConfigBool("nats.jetstream", false, "NATS JetStream publish")
 	man.addConfigDuration("nats.timeout", 30*time.Second, "NATS timeout")
 
@@ -1747,6 +1749,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			TLSClientCrtFile: man.getConfigString("nats.tls_client_crt_file"),
 			TLSClientKeyFile: man.getConfigString("nats.tls_client_key_file"),
 			CACrtFile:        man.getConfigString("nats.ca_crt_file"),
+			Compression:      man.getConfigString("nats.compression"),
 			JetStream:        man.getConfigBool("nats.jetstream"),
 			Timeout:          man.getConfigDuration("nats.timeout"),
 		},

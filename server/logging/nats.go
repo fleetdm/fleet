@@ -2,6 +2,8 @@
 package logging
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -17,6 +19,8 @@ import (
 	"github.com/expr-lang/expr/vm"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/golang/snappy"
+	"github.com/klauspost/compress/zstd"
 	"github.com/nats-io/nats.go"
 	"github.com/valyala/fastjson"
 	"github.com/valyala/fasttemplate"
@@ -28,7 +32,7 @@ type natsPublisher interface {
 	Flush(context.Context) error
 
 	// Publish sends the log message to the NATS server.
-	Publish(context.Context, string, json.RawMessage) error
+	Publish(context.Context, *nats.Msg) error
 }
 
 // natsRouter determines the NATS subject for a log.
@@ -40,6 +44,9 @@ type natsRouter interface {
 type natsLogWriter struct {
 	// The NATS connection.
 	client *nats.Conn
+
+	// The optional compression algorithm to use.
+	compression string
 
 	// Whether to use JetStream.
 	jetstream bool
@@ -57,11 +64,18 @@ const (
 	natsSubjectTagStop  = "}"
 )
 
+// Define the supported compression algorithms.
+var compressionOk = map[string]bool{
+	"gzip":   true,
+	"snappy": true,
+	"zstd":   true,
+}
+
 // NewNatsLogWriter creates a new NATS log writer.
-func NewNatsLogWriter(server, subject, credFile, nkeyFile, tlsClientCrtFile, tlsClientKeyFile, tlsCACrtFile string, jetstream bool, timeout time.Duration, logger log.Logger) (*natsLogWriter, error) {
-	// Ensure the NATS server URL is set.
+func NewNatsLogWriter(server, subject, credFile, nkeyFile, tlsClientCrtFile, tlsClientKeyFile, tlsCACrtFile, compression string, jetstream bool, timeout time.Duration, logger log.Logger) (*natsLogWriter, error) {
+	// Ensure the NATS server is set.
 	if server == "" {
-		return nil, errors.New("nats server URL missing")
+		return nil, errors.New("nats server missing")
 	}
 
 	// Ensure the NATS subject is set.
@@ -72,6 +86,11 @@ func NewNatsLogWriter(server, subject, credFile, nkeyFile, tlsClientCrtFile, tls
 	// Ensure credentials file and NKey file are not used together.
 	if credFile != "" && nkeyFile != "" {
 		return nil, errors.New("nats credentials and nkey files cannot be used together")
+	}
+
+	// Validate the compression algorithm if specified.
+	if compression != "" && !compressionOk[compression] {
+		return nil, fmt.Errorf("unsupported compression algorithm: %s", compression)
 	}
 
 	// Create the NATS connection options.
@@ -141,7 +160,7 @@ func NewNatsLogWriter(server, subject, credFile, nkeyFile, tlsClientCrtFile, tls
 
 	var router natsRouter
 
-	// If the subject contains template tags, use a template router instead.
+	// Determine the router to use based on the subject.
 	if strings.Contains(subject, natsSubjectTagStart) && strings.Contains(subject, natsSubjectTagStop) {
 		router, err = newNatsTemplateRouter(subject)
 	} else {
@@ -154,11 +173,55 @@ func NewNatsLogWriter(server, subject, credFile, nkeyFile, tlsClientCrtFile, tls
 
 	// Return the NATS log writer.
 	return &natsLogWriter{
-		client:    client,
-		jetstream: jetstream,
-		router:    router,
-		timeout:   timeout,
+		client:      client,
+		compression: compression,
+		jetstream:   jetstream,
+		router:      router,
+		timeout:     timeout,
 	}, nil
+}
+
+// compress compresses the data using the configured algorithm.
+func (w *natsLogWriter) compress(data []byte) ([]byte, error) {
+	var buf bytes.Buffer
+
+	switch w.compression {
+	case "gzip":
+		gw := gzip.NewWriter(&buf)
+
+		if _, err := gw.Write(data); err != nil {
+			return nil, err
+		}
+
+		if err := gw.Close(); err != nil {
+			return nil, err
+		}
+
+	case "snappy":
+		// Use raw snappy encoding (not framed).
+		data = snappy.Encode(nil, data)
+
+		return data, nil
+
+	case "zstd":
+		zw, err := zstd.NewWriter(&buf)
+		if err != nil {
+			return nil, err
+		}
+
+		if _, err := zw.Write(data); err != nil {
+			return nil, err
+		}
+
+		if err := zw.Close(); err != nil {
+			return nil, err
+		}
+
+	default:
+		return nil, fmt.Errorf("unsupported compression algorithm: %s", w.compression)
+	}
+
+	return buf.Bytes(), nil
 }
 
 // Write publishes the logs to the NATS server.
@@ -182,14 +245,37 @@ func (w *natsLogWriter) Write(ctx context.Context, logs []json.RawMessage) error
 
 	defer cancel()
 
-	// Process each log in the batch, routing it to the appropriate subject.
+	// Process each log, routing it to the appropriate subject.
 	for _, log := range logs {
 		sub, err := w.router.Route(log)
 		if err != nil {
 			return fmt.Errorf("failed to route log: %w", err)
 		}
 
-		if err := pub.Publish(ctx, sub, log); err != nil {
+		// Create the message header.
+		header := make(nats.Header)
+		header.Set("Content-Type", "application/json")
+
+		// If compression is enabled, compress the log and update the header.
+		if w.compression != "" {
+			log, err = w.compress(log)
+			if err != nil {
+				return fmt.Errorf("failed to compress log: %w", err)
+			}
+
+			// Set the compression header to indicate the algorithm used.
+			header.Set("Content-Encoding", w.compression)
+		}
+
+		// Create the message.
+		msg := &nats.Msg{
+			Data:    log,
+			Header:  header,
+			Subject: sub,
+		}
+
+		// Publish the message.
+		if err := pub.Publish(ctx, msg); err != nil {
 			return fmt.Errorf("failed to publish log: %w", err)
 		}
 	}
@@ -213,9 +299,9 @@ func (p *natsClientPublisher) Flush(ctx context.Context) error {
 	return p.nc.FlushWithContext(ctx)
 }
 
-// Publish publishes the log to the specified subject.
-func (p *natsClientPublisher) Publish(ctx context.Context, sub string, log json.RawMessage) error {
-	return p.nc.Publish(sub, log)
+// Publish publishes the message to the NATS server.
+func (p *natsClientPublisher) Publish(ctx context.Context, msg *nats.Msg) error {
+	return p.nc.PublishMsg(msg)
 }
 
 // natsStreamPublisher represents a JetStream publisher.
@@ -244,9 +330,9 @@ func (p *natsStreamPublisher) Flush(ctx context.Context) error {
 	}
 }
 
-// Publish publishes the log to the specified subject using the JetStream API.
-func (p *natsStreamPublisher) Publish(ctx context.Context, sub string, log json.RawMessage) error {
-	_, err := p.js.PublishAsync(sub, log)
+// Publish publishes the message to the NATS server using the JetStream API.
+func (p *natsStreamPublisher) Publish(ctx context.Context, msg *nats.Msg) error {
+	_, err := p.js.PublishMsgAsync(msg)
 
 	return err
 }
@@ -271,8 +357,8 @@ type natsTemplateEnv struct {
 	Log *fastjson.Value `expr:"log"`
 }
 
-// natsTemplateGet gets the value of a field from a fastjson value. If it is a
-// terminal type, it returns the string representation. Otherwise, it returns
+// natsTemplateGet returns the value of a field from a fastjson value. If it is
+// a terminal type, it returns the string representation. Otherwise, it returns
 // the fastjson value.
 func natsTemplateGet(val *fastjson.Value, path string) any {
 	v := val.Get(path)
@@ -298,7 +384,7 @@ func natsTemplateGet(val *fastjson.Value, path string) any {
 }
 
 // natsTemplatePatcher patches the expression's AST so it uses natsTemplateGet
-// to get the value of a field from the log.
+// to get the value of a field from the log payload.
 type natsTemplatePatcher struct{}
 
 // Visit is called by the expression compiler to patch the AST.
@@ -391,7 +477,7 @@ func (r *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
 			return io.WriteString(w, s)
 		}
 
-		// Non-string type returned.
+		// A non-string value was returned.
 		return 0, fmt.Errorf("expected string, got %T: %v", r, r)
 	}
 

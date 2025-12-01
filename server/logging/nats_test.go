@@ -2,13 +2,18 @@
 package logging
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/go-kit/log"
+	"github.com/golang/snappy"
+	"github.com/klauspost/compress/zstd"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -169,6 +174,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"",
 			"",
 			"",
+			"",
 			false,
 			natsTestTimeout,
 			log.NewNopLogger(),
@@ -205,6 +211,7 @@ func TestNatsLogWriter(t *testing.T) {
 		writer, err := NewNatsLogWriter(
 			ns.ClientURL(),
 			natsTestDirectSubject+".invalid.{log.name}",
+			"",
 			"",
 			"",
 			"",
@@ -265,6 +272,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"",
 			"",
 			"",
+			"",
 			true,
 			natsTestTimeout,
 			log.NewNopLogger(),
@@ -318,6 +326,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"",
 			"",
 			"",
+			"",
 			true,
 			natsTestTimeout,
 			log.NewNopLogger(),
@@ -345,5 +354,403 @@ func TestNatsLogWriter(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Equal(t, uint64(0), info.State.Msgs)
+	})
+
+	t.Run("DirectGzipCompression", func(t *testing.T) {
+		// Create a wait group to track outstanding logs.
+		var wg sync.WaitGroup
+
+		exp := makeNatsLogs(t)
+		act := []json.RawMessage{}
+
+		// Add the number of expected logs to the wait group.
+		wg.Add(len(exp))
+
+		// Subscribe to the NATS subject.
+		_, err := nc.Subscribe(natsTestDirectSubject+".gzip", func(m *nats.Msg) {
+			// Verify the Content-Encoding header is set.
+			require.Equal(t, "gzip", m.Header.Get("Content-Encoding"))
+
+			// Decompress the message data.
+			gr, err := gzip.NewReader(bytes.NewReader(m.Data))
+
+			require.NoError(t, err)
+
+			decompressed, err := io.ReadAll(gr)
+
+			require.NoError(t, err)
+			require.NoError(t, gr.Close())
+
+			act = append(act, decompressed)
+
+			wg.Done()
+		})
+
+		// Ensure the subscription was created successfully.
+		require.NoError(t, err)
+
+		// Create the NATS log writer with gzip compression enabled.
+		writer, err := NewNatsLogWriter(
+			ns.ClientURL(),
+			natsTestDirectSubject+".gzip",
+			"",
+			"",
+			"",
+			"",
+			"",
+			"gzip",
+			false,
+			natsTestTimeout,
+			log.NewNopLogger(),
+		)
+
+		require.NoError(t, err)
+
+		// Write the expected logs to the NATS log writer, and ensure it
+		// succeeds.
+		require.NoError(t, writer.Write(t.Context(), exp))
+
+		// Wait for all logs to be received.
+		wg.Wait()
+
+		// Ensure the received logs are equal to the expected logs.
+		require.Equal(t, exp, act)
+	})
+
+	t.Run("StreamGzipCompression", func(t *testing.T) {
+		ctx := t.Context()
+
+		// Create the JetStream context.
+		js, err := jetstream.New(nc)
+
+		require.NoError(t, err)
+
+		// Create the in-memory stream.
+		st, err := js.CreateStream(ctx, jetstream.StreamConfig{
+			Name:     natsTestStreamName + "-gzip",
+			Storage:  jetstream.MemoryStorage,
+			Subjects: []string{natsTestStreamSubject + ".gzip"},
+		})
+
+		require.NoError(t, err)
+
+		// Create the NATS log writer with gzip compression enabled.
+		writer, err := NewNatsLogWriter(
+			ns.ClientURL(),
+			natsTestStreamSubject+".gzip",
+			"",
+			"",
+			"",
+			"",
+			"",
+			"gzip",
+			true,
+			natsTestTimeout,
+			log.NewNopLogger(),
+		)
+
+		require.NoError(t, err)
+
+		exp := makeNatsLogs(t)
+		act := []json.RawMessage{}
+
+		// Write the expected logs to the NATS log writer, and ensure it
+		// succeeds.
+		require.NoError(t, writer.Write(ctx, exp))
+
+		// Get the messages from the JetStream stream.
+		for n := range uint64(len(exp)) {
+			msg, err := st.GetMsg(ctx, n+1)
+
+			require.NoError(t, err)
+
+			// Verify the Content-Encoding header is set.
+			require.Equal(t, "gzip", msg.Header.Get("Content-Encoding"))
+
+			// Decompress the message data.
+			gr, err := gzip.NewReader(bytes.NewReader(msg.Data))
+
+			require.NoError(t, err)
+
+			decompressed, err := io.ReadAll(gr)
+
+			require.NoError(t, err)
+			require.NoError(t, gr.Close())
+
+			act = append(act, decompressed)
+		}
+
+		// Ensure the received logs are equal to the expected logs.
+		require.Equal(t, exp, act)
+	})
+
+	t.Run("DirectSnappyCompression", func(t *testing.T) {
+		// Create a wait group to track outstanding logs.
+		var wg sync.WaitGroup
+
+		exp := makeNatsLogs(t)
+		act := []json.RawMessage{}
+
+		// Add the number of expected logs to the wait group.
+		wg.Add(len(exp))
+
+		// Subscribe to the NATS subject.
+		_, err := nc.Subscribe(natsTestDirectSubject+".snappy", func(m *nats.Msg) {
+			// Verify the Content-Encoding header is set.
+			require.Equal(t, "snappy", m.Header.Get("Content-Encoding"))
+
+			// Decompress the message data.
+			decompressed, err := snappy.Decode(nil, m.Data)
+
+			require.NoError(t, err)
+
+			act = append(act, decompressed)
+
+			wg.Done()
+		})
+
+		// Ensure the subscription was created successfully.
+		require.NoError(t, err)
+
+		// Create the NATS log writer with snappy compression enabled.
+		writer, err := NewNatsLogWriter(
+			ns.ClientURL(),
+			natsTestDirectSubject+".snappy",
+			"",
+			"",
+			"",
+			"",
+			"",
+			"snappy",
+			false,
+			natsTestTimeout,
+			log.NewNopLogger(),
+		)
+
+		require.NoError(t, err)
+
+		// Write the expected logs to the NATS log writer, and ensure it
+		// succeeds.
+		require.NoError(t, writer.Write(t.Context(), exp))
+
+		// Wait for all logs to be received.
+		wg.Wait()
+
+		// Ensure the received logs are equal to the expected logs.
+		require.Equal(t, exp, act)
+	})
+
+	t.Run("DirectZstdCompression", func(t *testing.T) {
+		// Create a wait group to track outstanding logs.
+		var wg sync.WaitGroup
+
+		exp := makeNatsLogs(t)
+		act := []json.RawMessage{}
+
+		// Add the number of expected logs to the wait group.
+		wg.Add(len(exp))
+
+		// Subscribe to the NATS subject.
+		_, err := nc.Subscribe(natsTestDirectSubject+".zstd", func(m *nats.Msg) {
+			// Verify the Content-Encoding header is set.
+			require.Equal(t, "zstd", m.Header.Get("Content-Encoding"))
+
+			// Decompress the message data.
+			zr, err := zstd.NewReader(bytes.NewReader(m.Data))
+
+			require.NoError(t, err)
+
+			decompressed, err := io.ReadAll(zr)
+
+			require.NoError(t, err)
+
+			zr.Close()
+
+			act = append(act, decompressed)
+
+			wg.Done()
+		})
+
+		// Ensure the subscription was created successfully.
+		require.NoError(t, err)
+
+		// Create the NATS log writer with zstd compression enabled.
+		writer, err := NewNatsLogWriter(
+			ns.ClientURL(),
+			natsTestDirectSubject+".zstd",
+			"",
+			"",
+			"",
+			"",
+			"",
+			"zstd",
+			false,
+			natsTestTimeout,
+			log.NewNopLogger(),
+		)
+
+		require.NoError(t, err)
+
+		// Write the expected logs to the NATS log writer, and ensure it
+		// succeeds.
+		require.NoError(t, writer.Write(t.Context(), exp))
+
+		// Wait for all logs to be received.
+		wg.Wait()
+
+		// Ensure the received logs are equal to the expected logs.
+		require.Equal(t, exp, act)
+	})
+
+	t.Run("StreamSnappyCompression", func(t *testing.T) {
+		ctx := t.Context()
+
+		// Create the JetStream context.
+		js, err := jetstream.New(nc)
+
+		require.NoError(t, err)
+
+		// Create the in-memory stream.
+		st, err := js.CreateStream(ctx, jetstream.StreamConfig{
+			Name:     natsTestStreamName + "-snappy",
+			Storage:  jetstream.MemoryStorage,
+			Subjects: []string{natsTestStreamSubject + ".snappy"},
+		})
+
+		require.NoError(t, err)
+
+		// Create the NATS log writer with snappy compression enabled.
+		writer, err := NewNatsLogWriter(
+			ns.ClientURL(),
+			natsTestStreamSubject+".snappy",
+			"",
+			"",
+			"",
+			"",
+			"",
+			"snappy",
+			true,
+			natsTestTimeout,
+			log.NewNopLogger(),
+		)
+
+		require.NoError(t, err)
+
+		exp := makeNatsLogs(t)
+		act := []json.RawMessage{}
+
+		// Write the expected logs to the NATS log writer, and ensure it
+		// succeeds.
+		require.NoError(t, writer.Write(ctx, exp))
+
+		// Get the messages from the JetStream stream.
+		for n := range uint64(len(exp)) {
+			msg, err := st.GetMsg(ctx, n+1)
+
+			require.NoError(t, err)
+
+			// Verify the Content-Encoding header is set.
+			require.Equal(t, "snappy", msg.Header.Get("Content-Encoding"))
+
+			// Decompress the message data.
+			decompressed, err := snappy.Decode(nil, msg.Data)
+
+			require.NoError(t, err)
+
+			act = append(act, decompressed)
+		}
+
+		// Ensure the received logs are equal to the expected logs.
+		require.Equal(t, exp, act)
+	})
+
+	t.Run("StreamZstdCompression", func(t *testing.T) {
+		ctx := t.Context()
+
+		// Create the JetStream context.
+		js, err := jetstream.New(nc)
+
+		require.NoError(t, err)
+
+		// Create the in-memory stream.
+		st, err := js.CreateStream(ctx, jetstream.StreamConfig{
+			Name:     natsTestStreamName + "-zstd",
+			Storage:  jetstream.MemoryStorage,
+			Subjects: []string{natsTestStreamSubject + ".zstd"},
+		})
+
+		require.NoError(t, err)
+
+		// Create the NATS log writer with zstd compression enabled.
+		writer, err := NewNatsLogWriter(
+			ns.ClientURL(),
+			natsTestStreamSubject+".zstd",
+			"",
+			"",
+			"",
+			"",
+			"",
+			"zstd",
+			true,
+			natsTestTimeout,
+			log.NewNopLogger(),
+		)
+
+		require.NoError(t, err)
+
+		exp := makeNatsLogs(t)
+		act := []json.RawMessage{}
+
+		// Write the expected logs to the NATS log writer, and ensure it
+		// succeeds.
+		require.NoError(t, writer.Write(ctx, exp))
+
+		// Get the messages from the JetStream stream.
+		for n := range uint64(len(exp)) {
+			msg, err := st.GetMsg(ctx, n+1)
+
+			require.NoError(t, err)
+
+			// Verify the Content-Encoding header is set.
+			require.Equal(t, "zstd", msg.Header.Get("Content-Encoding"))
+
+			// Decompress the message data.
+			zr, err := zstd.NewReader(bytes.NewReader(msg.Data))
+
+			require.NoError(t, err)
+
+			decompressed, err := io.ReadAll(zr)
+
+			require.NoError(t, err)
+
+			zr.Close()
+
+			act = append(act, decompressed)
+		}
+
+		// Ensure the received logs are equal to the expected logs.
+		require.Equal(t, exp, act)
+	})
+
+	t.Run("InvalidCompressionAlgorithm", func(t *testing.T) {
+		// Attempt to create a NATS log writer with an invalid compression
+		// algorithm.
+		_, err := NewNatsLogWriter(
+			ns.ClientURL(),
+			natsTestDirectSubject,
+			"",
+			"",
+			"",
+			"",
+			"",
+			"invalid",
+			false,
+			natsTestTimeout,
+			log.NewNopLogger(),
+		)
+
+		// Ensure an error is returned.
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unsupported compression algorithm")
 	})
 }

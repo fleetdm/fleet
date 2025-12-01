@@ -82,7 +82,8 @@ type NatsConfig struct {
 	TLSClientKeyFile  string
 	CACertFile        string
 
-	JetStream bool
+	Compression string
+	JetStream   bool
 
 	Timeout time.Duration
 }
@@ -210,6 +211,7 @@ func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLog
 			config.Nats.TLSClientCertFile,
 			config.Nats.TLSClientKeyFile,
 			config.Nats.CACertFile,
+			config.Nats.Compression,
 			config.Nats.JetStream,
 			config.Nats.Timeout,
 			logger,

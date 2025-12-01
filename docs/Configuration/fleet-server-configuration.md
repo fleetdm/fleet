@@ -2242,6 +2242,22 @@ Path to the CA certificate file for verifying the NATS server certificate.
     ca_crt_file: /path/to/ca.crt
   ```
 
+### nats_compression
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Compression algorithm to use for log payloads before publishing to NATS. Supported values are `gzip`, `snappy`, and `zstd`. When not specified, logs are published uncompressed.
+
+- Default value: none (no compression)
+- Environment variable: `FLEET_NATS_COMPRESSION`
+- Config file format:
+  ```yaml
+  nats:
+    compression: gzip
+  ```
+
 ### nats_jetstream
 
 This flag only has effect if one of the following is true:

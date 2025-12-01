@@ -397,6 +397,7 @@ the way that the Fleet server works.
 					TLSClientCertFile: config.Nats.TLSClientCrtFile,
 					TLSClientKeyFile:  config.Nats.TLSClientKeyFile,
 					CACertFile:        config.Nats.CACrtFile,
+					Compression:       config.Nats.Compression,
 					JetStream:         config.Nats.JetStream,
 					Timeout:           config.Nats.Timeout,
 				},
