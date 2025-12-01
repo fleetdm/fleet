@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -83,7 +84,13 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion
 				return true, nil
 			}
 
+			// Check exact match first
 			if result.Version == appVersion {
+				return true, nil
+			}
+			// Check if found version starts with expected version (handles suffixes like ".0")
+			// This handles cases where the app version is "3.5.4.0" but expected is "3.5.4"
+			if strings.HasPrefix(result.Version, appVersion+".") {
 				return true, nil
 			}
 		}

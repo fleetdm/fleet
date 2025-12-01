@@ -311,6 +311,13 @@
     },
     {
       "name": "GitHub Desktop",
+      "slug": "github-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "GitHub Desktop",
+      "description": "GitHub Desktop is a desktop client for GitHub repositories."
+    },
+    {
+      "name": "GitHub Desktop",
       "slug": "github/darwin",
       "platform": "darwin",
       "unique_identifier": "com.github.GitHubClient",
@@ -427,6 +434,13 @@
       "platform": "darwin",
       "unique_identifier": "com.linear",
       "description": "Linear is an app to manage software development and track bugs."
+    },
+    {
+      "name": "Little Snitch",
+      "slug": "little-snitch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "at.obdev.LittleSnitch",
+      "description": "Little Snitch is a network monitor and application firewall that provides real-time visibility and control over network connections for macOS."
     },
     {
       "name": "Logi Options+",
@@ -744,6 +758,13 @@
       "description": "Tailscale is mesh VPN based on WireGuard."
     },
     {
+      "name": "Tailscale",
+      "slug": "tailscale/windows",
+      "platform": "windows",
+      "unique_identifier": "Tailscale",
+      "description": "Tailscale is mesh VPN based on WireGuard."
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
@@ -846,6 +867,13 @@
       "slug": "webex/darwin",
       "platform": "darwin",
       "unique_identifier": "Cisco-Systems.Spark",
+      "description": "Webex is a video communication and virtual meeting platform."
+    },
+    {
+      "name": "Webex",
+      "slug": "webex/windows",
+      "platform": "windows",
+      "unique_identifier": "Cisco Webex",
       "description": "Webex is a video communication and virtual meeting platform."
     },
     {
