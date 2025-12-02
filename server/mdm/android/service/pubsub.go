@@ -119,6 +119,13 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 		return ctxerr.Wrap(ctx, err, "unmarshal Android status report message")
 	}
 
+	// can be useful for debugging, as the pubsub report can be very large - it is
+	// not practical to print so it saves it to a file,  different names for all
+	// instances of the pubsub, and under an extension that is git-ignored.
+	dump := spew.Sdump(device)
+	ts := time.Now().UnixNano()
+	_ = os.WriteFile(fmt.Sprintf("host_%s_version_%d_timestamps_%d.log", device.HardwareInfo.EnterpriseSpecificId, device.AppliedPolicyVersion, ts), []byte(dump), 0644)
+
 	// Consider both appliedState and state fields for deletion, to handle variations in payloads.
 	isDeleted := strings.ToUpper(device.AppliedState) == string(android.DeviceStateDeleted)
 	if !isDeleted {
@@ -713,11 +720,6 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 	appliedPolicyVersion := device.AppliedPolicyVersion
 	hostUUID := host.UUID
 
-	fmt.Println(">>>>>> verify device software for ", hostUUID, appliedPolicyVersion)
-	defer fmt.Println("<<<<<< DONE verify device software for ", hostUUID, appliedPolicyVersion)
-	dump := spew.Sdump(device)
-	_ = os.WriteFile(fmt.Sprintf("host_%s_version_%d.txt", hostUUID, appliedPolicyVersion), []byte(dump), 0644)
-
 	level.Debug(svc.logger).Log("msg", "Verifying Android device software", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
 
 	// Get all host_vpp_software_installs that are pending, and set in a policy version <= device.AppliedPolicyVersion.
@@ -728,7 +730,6 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 		level.Error(svc.logger).Log("msg", "error getting pending vpp installs", "err", err)
 		return
 	}
-	fmt.Println(">>>>>> looking for apps: ", spew.Sdump(pendingInstallApps))
 	if len(pendingInstallApps) == 0 {
 		return
 	}

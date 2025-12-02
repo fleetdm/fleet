@@ -736,7 +736,8 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 	case "windows":
 		results, err = svc.ds.GetMDMWindowsCommandResults(ctx, commandUUID)
 	case "android":
-		// TODO(mna): return some result for Android
+		// TODO(mna): maybe in the future we'll store responses from AMAPI commands, but for
+		// now we don't (they are very large), just return an empty list.
 		results = []*fleet.MDMCommandResult{}
 	default:
 		// this should never happen, but just in case
