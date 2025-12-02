@@ -8,7 +8,6 @@ Fleet 4.77.0 is now available. See the complete [changelog](https://github.com/f
 
 ## Highlights
 
-- iOS/iPadOS self-service
 - Deploy enterprise iOS/iPadOS packages
 - Edit IdP username
 - Enforce authentication during enrollment
