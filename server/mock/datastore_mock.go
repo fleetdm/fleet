@@ -533,7 +533,7 @@ type GetUnverifiedVPPInstallsForHostFunc func(ctx context.Context, verificationU
 
 type SetVPPInstallAsFailedFunc func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error
 
-type MarkAllPendingVPPAndInHouseInstallsAsFailedFunc func(ctx context.Context, jobName string) error
+type MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc func(ctx context.Context, jobName string) error
 
 type GetHostOperatingSystemFunc func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error)
 
@@ -1367,6 +1367,8 @@ type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.V
 
 type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
 
+type GetVPPAppsToInstallDuringSetupExperienceFunc func(ctx context.Context, teamID *uint, platform string) ([]string, error)
+
 type GetAllVPPAppsFunc func(ctx context.Context) ([]*fleet.VPPApp, error)
 
 type InsertVPPAppsFunc func(ctx context.Context, apps []*fleet.VPPApp) error
@@ -1501,11 +1503,23 @@ type BulkDeleteMDMAndroidHostProfilesFunc func(ctx context.Context, hostUUID str
 
 type ListHostMDMAndroidProfilesPendingInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error)
 
-type GetAndroidPolicyRequestByUUIDFunc func(ctx context.Context, requestUUID string) (*fleet.MDMAndroidPolicyRequest, error)
+type GetAndroidPolicyRequestByUUIDFunc func(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
 
 type GetLatestAppleMDMCommandOfTypeFunc func(ctx context.Context, hostUUID string, commandType string) (*fleet.MDMCommand, error)
 
 type SetLockCommandForLostModeCheckinFunc func(ctx context.Context, hostID uint, commandUUID string) error
+
+type ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error)
+
+type BulkSetVPPInstallsAsVerifiedFunc func(ctx context.Context, hostID uint, commandUUIDs []string) error
+
+type BulkSetVPPInstallsAsFailedFunc func(ctx context.Context, hostID uint, commandUUIDs []string) error
+
+type GetPastActivityDataForAndroidVPPAppInstallFunc func(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
+
+type MarkAllPendingAndroidVPPInstallsAsFailedFunc func(ctx context.Context) error
+
+type MarkAllPendingVPPInstallsAsFailedForAndroidHostFunc func(ctx context.Context, hostID uint) (users []*fleet.User, activities []fleet.ActivityDetails, err error)
 
 type NewMDMAndroidConfigProfileFunc func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error)
 
@@ -1521,13 +1535,15 @@ type GetHostCertificateTemplatesFunc func(ctx context.Context, hostUUID string) 
 
 type GetHostMDMAndroidProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAndroidProfile, error)
 
-type NewAndroidPolicyRequestFunc func(ctx context.Context, req *fleet.MDMAndroidPolicyRequest) error
+type NewAndroidPolicyRequestFunc func(ctx context.Context, req *android.MDMAndroidPolicyRequest) error
 
 type ListMDMAndroidProfilesToSendFunc func(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error)
 
 type GetMDMAndroidProfilesContentsFunc func(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
 
 type ListAndroidEnrolledDevicesForReconcileFunc func(ctx context.Context) ([]*android.Device, error)
+
+type InsertAndroidSetupExperienceSoftwareInstallFunc func(ctx context.Context, payload *fleet.HostAndroidVPPSoftwareInstall) error
 
 type GetAndroidAppConfigurationFunc func(ctx context.Context, adamID string, globalOrTeamID uint) (*fleet.AndroidAppConfiguration, error)
 
@@ -1621,7 +1637,7 @@ type UpdateCertificateAuthorityByIDFunc func(ctx context.Context, id uint, certi
 
 type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error
 
-type UpdateCertificateStatusFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus) error
+type UpdateCertificateStatusFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error
 
 type BatchUpsertCertificateTemplatesFunc func(ctx context.Context, certificates []*fleet.CertificateTemplate) error
 
@@ -1633,7 +1649,13 @@ type DeleteCertificateTemplateFunc func(ctx context.Context, id uint) error
 
 type GetCertificateTemplateByIdFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error)
 
-type GetCertificateTemplatesByTeamIDFunc func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
+type GetCertificateTemplatesByTeamIDFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
+
+type ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
+
+type ListCertificateTemplatesForHostsFunc func(ctx context.Context, hostUUIDs []string) ([]fleet.CertificateTemplateForHost, error)
+
+type BulkInsertHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
 
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
@@ -2405,8 +2427,8 @@ type DataStore struct {
 	SetVPPInstallAsFailedFunc        SetVPPInstallAsFailedFunc
 	SetVPPInstallAsFailedFuncInvoked bool
 
-	MarkAllPendingVPPAndInHouseInstallsAsFailedFunc        MarkAllPendingVPPAndInHouseInstallsAsFailedFunc
-	MarkAllPendingVPPAndInHouseInstallsAsFailedFuncInvoked bool
+	MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc        MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc
+	MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFuncInvoked bool
 
 	GetHostOperatingSystemFunc        GetHostOperatingSystemFunc
 	GetHostOperatingSystemFuncInvoked bool
@@ -3656,6 +3678,9 @@ type DataStore struct {
 	InsertVPPAppWithTeamFunc        InsertVPPAppWithTeamFunc
 	InsertVPPAppWithTeamFuncInvoked bool
 
+	GetVPPAppsToInstallDuringSetupExperienceFunc        GetVPPAppsToInstallDuringSetupExperienceFunc
+	GetVPPAppsToInstallDuringSetupExperienceFuncInvoked bool
+
 	GetAllVPPAppsFunc        GetAllVPPAppsFunc
 	GetAllVPPAppsFuncInvoked bool
 
@@ -3866,6 +3891,24 @@ type DataStore struct {
 	SetLockCommandForLostModeCheckinFunc        SetLockCommandForLostModeCheckinFunc
 	SetLockCommandForLostModeCheckinFuncInvoked bool
 
+	ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc        ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc
+	ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked bool
+
+	BulkSetVPPInstallsAsVerifiedFunc        BulkSetVPPInstallsAsVerifiedFunc
+	BulkSetVPPInstallsAsVerifiedFuncInvoked bool
+
+	BulkSetVPPInstallsAsFailedFunc        BulkSetVPPInstallsAsFailedFunc
+	BulkSetVPPInstallsAsFailedFuncInvoked bool
+
+	GetPastActivityDataForAndroidVPPAppInstallFunc        GetPastActivityDataForAndroidVPPAppInstallFunc
+	GetPastActivityDataForAndroidVPPAppInstallFuncInvoked bool
+
+	MarkAllPendingAndroidVPPInstallsAsFailedFunc        MarkAllPendingAndroidVPPInstallsAsFailedFunc
+	MarkAllPendingAndroidVPPInstallsAsFailedFuncInvoked bool
+
+	MarkAllPendingVPPInstallsAsFailedForAndroidHostFunc        MarkAllPendingVPPInstallsAsFailedForAndroidHostFunc
+	MarkAllPendingVPPInstallsAsFailedForAndroidHostFuncInvoked bool
+
 	NewMDMAndroidConfigProfileFunc        NewMDMAndroidConfigProfileFunc
 	NewMDMAndroidConfigProfileFuncInvoked bool
 
@@ -3898,6 +3941,9 @@ type DataStore struct {
 
 	ListAndroidEnrolledDevicesForReconcileFunc        ListAndroidEnrolledDevicesForReconcileFunc
 	ListAndroidEnrolledDevicesForReconcileFuncInvoked bool
+
+	InsertAndroidSetupExperienceSoftwareInstallFunc        InsertAndroidSetupExperienceSoftwareInstallFunc
+	InsertAndroidSetupExperienceSoftwareInstallFuncInvoked bool
 
 	GetAndroidAppConfigurationFunc        GetAndroidAppConfigurationFunc
 	GetAndroidAppConfigurationFuncInvoked bool
@@ -4057,6 +4103,15 @@ type DataStore struct {
 
 	GetCertificateTemplatesByTeamIDFunc        GetCertificateTemplatesByTeamIDFunc
 	GetCertificateTemplatesByTeamIDFuncInvoked bool
+
+	ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc        ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc
+	ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFuncInvoked bool
+
+	ListCertificateTemplatesForHostsFunc        ListCertificateTemplatesForHostsFunc
+	ListCertificateTemplatesForHostsFuncInvoked bool
+
+	BulkInsertHostCertificateTemplatesFunc        BulkInsertHostCertificateTemplatesFunc
+	BulkInsertHostCertificateTemplatesFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -5852,11 +5907,11 @@ func (s *DataStore) SetVPPInstallAsFailed(ctx context.Context, hostID uint, inst
 	return s.SetVPPInstallAsFailedFunc(ctx, hostID, installUUID, verificationUUID)
 }
 
-func (s *DataStore) MarkAllPendingVPPAndInHouseInstallsAsFailed(ctx context.Context, jobName string) error {
+func (s *DataStore) MarkAllPendingAppleVPPAndInHouseInstallsAsFailed(ctx context.Context, jobName string) error {
 	s.mu.Lock()
-	s.MarkAllPendingVPPAndInHouseInstallsAsFailedFuncInvoked = true
+	s.MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFuncInvoked = true
 	s.mu.Unlock()
-	return s.MarkAllPendingVPPAndInHouseInstallsAsFailedFunc(ctx, jobName)
+	return s.MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc(ctx, jobName)
 }
 
 func (s *DataStore) GetHostOperatingSystem(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
@@ -8771,6 +8826,13 @@ func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp,
 	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
 }
 
+func (s *DataStore) GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]string, error) {
+	s.mu.Lock()
+	s.GetVPPAppsToInstallDuringSetupExperienceFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPAppsToInstallDuringSetupExperienceFunc(ctx, teamID, platform)
+}
+
 func (s *DataStore) GetAllVPPApps(ctx context.Context) ([]*fleet.VPPApp, error) {
 	s.mu.Lock()
 	s.GetAllVPPAppsFuncInvoked = true
@@ -9240,7 +9302,7 @@ func (s *DataStore) ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx cont
 	return s.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc(ctx, hostUUID, policyVersion)
 }
 
-func (s *DataStore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*fleet.MDMAndroidPolicyRequest, error) {
+func (s *DataStore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error) {
 	s.mu.Lock()
 	s.GetAndroidPolicyRequestByUUIDFuncInvoked = true
 	s.mu.Unlock()
@@ -9259,6 +9321,48 @@ func (s *DataStore) SetLockCommandForLostModeCheckin(ctx context.Context, hostID
 	s.SetLockCommandForLostModeCheckinFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetLockCommandForLostModeCheckinFunc(ctx, hostID, commandUUID)
+}
+
+func (s *DataStore) ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+	s.mu.Lock()
+	s.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc(ctx, hostUUID, policyVersion)
+}
+
+func (s *DataStore) BulkSetVPPInstallsAsVerified(ctx context.Context, hostID uint, commandUUIDs []string) error {
+	s.mu.Lock()
+	s.BulkSetVPPInstallsAsVerifiedFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkSetVPPInstallsAsVerifiedFunc(ctx, hostID, commandUUIDs)
+}
+
+func (s *DataStore) BulkSetVPPInstallsAsFailed(ctx context.Context, hostID uint, commandUUIDs []string) error {
+	s.mu.Lock()
+	s.BulkSetVPPInstallsAsFailedFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkSetVPPInstallsAsFailedFunc(ctx, hostID, commandUUIDs)
+}
+
+func (s *DataStore) GetPastActivityDataForAndroidVPPAppInstall(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	s.mu.Lock()
+	s.GetPastActivityDataForAndroidVPPAppInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPastActivityDataForAndroidVPPAppInstallFunc(ctx, cmdUUID, status)
+}
+
+func (s *DataStore) MarkAllPendingAndroidVPPInstallsAsFailed(ctx context.Context) error {
+	s.mu.Lock()
+	s.MarkAllPendingAndroidVPPInstallsAsFailedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkAllPendingAndroidVPPInstallsAsFailedFunc(ctx)
+}
+
+func (s *DataStore) MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx context.Context, hostID uint) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
+	s.mu.Lock()
+	s.MarkAllPendingVPPInstallsAsFailedForAndroidHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkAllPendingVPPInstallsAsFailedForAndroidHostFunc(ctx, hostID)
 }
 
 func (s *DataStore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
@@ -9310,7 +9414,7 @@ func (s *DataStore) GetHostMDMAndroidProfiles(ctx context.Context, hostUUID stri
 	return s.GetHostMDMAndroidProfilesFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDMAndroidPolicyRequest) error {
+func (s *DataStore) NewAndroidPolicyRequest(ctx context.Context, req *android.MDMAndroidPolicyRequest) error {
 	s.mu.Lock()
 	s.NewAndroidPolicyRequestFuncInvoked = true
 	s.mu.Unlock()
@@ -9336,6 +9440,13 @@ func (s *DataStore) ListAndroidEnrolledDevicesForReconcile(ctx context.Context) 
 	s.ListAndroidEnrolledDevicesForReconcileFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListAndroidEnrolledDevicesForReconcileFunc(ctx)
+}
+
+func (s *DataStore) InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *fleet.HostAndroidVPPSoftwareInstall) error {
+	s.mu.Lock()
+	s.InsertAndroidSetupExperienceSoftwareInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertAndroidSetupExperienceSoftwareInstallFunc(ctx, payload)
 }
 
 func (s *DataStore) GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*fleet.AndroidAppConfiguration, error) {
@@ -9660,11 +9771,11 @@ func (s *DataStore) BatchApplyCertificateAuthorities(ctx context.Context, ops fl
 	return s.BatchApplyCertificateAuthoritiesFunc(ctx, ops)
 }
 
-func (s *DataStore) UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus) error {
+func (s *DataStore) UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error {
 	s.mu.Lock()
 	s.UpdateCertificateStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateCertificateStatusFunc(ctx, hostUUID, certificateTemplateID, status)
+	return s.UpdateCertificateStatusFunc(ctx, hostUUID, certificateTemplateID, status, detail)
 }
 
 func (s *DataStore) BatchUpsertCertificateTemplates(ctx context.Context, certificates []*fleet.CertificateTemplate) error {
@@ -9702,11 +9813,32 @@ func (s *DataStore) GetCertificateTemplateById(ctx context.Context, id uint) (*f
 	return s.GetCertificateTemplateByIdFunc(ctx, id)
 }
 
-func (s *DataStore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+func (s *DataStore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.GetCertificateTemplatesByTeamIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetCertificateTemplatesByTeamIDFunc(ctx, teamID, page, perPage)
+	return s.GetCertificateTemplatesByTeamIDFunc(ctx, teamID, opts)
+}
+
+func (s *DataStore) ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {
+	s.mu.Lock()
+	s.ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc(ctx, offset, limit)
+}
+
+func (s *DataStore) ListCertificateTemplatesForHosts(ctx context.Context, hostUUIDs []string) ([]fleet.CertificateTemplateForHost, error) {
+	s.mu.Lock()
+	s.ListCertificateTemplatesForHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListCertificateTemplatesForHostsFunc(ctx, hostUUIDs)
+}
+
+func (s *DataStore) BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error {
+	s.mu.Lock()
+	s.BulkInsertHostCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkInsertHostCertificateTemplatesFunc(ctx, hostCertTemplates)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {
