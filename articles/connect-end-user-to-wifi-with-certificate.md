@@ -1,4 +1,4 @@
-# Connect end users to Wi-Fi or VPN with a certificate (DigiCert, NDES, Hydrant, Smallstep, custom SCEP)
+# Connect end users to Wi-Fi or VPN with a certificate (DigiCert, NDES, Hydrant, Smallstep, or custom SCEP)
 
 _Available in Fleet Premium_
 
