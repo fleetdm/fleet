@@ -8,22 +8,21 @@ To configure SSO, follow steps for your IdP and then complete [Fleet configurati
 
 **Using Fleet MDM?** If you're using automatic enrollment (ADE/DEP), you'll need two separate SSO apps in your IdP - one for your admin console and one for end user authentication during device setup. See [End user authentication for MDM](#end-user-authentication-for-mdm) after you've configured your IdP.
 
-
 ## Okta
 
 Fleet offers two ways to set up Okta:
 
-1. **[Okta Integration Network (OIN)](#okta-integration-network-oin)** - Use the pre-configured Fleet app from Okta's catalog (recommended for most users)
-2. **[Custom SAML app](#okta-custom-saml-app)** - Manually create a SAML app in Okta (for testing or advanced configurations)
+1. **[Okta Integration Network (OIN)](#okta-integration-network-oin)** - Use the pre-configured Fleet app from Okta's catalog (recommended)
+2. **[Custom SAML app](#okta-custom-saml-app)** - Manually create a SAML app in Okta (for testing or advanced configs)
 
 ### Okta Integration Network (OIN)
 
-The Fleet app is available in the Okta Integration Network catalog. This is the fastest way to set up SAML SSO and SCIM provisioning for your Fleet admin console.
+The Fleet app is available in Okta's catalog. This is the fastest way to set up SAML SSO and SCIM provisioning for your Fleet admin console.
 
-**Note:** The OIN app is for Fleet admin/user access only. If you're using MDM with automatic enrollment, you'll need a separate custom SAML app for end user authentication. See [End user authentication for MDM](#end-user-authentication-for-mdm) below.
+**Note:** The OIN app is for Fleet admin/user access only. If you're using MDM with automatic enrollment, you'll need a separate custom SAML app for end user authentication during device setup. See [End user authentication for MDM](#end-user-authentication-for-mdm).
 
 **What you'll need:**
-- Fleet Premium license (required for both SAML SSO and SCIM provisioning)
+- Fleet Premium license
 - Fleet admin access
 - Okta admin access
 
@@ -32,7 +31,7 @@ The Fleet app is available in the Okta Integration Network catalog. This is the 
 **SAML 2.0 Single Sign-On:**
 - SP-initiated SSO
 - IdP-initiated SSO
-- Just-In-Time (JiT) provisioning
+- Just-In-Time (JIT) provisioning
 
 **SCIM 2.0 Provisioning:**
 - Create users
@@ -41,136 +40,95 @@ The Fleet app is available in the Okta Integration Network catalog. This is the 
 - Reactivate users
 - Push groups
 
-#### Add Fleet from the OIN catalog
+**Note:** Fleet doesn't support importing users or profile updates from Fleet back to Okta (one-way sync only).
 
-1. Sign in to your Okta Admin Console as an administrator
-2. Go to **Applications** > **Applications**
-3. Click **Browse App Catalog**
-4. Search for "Fleet" and select the Fleet application
-5. Click **Add Integration**
-6. Put in an appropriate name for your Fleet instance as the **Application Label** (e.g., `Fleet Production`)
-7. For **Entity ID**, use the **exact same value** you entered in Fleet under **Settings > Integrations > Single-sign on (SSO)** (e.g., `fleet`).
-<img width="1196" height="994" alt="A screenshot of the SSO settings screen in Fleet" src="https://github.com/user-attachments/assets/faace0e0-210f-494a-8cec-bed9769b6417" />
+#### Set up SAML SSO
 
-8. For **Fleet instance base URL**, put in the URL of your Fleet instance as listed under **Settings > Organization settings > Fleet web address** (e.g., `https://fleetprod.cloud.fleetdm.com`).
-<img width="1124" height="479" alt="A screenshot of the Fleet web address settings screen in Fleet" src="https://github.com/user-attachments/assets/ce45244d-6627-4a19-949a-f7723b21e739" />
+1. Sign in to your Okta Admin Console
+2. Go to **Applications** > **Applications** > **Browse App Catalog**
+3. Search for "Fleet" and select it
+4. Click **Add Integration**
+5. Configure the basics:
+   - **Application Label**: Name for your Fleet instance (e.g., "Fleet Production")
+   - **Entity ID**: Must match exactly what you set in Fleet under **Settings > Integrations > Single sign-on (SSO)** (e.g., `fleet`)
+   - **Fleet instance base URL**: Your Fleet URL from **Settings > Organization settings > Fleet web address** (e.g., `https://fleetprod.cloud.fleetdm.com`)
 
+6. Assign users:
+   - Go to the **Assignments** tab
+   - Click **Assign** and choose **Assign to People** or **Assign to Groups**
+   - Select users or groups, then click **Done**
 
-#### Assign users to Fleet
-
-1. Go to the **Assignments** tab
-2. Click **Assign** and choose:
-   - **Assign to People**: For individual users
-   - **Assign to Groups**: For groups of users
-3. Click **Assign** next to the users or groups you want
-4. Click **Done**
-
-#### Complete SAML configuration in Fleet
-
-After configuring SAML in Okta, finish the setup in Fleet:
-
-1. In the Fleet application in Okta, go to the **Sign On** tab
-2. Under **SAML 2.0** > **Metadata details**, copy the Metadata URL
-3. In Fleet, go to **Settings** > **Integrations** > **Single sign-on (SSO)**
-4. Configure:
+7. Complete the Fleet side:
+   - In Okta, go to your Fleet app's **Sign On** tab
+   - Under **SAML 2.0** > **Metadata details**, copy the **Metadata URL**
+   - In Fleet, go to **Settings** > **Integrations** > **Single sign-on (SSO)**
    - Check **Enable single sign-on**
-   - **Identity provider name**: Okta (or whatever you want to call it)
-   - **Entity ID**: Use the **exact same value** you entered in Okta (e.g., `fleet`)
-   - **Metadata URL**: Paste the URL from step 2
-5. Click **Save**
+   - **Identity provider name**: `Okta` (or whatever you want)
+   - **Entity ID**: Must match Okta exactly (e.g., `fleet`)
+   - **Metadata URL**: Paste the URL from Okta
+   - Click **Save**
 
 **Important:** The Entity ID must match exactly between Okta and Fleet or SSO won't work.
 
-Once SAML is set up, users can sign into Fleet directly from Fleet's login page:
+Once SAML is configured, users can sign in directly from your Fleet instance login page by clicking **Login with Okta**. No need to go through the Okta dashboard.
 
-1. Go to your Fleet instance login page
-2. Click the **Login with Okta** button below the email/password fields
-3. Enter your Okta credentials
-4. You'll be redirected back to Fleet and signed in
+#### Set up SCIM provisioning (optional)
 
-This means users can bookmark your Fleet instance and always start there, rather than going through the Okta dashboard.
+SCIM lets you automatically provision users and groups from Okta to Fleet. This is separate from SAML SSO - you can use SAML without SCIM, but SCIM requires SAML to be configured first.
 
-#### Configure SCIM provisioning
+**What SCIM does:**
+- Automatically creates Fleet users when assigned in Okta
+- Syncs user profile changes (name, email, department)
+- Deactivates users when unassigned
+- Syncs group memberships
 
+**Step 1: Connect Okta to Fleet**
 
-#### Step 1: Connect Okta to Fleet
+1. In your Fleet Okta app, go to the **Provisioning** tab
+2. Click **Configure API Integration**
+3. Check **Enable API integration**
+4. Configure the connection:
+   - **SCIM connector base URL**: `https://<your_fleet_server_url>/api/v1/fleet/scim`
+   - **Unique identifier field for users**: `userName`
+   - **Supported provisioning actions**: Select **Push New Users**, **Push Profile Updates**, and **Push Groups**
+   - **Authentication Mode**: `HTTP Header`
+5. Generate your Fleet API token:
+   - [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions
+   - Copy the API token and paste it in Okta's **Authorization** field
+6. Click **Test API Credentials** - you should see a success message
+7. In Fleet, go to **Settings > Integrations > Identity provider (IdP)** and verify Fleet received the test request
+8. Back in Okta, click **Save**
 
-1. Select the **Provisioning** tab and then, in **SCIM Connection**, select **Edit**.
-2. For the **SCIM connector base URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim`.
-3. For the **Unique identifier field for users**, enter `userName`.
-4. For the **Supported provisioning actions**, select **Push New Users**, **Push Profile Updates**, and **Push Groups**.
-5. For the **Authentication Mode**, select **HTTP Header**.
-6. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user. Paste your API token in Okta's **Authorization** field.
-7. Select the **Test Connector Configuration** button. You should see success message in Okta.
-8. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from IdP.
-9. Back in Okta, select **Save**.
+**Step 2: Enable provisioning**
 
-#### Step 2: Enable provisioning to Fleet
+1. Under the **Provisioning** tab, select **To App**
+2. Click **Edit** in the **Provisioning to App** section
+3. Enable:
+   - **Create Users**
+   - **Update User Attributes**
+   - **Deactivate Users**
+4. Click **Save**
+5. Verify attributes are mapped correctly:
+   - Required: `userName`, `givenName`, `familyName`
+   - Optional: `department`
+   - Delete any other attributes
 
-1. Under the **Provisioning** tab, select **To App** and then select **Edit** in the **Provisioning to App** section.
-2. Enable **Create Users**, **Update User Attributes**, and **Deactivate Users**, then select **Save**.
-3. On the same page, verify that `givenName` and `familyName` have Okta values assigned to them. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute (optional). Delete the rest of the attributes.
-![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping-402x181@2x.png)
+**Step 3: Configure push groups**
 
-#### Step 3: Assign users to the application
-
-To send user information to Fleet, assign users to your SCIM app. You can assign users individually or by group.
-
-**Option A: Assign by group (recommended)**
-1. In Okta's main menu, select **Directory > Groups** and then select **Add group**. Name it "Fleet human-device mapping".
-2. On the same page, select the **Rules** tab. Create a rule that will assign users to your "Fleet human-device mapping" group.
-![Okta group rule](../website/assets/images/articles/okta-scim-group-rules-1000x522@2x.png)
-3. In the main menu, select **Applications > Applications** and select your SCIM app. Then, select the **Assignments** tab.
-4. Select **Assign > Assign to Groups** and then select **Assign** next to the "Fleet human-device mapping" group. Select **Done**.
-
-**Option B: Assign individual users**
-1. In the main menu, select **Applications > Applications** and select your SCIM app.
-2. Select the **Assignments** tab, then **Assign > Assign to People**.
-3. Select **Assign** next to each user you want to provision to Fleet, then select **Done**.
-
-#### Step 4: Configure push groups
-
-Group Push provisions Okta groups to Fleet and maintains group memberships. For a user's group memberships to appear in Fleet:
-- The user must be assigned to the Fleet SCIM application (see Step 4)
-- The user must be a member of the group in Okta
-- The group must be configured for Push in the application
+Group Push syncs Okta groups to Fleet. For group memberships to work, users must:
+- Be assigned to the Fleet app in Okta
+- Be members of the group in Okta
+- Have the group configured for Push
 
 To enable Group Push:
 
-1. In your Fleet SCIM app, select the **Push Groups** tab.
-2. Select **Push Groups > Find groups by name**.
-3. Search for and add the groups you want to provision to Fleet (e.g., "Fleet human-device mapping" and any other groups assigned to the app).
-4. Ensure **Push group memberships immediately** is selected for each group.
-5. Select **Save**.
+1. Go to the **Push Groups** tab
+2. Click **Push Groups** > **Find groups by name**
+3. Search for and add groups you want to sync to Fleet
+4. Make sure **Push group memberships immediately** is checked
+5. Click **Save**
 
-**Important notes about Group Push:**
-- Only users who are both assigned to the app AND members of pushed groups will have group data in Fleet
-- If you remove a user from a pushed group in Okta, the group membership will be removed from Fleet
-- If you unassign a user from the app, all their group memberships will be removed from Fleet
-- Group push happens immediately, but can take a few minutes to reflect in Fleet
-
-**Setting up `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>`:**
-
-These attributes automatically assigns Fleet permissions when users sign in for the first time using Just-in-Time (JIT) provisioning.
-
-Supported values:
-- `admin` - Full administrative access to Fleet
-- `maintainer` - Can manage hosts, queries, policies, and software
-- `observer_plus` - Read-only access plus ability to run queries
-- `observer` - Read-only access to Fleet
-
-How to configure:
-1. Find your Fleet SAML Application under **Directory > Settings > Profile Editor**
-2. Click on **Add Attribute**
-3. Choose `string` for flexibility or `string_array` if you want to specify pre-defined values (e.g., `admin`, `maintainer`, `observer_plus`, `observer`).
-4. Under **Display name**, enter a name for the attribute (e.g., `Global Role` or `Team Name`).
-5. Under **Variable name**, enter the name of the attribute in Fleet, `FLEET_JIT_USER_ROLE_GLOBAL` or `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>`.
-6. Choose whether the attribute is required or optional.
-7. Choose if you want the attribute to be personal or group-based.
-> Group-based attributes are useful for roles as any user assigned to an Okta group with that attribute will automatically get the corresponding Fleet role.
-8. Map it to an Okta user attribute with the desired Fleet role
-
-If you don't configure this, provisioned users default to the `observer` role.
+**Important:** Only users who are both assigned to the app AND members of pushed groups will have group data in Fleet. If you remove a user from a group or unassign them from the app, their group memberships in Fleet will be removed.
 
 #### Verify everything works
 
@@ -181,36 +139,39 @@ If you don't configure this, provisioned users default to the `observer` role.
 
 #### Troubleshooting
 
-**Users not provisioning:**
-- Check that your SCIM API token is valid and has maintainer permissions
-- Look for error messages in the **Provisioning** tab in Okta
-- Verify all required attributes (userName, givenName, familyName) are mapped
-- Double-check your Base URL: `https://your-fleet-instance.com/api/v1/fleet/scim`
-
 **SAML authentication issues:**
-- Make sure your Fleet Server URL doesn't have a trailing slash
+- Verify your Fleet Server URL doesn't have a trailing slash
 - Confirm users are assigned to the Fleet app in Okta
-- If you're not using SCIM, check that Just-In-Time provisioning is enabled
-- Verify the SAML metadata is configured in Fleet
+- Check that the Entity ID matches exactly in both Okta and Fleet
+- If you're not using SCIM, verify JIT provisioning is enabled in Fleet
+
+**Users not provisioning via SCIM:**
+- Check your API token is valid and has maintainer permissions
+- Look for errors in Okta's **Provisioning** tab under **View Logs**
+- Verify required attributes (userName, givenName, familyName) are mapped
+- Double-check your Base URL format: `https://your-fleet-instance.com/api/v1/fleet/scim`
 
 **Group membership not syncing:**
-- Confirm groups are pushed in the **Push Groups** tab
+- Confirm groups are added in the **Push Groups** tab
 - Check that **Push group memberships immediately** is enabled
 - Verify users are actually members of the pushed groups in Okta
+- Remember: users must be assigned to the app to see group data
 
 ### Okta custom SAML app
 
-Create a new SAML app in Okta:
+Create a custom SAML app in Okta if you're testing configurations or setting up [end user authentication for MDM](#end-user-authentication-for-mdm).
 
 ![Example Okta IdP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
 
-If you're configuring [end user authentication](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the **Single sign on URL** instead.
+**For MDM end user authentication**, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` as the **Single sign on URL** instead of the regular callback.
 
-Once configured, you will need to retrieve the issuer URI from **View Setup Instructions** and metadata URL from the **Identity Provider metadata** link within the application **Sign on** settings. See below for where to find them:
+Once configured, you'll need:
+- **Issuer URI** from **View Setup Instructions**
+- **Metadata URL** from the **Identity Provider metadata** link in the app's **Sign on** settings
 
 ![Where to find SSO links for Fleet](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-retrieve-links.png)
 
-> The Provider Sign-on URL within **View Setup Instructions** has a similar format as the Provider SAML Metadata URL, but this link provides a redirect to _sign into_ the application, not the metadata necessary for dynamic configuration.
+> **Note:** The Provider Sign-on URL has a similar format to the metadata URL, but it's for signing into the app, not for metadata configuration. Make sure you grab the metadata URL.
 
 ## Google Workspace
 
