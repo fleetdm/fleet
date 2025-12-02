@@ -31,9 +31,7 @@ import (
 // Used for overriding the private key validation in testing
 var testSetEmptyPrivateKey bool
 
-// We use numbers for policy names for easier mapping/indexing with Fleet DB.
 const (
-	defaultAndroidPolicyID   = 1
 	DefaultSignupSSEInterval = 3 * time.Second
 	SignupSSESuccess         = "Android Enterprise successfully connected"
 )
@@ -331,7 +329,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 		return ctxerr.Wrap(ctx, err, "updating enterprise")
 	}
 
-	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), fmt.Sprintf("%d", defaultAndroidPolicyID))
+	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), fmt.Sprintf("%d", android.DefaultAndroidPolicyID))
 	_, err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
 		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
 			DeviceSettingsEnabled:        true,
@@ -349,7 +347,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 		},
 	})
 	if err != nil && !androidmgmt.IsNotModifiedError(err) {
-		return ctxerr.Wrapf(ctx, err, "patching %d policy", defaultAndroidPolicyID)
+		return ctxerr.Wrapf(ctx, err, "patching %d policy", android.DefaultAndroidPolicyID)
 	}
 
 	err = svc.ds.DeleteOtherEnterprises(ctx, enterprise.ID)
@@ -451,6 +449,11 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 	err = svc.ds.BulkSetAndroidHostsUnenrolled(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set android hosts as unenrolled")
+	}
+
+	err = svc.ds.MarkAllPendingAndroidVPPInstallsAsFailed(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marking pending android vpp installs as failed")
 	}
 
 	if err = svc.activityModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDisabledAndroidMDM{}); err != nil {
@@ -582,7 +585,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 
 		AdditionalData:     string(enrollmentTokenRequest),
 		AllowPersonalUsage: "PERSONAL_USAGE_ALLOWED",
-		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), +defaultAndroidPolicyID),
+		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), android.DefaultAndroidPolicyID),
 		OneTimeOnly:        true,
 	}
 	token, err = svc.androidAPIClient.EnterprisesEnrollmentTokensCreate(ctx, enterprise.Name(), token)
@@ -791,6 +794,10 @@ func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *an
 	if unenrollErr := svc.ds.BulkSetAndroidHostsUnenrolled(ctx); unenrollErr != nil {
 		level.Error(svc.logger).Log("msg", "failed to unenroll Android hosts after enterprise deletion", "err", unenrollErr)
 	}
+
+	if err := svc.ds.MarkAllPendingAndroidVPPInstallsAsFailed(ctx); err != nil {
+		level.Error(svc.logger).Log("msg", "failed to mark pending Android VPP installs as failed after enterprise deletion", "err", err)
+	}
 }
 
 // Admin-initiated Android unenroll
@@ -861,26 +868,38 @@ func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName,
 	return svc.androidAPIClient.EnterprisesApplications(ctx, enterpriseName, applicationID)
 }
 
-func (svc *Service) AddAppToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string) error {
+// Adds the specified apps to the host-specific Android policy of the provided hosts, and
+// returns a map of host UUID to the policy request object of their updated policy on success.
+func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string, installType string) (map[string]*android.MDMAndroidPolicyRequest, error) {
 	var appPolicies []*androidmanagement.ApplicationPolicy
 	for _, a := range applicationIDs {
 		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
 			PackageName: a,
-			InstallType: "AVAILABLE",
+			InstallType: installType,
 		})
 	}
 
 	var errs []error
+	hostToPolicyRequest := make(map[string]*android.MDMAndroidPolicyRequest, len(hostUUIDs))
 	for uuid, policyID := range hostUUIDs {
 		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, policyID)
-
-		_, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, appPolicies)
+		policyRequest, err := newAndroidPolicyApplicationsRequest(policyID, policyName, appPolicies)
 		if err != nil {
-			errs = append(errs, ctxerr.Wrapf(ctx, err, "google api: modify policy applications for host %s", uuid))
+			return nil, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 		}
+
+		policy, apiErr := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, appPolicies)
+		if _, err := recordAndroidRequestResult(ctx, svc.fleetDS, policyRequest, policy, nil, apiErr); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "save android policy request for host %s", uuid)
+		}
+
+		if apiErr != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, apiErr, "google api: modify policy applications for host %s", uuid))
+		}
+		hostToPolicyRequest[uuid] = policyRequest
 	}
 
-	return errors.Join(errs...)
+	return hostToPolicyRequest, errors.Join(errs...)
 }
 
 // AddFleetAgentToAndroidPolicy adds the Fleet Agent to the Android policy for the given enterprise.
@@ -949,7 +968,7 @@ func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
 	}
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 
-	policyName := fmt.Sprintf("%s/policies/%d", enterprise.Name(), defaultAndroidPolicyID)
+	policyName := fmt.Sprintf("%s/policies/%d", enterprise.Name(), android.DefaultAndroidPolicyID)
 	_, err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
 		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
 			DeviceSettingsEnabled:        true,
@@ -966,7 +985,7 @@ func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
 		},
 	})
 	if err != nil && !androidmgmt.IsNotModifiedError(err) {
-		return ctxerr.Wrapf(ctx, err, "enabling app reports on %d default policy", defaultAndroidPolicyID)
+		return ctxerr.Wrapf(ctx, err, "enabling app reports on %d default policy", android.DefaultAndroidPolicyID)
 	}
 	return nil
 }
