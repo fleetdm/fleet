@@ -451,6 +451,12 @@ FROM software_titles st
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND
 			{{if .PackagesOnly}} FALSE {{else}} vat.global_or_team_id = {{teamID .}}{{end}}
+	-- if filtering by platform with no team id, join tables for all teams
+	{{else if hasPlatform .}}
+		LEFT JOIN software_installers si ON si.title_id = st.id
+		LEFT JOIN in_house_apps iha ON iha.title_id = st.id
+		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
+		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform {{if .PackagesOnly}} AND FALSE {{end}}
 	{{end}}
 	LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 		(sthc.team_id = {{teamID .}} AND sthc.global_stats = {{if hasTeamID .}} 0 {{else}} 1 {{end}})
@@ -485,14 +491,14 @@ WHERE
 		{{if $.ListOptions.MatchQuery}}
 			{{$additionalWhere = "(st.name LIKE ? OR scve.cve LIKE ?)"}}
 		{{end}}
-		{{if and (hasTeamID $) $.Platform}}
+		{{if hasPlatform $}}
 		  {{$postfix := printf " AND (si.platform IN (%s) OR vap.platform IN (%[1]s) OR iha.platform IN (%[1]s))" (placeholders $.Platform)}}
 		  {{$additionalWhere = printf "%s %s" $additionalWhere $postfix}}
 		{{end}}
 		{{$additionalWhere}}
 	{{end}}
 	-- If teamID is set, defaults to "a software installer, in-house app or VPP app exists", and see next condition.
-	{{with $defFilter := yesNo (hasTeamID .) "(si.id IS NOT NULL OR vat.adam_id IS NOT NULL OR iha.id IS NOT NULL)" "FALSE"}}
+	{{with $defFilter := yesNo (or (hasTeamID .) (hasPlatform .)) "(si.id IS NOT NULL OR vat.adam_id IS NOT NULL OR iha.id IS NOT NULL)" "FALSE"}}
 		-- add software installed for hosts if we're not filtering for "available for install" only
 		{{if not $.AvailableForInstall}}
 			{{$defFilter = $defFilter | printf " ( %s OR sthc.hosts_count > 0 ) "}}
@@ -564,7 +570,7 @@ GROUP BY
 		}
 	}
 
-	t, err := template.New("stm").Funcs(map[string]any{
+	t, err := template.New("stm").Funcs(template.FuncMap{
 		"yesNo": func(b bool, yes string, no string) string {
 			if b {
 				return yes
@@ -583,6 +589,9 @@ GROUP BY
 				return 0
 			}
 			return *q.TeamID
+		},
+		"hasPlatform": func(q fleet.SoftwareTitleListOptions) bool {
+			return q.Platform != ""
 		},
 	}).Parse(stmt)
 	if err != nil {
