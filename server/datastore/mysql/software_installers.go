@@ -2242,7 +2242,7 @@ WHERE
 		SELECT 1 FROM in_house_apps iha WHERE iha.title_id = stdn.software_title_id 
 		AND iha.global_or_team_id = stdn.team_id)
 	AND NOT EXISTS (
-		SELECT 1 FROM vpp_apps va JOIN vpp_apps_teams vat ON va.adam_id
+		SELECT 1 FROM vpp_apps va JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id
 		WHERE va.title_id = stdn.software_title_id 
 		AND vat.global_or_team_id = stdn.team_id);
 `

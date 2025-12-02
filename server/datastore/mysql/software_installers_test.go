@@ -3679,6 +3679,8 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.DeleteSoftwareInstaller(ctx, installerID))
 	_, err = ds.getSoftwareTitleDisplayName(ctx, 0, titleID)
 	require.ErrorContains(t, err, "not found")
+
+	// TODO(JK): test batch set installer display names
 }
 
 func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore) {

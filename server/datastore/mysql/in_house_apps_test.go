@@ -212,16 +212,14 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 
 	// ipadOS installer should remain
 	var ipadID uint
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &ipadID, `SELECT id FROM in_house_apps LIMIT 1`)
-	require.NoError(t, err)
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &ipadID, `SELECT id FROM in_house_apps LIMIT 1`))
 
 	// Try to upload installer again, expect duplicate error
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
 	require.Error(t, err)
 
 	// Delete ipadOS installer
-	err = ds.DeleteInHouseApp(ctx, ipadID)
-	require.NoError(t, err)
+	require.NoError(t, ds.DeleteInHouseApp(ctx, ipadID))
 
 	var count int
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM in_house_apps`)
@@ -1602,6 +1600,7 @@ func testSoftwareTitleDisplayNameInHouse(t *testing.T, ds *Datastore) {
 		UserID:           user1.ID,
 		Title:            "foo",
 		BundleIdentifier: "com.foo",
+		Filename:         "foo.ipa",
 		StorageID:        "testingtesting123",
 		Platform:         "ios",
 		Extension:        "ipa",
@@ -1623,8 +1622,104 @@ func testSoftwareTitleDisplayNameInHouse(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Delete in-house app, display name should be deleted
-	err = ds.DeleteInHouseApp(ctx, installerID)
-	require.NoError(t, err)
+	require.NoError(t, ds.DeleteInHouseApp(ctx, installerID))
 	_, err = ds.getSoftwareTitleDisplayName(ctx, 0, titleID)
 	require.ErrorContains(t, err, "not found")
+
+	// Delete ipadOS installer
+	var ipadID uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &ipadID, `SELECT id FROM in_house_apps LIMIT 1`))
+	require.NoError(t, ds.DeleteInHouseApp(ctx, ipadID))
+
+	// Add ipa, regular installer, vpp with names
+	installerID, titleID, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+	require.NoError(t, err)
+	err = ds.SaveInHouseAppUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:     titleID,
+		InstallerID: installerID,
+		Filename:    "foo.ipa",
+		Version:     "1.0.0",
+		DisplayName: ptr.String("super foo"),
+	})
+	require.NoError(t, err)
+
+	payloadPkg := fleet.UploadSoftwareInstallerPayload{
+		UserID:           user1.ID,
+		Title:            "bar",
+		Filename:         "bar.pkg",
+		InstallScript:    "echo install",
+		BundleIdentifier: "com.bar",
+		Version:          "1.2.3",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	}
+	_, pkgTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payloadPkg)
+	require.NoError(t, err)
+
+	err = ds.SaveInstallerUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
+		DisplayName:       ptr.String("update1"),
+		TitleID:           pkgTitleID,
+		InstallerFile:     &fleet.TempFileReader{},
+		InstallScript:     new(string),
+		PreInstallQuery:   new(string),
+		PostInstallScript: new(string),
+		SelfService:       ptr.Bool(false),
+		UninstallScript:   new(string),
+	})
+	require.NoError(t, err)
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: "darwin"}, DisplayName: ptr.String("VPP 1")},
+		Name:             "vpp1",
+		BundleIdentifier: "com.app.vpp1",
+	}, nil)
+	require.NoError(t, err)
+
+	var names []string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		err := sqlx.SelectContext(ctx, q, &names, `SELECT display_name FROM software_title_display_names`)
+		require.NoError(t, err)
+		return nil
+	})
+	require.Len(t, names, 3)
+
+	// Batch set in-house apps, previous names should be deleted
+	err = ds.BatchSetInHouseAppsInstallers(ctx, ptr.Uint(0), []*fleet.UploadSoftwareInstallerPayload{
+		{
+			StorageID:        "ipa1storageid",
+			Filename:         "ipa1.ipa",
+			Title:            "App Name",
+			Source:           "ios_apps",
+			Version:          "1.0.0",
+			UserID:           user1.ID,
+			Platform:         "ios",
+			URL:              "https://example.com/1",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			BundleIdentifier: "com.ipa1",
+			SelfService:      true,
+			DisplayName:      "Yeehaw",
+		},
+		{
+			StorageID:        "ipa1storageid",
+			Filename:         "ipa1.ipa",
+			Title:            "App Name",
+			Source:           "ipados_apps",
+			Version:          "1.0.0",
+			UserID:           user1.ID,
+			Platform:         "ipados",
+			URL:              "https://example.com/1",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			BundleIdentifier: "com.ipa1",
+			SelfService:      true,
+			DisplayName:      "Yeehaw",
+		},
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		err := sqlx.SelectContext(ctx, q, &names, `SELECT display_name FROM software_title_display_names`)
+		require.NoError(t, err)
+		return nil
+	})
+	require.Len(t, names, 4)                   // installer and vpp display names aren't deleted
+	require.NotContains(t, names, "super foo") // previous in-house display names are deleted
 }

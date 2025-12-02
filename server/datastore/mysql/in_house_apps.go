@@ -725,6 +725,15 @@ FROM
 WHERE (unique_identifier, source, extension_for) IN (%s)
 `
 
+	const getSoftwareTitle = `
+SELECT 
+	id 
+FROM 
+	software_titles 
+WHERE 
+	unique_identifier = ? AND source = ? AND extension_for = ''
+`
+
 	const cancelAllPendingInHouseInstalls = `
 UPDATE
 	host_in_house_software_installs
@@ -875,7 +884,7 @@ FROM
 	in_house_apps
 WHERE
 	global_or_team_id = ?	AND
-	title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = '')
+	title_id = ?
 `
 
 	const insertNewOrEditedInstaller = `
@@ -891,8 +900,7 @@ INSERT INTO in_house_apps (
 	self_service,
 	url
 ) VALUES (
-  (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = ''),
-  ?, ?, ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 ON DUPLICATE KEY UPDATE
   filename = VALUES(filename),
@@ -988,7 +996,7 @@ WHERE
 		SELECT 1 FROM software_installers si WHERE si.title_id = stdn.software_title_id
 		AND si.global_or_team_id = stdn.team_id)
 	AND NOT EXISTS (
-		SELECT 1 FROM vpp_apps va JOIN vpp_apps_teams vat ON va.adam_id
+		SELECT 1 FROM vpp_apps va JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id
 		WHERE va.title_id = stdn.software_title_id 
 		AND vat.global_or_team_id = stdn.team_id);
 `
@@ -1140,18 +1148,24 @@ WHERE
 			return ctxerr.Wrap(ctx, err, "delete obsolete display names")
 		}
 
-		for i, installer := range installers {
+		for _, installer := range installers {
 			if installer.ValidatedLabels == nil {
 				return ctxerr.Errorf(ctx, "labels have not been validated for in-house app with name %s", installer.Filename)
 			}
+
+			titleArgs := []any{
+				BundleIdentifierOrName(installer.BundleIdentifier, strings.TrimSuffix(installer.Filename, ".ipa")),
+				installer.Source,
+			}
+			var titleID uint
+			err = sqlx.GetContext(ctx, tx, &titleID, getSoftwareTitle, titleArgs...)
 
 			wasUpdatedArgs := []any{
 				// package update
 				installer.StorageID,
 				// WHERE clause
 				globalOrTeamID,
-				BundleIdentifierOrName(installer.BundleIdentifier, strings.TrimSuffix(installer.Filename, ".ipa")),
-				installer.Source,
+				titleID,
 			}
 
 			// pull existing installer state if it exists so we can diff for side effects post-update
@@ -1167,8 +1181,7 @@ WHERE
 			}
 
 			args := []any{
-				BundleIdentifierOrName(installer.BundleIdentifier, strings.TrimSuffix(installer.Filename, ".ipa")),
-				installer.Source,
+				titleID,
 				tmID,
 				globalOrTeamID,
 				installer.Filename,
@@ -1295,7 +1308,7 @@ WHERE
 			}
 
 			// update the display name for the software title
-			if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleIDs[i], installer.DisplayName); err != nil {
+			if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleID, installer.DisplayName); err != nil {
 				return ctxerr.Wrapf(ctx, err, "update software title display name for in-house with name %q", installer.Filename)
 			}
 
