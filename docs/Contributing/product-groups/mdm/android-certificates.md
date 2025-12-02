@@ -59,8 +59,10 @@ flowchart TD
         certRetry --> certRetryYes(("YES")) & certRetryNo(("NO"))
         certRetryYes --> certRetrySave["Save cert for retry"]
         certRetrySave --> certDone2(["Continue"])
-        certRetryNo --> certInstallStatus
-        certSuccessYes --> certInstallStatus["PUT /api/fleetd/certificates/:id/status"]
+        certRetryNo --> certInstallStatusFail["PUT /api/fleetd/certificates/:id/status<br/>Failed"]
+        certInstallStatusFail --> certSave3["Save cert as processed"]
+        certSave3 --> certDone2(["Continue"])
+        certSuccessYes --> certInstallStatus["PUT /api/fleetd/certificates/:id/status<br/>Verified"]
         certInstallStatus -->certSave2["Save cert as processed"]
         certSave2 --> certDone3(["Continue"])
     end
