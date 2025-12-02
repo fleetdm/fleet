@@ -3680,7 +3680,95 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	_, err = ds.getSoftwareTitleDisplayName(ctx, 0, titleID)
 	require.ErrorContains(t, err, "not found")
 
-	// TODO(JK): test batch set installer display names
+	// Add installer, vpp, in-house app with custom names
+	installerID, titleID, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		Extension:        "msi",
+		StorageID:        "storageid",
+		Filename:         "originalname.msi",
+		Title:            "OriginalName1",
+		PackageIDs:       []string{"id2"},
+		Version:          "2.0",
+		Source:           "programs",
+		AutomaticInstall: true,
+		UserID:           user1.ID,
+
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	err = ds.SaveInstallerUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
+		DisplayName:       ptr.String("update2"),
+		TitleID:           titleID,
+		InstallerFile:     &fleet.TempFileReader{},
+		InstallScript:     new(string),
+		PreInstallQuery:   new(string),
+		PostInstallScript: new(string),
+		SelfService:       ptr.Bool(false),
+		UninstallScript:   new(string),
+	})
+	require.NoError(t, err)
+
+	payload := fleet.UploadSoftwareInstallerPayload{
+		UserID:           user1.ID,
+		Title:            "foo",
+		BundleIdentifier: "com.foo",
+		Filename:         "foo.ipa",
+		StorageID:        "testingtesting123",
+		Platform:         "ios",
+		Extension:        "ipa",
+		Version:          "1.2.3",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	}
+	ipaInstallerID, ipaTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+	require.NoError(t, err)
+
+	err = ds.SaveInHouseAppUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:     ipaTitleID,
+		InstallerID: ipaInstallerID,
+		DisplayName: ptr.String("ipa_foo"),
+	})
+	require.NoError(t, err)
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: "darwin"}, DisplayName: ptr.String("VPP1")},
+		Name:             "vpp1",
+		BundleIdentifier: "com.app.vpp1",
+	}, nil)
+	require.NoError(t, err)
+
+	// Batch insert installers should delete previous display names
+	// and ignore in-house and vpp names
+	err = ds.BatchSetSoftwareInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:      "install",
+			InstallerFile:      &fleet.TempFileReader{},
+			StorageID:          "storageid",
+			Filename:           "originalname.msi",
+			Title:              "OriginalName1",
+			DisplayName:        "batch_name1",
+			Source:             "apps",
+			Version:            "1",
+			PreInstallQuery:    "select 0 from foo;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+	})
+	require.NoError(t, err)
+
+	var names []string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		err := sqlx.SelectContext(ctx, q, &names, `SELECT display_name FROM software_title_display_names`)
+		require.NoError(t, err)
+		return nil
+	})
+	require.Len(t, names, 3)
+	require.NotContains(t, names, "update2")
+	require.Contains(t, names, "batch_name1")
 }
 
 func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore) {
