@@ -1036,9 +1036,16 @@ WHERE
 
 		var args []any
 		for _, installer := range installers {
+			var providedTitle *string
+			if installer.Title != "" {
+				providedTitle = &installer.Title // for IPAs downloaded via URL; IPAs referenced by hash won't have this
+			}
+
 			args = append(
 				args,
-				strings.TrimSuffix(installer.Filename, ".ipa"),
+				providedTitle,       // if IPA is downloaded as part of the GitOps run, we'll have this via metadata extraction
+				installer.StorageID, // if the IPA already exists in the DB, pull the name from an existing title if possible
+				strings.TrimSuffix(installer.Filename, ".ipa"), // if neither of the above turns up anything, fall back to filename
 				installer.Source,
 				"",
 				func() *string {
@@ -1050,7 +1057,8 @@ WHERE
 			)
 		}
 
-		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(installers)), ",")
+		values := strings.TrimSuffix(strings.Repeat(
+			"(COALESCE(?, (SELECT name FROM software_titles st JOIN in_house_apps iha ON iha.title_id = st.id AND iha.storage_id = ? ORDER BY st.id ASC LIMIT 1), ?),?,?,?),", len(installers)), ",")
 		if _, err := tx.ExecContext(ctx, fmt.Sprintf(upsertSoftwareTitles, values), args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert new/edited software titles")
 		}
