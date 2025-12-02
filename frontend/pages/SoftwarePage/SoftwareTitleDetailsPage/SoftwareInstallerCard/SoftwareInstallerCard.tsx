@@ -36,6 +36,7 @@ import {
   APP_STORE_APP_ACTION_OPTIONS,
   SOFTWARE_PACKAGE_ACTION_OPTIONS,
   downloadFile,
+  PLAY_STORE_APP_BASE_URL,
 } from "./helpers";
 import InstallerStatusTable from "./InstallerStatusTable";
 import InstallerPoliciesTable from "./InstallerPoliciesTable";
@@ -283,6 +284,10 @@ const SoftwareInstallerCard = ({
   const showActions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
+  const androidPlayStoreLink = isAndroidPlayStoreApp
+    ? `${PLAY_STORE_APP_BASE_URL}${softwareInstaller?.app_store_id}`
+    : undefined;
+
   return (
     <Card borderRadiusSize="xxlarge" className={baseClass}>
       <div className={`${baseClass}__installer-header`}>
@@ -296,6 +301,7 @@ const SoftwareInstallerCard = ({
               sha256={sha256}
               isFma={isFleetMaintainedApp}
               isScriptPackage={isScriptPackage}
+              androidPlayStoreLink={androidPlayStoreLink}
             />
             <div className={`${baseClass}__tags-wrapper`}>
               {Array.isArray(automaticInstallPolicies) &&
