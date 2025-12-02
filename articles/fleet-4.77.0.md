@@ -99,5 +99,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2025-12-04">
-<meta name="articleTitle" value="Fleet 4.77.0 | iOS/iPadOS self-service and enterprise packages, edit IdP username, and more...">
+<meta name="articleTitle" value="Fleet 4.77.0 | Deploy enterprise packages for iOS/iPadOS, edit IdP username, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.77.0-1600x900@2x.png">
