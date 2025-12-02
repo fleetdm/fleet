@@ -166,7 +166,7 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.adam_id = vpp_apps.adam_id AND vpp_apps_teams.platform = vpp_apps.platform
 		WHERE software_title_icons.team_id = ? AND software_title_icons.software_title_id = ?
 	`
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &details, query, teamID, titleID)
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &details, query, teamID, titleID)
 	if err != nil {
 		return fleet.DetailsForSoftwareIconActivity{}, ctxerr.Wrap(ctx, err, "getting activity details for software title icon")
 	}
@@ -187,7 +187,7 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 			INNER JOIN labels ON software_installer_labels.label_id = labels.id
 			WHERE software_installer_id = ?
 		`
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, labelQuery, details.SoftwareInstallerID); err != nil {
+		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &labels, labelQuery, details.SoftwareInstallerID); err != nil {
 			return fleet.DetailsForSoftwareIconActivity{}, ctxerr.Wrap(ctx, err, "getting labels for software title icon")
 		}
 	}
@@ -201,7 +201,7 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 			INNER JOIN labels ON vpp_app_team_labels.label_id = labels.id
 			WHERE vpp_app_team_id = ?
 		`
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, labelQuery, details.VPPAppTeamID); err != nil {
+		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &labels, labelQuery, details.VPPAppTeamID); err != nil {
 			return fleet.DetailsForSoftwareIconActivity{}, ctxerr.Wrap(ctx, err, "getting labels for software title icon")
 		}
 	}
@@ -215,7 +215,7 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 			INNER JOIN labels ON in_house_app_labels.label_id = labels.id
 			WHERE in_house_app_id = ?
 		`
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, labelQuery, details.InHouseAppID); err != nil {
+		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &labels, labelQuery, details.InHouseAppID); err != nil {
 			return fleet.DetailsForSoftwareIconActivity{}, ctxerr.Wrap(ctx, err, "getting labels for software title icon")
 		}
 	}
