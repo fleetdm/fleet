@@ -11,7 +11,8 @@ import mdmAPI from "services/entities/mdm";
 import Button from "components/buttons/Button";
 import { ISoftwareTitle } from "interfaces/software";
 import Checkbox from "components/forms/fields/Checkbox";
-import LinkWithContext from "components/LinkWithContext";
+import CustomLink from "components/CustomLink";
+
 import RevealButton from "components/buttons/RevealButton";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -89,13 +90,10 @@ const AddInstallSoftware = ({
       return (
         <>
           No {platformText} software available. You can add software on the{" "}
-          <LinkWithContext
-            to={PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}
-            currentQueryParams={{ team_id: currentTeamId }}
-            withParams={{ type: "query", names: ["team_id"] }}
-          >
-            Software page
-          </LinkWithContext>
+          <CustomLink
+            url={`${PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}?team_id=${currentTeamId}`}
+            text="Software page"
+          />
           .
         </>
       );
