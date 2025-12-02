@@ -15,19 +15,15 @@ class BootReceiver : BroadcastReceiver() {
             Log.i(TAG, "Device boot completed. Initializing Fleet Agent.")
 
             context?.let {
-                // Check for any pending certificate operations or managed configurations
-                // that may need to be processed after boot
-                val restrictionsManager = context.getSystemService(Context.RESTRICTIONS_SERVICE) as android.content.RestrictionsManager
-                val appRestrictions = restrictionsManager.applicationRestrictions
+                // Check for any pending certificate operations from managed configuration
+                val certificateIds = CertificateOrchestrator.getCertificateIDs(it)
 
-                val certData = appRestrictions.getString("certificate_data")
+                if (!certificateIds.isNullOrEmpty()) {
+                    Log.d(TAG, "Found ${certificateIds.size} certificate(s) after boot. Processing first certificate.")
 
-                if (!certData.isNullOrEmpty()) {
-                    Log.d(TAG, "Found certificate data after boot. Processing installation.")
-
-                    // Start the service to handle the installation
+                    // Start the service to handle the first certificate
                     val serviceIntent = Intent(it, CertificateService::class.java).apply {
-                        putExtra("CERT_DATA", certData)
+                        putExtra("CERTIFICATE_ID", certificateIds.first())
                     }
                     it.startService(serviceIntent)
                 } else {

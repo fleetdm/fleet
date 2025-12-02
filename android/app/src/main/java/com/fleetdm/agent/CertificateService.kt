@@ -1,47 +1,41 @@
 package com.fleetdm.agent
 
 import android.app.Service
-import android.app.admin.DevicePolicyManager
-import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
-import com.fleetdm.agent.scep.ScepClientImpl
-import java.security.PrivateKey
-import java.security.cert.Certificate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
- * Service to handle SCEP enrollment and silent certificate installation using DevicePolicyManager.
- * Runs long-running tasks on the background IO thread via Coroutines.
+ * Service to handle certificate enrollment operations.
  *
- * This is a thin wrapper around CertificateEnrollmentHandler that provides Android-specific
- * lifecycle management and certificate installation.
+ * This is a thin wrapper around CertificateOrchestrator that provides Android Service
+ * lifecycle management. The actual certificate enrollment logic (API calls, SCEP enrollment,
+ * and installation) is delegated to CertificateOrchestrator.
  */
 class CertificateService : Service() {
-    private val TAG = "CertCompanionService"
+    private val TAG = "CertificateService"
 
     // Use a supervisor job for the service's lifecycle
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
 
-    // Enrollment handler with Android-specific certificate installer
-    private val enrollmentHandler = CertificateEnrollmentHandler(
-        scepClient = ScepClientImpl(),
-        certificateInstaller = AndroidCertificateInstaller(),
-    )
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val certDataJson = intent?.getStringExtra("CERT_DATA")
+        val certificateId = intent?.getIntExtra("CERTIFICATE_ID", -1) ?: -1
 
-        if (certDataJson != null) {
-            // Launch the SCEP process in a coroutine on the IO dispatcher
+        if (certificateId > 0) {
+            // Launch the certificate enrollment in a coroutine on the IO dispatcher
             serviceScope.launch {
                 try {
-                    when (val result = enrollmentHandler.handleEnrollment(certDataJson)) {
+                    val result = CertificateOrchestrator.enrollCertificate(
+                        context = applicationContext,
+                        certificateId = certificateId
+                    )
+
+                    when (result) {
                         is CertificateEnrollmentHandler.EnrollmentResult.Success -> {
                             Log.i(TAG, "Certificate successfully enrolled and installed with alias: ${result.alias}")
                         }
@@ -57,38 +51,10 @@ class CertificateService : Service() {
                 }
             }
         } else {
-            Log.w(TAG, "Service started without 'CERT_DATA' extra.")
+            Log.w(TAG, "Service started without valid 'CERTIFICATE_ID' extra.")
             stopSelf(startId)
         }
         return START_NOT_STICKY
-    }
-
-    /**
-     * Android-specific certificate installer using DevicePolicyManager.
-     */
-    inner class AndroidCertificateInstaller : CertificateEnrollmentHandler.CertificateInstaller {
-        override fun installCertificate(alias: String, privateKey: PrivateKey, certificateChain: Array<Certificate>): Boolean {
-            val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-
-            // The admin component is null because the caller is a DELEGATED application,
-            // not the Device Policy Controller itself. The DPM recognizes the delegation
-            // via the calling package's UID and the granted CERT_INSTALL scope.
-            val success = dpm.installKeyPair(
-                null,
-                privateKey,
-                certificateChain,
-                alias,
-                true, // requestAccess: allows user confirmation if needed
-            )
-
-            if (success) {
-                Log.i(TAG, "Certificate successfully installed with alias: $alias")
-            } else {
-                Log.e(TAG, "Certificate installation failed. Check MDM policy and delegation status.")
-            }
-
-            return success
-        }
     }
 
     override fun onBind(intent: Intent?): IBinder? {
