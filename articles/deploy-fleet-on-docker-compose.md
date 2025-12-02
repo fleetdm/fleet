@@ -1,7 +1,7 @@
 # Deploy Fleet with Docker Compose
 
 
-This guide walks you through deploying Fleet using Docker Compose. You'll have a production-ready Fleet instance running with MySQL and Redis in about 15 minutes.
+This guide walks you through deploying Fleet using Docker Compose. You'll have a Fleet instance running with MySQL and Redis in about 15 minutes.
 
 
 ## What you'll need
