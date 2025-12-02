@@ -5,6 +5,9 @@ import com.google.android.managementapi.approles.AppRolesListener
 import com.google.android.managementapi.approles.model.AppRolesSetRequest
 import com.google.android.managementapi.approles.model.AppRolesSetResponse
 import com.google.android.managementapi.notification.NotificationReceiverService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * Service to receive notifications from Android Device Policy (ADP) for COMPANION_APP role.
@@ -18,6 +21,13 @@ class RoleNotificationReceiverService : NotificationReceiverService() {
     override fun getAppRolesListener(): AppRolesListener = object : AppRolesListener {
         override fun onAppRolesSet(request: AppRolesSetRequest): AppRolesSetResponse {
             Log.i(TAG, "App roles set by Android Device Policy")
+
+            // Attempt enrollment when app is installed via MDM
+            CoroutineScope(Dispatchers.IO).launch {
+                val result = EnrollmentManager.tryEnroll(applicationContext)
+                Log.i(TAG, "Role notification enrollment result: $result")
+            }
+
             return AppRolesSetResponse.getDefaultInstance()
         }
     }
