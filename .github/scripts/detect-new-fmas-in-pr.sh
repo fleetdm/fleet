@@ -76,13 +76,29 @@ echo "Fetching base branch apps.json from ${MERGE_BASE}..."
 BASE_APPS_JSON=$(git show "${MERGE_BASE}:ee/maintained-apps/outputs/apps.json" 2>/dev/null || echo "")
 BASE_SLUGS=""
 if [ -n "$BASE_APPS_JSON" ]; then
-    BASE_SLUGS=$(echo "$BASE_APPS_JSON" | jq -r '.apps[].slug' | sort)
+    # Use jq with error handling - if .apps doesn't exist or is empty, return empty string
+    BASE_SLUGS=$(echo "$BASE_APPS_JSON" | jq -r 'if .apps then .apps[].slug else empty end' 2>/dev/null | sort || echo "")
+    if [ -z "$BASE_SLUGS" ]; then
+        echo "Warning: apps.json in base branch has no apps or is malformed, treating all current apps as new"
+    fi
 else
     echo "Warning: Could not find apps.json in base branch, treating all current apps as new"
 fi
 
 # Find new slugs in apps.json
-NEW_SLUGS=$(comm -13 <(echo "$BASE_SLUGS" || echo "") <(echo "$CURRENT_SLUGS" || echo "") || echo "")
+# comm requires both inputs to be sorted, and handles empty inputs gracefully
+if [ -z "$BASE_SLUGS" ] && [ -z "$CURRENT_SLUGS" ]; then
+    NEW_SLUGS=""
+elif [ -z "$BASE_SLUGS" ]; then
+    # If BASE_SLUGS is empty, all current slugs are new
+    NEW_SLUGS="$CURRENT_SLUGS"
+elif [ -z "$CURRENT_SLUGS" ]; then
+    # If CURRENT_SLUGS is empty, there are no new slugs
+    NEW_SLUGS=""
+else
+    # Both are non-empty, use comm to find new slugs
+    NEW_SLUGS=$(comm -13 <(echo "$BASE_SLUGS") <(echo "$CURRENT_SLUGS") || echo "")
+fi
 
 # Combine all changed slugs (from manifest changes and new apps)
 ALL_CHANGED_SLUGS=$(printf '%s\n' "$CHANGED_MANIFEST_SLUGS" "$NEW_SLUGS" | grep -v '^$' | sort -u)
