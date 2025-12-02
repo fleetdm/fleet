@@ -74,7 +74,7 @@ func (e *BadRequestError) BadRequestError() []map[string]string {
 }
 
 // Internal implements the ErrWithInternal interface.
-func (e *BadRequestError) Internal() string {
+func (e BadRequestError) Internal() string {
 	if e.InternalErr != nil {
 		return e.InternalErr.Error()
 	}
@@ -104,7 +104,7 @@ func NewUserMessageError(err error, statusCode int) *UserMessageError {
 }
 
 // StatusCode returns the HTTP status code for this error.
-func (e *UserMessageError) StatusCode() int {
+func (e UserMessageError) StatusCode() int {
 	if e.statusCode > 0 {
 		return e.statusCode
 	}
@@ -133,7 +133,7 @@ func GetJSONUnknownField(err error) *string {
 // UserMessage implements the user-friendly translation of the error if its
 // root cause is one of the supported types, otherwise it returns the error
 // message.
-func (e *UserMessageError) UserMessage() string {
+func (e UserMessageError) UserMessage() string {
 	cause := Cause(e.error)
 	switch cause := cause.(type) {
 	case *json.UnmarshalTypeError:
