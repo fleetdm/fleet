@@ -254,7 +254,7 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 
 	if len(appIDs) > 0 {
 		// assign those apps to the host's Android policy
-		hostToPolicyRequest, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{hostUUID: hostUUID}, "FORCE_INSTALLED")
+		hostToPolicyRequest, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{hostUUID: hostUUID}, "PREINSTALLED")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 		}
