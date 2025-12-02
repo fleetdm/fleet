@@ -2554,8 +2554,8 @@ None.
 - [Cancel host's upcoming activity](#cancel-hosts-upcoming-activity)
 - [Add labels to host](#add-labels-to-host)
 - [Remove labels from host](#remove-labels-from-host)
-- [Run live query on host (ad-hoc)](#run-live-query-on-host-ad-hoc)
-- [Run live query on host by identifier (ad-hoc)](#run-live-query-on-host-by-identifier-ad-hoc)
+- [Run live query on host (ad hoc)](#run-live-query-on-host-ad-hoc)
+- [Run live query on host by identifier (ad hoc)](#run-live-query-on-host-by-identifier-ad-hoc)
 
 #### About host timestamps
 
@@ -5000,9 +5000,9 @@ Removes manual labels from a host.
 
 `Status: 200`
 
-### Run live query on host (ad-hoc)
+### Run live query on host (ad hoc)
 
-Runs an ad-hoc live query against the specified host and responds with the results.
+Runs an ad hoc live query against the specified host and responds with the results.
 
 The live query will stop if the targeted host is offline, or if the query times out. Timeouts happen if the host hasn't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
 
@@ -5050,9 +5050,9 @@ The live query will stop if the targeted host is offline, or if the query times 
 
 Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be`null`.
 
-### Run live query on host by identifier (ad-hoc)
+### Run live query on host by identifier (ad hoc)
 
-Runs an ad-hoc live query against a host identified using `uuid` and responds with the results.
+Runs an ad hoc live query against a host identified using `uuid` and responds with the results.
 
 The live query will stop if the targeted host is offline, or if the query times out. Timeouts happen if the host hasn't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
 
