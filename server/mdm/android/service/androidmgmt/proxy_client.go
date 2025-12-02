@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -287,12 +288,11 @@ func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseNam
 
 	app, err := call.Do()
 	if err != nil {
-		var gapiErr *googleapi.Error
-		if errors.As(err, &gapiErr) {
-			if gapiErr.Code == http.StatusNotFound {
-				return nil, ctxerr.Wrap(ctx, appNotFoundError{})
-			}
+		if isErrorCode(err, http.StatusInternalServerError) && strings.Contains(err.Error(), "Requested entity was not found") {
+			// For some reason, the AMAPI returns a 500 when an app is not found.
+			return nil, ctxerr.Wrap(ctx, appNotFoundError{})
 		}
+
 		return nil, fmt.Errorf("getting application %s: %w", packageName, err)
 	}
 	return app, nil

@@ -7,18 +7,22 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
+func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	ctx := context.Background()
 	t := s.T()
 
@@ -134,7 +138,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "com.valid.app.id"},
 		http.StatusUnprocessableEntity,
 	)
-	require.Contains(t, extractServerErrorText(r.Body), "Error: Couldn't add software. com.valid.app.id isn't available in Apple Business Manager. Please purchase license in Apple Business Manager and try again.")
+	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. com.valid.app.id isn't available in Apple Business Manager or Play Store. Please purchase a license in Apple Business Manager or find the app in Play Store and try again.")
 
 	// Valid application ID format, but app isn't found: should fail
 	// Update mock to return a 404
@@ -148,11 +152,20 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "com.app.id.not.found", Platform: fleet.AndroidPlatform},
 		http.StatusUnprocessableEntity,
 	)
-	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
+	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
 
 	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
 		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: "Test App"}, nil
 	}
+
+	// Valid application ID format, but wrong platform specified: should fail
+	r = s.Do(
+		"POST",
+		"/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{AppStoreID: "com.valid", Platform: fleet.MacOSPlatform},
+		http.StatusUnprocessableEntity,
+	)
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add software. com.valid isn't available in Apple Business Manager or Play Store. Please purchase a license in Apple Business Manager or find the app in Play Store and try again.")
 
 	// Add Android app
 	s.DoJSON(
@@ -162,6 +175,14 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		http.StatusOK,
 		&addAppResp,
 	)
+
+	// self_service is coerced to be true
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var selfService bool
+		sqlx.GetContext(ctx, q, &selfService, "SELECT self_service FROM vpp_apps_teams WHERE adam_id = ?", androidApp.AdamID)
+		s.Assert().True(selfService)
+		return nil
+	})
 
 	secrets, err := s.ds.GetEnrollSecrets(ctx, nil)
 	require.NoError(t, err)
@@ -213,6 +234,19 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 	s.Assert().NotNil(getHostSw.Software[0].AppStoreApp)
 	s.Assert().Equal(androidApp.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
 
+	// Should see it in software titles
+	err = s.ds.SyncHostsSoftware(context.Background(), time.Now())
+	require.NoError(t, err)
+	err = s.ds.SyncHostsSoftwareTitles(context.Background(), time.Now())
+	require.NoError(t, err)
+
+	var listSWTitles listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(0))
+
+	s.Assert().Len(listSWTitles.SoftwareTitles, 1)
+	s.Assert().Equal(androidApp.AdamID, listSWTitles.SoftwareTitles[0].AppStoreApp.AppStoreID)
+	s.Assert().Empty(listSWTitles.SoftwareTitles[0].AppStoreApp.Version)
+
 	// Google AMAPI hasn't been hit yet
 	s.Assert().False(s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 
@@ -221,6 +255,22 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 
 	// Should have hit the android API endpoint
 	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+
+	s.DoJSON(
+		"PATCH",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", getHostSw.Software[0].ID),
+		&updateAppStoreAppRequest{SelfService: ptr.Bool(false)},
+		http.StatusOK,
+		&addAppResp,
+	)
+
+	// Even though we sent self_service: false, self_service remains true
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var selfService bool
+		sqlx.GetContext(ctx, q, &selfService, "SELECT self_service FROM vpp_apps_teams WHERE adam_id = ?", getHostSw.Software[0].AppStoreApp.AppStoreID)
+		s.Assert().True(selfService)
+		return nil
+	})
 
 	// Test Android app configurations
 
