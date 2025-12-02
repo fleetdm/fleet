@@ -1044,6 +1044,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	ins0File := bytes.NewReader([]byte("installer0"))
 	tfr0, err := fleet.NewTempFileReader(ins0File, t.TempDir)
 	require.NoError(t, err)
+	displayName := "Display name 1"
 	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Maintained1",
 		Slug:             "maintained1",
@@ -1065,6 +1066,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		URL:                  "https://example.com",
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
 		BundleIdentifier:     "com.example.ins0",
+		DisplayName:          displayName,
 		FleetMaintainedAppID: ptr.Uint(maintainedApp.ID),
 	}})
 	require.NoError(t, err)
@@ -1079,6 +1081,9 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	assertSoftware([]fleet.SoftwareTitle{
 		{Name: ins0, Source: "apps", ExtensionFor: ""},
 	})
+	meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, *softwareInstallers[0].TitleID, false)
+	require.NoError(t, err)
+	require.Equal(t, displayName, meta.DisplayName)
 
 	// add a new installer + ins0 installer
 	// mark ins0 as install_during_setup
@@ -1204,6 +1209,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			UserID:             user1.ID,
 			Platform:           "darwin",
 			URL:                "https://example.com",
+			DisplayName:        displayName,
 			InstallDuringSetup: ptr.Bool(false),
 			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
 		},
@@ -1220,10 +1226,15 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			UserID:            user1.ID,
 			Platform:          "darwin",
 			URL:               "https://example2.com",
+			DisplayName:       displayName,
 			ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 		},
 	})
 	require.NoError(t, err)
+	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, softwareInstallers, 2)
+	ins0TitleID := softwareInstallers[0].TitleID
 
 	// remove ins0
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
@@ -1238,6 +1249,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			Version:           "2",
 			PreInstallQuery:   "select 1 from bar;",
 			UserID:            user1.ID,
+			DisplayName:       displayName,
 			ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 		},
 	})
@@ -1251,6 +1263,10 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	assertSoftware([]fleet.SoftwareTitle{
 		{Name: ins1, Source: "apps", ExtensionFor: ""},
 	})
+
+	// display name is deleted for ins0
+	_, err = ds.getSoftwareTitleDisplayName(ctx, team.ID, *ins0TitleID)
+	require.ErrorContains(t, err, "not found")
 
 	instDetails1, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, *softwareInstallers[0].TitleID, false)
 	require.NoError(t, err)

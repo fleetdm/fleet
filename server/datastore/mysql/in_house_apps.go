@@ -980,11 +980,13 @@ VALUES
 `
 
 	const deleteDisplayNamesNotInList = `
-DELETE FROM software_title_display_names stdn
-WHERE stdn.team_id = ?
-  AND stdn.software_title_id NOT IN (?)
-  AND NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = stdn.software_title_id)
-  AND NOT EXISTS (SELECT 1 FROM vpp_apps va WHERE va.title_id = stdn.software_title_id);
+DELETE FROM 
+	software_title_display_names stdn
+WHERE 
+	stdn.team_id = ?
+	AND stdn.software_title_id NOT IN (?)
+	AND NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = stdn.software_title_id)
+	AND NOT EXISTS (SELECT 1 FROM vpp_apps va WHERE va.title_id = stdn.software_title_id);
 `
 
 	// use a team id of 0 if no-team
@@ -1118,7 +1120,6 @@ WHERE stdn.team_id = ?
 			return ctxerr.Wrap(ctx, err, "delete obsolete in-house installers")
 		}
 
-		// TODO(JK): don't delete other display names!!! And also do this for software installers
 		stmt, args, err = sqlx.In(deleteDisplayNamesNotInList, globalOrTeamID, titleIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete display names")

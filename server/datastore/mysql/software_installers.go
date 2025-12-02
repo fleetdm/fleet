@@ -2225,6 +2225,16 @@ VALUES
 	%s
 `
 
+	const deleteDisplayNamesNotInList = `
+DELETE FROM 
+	software_title_display_names stdn
+WHERE 
+	stdn.team_id = ?
+	AND stdn.software_title_id NOT IN (?)
+	AND NOT EXISTS (SELECT 1 FROM in_house_apps iha WHERE iha.title_id = stdn.software_title_id)
+	AND NOT EXISTS (SELECT 1 FROM vpp_apps va WHERE va.title_id = stdn.software_title_id);
+`
+
 	// use a team id of 0 if no-team
 	var globalOrTeamID uint
 	teamName := fleet.TeamNameNoTeam
@@ -2431,6 +2441,14 @@ VALUES
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
+		}
+
+		stmt, args, err = sqlx.In(deleteDisplayNamesNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete display names")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete display names")
 		}
 
 		for i, installer := range installers {
