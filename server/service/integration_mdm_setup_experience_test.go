@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
@@ -3450,38 +3451,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	require.NotNil(t, getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
 	require.False(t, *getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
 
-	// get the required secrets to enroll an Android device
-	secrets, err := s.ds.GetEnrollSecrets(ctx, nil)
-	require.NoError(t, err)
-	require.Len(t, secrets, 1)
-
-	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken}, nil)
-	require.NoError(t, err)
-	pubsubToken := assets[fleet.MDMAssetAndroidPubSubToken]
-	require.NotEmpty(t, pubsubToken.Value)
-
-	// enroll an Android device
-	deviceID := createAndroidDeviceID("test-android")
-	enterpriseSpecificID := strings.ToUpper(uuid.New().String())
-	enrollmentMessage := enrollmentMessageWithEnterpriseSpecificID(
-		t,
-		androidmanagement.Device{
-			Name:                deviceID,
-			EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
-		},
-		enterpriseSpecificID,
-	)
-
-	req := android_service.PubSubPushRequest{
-		PubSubMessage: *enrollmentMessage,
-	}
-	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
-
-	var hosts listHostsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts)
-	require.Len(t, hosts.Hosts, 1)
-	host := hosts.Hosts[0]
-	require.EqualValues(t, fleet.AndroidPlatform, host.Platform)
+	host, deviceInfo, pubSubToken := s.createAndEnrollAndroidDevice(t, "test-android", nil)
 
 	// Google AMAPI hasn't been hit yet
 	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
@@ -3494,7 +3464,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, tx, &count,
 			`SELECT COUNT(*) FROM android_policy_requests WHERE policy_id = ?`,
-			hosts.Hosts[0].UUID)
+			host.UUID)
 	})
 	// 1. The default enrollment policy
 	// 2. The Fleet-enforced per-device policy
@@ -3521,8 +3491,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	reportMsg := statusReportMessageWithEnterpriseSpecificID(
 		t,
 		androidmanagement.Device{
-			Name:                 deviceID,
-			EnrollmentTokenData:  fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
+			Name:                 deviceInfo.Name,
+			EnrollmentTokenData:  deviceInfo.EnrollmentTokenData,
 			AppliedPolicyName:    policyName,
 			AppliedPolicyVersion: 2,
 			ApplicationReports: []*androidmanagement.ApplicationReport{
@@ -3530,13 +3500,13 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 			},
 			LastPolicySyncTime: time.Now().Format(time.RFC3339Nano),
 		},
-		enterpriseSpecificID,
+		host.UUID,
 	)
-	req = android_service.PubSubPushRequest{PubSubMessage: *reportMsg}
-	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
-	s.lastActivityOfTypeMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":%q, 
+	req := android_service.PubSubPushRequest{PubSubMessage: *reportMsg}
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
+	s.lastActivityOfTypeMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":%q,
 		"command_uuid":%q, "host_display_name":%q, "host_id":%d, "policy_id":null, "policy_name":null, "self_service":false, "software_title":%q,
-		"status":%q}`, app1.AdamID, app1CmdUUID, host.DisplayName, host.ID, app1.Name, fleet.SoftwareInstalled), 0)
+		"status":%q}`, app1.AdamID, app1CmdUUID, host.DisplayName(), host.ID, app1.Name, fleet.SoftwareInstalled), 0)
 
 	// the pending install should now be verified
 	getHostSw = getHostSoftwareResponse{}
@@ -3572,28 +3542,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	}, http.StatusOK, &putResp)
 
 	// enroll another Android device to test 2 apps that install on enroll
-	deviceID2 := createAndroidDeviceID("test-android-2")
-	enterpriseSpecificID2 := strings.ToUpper(uuid.New().String())
-	enrollmentMessage = enrollmentMessageWithEnterpriseSpecificID(
-		t,
-		androidmanagement.Device{
-			Name:                deviceID2,
-			EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
-		},
-		enterpriseSpecificID2,
-	)
-
-	req = android_service.PubSubPushRequest{
-		PubSubMessage: *enrollmentMessage,
-	}
-	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
-
-	hosts = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "order_key", "id")
-	require.Len(t, hosts.Hosts, 2)
-	host2 := hosts.Hosts[1]
-	require.EqualValues(t, fleet.AndroidPlatform, host.Platform)
-	require.NotEqual(t, host.ID, host2.ID)
+	host2, _, _ := s.createAndEnrollAndroidDevice(t, "test-android-2", nil)
 
 	patchAppsCallCount = 0
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
@@ -3634,4 +3583,216 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
 	require.NotNil(t, getHostSw.Software[1].Status)
 	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[1].Status)
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
+	t := s.T()
+	ctx := t.Context()
+	s.setSkipWorkerJobs(t)
+	enterpriseID := s.enableAndroidMDM(t)
+
+	// add 2 android apps
+	app1 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.test1",
+				Platform: fleet.AndroidPlatform,
+			},
+		},
+		Name:             "Test1",
+		BundleIdentifier: "com.test1",
+		IconURL:          "https://example.com/1",
+	}
+	app2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.test2",
+				Platform: fleet.AndroidPlatform,
+			},
+		},
+		Name:             "Test2",
+		BundleIdentifier: "com.test2",
+		IconURL:          "https://example.com/2",
+	}
+
+	androidApps := []*fleet.VPPApp{app1, app2}
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		for _, app := range androidApps {
+			if app.AdamID == packageName {
+				return &androidmanagement.Application{IconUrl: app.IconURL, Title: app.Name}, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
+	s.androidAPIClient.EnterprisesDevicesDeleteFunc = func(ctx context.Context, deviceName string) error {
+		return nil
+	}
+
+	var patchAppsCallCount int // no need for mutex, protected via runWorkerUntilDone
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		patchAppsCallCount++
+		return &androidmanagement.Policy{Version: int64(patchAppsCallCount)}, nil
+	}
+
+	// add Android app 1
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: app1.AdamID,
+		Platform:   fleet.AndroidPlatform,
+	}, http.StatusOK, &addAppResp)
+	app1TitleID := addAppResp.TitleID
+
+	// add Android app 2
+	addAppResp = addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: app2.AdamID,
+		Platform:   fleet.AndroidPlatform,
+	}, http.StatusOK, &addAppResp)
+	app2TitleID := addAppResp.TitleID
+
+	require.NotEqual(t, app1TitleID, app2TitleID)
+
+	// add app 1 to Android setup experience
+	var putResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+		Platform: string(fleet.AndroidPlatform),
+		TeamID:   0,
+		TitleIDs: []uint{app1TitleID},
+	}, http.StatusOK, &putResp)
+
+	// enroll a few Android devices, will get app1 at setup
+	host1, deviceInfo1, pubSubToken := s.createAndEnrollAndroidDevice(t, "test-1", nil)
+	host2, _, _ := s.createAndEnrollAndroidDevice(t, "test-2", nil)
+	host3, _, _ := s.createAndEnrollAndroidDevice(t, "test-3", nil)
+
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	s.runWorkerUntilDone()
+	require.True(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+
+	// app install is pending
+	getHostSw := getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"query", app1.Name, "order_key", "name")
+	require.Len(t, getHostSw.Software, 1)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.EqualValues(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+
+	// turn off MDM for that host, should fail the pending install
+	var unenrollResp android.DefaultResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm/unenroll", host1.ID), nil, http.StatusOK, &unenrollResp)
+
+	// app install is still pending as the device hasn't reported back its unenrollment yet
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"query", app1.Name, "order_key", "name")
+	require.Len(t, getHostSw.Software, 1)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.EqualValues(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+
+	// send a pub-sub with the status repored as deleted
+	policyName := fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host1.UUID)
+	reportMsg := statusReportMessageWithEnterpriseSpecificID(
+		t,
+		androidmanagement.Device{
+			Name:                 deviceInfo1.Name,
+			EnrollmentTokenData:  deviceInfo1.EnrollmentTokenData,
+			AppliedPolicyName:    policyName,
+			AppliedPolicyVersion: 2,
+			LastPolicySyncTime:   time.Now().Format(time.RFC3339Nano),
+			AppliedState:         "DELETED",
+		},
+		host1.UUID,
+	)
+	req := android_service.PubSubPushRequest{PubSubMessage: *reportMsg}
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
+
+	// app install is now failed
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"query", app1.Name, "order_key", "name")
+	require.Len(t, getHostSw.Software, 1)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.EqualValues(t, fleet.SoftwareInstallFailed, *getHostSw.Software[0].Status)
+	app1CmdUUID := getHostSw.Software[0].AppStoreApp.LastInstall.CommandUUID
+
+	// activities got created as expected
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), fmt.Sprintf(`
+	{"enrollment_id": null, "host_display_name": %q, "host_serial": %q, "installed_from_dep": false, "platform": %q}`,
+		host1.DisplayName(), "", host1.Platform), 0) // for some reason the serial is force-set to empty string when we create this activity
+	s.lastActivityOfTypeMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":%q,
+		"command_uuid":%q, "host_display_name":%q, "host_id":%d, "policy_id":null, "policy_name":null, "self_service":false, "software_title":%q,
+		"status":%q}`, app1.AdamID, app1CmdUUID, host1.DisplayName(), host1.ID, app1.Name, fleet.SoftwareInstallFailed), 0)
+
+	// host2 and host3 haven't been unenrolled, app install is still pending
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host2.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"query", app1.Name, "order_key", "name")
+	require.Len(t, getHostSw.Software, 1)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.EqualValues(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host3.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"query", app1.Name, "order_key", "name")
+	require.Len(t, getHostSw.Software, 1)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.EqualValues(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+
+	// turn off MDM for Android globally
+	var deleteEnterResp android.DefaultResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/android_enterprise", nil, http.StatusOK, &deleteEnterResp)
+
+	// host2 and host3 app install is now failed, but because Android MDM is now off globally,
+	// we can't list software available for install anymore, we have to use adhoc sql to confirm.
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host2.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
+	require.Len(t, getHostSw.Software, 0)
+
+	var countFailed, countOther int
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		err := sqlx.GetContext(ctx, tx, &countFailed, `SELECT COUNT(*) FROM host_vpp_software_installs WHERE host_id IN (?, ?) AND verification_failed_at IS NOT NULL`,
+			host2.ID, host3.ID)
+		if err != nil {
+			return err
+		}
+		err = sqlx.GetContext(ctx, tx, &countOther, `SELECT COUNT(*) FROM host_vpp_software_installs WHERE host_id IN (?, ?) AND verification_failed_at IS NULL`,
+			host2.ID, host3.ID)
+		return err
+	})
+	require.Equal(t, 2, countFailed)
+	require.Equal(t, 0, countOther)
+}
+
+func (s *integrationMDMTestSuite) createAndEnrollAndroidDevice(t *testing.T, name string, teamID *uint) (host *fleet.Host, deviceInfo androidmanagement.Device, pubSubToken fleet.MDMConfigAsset) {
+	ctx := t.Context()
+
+	// get the required secrets to enroll an Android device
+	secrets, err := s.ds.GetEnrollSecrets(ctx, teamID)
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken}, nil)
+	require.NoError(t, err)
+	pubsubToken := assets[fleet.MDMAssetAndroidPubSubToken]
+	require.NotEmpty(t, pubsubToken.Value)
+
+	// enroll an Android device
+	deviceID := createAndroidDeviceID(name)
+	enterpriseSpecificID := strings.ToUpper(uuid.New().String())
+	deviceInfo = androidmanagement.Device{
+		Name:                deviceID,
+		EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
+	}
+	enrollmentMessage := enrollmentMessageWithEnterpriseSpecificID(t, deviceInfo, enterpriseSpecificID)
+
+	req := android_service.PubSubPushRequest{PubSubMessage: *enrollmentMessage}
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
+
+	var hosts listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "query", enterpriseSpecificID)
+	require.Len(t, hosts.Hosts, 1)
+	hostResp := hosts.Hosts[0]
+	require.EqualValues(t, fleet.AndroidPlatform, hostResp.Host.Platform)
+
+	return hostResp.Host, deviceInfo, pubsubToken
 }

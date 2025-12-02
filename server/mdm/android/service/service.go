@@ -446,11 +446,14 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "clearing android enabled and configured")
 	}
 
-	// TODO(mna): mark pending VPP installs as failed, as for Apple.
-
 	err = svc.ds.BulkSetAndroidHostsUnenrolled(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set android hosts as unenrolled")
+	}
+
+	err = svc.ds.MarkAllPendingAndroidVPPInstallsAsFailed(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marking pending android vpp installs as failed")
 	}
 
 	if err = svc.activityModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDisabledAndroidMDM{}); err != nil {
@@ -787,11 +790,13 @@ func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *an
 		level.Error(svc.logger).Log("msg", "failed to turn off Android MDM after enterprise deletion", "err", setErr)
 	}
 
-	// TODO(mna): mark pending VPP installs as failed, as for Apple.
-
 	// Unenroll Android hosts
 	if unenrollErr := svc.ds.BulkSetAndroidHostsUnenrolled(ctx); unenrollErr != nil {
 		level.Error(svc.logger).Log("msg", "failed to unenroll Android hosts after enterprise deletion", "err", unenrollErr)
+	}
+
+	if err := svc.ds.MarkAllPendingAndroidVPPInstallsAsFailed(ctx); err != nil {
+		level.Error(svc.logger).Log("msg", "failed to mark pending Android VPP installs as failed after enterprise deletion", "err", err)
 	}
 }
 

@@ -713,7 +713,7 @@ type Datastore interface {
 	// SetVPPInstallAsFailed marks a VPP app install attempt as failed (Fleet couldn't validate that
 	// it was installed on the host).
 	SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
-	MarkAllPendingVPPAndInHouseInstallsAsFailed(ctx context.Context, jobName string) error
+	MarkAllPendingAppleVPPAndInHouseInstallsAsFailed(ctx context.Context, jobName string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
@@ -2598,6 +2598,9 @@ type AndroidDatastore interface {
 	// GetPastActivityDataForAndroidVPPAppInstall is like GetPastActivityDataForVPPAppInstall
 	// but available to the android datastore and without the Apple-based args.
 	GetPastActivityDataForAndroidVPPAppInstall(ctx context.Context, cmdUUID string, status SoftwareInstallerStatus) (*User, *ActivityInstalledAppStoreApp, error)
+
+	MarkAllPendingAndroidVPPInstallsAsFailed(ctx context.Context) error
+	MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx context.Context, hostID uint) (users []*User, activities []ActivityDetails, err error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

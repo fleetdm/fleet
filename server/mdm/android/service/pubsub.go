@@ -117,6 +117,14 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 		return ctxerr.Wrap(ctx, err, "unmarshal Android status report message")
 	}
 
+	// NOTE: uncomment as needed, can be useful for debugging as the pubsub report
+	// can be very large - it is not practical to print so it saves it to a file,
+	// different names for all instances of the pubsub, and under an extension that
+	// is git-ignored.
+	// dump := spew.Sdump(device)
+	// ts := time.Now().UnixNano()
+	// _ = os.WriteFile(fmt.Sprintf("host_%s_version_%d_timestamps_%d.log", device.HardwareInfo.EnterpriseSpecificId, device.AppliedPolicyVersion, ts), []byte(dump), 0644)
+
 	// Consider both appliedState and state fields for deletion, to handle variations in payloads.
 	isDeleted := strings.ToUpper(device.AppliedState) == string(android.DeviceStateDeleted)
 	if !isDeleted {
@@ -146,6 +154,22 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state")
 			}
+
+			// cancel any apps pending install for this host
+			users, acts, err := svc.ds.MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx, host.Host.ID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "mark pending vpp installs as failed for deleted android host")
+			}
+			if len(users) != len(acts) {
+				return ctxerr.New(ctx, "number of users and activities must match, this is a Fleet development bug")
+			}
+			for i, act := range acts {
+				user := users[i]
+				if err := svc.activityModule.NewActivity(ctx, user, act); err != nil {
+					return ctxerr.Wrap(ctx, err, "create failed app install activity")
+				}
+			}
+
 			if !didUnenroll {
 				return nil // Skip activity, if we didn't update the enrollment state.
 			}
@@ -268,6 +292,22 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 			if _, err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state (ENROLLMENT)")
 			}
+
+			// cancel any apps pending install for this host
+			users, acts, err := svc.ds.MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx, host.Host.ID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "mark pending vpp installs as failed for deleted android host")
+			}
+			if len(users) != len(acts) {
+				return ctxerr.New(ctx, "number of users and activities must match, this is a Fleet development bug")
+			}
+			for i, act := range acts {
+				user := users[i]
+				if err := svc.activityModule.NewActivity(ctx, user, act); err != nil {
+					return ctxerr.Wrap(ctx, err, "create failed app install activity")
+				}
+			}
+
 			displayName := svc.getComputerName(&device)
 			_ = svc.activityModule.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
 				HostSerial:       "",
@@ -717,11 +757,19 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 			// and how do we even know it was installed at all? Does it matter? Not handling for
 			// now, could be something to improve when we implement standard app install support
 			// for Android.
-			if appReport.State == "INSTALLED" && nonCompliantByPackageName[appReport.PackageName] == nil {
+
+			// NOTE: I've seen appReport.State == INSTALLED while a non-compliant report says
+			// "IN_PROGRESS", but on the device the app was indeed installed and no further
+			// pub-sub report came in, so I think the best approach is to mark it as successfully
+			// installed (regardless of any non-compliance report) if its state is INSTALLED.
+			if appReport.State == "INSTALLED" {
 				// definitely installed successfully
 				markVerified[appReport.PackageName] = true
+				level.Debug(svc.logger).Log("msg", "Software marked as verified", "host_uuid", hostUUID, "package_name", appReport.PackageName)
+				continue
 			}
 		}
+		level.Debug(svc.logger).Log("msg", "Software not marked as verified, checking if failed", "host_uuid", hostUUID, "package_name", appReport.PackageName)
 	}
 
 	// for the remaining apps, mark as failed if non-conformant
@@ -735,7 +783,7 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 			if report.NonComplianceReason == "PENDING" || report.InstallationFailureReason == "IN_PROGRESS" {
 				// keep as pending, the understanding is that another pub-sub will follow when the app's state
 				// chances to installed or failed.
-				level.Debug(svc.logger).Log("msg", "Software not reported as installed yet", "host_uuid", hostUUID, "package_name", packageName,
+				level.Debug(svc.logger).Log("msg", "Software not reported as installed yet, will remain pending", "host_uuid", hostUUID, "package_name", packageName,
 					"non_compliance_reason", report.NonComplianceReason,
 					"installation_failure_reason", report.InstallationFailureReason)
 				continue
@@ -755,7 +803,7 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 		// failed, we don't know how long it might take for the device to receive another
 		// policy, it may never happen.
 		markVerified[packageName] = false
-		level.Error(svc.logger).Log("msg", "Software failed to install", "host_uuid", hostUUID, "package_name", packageName,
+		level.Error(svc.logger).Log("msg", "Software failed to install without non-compliance report", "host_uuid", hostUUID, "package_name", packageName,
 			"installation_failure_reason", "unknown - no non-compliance report received")
 	}
 

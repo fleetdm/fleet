@@ -1526,6 +1526,9 @@ func isAndroidHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext
 			WHERE host_id = ? AND enrolled = 1
 	`, h.ID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
 		return false, ctxerr.Wrap(ctx, err, "check android host mdm enrolled")
 	}
 
