@@ -1,8 +1,55 @@
-## Fleet 4.76.1 (Nov 14, 2025)
+## Fleet 4.77.0 (Dec 02, 2025)
+
+### Security Engineers
+- Added integration for Okta conditional access, where Fleet acts as a factor and blocks end users from logging into third-party apps, via Okta, if they are failing specific policies.
+- Added activity log entries for: host deletion and expiration, updating or deleting host IdP mappings.
+- Resolved multiple false positive vulnerability matches for the VSCode golang extension.
+- Resolved false positive CVE matches for [`Logi Bolt.app`](https://support.logi.com/hc/en-us/articles/4418089333655-Logi-Bolt-App).
+- Detected vulnerabilities in JetBrains IDE plugins.
+
+### IT Admins
+- Updated MDM enrollment flow for BYOD macOS hosts to enable end user authentication prior to downloading the MDM profile via the "My device" page.
+- Added self-service install support for custom IPA apps on iOS and iPadOS.
+- Added support for in-house (".ipa") apps to `fleetctl gitops`.
+- Updated existing `POST /setup_experience/script` endpoint to allow updating the macOS setup experience script in-place, and modified GitOps to remove the `DELETE` call.
+- Added support for Custom EST certificate authorities.
+- Added ability to deploy certificates from Custom SCEP certificate authorities on Windows.
+- Added status counts to batch script detail page tabs.
+- Added `InstallAnywhere` as a self-extracting archive for PE metadata extraction.
+- Added ingestion of `upgrade_code`s from Windows software, and provided to all relevant software endpoints.
+
+### Other improvements and bug fixes
+- Improved performance of `/api/latest/fleet/software/versions` API endpoint.
+- Updated host expiry logic to not delete macOS hosts that checkin via MDM protocol but not via `fleetd`.
+- Optimized the cleanup Apple host profiles query to reduce probability of DB locking.
+- Implemented UI logic to call existing manual update IdP API functionality.
+- Implemented UI logic and new DELETE endpoint to manually remove host IdP mappings.
+- Added experimental `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT` configuration to allow deploying custom OS settings including Filevault payloads and macOS and Windows update settings.
+- Added ability to change software display names in the UI.
+- Fixed table styling for selecting table rows.
+- Simplified setup experience configuration UI.
+- Added better error messages when using build-in labels on GitOps and on the LabelSpecs endpoint.
+- Hid software host count and version table when no hosts have the software installed.
+- Adjusted UI section headers and layout of Settings > Integrations in Fleet Free.
+- Added vulnerability seeding and performance testing tools.
+- Moved end user authentication SSO settings under Integrations > SSO in global settings.
+- Removed the premium check for host OS settings in host summary UI.
+- Reduced Android device reconciler frequency to 1 hour.
+- Reduced Android API usage by listing devices instead of getting and checking Android Enterprise disconnects hourly.
+- Set the order of software installed during the setup experience to alphanumeric.
+- Updated Go to 1.25.3.
+- Fixed a layout issue on the script batch details page.
+- Fixed installer for Cisco Secure Client not showing as installed in inventory/library due to using the wrong bundle identifier. This application should show up correctly now in the software inventory.
+- Fixed errors when trying to run the `apple_mdm_iphone_ipad_refetcher` cron job.
+- Fixed bug that prevented users from editing custom EST certificates URLs.
+- Fixed incorrect UI placeholder element by replacing it with it's actual value.
+- Fixed issue where vulnerabilities would occasionally show as missing.
+
+## Fleet 4.76.1 (Nov 18, 2025)
 
 ### Bug fixes
 
-* Added an endpoint to allow updating the macOS setup experience script in-place, and modified gitops to utilize it
+- Updated existing /setup_experience/script POST endpoint to allow updating the macOS setup experience script in-place, and modified gitops to remove the DELETE call.
 
 ## Fleet 4.76.0 (Nov 7, 2025)
 
