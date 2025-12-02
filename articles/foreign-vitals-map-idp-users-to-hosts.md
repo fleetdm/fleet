@@ -16,15 +16,29 @@ Learn how to enforce authentication in the [setup experience guide](https://flee
 
 ## Okta
 
+Fleet's Okta integration supports the following SCIM features:
+
+**Provisioning to Fleet (Push):**
+- Push New Users - Create new users in Fleet from Okta
+- Push Profile Updates - Update existing user attributes in Fleet when changed in Okta
+- Push Groups - Provision Okta groups to Fleet and maintain group memberships
+- Deactivate Users - Remove user access when deactivated in Okta
+
+**Provisioning from Fleet (Import):**
+- Import New Users - Not supported (Fleet does not create users in Okta)
+- Import Profile Updates - Not supported (Fleet does not modify Okta user profiles)
+
 To map users from Okta to hosts in Fleet, we'll do the following steps:
 
 1. [Create application in Okta](#step-1-create-application-in-okta)
 2. [Connect Okta to Fleet](#step-2-connect-okta-to-fleet)
-3. [Map users and groups to hosts in Fleet](#step-3-map-users-and-groups-to-hosts-in-fleet)
+3. [Enable provisioning to Fleet](#step-3-enable-provisioning-to-fleet)
+4. [Assign users to the application](#step-4-assign-users-to-the-application)
+5. [Configure push groups](#step-5-configure-push-groups)
 
-#### Step 1: Create application in Okta
+#### Step 1: Create an application in Okta
 
-1. Head to Okta admin dashboard.
+1. Head to the Okta admin dashboard.
 2. In the main menu, select **Applications > Applications**, then select **Create App Integration**.
 3. Select **SAML 2.0** option and select **Next**.
 4. On the **General Settings** page, add a friendly **App name** (e.g Fleet SCIM), and select **Next**.
@@ -45,20 +59,50 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 7. Select the **Test Connector Configuration** button. You should see success message in Okta.
 8. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from IdP.
 9. Back in Okta, select **Save**.
-10. Under the **Provisioning** tab, select **To App** and then select **Edit** in the **Provisioning to App** section. Enable **Create Users**, **Update User Attributes**, **Deactivate Users**, and then select **Save**.
-11. On the same page, make sure that `givenName` and `familyName` have Okta values assigned to it. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute (optional). Delete the rest of the attributes.
+
+#### Step 3: Enable provisioning to Fleet
+
+1. Under the **Provisioning** tab, select **To App** and then select **Edit** in the **Provisioning to App** section.
+2. Enable **Create Users**, **Update User Attributes**, and **Deactivate Users**, then select **Save**.
+3. On the same page, verify that `givenName` and `familyName` have Okta values assigned to them. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute (optional). Delete the rest of the attributes.
 ![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping-402x181@2x.png)
 
-#### Step 3: Map users and groups to hosts in Fleet
+#### Step 4: Assign users to the application
 
-To send users and groups information to Fleet, you have to assign them to your new SCIM app.
+To send user information to Fleet, assign users to your SCIM app. You can assign users individually or by group.
 
-1. In Okta's main menu **Directory > Groups** and then select **Add group**. Name it "Fleet human-device mapping".
-2. On the same page, select the **Rules** tab. Create a rule that will assign users to your  "Fleet human-device mapping" group.
+**Option A: Assign by group (recommended)**
+1. In Okta's main menu, select **Directory > Groups** and then select **Add group**. Name it "Fleet human-device mapping".
+2. On the same page, select the **Rules** tab. Create a rule that will assign users to your "Fleet human-device mapping" group.
 ![Okta group rule](../website/assets/images/articles/okta-scim-group-rules-1000x522@2x.png)
-3. In the main menu, select **Applications > Applications**  and select your new SCIM app. Then, select the **Assignments** tab.
-4. Select **Assign > Assign to Groups** and then select **Assign** next to the "Fleet human-device mapping" group. Then, select **Done**. Now all users that you assigned to the  "Fleet human-device mapping" group will be provisioned to Fleet.
-5. On the same page, select **Push Groups** tab. Then, select **Push Groups > Find groups by name** and add all groups that you assigned to "Fleet human-device mapping" group previously (make sure that **Push group memberships immediately** is selected). All groups will be provisioned in Fleet, and Fleet will map those groups to users.
+3. In the main menu, select **Applications > Applications** and select your SCIM app. Then, select the **Assignments** tab.
+4. Select **Assign > Assign to Groups** and then select **Assign** next to the "Fleet human-device mapping" group. Select **Done**.
+
+**Option B: Assign individual users**
+1. In the main menu, select **Applications > Applications** and select your SCIM app.
+2. Select the **Assignments** tab, then **Assign > Assign to People**.
+3. Select **Assign** next to each user you want to provision to Fleet, then select **Done**.
+
+#### Step 5: Configure push groups
+
+Group Push provisions Okta groups to Fleet and maintains group memberships. For a user's group memberships to appear in Fleet:
+- The user must be assigned to the Fleet SCIM application (see Step 4)
+- The user must be a member of the group in Okta
+- The group must be configured for Push in the application
+
+To enable Group Push:
+
+1. In your Fleet SCIM app, select the **Push Groups** tab.
+2. Select **Push Groups > Find groups by name**.
+3. Search for and add the groups you want to provision to Fleet (e.g., "Fleet human-device mapping" and any other groups assigned to the app).
+4. Ensure **Push group memberships immediately** is selected for each group.
+5. Select **Save**.
+
+**Important notes about Group Push:**
+- Only users who are both assigned to the app AND members of pushed groups will have group data in Fleet
+- If you remove a user from a pushed group in Okta, the group membership will be removed from Fleet
+- If you unassign a user from the app, all their group memberships will be removed from Fleet
+- Group push happens immediately, but can take a few minutes to reflect in Fleet
 
 ## Microsoft Entra ID
 
