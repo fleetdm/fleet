@@ -54,6 +54,7 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 }
 
 func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+	// for no team pass 0 as teamID
 	args := []any{teamID}
 
 	fromClause := `
@@ -234,7 +235,7 @@ func (ds *Datastore) GetMDMProfileSummaryFromHostCertificateTemplates(ctx contex
 	var stmt string
 	var args []interface{}
 
-	if teamID != nil && *teamID > 0 {
+	if teamID != nil {
 		stmt = `
 SELECT
 	hct.status AS status,

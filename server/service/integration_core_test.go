@@ -8078,6 +8078,82 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	// list specs
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
 	require.Len(t, listCertifcatesResp.Certificates, 0)
+
+	// certificate templates for "No team" (team_id 0)
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "No Team Template 1",
+				Team:                   "0",
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
+			},
+			{
+				Name:                   "No Team Template 2",
+				Team:                   "0",
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// list specs for no team
+	var noTeamCertificatesResp listCertificateTemplatesResponse
+	s.DoJSON("GET", "/api/latest/fleet/certificates?team_id=0", nil, http.StatusOK, &noTeamCertificatesResp)
+	require.Len(t, noTeamCertificatesResp.Certificates, 2)
+	assert.ElementsMatch(t, []string{"No Team Template 1", "No Team Template 2"}, []string{noTeamCertificatesResp.Certificates[0].Name, noTeamCertificatesResp.Certificates[1].Name})
+
+	// Create a host
+	noTeamHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("test-cert-no-team-node-key"),
+		UUID:            "test-no-team-uuid-12345",
+		Hostname:        "test-cert-no-team-host.local",
+		HardwareSerial:  "TEST-NO-TEAM-SERIAL",
+		TeamID:          nil, // No team
+	})
+	require.NoError(t, err)
+
+	// Add an IDP user for host
+	err = s.ds.ReplaceHostDeviceMapping(ctx, noTeamHost.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: noTeamHost.ID,
+			Email:  "no.team.user@example.com",
+			Source: fleet.DeviceMappingMDMIdpAccounts,
+		},
+	}, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+
+	savedNoTeamCertTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, 0, fleet.ListOptions{Page: 0, PerPage: 10})
+	require.NoError(t, err)
+	require.Len(t, savedNoTeamCertTemplates, 2)
+	noTeamCertID := savedNoTeamCertTemplates[0].ID
+
+	var getNoTeamCertResp getDeviceCertificateTemplateResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleetd/certificates/%d?node_key=%s", noTeamCertID, *noTeamHost.NodeKey), nil, http.StatusOK, &getNoTeamCertResp)
+	require.NotNil(t, getNoTeamCertResp.Certificate)
+	assert.Contains(t, getNoTeamCertResp.Certificate.SubjectName, "no.team.user@example.com")
+	assert.Contains(t, getNoTeamCertResp.Certificate.SubjectName, "test-no-team-uuid-12345")
+
+	var profilesSummaryResp getMDMProfilesSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary?team_id=0", nil, http.StatusOK, &profilesSummaryResp)
+	require.NotNil(t, profilesSummaryResp)
+	require.Equal(t, uint(0), profilesSummaryResp.Verified)
+	require.Equal(t, uint(0), profilesSummaryResp.Verifying)
+	require.Equal(t, uint(0), profilesSummaryResp.Failed)
+	require.Equal(t, uint(0), profilesSummaryResp.Pending)
+
+	// Clean up: delete no-team certificate templates
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
+		"ids":     []uint{noTeamCertificatesResp.Certificates[0].ID, noTeamCertificatesResp.Certificates[1].ID},
+		"team_id": uint(0),
+	}, http.StatusOK, &delBatchResp)
+
+	s.DoJSON("GET", "/api/latest/fleet/certificates?team_id=0", nil, http.StatusOK, &noTeamCertificatesResp)
+	require.Len(t, noTeamCertificatesResp.Certificates, 0)
 }
 
 func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
