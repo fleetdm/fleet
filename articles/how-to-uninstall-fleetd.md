@@ -23,6 +23,8 @@ To remove fleetd from a Windows device:
 3. Navigate to where you saved the script: `cd C:\path\to\your\script`
 4. Run the script: `.\uninstall-fleetd-windows.ps1`
 
+Note: When running unsigned PowerShell scripts, you are likely to receive a warning, and will need to adjust the [Execution Policy](https://learn.microsoft.com/en-gb/powershell/module/microsoft.powershell.security/set-executionpolicy?view=powershell-7.5). One example is: `Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process`. This will bypass all warnings and prompts for the current PowerShell session. 
+
 
 ## Uninstall fleetd on Linux
 
