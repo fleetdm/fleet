@@ -5,7 +5,11 @@ import android.content.Context
 import android.content.RestrictionsManager
 import android.os.Build
 import android.util.Log
+import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
@@ -32,6 +36,7 @@ class AgentApplication : Application() {
         ApiClient.initialize(this)
         refreshEnrollmentCredentials()
         schedulePeriodicConfigCheck()
+        scheduleCertificateEnrollment()
     }
 
     private fun refreshEnrollmentCredentials() {
@@ -87,5 +92,24 @@ class AgentApplication : Application() {
             )
 
         Log.i(TAG, "Scheduled periodic config check every 15 minutes")
+    }
+
+    private fun scheduleCertificateEnrollment() {
+        val workRequest = OneTimeWorkRequestBuilder<CertificateEnrollmentWorker>()
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .build()
+
+        WorkManager.getInstance(this)
+            .enqueueUniqueWork(
+                CertificateEnrollmentWorker.WORK_NAME,
+                ExistingWorkPolicy.KEEP, // Don't re-enroll if already in progress
+                workRequest
+            )
+
+        Log.d(TAG, "Scheduled certificate enrollment worker")
     }
 }
