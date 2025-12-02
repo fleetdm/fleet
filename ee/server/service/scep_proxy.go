@@ -44,7 +44,8 @@ const (
 // requests across different platforms (Apple, Windows, Android).
 type scepCertificateRequest interface {
 	// GetStatus returns the delivery status of the certificate request.
-	GetStatus() *fleet.MDMDeliveryStatus
+	// Returns empty string if status is not set.
+	GetStatus() fleet.MDMDeliveryStatus
 	// GetChallengeRetrievedAt returns when the challenge was retrieved (for expiration checks).
 	GetChallengeRetrievedAt() *time.Time
 	// GetCAType returns the certificate authority type (NDES, Smallstep, CustomSCEPProxy).
@@ -60,8 +61,11 @@ type hostMDMCertificateProfileAdapter struct {
 	profile *fleet.HostMDMCertificateProfile
 }
 
-func (a *hostMDMCertificateProfileAdapter) GetStatus() *fleet.MDMDeliveryStatus {
-	return a.profile.Status
+func (a *hostMDMCertificateProfileAdapter) GetStatus() fleet.MDMDeliveryStatus {
+	if a.profile.Status == nil {
+		return ""
+	}
+	return *a.profile.Status
 }
 
 func (a *hostMDMCertificateProfileAdapter) GetChallengeRetrievedAt() *time.Time {
@@ -86,8 +90,11 @@ type certificateTemplateForHostAdapter struct {
 	profileUUID string
 }
 
-func (a *certificateTemplateForHostAdapter) GetStatus() *fleet.MDMDeliveryStatus {
-	return a.template.Status
+func (a *certificateTemplateForHostAdapter) GetStatus() fleet.MDMDeliveryStatus {
+	if a.template.Status == nil {
+		return ""
+	}
+	return *a.template.Status
 }
 
 func (a *certificateTemplateForHostAdapter) GetChallengeRetrievedAt() *time.Time {
@@ -271,12 +278,12 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		return "", &scepserver.BadRequestError{Message: "unknown identifier in URL path"}
 	}
 	// We skip windows profiles for this check here as they instantly go to verifying when sent out, might change for windows renewal.
-	if (certReq.GetStatus() == nil || *certReq.GetStatus() != fleet.MDMDeliveryPending) && !strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
+	if certReq.GetStatus() != fleet.MDMDeliveryPending && !strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
 		// This could happen if Fleet DB was updated before the profile was updated on the host.
 		// We expect another certificate request from the host once the profile is updated.
-		status := "null"
-		if certReq.GetStatus() != nil {
-			status = string(*certReq.GetStatus())
+		status := certReq.GetStatus()
+		if status == "" {
+			status = "null"
 		}
 		// FIXME: MDM client will report a failed status for the profile when we return bad request, which consumes the sole retry attempt.
 		// Seems like we should proactively use ResendHostCertificateProfile here too?

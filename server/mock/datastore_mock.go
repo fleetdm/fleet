@@ -4074,7 +4074,10 @@ type DataStore struct {
 
 	GetCertificateTemplateForHostFunc        GetCertificateTemplateForHostFunc
 	GetCertificateTemplateForHostFuncInvoked bool
+
 	BulkInsertHostCertificateTemplatesFunc        BulkInsertHostCertificateTemplatesFunc
+	BulkInsertHostCertificateTemplatesFuncInvoked bool
+
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
 
