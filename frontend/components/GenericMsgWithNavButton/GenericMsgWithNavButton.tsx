@@ -1,32 +1,36 @@
 import React, { useContext } from "react";
-import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
 import EmptyTable from "components/EmptyTable";
 import Button from "components/buttons/Button";
 import { InjectedRouter } from "react-router";
 
-const baseClass = "turn-on-mdm-message";
+const baseClass = "generic-msg-with-nav-button";
 
-interface ITurnOnMdmMessageProps {
+interface IGenericMsgWithNavButtonProps {
   router: InjectedRouter;
-  /** Default: Manage your hosts */
-  header?: string;
-  /** Default: MDM must be turned on to change settings on your hosts. */
-  info?: string;
-  buttonText?: string;
+  header: string;
+  info: string;
+  /** The path to navigate the user to when they press the button. */
+  path: string;
+  buttonText: string;
 }
 
-const TurnOnMdmMessage = ({
+/** This is a generic component that renders a message with a header, info, and button that will navigate to a path
+ * for global admins
+ *
+ * TODO: consider removing isGlobalAdmin check in here and pushing up to parent */
+const GenericMsgWithNavButton = ({
   router,
   header,
   info,
-  buttonText = "Turn on",
-}: ITurnOnMdmMessageProps) => {
+  path,
+  buttonText,
+}: IGenericMsgWithNavButtonProps) => {
   const { isGlobalAdmin } = useContext(AppContext);
 
   const onConnectClick = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+    router.push(path);
   };
 
   const renderConnectButton = () => {
@@ -45,11 +49,11 @@ const TurnOnMdmMessage = ({
   return (
     <EmptyTable
       className={baseClass}
-      header={header || "Manage your hosts"}
-      info={info || "MDM must be turned on to change settings on your hosts."}
+      header={header}
+      info={info}
       primaryButton={renderConnectButton()}
     />
   );
 };
 
-export default TurnOnMdmMessage;
+export default GenericMsgWithNavButton;

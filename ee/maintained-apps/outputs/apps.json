@@ -135,6 +135,20 @@
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
+      "name": "Camtasia",
+      "slug": "camtasia/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.techsmith.camtasia",
+      "description": "Camtasia is a screen recorder and video editor."
+    },
+    {
+      "name": "Camtasia",
+      "slug": "camtasia/windows",
+      "platform": "windows",
+      "unique_identifier": "Camtasia",
+      "description": "Camtasia is a screen recorder and video editor."
+    },
+    {
       "name": "Canva",
       "slug": "canva/darwin",
       "platform": "darwin",

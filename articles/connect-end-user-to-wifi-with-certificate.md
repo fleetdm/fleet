@@ -1,4 +1,4 @@
-# Connect end users to Wi-Fi or VPN with a certificate (DigiCert, NDES, or custom SCEP)
+# Connect end users to Wi-Fi or VPN with a certificate (DigiCert, NDES, Hydrant, Smallstep, or custom SCEP)
 
 _Available in Fleet Premium_
 
@@ -806,6 +806,7 @@ Custom SCEP proxy:
     to the host with a new passcode if the host requests a certificate after the passcode has expired.
   - The static challenge configured for the custom SCEP server remains in the SCEP profile.
 
+
 ### How to get the CAThumbprint for Windows SCEP profiles
 
 Steps to get CAThumbrint from your SCEP server:
@@ -817,7 +818,7 @@ Steps to get CAThumbrint from your SCEP server:
 3. It will return the SHA1 Thumbprint without colons and text. Copy this.
 4. Use the copied value for `./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/CAThumbprint` option.
 
-<meta name="articleTitle" value="Connect end users to Wi-Fi or VPN with a certificate (DigiCert, NDES, or custom SCEP)">
+<meta name="articleTitle" value="Connect end users to Wi-Fi or VPN with a certificate (DigiCert, NDES, Hydrant, Smallstep, or custom SCEP)">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
 <meta name="authorGitHubUsername" value="getvictor">
 <meta name="category" value="guides">
