@@ -5001,7 +5001,6 @@ func filterOutMDMUnenrolledHosts(ctx context.Context, installTargets map[string]
 			if hmdm, ok := hostMDMsByUUID[hostUUID]; ok && hmdm.Enrolled {
 				filtered = append(filtered, eid)
 			} else {
-				// mark the corresponding host profile as failed (or leave nil) and clear command
 				if hp, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]; ok {
 					// Do not enqueue the profile, and set status to nil for it to be picked up again.
 					// Next time around we expect to have a checkout call which updates nano tables that we pull profiles based on.
