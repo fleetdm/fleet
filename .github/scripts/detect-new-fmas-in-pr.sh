@@ -50,7 +50,12 @@ extract_slugs_from_changed_manifests() {
     done <<< "$changed_files"
     
     # Remove duplicates and sort
-    printf '%s\n' "${slugs[@]}" | sort -u
+    # Check if array has elements to avoid "unbound variable" error with set -u
+    if [ ${#slugs[@]} -gt 0 ]; then
+        printf '%s\n' "${slugs[@]}" | sort -u
+    else
+        echo ""
+    fi
 }
 
 # Get changed files in outputs directory
