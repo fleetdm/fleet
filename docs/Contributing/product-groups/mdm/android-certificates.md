@@ -28,31 +28,41 @@ flowchart TD
         auth3 --> n14["App hits enroll endpoint<br/>with enroll_secret to retrieve orbit_node_key"]
         n14 --> n15{"key retrieved?"}
         n15 --> n16(("YES")) & n17(("NO"))
-        n16 --> n18["Store key to Android keychain"]
-        n17 --> n19["Retry 5x"]
-        n19 --> n15
+        n16 --> n18["Store key in datastore<br/>(encrypted)"]
+        n17 --> n19(["Done<br/>(will retry)"])
     end
 
     auth2 --> cert1
     n18 --> cert1
-    cert1{"New certs available?"}
+    cert1{"New certs available?<br/>Or do we need to retry certs?"}
     cert1 --> certYes(("YES")) & certNo(("NO"))
     certNo --> certDone(["Done"])
 
     certYes --> certGet["GET /api/fleetd/certificates/:id"]
     subgraph cert["For each certificate"]
         certGet --> certServer["Server validates FLEET_VAR_*"]
-        certServer --> certStatus{"Cert status<br/>Pending?"}
-        certStatus --> certStatusYes(("YES")) & certStatusNo(("NO"))
+        certServer --> certStatus{"Cert status?"}
+        certStatus --> certStatusYes(("Pending")) & certStatusNo(("!Pending")) & certStatusNull(("null<br>(not ready)"))
+        certStatusNull --> certDone1
         certStatusNo --> certSave["Save cert as processed"]
         certSave --> certDone1(["Continue"])
-        certStatusYes --> certPK["App generates private key<br/>and stores it in keychain"]
-        certPK --> certCSR["App generates CSR"]
-        certCSR --> certPost["Retrieve cert from SCEP URL<br/>(retry 3x)"]
-        certPost --> certInstall["Install cert"]
-        certInstall --> certInstallStatus["PUT /api/fleetd/certificates/:id/status"]
+
+        certStatusYes --> certPK["Generate private key"]
+        subgraph SCEP
+            certPK --> certCSR["App generates CSR"]
+            certCSR --> certPost["Retrieve cert from SCEP URL"]
+            certPost --> certInstall["Store cert + private key<br/>in keychain"]
+        end
+        SCEP --> certSuccess{"Success?"}
+        certSuccess --> certSuccessYes(("YES")) & certSuccessNo(("NO"))
+        certSuccessNo --> certRetry{"Need to retry?<br/>(up to 3x)"}
+        certRetry --> certRetryYes(("YES")) & certRetryNo(("NO"))
+        certRetryYes --> certRetrySave["Save cert for retry"]
+        certRetrySave --> certDone2(["Continue"])
+        certRetryNo --> certInstallStatus
+        certSuccessYes --> certInstallStatus["PUT /api/fleetd/certificates/:id/status"]
         certInstallStatus -->certSave2["Save cert as processed"]
-        certSave2 --> certDone2(["Continue"])
+        certSave2 --> certDone3(["Continue"])
     end
 
     certInstallStatus --> status["Update status on host details"]
