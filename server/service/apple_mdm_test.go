@@ -2681,7 +2681,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	}
 
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
-	hostUUID1, hostUUID2 := "ABC-DEF", "GHI-JKL"
+	hostUUID1, hostUUID2, hostUUID3 := "ABC-DEF", "GHI-JKL", "MNO-PQR"
 	hostUUID1UserEnrollment := hostUUID1 + ":user"
 	contents1 := []byte("test-content-1")
 	expectedContents1 := []byte("test-content-1") // used for Fleet variable substitution
@@ -2692,6 +2692,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	p1, p2, p3, p4, p5, p6 := "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString()
 	baseProfilesToInstall := []*fleet.MDMAppleProfilePayload{
 		{ProfileUUID: p1, ProfileIdentifier: "com.add.profile", HostUUID: hostUUID1, Scope: fleet.PayloadScopeSystem},
+		{ProfileUUID: p1, ProfileIdentifier: "com.add.profile", HostUUID: hostUUID3, Scope: fleet.PayloadScopeSystem},
 		{ProfileUUID: p2, ProfileIdentifier: "com.add.profile.two", HostUUID: hostUUID1, Scope: fleet.PayloadScopeSystem},
 		{ProfileUUID: p2, ProfileIdentifier: "com.add.profile.two", HostUUID: hostUUID2, Scope: fleet.PayloadScopeSystem},
 		{ProfileUUID: p4, ProfileIdentifier: "com.add.profile.four", HostUUID: hostUUID2, Scope: fleet.PayloadScopeSystem},
@@ -2712,6 +2713,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		return []*fleet.HostMDMWithUUID{
 			{HostUUID: hostUUID1, Enrolled: true},
 			{HostUUID: hostUUID2, Enrolled: true},
+			{HostUUID: hostUUID3, Enrolled: false},
 		}, nil
 	}
 
@@ -2864,6 +2866,11 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			if p.OperationType == fleet.MDMOperationTypeInstall {
 				existing, ok := cmdUUIDByProfileUUIDInstall[p.ProfileUUID]
 				if ok {
+					// for any using hostUUID3, the command UUID will be empty
+					if p.HostUUID == hostUUID3 {
+						require.Empty(t, p.CommandUUID)
+						continue
+					}
 					require.Equal(t, existing, p.CommandUUID)
 				} else {
 					cmdUUIDByProfileUUIDInstall[p.ProfileUUID] = p.CommandUUID
@@ -2887,6 +2894,14 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				HostUUID:          hostUUID1,
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryPending,
+				Scope:             fleet.PayloadScopeSystem,
+			},
+			{
+				ProfileUUID:       p1,
+				ProfileIdentifier: "com.add.profile",
+				HostUUID:          hostUUID3,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				Status:            nil, // Host not enrolled so we keep the profile at nil
 				Scope:             fleet.PayloadScopeSystem,
 			},
 			{
@@ -3154,6 +3169,11 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			if p.OperationType == fleet.MDMOperationTypeInstall {
 				existing, ok := cmdUUIDByProfileUUIDInstall[p.ProfileUUID]
 				if ok {
+					// for any using hostUUID3, the command UUID will be empty
+					if p.HostUUID == hostUUID3 {
+						require.Empty(t, p.CommandUUID)
+						continue
+					}
 					require.Equal(t, existing, p.CommandUUID)
 				} else {
 					cmdUUIDByProfileUUIDInstall[p.ProfileUUID] = p.CommandUUID
@@ -3176,6 +3196,14 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				HostUUID:          hostUUID1,
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryPending,
+				Scope:             fleet.PayloadScopeSystem,
+			},
+			{
+				ProfileUUID:       p1,
+				ProfileIdentifier: "com.add.profile",
+				HostUUID:          hostUUID3,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				Status:            nil, // Host not enrolled so we keep the profile at nil
 				Scope:             fleet.PayloadScopeSystem,
 			},
 			{
@@ -3354,7 +3382,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 
 		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
 		require.NoError(t, err)
-		assert.Empty(t, hostUUIDs, "all host+profile combinations should be updated")
+		assert.ElementsMatch(t, []string{hostUUID3}, hostUUIDs, "all host+profile combinations should be updated except unerolled host")
 		require.Equal(t, 4, failedCount, "number of profiles with bad content")
 		// checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked)
