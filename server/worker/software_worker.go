@@ -96,6 +96,9 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 		return ctxerr.Wrap(ctx, err, "add app store app: getting android hosts in scope")
 	}
 
+	// TODO(mna): load any config, and ensure it gets applied as available with the config
+	// up-to-date (if there is any).
+
 	// Update Android MDM policy to include the app in self service
 	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, []string{applicationID}, hosts, "AVAILABLE")
 	if err != nil {

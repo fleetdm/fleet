@@ -421,6 +421,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			TeamID:           teamID,
 		}
 
+		// TODO(mna): this could potentially make the worker process the job _before_
+		// the app gets created, see if that could cause a problem.
+
 		err = worker.QueueMakeAndroidAppAvailableJob(context.Background(), svc.ds, svc.logger, appID.AdamID, app.AppTeamID, enterprise.Name())
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
@@ -547,7 +550,6 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 
 	return addedApp.TitleID, nil
-
 }
 
 func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.VPPApp, error) {
@@ -743,6 +745,10 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: write app to db")
 	}
+
+	// TODO(mna): if configuratoin changed, enqueue worker job to update the affected hosts.
+	// Also, if labelsChanged, shouldn't that also trigger re-deploying apps to make them
+	// available for new hosts now in scope?
 
 	if labelsChanged {
 		// Get the hosts that are now IN label scope (after the update)
