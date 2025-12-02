@@ -395,7 +395,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	switch appID.Platform {
 	case fleet.AndroidPlatform:
 		if !isAndroidAppID {
-			return 0, fleet.NewInvalidArgumentError("app_store_id", "app_store_id must be a valid Android application ID")
+			return 0, fleet.NewInvalidArgumentError("app_store_id", "Application ID must be a valid Android application ID")
 		}
 		appID.SelfService = true
 		appID.AddAutoInstallPolicy = false
