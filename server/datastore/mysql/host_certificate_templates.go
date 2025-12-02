@@ -48,12 +48,9 @@ func (ds *Datastore) ListCertificateTemplatesForHosts(ctx context.Context, hostU
 			hosts.uuid AS host_uuid,
 			certificate_templates.id AS certificate_template_id,
 			host_certificate_templates.fleet_challenge AS fleet_challenge,
-			host_certificate_templates.status AS status,
-			certificate_authorities.type AS ca_type,
-			certificate_authorities.name AS ca_name
+			host_certificate_templates.status AS status
 		FROM certificate_templates
 		INNER JOIN hosts ON hosts.team_id = certificate_templates.team_id
-		INNER JOIN certificate_authorities ON certificate_authorities.id = certificate_templates.certificate_authority_id
 		LEFT JOIN host_certificate_templates
 			ON host_certificate_templates.host_uuid = hosts.uuid
 			AND host_certificate_templates.certificate_template_id = certificate_templates.id

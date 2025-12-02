@@ -103,6 +103,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
   };
 
   const onChangeEnrollmentType = (value: string) => {
+    setAutoMigration(false);
     setEnrollmentType(value === "automaticEnrollment" ? "automatic" : "manual");
   };
 

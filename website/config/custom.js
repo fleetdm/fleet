@@ -400,6 +400,8 @@ module.exports.custom = {
     'icloud.com',
     'live.com',
     'mac.com',
+    'mail.com',
+    'mail.ru',
     'me.com',
     'msn.com',
     'outlook.com',

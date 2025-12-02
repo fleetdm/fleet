@@ -1,6 +1,5 @@
 package fleet
 
-// HostCertificateTemplate represents a row in the host_certificate_templates table.
 type HostCertificateTemplate struct {
 	ID                    uint              `db:"id"`
 	Name                  string            `db:"name"`
