@@ -735,6 +735,10 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 		results, err = svc.ds.GetMDMAppleCommandResults(ctx, commandUUID)
 	case "windows":
 		results, err = svc.ds.GetMDMWindowsCommandResults(ctx, commandUUID)
+	case "android":
+		// TODO(mna): maybe in the future we'll store responses from AMAPI commands, but for
+		// now we don't (they are very large), just return an empty list.
+		results = []*fleet.MDMCommandResult{}
 	default:
 		// this should never happen, but just in case
 		level.Debug(svc.logger).Log("msg", "unknown MDM command platform", "platform", p)
@@ -3174,7 +3178,7 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 
 	// If an install doesn't have a verification_at or verification_failed_at, then
 	// mark it as failed
-	if err := svc.ds.MarkAllPendingVPPAndInHouseInstallsAsFailed(ctx, worker.AppleSoftwareJobName); err != nil {
+	if err := svc.ds.MarkAllPendingAppleVPPAndInHouseInstallsAsFailed(ctx, worker.AppleSoftwareJobName); err != nil {
 		return ctxerr.Wrap(ctx, err, "marking all pending vpp installs as failed")
 	}
 

@@ -581,6 +581,35 @@ func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.Gro
 	return &res, nil
 }
 
+func (MockClient) GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error) {
+	var res []*fleet.CertificateTemplateResponseSummary
+	if teamID == "1" {
+		res = []*fleet.CertificateTemplateResponseSummary{
+			{
+				ID:                       1,
+				CertificateAuthorityName: "DIGIDOO",
+				Name:                     "my_certypoo",
+			},
+		}
+	}
+	return res, nil
+}
+
+func (MockClient) GetCertificateTemplate(certificateID uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error) {
+	var res *fleet.CertificateTemplateResponseFull
+	if certificateID == 1 {
+		res = &fleet.CertificateTemplateResponseFull{
+			CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+				ID:                       1,
+				CertificateAuthorityName: "DIGIDOO",
+				Name:                     "my_certypoo",
+			},
+			SubjectName: "CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+		}
+	}
+	return res, nil
+}
+
 func maskSecret(value string, shouldShowSecret bool) string {
 	if shouldShowSecret {
 		return value
