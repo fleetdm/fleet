@@ -77,7 +77,7 @@ On Android hosts, a broken profile will remove the enforcement of the OS setting
 
 Profiles installed manually by the end user aren't managed by Fleet. They're not visible and can't be removed from the host via Fleet. Additionally, if a backup is migrated to a new host using [Apple's Migration Assistant](https://support.apple.com/en-us/102613) and it contains configuration profiles, those profiles aren't managed.
 
-To delete unmanaged profiles, go to **System Settings > General > Device Management**, select the profile you want to delete, and select **- (minus)** button on the bottom of the profiles list.
+To manually remove unmanaged profiles, ask the end user to go to **System Settings > General > Device Management**, select the profile, and select the **- (minus)** button at the bottom of the list.
 
 ## See status
 
