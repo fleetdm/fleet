@@ -1047,6 +1047,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa1.BundleIdentifier,
 			SelfService:      ipa1.SelfService,
+			DisplayName:      ipa1.DisplayName,
 		},
 		{
 			StorageID:        ipa1.StorageID,
@@ -1060,6 +1061,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa1.BundleIdentifier,
 			SelfService:      ipa1.SelfService,
+			DisplayName:      ipa1.DisplayName,
 		},
 	})
 	require.NoError(t, err)
@@ -1080,11 +1082,11 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 	}
 
 	assertTitlesAndApps([]fleet.SoftwareTitleListResult{
-		{Name: ipa1.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa1")},
-		{Name: ipa1.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa1")},
+		{Name: ipa1.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa1"), DisplayName: ipa1.DisplayName},
+		{Name: ipa1.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa1"), DisplayName: ipa1.DisplayName},
 	}, []fleet.SoftwareInstaller{
-		{Name: ipa1.Filename, Platform: "ios", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier},
-		{Name: ipa1.Filename, Platform: "ipados", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier},
+		{Name: ipa1.Filename, Platform: "ios", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier, DisplayName: ipa1.DisplayName},
+		{Name: ipa1.Filename, Platform: "ipados", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier, DisplayName: ipa1.DisplayName},
 	})
 
 	// stats don't report anything about ipa2 anymore
