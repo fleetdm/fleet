@@ -73,11 +73,13 @@ CURRENT_SLUGS=$(extract_slugs "$APPS_JSON")
 
 # Get base branch apps.json slugs
 echo "Fetching base branch apps.json from ${MERGE_BASE}..."
+BASE_SLUGS=""
+# Temporarily disable exit on error to handle git show failures gracefully
 set +e
 BASE_APPS_JSON=$(git show "${MERGE_BASE}:ee/maintained-apps/outputs/apps.json" 2>/dev/null)
 GIT_SHOW_EXIT_CODE=$?
 set -e
-BASE_SLUGS=""
+
 if [ $GIT_SHOW_EXIT_CODE -eq 0 ] && [ -n "$BASE_APPS_JSON" ]; then
     # Use jq with error handling - if .apps doesn't exist or is empty, return empty string
     # Disable set -e temporarily to handle jq failures gracefully
@@ -90,7 +92,7 @@ if [ $GIT_SHOW_EXIT_CODE -eq 0 ] && [ -n "$BASE_APPS_JSON" ]; then
         BASE_SLUGS=""
     fi
 else
-    echo "Warning: Could not find apps.json in base branch, treating all current apps as new"
+    echo "Warning: Could not find apps.json in base branch (exit code: ${GIT_SHOW_EXIT_CODE}), treating all current apps as new"
 fi
 
 # Find new slugs in apps.json
