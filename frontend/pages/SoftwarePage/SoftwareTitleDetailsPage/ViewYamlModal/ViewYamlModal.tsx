@@ -85,7 +85,7 @@ const ViewYamlModal = ({
     postInstallScript,
     uninstallScript,
     iconUrl: iconUrl || null,
-    displayName: displayName || undefined,
+    displayName,
     isScriptPackage,
   });
 

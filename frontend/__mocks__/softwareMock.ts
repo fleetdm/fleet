@@ -218,7 +218,7 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
     "sudo /Applications/Falcon.app/Contents/Resources/falconctl license abc123",
   self_service: false,
   icon_url: null,
-  display_name: undefined,
+  display_name: "",
   status: {
     installed: 1,
     pending_install: 2,
