@@ -359,7 +359,7 @@ func testGetCertificateTemplatesByTeamID(t *testing.T, ds *Datastore) {
 			"No existing certificate templates for team",
 			func(ds *Datastore) {},
 			func(t *testing.T, ds *Datastore) {
-				templates, _, err := ds.GetCertificateTemplatesByTeamID(ctx, 1, 0, 10)
+				templates, _, err := ds.GetCertificateTemplatesByTeamID(ctx, 1, fleet.ListOptions{Page: 0, PerPage: 10})
 				require.NoError(t, err)
 				require.Len(t, templates, 0)
 			},
@@ -414,7 +414,7 @@ func testGetCertificateTemplatesByTeamID(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 			},
 			func(t *testing.T, ds *Datastore) {
-				templates, _, err := ds.GetCertificateTemplatesByTeamID(ctx, teamID, 0, 10)
+				templates, _, err := ds.GetCertificateTemplatesByTeamID(ctx, teamID, fleet.ListOptions{Page: 0, PerPage: 10})
 				require.NoError(t, err)
 				require.Len(t, templates, 2)
 			},
@@ -457,21 +457,21 @@ func testGetCertificateTemplatesByTeamID(t *testing.T, ds *Datastore) {
 			},
 			func(t *testing.T, ds *Datastore) {
 				// First page
-				templates, meta, err := ds.GetCertificateTemplatesByTeamID(ctx, teamID, 0, 2)
+				templates, meta, err := ds.GetCertificateTemplatesByTeamID(ctx, teamID, fleet.ListOptions{Page: 0, PerPage: 2, IncludeMetadata: true})
 				require.NoError(t, err)
 				require.Len(t, templates, 2)
 				require.False(t, meta.HasPreviousResults)
 				require.True(t, meta.HasNextResults)
 
 				// Second page
-				templates, meta, err = ds.GetCertificateTemplatesByTeamID(ctx, teamID, 1, 2)
+				templates, meta, err = ds.GetCertificateTemplatesByTeamID(ctx, teamID, fleet.ListOptions{Page: 1, PerPage: 2, IncludeMetadata: true})
 				require.NoError(t, err)
 				require.Len(t, templates, 2)
 				require.True(t, meta.HasPreviousResults)
 				require.True(t, meta.HasNextResults)
 
 				// Third page
-				templates, meta, err = ds.GetCertificateTemplatesByTeamID(ctx, teamID, 2, 2)
+				templates, meta, err = ds.GetCertificateTemplatesByTeamID(ctx, teamID, fleet.ListOptions{Page: 2, PerPage: 2, IncludeMetadata: true})
 				require.NoError(t, err)
 				require.Len(t, templates, 1)
 				require.True(t, meta.HasPreviousResults)

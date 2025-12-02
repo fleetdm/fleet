@@ -66,9 +66,9 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 }
 
 type listCertificateTemplatesRequest struct {
-	TeamID  uint `query:"team_id"`
-	Page    int  `query:"page,optional"`
-	PerPage int  `query:"per_page,optional"`
+	fleet.ListOptions
+
+	TeamID uint `query:"team_id"`
 }
 
 type listCertificateTemplatesResponse struct {
@@ -81,24 +81,37 @@ func (r listCertificateTemplatesResponse) Error() error { return r.Err }
 
 func listCertificateTemplatesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listCertificateTemplatesRequest)
-	certificates, paginationMetaData, err := svc.ListCertificateTemplates(ctx, req.TeamID, req.Page, req.PerPage)
+	certificates, paginationMetaData, err := svc.ListCertificateTemplates(ctx, req.TeamID, req.ListOptions)
 	if err != nil {
 		return listCertificateTemplatesResponse{Err: err}, nil
 	}
 	return listCertificateTemplatesResponse{Certificates: certificates, Meta: paginationMetaData}, nil
 }
 
-func (svc *Service) ListCertificateTemplates(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListCertificateTemplates(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, nil, err
 	}
 
-	certificates, paginationMetaData, err := svc.ds.GetCertificateTemplatesByTeamID(ctx, teamID, page, perPage)
+	// cursor-based pagination is not supported
+	opts.After = ""
+
+	// custom ordering is not supported, always by sort by id
+	opts.OrderKey = "certificate_templates.id"
+	opts.OrderDirection = fleet.OrderAscending
+
+	// no matching query support
+	opts.MatchQuery = ""
+
+	// always include metadata
+	opts.IncludeMetadata = true
+
+	certificates, metaData, err := svc.ds.GetCertificateTemplatesByTeamID(ctx, teamID, opts)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return certificates, paginationMetaData, nil
+	return certificates, metaData, nil
 }
 
 type getDeviceCertificateTemplateRequest struct {
