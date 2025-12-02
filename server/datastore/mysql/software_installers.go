@@ -1916,6 +1916,15 @@ FROM
 WHERE (unique_identifier, source, extension_for) IN (%s)
 `
 
+	const getSoftwareTitle = `
+SELECT 
+	id 
+FROM 
+	software_titles 
+WHERE 
+	unique_identifier = ? AND source = ? AND extension_for = ''
+`
+
 	const unsetAllInstallersFromPolicies = `
 UPDATE
   policies
@@ -2101,7 +2110,7 @@ FROM
 	software_installers
 WHERE
 	global_or_team_id = ?	AND
-	title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = '')
+	title_id = ?
 `
 
 	const insertNewOrEditedInstaller = `
@@ -2128,9 +2137,8 @@ INSERT INTO software_installers (
 	install_during_setup,
 	fleet_maintained_app_id
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-  (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = ''),
-  ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+  (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
@@ -2159,7 +2167,7 @@ FROM
 WHERE
 	global_or_team_id = ?	AND
 	-- this is guaranteed to select a single title_id, due to unique index
-	title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = '')
+	title_id = ?
 `
 
 	const deleteInstallerLabelsNotInList = `
@@ -2225,14 +2233,18 @@ VALUES
 	%s
 `
 
-	const deleteDisplayNamesNotInList = `
+	const deleteSoftwareInstallerDisplayNames = `
 DELETE FROM 
 	software_title_display_names stdn
 WHERE 
 	stdn.team_id = ?
-	AND stdn.software_title_id NOT IN (?)
-	AND NOT EXISTS (SELECT 1 FROM in_house_apps iha WHERE iha.title_id = stdn.software_title_id)
-	AND NOT EXISTS (SELECT 1 FROM vpp_apps va WHERE va.title_id = stdn.software_title_id);
+	AND NOT EXISTS (
+		SELECT 1 FROM in_house_apps iha WHERE iha.title_id = stdn.software_title_id 
+		AND iha.global_or_team_id = stdn.team_id)
+	AND NOT EXISTS (
+		SELECT 1 FROM vpp_apps va JOIN vpp_apps_teams vat ON va.adam_id
+		WHERE va.title_id = stdn.software_title_id 
+		AND vat.global_or_team_id = stdn.team_id);
 `
 
 	// use a team id of 0 if no-team
@@ -2443,7 +2455,7 @@ WHERE
 			return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
 		}
 
-		stmt, args, err = sqlx.In(deleteDisplayNamesNotInList, globalOrTeamID, titleIDs)
+		stmt, args, err = sqlx.In(deleteSoftwareInstallerDisplayNames, globalOrTeamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete display names")
 		}
@@ -2451,7 +2463,7 @@ WHERE
 			return ctxerr.Wrap(ctx, err, "delete obsolete display names")
 		}
 
-		for i, installer := range installers {
+		for _, installer := range installers {
 			if installer.ValidatedLabels == nil {
 				return ctxerr.Errorf(ctx, "labels have not been validated for installer with name %s", installer.Filename)
 			}
@@ -2479,6 +2491,9 @@ WHERE
 				postInstallScriptID = &insertID
 			}
 
+			var titleID uint
+			err = sqlx.GetContext(ctx, tx, &titleID, getSoftwareTitle, BundleIdentifierOrName(installer.BundleIdentifier, installer.Title), installer.Source)
+
 			wasUpdatedArgs := []interface{}{
 				// package update
 				installer.StorageID,
@@ -2491,8 +2506,7 @@ WHERE
 				postInstallScriptID,
 				// WHERE clause
 				globalOrTeamID,
-				BundleIdentifierOrName(installer.BundleIdentifier, installer.Title),
-				installer.Source,
+				titleID,
 			}
 
 			// pull existing installer state if it exists so we can diff for side effects post-update
@@ -2523,8 +2537,7 @@ WHERE
 				installer.Platform,
 				installer.SelfService,
 				installer.UpgradeCode,
-				BundleIdentifierOrName(installer.BundleIdentifier, installer.Title),
-				installer.Source,
+				titleID,
 				installer.UserID,
 				installer.UserID,
 				installer.UserID,
@@ -2547,7 +2560,7 @@ WHERE
 			// ID (cannot use res.LastInsertID due to the upsert statement, won't
 			// give the id in case of update)
 			var installerID uint
-			if err := sqlx.GetContext(ctx, tx, &installerID, loadSoftwareInstallerID, globalOrTeamID, BundleIdentifierOrName(installer.BundleIdentifier, installer.Title), installer.Source); err != nil {
+			if err := sqlx.GetContext(ctx, tx, &installerID, loadSoftwareInstallerID, globalOrTeamID, titleID); err != nil {
 				return ctxerr.Wrapf(ctx, err, "load id of new/edited installer with name %q", installer.Filename)
 			}
 
@@ -2650,7 +2663,7 @@ WHERE
 			}
 
 			// update the display name for the software title
-			if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleIDs[i], installer.DisplayName); err != nil {
+			if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleID, installer.DisplayName); err != nil {
 				return ctxerr.Wrapf(ctx, err, "update software title display name for installer with name %q", installer.Filename)
 			}
 

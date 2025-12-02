@@ -979,14 +979,18 @@ VALUES
 	%s
 `
 
-	const deleteDisplayNamesNotInList = `
+	const deleteInHouseAppDisplayNames = `
 DELETE FROM 
 	software_title_display_names stdn
 WHERE 
 	stdn.team_id = ?
-	AND stdn.software_title_id NOT IN (?)
-	AND NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = stdn.software_title_id)
-	AND NOT EXISTS (SELECT 1 FROM vpp_apps va WHERE va.title_id = stdn.software_title_id);
+	AND NOT EXISTS (
+		SELECT 1 FROM software_installers si WHERE si.title_id = stdn.software_title_id
+		AND si.global_or_team_id = stdn.team_id)
+	AND NOT EXISTS (
+		SELECT 1 FROM vpp_apps va JOIN vpp_apps_teams vat ON va.adam_id
+		WHERE va.title_id = stdn.software_title_id 
+		AND vat.global_or_team_id = stdn.team_id);
 `
 
 	// use a team id of 0 if no-team
@@ -1128,7 +1132,7 @@ WHERE
 			return ctxerr.Wrap(ctx, err, "delete obsolete in-house installers")
 		}
 
-		stmt, args, err = sqlx.In(deleteDisplayNamesNotInList, globalOrTeamID, titleIDs)
+		stmt, args, err = sqlx.In(deleteInHouseAppDisplayNames, globalOrTeamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete display names")
 		}
