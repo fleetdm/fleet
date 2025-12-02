@@ -1,0 +1,1 @@
+* Fixed a case where a profile could be left on an Apple device after unenrolling.
