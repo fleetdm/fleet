@@ -2655,7 +2655,7 @@ If `populate_device_status` is set to `true`, `device_status` and `pending_actio
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true&populate_users=true&populate_labels=true`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true&populate_users=true&populate_labels=true&populate_device_status=true`
 
 ##### Request query parameters
 
