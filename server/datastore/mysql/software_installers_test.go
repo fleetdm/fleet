@@ -3681,7 +3681,7 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	require.ErrorContains(t, err, "not found")
 
 	// Add installer, vpp, in-house app with custom names
-	installerID, titleID, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	_, titleID, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallerFile:    tfr1,
 		Extension:        "msi",
 		StorageID:        "storageid",
@@ -3692,8 +3692,7 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 		Source:           "programs",
 		AutomaticInstall: true,
 		UserID:           user1.ID,
-
-		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -3760,15 +3759,25 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	var names []string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		err := sqlx.SelectContext(ctx, q, &names, `SELECT display_name FROM software_title_display_names`)
-		require.NoError(t, err)
-		return nil
-	})
+	getAllDisplayNames := func() []string {
+		var names []string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			err := sqlx.SelectContext(ctx, q, &names, `SELECT display_name FROM software_title_display_names`)
+			require.NoError(t, err)
+			return nil
+		})
+		return names
+	}
+
+	names := getAllDisplayNames()
 	require.Len(t, names, 3)
 	require.NotContains(t, names, "update2")
 	require.Contains(t, names, "batch_name1")
+
+	err = ds.BatchSetSoftwareInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{})
+	require.NoError(t, err)
+	names = getAllDisplayNames()
+	require.Len(t, names, 2)
 }
 
 func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore) {

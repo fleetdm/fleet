@@ -1675,12 +1675,17 @@ func testSoftwareTitleDisplayNameInHouse(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	var names []string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		err := sqlx.SelectContext(ctx, q, &names, `SELECT display_name FROM software_title_display_names`)
-		require.NoError(t, err)
-		return nil
-	})
+	getAllDisplayNames := func() []string {
+		var names []string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			err := sqlx.SelectContext(ctx, q, &names, `SELECT display_name FROM software_title_display_names`)
+			require.NoError(t, err)
+			return nil
+		})
+		return names
+	}
+
+	names := getAllDisplayNames()
 	require.Len(t, names, 3)
 
 	// Batch set in-house apps, previous names should be deleted
@@ -1715,11 +1720,14 @@ func testSoftwareTitleDisplayNameInHouse(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.NoError(t, err)
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		err := sqlx.SelectContext(ctx, q, &names, `SELECT display_name FROM software_title_display_names`)
-		require.NoError(t, err)
-		return nil
-	})
+
+	names = getAllDisplayNames()
 	require.Len(t, names, 4)                   // installer and vpp display names aren't deleted
 	require.NotContains(t, names, "super foo") // previous in-house display names are deleted
+
+	// Delete all in-house apps
+	err = ds.BatchSetInHouseAppsInstallers(ctx, ptr.Uint(0), []*fleet.UploadSoftwareInstallerPayload{})
+	require.NoError(t, err)
+	names = getAllDisplayNames()
+	require.Len(t, names, 2)
 }

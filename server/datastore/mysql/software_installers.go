@@ -2310,6 +2310,10 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
 			}
 
+			if _, err := tx.ExecContext(ctx, deleteSoftwareInstallerDisplayNames, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all display names associated with software installers")
+			}
+
 			return nil
 		}
 
@@ -2455,12 +2459,8 @@ WHERE
 			return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
 		}
 
-		stmt, args, err = sqlx.In(deleteSoftwareInstallerDisplayNames, globalOrTeamID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete display names")
-		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete obsolete display names")
+		if _, err := tx.ExecContext(ctx, deleteSoftwareInstallerDisplayNames, globalOrTeamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete display names associated with software installers")
 		}
 
 		for _, installer := range installers {
@@ -2493,6 +2493,9 @@ WHERE
 
 			var titleID uint
 			err = sqlx.GetContext(ctx, tx, &titleID, getSoftwareTitle, BundleIdentifierOrName(installer.BundleIdentifier, installer.Title), installer.Source)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "getting software title id for software installer with name %q", installer.Filename)
+			}
 
 			wasUpdatedArgs := []interface{}{
 				// package update
@@ -2663,8 +2666,10 @@ WHERE
 			}
 
 			// update the display name for the software title
-			if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleID, installer.DisplayName); err != nil {
-				return ctxerr.Wrapf(ctx, err, "update software title display name for installer with name %q", installer.Filename)
+			if installer.DisplayName != "" {
+				if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleID, installer.DisplayName); err != nil {
+					return ctxerr.Wrapf(ctx, err, "update software title display name for installer with name %q", installer.Filename)
+				}
 			}
 
 			// perform side effects if this was an update (related to pending (un)install requests)
