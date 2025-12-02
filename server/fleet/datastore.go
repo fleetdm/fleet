@@ -2535,6 +2535,9 @@ type Datastore interface {
 	GetCertificateTemplateForHost(ctx context.Context, hostUUID string, certificateTemplateID uint) (*CertificateTemplateForHost, error)
 	// BulkInsertHostCertificateTemplates inserts multiple host_certificate_templates records.
 	BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []HostCertificateTemplate) error
+	// DeleteHostCertificateTemplates deletes specific host_certificate_templates records
+	// identified by (host_uuid, certificate_template_id) pairs.
+	DeleteHostCertificateTemplates(ctx context.Context, hostCertTemplates []HostCertificateTemplate) error
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
