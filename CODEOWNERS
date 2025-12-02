@@ -72,7 +72,7 @@ go.mod @fleetdm/go
 /docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @sgress454 @getvictor # software ingestion is security & compliance
 /docs/REST\ API/rest-api.md                             @rachaelshaw @lukeheath # « REST API reference documentation
 /docs/Contributing/reference                            @rachaelshaw @lukeheath
-/schema                                                 @eashaw # « Data tables (osquery/fleetd schema) documentation
+/schema                                                 @eashaw @lukeheath # « Data tables (osquery/fleetd schema) documentation
 /render.yaml                                            @edwardsb
 /it-and-security                                        @allenhouchins
 
@@ -83,9 +83,9 @@ go.mod @fleetdm/go
 ################################################################################################
 
 # MDM
-/docs/Contributing/architecture/mdm                     @georgekarrv @JordanMontgomery
-/docs/Contributing/product-groups/mdm                   @georgekarrv @JordanMontgomery
-/docs/Contributing/research/mdm                         @georgekarrv @JordanMontgomery
+/docs/Contributing/architecture/mdm                     @georgekarrv @JordanMontgomery @lukeheath
+/docs/Contributing/product-groups/mdm                   @georgekarrv @JordanMontgomery @lukeheath
+/docs/Contributing/research/mdm                         @georgekarrv @JordanMontgomery @lukeheath
 
 # Orchestration
 /docs/Contributing/architecture/orchestration           @sharon-fdm @sgress454
