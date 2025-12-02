@@ -7,9 +7,7 @@ import android.os.Build
 import android.util.Log
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
@@ -25,7 +23,6 @@ import kotlinx.coroutines.launch
 class AgentApplication : Application() {
     companion object {
         private const val TAG = "fleet-app"
-        private const val CONFIG_CHECK_WORK_NAME = "config_check_periodic"
     }
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -35,8 +32,7 @@ class AgentApplication : Application() {
         Log.i(TAG, "Fleet agent process started")
         ApiClient.initialize(this)
         refreshEnrollmentCredentials()
-        schedulePeriodicConfigCheck()
-        scheduleCertificateEnrollment()
+        schedulePeriodicCertificateEnrollment()
     }
 
     private fun refreshEnrollmentCredentials() {
@@ -76,40 +72,23 @@ class AgentApplication : Application() {
         }
     }
 
-    private fun schedulePeriodicConfigCheck() {
-        val workRequest =
-            PeriodicWorkRequestBuilder<ConfigCheckWorker>(
-                15, // 15 is the minimum
-                TimeUnit.MINUTES,
-            ).build()
-
-        WorkManager
-            .getInstance(this)
-            .enqueueUniquePeriodicWork(
-                CONFIG_CHECK_WORK_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
-                workRequest,
-            )
-
-        Log.i(TAG, "Scheduled periodic config check every 15 minutes")
-    }
-
-    private fun scheduleCertificateEnrollment() {
-        val workRequest = OneTimeWorkRequestBuilder<CertificateEnrollmentWorker>()
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .build()
+    private fun schedulePeriodicCertificateEnrollment() {
+        val workRequest = PeriodicWorkRequestBuilder<CertificateEnrollmentWorker>(
+            15, // 15 minutes is the minimum
+            TimeUnit.MINUTES,
+        ).setConstraints(
+            Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+        ).build()
 
         WorkManager.getInstance(this)
-            .enqueueUniqueWork(
+            .enqueueUniquePeriodicWork(
                 CertificateEnrollmentWorker.WORK_NAME,
-                ExistingWorkPolicy.KEEP, // Don't re-enroll if already in progress
+                ExistingPeriodicWorkPolicy.KEEP,
                 workRequest
             )
 
-        Log.d(TAG, "Scheduled certificate enrollment worker")
+        Log.i(TAG, "Scheduled periodic certificate enrollment every 15 minutes")
     }
 }

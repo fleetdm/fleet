@@ -4,6 +4,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 
 class BootReceiver : BroadcastReceiver() {
     companion object {
@@ -12,9 +17,27 @@ class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context?, intent: Intent?) {
         if (intent?.action == Intent.ACTION_BOOT_COMPLETED) {
-            Log.i(TAG, "Device boot completed. Fleet Agent will initialize on app startup.")
-            // Note: Certificate enrollment is now handled automatically in AgentApplication.onCreate()
-            // when the app process starts. No additional action needed here.
+            Log.i(TAG, "Device boot completed. Triggering certificate enrollment.")
+
+            context?.let {
+                // Trigger immediate certificate enrollment on boot
+                val workRequest = OneTimeWorkRequestBuilder<CertificateEnrollmentWorker>()
+                    .setConstraints(
+                        Constraints.Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build()
+                    )
+                    .build()
+
+                WorkManager.getInstance(it)
+                    .enqueueUniqueWork(
+                        "${CertificateEnrollmentWorker.WORK_NAME}_boot",
+                        ExistingWorkPolicy.REPLACE, // Run fresh enrollment on boot
+                        workRequest
+                    )
+
+                Log.d(TAG, "Scheduled certificate enrollment after boot")
+            }
         }
     }
 }
