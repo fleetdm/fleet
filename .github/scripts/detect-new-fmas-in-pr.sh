@@ -34,6 +34,22 @@ extract_slugs() {
     jq -r '.apps[].slug' "$apps_file" | sort
 }
 
+# Function to safely get base branch apps.json
+get_base_apps_json() {
+    local merge_base="$1"
+    set +e
+    local result
+    result=$(git show "${merge_base}:ee/maintained-apps/outputs/apps.json" 2>/dev/null)
+    local exit_code=$?
+    set -e
+    if [ $exit_code -eq 0 ] && [ -n "$result" ]; then
+        echo "$result"
+        return 0
+    else
+        return $exit_code
+    fi
+}
+
 # Function to extract app slugs from changed manifest files
 extract_slugs_from_changed_manifests() {
     local changed_files="$1"
@@ -74,13 +90,13 @@ CURRENT_SLUGS=$(extract_slugs "$APPS_JSON")
 # Get base branch apps.json slugs
 echo "Fetching base branch apps.json from ${MERGE_BASE}..."
 BASE_SLUGS=""
-# Temporarily disable exit on error to handle git show failures gracefully
-set +e
-BASE_APPS_JSON=$(git show "${MERGE_BASE}:ee/maintained-apps/outputs/apps.json" 2>/dev/null)
-GIT_SHOW_EXIT_CODE=$?
-set -e
+BASE_APPS_JSON=$(get_base_apps_json "${MERGE_BASE}" || echo "")
 
-if [ $GIT_SHOW_EXIT_CODE -eq 0 ] && [ -n "$BASE_APPS_JSON" ]; then
+# Check if we got content
+if [ -z "$BASE_APPS_JSON" ]; then
+    echo "Warning: Could not find apps.json in base branch, treating all current apps as new"
+    BASE_SLUGS=""
+else
     # Use jq with error handling - if .apps doesn't exist or is empty, return empty string
     # Disable set -e temporarily to handle jq failures gracefully
     set +e
@@ -91,8 +107,6 @@ if [ $GIT_SHOW_EXIT_CODE -eq 0 ] && [ -n "$BASE_APPS_JSON" ]; then
         echo "Warning: apps.json in base branch has no apps or is malformed, treating all current apps as new"
         BASE_SLUGS=""
     fi
-else
-    echo "Warning: Could not find apps.json in base branch (exit code: ${GIT_SHOW_EXIT_CODE}), treating all current apps as new"
 fi
 
 # Find new slugs in apps.json
