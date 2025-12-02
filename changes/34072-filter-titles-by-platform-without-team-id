@@ -1,0 +1,2 @@
+- Improve filtering of the list software titles endpoint to support a platform filter without
+  also needing to specify a team id
