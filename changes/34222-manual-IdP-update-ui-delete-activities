@@ -1,3 +1,0 @@
-- Implement UI logic to call existing manual update IdP API functionality
-- Implement UI logic and new DELETE endpoint to manually remove host IdP mappings
-- Add activities when manually updating or deleting host IdP mappings
