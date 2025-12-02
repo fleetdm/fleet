@@ -73,13 +73,21 @@ CURRENT_SLUGS=$(extract_slugs "$APPS_JSON")
 
 # Get base branch apps.json slugs
 echo "Fetching base branch apps.json from ${MERGE_BASE}..."
-BASE_APPS_JSON=$(git show "${MERGE_BASE}:ee/maintained-apps/outputs/apps.json" 2>/dev/null || echo "")
+set +e
+BASE_APPS_JSON=$(git show "${MERGE_BASE}:ee/maintained-apps/outputs/apps.json" 2>/dev/null)
+GIT_SHOW_EXIT_CODE=$?
+set -e
 BASE_SLUGS=""
-if [ -n "$BASE_APPS_JSON" ]; then
+if [ $GIT_SHOW_EXIT_CODE -eq 0 ] && [ -n "$BASE_APPS_JSON" ]; then
     # Use jq with error handling - if .apps doesn't exist or is empty, return empty string
-    BASE_SLUGS=$(echo "$BASE_APPS_JSON" | jq -r 'if .apps then .apps[].slug else empty end' 2>/dev/null | sort || echo "")
-    if [ -z "$BASE_SLUGS" ]; then
+    # Disable set -e temporarily to handle jq failures gracefully
+    set +e
+    BASE_SLUGS=$(echo "$BASE_APPS_JSON" | jq -r 'if .apps then .apps[].slug else empty end' 2>/dev/null | sort)
+    JQ_EXIT_CODE=$?
+    set -e
+    if [ $JQ_EXIT_CODE -ne 0 ] || [ -z "$BASE_SLUGS" ]; then
         echo "Warning: apps.json in base branch has no apps or is malformed, treating all current apps as new"
+        BASE_SLUGS=""
     fi
 else
     echo "Warning: Could not find apps.json in base branch, treating all current apps as new"
