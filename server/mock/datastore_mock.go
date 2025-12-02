@@ -1621,7 +1621,7 @@ type UpdateCertificateAuthorityByIDFunc func(ctx context.Context, id uint, certi
 
 type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error
 
-type UpdateCertificateStatusFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus) error
+type UpdateCertificateStatusFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error
 
 type BatchUpsertCertificateTemplatesFunc func(ctx context.Context, certificates []*fleet.CertificateTemplate) error
 
@@ -1634,6 +1634,12 @@ type DeleteCertificateTemplateFunc func(ctx context.Context, id uint) error
 type GetCertificateTemplateByIdFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error)
 
 type GetCertificateTemplatesByTeamIDFunc func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
+
+type ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
+
+type ListCertificateTemplatesForHostsFunc func(ctx context.Context, hostUUIDs []string) ([]fleet.CertificateTemplateForHost, error)
+
+type BulkInsertHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
 
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
@@ -4057,6 +4063,15 @@ type DataStore struct {
 
 	GetCertificateTemplatesByTeamIDFunc        GetCertificateTemplatesByTeamIDFunc
 	GetCertificateTemplatesByTeamIDFuncInvoked bool
+
+	ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc        ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc
+	ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFuncInvoked bool
+
+	ListCertificateTemplatesForHostsFunc        ListCertificateTemplatesForHostsFunc
+	ListCertificateTemplatesForHostsFuncInvoked bool
+
+	BulkInsertHostCertificateTemplatesFunc        BulkInsertHostCertificateTemplatesFunc
+	BulkInsertHostCertificateTemplatesFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -9660,11 +9675,11 @@ func (s *DataStore) BatchApplyCertificateAuthorities(ctx context.Context, ops fl
 	return s.BatchApplyCertificateAuthoritiesFunc(ctx, ops)
 }
 
-func (s *DataStore) UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus) error {
+func (s *DataStore) UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error {
 	s.mu.Lock()
 	s.UpdateCertificateStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateCertificateStatusFunc(ctx, hostUUID, certificateTemplateID, status)
+	return s.UpdateCertificateStatusFunc(ctx, hostUUID, certificateTemplateID, status, detail)
 }
 
 func (s *DataStore) BatchUpsertCertificateTemplates(ctx context.Context, certificates []*fleet.CertificateTemplate) error {
@@ -9707,6 +9722,27 @@ func (s *DataStore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID 
 	s.GetCertificateTemplatesByTeamIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCertificateTemplatesByTeamIDFunc(ctx, teamID, page, perPage)
+}
+
+func (s *DataStore) ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {
+	s.mu.Lock()
+	s.ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc(ctx, offset, limit)
+}
+
+func (s *DataStore) ListCertificateTemplatesForHosts(ctx context.Context, hostUUIDs []string) ([]fleet.CertificateTemplateForHost, error) {
+	s.mu.Lock()
+	s.ListCertificateTemplatesForHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListCertificateTemplatesForHostsFunc(ctx, hostUUIDs)
+}
+
+func (s *DataStore) BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error {
+	s.mu.Lock()
+	s.BulkInsertHostCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkInsertHostCertificateTemplatesFunc(ctx, hostCertTemplates)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {

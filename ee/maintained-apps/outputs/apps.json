@@ -65,18 +65,18 @@
       "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
     },
     {
-      "name": "Android Studio",
-      "slug": "android-studio/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.google.android.studio",
-      "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
-    },
-    {
       "name": "Adobe Digital Editions",
       "slug": "adobe-digital-editions/darwin",
       "platform": "darwin",
       "unique_identifier": "com.adobe.adobedigitaleditions.app",
       "description": "Adobe Digital Editions is an E-book reader."
+    },
+    {
+      "name": "Android Studio",
+      "slug": "android-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.android.studio",
+      "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
     },
     {
       "name": "AnyDesk",
@@ -637,6 +637,13 @@
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.PhpStorm",
       "description": "PhpStorm is a PHP IDE by JetBrains."
+    },
+    {
+      "name": "Podman Desktop",
+      "slug": "podman-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.podmandesktop.PodmanDesktop",
+      "description": "Open source tool for developers to work with containers and Kubernetes."
     },
     {
       "name": "Postman",
