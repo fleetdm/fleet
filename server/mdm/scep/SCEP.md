@@ -4,7 +4,7 @@
 
 ## Architecture Components
 
-  1. Handler Registration (server/service/handler.go:1224)
+  1. Handler Registration (server/service/handler.go)
 
      func RegisterSCEPProxy(...)
 
@@ -18,19 +18,19 @@
 
         The SCEP protocol defines these operations:
 
-        GetCACaps (ee/server/service/scep_proxy.go:63)
+        GetCACaps (ee/server/service/scep_proxy.go)
 
         - Returns capabilities supported by the CA (e.g., "SHA-256", "AES", "POSTPKIOperation")
         - Simple pass-through to the upstream SCEP server
         - Used by clients to discover what the CA supports
 
-        GetCACert (ee/server/service/scep_proxy.go:82)
+        GetCACert (ee/server/service/scep_proxy.go)
 
         - Returns the CA certificate(s) in PKCS#7 format
         - Clients need this to verify certificates and encrypt requests
         - Also a pass-through to the upstream server
 
-        PKIOperation (ee/server/service/scep_proxy.go:101) - Most important
+        PKIOperation (ee/server/service/scep_proxy.go) - Most important
 
         - The actual certificate signing request (CSR)
         - This is where Fleet validates the challenge and forwards to CA
@@ -88,7 +88,7 @@ sequenceDiagram
 
 ### Step 1: Profile Delivery
 
-  When Fleet sends a certificate profile to a device (server/mdm/profiles/profile_variables.go:61):
+  When Fleet sends a certificate profile to a device (server/mdm/profiles/profile_variables.go):
   challenge, err := ds.NewChallenge(ctx)
   proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
       url.PathEscape(fmt.Sprintf("%s,%s,%s,%s", hostUUID, profUUID, caName, challenge)))
@@ -114,19 +114,19 @@ sequenceDiagram
     - Proxies encrypted CSR to CA
     - Returns signed certificate
 
-### Step 3: Challenge Validation (ee/server/service/scep_proxy.go:120)
+### Step 3: Challenge Validation (ee/server/service/scep_proxy.go)
 
 For different CA types:
 
 NDES (Microsoft's CA):
 
-- Challenge expires after 57 minutes (line 38)
+- Challenge expires after 57 minutes (NDESChallengeInvalidAfter constant)
 - Fleet retrieves challenge from NDES admin URL using NTLM auth
 - Parses HTML response for password: The enrollment challenge password is: {password}
 
 Smallstep:
 
-- Challenge expires after 4 minutes (line 39)
+- Challenge expires after 4 minutes (SmallstepChallengeInvalidAfter constant)
 - Fleet requests challenge via webhook endpoint
 - Gets challenge from Smallstep API
 
@@ -138,7 +138,7 @@ Custom SCEP Proxy:
 
 ### Step 4: Profile Status Tracking
 
-   Fleet validates profile status (line 169):
+   Fleet validates profile status:
    if profile.Status != fleet.MDMDeliveryPending
 
    - Profile must be in "pending" state
@@ -149,7 +149,7 @@ Custom SCEP Proxy:
 
 When a challenge expires before the device completes the PKIOperation, Fleet automatically requeues the profile for redelivery with a fresh challenge.
 
-### Requeue Trigger (ee/server/service/scep_proxy.go:189-220)
+### Requeue Trigger (ee/server/service/scep_proxy.go)
 
 During `validateIdentifier()`, Fleet checks the `ChallengeRetrievedAt` timestamp against expiration windows:
 
@@ -161,11 +161,11 @@ During `validateIdentifier()`, Fleet checks the `ChallengeRetrievedAt` timestamp
 
 Two functions handle requeuing depending on CA type:
 
-1. **ResendHostMDMProfile()** (server/datastore/mysql/mdm.go:1735-1756)
+1. **ResendHostMDMProfile()** (server/datastore/mysql/mdm.go)
    - Used for NDES
    - Sets profile `status = NULL` to trigger resend on next cron run
 
-2. **ResendHostCertificateProfile()** (server/datastore/mysql/apple_mdm.go:914-965)
+2. **ResendHostCertificateProfile()** (server/datastore/mysql/apple_mdm.go)
    - Used for Smallstep and Custom SCEP
    - Sets profile `status = NULL`
    - Deactivates pending nano enrollment commands
@@ -174,7 +174,7 @@ Two functions handle requeuing depending on CA type:
 
 ### Profile Reconciliation
 
-The cron job picks up requeued profiles via `ListMDMAppleProfilesToInstall()` (server/datastore/mysql/apple_mdm.go:3318), which queries for profiles where `status IS NULL`.
+The cron job picks up requeued profiles via `ListMDMAppleProfilesToInstall()` (server/datastore/mysql/apple_mdm.go), which queries for profiles where `status IS NULL`.
 
 When a profile is re-sent:
 1. `NewChallenge()` generates a fresh challenge token
@@ -186,20 +186,19 @@ When a profile is re-sent:
 
   1. Identifier Validation: Ensures request matches a valid host+profile+CA combination
   2. Challenge Expiration: Prevents replay attacks
-  3. One-time Use: Custom SCEP challenges consumed after use (line 276)
+  3. One-time Use: Custom SCEP challenges consumed after use
   4. Profile Status: Only pending profiles can proceed
   5. Path Escape: Identifiers are URL-encoded to prevent injection
 
 ## Key Files Reference
 
-- server/service/handler.go:1224 - Proxy registration
+- server/service/handler.go - Proxy registration
 - ee/server/service/scep_proxy.go - Core proxy logic and challenge validation
 - server/mdm/scep/server/service.go - SCEP protocol interface
 - server/mdm/scep/server/transport.go - HTTP encoding/decoding
-- server/mdm/profiles/profile_variables.go:61 - Profile URL generation
-- server/datastore/mysql/mdm.go:1735 - ResendHostMDMProfile() for NDES requeue
-- server/datastore/mysql/apple_mdm.go:914 - ResendHostCertificateProfile() for cert profile requeue
-- server/datastore/mysql/apple_mdm.go:3318 - ListMDMAppleProfilesToInstall() for reconciliation
+- server/mdm/profiles/profile_variables.go - Profile URL generation
+- server/datastore/mysql/mdm.go - ResendHostMDMProfile() for NDES requeue
+- server/datastore/mysql/apple_mdm.go - ResendHostCertificateProfile() for cert profile requeue, ListMDMAppleProfilesToInstall() for reconciliation
 - server/datastore/mysql/challenges.go - Challenge generation and consumption
 
 ## Why a Proxy?
