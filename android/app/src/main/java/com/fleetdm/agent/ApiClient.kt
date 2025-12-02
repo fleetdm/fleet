@@ -13,11 +13,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 
 private val Context.credentialStore: DataStore<Preferences> by preferencesDataStore(name = "api_credentials")
 
@@ -27,8 +30,14 @@ object ApiClient {
     private lateinit var dataStore: DataStore<Preferences>
     private val API_KEY = stringPreferencesKey("api_key")
     private val BASE_URL_KEY = stringPreferencesKey("base_url")
+    private val ENROLL_SECRET = stringPreferencesKey("enroll_secret")
+    private val HARDWARE_UUID = stringPreferencesKey("hardware_uuid")
+    private val COMPUTER_NAME = stringPreferencesKey("computer_name")
+
+    private val enrollmentMutex = Mutex()
 
     fun initialize(context: Context) {
+        Log.d("fleet-apiClient", "initializing api client")
         if (!::dataStore.isInitialized) {
             dataStore = context.applicationContext.credentialStore
         }
@@ -40,7 +49,7 @@ object ApiClient {
         }
     }
 
-    private suspend fun setBaseUrl(url: String) {
+    suspend fun setBaseUrl(url: String) {
         dataStore.edit { preferences ->
             preferences[BASE_URL_KEY] = url
         }
@@ -60,23 +69,15 @@ object ApiClient {
 
     suspend fun getBaseUrl(): String? = dataStore.data.first()[BASE_URL_KEY]
 
-    suspend fun <R, T> makeRequest(
+    private suspend fun <R, T> makeRequest(
         endpoint: String,
         method: String = "GET",
         body: R? = null,
-        authenticated: Boolean = true,
-        bodySerializer: KSerializer<R>,
+        bodySerializer: KSerializer<R>? = null,
         responseSerializer: KSerializer<T>,
     ): Result<T> = withContext(Dispatchers.IO) {
         var connection: HttpURLConnection? = null
         try {
-            val apiKey = getApiKey()
-            if (authenticated && apiKey == null) {
-                return@withContext Result.failure(
-                    Exception("API key not configured"),
-                )
-            }
-
             val baseUrl = getBaseUrl() ?: return@withContext Result.failure(
                 Exception("Base URL not configured"),
             )
@@ -102,16 +103,13 @@ object ApiClient {
                 requestMethod = method
                 useCaches = false
                 doInput = true
-                if (authenticated) {
-                    setRequestProperty("Authorization", "Bearer $apiKey")
-                }
                 setRequestProperty("Content-Type", "application/json")
                 connectTimeout = 15000
                 readTimeout = 15000
 
                 if (body != null && method != "GET") {
                     doOutput = true
-                    val bodyJson = json.encodeToString(value = body, serializer = bodySerializer)
+                    val bodyJson = json.encodeToString(value = body, serializer = bodySerializer!!)
                     outputStream.use { it.write(bodyJson.toByteArray()) }
                 }
             }
@@ -137,17 +135,18 @@ object ApiClient {
         }
     }
 
-    suspend fun enroll(baseUrl: String, enrollSecret: String, hardwareUUID: String, computerName: String): Result<EnrollResponse> {
-        setBaseUrl(baseUrl)
+    suspend fun enroll(): Result<EnrollResponse> {
+        val credentials = getEnrollmentCredentials()
+        credentials ?: return Result.failure(Exception("Credentials not set"))
         val resp = makeRequest(
             endpoint = "/api/fleet/orbit/enroll",
             method = "POST",
             body = EnrollRequest(
-                enrollSecret = enrollSecret,
-                hardwareUUID = hardwareUUID,
-                computerName = computerName,
+                enrollSecret = credentials.enrollSecret,
+                hardwareUUID = credentials.hardwareUUID,
+                hardwareSerial = credentials.hardwareUUID,
+                computerName = credentials.computerName,
             ),
-            authenticated = false,
             bodySerializer = EnrollRequest.serializer(),
             responseSerializer = EnrollResponse.serializer(),
         )
@@ -160,6 +159,84 @@ object ApiClient {
 
         return resp
     }
+
+    suspend fun getOrbitConfig(): Result<OrbitConfig> {
+        val nodeKeyResult = getNodeKeyOrEnroll()
+
+        val orbitNodeKey = nodeKeyResult.getOrElse { error ->
+            return Result.failure(error)
+        }
+
+        return makeRequest(
+            endpoint = "/api/fleet/orbit/config",
+            method = "POST",
+            body = GetConfigRequest(orbitNodeKey = orbitNodeKey),
+            bodySerializer = GetConfigRequest.serializer(),
+            responseSerializer = OrbitConfig.serializer(),
+        )
+    }
+
+    suspend fun setEnrollmentCredentials(enrollSecret: String, hardwareUUID: String, computerName: String, baseUrl: String) {
+        dataStore.edit { preferences ->
+            preferences[ENROLL_SECRET] = enrollSecret
+            preferences[HARDWARE_UUID] = hardwareUUID
+            preferences[COMPUTER_NAME] = computerName
+            preferences[BASE_URL_KEY] = baseUrl
+        }
+    }
+
+    private suspend fun getEnrollmentCredentials(): EnrollmentCredentials? {
+        val prefs = dataStore.data.first()
+        val enrollSecret = prefs[ENROLL_SECRET]
+        val hardwareUUID = prefs[HARDWARE_UUID]
+        val computerName = prefs[COMPUTER_NAME]
+        val baseUrl = prefs[BASE_URL_KEY]
+
+        if (enrollSecret == null || hardwareUUID == null || computerName == null || baseUrl == null) {
+            return null
+        }
+
+        return EnrollmentCredentials(
+            baseUrl = baseUrl,
+            enrollSecret = enrollSecret,
+            hardwareUUID = hardwareUUID,
+            computerName = computerName,
+        )
+    }
+
+    private suspend fun getNodeKeyOrEnroll(): Result<String> {
+        enrollmentMutex.withLock {
+            // Check again inside lock in case another coroutine just enrolled
+            val existingKey = getApiKey()
+            if (existingKey != null) {
+                return Result.success(existingKey)
+            }
+
+            // Node key is missing, attempt auto-enrollment
+            Log.d("ApiClient", "Orbit node key missing, attempting auto-enrollment")
+
+            // Re-enroll
+            val enrollResult = enroll()
+
+            return enrollResult.fold(
+                onSuccess = { response ->
+                    Log.d("ApiClient", "Auto-enrollment successful")
+                    Result.success(response.orbitNodeKey)
+                },
+                onFailure = { error ->
+                    Log.e("ApiClient", "Auto-enrollment failed: ${error.message}")
+                    Result.failure(error)
+                },
+            )
+        }
+    }
+
+    private data class EnrollmentCredentials(
+        val baseUrl: String,
+        val enrollSecret: String,
+        val hardwareUUID: String,
+        val computerName: String,
+    )
 }
 
 @Serializable
@@ -168,6 +245,8 @@ data class EnrollRequest(
     val enrollSecret: String,
     @SerialName("hardware_uuid")
     val hardwareUUID: String,
+    @SerialName("hardware_serial")
+    val hardwareSerial: String,
     @SerialName("platform")
     val platform: String = "android",
     @SerialName("computer_name")
@@ -178,4 +257,79 @@ data class EnrollRequest(
 data class EnrollResponse(
     @SerialName("orbit_node_key")
     val orbitNodeKey: String,
+)
+
+@Serializable
+private data class GetConfigRequest(
+    @SerialName("orbit_node_key")
+    val orbitNodeKey: String,
+)
+
+@Serializable
+data class OrbitConfig(
+    @SerialName("script_execution_timeout")
+    val scriptExecutionTimeout: Int = 0,
+
+    @SerialName("command_line_startup_flags")
+    val commandLineStartupFlags: JsonElement? = null,
+
+    @SerialName("extensions")
+    val extensions: JsonElement? = null,
+
+    @SerialName("nudge_config")
+    val nudgeConfig: JsonElement? = null,
+
+    @SerialName("notifications")
+    val notifications: OrbitConfigNotifications = OrbitConfigNotifications(),
+
+    @SerialName("update_channels")
+    val updateChannels: OrbitUpdateChannels? = null,
+)
+
+@Serializable
+data class OrbitConfigNotifications(
+    @SerialName("pending_script_execution_ids")
+    val pendingScriptExecutionIDs: List<String> = emptyList(),
+
+    @SerialName("pending_software_installer_ids")
+    val pendingSoftwareInstallerIDs: List<String> = emptyList(),
+
+    @SerialName("renew_enrollment_profile")
+    val renewEnrollmentProfile: Boolean = false,
+
+    @SerialName("rotate_disk_encryption_key")
+    val rotateDiskEncryptionKey: Boolean = false,
+
+    @SerialName("needs_mdm_migration")
+    val needsMDMMigration: Boolean = false,
+
+    @SerialName("run_setup_experience")
+    val runSetupExperience: Boolean = false,
+
+    @SerialName("run_disk_encryption_escrow")
+    val runDiskEncryptionEscrow: Boolean = false,
+
+    @SerialName("needs_programmatic_windows_mdm_enrollment")
+    val needsProgrammaticWindowsMDMEnrollment: Boolean = false,
+
+    @SerialName("windows_mdm_discovery_endpoint")
+    val windowsMDMDiscoveryEndpoint: String = "",
+
+    @SerialName("needs_programmatic_windows_mdm_unenrollment")
+    val needsProgrammaticWindowsMDMUnenrollment: Boolean = false,
+
+    @SerialName("enforce_bitlocker_encryption")
+    val enforceBitLockerEncryption: Boolean = false,
+)
+
+@Serializable
+data class OrbitUpdateChannels(
+    @SerialName("orbit")
+    val orbit: String = "",
+
+    @SerialName("osqueryd")
+    val osqueryd: String = "",
+
+    @SerialName("desktop")
+    val desktop: String = "",
 )
