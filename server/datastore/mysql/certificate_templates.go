@@ -53,39 +53,47 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 	return &template, nil
 }
 
-func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, page, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
-	var templates []*fleet.CertificateTemplateResponseSummary
+func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+	args := []any{teamID}
 
-	if perPage <= 0 {
-		perPage = 20
-	}
+	fromClause := `
+		FROM certificate_templates
+		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+		WHERE team_id = ?
+`
+	countStmt := fmt.Sprintf(`SELECT COUNT(1) %s`, fromClause)
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &templates, `
+	stmt := fmt.Sprintf(`
 		SELECT
 			certificate_templates.id,
 			certificate_templates.name,
 			certificate_templates.certificate_authority_id,
 			certificate_authorities.name AS certificate_authority_name,
 			certificate_templates.created_at
-		FROM certificate_templates
-		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
-		WHERE team_id = ?
-		ORDER BY certificate_templates.id ASC
-		LIMIT ? OFFSET ?
-	`, teamID, perPage+1, perPage*page,
-	); err != nil {
+		%s
+`, fromClause)
+
+	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, args, &opts)
+
+	var templates []*fleet.CertificateTemplateResponseSummary
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &templates, stmtPaged, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "getting certificate_templates by team_id")
 	}
 
-	paginationMetaData := &fleet.PaginationMetadata{
-		HasPreviousResults: page > 0,
-	}
-	if len(templates) > perPage {
-		templates = templates[:perPage]
-		paginationMetaData.HasNextResults = true
+	var metaData *fleet.PaginationMetadata
+	if opts.IncludeMetadata {
+		var count uint
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countStmt, args...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "counting certificate templates")
+		}
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opts.Page > 0, TotalResults: count}
+		if len(templates) > int(opts.PerPage) { //nolint:gosec // dismiss G115
+			metaData.HasNextResults = true
+			templates = templates[:len(templates)-1]
+		}
 	}
 
-	return templates, paginationMetaData, nil
+	return templates, metaData, nil
 }
 
 func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponseFull, error) {

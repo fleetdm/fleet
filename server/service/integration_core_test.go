@@ -8037,7 +8037,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	}, fleet.DeviceMappingMDMIdpAccounts)
 	require.NoError(t, err)
 
-	savedCertificateTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, team.ID, 0, 10)
+	savedCertificateTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, team.ID, fleet.ListOptions{Page: 0, PerPage: 10})
 	require.NoError(t, err)
 	certID := savedCertificateTemplates[0].ID
 
