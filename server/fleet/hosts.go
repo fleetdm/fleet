@@ -1147,15 +1147,15 @@ type HostMDM struct {
 
 // HostMDMWithUUID represents a host_mdm row without any additional joins other than host UUID.
 type HostMDMWithUUID struct {
-	HostID               uint   `db:"host_id" json:"-" csv:"-"`
-	Enrolled             bool   `db:"enrolled" json:"-" csv:"-"`
-	ServerURL            string `db:"server_url" json:"-" csv:"-"`
-	InstalledFromDep     bool   `db:"installed_from_dep" json:"-" csv:"-"`
-	IsServer             bool   `db:"is_server" json:"-" csv:"-"`
-	IsPersonalEnrollment bool   `db:"is_personal_enrollment" json:"-" csv:"-"`
-	MDMID                *uint  `db:"mdm_id" json:"-" csv:"-"`
-	HostUUID             string `db:"host_uuid" json:"host_uuid"`
-	EnrollmentStatus     string `db:"enrollment_status" json:"-" csv:"-"`
+	HostID               uint    `db:"host_id" json:"-" csv:"-"`
+	Enrolled             bool    `db:"enrolled" json:"-" csv:"-"`
+	ServerURL            string  `db:"server_url" json:"-" csv:"-"`
+	InstalledFromDep     bool    `db:"installed_from_dep" json:"-" csv:"-"`
+	IsServer             bool    `db:"is_server" json:"-" csv:"-"`
+	IsPersonalEnrollment bool    `db:"is_personal_enrollment" json:"-" csv:"-"`
+	MDMID                *uint   `db:"mdm_id" json:"-" csv:"-"`
+	HostUUID             string  `db:"host_uuid" json:"host_uuid"`
+	EnrollmentStatus     *string `db:"enrollment_status" json:"-" csv:"-"`
 }
 
 // HasJSONProfileAssigned returns true if Fleet has assigned an ADE/DEP JSON
