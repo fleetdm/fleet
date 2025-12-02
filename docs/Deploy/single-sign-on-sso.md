@@ -92,59 +92,66 @@ This means users can bookmark your Fleet instance and always start there, rather
 
 #### Configure SCIM provisioning
 
-SCIM automates user and group management between Okta and Fleet.
 
-##### Create Fleet API token
+#### Step 1: Connect Okta to Fleet
 
-First, create an API token in Fleet:
+1. Select the **Provisioning** tab and then, in **SCIM Connection**, select **Edit**.
+2. For the **SCIM connector base URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim`.
+3. For the **Unique identifier field for users**, enter `userName`.
+4. For the **Supported provisioning actions**, select **Push New Users**, **Push Profile Updates**, and **Push Groups**.
+5. For the **Authentication Mode**, select **HTTP Header**.
+6. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user. Paste your API token in Okta's **Authorization** field.
+7. Select the **Test Connector Configuration** button. You should see success message in Okta.
+8. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from IdP.
+9. Back in Okta, select **Save**.
 
-1. Install fleetctl (Fleet's command-line tool)
-2. Run this command to create an API-only user with maintainer permissions:
-   ```
-   fleetctl user create --name 'API User' --email 'api@example.com' --password 'temp@pass123' --api-only --global-role 'maintainer'
-   ```
-3. Copy the API token from the output
+#### Step 2: Enable provisioning to Fleet
 
-For detailed instructions, see [Create API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user).
+1. Under the **Provisioning** tab, select **To App** and then select **Edit** in the **Provisioning to App** section.
+2. Enable **Create Users**, **Update User Attributes**, and **Deactivate Users**, then select **Save**.
+3. On the same page, verify that `givenName` and `familyName` have Okta values assigned to them. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute (optional). Delete the rest of the attributes.
+![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping-402x181@2x.png)
 
-##### Enable provisioning in Okta
+#### Step 3: Assign users to the application
 
-1. In the Fleet application, go to the **Provisioning** tab
-2. Click **Configure API Integration**
-3. Check **Enable API integration**
-4. Enter:
-   - **Base URL**: `https://your-fleet-instance.com/api/v1/fleet/scim`
-   - **API Token**: Paste your Fleet API token
-5. Click **Test API Credentials** to verify the connection
-6. If successful, click **Save**
+To send user information to Fleet, assign users to your SCIM app. You can assign users individually or by group.
 
-##### Configure provisioning settings
+**Option A: Assign by group (recommended)**
+1. In Okta's main menu, select **Directory > Groups** and then select **Add group**. Name it "Fleet human-device mapping".
+2. On the same page, select the **Rules** tab. Create a rule that will assign users to your "Fleet human-device mapping" group.
+![Okta group rule](../website/assets/images/articles/okta-scim-group-rules-1000x522@2x.png)
+3. In the main menu, select **Applications > Applications** and select your SCIM app. Then, select the **Assignments** tab.
+4. Select **Assign > Assign to Groups** and then select **Assign** next to the "Fleet human-device mapping" group. Select **Done**.
 
-1. Under the **Provisioning** tab, click **To App** in the left sidebar
-2. Click **Edit** in the Provisioning to App section
-3. Enable:
-   - **Create Users**: Automatically create users in Fleet when assigned in Okta
-   - **Update User Attributes**: Update user info when changed in Okta
-   - **Deactivate Users**: Deactivate users in Fleet when unassigned or deactivated in Okta
-4. Click **Save**
+**Option B: Assign individual users**
+1. In the main menu, select **Applications > Applications** and select your SCIM app.
+2. Select the **Assignments** tab, then **Assign > Assign to People**.
+3. Select **Assign** next to each user you want to provision to Fleet, then select **Done**.
 
-##### Configure attribute mappings
+#### Step 4: Configure push groups
 
-1. On the **Provisioning** tab, click **To App**
-2. Scroll to the attribute mappings section
-3. Make sure these required attributes are mapped:
-   - **userName** → Okta username
-   - **givenName** → First name
-   - **familyName** → Last name
-4. Optional attributes:
-   - **department** → Department
-   - **FLEET_JIT_USER_ROLE_GLOBAL** → User's Fleet role (see below)
-5. Remove any other unmapped attributes that Fleet doesn't support
-6. Click **Save**
+Group Push provisions Okta groups to Fleet and maintains group memberships. For a user's group memberships to appear in Fleet:
+- The user must be assigned to the Fleet SCIM application (see Step 4)
+- The user must be a member of the group in Okta
+- The group must be configured for Push in the application
 
-**Setting up FLEET_JIT_USER_ROLE_GLOBAL:**
+To enable Group Push:
 
-This attribute automatically assigns Fleet permissions when users are provisioned. It's especially useful with Just-In-Time (JiT) provisioning.
+1. In your Fleet SCIM app, select the **Push Groups** tab.
+2. Select **Push Groups > Find groups by name**.
+3. Search for and add the groups you want to provision to Fleet (e.g., "Fleet human-device mapping" and any other groups assigned to the app).
+4. Ensure **Push group memberships immediately** is selected for each group.
+5. Select **Save**.
+
+**Important notes about Group Push:**
+- Only users who are both assigned to the app AND members of pushed groups will have group data in Fleet
+- If you remove a user from a pushed group in Okta, the group membership will be removed from Fleet
+- If you unassign a user from the app, all their group memberships will be removed from Fleet
+- Group push happens immediately, but can take a few minutes to reflect in Fleet
+
+**Setting up `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>`:**
+
+These attributes automatically assigns Fleet permissions when users sign in for the first time using Just-in-Time (JIT) provisioning.
 
 Supported values:
 - `admin` - Full administrative access to Fleet
@@ -153,23 +160,17 @@ Supported values:
 - `observer` - Read-only access to Fleet
 
 How to configure:
-1. In the attribute mappings, find **FLEET_JIT_USER_ROLE_GLOBAL**
-2. Map it to an Okta user attribute with the desired Fleet role
-3. Common setups:
-   - Static value: Set to `"observer"` (with quotes) for all users
-   - Group-based: Use an expression like `String.contains(user.groups, "Fleet Admins") ? "admin" : "observer"`
+1. Find your Fleet SAML Application under **Directory > Settings > Profile Editor**
+2. Click on **Add Attribute**
+3. Choose `string` for flexibility or `string_array` if you want to specify pre-defined values (e.g., `admin`, `maintainer`, `observer_plus`, `observer`).
+4. Under **Display name**, enter a name for the attribute (e.g., `Global Role` or `Team Name`).
+5. Under **Variable name**, enter the name of the attribute in Fleet, `FLEET_JIT_USER_ROLE_GLOBAL` or `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>`.
+6. Choose whether the attribute is required or optional.
+7. Choose if you want the attribute to be personal or group-based.
+> Group-based attributes are useful for roles as any user assigned to an Okta group with that attribute will automatically get the corresponding Fleet role.
+8. Map it to an Okta user attribute with the desired Fleet role
 
-If you don't configure this, provisioned users default to observer role.
-
-##### Push groups (optional)
-
-To sync Okta groups with Fleet:
-
-1. Go to the **Push Groups** tab
-2. Click **Push Groups** > **Find groups by name**
-3. Search for and select the groups you want to push
-4. Make sure **Push group memberships immediately** is selected
-5. Click **Save**
+If you don't configure this, provisioned users default to the `observer` role.
 
 #### Verify everything works
 
