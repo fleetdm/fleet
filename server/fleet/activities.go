@@ -2262,6 +2262,7 @@ type ActivityAddedAppStoreApp struct {
 	SelfService      bool                      `json:"self_service"`
 	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
+	Configuration    json.RawMessage           `json:"configuration,omitempty"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
@@ -2413,6 +2414,7 @@ type ActivityEditedAppStoreApp struct {
 	LabelsIncludeAny    []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny    []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
 	SoftwareDisplayName string                    `json:"software_display_name"`
+	Configuration       json.RawMessage           `json:"configuration,omitempty"`
 }
 
 func (a ActivityEditedAppStoreApp) ActivityName() string {
@@ -3064,7 +3066,7 @@ func (a ActivityEditedSetupExperienceSoftware) ActivityName() string {
 func (a ActivityEditedSetupExperienceSoftware) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when a user edits setup experience software.`,
 		`This activity contains the following fields:
-- "platform": the platform of the host ("darwin", "windows", or "linux").
+- "platform": the platform of the host ("darwin", "android", "windows", or "linux").
 - "team_id": the ID of the team associated with the setup experience (0 for "No team").
 - "team_name": the name of the team associated with the setup experience (empty for "No team").`, `{
 	"platform": "darwin",

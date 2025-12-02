@@ -2,7 +2,6 @@ package androidmgmt
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -232,6 +231,14 @@ func (g *GoogleClient) EnterprisesDevicesDelete(ctx context.Context, deviceName 
 	return nil
 }
 
+func (g *GoogleClient) EnterprisesDevicesListPartial(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error) {
+	ret, err := g.mgmt.Enterprises.Devices.List(enterpriseName).Context(ctx).PageToken(pageToken).PageSize(100).Fields("nextPageToken", "devices/name").Do()
+	if err != nil {
+		return nil, fmt.Errorf("listing devices: %w", err)
+	}
+	return ret, nil
+}
+
 func (g *GoogleClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken,
 ) (*androidmanagement.EnrollmentToken, error) {
 	token, err := g.mgmt.Enterprises.EnrollmentTokens.Create(enterpriseName, token).Context(ctx).Do()
@@ -325,12 +332,11 @@ func (g *GoogleClient) EnterprisesApplications(ctx context.Context, enterpriseNa
 	path := fmt.Sprintf("%s/applications/%s", enterpriseName, packageName)
 	app, err := g.mgmt.Enterprises.Applications.Get(path).Context(ctx).Do()
 	if err != nil {
-		var gapiErr *googleapi.Error
-		if errors.As(err, &gapiErr) {
-			if gapiErr.Code == http.StatusNotFound {
-				return nil, ctxerr.Wrap(ctx, appNotFoundError{})
-			}
+		if isErrorCode(err, http.StatusNotFound) || (isErrorCode(err, http.StatusInternalServerError) && strings.Contains(err.Error(), "Requested entity was not found")) {
+			// For some reason, the AMAPI can return a 500 when an app is not found.
+			return nil, ctxerr.Wrap(ctx, appNotFoundError{})
 		}
+
 		return nil, fmt.Errorf("getting application %s: %w", packageName, err)
 	}
 	return app, nil

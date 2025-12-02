@@ -1589,7 +1589,7 @@ const TAGGED_TEMPLATES = {
         platformText = "iPadOS";
         break;
       default:
-        platformText = capitalize(platform);
+        platformText = capitalize(platform); // e.g. Windows, Android
     }
 
     return (

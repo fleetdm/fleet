@@ -69,6 +69,8 @@ export const SUPPORT_LINK = `${FLEET_WEBSITE_URL}/support`;
 export const CONTACT_FLEET_LINK = `${FLEET_WEBSITE_URL}/contact`;
 export const LEARN_MORE_ABOUT_BASE_LINK = `${FLEET_WEBSITE_URL}/learn-more-about`;
 export const FLEET_GUIDES_BASE_LINK = `${FLEET_WEBSITE_URL}/guides`;
+export const ANDROID_PLAY_STORE_URL =
+  "https://play.google.com/store/apps/details";
 
 /**  July 28, 2016 is the date of the initial commit to fleet/fleet. */
 export const INITIAL_FLEET_DATE = "2016-07-28T00:00:00Z";

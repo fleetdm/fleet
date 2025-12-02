@@ -507,10 +507,18 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	insertStmt := `INSERT INTO software_titles (name, source, extension_for) VALUES (?, ?, '')`
 	insertArgs := []any{payload.Title, payload.Source}
 
+	// upgrade_code should be NULL for non-Windows software, empty or non-empty string for Windows
+	// software
+	if payload.Source == "programs" {
+		insertStmt = `INSERT INTO software_titles (name, source, extension_for, upgrade_code) VALUES (?, ?, '', ?)`
+		insertArgs = []any{payload.Title, payload.Source, payload.UpgradeCode}
+	}
+
 	if payload.BundleIdentifier != "" {
 		// match by bundle identifier first, or standard matching if we don't have a bundle identifier match
 		selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ? OR (name = ? AND source = ? AND extension_for = '') ORDER BY bundle_identifier = ? DESC LIMIT 1`
 		selectArgs = []any{payload.BundleIdentifier, payload.Title, payload.Source, payload.BundleIdentifier}
+		// omit upgrade_code, since title.upgrade_code should be NULL for non-Windows software
 		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
 		insertArgs = append(insertArgs, payload.BundleIdentifier)
 	}
@@ -532,6 +540,9 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 }
 
 func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, titleID uint, payload *fleet.UploadSoftwareInstallerPayload) error {
+	// not considering upgrade_code, so inventory software will match this Title by this clause, even
+	// if upgrade_code doesn't match - TODO: enforce matching upgrade_code between software and
+	// incoming title?
 	whereClause := "WHERE (s.name, s.source, s.extension_for) = (?, ?, '')"
 	whereArgs := []any{payload.Title, payload.Source}
 	if payload.BundleIdentifier != "" {
@@ -1276,6 +1287,12 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 			return nil, ctxerr.Wrap(ctx, err, "select affected host IDs for software installs/uninstalls")
 		}
 
+		_, err = tx.ExecContext(ctx, `DELETE FROM software_title_display_names WHERE (software_title_id, team_id) IN
+			(SELECT title_id, global_or_team_id FROM software_installers WHERE id = ?)`, installerID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete software title display name that matches installer")
+		}
+
 		_, err = tx.ExecContext(ctx, `DELETE FROM upcoming_activities
 			USING
 				upcoming_activities
@@ -1566,15 +1583,32 @@ FROM upcoming
 
 func (ds *Datastore) vppAppJoin(appID fleet.VPPAppID, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
 	// for pending status, we'll join through upcoming_activities
+	// EXCEPT for android VPP apps, which currently bypass upcoming activities
+	// NOTE: this should change when standard VPP app installs are supported for Android
+	// (in https://github.com/fleetdm/fleet/issues/25595)
 	if status == fleet.SoftwarePending || status == fleet.SoftwareInstallPending || status == fleet.SoftwareUninstallPending {
 		stmt := `JOIN (
 SELECT DISTINCT
 	host_id
-FROM
-	upcoming_activities ua
-	JOIN vpp_app_upcoming_activities vppua ON ua.id = vppua.upcoming_activity_id
-WHERE
-	%s) hss ON hss.host_id = h.id`
+FROM (
+	SELECT host_id
+	FROM upcoming_activities ua
+		JOIN vpp_app_upcoming_activities vppua ON ua.id = vppua.upcoming_activity_id
+	WHERE
+		%s
+
+	UNION
+
+	SELECT host_id
+	FROM host_vpp_software_installs hvsi
+	WHERE 
+		hvsi.adam_id = ? AND
+		hvsi.platform = ? AND
+		hvsi.platform = 'android' AND 
+		hvsi.verification_at IS NULL AND 
+		hvsi.verification_failed_at IS NULL
+	) combined_pending
+) hss ON hss.host_id = h.id`
 
 		filter := "vppua.adam_id = ? AND vppua.platform = ?"
 		switch status {
@@ -1588,7 +1622,7 @@ WHERE
 			// activity type that is associated with the app (i.e. both install and uninstall)
 		}
 
-		return fmt.Sprintf(stmt, filter), []interface{}{appID.AdamID, appID.Platform}, nil
+		return fmt.Sprintf(stmt, filter), []any{appID.AdamID, appID.Platform, appID.AdamID, appID.Platform}, nil
 	}
 
 	// TODO: Update this when VPP supports uninstall so that we map for now we map the generic failed status to the install statuses
@@ -1604,7 +1638,7 @@ SELECT
 	hvsi.host_id
 FROM
 	host_vpp_software_installs hvsi
-	INNER JOIN
+	LEFT JOIN
 		nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 	LEFT JOIN host_vpp_software_installs hvsi2
 		ON hvsi.host_id = hvsi2.host_id AND
@@ -1617,6 +1651,7 @@ WHERE
 	AND hvsi.adam_id = :adam_id
 	AND hvsi.platform = :platform
 	AND hvsi.canceled = 0
+	AND (ncr.id IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
 	AND (%s) = :status
 	AND NOT EXISTS (
 		SELECT 1

@@ -150,7 +150,7 @@ func TestMDMAppleAuthorization(t *testing.T) {
 
 	ds.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) error { return nil }
 
-	ds.MarkAllPendingVPPAndInHouseInstallsAsFailedFunc = func(ctx context.Context, jobName string) error { return nil }
+	ds.MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc = func(ctx context.Context, jobName string) error { return nil }
 
 	// use a custom implementation of checkAuthErr as the service call will fail
 	// with a not found error (given that MDM is not really configured) in case
@@ -675,6 +675,9 @@ func TestMDMCommonAuthorization(t *testing.T) {
 	}
 	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 		return fleet.DiskEncryptionConfig{}, nil
+	}
+	ds.GetMDMProfileSummaryFromHostCertificateTemplatesFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+		return &fleet.MDMProfilesSummary{}, nil
 	}
 
 	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {

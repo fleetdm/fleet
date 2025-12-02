@@ -1,0 +1,8 @@
+{
+  "name": "Tailscale",
+  "unique_identifier": "io.tailscale.ipn.macsys",
+  "token": "tailscale-app",
+  "installer_format": "pkg",
+  "slug": "tailscale-app/darwin",
+  "default_categories": ["Productivity"]
+}

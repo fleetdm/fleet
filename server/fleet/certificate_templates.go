@@ -28,6 +28,11 @@ type CertificateTemplateResponseSummary struct {
 
 type CertificateTemplateResponseFull struct {
 	CertificateTemplateResponseSummary
-	SubjectName string `json:"subject_name" db:"subject_name"`
-	TeamID      uint   `json:"-" db:"team_id"`
+	SubjectName              string             `json:"subject_name" db:"subject_name"`
+	CertificateAuthorityType string             `json:"certificate_authority_type" db:"certificate_authority_type"`
+	Status                   *MDMDeliveryStatus `json:"status" db:"status"`
+	SCEPChallenge            *string            `json:"scep_challenge" db:"scep_challenge"`
+	FleetChallenge           *string            `json:"fleet_challenge" db:"fleet_challenge"`
+	SCEPChallengeEncrypted   []byte             `json:"-" db:"scep_challenge_encrypted"`
+	TeamID                   uint               `json:"-" db:"team_id"`
 }

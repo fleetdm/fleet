@@ -713,7 +713,7 @@ type Datastore interface {
 	// SetVPPInstallAsFailed marks a VPP app install attempt as failed (Fleet couldn't validate that
 	// it was installed on the host).
 	SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
-	MarkAllPendingVPPAndInHouseInstallsAsFailed(ctx context.Context, jobName string) error
+	MarkAllPendingAppleVPPAndInHouseInstallsAsFailed(ctx context.Context, jobName string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
@@ -1007,6 +1007,8 @@ type Datastore interface {
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollRef string, isPersonalEnrollment bool) error
 	// UpdateMDMData updates the `enrolled` field of the host with the given ID.
 	UpdateMDMData(ctx context.Context, hostID uint, enrolled bool) error
+	// UpdateMDMInstalledFromDEP updates the `installed_from_dep` field of the host with the given ID.
+	UpdateMDMInstalledFromDEP(ctx context.Context, hostID uint, installedFromDep bool) error
 	// GetHostEmails returns the emails associated with the provided host for a given source, such as "google_chrome_profiles"
 	GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error)
 	// SetOrUpdateHostDisksSpace sets or updates the gigs_total_disk_space and gigs_all_disk_space
@@ -1692,6 +1694,9 @@ type Datastore interface {
 	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
 	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
 
+	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
+	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)
+
 	// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id
 	MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error
 
@@ -1710,7 +1715,7 @@ type Datastore interface {
 	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
 
 	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID.
-	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) error
+	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
 
 	// GetMDMWindowsConfigProfile returns the Windows MDM profile corresponding
 	// to the specified profile uuid.
@@ -2124,6 +2129,7 @@ type Datastore interface {
 	GetVPPApps(ctx context.Context, teamID *uint) ([]VPPAppResponse, error)
 	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppTeam) error
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
+	GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]string, error)
 
 	// GetAllVPPApps returns all the VPP apps in Fleet, across all teams.
 	GetAllVPPApps(ctx context.Context) ([]*VPPApp, error)
@@ -2333,14 +2339,21 @@ type Datastore interface {
 	// assigned to any team).
 	GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
+	// GetCertificateStatusSummary GetCertificateTemplatesSummary returns a summary of the current state of certificate templates on each host in
+	// the specified team (or, if no team is specified, each host that is not assigned to any team).
+	GetMDMProfileSummaryFromHostCertificateTemplates(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
+
+	// GetHostCertificateTemplates returns what certificate templates are currently associated with the specified host.
+	GetHostCertificateTemplates(ctx context.Context, hostUUID string) ([]HostCertificateTemplate, error)
+
 	// GetHostMDMAndroidProfiles retrieves the Android MDM profiles for a specific host.
 	GetHostMDMAndroidProfiles(ctx context.Context, hostUUID string) ([]HostMDMAndroidProfile, error)
 
 	// NewAndroidPolicyRequest saves details about a new Android AMAPI request.
-	NewAndroidPolicyRequest(ctx context.Context, req *MDMAndroidPolicyRequest) error
+	NewAndroidPolicyRequest(ctx context.Context, req *android.MDMAndroidPolicyRequest) error
 
 	// GetAndroidPolicyRequestByUUID retrieves an Android policy request by ID.
-	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*MDMAndroidPolicyRequest, error)
+	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
 
 	// ListMDMAndroidProfilesToSend lists the Android hosts that need to have
 	// their configuration profiles (Android policy) sent. It returns two lists,
@@ -2355,6 +2368,10 @@ type Datastore interface {
 	// that are currently marked as enrolled in Fleet (host_mdm.enrolled=1).
 	// It returns a minimal device struct with host and device identifiers.
 	ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error)
+
+	// InsertAndroidSetupExperienceSoftwareInstall inserts a new Android
+	// VPP app install record for the setup experience flow.
+	InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *HostAndroidVPPSoftwareInstall) error
 
 	// GetAndroidAppConfiguration retrieves the configuration for an Android app
 	// identified by adam_id and global_or_team_id.
@@ -2495,6 +2512,8 @@ type Datastore interface {
 	// update, delete). Deletes are processed first based on name and type. Adds and updates are
 	// processed together as upserts using INSERT...ON DUPLICATE KEY UPDATE.
 	BatchApplyCertificateAuthorities(ctx context.Context, ops CertificateAuthoritiesBatchOperations) error
+	// UpdateCertificateStatus allows a host to update the installation status of a certificate given its template.
+	UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status MDMDeliveryStatus, detail *string) error
 
 	// BatchUpsertCertificateTemplates upserts a batch of certificates.
 	BatchUpsertCertificateTemplates(ctx context.Context, certificates []*CertificateTemplate) error
@@ -2507,7 +2526,13 @@ type Datastore interface {
 	// GetCertificateTemplateById gets a certificate template by its ID.
 	GetCertificateTemplateById(ctx context.Context, id uint) (*CertificateTemplateResponseFull, error)
 	// GetCertificateTemplatesByTeamID gets all certificate templates for a team.
-	GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, page, perPage int) ([]*CertificateTemplateResponseSummary, *PaginationMetadata, error)
+	GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, opts ListOptions) ([]*CertificateTemplateResponseSummary, *PaginationMetadata, error)
+	// ListAndroidHostUUIDsWithDeliverableCertificateTemplates returns a paginated list of Android host UUIDs that have certificate templates.
+	ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error)
+	// ListCertificateTemplatesForHosts returns ALL certificate templates for the given host UUIDs.
+	ListCertificateTemplatesForHosts(ctx context.Context, hostUUIDs []string) ([]CertificateTemplateForHost, error)
+	// BulkInsertHostCertificateTemplates inserts multiple host_certificate_templates records.
+	BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []HostCertificateTemplate) error
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
@@ -2543,7 +2568,7 @@ type AndroidDatastore interface {
 	BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionID int64) error
 	// ListHostMDMAndroidProfilesPendingInstallWithVersion returns a list of all android profiles that are pending install, and where version is less than or equals to the policyVersion.
 	ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*MDMAndroidProfilePayload, error)
-	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*MDMAndroidPolicyRequest, error)
+	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`
 	// slice, updating existing entries and inserting new entries.
@@ -2560,6 +2585,28 @@ type AndroidDatastore interface {
 	// SetLockCommandForLostModeCheckin sets the lock reference for a lost mode check-in.
 	// This is used when an iphone or ipados checks in after being deleted, with lost mode enabled.
 	SetLockCommandForLostModeCheckin(ctx context.Context, hostID uint, commandUUID string) error
+
+	// ListHostMDMAndroidVPPAppsPendingInstallWithVersion lists the Android
+	// VPP apps pending install for a host that were requested in a policy
+	// version <= the provided policy version.
+	ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*HostAndroidVPPSoftwareInstall, error)
+
+	// BulkSetVPPInstallsAsVerified marks all VPP apps identified by the command UUIDs
+	// as verified. This is for Android hosts, where the verification uuid is not important,
+	// so the implementation generates a random one.
+	BulkSetVPPInstallsAsVerified(ctx context.Context, hostID uint, commandUUIDs []string) error
+
+	// BulkSetVPPInstallsAsFailed marks all VPP apps identified by the command UUIDs
+	// as failed. This is for Android hosts, where the verification uuid is not important,
+	// so the implementation generates a random one.
+	BulkSetVPPInstallsAsFailed(ctx context.Context, hostID uint, commandUUIDs []string) error
+
+	// GetPastActivityDataForAndroidVPPAppInstall is like GetPastActivityDataForVPPAppInstall
+	// but available to the android datastore and without the Apple-based args.
+	GetPastActivityDataForAndroidVPPAppInstall(ctx context.Context, cmdUUID string, status SoftwareInstallerStatus) (*User, *ActivityInstalledAppStoreApp, error)
+
+	MarkAllPendingAndroidVPPInstallsAsFailed(ctx context.Context) error
+	MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx context.Context, hostID uint) (users []*User, activities []ActivityDetails, err error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

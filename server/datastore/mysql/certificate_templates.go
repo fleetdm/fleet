@@ -2,11 +2,13 @@ package mysql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -17,52 +19,81 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 			certificate_templates.id,
 			certificate_templates.name,
 			certificate_templates.team_id,
-			certificate_templates.certificate_authority_id,
-			certificate_authorities.name AS certificate_authority_name,
 			certificate_templates.subject_name,
-			certificate_templates.created_at
+			certificate_templates.created_at,
+			certificate_authorities.id AS certificate_authority_id,
+			certificate_authorities.name AS certificate_authority_name,
+			certificate_authorities.type AS certificate_authority_type,
+			certificate_authorities.challenge_encrypted AS scep_challenge_encrypted,
+			host_certificate_templates.status AS status,
+			host_certificate_templates.fleet_challenge AS fleet_challenge
 		FROM certificate_templates
 		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+		LEFT JOIN host_certificate_templates
+			ON host_certificate_templates.certificate_template_id = certificate_templates.id
 		WHERE certificate_templates.id = ?
 	`, id); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id")
 	}
+
+	if template.Status != nil && *template.Status == fleet.MDMDeliveryPending {
+		if template.SCEPChallengeEncrypted != nil {
+			decryptedChallenge, err := decrypt(template.SCEPChallengeEncrypted, ds.serverPrivateKey)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "decrypting scep challenge")
+			}
+			template.SCEPChallenge = ptr.String(string(decryptedChallenge))
+		}
+	} else {
+		// Ensure challenges are nil if not in pending status
+		template.SCEPChallenge = nil
+		template.FleetChallenge = nil
+	}
+
 	return &template, nil
 }
 
-func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, page, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
-	var templates []*fleet.CertificateTemplateResponseSummary
+func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+	args := []any{teamID}
 
-	if perPage <= 0 {
-		perPage = 20
-	}
+	fromClause := `
+		FROM certificate_templates
+		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+		WHERE team_id = ?
+`
+	countStmt := fmt.Sprintf(`SELECT COUNT(1) %s`, fromClause)
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &templates, `
+	stmt := fmt.Sprintf(`
 		SELECT
 			certificate_templates.id,
 			certificate_templates.name,
 			certificate_templates.certificate_authority_id,
 			certificate_authorities.name AS certificate_authority_name,
 			certificate_templates.created_at
-		FROM certificate_templates
-		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
-		WHERE team_id = ?
-		ORDER BY certificate_templates.id ASC
-		LIMIT ? OFFSET ?
-	`, teamID, perPage+1, perPage*page,
-	); err != nil {
+		%s
+`, fromClause)
+
+	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, args, &opts)
+
+	var templates []*fleet.CertificateTemplateResponseSummary
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &templates, stmtPaged, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "getting certificate_templates by team_id")
 	}
 
-	paginationMetaData := &fleet.PaginationMetadata{
-		HasPreviousResults: page > 0,
-	}
-	if len(templates) > perPage {
-		templates = templates[:perPage]
-		paginationMetaData.HasNextResults = true
+	var metaData *fleet.PaginationMetadata
+	if opts.IncludeMetadata {
+		var count uint
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countStmt, args...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "counting certificate templates")
+		}
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opts.Page > 0, TotalResults: count}
+		if len(templates) > int(opts.PerPage) { //nolint:gosec // dismiss G115
+			metaData.HasNextResults = true
+			templates = templates[:len(templates)-1]
+		}
 	}
 
-	return templates, paginationMetaData, nil
+	return templates, metaData, nil
 }
 
 func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponseFull, error) {
@@ -176,4 +207,84 @@ func (ds *Datastore) BatchDeleteCertificateTemplates(ctx context.Context, certif
 	}
 
 	return nil
+}
+
+func (ds *Datastore) GetHostCertificateTemplates(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error) {
+	if hostUUID == "" {
+		return nil, errors.New("hostUUID cannot be empty")
+	}
+
+	stmt := `
+SELECT 
+	ct.name, 
+	hct.status,
+	hct.detail
+FROM host_certificate_templates hct
+	INNER JOIN certificate_templates ct ON ct.id = hct.certificate_template_id 
+WHERE hct.host_uuid = ?`
+
+	var hTemplates []fleet.HostCertificateTemplate
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hTemplates, stmt, hostUUID); err != nil {
+		return nil, err
+	}
+	return hTemplates, nil
+}
+
+func (ds *Datastore) GetMDMProfileSummaryFromHostCertificateTemplates(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	var stmt string
+	var args []interface{}
+
+	if teamID != nil && *teamID > 0 {
+		stmt = `
+SELECT
+	hct.status AS status,
+	COUNT(DISTINCT hct.host_uuid) AS n
+FROM host_certificate_templates hct
+INNER JOIN certificate_templates ct ON hct.certificate_template_id = ct.id
+WHERE ct.team_id = ?
+GROUP BY hct.status`
+		args = append(args, *teamID)
+	} else {
+		stmt = `
+SELECT
+	hct.status AS status,
+	COUNT(DISTINCT hct.host_uuid) AS n
+FROM host_certificate_templates hct
+GROUP BY hct.status`
+	}
+
+	var dest []struct {
+		Count  uint   `db:"n"`
+		Status string `db:"status"`
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...); err != nil {
+		return nil, err
+	}
+
+	byStatus := make(map[string]uint)
+	for _, s := range dest {
+		if _, ok := byStatus[s.Status]; ok {
+			return nil, fmt.Errorf("duplicate status %s found", s.Status)
+		}
+		byStatus[s.Status] = s.Count
+	}
+
+	var res fleet.MDMProfilesSummary
+	for s, c := range byStatus {
+		switch fleet.MDMDeliveryStatus(s) {
+		case fleet.MDMDeliveryFailed:
+			res.Failed = c
+		case fleet.MDMDeliveryPending:
+			res.Pending = c
+		case fleet.MDMDeliveryVerifying:
+			res.Verifying = c
+		case fleet.MDMDeliveryVerified:
+			res.Verified = c
+		default:
+			return nil, fmt.Errorf("unknown status %s", s)
+		}
+	}
+
+	return &res, nil
 }

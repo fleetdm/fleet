@@ -96,6 +96,14 @@ WHERE
 
 	app.DisplayName = displayName
 
+	config, err := ds.GetAndroidAppConfiguration(ctx, app.AdamID, tmID) // tmID can be used as globalOrTeamID
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get android configuration for app store app")
+	}
+	if config != nil && config.Configuration != nil {
+		app.Configuration = config.Configuration
+	}
+
 	if teamID != nil {
 		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, *teamID)
 		if err != nil {
@@ -202,7 +210,8 @@ past AS (
 				:software_status_failed
 			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
 				:software_status_failed
-			WHEN ncr.status = :mdm_status_acknowledged THEN
+			WHEN ncr.id IS NULL OR ncr.status = :mdm_status_acknowledged THEN
+				-- if ncr join is null this is an android vpp app
 				:software_status_pending
 			ELSE
 				NULL -- either pending or not installed via VPP App
@@ -210,7 +219,9 @@ past AS (
 	FROM
 		host_vpp_software_installs hvsi
 		JOIN hosts h ON host_id = h.id
-		JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hvsi.command_uuid
+		LEFT JOIN nano_command_results ncr ON
+			ncr.id = h.uuid AND
+			ncr.command_uuid = hvsi.command_uuid
 		LEFT JOIN host_vpp_software_installs hvsi2
 			ON hvsi.host_id = hvsi2.host_id AND
 				 hvsi.adam_id = hvsi2.adam_id AND
@@ -222,6 +233,7 @@ past AS (
 		hvsi2.id IS NULL
 		AND hvsi.adam_id = :adam_id
 		AND hvsi.platform = :platform
+		AND (ncr.id IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
 		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
 		AND hvsi.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 		AND hvsi.removed = 0
@@ -302,7 +314,7 @@ func vppAppHostStatusNamedQuery(hvsiAlias, ncrAlias, colAlias string) string {
 		WHEN %sstatus = :mdm_status_error OR %sstatus = :mdm_status_format_error THEN
 			:software_status_failed
 		ELSE
-		    :software_status_pending
+			:software_status_pending
 	END %s
 	`, hvsiAlias, hvsiAlias, ncrAlias, ncrAlias, colAlias)
 }
@@ -642,6 +654,12 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			}
 		}
 
+		if app.Configuration != nil && app.Platform == fleet.AndroidPlatform {
+			if err := ds.updateAndroidAppConfigurationTx(ctx, tx, teamID, app.AdamID, app.Configuration); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting configuration for android app")
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -886,6 +904,7 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 			if count > 0 {
 				return errDeleteInstallerWithAssociatedPolicy
 			}
+
 		}
 		return ctxerr.Wrap(ctx, err, "delete VPP app from team")
 	}
@@ -905,6 +924,20 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 		return notFound("VPPApp").WithMessage(fmt.Sprintf("adam id %s platform %s for team id %d", appID.AdamID, appID.Platform,
 			globalOrTeamID))
 	}
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM software_title_display_names 	WHERE team_id = ? AND
+		software_title_id IN (SELECT title_id FROM vpp_apps WHERE adam_id = ?)`, globalOrTeamID, appID.AdamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete software title display name")
+	}
+
+	if appID.Platform == fleet.AndroidPlatform {
+		err := ds.DeleteAndroidAppConfiguration(ctx, appID.AdamID, globalOrTeamID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "deleting android app configuration")
+		}
+	}
+
 	return nil
 }
 
@@ -1080,6 +1113,8 @@ VALUES
 
 func (ds *Datastore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error) {
 	var adamIds []string
+	// this is Apple-only VPP installs, which is fine currently as Android does not support
+	// policy-based automatic installs (the context in which this is called).
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &adamIds, `SELECT hvsi.adam_id
 			FROM host_vpp_software_installs hvsi
 			JOIN nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid AND nvq.status IS NULL
@@ -1094,7 +1129,23 @@ func (ds *Datastore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) 
 	return adamMap, nil
 }
 
+func (ds *Datastore) GetPastActivityDataForAndroidVPPAppInstall(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	return ds.getPastActivityDataForAndroidVPPAppInstallDB(ctx, ds.reader(ctx), cmdUUID, status)
+}
+
+func (ds *Datastore) getPastActivityDataForAndroidVPPAppInstallDB(ctx context.Context, q sqlx.QueryerContext, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	mdmStatus := fleet.MDMAppleStatusAcknowledged
+	if status != fleet.SoftwareInstalled {
+		mdmStatus = fleet.MDMAppleStatusError
+	}
+	return ds.getPastActivityDataForVPPAppInstallDB(ctx, q, &mdm.CommandResults{CommandUUID: cmdUUID, Status: mdmStatus})
+}
+
 func (ds *Datastore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	return ds.getPastActivityDataForVPPAppInstallDB(ctx, ds.reader(ctx), commandResults)
+}
+
+func (ds *Datastore) getPastActivityDataForVPPAppInstallDB(ctx context.Context, q sqlx.QueryerContext, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
 	if commandResults == nil {
 		return nil, nil, nil
 	}
@@ -1122,7 +1173,7 @@ FROM
 WHERE
 	hvsi.command_uuid = :command_uuid AND
 	hvsi.canceled = 0
-	`
+`
 
 	type result struct {
 		HostID          uint    `db:"host_id"`
@@ -1148,7 +1199,7 @@ WHERE
 	}
 
 	var res result
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, listStmt, args...); err != nil {
+	if err := sqlx.GetContext(ctx, q, &res, listStmt, args...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil, notFound("install_command")
 		}
@@ -1880,7 +1931,6 @@ func (s softwareType) getInstallMappingTableName() string {
 	}
 
 	return tableNames[s]
-
 }
 
 func (ds *Datastore) AssociateMDMInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID, hostUUID string) error {
@@ -1984,13 +2034,18 @@ WHERE command_uuid = ?
 	})
 }
 
-func (ds *Datastore) MarkAllPendingVPPAndInHouseInstallsAsFailed(ctx context.Context, jobName string) error {
+func (ds *Datastore) MarkAllPendingAppleVPPAndInHouseInstallsAsFailed(ctx context.Context, jobName string) error {
+	// this is called on an Apple-only event, when APNS cert is deleted, so it should only
+	// affect Apple platforms. Currently, VPP installs in the upcoming queue are Apple only,
+	// but those in host_vpp_software_installs could be Android as well.
+
 	clearVPPUpcomingActivitiesStmt := `
 DELETE ua FROM
 	upcoming_activities ua
 JOIN
 	host_vpp_software_installs hvsi ON hvsi.command_uuid = ua.execution_id
-WHERE ua.activity_type = ? AND hvsi.verification_failed_at IS NULL AND hvsi.verification_at IS NULL
+WHERE ua.activity_type = ? AND hvsi.verification_failed_at IS NULL
+AND hvsi.verification_at IS NULL AND hvsi.platform != 'android'
 `
 
 	clearInHouseUpcomingActivitiesStmt := `
@@ -2004,7 +2059,7 @@ WHERE ua.activity_type = ? AND hihs.verification_failed_at IS NULL AND hihs.veri
 	installVPPFailStmt := `
 UPDATE host_vpp_software_installs
 SET verification_failed_at = CURRENT_TIMESTAMP(6)
-WHERE verification_failed_at IS NULL AND verification_at IS NULL
+WHERE verification_failed_at IS NULL AND verification_at IS NULL AND platform != 'android'
 `
 
 	installInHouseFailStmt := `
@@ -2021,30 +2076,55 @@ AND state = ?
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if _, err := tx.ExecContext(ctx, clearVPPUpcomingActivitiesStmt, "vpp_app_install"); err != nil {
-			return ctxerr.Wrap(ctx, err, "clear vpp install upcoming activities")
+			return ctxerr.Wrap(ctx, err, "clear apple vpp install upcoming activities")
 		}
 
 		if _, err := tx.ExecContext(ctx, installVPPFailStmt); err != nil {
-			return ctxerr.Wrap(ctx, err, "set all vpp install as failed")
+			return ctxerr.Wrap(ctx, err, "set all apple vpp install as failed")
 		}
 
 		if _, err := tx.ExecContext(ctx, clearInHouseUpcomingActivitiesStmt, "in_house_app_install"); err != nil {
-			return ctxerr.Wrap(ctx, err, "clear in-house install upcoming activities")
+			return ctxerr.Wrap(ctx, err, "clear apple in-house install upcoming activities")
 		}
 
 		if _, err := tx.ExecContext(ctx, installInHouseFailStmt); err != nil {
-			return ctxerr.Wrap(ctx, err, "set all in-house install as failed")
+			return ctxerr.Wrap(ctx, err, "set all apple in-house install as failed")
 		}
 
 		if _, err := tx.ExecContext(ctx, deletePendingJobsStmt, jobName, fleet.JobStateQueued); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete pending jobs")
+			return ctxerr.Wrap(ctx, err, "delete apple pending jobs")
 		}
 
 		return nil
 	})
 }
 
-func (ds *Datastore) markAllPendingVPPInstallsAsFailedForHost(ctx context.Context, tx sqlx.ExtContext, hostID uint) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
+func (ds *Datastore) MarkAllPendingAndroidVPPInstallsAsFailed(ctx context.Context) error {
+	// this is called on an Android-only event, when the enterprise is deleted
+	// (Android MDM turned off globally), so it should only affect Android
+	// platforms. Currently, only VPP installs in host_vpp_software_installs
+	// can be Android.
+
+	installVPPFailStmt := `
+UPDATE host_vpp_software_installs
+SET verification_failed_at = CURRENT_TIMESTAMP(6)
+WHERE verification_failed_at IS NULL AND verification_at IS NULL AND platform = 'android'
+`
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, installVPPFailStmt); err != nil {
+			return ctxerr.Wrap(ctx, err, "set all android vpp install as failed")
+		}
+		return nil
+	})
+}
+
+func (ds *Datastore) MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx context.Context, hostID uint) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
+	return ds.markAllPendingVPPInstallsAsFailedForHost(ctx, ds.writer(ctx), hostID, "android")
+}
+
+func (ds *Datastore) markAllPendingVPPInstallsAsFailedForHost(ctx context.Context, tx sqlx.ExtContext,
+	hostID uint, hostPlatform string) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
 	const loadFailedCmdsStmt = `
 SELECT
 	command_uuid
@@ -2074,6 +2154,8 @@ WHERE
 	}
 
 	// We want to clear this table out, because otherwise we'll stop future installs from verifying.
+	// This is currently ios/ipados-only, but harmless on other platforms and less error-prone than
+	// adding a platform check that could become outdated.
 	const deleteHostMDMCommandStmt = `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
 	if _, err := tx.ExecContext(ctx, deleteHostMDMCommandStmt, hostID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "delete pending host mdm command records")
@@ -2081,9 +2163,18 @@ WHERE
 
 	for _, cmd := range failedCmds {
 		// NOTE: I don't think we need to check/set the from setup experience
-		// field, as it should not be possible to turn MDM off during setup
+		// field for Apple, as it should not be possible to turn MDM off during setup
 		// experience (host is not released).
-		user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: cmd, Status: fleet.MDMAppleStatusError})
+		var (
+			user *fleet.User
+			act  *fleet.ActivityInstalledAppStoreApp
+			err  error
+		)
+		if hostPlatform == "android" {
+			user, act, err = ds.getPastActivityDataForAndroidVPPAppInstallDB(ctx, tx, cmd, fleet.SoftwareInstallFailed)
+		} else {
+			user, act, err = ds.getPastActivityDataForVPPAppInstallDB(ctx, tx, &mdm.CommandResults{CommandUUID: cmd, Status: fleet.MDMAppleStatusError})
+		}
 		if err != nil {
 			if fleet.IsNotFound(err) {
 				// shouldn't happen, but no need to fail
@@ -2095,6 +2186,10 @@ WHERE
 		// user may be nil if fleet-initiated activity, but the activity itself indicates
 		// if a new entry must be made, since users and activities must match in length
 		if act != nil {
+			if hostPlatform == "android" {
+				// currently, android installs are always during setup experience
+				act.FromSetupExperience = true
+			}
 			users = append(users, user)
 			activities = append(activities, act)
 		}
@@ -2182,4 +2277,27 @@ FROM (
 	}
 
 	return applicationIDs, err
+}
+
+func (ds *Datastore) GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]string, error) {
+	stmt := `
+SELECT
+	adam_id
+FROM
+	vpp_apps_teams vat
+WHERE
+	vat.global_or_team_id = ? AND
+	vat.platform = ? AND
+	vat.install_during_setup = 1
+`
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	var ids []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, tmID, platform); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get VPP apps to install during setup experience")
+	}
+	return ids, nil
 }

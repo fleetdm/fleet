@@ -2872,30 +2872,30 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 }
 
 func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
-	if config.Controls.AndroidSettings == nil {
-		return nil
+	certificates := make([]fleet.CertificateTemplateSpec, 0)
+
+	// Extract Android certificates from config if there are any.
+	if config.Controls.AndroidSettings != nil {
+		androidSettings, ok := config.Controls.AndroidSettings.(fleet.AndroidSettings)
+		if ok && androidSettings.Certificates.Valid && len(androidSettings.Certificates.Value) > 0 {
+			certificates = androidSettings.Certificates.Value
+		}
 	}
 
-	androidSettings, ok := config.Controls.AndroidSettings.(fleet.AndroidSettings)
-	if !ok {
-		return nil
-	}
-
-	if !androidSettings.Certificates.Valid || len(androidSettings.Certificates.Value) == 0 {
-		return nil
-	}
-
-	certificates := androidSettings.Certificates.Value
 	numCerts := len(certificates)
 
 	teamID := ""
 	if config.TeamID != nil {
 		teamID = fmt.Sprintf("%d", *config.TeamID)
 	} else {
-		return errors.New("applying Android certificates: Team ID is required")
+		// TODO -- implement "no team" certs
+		return nil
+		// return errors.New("applying Android certificates: Team ID is required")
 	}
 
-	logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+	if numCerts > 0 {
+		logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+	}
 
 	// existing certificate templates
 	existingCertificates, err := c.GetCertificateTemplates(teamID)
@@ -2919,6 +2919,13 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 		if !certificates[i].NameValid() {
 			return newGitOpsValidationError(
 				`Invalid characters in "name" field. Only letters, numbers, spaces, dashes, and underscores allowed.`,
+			)
+		}
+
+		// Validate Fleet variables in subject name
+		if err := validateCertificateTemplateFleetVariables(certificates[i].SubjectName); err != nil {
+			return newGitOpsValidationError(
+				fmt.Sprintf(`Invalid Fleet variable in certificate %q: %s`, certificates[i].Name, err.Error()),
 			)
 		}
 
@@ -2970,13 +2977,15 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 		}
 	}
 
-	if dryRun {
-		logFn("[+] would've applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
-	} else {
-		if err := c.ApplyCertificateSpecs(certRequests); err != nil {
-			return fmt.Errorf("applying Android certificates: %w", err)
+	if numCerts > 0 {
+		if dryRun {
+			logFn("[+] would've applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+		} else {
+			if err := c.ApplyCertificateSpecs(certRequests); err != nil {
+				return fmt.Errorf("applying Android certificates: %w", err)
+			}
+			logFn("[+] applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 		}
-		logFn("[+] applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 	}
 
 	return nil

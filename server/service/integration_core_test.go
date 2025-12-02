@@ -7981,6 +7981,18 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
 		Specs: []*fleet.CertificateRequestSpec{
 			{
+				Name:                   "Invalid Template",
+				Team:                   fmt.Sprint(team.ID),
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_NOT_VALID/OU=$FLEET_VAR_HOST_UUID",
+			},
+		},
+	}, http.StatusBadRequest, &applyResp)
+
+	// valid templates
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
 				Name:                   "Template 1",
 				Team:                   fmt.Sprint(team.ID),
 				CertificateAuthorityId: ca.ID,
@@ -7990,7 +8002,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 				Name:                   "Template 2",
 				Team:                   fmt.Sprint(team.ID),
 				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
 			},
 		},
 	}, http.StatusOK, &applyResp)
@@ -8025,7 +8037,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	}, fleet.DeviceMappingMDMIdpAccounts)
 	require.NoError(t, err)
 
-	savedCertificateTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, team.ID, 0, 10)
+	savedCertificateTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, team.ID, fleet.ListOptions{Page: 0, PerPage: 10})
 	require.NoError(t, err)
 	certID := savedCertificateTemplates[0].ID
 
@@ -14618,4 +14630,127 @@ func (s *integrationTestSuite) TestConditionalAccessOnlyCloud() {
 	var d conditionalAccessMicrosoftDeleteResponse
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
 		http.StatusBadRequest, &d)
+}
+
+func (s *integrationTestSuite) TestUpdateHostCertificateTemplate() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a test team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
+	require.NoError(t, err)
+	teamID := team.ID
+
+	// Create a test certificate authority
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("TestUpdateHostCertificateTemplate SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID := ca.ID
+
+	certTemplate := &fleet.CertificateTemplate{
+		Name:                   "TestUpdateHostCertificateTemplate-Cert",
+		TeamID:                 teamID,
+		CertificateAuthorityID: caID,
+		SubjectName:            "CN=Test Subject 1",
+	}
+	savedTemplate, err := s.ds.CreateCertificateTemplate(ctx, certTemplate)
+	require.NoError(t, err)
+	require.NotNil(t, savedTemplate)
+
+	nodeKey := uuid.New().String()
+	uuid := uuid.New().String()
+	hostName := "test-update-host-certificate-template"
+
+	// Create a host
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		NodeKey:  &nodeKey,
+		UUID:     uuid,
+		Hostname: hostName,
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	certificateTemplateID := savedTemplate.ID
+
+	// Delete the certificate after the test is done, so the team can be deleted.
+	defer func() {
+		// Clean up
+		err = s.ds.DeleteCertificateTemplate(ctx, certificateTemplateID)
+		require.NoError(t, err)
+	}()
+
+	// Create a record in host_certificate_templates using ad hoc SQL
+	sql := `
+INSERT INTO host_certificate_templates (
+	host_uuid,
+	certificate_template_id,
+	status,
+	fleet_challenge
+) VALUES (?, ?, ?, ?);
+	`
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err = q.ExecContext(ctx, sql, host.UUID, certificateTemplateID, "pending", "some_challenge_value")
+		require.NoError(t, err)
+		return nil
+	})
+
+	// Test cases
+	cases := []struct {
+		name                    string
+		templateID              uint
+		nodeKey                 string
+		newStatus               string
+		detail                  *string
+		expectedResponseStatus  int
+		expectedResponseMessage string
+	}{
+		{
+			name:                   "Valid Update",
+			templateID:             certificateTemplateID,
+			nodeKey:                nodeKey,
+			newStatus:              "verified",
+			detail:                 ptr.String("Certificate Verified"),
+			expectedResponseStatus: http.StatusOK,
+		},
+		{
+			name:                    "Invalid Status",
+			templateID:              certificateTemplateID,
+			nodeKey:                 nodeKey,
+			newStatus:               "invalid_status",
+			expectedResponseStatus:  http.StatusUnprocessableEntity,
+			expectedResponseMessage: "invalid status value",
+		},
+		{
+			name:                    "Wrong node key",
+			templateID:              certificateTemplateID,
+			nodeKey:                 "wrong-nodekey",
+			newStatus:               "verified",
+			expectedResponseStatus:  http.StatusUnauthorized,
+			expectedResponseMessage: "host certificate template not found",
+		},
+		{
+			name:                    "Wrong Template ID",
+			templateID:              9999,
+			nodeKey:                 nodeKey,
+			newStatus:               "verified",
+			expectedResponseStatus:  http.StatusNotFound,
+			expectedResponseMessage: "host certificate template not found",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("TestUpdateHostCertificateTemplate:%s", tc.name), func(t *testing.T) {
+			var resp map[string]interface{}
+			s.DoJSON("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", tc.templateID), updateCertificateStatusRequest{
+				NodeKey: tc.nodeKey,
+				Status:  tc.newStatus,
+				Detail:  tc.detail,
+			}, tc.expectedResponseStatus, &resp)
+		})
+	}
 }

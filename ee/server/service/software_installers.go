@@ -369,6 +369,12 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	payload.InstallerID = existingInstaller.InstallerID
 
 	if payload.DisplayName != nil && *payload.DisplayName != software.DisplayName {
+		trimmed := strings.TrimSpace(*payload.DisplayName)
+		if trimmed == "" && *payload.DisplayName != "" {
+			return nil, fleet.NewInvalidArgumentError("display_name", "Cannot have a display name that is all whitespace.")
+		}
+
+		*payload.DisplayName = trimmed
 		dirty["DisplayName"] = true
 	}
 
@@ -2333,7 +2339,10 @@ func (svc *Service) softwareBatchUpload(
 			if installer.Filename == "" {
 				installer.Filename = fmt.Sprintf("package.%s", ext)
 			}
-			if installer.Title == "" {
+			if installer.Title == "" && installer.Extension != "ipa" {
+				// If an IPA is specified via hash rather than downloaded via URL, we won't have a title populated,
+				// and should try to pull the title from the database if it exists. If we can't extract title name for
+				// some reason, filename should only be used after attempting to pull data from the database.
 				installer.Title = installer.Filename
 			}
 
