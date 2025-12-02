@@ -20,7 +20,14 @@ class CertificateEnrollmentWorker(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        Log.d(TAG, "Starting certificate enrollment worker")
+        val attemptCount = runAttemptCount
+        Log.d(TAG, "Starting certificate enrollment worker (attempt $attemptCount)")
+
+        // Limit retries to avoid infinite loops
+        if (attemptCount >= MAX_RETRY_ATTEMPTS) {
+            Log.e(TAG, "Maximum retry attempts ($MAX_RETRY_ATTEMPTS) reached, giving up")
+            return Result.failure()
+        }
 
         val certificateIds = CertificateOrchestrator.getCertificateIDs(applicationContext)
 
@@ -61,7 +68,7 @@ class CertificateEnrollmentWorker(
         // Return result based on outcomes
         return when {
             hasTransientFailure -> {
-                Log.w(TAG, "Some certificates had transient failures, will retry")
+                Log.w(TAG, "Some certificates had transient failures, will retry (attempt $attemptCount of $MAX_RETRY_ATTEMPTS)")
                 Result.retry()
             }
             hasPermanentFailure -> {
@@ -80,6 +87,7 @@ class CertificateEnrollmentWorker(
     companion object {
         const val WORK_NAME = "certificate_enrollment"
         private const val TAG = "CertEnrollmentWorker"
+        private const val MAX_RETRY_ATTEMPTS = 5
 
         private fun shouldRetry(reason: String): Boolean {
             // Retry on network/API failures, not on invalid config
