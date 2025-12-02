@@ -1122,3 +1122,124 @@ func (svc *Service) MigrateToPerDevicePolicy(ctx context.Context) error {
 	}
 	return nil
 }
+
+// BuildAndSendFleetAgentConfig builds the complete AgentManagedConfiguration for the given hosts
+// (including certificate templates) and sends it to the Android Management API.
+// This function:
+// 1. Fetches all certificate templates for the given hosts
+// 2. Creates challenges for new certificate templates and inserts them with Pending status
+// 3. Builds the complete AgentManagedConfiguration with all fields
+// 4. Sends the configuration to the Android Management API
+func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUIDs []string) error {
+	if len(hostUUIDs) == 0 {
+		return nil
+	}
+
+	appConfig, err := svc.fleetDS.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	// Cache enroll secrets by team ID to avoid repeated lookups
+	enrollSecretsCache := make(map[uint][]*fleet.EnrollSecret)
+
+	// Helper function to get enroll secrets with caching
+	getEnrollSecretsForTeam := func(teamID *uint) ([]*fleet.EnrollSecret, error) {
+		cacheKey := uint(0)
+		if teamID != nil {
+			cacheKey = *teamID
+		}
+
+		if secrets, ok := enrollSecretsCache[cacheKey]; ok {
+			return secrets, nil
+		}
+
+		secrets, err := svc.fleetDS.GetEnrollSecrets(ctx, teamID)
+		if err != nil {
+			return nil, err
+		}
+
+		enrollSecretsCache[cacheKey] = secrets
+		return secrets, nil
+	}
+
+	// Get all certificate templates for the hosts
+	allTemplates, err := svc.fleetDS.ListCertificateTemplatesForHosts(ctx, hostUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list certificate templates for hosts")
+	}
+
+	// Group templates by host UUID and track new ones that need challenges
+	templatesByHost := make(map[string][]fleet.CertificateTemplateForHost)
+	var newCertificates []fleet.HostCertificateTemplate
+
+	for i := range allTemplates {
+		template := &allTemplates[i]
+		templatesByHost[template.HostUUID] = append(templatesByHost[template.HostUUID], *template)
+
+		// If no existing record (FleetChallenge is nil), generate a new challenge
+		if template.FleetChallenge == nil {
+			challenge, err := svc.fleetDS.NewChallenge(ctx)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "generate fleet challenge")
+			}
+			// Update the template with the challenge for building the config
+			allTemplates[i].FleetChallenge = &challenge
+
+			newCertificates = append(newCertificates, fleet.HostCertificateTemplate{
+				HostUUID:              template.HostUUID,
+				CertificateTemplateID: template.CertificateTemplateID,
+				FleetChallenge:        challenge,
+				Status:                fleet.MDMDeliveryPending,
+			})
+		}
+	}
+
+	// Build host configs
+	hostConfigs := make(map[string]android.AgentManagedConfiguration)
+
+	for _, hostUUID := range hostUUIDs {
+		androidHost, err := svc.ds.AndroidHostLiteByHostUUID(ctx, hostUUID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "get android host %s", hostUUID)
+		}
+
+		enrollSecrets, err := getEnrollSecretsForTeam(androidHost.Host.TeamID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "get enroll secrets for team %v", androidHost.Host.TeamID)
+		}
+		if len(enrollSecrets) == 0 {
+			return ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
+		}
+
+		// Build certificate template IDs list from the updated templates (with challenges)
+		var certificateTemplateIDs []android.AgentCertificateTemplate
+		for _, tmpl := range templatesByHost[hostUUID] {
+			certificateTemplateIDs = append(certificateTemplateIDs, android.AgentCertificateTemplate{
+				ID: tmpl.CertificateTemplateID,
+			})
+		}
+
+		hostConfigs[hostUUID] = android.AgentManagedConfiguration{
+			ServerURL:              appConfig.ServerSettings.ServerURL,
+			HostUUID:               hostUUID,
+			EnrollSecret:           enrollSecrets[0].Secret,
+			CertificateTemplateIDs: certificateTemplateIDs,
+		}
+	}
+
+	// Send the configuration to Android Management API
+	if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
+		return ctxerr.Wrap(ctx, err, "add fleet agent to android policy")
+	}
+
+	// Insert new certificate templates with Pending status
+	// Only templates that don't have an existing record will be inserted
+	if len(newCertificates) > 0 {
+		if err := svc.fleetDS.BulkInsertHostCertificateTemplates(ctx, newCertificates); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk insert host certificate templates")
+		}
+	}
+
+	return nil
+}
