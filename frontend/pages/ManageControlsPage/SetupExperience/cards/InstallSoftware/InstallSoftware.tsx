@@ -27,7 +27,7 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import CustomLink from "components/CustomLink";
 
 import AddInstallSoftware from "./components/AddInstallSoftware";
@@ -172,10 +172,11 @@ const InstallSoftware = ({
 
       if (turnOnMdm) {
         return (
-          <TurnOnMdmMessage
+          <GenericMsgWithNavButton
             header="Additional configuration required"
             info="To customize, first turn on automatic enrollment."
             buttonText="Turn on"
+            path={PATHS.ADMIN_INTEGRATIONS_MDM}
             router={router}
           />
         );

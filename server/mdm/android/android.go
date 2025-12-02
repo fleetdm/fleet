@@ -53,9 +53,14 @@ type Device struct {
 }
 
 type AgentManagedConfiguration struct {
-	ServerURL    string `json:"serverURL"`
-	HostUUID     string `json:"hostUUID"`
-	EnrollSecret string `json:"enrollSecret"`
+	ServerURL              string                     `json:"server_url"`
+	HostUUID               string                     `json:"host_uuid"`
+	EnrollSecret           string                     `json:"enroll_secret"`
+	CertificateTemplateIDs []AgentCertificateTemplate `json:"certificate_template_ids,omitempty"`
+}
+
+type AgentCertificateTemplate struct {
+	ID uint `json:"id"`
 }
 
 // MDMAndroidPolicyRequest represents a request made to the Android Management

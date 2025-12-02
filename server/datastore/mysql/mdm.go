@@ -64,7 +64,7 @@ WHERE
 SELECT
     mwe.host_uuid,
     wmc.command_uuid,
-    COALESCE(NULLIF(wmcr.status_code, ''), 'Pending') as status,
+    COALESCE(NULLIF(wmcr.status_code, ''), '101') as status,
     COALESCE(wmc.updated_at, wmc.created_at) as updated_at,
     wmc.target_loc_uri as request_type,
     h.hostname,
@@ -228,7 +228,7 @@ SELECT
 	mwe.host_uuid,
 	wq.command_uuid,
 	COALESCE(wcr.updated_at, wc.created_at) AS updated_at,
-	COALESCE(NULLIF(wcr.status_code, ''), 'Pending') AS status,
+	COALESCE(NULLIF(wcr.status_code, ''), '101') AS status,
 	wc.target_loc_uri AS request_type
 FROM
 	windows_mdm_command_queue wq
