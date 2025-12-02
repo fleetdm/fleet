@@ -3385,7 +3385,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 
 	// should be called twice - once with the 2 Android apps to make available for self-install,
 	// and once for the setup experience with only the app to install at setup (and install type
-	// FORCE_INSTALLED)
+	// PREINSTALLED)
 	var patchAppsCallCount int // no need for mutex, protected via runWorkerUntilDone
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
 		patchAppsCallCount++
@@ -3398,9 +3398,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 			require.Equal(t, appPolicies[1].InstallType, "AVAILABLE")
 			require.Equal(t, appPolicies[1].PackageName, app2.VPPAppID.AdamID)
 		case 2:
-			// second call for setup experience, should have only app1 with FORCE_INSTALLED
+			// second call for setup experience, should have only app1 with PREINSTALLED
 			require.Len(t, appPolicies, 1, "second call for setup experience should have only 1 app")
-			require.Equal(t, appPolicies[0].InstallType, "FORCE_INSTALLED")
+			require.Equal(t, appPolicies[0].InstallType, "PREINSTALLED")
 			require.Equal(t, appPolicies[0].PackageName, app1.VPPAppID.AdamID)
 		default:
 			t.Fatalf("unexpected call count %d to EnterprisesPoliciesModifyPolicyApplications", patchAppsCallCount)
@@ -3558,9 +3558,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 		case 2:
 			// second call for setup experience, should have both apps
 			require.Len(t, appPolicies, 2, "second call for setup experience should have 2 apps")
-			require.Equal(t, appPolicies[0].InstallType, "FORCE_INSTALLED")
+			require.Equal(t, appPolicies[0].InstallType, "PREINSTALLED")
 			require.Equal(t, appPolicies[0].PackageName, app1.VPPAppID.AdamID)
-			require.Equal(t, appPolicies[1].InstallType, "FORCE_INSTALLED")
+			require.Equal(t, appPolicies[1].InstallType, "PREINSTALLED")
 			require.Equal(t, appPolicies[1].PackageName, app2.VPPAppID.AdamID)
 		default:
 			t.Fatalf("unexpected call count %d to EnterprisesPoliciesModifyPolicyApplications", patchAppsCallCount)
