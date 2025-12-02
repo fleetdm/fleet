@@ -251,9 +251,9 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		}
 
 	case strings.HasPrefix(profileUUID, fleet.MDMAndroidProfileUUIDPrefix):
-		// Android identifier format: {hostUUID},g-{certificateTemplateID},{caType},{challenge}
-		// Parse the certificate template ID from the profileUUID (e.g., "g-123" -> 123)
-		certTemplateIDStr := strings.TrimPrefix(profileUUID, fleet.MDMAndroidProfileUUIDPrefix+"-")
+		// Android identifier format: {hostUUID},g{certificateTemplateID},{caType},{challenge}
+		// Parse the certificate template ID from the profileUUID (e.g., "g123" -> 123)
+		certTemplateIDStr := strings.TrimPrefix(profileUUID, fleet.MDMAndroidProfileUUIDPrefix)
 		certTemplateID, err := strconv.ParseUint(certTemplateIDStr, 10, 32)
 		if err != nil {
 			return "", &scepserver.BadRequestError{Message: fmt.Sprintf("invalid Android certificate template ID: %s", certTemplateIDStr)}

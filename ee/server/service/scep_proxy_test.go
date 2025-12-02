@@ -795,8 +795,8 @@ func TestValidateIdentifier(t *testing.T) {
 			}, nil
 		}
 
-		// Android identifier format: {hostUUID},g-{certificateTemplateID},{caType},{challenge}
-		identifier := makeIdentifier("host-uuid", "g-1", "custom_scep_proxy", "test-challenge")
+		// Android identifier format: {hostUUID},g{certificateTemplateID},{caType},{challenge}
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "test-challenge")
 		scepURL, err := svc.validateIdentifier(ctx, identifier, false)
 		require.NoError(t, err)
 		assert.Equal(t, "https://scep.example.com/scep", scepURL)
@@ -812,7 +812,7 @@ func TestValidateIdentifier(t *testing.T) {
 		svc := newTestService(ds)
 
 		// Invalid certificate template ID (not a number)
-		identifier := makeIdentifier("host-uuid", "g-invalid", "custom_scep_proxy", "test-challenge")
+		identifier := makeIdentifier("host-uuid", "ginvalid", "custom_scep_proxy", "test-challenge")
 		_, err := svc.validateIdentifier(ctx, identifier, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid Android certificate template ID")
@@ -828,7 +828,7 @@ func TestValidateIdentifier(t *testing.T) {
 		}
 		svc := newTestService(ds)
 
-		identifier := makeIdentifier("host-uuid", "g-1", "custom_scep_proxy", "test-challenge")
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "test-challenge")
 		_, err := svc.validateIdentifier(ctx, identifier, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "getting Android certificate template")
@@ -856,7 +856,7 @@ func TestValidateIdentifier(t *testing.T) {
 		}
 		svc := newTestService(ds)
 
-		identifier := makeIdentifier("host-uuid", "g-1", "custom_scep_proxy", "test-challenge")
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "test-challenge")
 		_, err := svc.validateIdentifier(ctx, identifier, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "profile status (verified) is not 'pending'")
@@ -882,7 +882,7 @@ func TestValidateIdentifier(t *testing.T) {
 		}
 		svc := newTestService(ds)
 
-		identifier := makeIdentifier("host-uuid", "g-1", "custom_scep_proxy", "test-challenge")
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "test-challenge")
 		_, err := svc.validateIdentifier(ctx, identifier, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), MessageSCEPProxyNotConfigured)
@@ -910,7 +910,7 @@ func TestValidateIdentifier(t *testing.T) {
 		}
 		svc := newTestService(ds)
 
-		identifier := makeIdentifier("host-uuid", "g-1", "custom_scep_proxy", "test-challenge")
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "test-challenge")
 		_, err := svc.validateIdentifier(ctx, identifier, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), MessageSCEPProxyNotConfigured)
@@ -942,7 +942,7 @@ func TestValidateIdentifier(t *testing.T) {
 		}
 		svc := newTestService(ds)
 
-		identifier := makeIdentifier("host-uuid", "g-1", "custom_scep_proxy", "valid-challenge")
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "valid-challenge")
 		scepURL, err := svc.validateIdentifier(ctx, identifier, true) // checkChallenge=true
 		require.NoError(t, err)
 		assert.Equal(t, "https://scep.example.com/scep", scepURL)
@@ -975,12 +975,12 @@ func TestValidateIdentifier(t *testing.T) {
 		}
 		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
 			assert.Equal(t, "host-uuid", hostUUID)
-			assert.Equal(t, "g-1", profileUUID)
+			assert.Equal(t, "g1", profileUUID)
 			return nil
 		}
 		svc := newTestService(ds)
 
-		identifier := makeIdentifier("host-uuid", "g-1", "custom_scep_proxy", "invalid-challenge")
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "invalid-challenge")
 		_, err := svc.validateIdentifier(ctx, identifier, true)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "custom scep challenge failed")
@@ -1000,7 +1000,7 @@ func TestValidateIdentifier(t *testing.T) {
 		}
 		svc := newTestService(ds)
 
-		identifier := makeIdentifier("host-uuid", "g-1", "custom_scep_proxy", "test-challenge")
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "test-challenge")
 		_, err := svc.validateIdentifier(ctx, identifier, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "getting Android certificate template")
@@ -1034,7 +1034,7 @@ func TestValidateIdentifier(t *testing.T) {
 		svc := newTestService(ds)
 
 		// No challenge in identifier - should use one from template
-		identifier := makeIdentifier("host-uuid", "g-1", "custom_scep_proxy", "")
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "")
 		scepURL, err := svc.validateIdentifier(ctx, identifier, true)
 		require.NoError(t, err)
 		assert.Equal(t, "https://scep.example.com/scep", scepURL)
