@@ -146,7 +146,7 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 			return err
 		}
 
-		err = v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID})
+		err = v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "build and send fleet agent config for host %s", hostUUID)
 		}

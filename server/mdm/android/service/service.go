@@ -1130,11 +1130,11 @@ func (svc *Service) MigrateToPerDevicePolicy(ctx context.Context) error {
 // 1. Fetches all certificate templates for the given hosts
 // 2. For hosts with new certificates: inserts them first, then calls the API
 // 3. If the API call fails, performs a compensating delete of the inserted records
-// 4. For hosts without new certificates: calls the API directly
+// 4. For hosts without new certificates: calls the API directly (unless skipHostsWithoutNewCerts is true)
 //
 // This ensures that once a certificate template record exists in the database,
 // any concurrent process will see it as Pending.
-func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUIDs []string) error {
+func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error {
 	if len(hostUUIDs) == 0 {
 		return nil
 	}
@@ -1267,21 +1267,23 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		}
 	}
 
-	// Step 3: Process hosts without new certificates
-	for _, hostUUID := range hostUUIDs {
-		if _, hasNewCerts := newCertsByHost[hostUUID]; hasNewCerts {
-			continue // Already processed above
-		}
+	// Step 3: Process hosts without new certificates (unless skipHostsWithoutNewCerts is true)
+	if !skipHostsWithoutNewCerts {
+		for _, hostUUID := range hostUUIDs {
+			if _, hasNewCerts := newCertsByHost[hostUUID]; hasNewCerts {
+				continue // Already processed above
+			}
 
-		config, err := buildHostConfig(hostUUID)
-		if err != nil {
-			level.Error(svc.logger).Log("msg", "failed to build host config", "host_uuid", hostUUID, "err", err)
-			continue
-		}
+			config, err := buildHostConfig(hostUUID)
+			if err != nil {
+				level.Error(svc.logger).Log("msg", "failed to build host config", "host_uuid", hostUUID, "err", err)
+				continue
+			}
 
-		hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
-		if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
-			level.Error(svc.logger).Log("msg", "failed to send fleet agent config to API", "host_uuid", hostUUID, "err", err)
+			hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
+			if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
+				level.Error(svc.logger).Log("msg", "failed to send fleet agent config to API", "host_uuid", hostUUID, "err", err)
+			}
 		}
 	}
 

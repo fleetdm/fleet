@@ -139,19 +139,22 @@ func (ds *Datastore) DeleteHostCertificateTemplates(ctx context.Context, hostCer
 		return nil
 	}
 
-	// Build WHERE clause with OR conditions for each (host_uuid, certificate_template_id) pair
-	var conditions strings.Builder
+	// Build placeholders and args for tuple matching
+	var placeholders strings.Builder
 	args := make([]any, 0, len(hostCertTemplates)*2)
 
 	for i, hct := range hostCertTemplates {
 		if i > 0 {
-			conditions.WriteString(" OR ")
+			placeholders.WriteString(",")
 		}
-		conditions.WriteString("(host_uuid = ? AND certificate_template_id = ?)")
+		placeholders.WriteString("(?,?)")
 		args = append(args, hct.HostUUID, hct.CertificateTemplateID)
 	}
 
-	stmt := fmt.Sprintf("DELETE FROM host_certificate_templates WHERE %s", conditions.String())
+	stmt := fmt.Sprintf(
+		"DELETE FROM host_certificate_templates WHERE (host_uuid, certificate_template_id) IN (%s)",
+		placeholders.String(),
+	)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete host_certificate_templates")

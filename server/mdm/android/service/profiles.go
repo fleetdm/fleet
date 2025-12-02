@@ -479,7 +479,7 @@ func (r *profileReconciler) processCertificateTemplateBatch(ctx context.Context,
 		fleetDS:          r.DS,
 		androidAPIClient: r.Client,
 	}
-	if err := svc.BuildAndSendFleetAgentConfig(ctx, r.Enterprise.Name(), hostUUIDs); err != nil {
+	if err := svc.BuildAndSendFleetAgentConfig(ctx, r.Enterprise.Name(), hostUUIDs, true); err != nil {
 		return ctxerr.Wrap(ctx, err, "build and send fleet agent config with certificates")
 	}
 
