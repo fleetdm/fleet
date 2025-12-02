@@ -129,7 +129,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "thisisnotanappid", Platform: fleet.AndroidPlatform},
 		http.StatusUnprocessableEntity,
 	)
-	require.Contains(t, extractServerErrorText(r.Body), "app_store_id must be a valid Android application ID")
+	require.Contains(t, extractServerErrorText(r.Body), "Application ID must be a valid Android application ID")
 
 	// Missing platform: should fail
 	r = s.Do(
@@ -179,7 +179,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	// self_service is coerced to be true
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var selfService bool
-		sqlx.GetContext(ctx, q, &selfService, "SELECT self_service FROM vpp_apps_teams WHERE adam_id = ?", androidApp.AdamID)
+		err := sqlx.GetContext(ctx, q, &selfService, "SELECT self_service FROM vpp_apps_teams WHERE adam_id = ?", androidApp.AdamID)
+		s.Require().NoError(err)
 		s.Assert().True(selfService)
 		return nil
 	})
@@ -267,7 +268,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	// Even though we sent self_service: false, self_service remains true
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var selfService bool
-		sqlx.GetContext(ctx, q, &selfService, "SELECT self_service FROM vpp_apps_teams WHERE adam_id = ?", getHostSw.Software[0].AppStoreApp.AppStoreID)
+		err := sqlx.GetContext(ctx, q, &selfService, "SELECT self_service FROM vpp_apps_teams WHERE adam_id = ?", getHostSw.Software[0].AppStoreApp.AppStoreID)
+		s.Require().NoError(err)
 		s.Assert().True(selfService)
 		return nil
 	})
