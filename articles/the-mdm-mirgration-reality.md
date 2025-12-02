@@ -45,7 +45,7 @@ Our **brick by brick** approach focuses on auditing your current setup, carefull
 
 If you’re considering a migration and want to avoid surprises, let us know. We can share more about how the brick-by-brick method works.
 
-<meta name="articleTitle" value="The MDM migration reality: Easier, but not easy.">
+<meta name="articleTitle" value="The MDM migration reality: easier, but not easy">
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="articles">
