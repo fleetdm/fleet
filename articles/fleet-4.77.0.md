@@ -15,9 +15,6 @@ Fleet 4.77.0 is now available. See the complete [changelog](https://github.com/f
 - Activity for deleted hosts
 - More Fleet-maintained apps
 
-### iOS/iPadOS self-service
-
-You can deploy a self-service web app to your iOS/iPadOS hosts. This gives end users a simple way to install managed apps on their own, reducing IT load and speeding up access. Learn more in the [self-service guide](https://fleetdm.com/guides/software-self-service#deploy-self-service-on-ios-ipados).
 
 ### Deploy enterprise iOS/iPadOS packages
 
