@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "25.001.20982",
+      "version": "25.001.20937",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Acrobat.Pro';"
       },
