@@ -288,8 +288,8 @@ func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseNam
 
 	app, err := call.Do()
 	if err != nil {
-		if isErrorCode(err, http.StatusInternalServerError) && strings.Contains(err.Error(), "Requested entity was not found") {
-			// For some reason, the AMAPI returns a 500 when an app is not found.
+		if isErrorCode(err, http.StatusNotFound) || (isErrorCode(err, http.StatusInternalServerError) && strings.Contains(err.Error(), "Requested entity was not found")) {
+			// For some reason, the AMAPI can return a 500 when an app is not found.
 			return nil, ctxerr.Wrap(ctx, appNotFoundError{})
 		}
 

@@ -12,6 +12,10 @@ import {
 export const getErrorMessage = (e: unknown): string | ReactElement => {
   const reason = getErrorReason(e);
 
+  if (reason.includes("find ID on the Play Store")) {
+    return reason;
+  }
+
   // software is already available for install
   if (reason.toLowerCase().includes("already")) {
     const alreadyAvailableMessage = formatAlreadyAvailableInstallMessage(
@@ -27,9 +31,6 @@ export const getErrorMessage = (e: unknown): string | ReactElement => {
     }
 
     // TODO: Confirm with BE
-    if (reason.includes("find ID on the Play Store")) {
-      return `${ADD_SOFTWARE_ERROR_PREFIX} The application ID isn’t available in Play Store. Please find ID on the Play Store and try again.`;
-    }
   }
 
   if (reason) {
