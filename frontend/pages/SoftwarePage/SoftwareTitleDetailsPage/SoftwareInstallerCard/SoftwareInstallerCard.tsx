@@ -169,6 +169,7 @@ interface ISoftwareInstallerCardProps {
   isSelfService: boolean;
   softwareId: number;
   iconUrl?: string | null;
+  displayName?: string;
   teamId: number;
   teamIdForApi?: number;
   softwareInstaller: ISoftwarePackage | IAppStoreApp;
@@ -195,6 +196,7 @@ const SoftwareInstallerCard = ({
   softwareInstaller,
   softwareId,
   iconUrl,
+  displayName,
   teamId,
   teamIdForApi,
   onDelete,
@@ -398,6 +400,7 @@ const SoftwareInstallerCard = ({
           softwareTitleId={softwareId}
           teamId={teamId}
           iconUrl={iconUrl}
+          displayName={displayName}
           softwarePackage={softwareInstaller as ISoftwarePackage}
           onExit={onToggleViewYaml}
           isScriptPackage={isScriptPackage}
