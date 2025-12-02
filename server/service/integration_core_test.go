@@ -14661,19 +14661,22 @@ func (s *integrationTestSuite) TestUpdateHostCertificateTemplate() {
 	require.NoError(t, err)
 	require.NotNil(t, savedTemplate)
 
-	nodeKey := uuid.New().String()
+	orbitNodeKey := uuid.New().String()
 	uuid := uuid.New().String()
 	hostName := "test-update-host-certificate-template"
 
 	// Create a host
 	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		NodeKey:  &nodeKey,
+		NodeKey:  &orbitNodeKey,
 		UUID:     uuid,
 		Hostname: hostName,
 		Platform: "android",
 		TeamID:   &teamID,
 	})
 	require.NoError(t, err)
+
+	host.OrbitNodeKey = &orbitNodeKey
+	require.NoError(t, s.ds.UpdateHost(ctx, host))
 
 	certificateTemplateID := savedTemplate.ID
 
@@ -14703,32 +14706,45 @@ INSERT INTO host_certificate_templates (
 	cases := []struct {
 		name                    string
 		templateID              uint
-		nodeKey                 string
 		newStatus               string
 		detail                  *string
 		expectedResponseStatus  int
 		expectedResponseMessage string
+		headers                 map[string]string
 	}{
 		{
 			name:                   "Valid Update",
 			templateID:             certificateTemplateID,
-			nodeKey:                nodeKey,
 			newStatus:              "verified",
 			detail:                 ptr.String("Certificate Verified"),
 			expectedResponseStatus: http.StatusOK,
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
 		},
 		{
 			name:                    "Invalid Status",
 			templateID:              certificateTemplateID,
-			nodeKey:                 nodeKey,
 			newStatus:               "invalid_status",
 			expectedResponseStatus:  http.StatusUnprocessableEntity,
 			expectedResponseMessage: "invalid status value",
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
 		},
 		{
 			name:                    "Wrong node key",
 			templateID:              certificateTemplateID,
-			nodeKey:                 "wrong-nodekey",
+			newStatus:               "verified",
+			expectedResponseStatus:  http.StatusUnauthorized,
+			expectedResponseMessage: "host certificate template not found",
+			headers: map[string]string{
+				"Authorization": "Node key wrong-node-key",
+			},
+		},
+		{
+			name:                    "With no auth headers",
+			templateID:              certificateTemplateID,
 			newStatus:               "verified",
 			expectedResponseStatus:  http.StatusUnauthorized,
 			expectedResponseMessage: "host certificate template not found",
@@ -14736,21 +14752,25 @@ INSERT INTO host_certificate_templates (
 		{
 			name:                    "Wrong Template ID",
 			templateID:              9999,
-			nodeKey:                 nodeKey,
 			newStatus:               "verified",
 			expectedResponseStatus:  http.StatusNotFound,
 			expectedResponseMessage: "host certificate template not found",
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("TestUpdateHostCertificateTemplate:%s", tc.name), func(t *testing.T) {
-			var resp map[string]interface{}
-			s.DoJSON("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", tc.templateID), updateCertificateStatusRequest{
-				NodeKey: tc.nodeKey,
-				Status:  tc.newStatus,
-				Detail:  tc.detail,
-			}, tc.expectedResponseStatus, &resp)
+			req, err := json.Marshal(updateCertificateStatusRequest{
+				Status: tc.newStatus,
+				Detail: tc.detail,
+			})
+			require.NoError(t, err)
+
+			resp := s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", tc.templateID), req, tc.expectedResponseStatus, tc.headers)
+			require.NoError(t, resp.Body.Close())
 		})
 	}
 }
