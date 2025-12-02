@@ -30,7 +30,6 @@ export const getErrorMessage = (e: unknown): string | ReactElement => {
       return `${ADD_SOFTWARE_ERROR_PREFIX} The software is already available to install on this team.`;
     }
 
-    // TODO: Confirm with BE
   }
 
   if (reason) {
