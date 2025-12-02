@@ -579,6 +579,15 @@ module.exports.routes = {
     action: 'legal/view-privacy',
   },
 
+  'GET /fast-track': {
+    action: 'view-fast-track',
+    locals: {
+      hideStartCTA: true,
+      pageTitleForMeta: 'Fleet Fast-track',
+      pageDescriptionForMeta: 'Get up and running with Fleet Fast-track'
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
