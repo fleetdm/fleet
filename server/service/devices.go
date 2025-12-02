@@ -121,6 +121,36 @@ type getDeviceHostResponse struct {
 
 func (r getDeviceHostResponse) Error() error { return r.Err }
 
+// ScrubSensitiveFieldsForMobilePlatform removes sensitive fields from the response
+// for iOS/iPadOS devices. These fields are not needed for the self-service UI and
+// could pose security risks if exposed to potentially compromised mobile devices.
+func (r *getDeviceHostResponse) ScrubSensitiveFieldsForMobilePlatform() {
+	if r.Host == nil {
+		return
+	}
+
+	// Scrub host identification fields
+	r.Host.UUID = ""
+	r.Host.HardwareSerial = ""
+	r.Host.PrimaryMac = ""
+
+	// Scrub labels (not needed for self-service)
+	r.Host.Labels = nil
+
+	// Scrub license details (keep only tier)
+	r.License.Organization = ""
+	r.License.DeviceCount = 0
+	r.License.Expiration = time.Time{}
+	r.License.Note = ""
+
+	// Scrub MDM profile UUIDs
+	if r.Host.MDM.Profiles != nil {
+		for i := range *r.Host.MDM.Profiles {
+			(*r.Host.MDM.Profiles)[i].ProfileUUID = ""
+		}
+	}
+}
+
 func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getDeviceHostRequest)
 	host, ok := hostctx.FromContext(ctx)
@@ -202,7 +232,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		},
 	}
 
-	return getDeviceHostResponse{
+	response := getDeviceHostResponse{
 		Host:                      resp,
 		OrgLogoURL:                ac.OrgInfo.OrgLogoURL,
 		OrgLogoURLLightBackground: ac.OrgInfo.OrgLogoURLLightBackground,
@@ -210,7 +240,14 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		License:                   *license,
 		GlobalConfig:              deviceGlobalConfig,
 		SelfService:               hasSelfService,
-	}, nil
+	}
+
+	// Scrub sensitive fields for iOS/iPadOS devices
+	if host.Platform == "ios" || host.Platform == "ipados" {
+		response.ScrubSensitiveFieldsForMobilePlatform()
+	}
+
+	return response, nil
 }
 
 func (svc *Service) GetHostDEPAssignment(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error) {
