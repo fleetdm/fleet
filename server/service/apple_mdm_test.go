@@ -2708,6 +2708,13 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		return baseProfilesToInstall, baseProfilesToRemove, nil
 	}
 
+	ds.ListHostsMDMFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.HostMDMWithUUID, error) {
+		return []*fleet.HostMDMWithUUID{
+			{HostUUID: hostUUID1, Enrolled: true},
+			{HostUUID: hostUUID2, Enrolled: true},
+		}, nil
+	}
+
 	ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]mobileconfig.Mobileconfig, error) {
 		require.ElementsMatch(t, []string{p1, p2, p4, p5}, profileUUIDs)
 		// only those profiles that are to be installed

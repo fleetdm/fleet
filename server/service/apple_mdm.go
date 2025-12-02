@@ -4833,6 +4833,13 @@ func ReconcileAppleProfiles(
 		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
 	}
 
+	// filters out the install targets that are MDM unenrolled
+	// does it via side effects
+	err = filterOutMDMUnenrolledHosts(ctx, installTargets, toInstall, ds, userEnrollmentsToHostUUIDsMap, hostProfilesToInstallMap)
+	if err != nil {
+		return err
+	}
+
 	// FIXME: How does this impact variable profiles? This happens before pre-processing, doesn't
 	// this potentially race with the command uuid and variable substitution?
 	//
@@ -4956,6 +4963,60 @@ func ReconcileAppleProfiles(
 		return ctxerr.Wrap(ctx, err, "reverting status of failed profiles")
 	}
 
+	return nil
+}
+
+func filterOutMDMUnenrolledHosts(ctx context.Context, installTargets map[string]*cmdTarget, toInstall []*fleet.MDMAppleProfilePayload, ds fleet.Datastore, userEnrollmentsToHostUUIDsMap map[string]string, hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+	toInstallHostUUIDs := make([]string, 0, len(toInstall))
+	for _, target := range installTargets {
+		for _, eid := range target.enrollmentIDs {
+			// Map user enrollment to host UUID if needed
+			hostUUID := eid
+			if hu, ok := userEnrollmentsToHostUUIDsMap[eid]; ok {
+				hostUUID = hu
+			}
+			toInstallHostUUIDs = append(toInstallHostUUIDs, hostUUID)
+		}
+	}
+
+	hostMDMs, err := ds.ListHostsMDM(ctx, toInstallHostUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing hosts MDM")
+	}
+	hostMDMsByUUID := make(map[string]*fleet.HostMDMWithUUID, len(hostMDMs))
+	for _, hmdm := range hostMDMs {
+		hostMDMsByUUID[hmdm.HostUUID] = hmdm
+	}
+
+	// Filter out install targets for hosts that are not enrolled
+	for profUUID, target := range installTargets {
+		// Build filtered enrollmentIDs per target based on device/user channels that map to host UUIDs
+		filtered := target.enrollmentIDs[:0]
+		for _, eid := range target.enrollmentIDs {
+			// Map user enrollment to host UUID if needed
+			hostUUID := eid
+			if hu, ok := userEnrollmentsToHostUUIDsMap[eid]; ok {
+				hostUUID = hu
+			}
+			if hmdm, ok := hostMDMsByUUID[hostUUID]; ok && hmdm.Enrolled {
+				filtered = append(filtered, eid)
+			} else {
+				// mark the corresponding host profile as failed (or leave nil) and clear command
+				if hp, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]; ok {
+					// Do not enqueue the profile, and set status to nil for it to be picked up again.
+					// Next time around we expect to have a checkout call which updates nano tables that we pull profiles based on.
+					hp.Status = nil
+					hp.CommandUUID = "" // ensure no enqueue happens
+				}
+			}
+		}
+		if len(filtered) == 0 {
+			// No eligible enrollment IDs -> remove target entirely
+			delete(installTargets, profUUID)
+			continue
+		}
+		target.enrollmentIDs = filtered
+	}
 	return nil
 }
 

@@ -1639,6 +1639,8 @@ type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
 type UpdateOrDeleteHostMDMWindowsProfileFunc func(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error
 
+type ListHostsMDMFunc func(ctx context.Context, hostUUIDs []string) ([]*fleet.HostMDMWithUUID, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -4063,6 +4065,9 @@ type DataStore struct {
 
 	UpdateOrDeleteHostMDMWindowsProfileFunc        UpdateOrDeleteHostMDMWindowsProfileFunc
 	UpdateOrDeleteHostMDMWindowsProfileFuncInvoked bool
+
+	ListHostsMDMFunc        ListHostsMDMFunc
+	ListHostsMDMFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -9721,4 +9726,11 @@ func (s *DataStore) UpdateOrDeleteHostMDMWindowsProfile(ctx context.Context, pro
 	s.UpdateOrDeleteHostMDMWindowsProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateOrDeleteHostMDMWindowsProfileFunc(ctx, profile)
+}
+
+func (s *DataStore) ListHostsMDM(ctx context.Context, hostUUIDs []string) ([]*fleet.HostMDMWithUUID, error) {
+	s.mu.Lock()
+	s.ListHostsMDMFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostsMDMFunc(ctx, hostUUIDs)
 }

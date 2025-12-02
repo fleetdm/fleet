@@ -2665,3 +2665,21 @@ func (ds *Datastore) ListHostMDMManagedCertificates(ctx context.Context, hostUUI
 	`, hostUUID)
 	return hostCertsToRenew, ctxerr.Wrap(ctx, err, "get mdm managed certificates for host")
 }
+
+func (ds *Datastore) ListHostsMDM(ctx context.Context, hostUUIDs []string) ([]*fleet.HostMDMWithUUID, error) {
+	if len(hostUUIDs) == 0 {
+		return []*fleet.HostMDMWithUUID{}, nil
+	}
+
+	hostMDMUUID := []*fleet.HostMDMWithUUID{}
+	query, args, err := sqlx.In(`SELECT h.uuid as host_uuid, hm.host_id, hm.enrolled, hm.server_url, hm.installed_from_dep, hm.mdm_id, hm.is_server, hm.enrollment_status, hm.is_personal_enrollment
+	FROM host_mdm hm
+	JOIN hosts h ON hm.host_id = h.id
+	WHERE h.uuid IN (?)`, hostUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, `building query to get host mdm info for hosts`)
+	}
+	query = ds.reader(ctx).Rebind(query)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &hostMDMUUID, query, args...)
+	return hostMDMUUID, ctxerr.Wrap(ctx, err, `get host mdm info for hosts`)
+}

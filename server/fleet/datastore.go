@@ -2527,6 +2527,9 @@ type Datastore interface {
 	GetCurrentTime(ctx context.Context) (time.Time, error)
 
 	UpdateOrDeleteHostMDMWindowsProfile(ctx context.Context, profile *HostMDMWindowsProfile) error
+
+	// ListHostsMDM retrieves MDM information (from the host_mdm table) for the given host UUIDs.
+	ListHostsMDM(ctx context.Context, hostUUIDs []string) ([]*HostMDMWithUUID, error)
 }
 
 type AndroidDatastore interface {
