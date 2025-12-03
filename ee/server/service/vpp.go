@@ -301,10 +301,22 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	// TODO: probably make a helper that can assume it's doing android stuff
 	if len(policiesToUpdate) > 0 && enterprise != nil {
-		_, err := svc.androidModule.AddAppsToAndroidPolicy(ctx, enterprise.Name(), appIDs, policiesToUpdate, "AVAILABLE")
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "batch associate app store apps: add apps to android MDM policy")
+		for hostUUID, policyID := range policiesToUpdate {
+			err := worker.QueueBulkMakeAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, hostUUID, policyID, appIDs, enterprise.Name())
+			if err != nil {
+				return nil, ctxerr.WrapWithData(
+					ctx,
+					err,
+					"batch associate app store apps: add apps to android MDM policy",
+					map[string]any{
+						"policy_id":       policyID,
+						"host_uuid":       hostUUID,
+						"application_ids": appIDs,
+					},
+				)
+			}
 		}
+
 	}
 
 	return addedApps, nil
