@@ -4,51 +4,78 @@
 import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 
-import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
-import AdobeAcrobat from "./AdobeAcrobat";
-import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
-import AmazonDCV from "./AmazonDCV";
-import AndroidApp from "./AndroidApp";
-import AndroidPlayStore from "./AndroidPlayStore";
-import AndroidStudio from "./AndroidStudio";
-import AnyDesk from "./AnyDesk";
+import CreativeCloud from "./AdobeCreativeCloud";
+import ChromeApp from "./ChromeApp";
+import Excel from "./Excel";
+import Extension from "./Extension";
+import Firefox from "./Firefox";
 import AppleApp from "./AppleApp";
+import MacOS from "./MacOS";
+import Package from "./Package";
+import Safari from "./Safari";
+import Slack from "./Slack";
+import Teams from "./Teams";
+import VisualStudioCode from "./VisualStudioCode";
+import WindowsApp from "./WindowsApp";
+import WindowsOS from "./WindowsOS";
+import Word from "./Word";
+import Zoom from "./Zoom";
+import ChromeOS from "./ChromeOS";
+import LinuxOS from "./LinuxOS";
+import Falcon from "./Falcon";
 import AppleAppStore from "./AppleAppStore";
-import Asana from "./Asana";
-import BBEdit from "./BBEdit";
-import BeyondCompare from "./BeyondCompare";
-import Bitwarden from "./Bitwarden";
+import AndroidPlayStore from "./AndroidPlayStore";
+import AndroidApp from "./AndroidApp";
+import TeamViewer from "./TeamViewer";
 import Box from "./Box";
 import Brave from "./Brave";
+import Cloudflare from "./Cloudflare";
+import Docker from "./Docker";
+import Edge from "./Edge";
+import Figma from "./Figma";
+import Notion from "./Notion";
+import WindowsDefender from "./WindowsDefender";
+import WhatsApp from "./WhatsApp";
+import P4V from "./P4V";
+import Postman from "./Postman";
+import OnePassword from "./OnePassword";
+import OmnissaHorizonClient from "./OmnissaHorizonClient";
+import AmazonDCV from "./AmazonDCV";
+import IntuneCompanyPortal from "./IntuneCompanyPortal";
+import Santa from "./Santa";
+import YubikeyManager from "./YubikeyManager";
+import BeyondCompare from "./BeyondCompare";
+import ITerm from "./ITerm";
+import iOS from "./iOS";
+import iPadOS from "./iPadOS";
+import VncViewer from "./VncViewer";
+import WindowsAppRemote from "./WindowsAppRemote";
+import ZeroOneZeroEditor from "./010Editor";
+import EightXEightWork from "./8X8Work";
+import Abstract from "./Abstract";
+import AdobeAcrobat from "./AdobeAcrobat";
+import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
+import AndroidStudio from "./AndroidStudio";
+import AnyDesk from "./AnyDesk";
+import Asana from "./Asana";
+import BBEdit from "./BBEdit";
+import CLion from "./CLion";
 import Camtasia from "./Camtasia";
 import Canva from "./Canva";
 import ChatGpt from "./ChatGpt";
 import ChatGptAtlas from "./ChatGptAtlas";
-import ChromeApp from "./ChromeApp";
-import ChromeOS from "./ChromeOS";
 import CiscoJabber from "./CiscoJabber";
 import CitrixWorkspace from "./CitrixWorkspace";
 import Claude from "./Claude";
 import ClickUp from "./ClickUp";
-import CLion from "./CLion";
-import Cloudflare from "./Cloudflare";
-import CreativeCloud from "./AdobeCreativeCloud";
 import Cursor from "./Cursor";
 import Cyberduck from "./Cyberduck";
 import DataGrip from "./DataGrip";
 import Discord from "./Discord";
 import DisplayLinkManager from "./DisplayLinkManager";
-import Docker from "./Docker";
 import Drawio from "./DrawIo";
 import Dropbox from "./Dropbox";
-import Edge from "./Edge";
-import EightXEightWork from "./8X8Work";
-import Excel from "./Excel";
-import Extension from "./Extension";
-import Falcon from "./Falcon";
-import Figma from "./Figma";
-import Firefox from "./Firefox";
 import GitHubDesktop from "./GitHubDesktop";
 import GitKraken from "./GitKraken";
 import GoLand from "./GoLand";
@@ -59,16 +86,12 @@ import IMazingProfileEditor from "./IMazingProfileEditor";
 import Insomnia from "./Insomnia";
 import IntelliJIdea from "./IntelliJIdea";
 import IntelliJIdeaCe from "./IntelliJIdeaCe";
-import IntuneCompanyPortal from "./IntuneCompanyPortal";
-import ITerm from "./ITerm";
 import JetBrainsToolbox from "./JetBrainsToolbox";
 import Linear from "./Linear";
-import LinuxOS from "./LinuxOS";
 import LittleSnitch from "./LittleSnitch";
 import Logioptionsplus from "./Logioptionsplus";
 import Loom from "./Loom";
 import LuLu from "./LuLu";
-import MacOS from "./MacOS";
 import Messenger from "./Messenger";
 import MicrosoftOneNote from "./MicrosoftOneNote";
 import MicrosoftOutlook from "./MicrosoftOutlook";
@@ -76,20 +99,14 @@ import MicrosoftPowerPoint from "./MicrosoftPowerPoint";
 import Miro from "./Miro";
 import MySqlWorkbench from "./MySqlWorkbench";
 import NordVpn from "./NordVpn";
-import Notion from "./Notion";
 import NotionCalendar from "./NotionCalendar";
 import Nudge from "./Nudge";
 import OmniGraffle from "./OmniGraffle";
-import OmnissaHorizonClient from "./OmnissaHorizonClient";
 import OneDrive from "./OneDrive";
-import OnePassword from "./OnePassword";
 import Opera from "./Opera";
-import P4V from "./P4V";
-import Package from "./Package";
 import ParallelsDesktop from "./ParallelsDesktop";
 import PhpStorm from "./PhpStorm";
 import PodmanDesktop from "./PodmanDesktop";
-import Postman from "./Postman";
 import Pritunl from "./Pritunl";
 import Privileges from "./Privileges";
 import ProtonMail from "./ProtonMail";
@@ -100,16 +117,11 @@ import Rectangle from "./Rectangle";
 import Rider from "./Rider";
 import RubyMine from "./RubyMine";
 import RustRover from "./RustRover";
-import Safari from "./Safari";
-import Santa from "./Santa";
 import Signal from "./Signal";
-import Slack from "./Slack";
 import Spotify from "./Spotify";
 import SublimeText from "./SublimeText";
 import TablePlus from "./TablePlus";
 import Tailscale from "./Tailscale";
-import Teams from "./Teams";
-import TeamViewer from "./TeamViewer";
 import Telegram from "./Telegram";
 import TeleportConnect from "./TeleportConnect";
 import Terminal from "./Terminal";
@@ -117,38 +129,29 @@ import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
 import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
-import VisualStudioCode from "./VisualStudioCode";
 import Vlc from "./Vlc";
-import VncViewer from "./VncViewer";
-import Webex from "./Webex";
 import WebStorm from "./WebStorm";
-import WhatsApp from "./WhatsApp";
-import WindowsApp from "./WindowsApp";
-import WindowsAppRemote from "./WindowsAppRemote";
-import WindowsDefender from "./WindowsDefender";
-import WindowsOS from "./WindowsOS";
-import Word from "./Word";
+import Webex from "./Webex";
 import WrikeForMac from "./WrikeForMac";
-import YubikeyManager from "./YubikeyManager";
 import Zed from "./Zed";
-import ZeroOneZeroEditor from "./010Editor";
-import Zoom from "./Zoom";
+
+import Bitwarden from "./Bitwarden";
 
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
 export const SOFTWARE_NAME_TO_ICON_MAP = {
   "010 editor": ZeroOneZeroEditor,
-  "1password": OnePassword,
   "8x8 work": EightXEightWork,
+  "1password": OnePassword,
   abstract: Abstract,
   "adobe acrobat": AdobeAcrobat,
   "adobe acrobat reader": AcrobatReader,
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
   "amazon dcv": AmazonDCV,
-  "android studio": AndroidStudio,
   androidPlayStore: AndroidPlayStore,
+  "android studio": AndroidStudio,
   anydesk: AnyDesk,
   appleAppStore: AppleAppStore,
   asana: Asana,
@@ -164,8 +167,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "cisco jabber": CiscoJabber,
   "citrix workspace": CitrixWorkspace,
   claude: Claude,
-  clickup: ClickUp,
   clion: CLion,
+  clickup: ClickUp,
   cloudflare: Cloudflare,
   code: VisualStudioCode,
   "company portal": IntuneCompanyPortal,
@@ -217,14 +220,14 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "omnissa horizon client": OmnissaHorizonClient,
   onedrive: OneDrive,
   opera: Opera,
-  p4v: P4V,
   package: Package,
   "parallels desktop": ParallelsDesktop,
+  p4v: P4V,
   phpstorm: PhpStorm,
   "podman desktop": PodmanDesktop,
   postman: Postman,
-  pritunl: Pritunl,
   privileges: Privileges,
+  pritunl: Pritunl,
   "proton mail": ProtonMail,
   pycharm: PyCharm,
   "pycharm ce": PyCharmCe,
@@ -241,19 +244,19 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "sublime text": SublimeText,
   "table plus": TablePlus,
   tailscale: Tailscale,
-  teamviewer: TeamViewer,
   telegram: Telegram,
   "teleport connect": TeleportConnect,
   terminal: Terminal,
+  teamviewer: TeamViewer,
   thunderbird: Thunderbird,
   todoist: Todoist,
   tunnelblick: Tunnelblick,
   twingate: Twingate,
+  "vnc viewer": VncViewer,
   "visual studio code": VisualStudioCode,
   vlc: Vlc,
-  "vnc viewer": VncViewer,
-  webex: Webex,
   webstorm: WebStorm,
+  webex: Webex,
   whatsapp: WhatsApp,
   "windows app": WindowsAppRemote,
   "windows defender": WindowsDefender,
