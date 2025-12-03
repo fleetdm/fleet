@@ -339,16 +339,17 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 		}
 		for _, ca := range groupedCAs.Okta {
-			if ca.Name == profile.CAName {
+			if ca.Name == certReq.GetCAName() {
 				scepURL = ca.URL
 				break
 			}
 		}
 
-		if checkChallenge && profile.ChallengeRetrievedAt != nil && profile.ChallengeRetrievedAt.Add(OktaChallengeInvalidAfter).Before(time.Now()) {
+		challengeRetrievedAt := certReq.GetChallengeRetrievedAt()
+		if checkChallenge && challengeRetrievedAt != nil && challengeRetrievedAt.Add(OktaChallengeInvalidAfter).Before(time.Now()) {
 			// The challenge password was retrieved for this profile, and is now invalid.
 			// We need to resend the profile with a new challenge password.
-			if err = svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID); err != nil {
+			if err := svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID); err != nil {
 				return "", ctxerr.Wrap(ctx, err, "resending host mdm profile")
 			}
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}

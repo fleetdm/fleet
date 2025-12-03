@@ -205,6 +205,55 @@ func TestValidateOktaChallengeURL_Success(t *testing.T) {
 	err := svc.ValidateOktaChallengeURL(context.Background(), ca)
 
 	require.NoError(t, err)
+}
+
+// TestValidateOktaChallengeURL_InvalidCredentials tests authentication
+// errors when the Okta challenge endpoint returns 401.
+func TestValidateOktaChallengeURL_InvalidCredentials(t *testing.T) {
+	t.Parallel()
+
+	server := NewTestOktaChallengeServer(t)
+	logger := kitlog.NewNopLogger()
+	svc := NewSCEPConfigService(logger, ptr.Duration(30*time.Second))
+
+	ca := fleet.OktaSCEPProxyCA{
+		ChallengeURL: server.URL,
+		Username:     "wrong-user",
+		Password:     "wrong-pass",
+	}
+
+	err := svc.ValidateOktaChallengeURL(context.Background(), ca)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "401")
+}
+
+// TestValidateOktaChallengeURL_MalformedResponse ensures errors when the
+// challenge HTML does not include a password.
+func TestValidateOktaChallengeURL_MalformedResponse(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("<html><body>No challenge here</body></html>"))
+	}))
+	t.Cleanup(server.Close)
+
+	logger := kitlog.NewNopLogger()
+	svc := NewSCEPConfigService(logger, ptr.Duration(30*time.Second))
+
+	ca := fleet.OktaSCEPProxyCA{
+		ChallengeURL: server.URL,
+		Username:     "test-user",
+		Password:     "test-pass",
+	}
+
+	err := svc.ValidateOktaChallengeURL(context.Background(), ca)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "challenge not found")
+}
+
 func TestValidateIdentifier(t *testing.T) {
 	t.Parallel()
 
