@@ -51,50 +51,215 @@ import BeyondCompare from "./BeyondCompare";
 import ITerm from "./ITerm";
 import VncViewer from "./VncViewer";
 import WindowsAppRemote from "./WindowsAppRemote";
+import ZeroOneZeroEditor from "./010Editor";
+import EightXEightWork from "./8X8Work";
+import Abstract from "./Abstract";
+import AdobeAcrobat from "./AdobeAcrobat";
+import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
+import AndroidStudio from "./AndroidStudio";
+import AnyDesk from "./AnyDesk";
+import Asana from "./Asana";
+import BBEdit from "./BBEdit";
+import CLion from "./CLion";
+import Camtasia from "./Camtasia";
+import Canva from "./Canva";
+import ChatGpt from "./ChatGpt";
+import ChatGptAtlas from "./ChatGptAtlas";
+import CiscoJabber from "./CiscoJabber";
+import CitrixWorkspace from "./CitrixWorkspace";
+import Claude from "./Claude";
+import ClickUp from "./ClickUp";
+import Cursor from "./Cursor";
+import Cyberduck from "./Cyberduck";
+import DataGrip from "./DataGrip";
+import Discord from "./Discord";
+import DisplayLinkManager from "./DisplayLinkManager";
+import Drawio from "./DrawIo";
+import Dropbox from "./Dropbox";
+import GitHubDesktop from "./GitHubDesktop";
+import GitKraken from "./GitKraken";
+import GoLand from "./GoLand";
+import GoogleDrive from "./GoogleDrive";
+import GrammarlyDesktop from "./GrammarlyDesktop";
+import Granola from "./Granola";
+import IMazingProfileEditor from "./IMazingProfileEditor";
+import Insomnia from "./Insomnia";
+import IntelliJIdea from "./IntelliJIdea";
+import IntelliJIdeaCe from "./IntelliJIdeaCe";
+import JetBrainsToolbox from "./JetBrainsToolbox";
+import Linear from "./Linear";
+import LittleSnitch from "./LittleSnitch";
+import Logioptionsplus from "./Logioptionsplus";
+import Loom from "./Loom";
+import LuLu from "./LuLu";
+import Messenger from "./Messenger";
+import MicrosoftOneNote from "./MicrosoftOneNote";
+import MicrosoftOutlook from "./MicrosoftOutlook";
+import MicrosoftPowerPoint from "./MicrosoftPowerPoint";
+import Miro from "./Miro";
+import MySqlWorkbench from "./MySqlWorkbench";
+import NordVpn from "./NordVpn";
+import NotionCalendar from "./NotionCalendar";
+import Nudge from "./Nudge";
+import OmniGraffle from "./OmniGraffle";
+import OneDrive from "./OneDrive";
+import Opera from "./Opera";
+import ParallelsDesktop from "./ParallelsDesktop";
+import PhpStorm from "./PhpStorm";
+import PodmanDesktop from "./PodmanDesktop";
+import Pritunl from "./Pritunl";
+import Privileges from "./Privileges";
+import ProtonMail from "./ProtonMail";
+import PyCharm from "./PyCharm";
+import PyCharmCe from "./PyCharmCe";
+import RancherDesktop from "./RancherDesktop";
+import Rectangle from "./Rectangle";
+import Rider from "./Rider";
+import RubyMine from "./RubyMine";
+import RustRover from "./RustRover";
+import Signal from "./Signal";
+import Spotify from "./Spotify";
+import SublimeText from "./SublimeText";
+import TablePlus from "./TablePlus";
+import Tailscale from "./Tailscale";
+import Telegram from "./Telegram";
+import TeleportConnect from "./TeleportConnect";
+import Terminal from "./Terminal";
+import Thunderbird from "./Thunderbird";
+import Todoist from "./Todoist";
+import Tunnelblick from "./Tunnelblick";
+import Twingate from "./Twingate";
+import Vlc from "./Vlc";
+import WebStorm from "./WebStorm";
+import Webex from "./Webex";
+import WrikeForMac from "./WrikeForMac";
+import Zed from "./Zed";
 
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
 export const SOFTWARE_NAME_TO_ICON_MAP = {
-  appleAppStore: AppleAppStore,
-  androidPlayStore: AndroidPlayStore,
+  "010 editor": ZeroOneZeroEditor,
+  "8x8 work": EightXEightWork,
+  "1password": OnePassword,
+  abstract: Abstract,
+  "adobe acrobat": AdobeAcrobat,
   "adobe acrobat reader": AcrobatReader,
   "adobe creative cloud": CreativeCloud,
+  "adobe digital editions": AdobeDigitalEditions45,
+  "amazon dcv": AmazonDCV,
+  androidPlayStore: AndroidPlayStore,
+  "android studio": AndroidStudio,
+  anydesk: AnyDesk,
+  appleAppStore: AppleAppStore,
+  asana: Asana,
+  bbedit: BBEdit,
+  "beyond compare": BeyondCompare,
+  box: Box,
+  brave: Brave,
+  camtasia: Camtasia,
+  canva: Canva,
+  "chatgpt": ChatGpt,
+  "chatgpt atlas": ChatGptAtlas,
+  "cisco jabber": CiscoJabber,
+  "citrix workspace": CitrixWorkspace,
+  claude: Claude,
+  clion: CLion,
+  clickup: ClickUp,
+  cloudflare: Cloudflare,
   code: VisualStudioCode,
-  "microsoft excel": Excel,
+  "company portal": IntuneCompanyPortal,
+  cursor: Cursor,
+  cyberduck: Cyberduck,
+  datagrip: DataGrip,
+  discord: Discord,
+  "displaylink manager": DisplayLinkManager,
+  docker: Docker,
+  "draw.io": Drawio,
+  dropbox: Dropbox,
   falcon: Falcon,
+  figma: Figma,
   firefox: Firefox,
-  "mozilla firefox": Firefox,
-  package: Package,
-  safari: Safari,
-  slack: Slack,
+  "github desktop": GitHubDesktop,
+  gitkraken: GitKraken,
+  goland: GoLand,
+  "google chrome": ChromeApp,
+  "google drive": GoogleDrive,
+  grammarly: GrammarlyDesktop,
+  granola: Granola,
+  "imazing profile editor": IMazingProfileEditor,
+  insomnia: Insomnia,
+  "intellij idea": IntelliJIdea,
+  "intellij idea ce": IntelliJIdeaCe,
+  iterm2: ITerm,
+  "jetbrains toolbox": JetBrainsToolbox,
+  linear: Linear,
+  "little snitch": LittleSnitch,
+  "logi options plus": Logioptionsplus,
+  loom: Loom,
+  lulu: LuLu,
+  messenger: Messenger,
+  "microsoft edge": Edge,
+  "microsoft excel": Excel,
+  "microsoft onenote": MicrosoftOneNote,
+  "microsoft outlook": MicrosoftOutlook,
+  "microsoft powerpoint": MicrosoftPowerPoint,
   "microsoft teams": Teams,
   "microsoft visual studio code": VisualStudioCode,
-  "visual studio code": VisualStudioCode,
   "microsoft word": Word,
-  "google chrome": ChromeApp,
-  whatsapp: WhatsApp,
+  miro: Miro,
+  "mysql workbench": MySqlWorkbench,
+  "nord vpn": NordVpn,
   notion: Notion,
-  figma: Figma,
-  "microsoft edge": Edge,
-  docker: Docker,
-  cloudflare: Cloudflare,
-  brave: Brave,
-  box: Box,
-  teamviewer: TeamViewer,
-  "windows defender": WindowsDefender,
-  postman: Postman,
-  p4v: P4V,
-  "1password": OnePassword,
-  "amazon dcv": AmazonDCV,
-  "company portal": IntuneCompanyPortal,
-  santa: Santa,
-  "yubikey manager": YubikeyManager,
-  "beyond compare": BeyondCompare,
-  iterm2: ITerm,
-  "vnc viewer": VncViewer,
-  "windows app": WindowsAppRemote,
+  "notion calendar": NotionCalendar,
+  nudge: Nudge,
+  "omnigraffle": OmniGraffle,
   "omnissa horizon client": OmnissaHorizonClient,
+  onedrive: OneDrive,
+  opera: Opera,
+  package: Package,
+  "parallels desktop": ParallelsDesktop,
+  p4v: P4V,
+  phpstorm: PhpStorm,
+  "podman desktop": PodmanDesktop,
+  postman: Postman,
+  privileges: Privileges,
+  pritunl: Pritunl,
+  "proton mail": ProtonMail,
+  pycharm: PyCharm,
+  "pycharm ce": PyCharmCe,
+  "rancher desktop": RancherDesktop,
+  rectangle: Rectangle,
+  rider: Rider,
+  rubymine: RubyMine,
+  rustrover: RustRover,
+  safari: Safari,
+  santa: Santa,
+  signal: Signal,
+  slack: Slack,
+  spotify: Spotify,
+  "sublime text": SublimeText,
+  "table plus": TablePlus,
+  tailscale: Tailscale,
+  telegram: Telegram,
+  "teleport connect": TeleportConnect,
+  terminal: Terminal,
+  teamviewer: TeamViewer,
+  thunderbird: Thunderbird,
+  todoist: Todoist,
+  tunnelblick: Tunnelblick,
+  twingate: Twingate,
+  "vnc viewer": VncViewer,
+  "visual studio code": VisualStudioCode,
+  vlc: Vlc,
+  webstorm: WebStorm,
+  webex: Webex,
+  whatsapp: WhatsApp,
+  "windows app": WindowsAppRemote,
+  "windows defender": WindowsDefender,
+  "wrike for mac": WrikeForMac,
+  "yubikey manager": YubikeyManager,
+  zed: Zed,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon

@@ -1,13 +1,18 @@
 {
-  "extends": "@tsconfig/recommended/tsconfig.json",
   "compilerOptions": {
     "baseUrl": "./frontend",
     "target": "ES2019",
+    "module": "ESNext",
+    "moduleResolution": "node",
     "sourceMap": true,
     "jsx": "react",
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "lib": ["ES2021.String", "ES2020.Promise"]
+    "lib": ["ES2020", "DOM"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["./frontend/**/*"],
   "exclude": ["node_modules"],

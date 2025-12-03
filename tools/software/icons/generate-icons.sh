@@ -19,6 +19,69 @@ fix_import_spacing() {
   ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
 }
 
+# Add import and map entry to index.ts
+add_icon_to_index() {
+  local component_name="$1"
+  local app_name="$2"
+  local index_file="frontend/pages/SoftwarePage/components/icons/index.ts"
+  
+  if [[ ! -f "$index_file" ]]; then
+    echo "Error: index.ts not found at $index_file"
+    return 1
+  fi
+  
+  # Check if import already exists
+  if grep -q "import ${component_name} from" "$index_file"; then
+    echo "Import for ${component_name} already exists in index.ts"
+  else
+    # Find the last icon import statement (before the blank line before SOFTWARE_NAME_TO_ICON_MAP)
+    # Insert import before the blank line that precedes SOFTWARE_NAME_TO_ICON_MAP comment
+    local import_line="import ${component_name} from \"./${component_name}\";"
+    
+    # Insert before the blank line before SOFTWARE_NAME_TO_ICON_MAP comment
+    awk -v new_import="$import_line" '
+      /^\/\/ SOFTWARE_NAME_TO_ICON_MAP/ {
+        print new_import
+        print ""
+        print
+        next
+      }
+      { print }
+    ' "$index_file" > "${index_file}.tmp" && mv "${index_file}.tmp" "$index_file"
+    
+    echo "Added import for ${component_name} to index.ts"
+  fi
+  
+  # Add to SOFTWARE_NAME_TO_ICON_MAP if not already present
+  # Create map key from app name (lowercase)
+  local map_key=$(echo "$app_name" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  
+  # Check if map entry already exists (check for both quoted and unquoted keys)
+  if grep -qE "[\"']${map_key}[\"']:" "$index_file" || grep -qE "^[[:space:]]*${map_key}:" "$index_file"; then
+    echo "Map entry for ${map_key} already exists in index.ts"
+  else
+    # Insert map entry before the closing } as const;
+    local map_entry="  \"${map_key}\": ${component_name},"
+    
+    awk -v new_entry="$map_entry" '
+      /^export const SOFTWARE_NAME_TO_ICON_MAP = \{/ {
+        in_map = 1
+        print
+        next
+      }
+      in_map && /^\} as const;/ {
+        print new_entry
+        print
+        in_map = 0
+        next
+      }
+      { print }
+    ' "$index_file" > "${index_file}.tmp" && mv "${index_file}.tmp" "$index_file"
+    
+    echo "Added map entry \"${map_key}\": ${component_name} to SOFTWARE_NAME_TO_ICON_MAP"
+  fi
+}
+
 # Defaults
 SLUG=""
 APP_PATH=""
@@ -227,6 +290,17 @@ fi
 
 NEW_COMPONENT_NAME="${SVG_COMPONENT_NAME#Svg}"
 sed -i '' "s/$SVG_COMPONENT_NAME/$NEW_COMPONENT_NAME/g" "$TSX_FILE"
+
+# Extract app name from Info.plist for map key
+APP_DISPLAY_NAME=$(defaults read "$INFO_PLIST" CFBundleName 2>/dev/null || \
+                   plutil -extract CFBundleName raw "$INFO_PLIST" 2>/dev/null || \
+                   defaults read "$INFO_PLIST" CFBundleDisplayName 2>/dev/null || \
+                   plutil -extract CFBundleDisplayName raw "$INFO_PLIST" 2>/dev/null || \
+                   echo "$APP_NAME")
+
+# Update index.ts with import and map entry
+echo "Updating index.ts with new icon..."
+add_icon_to_index "$NEW_COMPONENT_NAME" "$APP_DISPLAY_NAME"
 
 ######################################
 # Copy 128x128 PNG to asset location #
