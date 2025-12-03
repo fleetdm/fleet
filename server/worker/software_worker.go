@@ -90,17 +90,31 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 	}
 }
 
+// this is called when a new app is added to Fleet, not when it is updated, so it always
+// sets the install type as AVAILABLE as it's the only possible state for all affected hosts
+// (the app cannot be installed yet).
 func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicationID string, appTeamID uint, enterpriseName string) error {
 	hosts, err := v.Datastore.GetIncludedHostUUIDMapForAppStoreApp(ctx, appTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: getting android hosts in scope")
 	}
 
+	config, err := v.Datastore.GetAndroidAppConfiguration(ctx, applicationID, appTeamID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get android app configuration")
+	}
+	_ = config
+
 	// TODO(mna): load any config, and ensure it gets applied as available with the config
 	// up-to-date (if there is any).
 
+	appPolicies := []*androidmanagement.ApplicationPolicy{{
+		PackageName: applicationID,
+		InstallType: "AVAILABLE",
+	}}
+
 	// Update Android MDM policy to include the app in self service
-	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, []string{applicationID}, hosts, "AVAILABLE")
+	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, hosts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 	}
@@ -212,7 +226,16 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return nil
 	}
 
-	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{hostUUID: hostUUID}, "AVAILABLE")
+	// TODO(mna): load any config and ensure it gets applied with the apps
+
+	appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))
+	for _, appID := range appIDs {
+		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
+			PackageName: appID,
+			InstallType: "AVAILABLE",
+		})
+	}
+	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: hostUUID})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 	}
@@ -256,8 +279,18 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 	}
 
 	if len(appIDs) > 0 {
+		// TODO(mna): load any config and ensure it gets applied with the apps
+
+		appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))
+		for _, appID := range appIDs {
+			appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
+				PackageName: appID,
+				InstallType: "PREINSTALLED",
+			})
+		}
+
 		// assign those apps to the host's Android policy
-		hostToPolicyRequest, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{hostUUID: hostUUID}, "PREINSTALLED")
+		hostToPolicyRequest, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: hostUUID})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 		}
