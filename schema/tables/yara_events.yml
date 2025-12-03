@@ -3,3 +3,5 @@ platforms:
   - darwin
   - linux
 evented: true
+notes: |-
+  - `count` is a reserved word. When creating a query for a column with the same name wrap it in qoutations ("count").
