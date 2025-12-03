@@ -16,7 +16,277 @@ fix_import_spacing() {
       next;
     }
     { print }
-  ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+  ' "$file" > "${file}.tmp"
+  
+  if [ $? -eq 0 ]; then
+    mv "${file}.tmp" "$file"
+  else
+    rm -f "${file}.tmp"
+    echo "Error: Failed to update $file" >&2
+    return 1
+  fi
+}
+
+# Check if a string is a valid JavaScript identifier
+# Valid identifiers: start with letter/underscore/dollar, contain only letters/digits/underscore/dollar
+is_valid_js_identifier() {
+  local str="$1"
+  # Check if it matches the pattern: starts with letter/underscore/dollar, followed by letters/digits/underscore/dollar only
+  if [[ "$str" =~ ^[a-zA-Z_$][a-zA-Z0-9_$]*$ ]]; then
+    return 0  # valid identifier
+  else
+    return 1  # not a valid identifier (contains spaces, special chars, or starts with number)
+  fi
+}
+
+# Compare two strings alphabetically (case-insensitive)
+# Returns: 0 if str1 < str2, 1 if str1 >= str2
+compare_alphabetically() {
+  local str1="$1"
+  local str2="$2"
+  # Convert to lowercase for comparison
+  local lower1=$(echo "$str1" | tr '[:upper:]' '[:lower:]')
+  local lower2=$(echo "$str2" | tr '[:upper:]' '[:lower:]')
+  
+  if [[ "$lower1" < "$lower2" ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Add import and map entry to index.ts
+add_icon_to_index() {
+  local component_name="$1"
+  local app_name="$2"
+  
+  # Ensure we're in the repo root (in case function is called from different context)
+  local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  local repo_root="$(cd "$script_dir/../../.." && pwd)"
+  
+  if [[ ! -d "$repo_root" ]]; then
+    echo "Error: Repository root not found at $repo_root" >&2
+    return 1
+  fi
+  
+  cd "$repo_root" || {
+    echo "Error: Failed to change to repository root directory" >&2
+    return 1
+  }
+  
+  # Use absolute path to avoid any directory issues
+  local index_file="$repo_root/frontend/pages/SoftwarePage/components/icons/index.ts"
+  
+  # Normalize the path (resolve any .. or . components)
+  index_file="$(cd "$(dirname "$index_file")" && pwd)/$(basename "$index_file")"
+  
+  if [[ ! -f "$index_file" ]]; then
+    echo "Error: index.ts not found at $index_file" >&2
+    echo "Current directory: $(pwd)" >&2
+    echo "Repository root: $repo_root" >&2
+    return 1
+  fi
+  
+  if [[ ! -r "$index_file" ]]; then
+    echo "Error: Cannot read index.ts at $index_file" >&2
+    return 1
+  fi
+  
+  # Check if import already exists
+  if grep -q "import ${component_name} from" "$index_file"; then
+    echo "Import for ${component_name} already exists in index.ts"
+  else
+    # Insert import in alphabetical order
+    local import_line="import ${component_name} from \"./${component_name}\";"
+    
+    # Verify index_file is set and exists before running awk
+    if [[ -z "$index_file" ]]; then
+      echo "Error: index_file variable is empty" >&2
+      return 1
+    fi
+    
+    # Ensure we have an absolute path
+    if [[ "$index_file" != /* ]]; then
+      index_file="$(cd "$(dirname "$index_file")" && pwd)/$(basename "$index_file")"
+    fi
+    
+    # Create temporary awk script file to avoid heredoc issues
+    local awk_script_file=$(mktemp)
+    cat > "$awk_script_file" << 'AWK_EOF'
+BEGIN {
+  inserted = 0
+  in_icon_imports = 0
+}
+# Print interface imports as-is
+/^import \{/ || /^import ISoftware/ {
+  print
+  next
+}
+# Detect start of icon imports (after interface imports)
+# Icon imports are component imports that use "./" path (not interface imports)
+/^import [A-Za-z]/ && !in_icon_imports && /from "\.\// {
+  in_icon_imports = 1
+  # Check if we should insert before this first import
+  # Use field-based parsing to avoid "from" being a reserved word
+  if ($1 == "import" && $3 == "from") {
+    current_component = $2
+    new_lower = tolower(new_component)
+    current_lower = tolower(current_component)
+    if (new_lower < current_lower) {
+      print new_import
+      inserted = 1
+    }
+  }
+}
+# If we're in icon imports section and haven't inserted yet
+in_icon_imports && !inserted {
+  # Extract component name from current import line using field-based parsing
+  if ($1 == "import" && $3 == "from") {
+    current_component = $2
+    # Compare alphabetically (case-insensitive)
+    new_lower = tolower(new_component)
+    current_lower = tolower(current_component)
+    if (new_lower < current_lower) {
+      print new_import
+      inserted = 1
+    }
+  }
+}
+# Stop processing imports when we hit the SOFTWARE_NAME_TO_ICON_MAP comment
+/^\/\/ SOFTWARE_NAME_TO_ICON_MAP/ {
+  if (!inserted) {
+    print new_import
+    inserted = 1
+  }
+  in_icon_imports = 0
+}
+{ print }
+AWK_EOF
+    
+    # Use awk with script file and pipe input
+    if ! cat "$index_file" | awk -v new_import="$import_line" -v new_component="$component_name" -f "$awk_script_file" > "${index_file}.tmp" 2>&1; then
+      local awk_error=$(cat "${index_file}.tmp" 2>&1)
+      rm -f "${index_file}.tmp" "$awk_script_file"
+      echo "Error: Failed to add import for ${component_name}" >&2
+      echo "Awk error: $awk_error" >&2
+      echo "Index file path: $index_file" >&2
+      echo "Current directory: $(pwd)" >&2
+      return 1
+    fi
+    
+    rm -f "$awk_script_file"
+    
+    if [ -f "${index_file}.tmp" ]; then
+      mv "${index_file}.tmp" "$index_file"
+      echo "Added import for ${component_name} to index.ts (in alphabetical order)"
+    else
+      echo "Error: awk succeeded but temp file was not created" >&2
+      return 1
+    fi
+  fi
+  
+  # Add to SOFTWARE_NAME_TO_ICON_MAP if not already present
+  # Create map key from app name (lowercase)
+  local map_key=$(echo "$app_name" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  
+  # Check if map entry already exists (check for both quoted and unquoted keys)
+  if grep -qE "[\"']${map_key}[\"']:" "$index_file" || grep -qE "^[[:space:]]*${map_key}:" "$index_file"; then
+    echo "Map entry for ${map_key} already exists in index.ts"
+  else
+    # Determine if we need to quote the key (only quote if it's not a valid JS identifier)
+    local quoted_key
+    if is_valid_js_identifier "$map_key"; then
+      quoted_key="$map_key"
+    else
+      quoted_key="\"${map_key}\""
+    fi
+    
+    # Insert map entry in alphabetical order
+    local map_entry="  ${quoted_key}: ${component_name},"
+    
+    # Create temporary awk script file to avoid heredoc issues
+    local awk_script_file=$(mktemp)
+    cat > "$awk_script_file" << 'AWK_EOF'
+BEGIN {
+  inserted = 0
+  in_map = 0
+  first_map_entry = 1
+}
+/^export const SOFTWARE_NAME_TO_ICON_MAP = \{/ {
+  in_map = 1
+  print
+  next
+}
+# If we're in the map and haven't inserted yet
+in_map && !inserted {
+  # Check if this is a map entry (has a colon)
+  if (match($0, /:/)) {
+    # Extract everything before the colon
+    line_before_colon = substr($0, 1, RSTART - 1)
+    # Remove leading/trailing whitespace
+    gsub(/^[[:space:]]+|[[:space:]]+$/, "", line_before_colon)
+    # Remove quotes if present
+    if (substr(line_before_colon, 1, 1) == "\"" && substr(line_before_colon, length(line_before_colon), 1) == "\"") {
+      current_key = substr(line_before_colon, 2, length(line_before_colon) - 2)
+    } else {
+      current_key = line_before_colon
+    }
+    # Compare alphabetically (case-insensitive)
+    new_lower = tolower(new_key)
+    current_lower = tolower(current_key)
+    if (new_lower < current_lower) {
+      print new_entry
+      inserted = 1
+      first_map_entry = 0
+    }
+    first_map_entry = 0
+  } else if (first_map_entry && /^[[:space:]]*$/) {
+    # Skip blank lines at the start of the map
+    next
+  }
+}
+# Stop at closing brace
+in_map && /^\} as const;/ {
+  if (!inserted) {
+    print new_entry
+    inserted = 1
+  }
+  print
+  in_map = 0
+  next
+}
+{ print }
+AWK_EOF
+    
+    # Use awk with script file and pipe input
+    if ! cat "$index_file" | awk -v new_entry="$map_entry" -v new_key="$map_key" -f "$awk_script_file" > "${index_file}.tmp" 2>&1; then
+      local awk_error=$(cat "${index_file}.tmp" 2>&1)
+      rm -f "${index_file}.tmp" "$awk_script_file"
+      echo "Error: Failed to add map entry for ${map_key}" >&2
+      echo "Awk error: $awk_error" >&2
+      echo "Index file path: $index_file" >&2
+      echo "Current directory: $(pwd)" >&2
+      return 1
+    fi
+    
+    rm -f "$awk_script_file"
+    
+    if [ -f "${index_file}.tmp" ]; then
+      mv "${index_file}.tmp" "$index_file"
+      echo "Added map entry ${quoted_key}: ${component_name} to SOFTWARE_NAME_TO_ICON_MAP (in alphabetical order)"
+    else
+      echo "Error: awk succeeded but temp file was not created" >&2
+      return 1
+    fi
+  fi
+}
+
+# Change to repository root directory (where this script is located)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+cd "$REPO_ROOT" || {
+  echo "Error: Failed to change to repository root directory" >&2
+  exit 1
 }
 
 # Defaults
@@ -227,6 +497,17 @@ fi
 
 NEW_COMPONENT_NAME="${SVG_COMPONENT_NAME#Svg}"
 sed -i '' "s/$SVG_COMPONENT_NAME/$NEW_COMPONENT_NAME/g" "$TSX_FILE"
+
+# Extract app name from Info.plist for map key
+APP_DISPLAY_NAME=$(defaults read "$INFO_PLIST" CFBundleName 2>/dev/null || \
+                   plutil -extract CFBundleName raw "$INFO_PLIST" 2>/dev/null || \
+                   defaults read "$INFO_PLIST" CFBundleDisplayName 2>/dev/null || \
+                   plutil -extract CFBundleDisplayName raw "$INFO_PLIST" 2>/dev/null || \
+                   echo "$APP_NAME")
+
+# Update index.ts with import and map entry
+echo "Updating index.ts with new icon..."
+add_icon_to_index "$NEW_COMPONENT_NAME" "$APP_DISPLAY_NAME"
 
 ######################################
 # Copy 128x128 PNG to asset location #

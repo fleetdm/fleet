@@ -1122,3 +1122,170 @@ func (svc *Service) MigrateToPerDevicePolicy(ctx context.Context) error {
 	}
 	return nil
 }
+
+// BuildAndSendFleetAgentConfig builds the complete AgentManagedConfiguration for the given hosts
+// (including certificate templates) and sends it to the Android Management API.
+//
+// This function uses an "insert first" approach to avoid race conditions:
+// 1. Fetches all certificate templates for the given hosts
+// 2. For hosts with new certificates: inserts them first, then calls the API
+// 3. If the API call fails, performs a compensating delete of the inserted records
+// 4. For hosts without new certificates: calls the API directly (unless skipHostsWithoutNewCerts is true)
+//
+// This ensures that once a certificate template record exists in the database,
+// any concurrent process will see it as Pending.
+func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error {
+	if len(hostUUIDs) == 0 {
+		return nil
+	}
+
+	appConfig, err := svc.fleetDS.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	// Cache enroll secrets by team ID to avoid repeated lookups
+	enrollSecretsCache := make(map[uint][]*fleet.EnrollSecret)
+
+	// Helper function to get enroll secrets with caching
+	getEnrollSecretsForTeam := func(teamID *uint) ([]*fleet.EnrollSecret, error) {
+		cacheKey := uint(0)
+		if teamID != nil {
+			cacheKey = *teamID
+		}
+
+		if secrets, ok := enrollSecretsCache[cacheKey]; ok {
+			return secrets, nil
+		}
+
+		secrets, err := svc.fleetDS.GetEnrollSecrets(ctx, teamID)
+		if err != nil {
+			return nil, err
+		}
+
+		enrollSecretsCache[cacheKey] = secrets
+		return secrets, nil
+	}
+
+	// Get all certificate templates for the hosts
+	allTemplates, err := svc.fleetDS.ListCertificateTemplatesForHosts(ctx, hostUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list certificate templates for hosts")
+	}
+
+	// Group templates by host UUID and track new ones that need challenges
+	templatesByHost := make(map[string][]fleet.CertificateTemplateForHost)
+	newCertsByHost := make(map[string][]fleet.HostCertificateTemplate)
+
+	for i := range allTemplates {
+		template := &allTemplates[i]
+
+		// If no existing record (FleetChallenge is nil), generate a new challenge
+		if template.FleetChallenge == nil {
+			challenge, err := svc.fleetDS.NewChallenge(ctx)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "generate fleet challenge")
+			}
+			// Update the template with the challenge for building the config
+			allTemplates[i].FleetChallenge = &challenge
+
+			newCertsByHost[template.HostUUID] = append(newCertsByHost[template.HostUUID], fleet.HostCertificateTemplate{
+				HostUUID:              template.HostUUID,
+				CertificateTemplateID: template.CertificateTemplateID,
+				FleetChallenge:        challenge,
+				Status:                fleet.MDMDeliveryPending,
+			})
+		}
+
+		templatesByHost[template.HostUUID] = append(templatesByHost[template.HostUUID], allTemplates[i])
+	}
+
+	// Helper to build config for a single host
+	buildHostConfig := func(hostUUID string) (*android.AgentManagedConfiguration, error) {
+		androidHost, err := svc.ds.AndroidHostLiteByHostUUID(ctx, hostUUID)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "get android host %s", hostUUID)
+		}
+
+		enrollSecrets, err := getEnrollSecretsForTeam(androidHost.Host.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "get enroll secrets for team %v", androidHost.Host.TeamID)
+		}
+		if len(enrollSecrets) == 0 {
+			return nil, ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
+		}
+
+		// Build certificate template IDs list
+		var certificateTemplateIDs []android.AgentCertificateTemplate
+		for _, tmpl := range templatesByHost[hostUUID] {
+			certificateTemplateIDs = append(certificateTemplateIDs, android.AgentCertificateTemplate{
+				ID: tmpl.CertificateTemplateID,
+			})
+		}
+
+		return &android.AgentManagedConfiguration{
+			ServerURL:              appConfig.ServerSettings.ServerURL,
+			HostUUID:               hostUUID,
+			EnrollSecret:           enrollSecrets[0].Secret,
+			CertificateTemplateIDs: certificateTemplateIDs,
+		}, nil
+	}
+
+	// Step 1: Insert all new certificate templates for all hosts at once
+	// This ensures they're visible to any concurrent process immediately
+	var allNewCerts []fleet.HostCertificateTemplate
+	for _, certs := range newCertsByHost {
+		allNewCerts = append(allNewCerts, certs...)
+	}
+
+	if len(allNewCerts) > 0 {
+		if err := svc.fleetDS.BulkInsertHostCertificateTemplates(ctx, allNewCerts); err != nil {
+			// This could fail if another process already inserted the same records (very rare race condition)
+			// In which case, we'll let the other process handle these hosts
+			return ctxerr.Wrap(ctx, err, "bulk insert host certificate templates")
+		}
+	}
+
+	// Step 2: For each host with new certs, send updated Agent config. On failure, delete that host's certs so we can retry later.
+	for hostUUID, newCerts := range newCertsByHost {
+		config, err := buildHostConfig(hostUUID)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "failed to build host config", "host_uuid", hostUUID, "err", err)
+			if delErr := svc.fleetDS.DeleteHostCertificateTemplates(ctx, newCerts); delErr != nil {
+				level.Error(svc.logger).Log("msg", "failed to delete host certificate templates after config build failure", "host_uuid", hostUUID, "err", delErr)
+			}
+			continue
+		}
+
+		hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
+		if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
+			// On failure, perform compensating delete for this host only
+			level.Error(svc.logger).Log("msg", "failed to send fleet agent config to API", "host_uuid", hostUUID, "err", err)
+			if delErr := svc.fleetDS.DeleteHostCertificateTemplates(ctx, newCerts); delErr != nil {
+				level.Error(svc.logger).Log("msg", "failed to delete host certificate templates after API failure", "host_uuid", hostUUID, "err", delErr)
+			}
+		}
+	}
+
+	// Step 3: Process hosts without new certificates (unless skipHostsWithoutNewCerts is true)
+	if !skipHostsWithoutNewCerts {
+		for _, hostUUID := range hostUUIDs {
+			if _, hasNewCerts := newCertsByHost[hostUUID]; hasNewCerts {
+				continue // Already processed above
+			}
+
+			config, err := buildHostConfig(hostUUID)
+			if err != nil {
+				level.Error(svc.logger).Log("msg", "failed to build host config", "host_uuid", hostUUID, "err", err)
+				continue
+			}
+
+			hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
+			if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
+				level.Error(svc.logger).Log("msg", "failed to send fleet agent config to API", "host_uuid", hostUUID, "err", err)
+			}
+		}
+	}
+
+	return nil
+}

@@ -107,6 +107,13 @@
       "description": "Beyond Compare is an app used to compare files and folders."
     },
     {
+      "name": "Bitwarden",
+      "slug": "bitwarden/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.bitwarden.desktop",
+      "description": "Bitwarden is a desktop password and login vault."
+    },
+    {
       "name": "Box Drive",
       "slug": "box-drive/darwin",
       "platform": "darwin",
@@ -583,6 +590,13 @@
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
+      "name": "Nova",
+      "slug": "nova/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.panic.Nova",
+      "description": "Nova is a native code editor by Panic."
+    },
+    {
       "name": "Nudge",
       "slug": "nudge/darwin",
       "platform": "darwin",
@@ -847,6 +861,13 @@
       "platform": "darwin",
       "unique_identifier": "com.todoist.mac.Todoist",
       "description": "Todoist is a to do list and a planning center for individuals and teams."
+    },
+    {
+      "name": "Tower",
+      "slug": "tower/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.fournova.Tower",
+      "description": "Tower is a git client focusing on power and productivity."
     },
     {
       "name": "Tunnelblick",

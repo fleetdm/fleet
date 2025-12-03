@@ -70,6 +70,34 @@ func (ds *Datastore) ListCertificateTemplatesForHosts(ctx context.Context, hostU
 	return results, nil
 }
 
+// GetCertificateTemplateForHost returns a certificate template for a specific host and certificate template ID
+func (ds *Datastore) GetCertificateTemplateForHost(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
+	const stmt = `
+		SELECT
+			hosts.uuid AS host_uuid,
+			certificate_templates.id AS certificate_template_id,
+			host_certificate_templates.fleet_challenge AS fleet_challenge,
+			host_certificate_templates.status AS status,
+			certificate_authorities.type AS ca_type,
+			certificate_authorities.name AS ca_name
+		FROM certificate_templates
+		INNER JOIN hosts ON hosts.team_id = certificate_templates.team_id
+		INNER JOIN certificate_authorities ON certificate_authorities.id = certificate_templates.certificate_authority_id
+		LEFT JOIN host_certificate_templates
+			ON host_certificate_templates.host_uuid = hosts.uuid
+			AND host_certificate_templates.certificate_template_id = certificate_templates.id
+		WHERE
+			hosts.uuid = ? AND certificate_templates.id = ?
+	`
+
+	var result fleet.CertificateTemplateForHost
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, hostUUID, certificateTemplateID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get certificate template for host")
+	}
+
+	return &result, nil
+}
+
 // BulkInsertHostCertificateTemplates inserts multiple host_certificate_templates records
 func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error {
 	if len(hostCertTemplates) == 0 {
@@ -99,6 +127,37 @@ func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hos
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk insert host_certificate_templates")
+	}
+
+	return nil
+}
+
+// DeleteHostCertificateTemplates deletes specific host_certificate_templates records
+// identified by (host_uuid, certificate_template_id) pairs.
+func (ds *Datastore) DeleteHostCertificateTemplates(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error {
+	if len(hostCertTemplates) == 0 {
+		return nil
+	}
+
+	// Build placeholders and args for tuple matching
+	var placeholders strings.Builder
+	args := make([]any, 0, len(hostCertTemplates)*2)
+
+	for i, hct := range hostCertTemplates {
+		if i > 0 {
+			placeholders.WriteString(",")
+		}
+		placeholders.WriteString("(?,?)")
+		args = append(args, hct.HostUUID, hct.CertificateTemplateID)
+	}
+
+	stmt := fmt.Sprintf(
+		"DELETE FROM host_certificate_templates WHERE (host_uuid, certificate_template_id) IN (%s)",
+		placeholders.String(),
+	)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host_certificate_templates")
 	}
 
 	return nil

@@ -24,6 +24,12 @@ type Service interface {
 	EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error)
 	AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string, installType string) (map[string]*MDMAndroidPolicyRequest, error)
 	AddFleetAgentToAndroidPolicy(ctx context.Context, enterpriseName string, hostConfigs map[string]AgentManagedConfiguration) error
+	// BuildAndSendFleetAgentConfig builds the complete AgentManagedConfiguration for the given hosts
+	// (including certificate templates) and sends it to the Android Management API.
+	// This is the centralized function that should be used by all callers to avoid race conditions.
+	// If skipHostsWithoutNewCerts is true, hosts that don't have new certificate templates to deliver
+	// will be skipped.
+	BuildAndSendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error
 	EnableAppReportsOnDefaultPolicy(ctx context.Context) error
 	MigrateToPerDevicePolicy(ctx context.Context) error
 	PatchDevice(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (skip bool, apiErr error)

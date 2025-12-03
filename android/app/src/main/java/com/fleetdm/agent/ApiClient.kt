@@ -45,7 +45,7 @@ object ApiClient {
 
     private suspend fun setApiKey(key: String) {
         dataStore.edit { preferences ->
-            preferences[API_KEY] = key
+            preferences[API_KEY] = KeystoreManager.encrypt(key)
         }
     }
 
@@ -57,7 +57,14 @@ object ApiClient {
 
     val apiKeyFlow: Flow<String?>
         get() = dataStore.data.map { preferences ->
-            preferences[API_KEY]
+            preferences[API_KEY]?.let { encrypted ->
+                try {
+                    KeystoreManager.decrypt(encrypted)
+                } catch (e: Exception) {
+                    Log.e("ApiClient", "Failed to decrypt API key", e)
+                    null
+                }
+            }
         }
 
     val baseUrlFlow: Flow<String?>
@@ -65,7 +72,15 @@ object ApiClient {
             preferences[BASE_URL_KEY]
         }
 
-    suspend fun getApiKey(): String? = dataStore.data.first()[API_KEY]
+    suspend fun getApiKey(): String? {
+        val encrypted = dataStore.data.first()[API_KEY] ?: return null
+        return try {
+            KeystoreManager.decrypt(encrypted)
+        } catch (e: Exception) {
+            Log.e("ApiClient", "Failed to decrypt API key", e)
+            null
+        }
+    }
 
     suspend fun getBaseUrl(): String? = dataStore.data.first()[BASE_URL_KEY]
 
