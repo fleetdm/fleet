@@ -15,6 +15,7 @@ import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
 import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
+import { IOktaFormData } from "../OktaForm/OktaForm";
 
 const UNCHANGED_PASSWORD_API_RESPONSE = "********";
 
@@ -67,6 +68,14 @@ export const generateDefaultFormData = (
       return {
         name: certAuthority.name,
         url: certAuthority.url,
+        username: certAuthority.username,
+        password: certAuthority.password,
+      };
+    case "okta":
+      return {
+        name: certAuthority.name,
+        scepURL: certAuthority.url,
+        challengeURL: certAuthority.challenge_url,
         username: certAuthority.username,
         password: certAuthority.password,
       };
@@ -216,6 +225,37 @@ export const generateEditCertAuthorityData = (
       }
       return diff;
     }
+    case "okta": {
+      const {
+        name: oktaName,
+        scepURL: oktaURL,
+        challengeURL: oktaChallengeURL,
+        username: oktaUsername,
+        password: oktaPassword,
+      } = formData as IOktaFormData;
+      const diff = {
+        okta: deepDifference(
+          {
+            name: oktaName,
+            url: oktaURL,
+            challenge_url: oktaChallengeURL,
+            username: oktaUsername,
+            password: oktaPassword,
+          },
+          certAuthWithoutType
+        ),
+      };
+      // Make sure credentials are included if we are modifying the url or challenge_url
+      if (diff.okta.url || diff.okta.challenge_url) {
+        if (!diff.okta.username) {
+          diff.okta.username = oktaUsername;
+        }
+        if (!diff.okta.password) {
+          diff.okta.password = oktaPassword;
+        }
+      }
+      return diff;
+    }
     default:
       throw new Error(
         `Unknown certificate authority type: ${certAuthority.type}`
@@ -325,6 +365,24 @@ export const updateFormData = (
             formData.username === certAuthority.username
               ? ""
               : formData.username,
+          password:
+            formData.password === UNCHANGED_PASSWORD_API_RESPONSE
+              ? ""
+              : formData.password,
+        };
+      }
+      break;
+    }
+    case "okta": {
+      const formData = prevFormData as IOktaFormData;
+      if (
+        update.name === "name" ||
+        update.name === "scepURL" ||
+        update.name === "challengeURL" ||
+        update.name === "username"
+      ) {
+        return {
+          ...newData,
           password:
             formData.password === UNCHANGED_PASSWORD_API_RESPONSE
               ? ""

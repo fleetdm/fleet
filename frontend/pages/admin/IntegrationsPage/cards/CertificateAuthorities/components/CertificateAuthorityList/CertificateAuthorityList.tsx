@@ -40,6 +40,9 @@ export const generateListData = (
       case "custom_est_proxy":
         description = "Custom Enrollment Over Secure Transport (EST)";
         break;
+      case "okta":
+        description = "Okta";
+        break;
       default:
         description = "Unknown Certificate Authority Type";
     }

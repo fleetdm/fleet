@@ -97,13 +97,24 @@ export interface ICertificatesCustomEST {
   password: string;
 }
 
+export interface ICertificatesOkta {
+  id?: number;
+  type?: "okta";
+  name: string;
+  url: string;
+  challenge_url: string;
+  username: string;
+  password: string;
+}
+
 export type ICertificateAuthorityType =
   | "ndes_scep_proxy"
   | "digicert"
   | "custom_scep_proxy"
   | "hydrant"
   | "smallstep"
-  | "custom_est_proxy";
+  | "custom_est_proxy"
+  | "okta";
 
 /** all the types of certificates */
 export type ICertificateAuthority =
@@ -112,7 +123,8 @@ export type ICertificateAuthority =
   | ICertificatesHydrant
   | ICertificatesCustomSCEP
   | ICertificatesSmallstep
-  | ICertificatesCustomEST;
+  | ICertificatesCustomEST
+  | ICertificatesOkta;
 
 export const isNDESCertAuthority = (
   integration: ICertificateAuthority
@@ -172,9 +184,22 @@ export const isCustomESTCertAuthority = (
   return (
     "name" in integration &&
     "url" in integration &&
-    // differentiates from smallstep
+    // differentiates from smallstep and okta
     !("challenge_url" in integration) &&
     "username" in integration &&
     "password" in integration
+  );
+};
+
+export const isOktaCertAuthority = (
+  integration: ICertificateAuthority
+): integration is ICertificatesOkta => {
+  return (
+    "name" in integration &&
+    "url" in integration &&
+    "challenge_url" in integration &&
+    "username" in integration &&
+    "password" in integration &&
+    integration.type === "okta"
   );
 };

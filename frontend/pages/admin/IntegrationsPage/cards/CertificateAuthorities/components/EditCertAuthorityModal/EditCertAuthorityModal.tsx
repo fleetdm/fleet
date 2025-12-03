@@ -24,6 +24,7 @@ import CustomSCEPForm from "../CustomSCEPForm";
 import HydrantForm from "../HydrantForm";
 import SmallstepForm from "../SmallstepForm";
 import CustomESTForm from "../CustomESTForm";
+import OktaForm from "../OktaForm";
 
 const baseClass = "edit-cert-authority-modal";
 
@@ -98,6 +99,8 @@ const EditCertAuthorityModal = ({
         return CustomSCEPForm;
       case "custom_est_proxy":
         return CustomESTForm;
+      case "okta":
+        return OktaForm;
       default:
         throw new Error(
           `Unknown certificate authority type: ${certAuthority.type}`
