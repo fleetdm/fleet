@@ -141,8 +141,16 @@ func (ds *Datastore) ListSoftwareTitles(
 		return nil, 0, nil, fleet.NewInvalidArgumentError("query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true")
 	}
 
-	if opt.TeamID == nil && opt.PackagesOnly {
-		return nil, 0, nil, fleet.NewInvalidArgumentError("query", "packages_only can only be provided with team_id")
+	if opt.TeamID == nil {
+		if opt.PackagesOnly {
+			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "packages_only can only be provided with team_id")
+		}
+		if opt.Platform != "" {
+			// the platform filters for **installable** software on the given platform, and installable
+			// software is supported on a per team basis, so we require both
+			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "The 'platform' and 'team_id' parameters must be used together to filter the software available for install.")
+		}
+
 	}
 
 	dbReader := ds.reader(ctx)
