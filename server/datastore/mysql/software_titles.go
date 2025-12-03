@@ -148,7 +148,7 @@ func (ds *Datastore) ListSoftwareTitles(
 		if opt.Platform != "" {
 			// the platform filters for **installable** software on the given platform, and installable
 			// software is supported on a per team basis, so we require both
-			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "The 'platform' and 'team_id' parameters must be used together to filter the software available for install.")
+			return nil, 0, nil, fleet.NewInvalidArgumentError("query", fleet.FilterTitlesByPlatformNeedsTeamIdErrMsg)
 		}
 
 	}
