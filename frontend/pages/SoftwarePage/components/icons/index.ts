@@ -177,7 +177,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cyberduck: Cyberduck,
   datagrip: DataGrip,
   discord: Discord,
-  "displaylink manager": DisplayLinkManager,
+  "DisplayLink USB Graphics Software": DisplayLinkManager,
   docker: Docker,
   "draw.io": Drawio,
   dropbox: Dropbox,
