@@ -584,7 +584,7 @@ module.exports.routes = {
     locals: {
       hideStartCTA: true,
       pageTitleForMeta: 'Fleet Fast-track',
-      pageDescriptionForMeta: 'Get up and running with Fleet Fast-track'
+      pageDescriptionForMeta: 'Fast-track helps your team enroll devices, set up workflows, and validate configurations with Fleet experts, to get Fleet ready for production.'
     }
   },
 
