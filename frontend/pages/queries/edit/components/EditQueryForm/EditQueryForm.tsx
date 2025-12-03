@@ -14,9 +14,6 @@ import { size } from "lodash";
 import classnames from "classnames";
 import { useDebouncedCallback } from "use-debounce";
 import { IAceEditor } from "react-ace/lib/types";
-import ReactTooltip from "react-tooltip";
-
-import { COLORS } from "styles/var/colors";
 
 import PATHS from "router/paths";
 
@@ -28,6 +25,7 @@ import {
   getCustomDropdownOptions,
   secondsToDhms,
 } from "utilities/helpers";
+
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
@@ -53,8 +51,11 @@ import labelsAPI, {
 
 import Avatar from "components/Avatar";
 import SQLEditor from "components/SQLEditor";
-// @ts-ignore
-import validateQuery from "components/forms/validators/validate_query";
+import {
+  validateQuery,
+  EMPTY_QUERY_ERR,
+  // @ts-ignore
+} from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -377,10 +378,7 @@ const EditQueryForm = ({
       });
     }
 
-    let valid = true;
-    const { valid: isValidated } = validateQuerySQL(lastEditedQueryBody);
-
-    valid = isValidated;
+    const { valid } = validateQuerySQL(lastEditedQueryBody);
 
     if (valid) {
       if (!savedQueryMode) {
@@ -680,7 +678,7 @@ const EditQueryForm = ({
     // Save and save as new disabled for query name blank on existing query or sql errors
     const disableSaveFormErrors =
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
-      !!size(errors) ||
+      (!!errors.query && errors.query === EMPTY_QUERY_ERR) ||
       (savedQueryMode && !platformSelector.isAnyPlatformSelected) ||
       (selectedTargetType === "Custom" &&
         !Object.entries(selectedLabels).some(([, value]) => {

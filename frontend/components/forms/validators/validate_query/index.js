@@ -1,5 +1,7 @@
 import { Parser } from "utilities/node-sql-parser/sqlite";
 
+export const EMPTY_QUERY_ERR = "Query text must be present";
+
 const invalidQueryResponse = (message) => {
   return { valid: false, error: message };
 };
@@ -8,7 +10,7 @@ const parser = new Parser();
 
 export const validateQuery = (queryText) => {
   if (!queryText) {
-    return invalidQueryResponse("Query text must be present");
+    return invalidQueryResponse(EMPTY_QUERY_ERR);
   }
 
   try {
@@ -21,4 +23,4 @@ export const validateQuery = (queryText) => {
   }
 };
 
-export default validateQuery;
+export default { EMPTY_QUERY_ERR, validateQuery };
