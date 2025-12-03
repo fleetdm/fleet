@@ -199,7 +199,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "jetbrains toolbox": JetBrainsToolbox,
   linear: Linear,
   "little snitch": LittleSnitch,
-  "logi options plus": Logioptionsplus,
+  "logi options+": Logioptionsplus,
   loom: Loom,
   lulu: LuLu,
   messenger: Messenger,
