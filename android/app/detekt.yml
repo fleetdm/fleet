@@ -35,6 +35,9 @@ complexity:
     threshold: 5 # Android receivers often need nested blocks
   TooManyFunctions:
     active: false
+  ReturnCount:
+    active: true
+    max: 5
 
 exceptions:
   TooGenericExceptionCaught:
