@@ -479,6 +479,48 @@ func testGetCertificateTemplatesByTeamID(t *testing.T, ds *Datastore) {
 				require.False(t, meta.HasNextResults)
 			},
 		},
+		{
+			"Get certificate templates for No team (team_id = 0)",
+			func(ds *Datastore) {
+				// Create a test certificate authority
+				ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+					Type:      string(fleet.CATypeCustomSCEPProxy),
+					Name:      ptr.String("Test SCEP CA"),
+					URL:       ptr.String("http://localhost:8080/scep"),
+					Challenge: ptr.String("test-challenge"),
+				})
+				require.NoError(t, err)
+				caID = ca.ID
+
+				// Insert initial certificates
+				for i := 0; i < 2; i++ {
+					certificateTemplate1 := fleet.CertificateTemplate{
+						Name:                   fmt.Sprintf("No Team Cert%d", i),
+						TeamID:                 0,
+						CertificateAuthorityID: caID,
+						SubjectName:            fmt.Sprintf("CN=No Team Subject %d", i),
+					}
+					_, err = ds.writer(ctx).ExecContext(ctx,
+						"INSERT INTO certificate_templates (name, team_id, certificate_authority_id, subject_name) VALUES (?, ?, ?, ?)",
+						certificateTemplate1.Name,
+						certificateTemplate1.TeamID,
+						certificateTemplate1.CertificateAuthorityID,
+						certificateTemplate1.SubjectName,
+					)
+					require.NoError(t, err)
+				}
+			},
+			func(t *testing.T, ds *Datastore) {
+				templates, meta, err := ds.GetCertificateTemplatesByTeamID(ctx, 0, fleet.ListOptions{Page: 0, PerPage: 10, IncludeMetadata: true})
+				require.NoError(t, err)
+				require.Len(t, templates, 2)
+				require.Equal(t, uint(2), meta.TotalResults)
+
+				for _, template := range templates {
+					require.Contains(t, []string{"No Team Cert0", "No Team Cert1"}, template.Name)
+				}
+			},
+		},
 	}
 
 	for _, tc := range testCases {

@@ -13,7 +13,7 @@ import (
 
 type createCertificateTemplateRequest struct {
 	Name                   string `json:"name"`
-	TeamID                 uint   `json:"team_id"`
+	TeamID                 uint   `json:"team_id"` // If not provided, intentionally defaults to 0 aka "No team"
 	CertificateAuthorityId uint   `json:"certificate_authority_id"`
 	SubjectName            string `json:"subject_name"`
 }
@@ -68,7 +68,8 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 type listCertificateTemplatesRequest struct {
 	fleet.ListOptions
 
-	TeamID uint `query:"team_id"`
+	// If not provided, intentionally defaults to 0 aka "No team"
+	TeamID uint `query:"team_id,optional"`
 }
 
 type listCertificateTemplatesResponse struct {
@@ -148,7 +149,12 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 		return nil, err
 	}
 
-	if certificate.TeamID != 0 && (host.TeamID == nil || *host.TeamID != certificate.TeamID) {
+	// team_id = 0 for hosts without a team
+	hostTeamID := uint(0)
+	if host.TeamID != nil {
+		hostTeamID = *host.TeamID
+	}
+	if certificate.TeamID != hostTeamID {
 		return nil, fleet.NewPermissionError("host does not have access to this certificate template")
 	}
 
@@ -317,7 +323,7 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 
 type deleteCertificateTemplateSpecsRequest struct {
 	IDs    []uint `json:"ids"`
-	TeamID uint   `json:"team_id"`
+	TeamID uint   `json:"team_id"` // If not provided, intentionally defaults to 0 aka "No team"
 }
 
 type deleteCertificateTemplateSpecsResponse struct {
