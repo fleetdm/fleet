@@ -42,9 +42,9 @@ class AgentApplication : Application() {
                     as? RestrictionsManager
                 val appRestrictions = restrictionsManager?.applicationRestrictions ?: return@launch
 
-                val enrollSecret = appRestrictions.getString("enrollSecret")
-                val hostUUID = appRestrictions.getString("hostUUID")
-                val serverURL = appRestrictions.getString("serverURL")
+                val enrollSecret = appRestrictions.getString("enroll_secret")
+                val hostUUID = appRestrictions.getString("host_uuid")
+                val serverURL = appRestrictions.getString("server_url")
 
                 if (enrollSecret != null && hostUUID != null && serverURL != null) {
                     Log.d(TAG, "Refreshing enrollment credentials from MDM config")
