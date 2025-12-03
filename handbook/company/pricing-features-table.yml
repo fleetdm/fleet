@@ -243,7 +243,7 @@
 #  ╚═╝╚═╝╩╚═╚═╝   ╩ ╚═╝╚═╝╚═╝╩ ╩  ╚═╝╚═╝ ╩ ╚═╝╩  
 - industryName: Zero-touch setup
   description: Zero-touch setup for macOS, iOS/iPadOS, and Windows.
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience
+  documentationUrl: https://fleetdm.com/guides/setup-experience
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
@@ -301,7 +301,7 @@
 #  ╚═╝╚═╝╚═╝╩╚═  ╩ ╩╚═╝╚═╝╚═╝╚═╝╝╚╝ ╩   ╚═╝ ╩ ╝╚╝╚═╝
 - industryName: User account sync
   description: Sync macOS local user accounts via Okta, AD, or any IdP. 
-  documentationUrl: https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula
+  documentationUrl: https://fleetdm.com/guides/setup-experience#end-user-authentication
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Devices]
   usualDepartment: IT
