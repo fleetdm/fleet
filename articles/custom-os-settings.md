@@ -108,7 +108,7 @@ On macOS, iOS, iPadOS, and Windows, a broken profile will not remove the enforce
 
 On Android hosts, a broken profile will remove the enforcement of the OS settings for existing hosts. To enforce the OS setting on existing and new hosts, delete it and upload it again.
 
-### Unmanaged profiles (macOS)
+### Unmanaged profiles (macOS, iOS, and iPadOS)
 
 Profiles installed manually by the end user aren't managed by Fleet. They're not visible and can't be removed from the host via Fleet. Additionally, if a backup is migrated to a new host using [Apple's Migration Assistant](https://support.apple.com/en-us/102613) and it contains configuration profiles, those profiles aren't managed.
 
