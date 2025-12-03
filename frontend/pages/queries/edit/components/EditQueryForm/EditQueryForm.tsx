@@ -378,9 +378,12 @@ const EditQueryForm = ({
       });
     }
 
-    const { valid } = validateQuerySQL(lastEditedQueryBody);
+    const { valid, errors: newErrs } = validateQuerySQL(lastEditedQueryBody);
 
-    if (valid) {
+    // allow save when invalid sqlite syntax
+    const canSave = valid || (!valid && newErrs.query !== EMPTY_QUERY_ERR);
+
+    if (canSave) {
       if (!savedQueryMode) {
         platformSelector.setSelectedPlatforms(
           platformCompatibility.getCompatiblePlatforms()
