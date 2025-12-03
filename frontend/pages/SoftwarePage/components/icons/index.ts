@@ -244,7 +244,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   slack: Slack,
   spotify: Spotify,
   "sublime text": SublimeText,
-  "table plus": TablePlus,
+  tableplus: TablePlus,
   tailscale: Tailscale,
   telegram: Telegram,
   "teleport connect": TeleportConnect,
