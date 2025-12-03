@@ -2906,9 +2906,9 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 	if err != nil {
 		return fmt.Errorf("getting certificate authorities: %w", err)
 	}
-	caIDsByName := make(map[string]uint)
+	casByName := make(map[string]*fleet.CertificateAuthoritySummary)
 	for _, ca := range cas {
-		caIDsByName[ca.Name] = ca.ID
+		casByName[ca.Name] = ca
 	}
 
 	certRequests := make([]*fleet.CertificateRequestSpec, len(certificates))
@@ -2927,16 +2927,20 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 			)
 		}
 
-		caID, ok := caIDsByName[certificates[i].CertificateAuthorityName]
+		ca, ok := casByName[certificates[i].CertificateAuthorityName]
 		if !ok {
 			return fmt.Errorf("certificate authority %q not found for certificate %q",
 				certificates[i].CertificateAuthorityName, certificates[i].Name)
+		}
+		// Validate that the CA is the right type.
+		if ca.Type != string(fleet.CATypeCustomSCEPProxy) {
+			return newGitOpsValidationError(fmt.Sprintf("Android certificates: CA `%s` has type `%s`. Currently, only the custom_scep_proxy certificate authority is supported.", ca.Name, ca.Type))
 		}
 
 		certRequests[i] = &fleet.CertificateRequestSpec{
 			Name:                   certificates[i].Name,
 			Team:                   teamID,
-			CertificateAuthorityId: caID,
+			CertificateAuthorityId: ca.ID,
 			SubjectName:            certificates[i].SubjectName,
 		}
 		if _, ok := certsToBeAdded[certificates[i].Name]; ok {

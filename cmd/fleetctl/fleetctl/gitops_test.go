@@ -3733,6 +3733,18 @@ func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.Ce
 			URL:       ptr.String("https://ca2.example.com"),
 			Challenge: ptr.String("challenge2"),
 		},
+		{
+			ID:                            3,
+			Name:                          ptr.String("Test CA 3"),
+			Type:                          string(fleet.CATypeDigiCert),
+			URL:                           ptr.String("https://ca3.example.com"),
+			Challenge:                     ptr.String("challenge3"),
+			CertificateCommonName:         ptr.String("foo"),
+			CertificateSeatID:             ptr.String("foo"),
+			CertificateUserPrincipalNames: &[]string{"foo"},
+			APIToken:                      ptr.String("foo"),
+			ProfileID:                     ptr.String("foo"),
+		},
 	}
 
 	ds.BatchSetMDMProfilesFunc = func(
@@ -3818,10 +3830,10 @@ controls:
   android_settings:
     certificates:
       - name: "Certificate 1"
-        certificate_authority_name: "Test CA 1"
+        certificate_authority_name: "Test CA %d"
         subject_name: "CN=Device Certificate 1"
       - name: "Certificate 2"
-        certificate_authority_name: "Test CA 2"
+        certificate_authority_name: "Test CA %d"
         subject_name: "CN=Device Certificate 2"
 policies: []
 queries: []
@@ -3831,7 +3843,7 @@ software: null
 	tmpDir := t.TempDir()
 	teamFile, err := os.CreateTemp(tmpDir, "team-*.yml")
 	require.NoError(t, err)
-	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, teamName))
+	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, teamName, 1, 2))
 	require.NoError(t, err)
 
 	// Run GitOps
@@ -3849,6 +3861,20 @@ software: null
 
 	// Verify team was created
 	require.Contains(t, savedTeams, teamName)
+
+	// Try the same with a cert that uses a DigiCert CA
+	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, teamName, 2, 3))
+	require.NoError(t, err)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Currently, only the custom_scep_proxy certificate authority is supported")
+
+	// Try the same with a non-existent CA
+	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, teamName, 2, 4))
+	require.NoError(t, err)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not found")
 }
 
 // TestGitOpsAndroidCertificatesChange tests changing existing Android certificates via GitOps

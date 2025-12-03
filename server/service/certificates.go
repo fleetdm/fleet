@@ -50,6 +50,16 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 		return nil, &fleet.BadRequestError{Message: err.Error()}
 	}
 
+	// Get the CA to validate its existence and type.
+	ca, err := svc.ds.GetCertificateAuthorityByID(ctx, certificateAuthorityID, false)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting certificate authority")
+	}
+
+	if ca.Type != string(fleet.CATypeCustomSCEPProxy) {
+		return nil, &fleet.BadRequestError{Message: "Currently, only the custom_scep_proxy certificate authority is supported."}
+	}
+
 	certTemplate := &fleet.CertificateTemplate{
 		Name:                   name,
 		TeamID:                 teamID,
@@ -291,8 +301,27 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 		return err
 	}
 
+	// Get all of the CAs.
+	cas, err := svc.ds.ListCertificateAuthorities(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting all certificate authorities")
+	}
+	casByID := make(map[uint]*fleet.CertificateAuthoritySummary)
+	for _, ca := range cas {
+		casByID[ca.ID] = ca
+	}
+
 	var certificates []*fleet.CertificateTemplate
 	for _, spec := range specs {
+		// Get the CA to validate its existence and type.
+		ca, ok := casByID[spec.CertificateAuthorityId]
+		if !ok {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("certificate authority with ID %d not found (certificate %s)", spec.CertificateAuthorityId, spec.Name)}
+		}
+
+		if ca.Type != string(fleet.CATypeCustomSCEPProxy) {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("Ccertificate `%s`: Currently, only the custom_scep_proxy certificate authority is supported.", spec.Name)}
+		}
 		var teamID uint
 		if spec.Team != "" {
 			parsed, err := strconv.ParseUint(spec.Team, 10, 0)
