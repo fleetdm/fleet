@@ -8031,6 +8031,17 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	host.OrbitNodeKey = &orbitNodeKey
 	require.NoError(t, s.ds.UpdateHost(ctx, host))
 
+	savedCertificateTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, team.ID, fleet.ListOptions{Page: 0, PerPage: 10})
+	require.NoError(t, err)
+	certID := savedCertificateTemplates[0].ID
+
+	var getCertResp getDeviceCertificateTemplateResponse
+
+	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusBadRequest, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+	})
+	require.NoError(t, resp.Body.Close())
+
 	// Add an IDP user for the host
 	err = s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
 		{
@@ -8041,14 +8052,8 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	}, fleet.DeviceMappingMDMIdpAccounts)
 	require.NoError(t, err)
 
-	savedCertificateTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, team.ID, fleet.ListOptions{Page: 0, PerPage: 10})
-	require.NoError(t, err)
-	certID := savedCertificateTemplates[0].ID
-
 	// Get certificate without node_key
-	var getCertResp getDeviceCertificateTemplateResponse
-
-	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusUnauthorized, nil)
+	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusUnauthorized, nil)
 	require.NoError(t, resp.Body.Close())
 
 	// Get certificate with node_key (should return replaced variables)

@@ -154,7 +154,9 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 
 	subjectName, err := svc.replaceCertificateVariables(ctx, certificate.SubjectName, host)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "replacing certificate variables")
+		return nil, &fleet.BadRequestError{
+			Message: fmt.Sprintf("Could not replace certificate variables: %s", err.Error()),
+		}
 	}
 	certificate.SubjectName = subjectName
 
@@ -200,7 +202,9 @@ func (svc *Service) GetCertificateTemplate(ctx context.Context, id uint, hostUUI
 
 		subjectName, err := svc.replaceCertificateVariables(ctx, certificate.SubjectName, host)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "replacing certificate variables")
+			return nil, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Could not replace certificate variables: %s", err.Error()),
+			}
 		}
 		certificate.SubjectName = subjectName
 	}
