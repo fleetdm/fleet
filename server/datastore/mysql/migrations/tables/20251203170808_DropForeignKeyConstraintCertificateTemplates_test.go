@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20251202193904(t *testing.T) {
+func TestUp_20251203170808(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Create a team

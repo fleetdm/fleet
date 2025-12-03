@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251202193904, Down_20251202193904)
+	MigrationClient.AddMigration(Up_20251203170808, Down_20251203170808)
 }
 
-func Up_20251202193904(tx *sql.Tx) error {
+func Up_20251203170808(tx *sql.Tx) error {
 	_, err := tx.Exec(
 		`ALTER TABLE certificate_templates DROP FOREIGN KEY certificate_templates_ibfk_1;`)
 	if err != nil {
@@ -18,6 +18,6 @@ func Up_20251202193904(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20251202193904(tx *sql.Tx) error {
+func Down_20251203170808(tx *sql.Tx) error {
 	return nil
 }
