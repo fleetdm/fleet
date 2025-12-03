@@ -1,6 +1,11 @@
 - name: Windows - MDM turned on
   description: This policy checks if the computer has MDM enabled.
-  resolution: Enable Fleet MDM by setting up a work account in Windows Settings.
+  resolution: |-
+    Turn on MDM by following these steps:
+
+    Close this window, go to Settings and search "Access work or school."
+
+    Select "Connect" and enter your work email and password.
   query: SELECT 1 FROM mdm_bridge WHERE enrollment_status = 'device_enrolled';
   platform: windows
   critical: true
