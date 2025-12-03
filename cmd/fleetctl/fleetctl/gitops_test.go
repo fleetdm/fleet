@@ -142,10 +142,6 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 		return []*fleet.ABMToken{}, nil
 	}
 
-	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
-		return &fleet.GroupedCertificateAuthorities{}, nil
-	}
-
 	// Mock DefaultTeamConfig functions for No Team webhook settings
 	setupDefaultTeamConfigMocks(ds)
 
