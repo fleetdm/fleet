@@ -633,13 +633,13 @@ type Service interface {
 	// Certificate Templates
 
 	CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*CertificateTemplateResponseFull, error)
-	ListCertificateTemplates(ctx context.Context, teamID uint, page int, perPage int) ([]*CertificateTemplateResponseSummary, *PaginationMetadata, error)
+	ListCertificateTemplates(ctx context.Context, teamID uint, opts ListOptions) ([]*CertificateTemplateResponseSummary, *PaginationMetadata, error)
 	GetDeviceCertificateTemplate(ctx context.Context, id uint) (*CertificateTemplateResponseFull, error)
 	GetCertificateTemplate(ctx context.Context, id uint, hostUUID *string) (*CertificateTemplateResponseFull, error)
 	DeleteCertificateTemplate(ctx context.Context, id uint) error
 	ApplyCertificateTemplateSpecs(ctx context.Context, specs []*CertificateRequestSpec) error
 	DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
-	UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status MDMDeliveryStatus) error
+	UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status MDMDeliveryStatus, detail *string) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalScheduleService

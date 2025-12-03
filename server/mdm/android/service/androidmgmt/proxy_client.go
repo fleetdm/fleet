@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -41,7 +43,13 @@ func NewProxyClient(ctx context.Context, logger kitlog.Logger, licenseKey string
 	}
 
 	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelDebug,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if slices.Contains(groups, "request") && slices.Contains(groups, "headers") && a.Key == "Authorization" {
+				// Redact request Authorization headers
+				a.Value = slog.StringValue("REDACTED")
+			}
+			return a
+		},
 	}))
 	// We use the same client that we use to directly connect to Google to minimize issues/maintenance.
 	// But we point it to our proxy endpoint instead of Google.
@@ -280,12 +288,11 @@ func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseNam
 
 	app, err := call.Do()
 	if err != nil {
-		var gapiErr *googleapi.Error
-		if errors.As(err, &gapiErr) {
-			if gapiErr.Code == http.StatusNotFound {
-				return nil, ctxerr.Wrap(ctx, appNotFoundError{})
-			}
+		if isErrorCode(err, http.StatusNotFound) || (isErrorCode(err, http.StatusInternalServerError) && strings.Contains(err.Error(), "Requested entity was not found")) {
+			// For some reason, the AMAPI can return a 500 when an app is not found.
+			return nil, ctxerr.Wrap(ctx, appNotFoundError{})
 		}
+
 		return nil, fmt.Errorf("getting application %s: %w", packageName, err)
 	}
 	return app, nil
