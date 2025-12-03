@@ -907,17 +907,16 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	he.WithAltPaths("/api/v1/osquery/yara/{name}").
 		POST("/api/osquery/yara/{name}", getYaraEndpoint, getYaraRequest{})
 
-	// orbit authenticated endpoints
-	oe := newOrbitAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
-
-	// android related end-points
-	// These end-points are here because we want to use the orbit_node_key as the authentication mechanism.
-	// For android clients, the orbit_node_key is the only thing we have available when the device gets enrolled
-	// after the MDM setup.
-	androidEndpoints := newOrbitAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
+	// android authenticated end-points
+	// Authentication is implemented using the orbit_node_key from the 'Authentication' header.
+	// The 'orbit_node_key' is used because it's the only thing we have available when the device gets enrolled
+	// after the MDM setup is complete.
+	androidEndpoints := androidAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
 	androidEndpoints.GET("/api/fleetd/certificates/{id:[0-9]+}", getDeviceCertificateTemplateEndpoint, getDeviceCertificateTemplateRequest{})
 	androidEndpoints.PUT("/api/fleetd/certificates/{id:[0-9]+}/status", updateCertificateStatusEndpoint, updateCertificateStatusRequest{})
 
+	// orbit authenticated endpoints
+	oe := newOrbitAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
 	oe.POST("/api/fleet/orbit/device_token", setOrUpdateDeviceTokenEndpoint, setOrUpdateDeviceTokenRequest{})
 	oe.POST("/api/fleet/orbit/config", getOrbitConfigEndpoint, orbitGetConfigRequest{})
 	// using POST to get a script execution request since all authenticated orbit

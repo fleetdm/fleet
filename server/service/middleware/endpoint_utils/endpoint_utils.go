@@ -413,11 +413,6 @@ func MakeDecoder(
 		for _, fp := range fields {
 			field := fp.V
 
-			if headerTagValue, ok := fp.Sf.Tag.Lookup("header"); ok {
-				field.SetString(r.Header.Get(headerTagValue))
-				continue
-			}
-
 			urlTagValue, ok := fp.Sf.Tag.Lookup("url")
 
 			var err error

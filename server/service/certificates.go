@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -103,12 +102,7 @@ func (svc *Service) ListCertificateTemplates(ctx context.Context, teamID uint, p
 }
 
 type getDeviceCertificateTemplateRequest struct {
-	ID                 uint   `url:"id"`
-	OrbitNodeKeyHeader string `header:"Authorization"`
-}
-
-func (r *getDeviceCertificateTemplateRequest) orbitHostNodeKey() string {
-	return strings.TrimPrefix(r.OrbitNodeKeyHeader, "Node key ")
+	ID uint `url:"id"`
 }
 
 type getDeviceCertificateTemplateResponse struct {
@@ -340,12 +334,7 @@ type updateCertificateStatusRequest struct {
 	Status                string `json:"status"`
 	// Detail provides additional information about the status change.
 	// For example, it can be used to provide a reason for a failed status change.
-	Detail             *string `json:"detail,omitempty"`
-	OrbitNodeKeyHeader string  `header:"Authorization"`
-}
-
-func (r *updateCertificateStatusRequest) orbitHostNodeKey() string {
-	return strings.TrimPrefix(r.OrbitNodeKeyHeader, "Node key ")
+	Detail *string `json:"detail,omitempty"`
 }
 
 type updateCertificateStatusResponse struct {
