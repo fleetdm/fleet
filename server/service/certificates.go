@@ -115,12 +115,7 @@ func (svc *Service) ListCertificateTemplates(ctx context.Context, teamID uint, o
 }
 
 type getDeviceCertificateTemplateRequest struct {
-	ID      uint   `url:"id"`
-	NodeKey string `query:"node_key"`
-}
-
-func (r *getDeviceCertificateTemplateRequest) hostNodeKey() string {
-	return r.NodeKey
+	ID uint `url:"id"`
 }
 
 type getDeviceCertificateTemplateResponse struct {
@@ -349,15 +344,10 @@ func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certific
 
 type updateCertificateStatusRequest struct {
 	CertificateTemplateID uint   `url:"id"`
-	NodeKey               string `json:"node_key"`
 	Status                string `json:"status"`
 	// Detail provides additional information about the status change.
 	// For example, it can be used to provide a reason for a failed status change.
 	Detail *string `json:"detail,omitempty"`
-}
-
-func (r *updateCertificateStatusRequest) hostNodeKey() string {
-	return r.NodeKey
 }
 
 type updateCertificateStatusResponse struct {
