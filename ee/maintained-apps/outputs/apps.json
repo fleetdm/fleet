@@ -856,6 +856,13 @@
       "description": "Todoist is a to do list and a planning center for individuals and teams."
     },
     {
+      "name": "Tower",
+      "slug": "tower/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.fournova.Tower",
+      "description": "Tower is a git client focusing on power and productivity."
+    },
+    {
       "name": "Tunnelblick",
       "slug": "tunnelblick/darwin",
       "platform": "darwin",

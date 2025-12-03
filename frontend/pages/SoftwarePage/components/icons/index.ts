@@ -16,6 +16,7 @@ import Package from "./Package";
 import Safari from "./Safari";
 import Slack from "./Slack";
 import Teams from "./Teams";
+import Tower from "./Tower";
 import VisualStudioCode from "./VisualStudioCode";
 import WindowsApp from "./WindowsApp";
 import WindowsOS from "./WindowsOS";
@@ -250,6 +251,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   teamviewer: TeamViewer,
   thunderbird: Thunderbird,
   todoist: Todoist,
+  tower: Tower,
   tunnelblick: Tunnelblick,
   twingate: Twingate,
   "vnc viewer": VncViewer,
