@@ -2377,6 +2377,10 @@ type Datastore interface {
 	// identified by adam_id and global_or_team_id.
 	GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*AndroidAppConfiguration, error)
 
+	// BulkGetAndroidAppConfigurations retrieves Android app configurations for
+	// all provided apps and returns them indexed by the app id.
+	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error)
+
 	// InsertAndroidAppConfiguration creates a new Android app configuration entry.
 	InsertAndroidAppConfiguration(ctx context.Context, config *AndroidAppConfiguration) error
 

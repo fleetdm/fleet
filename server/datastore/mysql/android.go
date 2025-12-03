@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1651,7 +1650,6 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID stri
 
 	var config fleet.AndroidAppConfiguration
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, adamID, globalOrTeamID)
-	fmt.Println(">>>>>> GetAndroidAppConfiguration got:", spew.Sdump(config), spew.Sdump(err))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
@@ -1660,6 +1658,37 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID stri
 	}
 
 	return &config, nil
+}
+
+func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error) {
+	const bulkGetStmt = `
+	SELECT
+		application_id,
+		configuration
+	FROM android_app_configurations
+	WHERE application_id IN (?) AND global_or_team_id = ?
+	`
+
+	if len(appIDs) == 0 {
+		return nil, nil
+	}
+
+	stmt, args, err := sqlx.In(bulkGetStmt, appIDs, globalOrTeamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building bulk get android app configurations query")
+	}
+
+	var configs []*fleet.AndroidAppConfiguration
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &configs, stmt, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk get android app configurations")
+	}
+
+	m := make(map[string]json.RawMessage, len(configs))
+	for _, c := range configs {
+		m[c.ApplicationID] = c.Configuration
+	}
+	return m, nil
 }
 
 // InsertAndroidAppConfiguration creates a new Android app configuration entry.

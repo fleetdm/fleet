@@ -159,8 +159,7 @@ func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, lo
 	return nil
 }
 
-func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, hostUUID string, hostID uint, enterpriseName, policyID string) error {
-
+func (v *SoftwareWorker) ensureHostSpecificPolicyIsApplied(ctx context.Context, hostUUID string, enterpriseName, policyID string) error {
 	if policyID == fmt.Sprint(android.DefaultAndroidPolicyID) {
 		// Get the host once for both enroll secret and device patching
 		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
@@ -236,6 +235,13 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 			return err
 		}
 	}
+	return nil
+}
+
+func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, hostUUID string, hostID uint, enterpriseName, policyID string) error {
+	if err := v.ensureHostSpecificPolicyIsApplied(ctx, hostUUID, enterpriseName, policyID); err != nil {
+		return ctxerr.Wrapf(ctx, err, "ensuring host-specific policy is applied for host %s", hostUUID)
+	}
 
 	appIDs, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
 	if err != nil {
@@ -247,14 +253,31 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 	}
 
 	// TODO(mna): load any config and ensure it gets applied with the apps
+	configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, appIDs, appTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
+	}
 
 	appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))
 	for _, appID := range appIDs {
+		var androidAppConfig struct {
+			ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
+			WorkProfileWidgets   string          `json:"workProfileWidgets"`
+		}
+		if config := configsByAppID[appID]; config != nil && config.Configuration != nil {
+			if err := json.Unmarshal(config.Configuration, &androidAppConfig); err != nil {
+				// should never happen, as it is stored as json in the db and is pre-validated
+				return ctxerr.Wrapf(ctx, err, "unmarshal android app configuration for app ID %s", appID)
+			}
+		}
 		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
-			PackageName: appID,
-			InstallType: "AVAILABLE",
+			PackageName:          appID,
+			InstallType:          "AVAILABLE",
+			ManagedConfiguration: googleapi.RawMessage(androidAppConfig.ManagedConfiguration),
+			WorkProfileWidgets:   androidAppConfig.WorkProfileWidgets,
 		})
 	}
+
 	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: hostUUID})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
@@ -299,7 +322,11 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 	}
 
 	if len(appIDs) > 0 {
-		// TODO(mna): load any config and ensure it gets applied with the apps
+		// TODO(mna): ACTUALLY test and see if we need to load the configs here, as any available app
+		// would've had its config setup by the previous call to makeAndroidAppsAvailableForHost (as
+		// all android apps are currently self-service, even the setup experience ones). So maybe the
+		// configured configs will already apply for this installation (I think they should).
+		// ~~load any config and ensure it gets applied with the apps~~
 
 		appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))
 		for _, appID := range appIDs {
