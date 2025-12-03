@@ -50,7 +50,7 @@ class ScepClientImplTest {
     @Test
     fun `enroll with unreachable server throws ScepNetworkException`() = runTest {
         val template = createCertificateTemplate(
-            url = "https://invalid-scep-server-that-does-not-exist.example.com/scep"
+            url = "https://invalid-scep-server-that-does-not-exist.example.com/scep",
         )
 
         try {
@@ -65,24 +65,22 @@ class ScepClientImplTest {
     private fun createCertificateTemplate(
         url: String = "https://scep.example.com/cgi-bin/pkiclient.exe",
         subjectName: String = "CN=Test,O=Example",
-        scepChallenge: String = "secret"
-    ): GetCertificateTemplateResponse {
-        return GetCertificateTemplateResponse(
-            id = 1,
-            name = "test-cert",
-            certificateAuthorityId = "ca-123",
-            certificateAuthorityName = "Test CA",
-            createdAt = "2024-01-01T00:00:00Z",
-            subjectName = subjectName,
-            certificateAuthorityType = "SCEP",
-            status = "active",
-            scepChallenge = scepChallenge,
-            fleetChallenge = "fleet-secret",
-            keyLength = 2048,
-            signatureAlgorithm = "SHA256withRSA",
-            url = url
-        )
-    }
+        scepChallenge: String = "secret",
+    ): GetCertificateTemplateResponse = GetCertificateTemplateResponse(
+        id = 1,
+        name = "test-cert",
+        certificateAuthorityId = "ca-123",
+        certificateAuthorityName = "Test CA",
+        createdAt = "2024-01-01T00:00:00Z",
+        subjectName = subjectName,
+        certificateAuthorityType = "SCEP",
+        status = "active",
+        scepChallenge = scepChallenge,
+        fleetChallenge = "fleet-secret",
+        keyLength = 2048,
+        signatureAlgorithm = "SHA256withRSA",
+        url = url,
+    )
 
     // Note: Testing successful enrollment requires a mock SCEP server or extensive mocking
     // of jScep's Client class. Integration tests should be used for this scenario.

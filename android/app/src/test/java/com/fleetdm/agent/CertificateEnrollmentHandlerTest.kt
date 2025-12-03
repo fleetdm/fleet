@@ -147,7 +147,7 @@ class CertificateEnrollmentHandlerTest {
     fun `handler uses custom key length and signature algorithm`() = runTest {
         val template = createValidCertificateTemplate(
             keyLength = 4096,
-            signatureAlgorithm = "SHA512withRSA"
+            signatureAlgorithm = "SHA512withRSA",
         )
 
         handler.handleEnrollment(template)
@@ -177,22 +177,20 @@ class CertificateEnrollmentHandlerTest {
         scepChallenge: String = "secret123",
         subjectName: String = "CN=Device123,O=FleetDM",
         keyLength: Int = 2048,
-        signatureAlgorithm: String = "SHA256withRSA"
-    ): GetCertificateTemplateResponse {
-        return GetCertificateTemplateResponse(
-            id = id,
-            name = name,
-            certificateAuthorityId = "ca-123",
-            certificateAuthorityName = "Test CA",
-            createdAt = "2024-01-01T00:00:00Z",
-            subjectName = subjectName,
-            certificateAuthorityType = "SCEP",
-            status = "active",
-            scepChallenge = scepChallenge,
-            fleetChallenge = "fleet-secret",
-            keyLength = keyLength,
-            signatureAlgorithm = signatureAlgorithm,
-            url = scepUrl
-        )
-    }
+        signatureAlgorithm: String = "SHA256withRSA",
+    ): GetCertificateTemplateResponse = GetCertificateTemplateResponse(
+        id = id,
+        name = name,
+        certificateAuthorityId = "ca-123",
+        certificateAuthorityName = "Test CA",
+        createdAt = "2024-01-01T00:00:00Z",
+        subjectName = subjectName,
+        certificateAuthorityType = "SCEP",
+        status = "active",
+        scepChallenge = scepChallenge,
+        fleetChallenge = "fleet-secret",
+        keyLength = keyLength,
+        signatureAlgorithm = signatureAlgorithm,
+        url = scepUrl,
+    )
 }

@@ -51,7 +51,7 @@ class ScepIntegrationTest {
             url = scepUrl,
             challenge = challenge,
             name = "integration-test-cert-$uniqueId",
-            subject = "CN=IntegrationTestDevice-$uniqueId,O=FleetDM,C=US"
+            subject = "CN=IntegrationTestDevice-$uniqueId,O=FleetDM,C=US",
         )
     }
 
@@ -60,24 +60,22 @@ class ScepIntegrationTest {
         challenge: String,
         name: String,
         subject: String,
-        keyLength: Int = 2048
-    ): GetCertificateTemplateResponse {
-        return GetCertificateTemplateResponse(
-            id = 1,
-            name = name,
-            certificateAuthorityId = "ca-123",
-            certificateAuthorityName = "Test CA",
-            createdAt = "2024-01-01T00:00:00Z",
-            subjectName = subject,
-            certificateAuthorityType = "SCEP",
-            status = "active",
-            scepChallenge = challenge,
-            fleetChallenge = "fleet-secret",
-            keyLength = keyLength,
-            signatureAlgorithm = "SHA256withRSA",
-            url = url
-        )
-    }
+        keyLength: Int = 2048,
+    ): GetCertificateTemplateResponse = GetCertificateTemplateResponse(
+        id = 1,
+        name = name,
+        certificateAuthorityId = "ca-123",
+        certificateAuthorityName = "Test CA",
+        createdAt = "2024-01-01T00:00:00Z",
+        subjectName = subject,
+        certificateAuthorityType = "SCEP",
+        status = "active",
+        scepChallenge = challenge,
+        fleetChallenge = "fleet-secret",
+        keyLength = keyLength,
+        signatureAlgorithm = "SHA256withRSA",
+        url = url,
+    )
 
     @IntegrationTest
     @Test
@@ -127,7 +125,7 @@ class ScepIntegrationTest {
                 challenge = testTemplate.scepChallenge,
                 name = "test-cert-$keySize-$uniqueId",
                 subject = "CN=IntegrationTestDevice-$keySize-$uniqueId,O=FleetDM,C=US",
-                keyLength = keySize
+                keyLength = keySize,
             )
 
             val result = scepClient.enroll(template)
@@ -156,7 +154,7 @@ class ScepIntegrationTest {
     @Test
     fun `enrollment with unreachable server fails quickly`() = runTest {
         val unreachableTemplate = testTemplate.copy(
-            url = "https://unreachable-scep-server.invalid/scep"
+            url = "https://unreachable-scep-server.invalid/scep",
         )
 
         val startTime = System.currentTimeMillis()
