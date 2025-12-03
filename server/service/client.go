@@ -2892,14 +2892,18 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 		return nil
 	}
 
-	if numCerts > 0 {
-		logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
-	}
-
 	// existing certificate templates
 	existingCertificates, err := c.GetCertificateTemplates(teamID)
 	if err != nil {
 		return fmt.Errorf("applying Android certificates: getting existing Android certificates: %w", err)
+	}
+
+	if numCerts == 0 && len(existingCertificates) == 0 {
+		return nil
+	}
+
+	if numCerts > 0 {
+		logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 	}
 
 	// getting certificate authorities

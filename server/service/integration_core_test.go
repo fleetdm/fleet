@@ -8097,9 +8097,9 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 		},
 	}, http.StatusOK, &applyResp)
 
-	// list specs for no team
+	// list specs for "no team" (team_id 0)
 	var noTeamCertificatesResp listCertificateTemplatesResponse
-	s.DoJSON("GET", "/api/latest/fleet/certificates?team_id=0", nil, http.StatusOK, &noTeamCertificatesResp)
+	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
 	require.Len(t, noTeamCertificatesResp.Certificates, 2)
 	assert.ElementsMatch(t, []string{"No Team Template 1", "No Team Template 2"}, []string{noTeamCertificatesResp.Certificates[0].Name, noTeamCertificatesResp.Certificates[1].Name})
 
@@ -8139,7 +8139,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	assert.Contains(t, getNoTeamCertResp.Certificate.SubjectName, "test-no-team-uuid-12345")
 
 	var profilesSummaryResp getMDMProfilesSummaryResponse
-	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary?team_id=0", nil, http.StatusOK, &profilesSummaryResp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", nil, http.StatusOK, &profilesSummaryResp)
 	require.NotNil(t, profilesSummaryResp)
 	require.Equal(t, uint(0), profilesSummaryResp.Verified)
 	require.Equal(t, uint(0), profilesSummaryResp.Verifying)
@@ -8152,7 +8152,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 		"team_id": uint(0),
 	}, http.StatusOK, &delBatchResp)
 
-	s.DoJSON("GET", "/api/latest/fleet/certificates?team_id=0", nil, http.StatusOK, &noTeamCertificatesResp)
+	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
 	require.Len(t, noTeamCertificatesResp.Certificates, 0)
 }
 

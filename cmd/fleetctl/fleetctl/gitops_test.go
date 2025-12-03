@@ -54,6 +54,9 @@ func setupDefaultTeamConfigMocks(ds interface{}) {
 		d.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
 			return nil
 		}
+		d.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+			return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+		}
 	case *mock.Store:
 		// mock.Store embeds DataStore, so we can set the functions on the embedded struct
 		d.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
@@ -61,6 +64,9 @@ func setupDefaultTeamConfigMocks(ds interface{}) {
 		}
 		d.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
 			return nil
+		}
+		d.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+			return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
 		}
 	}
 }
@@ -134,6 +140,10 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{}, nil
+	}
+
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
 	}
 
 	// Mock DefaultTeamConfig functions for No Team webhook settings
