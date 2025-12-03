@@ -19,6 +19,18 @@ fix_import_spacing() {
   ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
 }
 
+# Check if a string is a valid JavaScript identifier
+# Valid identifiers: start with letter/underscore/dollar, contain only letters/digits/underscore/dollar
+is_valid_js_identifier() {
+  local str="$1"
+  # Check if it matches the pattern: starts with letter/underscore/dollar, followed by letters/digits/underscore/dollar only
+  if [[ "$str" =~ ^[a-zA-Z_$][a-zA-Z0-9_$]*$ ]]; then
+    return 0  # valid identifier
+  else
+    return 1  # not a valid identifier (contains spaces, special chars, or starts with number)
+  fi
+}
+
 # Add import and map entry to index.ts
 add_icon_to_index() {
   local component_name="$1"
@@ -60,8 +72,16 @@ add_icon_to_index() {
   if grep -qE "[\"']${map_key}[\"']:" "$index_file" || grep -qE "^[[:space:]]*${map_key}:" "$index_file"; then
     echo "Map entry for ${map_key} already exists in index.ts"
   else
+    # Determine if we need to quote the key (only quote if it's not a valid JS identifier)
+    local quoted_key
+    if is_valid_js_identifier "$map_key"; then
+      quoted_key="$map_key"
+    else
+      quoted_key="\"${map_key}\""
+    fi
+    
     # Insert map entry before the closing } as const;
-    local map_entry="  \"${map_key}\": ${component_name},"
+    local map_entry="  ${quoted_key}: ${component_name},"
     
     awk -v new_entry="$map_entry" '
       /^export const SOFTWARE_NAME_TO_ICON_MAP = \{/ {
@@ -78,7 +98,7 @@ add_icon_to_index() {
       { print }
     ' "$index_file" > "${index_file}.tmp" && mv "${index_file}.tmp" "$index_file"
     
-    echo "Added map entry \"${map_key}\": ${component_name} to SOFTWARE_NAME_TO_ICON_MAP"
+    echo "Added map entry ${quoted_key}: ${component_name} to SOFTWARE_NAME_TO_ICON_MAP"
   fi
 }
 
