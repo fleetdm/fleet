@@ -31,6 +31,22 @@ is_valid_js_identifier() {
   fi
 }
 
+# Compare two strings alphabetically (case-insensitive)
+# Returns: 0 if str1 < str2, 1 if str1 >= str2
+compare_alphabetically() {
+  local str1="$1"
+  local str2="$2"
+  # Convert to lowercase for comparison
+  local lower1=$(echo "$str1" | tr '[:upper:]' '[:lower:]')
+  local lower2=$(echo "$str2" | tr '[:upper:]' '[:lower:]')
+  
+  if [[ "$lower1" < "$lower2" ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
 # Add import and map entry to index.ts
 add_icon_to_index() {
   local component_name="$1"
@@ -46,22 +62,59 @@ add_icon_to_index() {
   if grep -q "import ${component_name} from" "$index_file"; then
     echo "Import for ${component_name} already exists in index.ts"
   else
-    # Find the last icon import statement (before the blank line before SOFTWARE_NAME_TO_ICON_MAP)
-    # Insert import before the blank line that precedes SOFTWARE_NAME_TO_ICON_MAP comment
+    # Insert import in alphabetical order
     local import_line="import ${component_name} from \"./${component_name}\";"
     
-    # Insert before the blank line before SOFTWARE_NAME_TO_ICON_MAP comment
-    awk -v new_import="$import_line" '
-      /^\/\/ SOFTWARE_NAME_TO_ICON_MAP/ {
-        print new_import
-        print ""
+    awk -v new_import="$import_line" -v new_component="$component_name" '
+      BEGIN {
+        inserted = 0
+        in_icon_imports = 0
+      }
+      # Print interface imports as-is
+      /^import \{/ || /^import ISoftware/ {
         print
         next
+      }
+      # Detect start of icon imports (after interface imports)
+      /^import [A-Z]/ && !in_icon_imports {
+        in_icon_imports = 1
+        # Check if we should insert before this first import
+        if (match($0, /^import ([A-Za-z0-9_]+) from/, arr)) {
+          current_component = arr[1]
+          new_lower = tolower(new_component)
+          current_lower = tolower(current_component)
+          if (new_lower < current_lower) {
+            print new_import
+            inserted = 1
+          }
+        }
+      }
+      # If we're in icon imports section and haven't inserted yet
+      in_icon_imports && !inserted {
+        # Extract component name from current import line
+        if (match($0, /^import ([A-Za-z0-9_]+) from/, arr)) {
+          current_component = arr[1]
+          # Compare alphabetically (case-insensitive)
+          new_lower = tolower(new_component)
+          current_lower = tolower(current_component)
+          if (new_lower < current_lower) {
+            print new_import
+            inserted = 1
+          }
+        }
+      }
+      # Stop processing imports when we hit the SOFTWARE_NAME_TO_ICON_MAP comment
+      /^\/\/ SOFTWARE_NAME_TO_ICON_MAP/ {
+        if (!inserted) {
+          print new_import
+          inserted = 1
+        }
+        in_icon_imports = 0
       }
       { print }
     ' "$index_file" > "${index_file}.tmp" && mv "${index_file}.tmp" "$index_file"
     
-    echo "Added import for ${component_name} to index.ts"
+    echo "Added import for ${component_name} to index.ts (in alphabetical order)"
   fi
   
   # Add to SOFTWARE_NAME_TO_ICON_MAP if not already present
@@ -80,17 +133,47 @@ add_icon_to_index() {
       quoted_key="\"${map_key}\""
     fi
     
-    # Insert map entry before the closing } as const;
+    # Insert map entry in alphabetical order
     local map_entry="  ${quoted_key}: ${component_name},"
     
-    awk -v new_entry="$map_entry" '
+    awk -v new_entry="$map_entry" -v new_key="$map_key" '
+      BEGIN {
+        inserted = 0
+        in_map = 0
+        first_map_entry = 1
+      }
       /^export const SOFTWARE_NAME_TO_ICON_MAP = \{/ {
         in_map = 1
         print
         next
       }
+      # If we're in the map and haven't inserted yet
+      in_map && !inserted {
+        # Check if this is a map entry (has a colon)
+        if (match($0, /^[[:space:]]*["'\'']?([^"'\'':]+)["'\'']?:/, arr)) {
+          current_key = arr[1]
+          # Remove quotes if present
+          gsub(/^["'\'']|["'\'']$/, "", current_key)
+          # Compare alphabetically (case-insensitive)
+          new_lower = tolower(new_key)
+          current_lower = tolower(current_key)
+          if (new_lower < current_lower) {
+            print new_entry
+            inserted = 1
+            first_map_entry = 0
+          }
+          first_map_entry = 0
+        } else if (first_map_entry && /^[[:space:]]*$/) {
+          # Skip blank lines at the start of the map
+          next
+        }
+      }
+      # Stop at closing brace
       in_map && /^\} as const;/ {
-        print new_entry
+        if (!inserted) {
+          print new_entry
+          inserted = 1
+        }
         print
         in_map = 0
         next
@@ -98,7 +181,7 @@ add_icon_to_index() {
       { print }
     ' "$index_file" > "${index_file}.tmp" && mv "${index_file}.tmp" "$index_file"
     
-    echo "Added map entry ${quoted_key}: ${component_name} to SOFTWARE_NAME_TO_ICON_MAP"
+    echo "Added map entry ${quoted_key}: ${component_name} to SOFTWARE_NAME_TO_ICON_MAP (in alphabetical order)"
   fi
 }
 

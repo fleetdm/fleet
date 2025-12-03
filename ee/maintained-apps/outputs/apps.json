@@ -107,6 +107,13 @@
       "description": "Beyond Compare is an app used to compare files and folders."
     },
     {
+      "name": "Bitwarden",
+      "slug": "bitwarden/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.bitwarden.desktop",
+      "description": "Bitwarden is a desktop password and login vault."
+    },
+    {
       "name": "Box Drive",
       "slug": "box-drive/darwin",
       "platform": "darwin",
