@@ -123,7 +123,8 @@ BEGIN {
   next
 }
 # Detect start of icon imports (after interface imports)
-/^import [A-Z]/ && !in_icon_imports {
+# Icon imports are component imports that use "./" path (not interface imports)
+/^import [A-Za-z]/ && !in_icon_imports && /from "\.\// {
   in_icon_imports = 1
   # Check if we should insert before this first import
   # Use field-based parsing to avoid "from" being a reserved word
