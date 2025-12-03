@@ -31,6 +31,7 @@
             </ol>
             <p>Don’t see <%- thisApp.name %> or the Fleet Desktop icon? Send a <a :href="'/software-catalog/'+thisApp.identifier">link to this page</a> to your IT team.</p>
           </div>
+          <% if(thisApp.platform === 'darwin'){%>
           <div purpose="app-uninstall">
             <h3>Uninstall <%- thisApp.name %></h3>
             <p>Run the following command in your terminal to uninstall <%- thisApp.name %>:</p>
@@ -39,6 +40,7 @@
               <pre><code class="hljs bash"><%= _.unescape(thisApp.uninstallScript) %></code></pre>
             </div>
           </div>
+          <% } %>
           <div purpose="app-check">
             <h3>Is <%- thisApp.name %> up to date?</h3>
             <p>Run this query in Fleet to find old versions of <%- thisApp.name %> across all your computers:</p>
