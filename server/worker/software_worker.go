@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -100,10 +101,14 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 		return ctxerr.Wrap(ctx, err, "add app store app: getting android hosts in scope")
 	}
 
+	fmt.Println(">>>>> makeAndroidAppAvailable: hosts in scope:", spew.Sdump(hosts), applicationID, appTeamID)
+
 	config, err := v.Datastore.GetAndroidAppConfiguration(ctx, applicationID, appTeamID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
+	fmt.Println(">>>>> makeAndroidAppAvailable: config :", spew.Sdump(config))
+
 	var androidAppConfig struct {
 		ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
 		WorkProfileWidgets   string          `json:"workProfileWidgets"`
@@ -114,6 +119,7 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 			return ctxerr.Wrap(ctx, err, "unmarshal android app configuration")
 		}
 	}
+	fmt.Println(">>>>> makeAndroidAppAvailable: unmarshaled config :", spew.Sdump(androidAppConfig))
 
 	// TODO(mna): load any config, and ensure it gets applied as available with the config
 	// up-to-date (if there is any).
@@ -124,6 +130,8 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 		ManagedConfiguration: googleapi.RawMessage(androidAppConfig.ManagedConfiguration),
 		WorkProfileWidgets:   androidAppConfig.WorkProfileWidgets,
 	}}
+
+	fmt.Println(">>>>> makeAndroidAppAvailable: appPolicies:", spew.Sdump(appPolicies))
 
 	// Update Android MDM policy to include the app in self service
 	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, hosts)

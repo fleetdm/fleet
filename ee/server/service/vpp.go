@@ -513,7 +513,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return 0, ctxerr.Wrap(ctx, err, "writing VPP app to db")
 	}
 	if appID.Platform == fleet.AndroidPlatform {
-		err := worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appID.AdamID, app.AppTeamID, androidEnterpriseName)
+		err := worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appID.AdamID, ptr.ValOrZero(teamID), androidEnterpriseName)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
 		}
