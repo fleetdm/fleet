@@ -26,7 +26,7 @@ parasails.registerPage('app-library', {
 
     clickSelectPlatform: function(platform) {
       if(this.selectedPlatform !== platform && window.scrollY > 370){
-        window.scrollTo(0, 370, {smooth: true});
+        window.scrollTo(0, 350, {smooth: true});
       }
       this.selectedPlatform = platform;
     },
