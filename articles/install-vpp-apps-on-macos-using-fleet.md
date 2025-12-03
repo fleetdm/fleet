@@ -8,7 +8,7 @@ In Fleet, you can install Apple App Store apps using the [Volume Purchasing Prog
 
 Once a VPP app has been added to a team, it can be [automatically installed on hosts via policy automations](https://fleetdm.com/guides/automatic-software-install-in-fleet) as of Fleet [v4.63.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.63.0), and policies can be automatically created when adding a VPP app to a team as of [v4.65.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.65.0).
 
-Currently, Fleet only supports apps that are available in the United States (US) region.
+Currently, Fleet only supports apps from the United States (US) region. If the app is listed on the [Apple App Store](https://apps.apple.com/) with `/us` in the Apple App Store URL (e.g. https://apps.apple.com/us/app/m7cl-stagemix/id397288883), then it's supported.
 
 ## Prerequisites
 * **MDM features**: to use the VPP integration, you must first enable MDM features in Fleet. See the [MDM setup guide](https://fleetdm.com/docs/using-fleet/mdm-setup) for instructions on enabling MDM features.
