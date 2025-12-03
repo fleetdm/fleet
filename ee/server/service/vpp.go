@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"regexp"
 	"sort"
@@ -16,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/itunes"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -215,8 +217,10 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	}
 
+	var enterprise *android.Enterprise
 	if len(androidApps) > 0 {
-		enterprise, err := svc.ds.GetEnterprise(ctx)
+		var err error
+		enterprise, err = svc.ds.GetEnterprise(ctx)
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
@@ -269,7 +273,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return nil, err // returned error already includes context that we could include here
 	}
 
-	if len(vppAppTeams) == 0 {
+	if len(allPlatformApps) == 0 {
 		return []fleet.VPPAppResponse{}, nil
 	}
 
@@ -278,6 +282,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return nil, err
 	}
 
+	policiesToUpdate := map[string]string{}
+	var appIDs []string
 	for _, app := range addedApps {
 		if app.Platform == fleet.AndroidPlatform {
 			hostsInScope, err := svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, app.AppTeamID)
@@ -285,7 +291,19 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				return nil, err
 			}
 
+			maps.Copy(policiesToUpdate, hostsInScope)
+
 			fmt.Printf("hostsInScope: %v\n", hostsInScope)
+
+			appIDs = append(appIDs, app.AppStoreID)
+		}
+	}
+
+	// TODO: probably make a helper that can assume it's doing android stuff
+	if len(policiesToUpdate) > 0 && enterprise != nil {
+		_, err := svc.androidModule.AddAppsToAndroidPolicy(ctx, enterprise.Name(), appIDs, policiesToUpdate, "AVAILABLE")
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "batch associate app store apps: add apps to android MDM policy")
 		}
 	}
 

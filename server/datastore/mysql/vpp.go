@@ -678,10 +678,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 }
 
 func (ds *Datastore) GetVPPApps(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
-	var tmID uint
-	if teamID != nil {
-		tmID = *teamID
-	}
+	tmID := ptr.ValOrZero(teamID)
 	var results []fleet.VPPAppResponse
 
 	// intentionally using writer as this is called right after batch-setting VPP apps
