@@ -2305,16 +2305,14 @@ func (c *Client) DoGitOps(
 		return nil, nil, err
 	}
 
-	if !incoming.IsNoTeam() {
-		// Apply Android certificates if present
-		err = c.doGitOpsAndroidCertificates(incoming, logFn, dryRun)
-		if err != nil {
-			var gitOpsErr *gitOpsValidationError
-			if errors.As(err, &gitOpsErr) {
-				return nil, nil, gitOpsErr.WithFileContext(baseDir, filename)
-			}
-			return nil, nil, err
+	// Apply Android certificates if present
+	err = c.doGitOpsAndroidCertificates(incoming, logFn, dryRun)
+	if err != nil {
+		var gitOpsErr *gitOpsValidationError
+		if errors.As(err, &gitOpsErr) {
+			return nil, nil, gitOpsErr.WithFileContext(baseDir, filename)
 		}
+		return nil, nil, err
 	}
 
 	// apply icon changes from software installers and VPP apps
@@ -2883,22 +2881,29 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 	numCerts := len(certificates)
 
 	teamID := ""
-	if config.TeamID != nil {
+	switch {
+	case config.TeamID != nil:
 		teamID = fmt.Sprintf("%d", *config.TeamID)
-	} else {
-		// TODO -- implement "no team" certs
+	case config.IsNoTeam():
+		//  "No team"
+		teamID = "0"
+	default:
+		// global config, ignore
 		return nil
-		// return errors.New("applying Android certificates: Team ID is required")
-	}
-
-	if numCerts > 0 {
-		logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 	}
 
 	// existing certificate templates
 	existingCertificates, err := c.GetCertificateTemplates(teamID)
 	if err != nil {
 		return fmt.Errorf("applying Android certificates: getting existing Android certificates: %w", err)
+	}
+
+	if numCerts == 0 && len(existingCertificates) == 0 {
+		return nil
+	}
+
+	if numCerts > 0 {
+		logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 	}
 
 	// getting certificate authorities
@@ -2917,6 +2922,13 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 		if !certificates[i].NameValid() {
 			return newGitOpsValidationError(
 				`Invalid characters in "name" field. Only letters, numbers, spaces, dashes, and underscores allowed.`,
+			)
+		}
+
+		// Validate Fleet variables in subject name
+		if err := validateCertificateTemplateFleetVariables(certificates[i].SubjectName); err != nil {
+			return newGitOpsValidationError(
+				fmt.Sprintf(`Invalid Fleet variable in certificate %q: %s`, certificates[i].Name, err.Error()),
 			)
 		}
 

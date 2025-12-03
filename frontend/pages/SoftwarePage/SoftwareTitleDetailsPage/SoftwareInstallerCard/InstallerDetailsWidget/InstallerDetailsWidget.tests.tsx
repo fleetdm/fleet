@@ -105,7 +105,7 @@ describe("InstallerDetailsWidget", () => {
     expect(screen.getByText(/App Store \(VPP\)/i)).toBeInTheDocument();
   });
 
-  it("renders Google Play Store label", () => {
+  it("renders Google Play Store label and 'latest' for version", () => {
     render(
       <InstallerDetailsWidget
         {...defaultProps}
@@ -115,6 +115,7 @@ describe("InstallerDetailsWidget", () => {
     );
 
     expect(screen.getByText(/Google Play Store/i)).toBeInTheDocument();
+    expect(screen.getByText(/latest/i)).toBeInTheDocument();
   });
 
   it("InstallerName disables tooltip if not truncated", () => {

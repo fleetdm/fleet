@@ -54,6 +54,9 @@ func setupDefaultTeamConfigMocks(ds interface{}) {
 		d.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
 			return nil
 		}
+		d.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+			return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+		}
 	case *mock.Store:
 		// mock.Store embeds DataStore, so we can set the functions on the embedded struct
 		d.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
@@ -61,6 +64,9 @@ func setupDefaultTeamConfigMocks(ds interface{}) {
 		}
 		d.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
 			return nil
+		}
+		d.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+			return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
 		}
 	}
 }
@@ -710,7 +716,7 @@ func TestGitOpsBasicTeam(t *testing.T) {
 		return nil
 	}
 
-	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
 	}
 
@@ -1173,7 +1179,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 		return nil
 	}
 
-	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
 	}
 
@@ -1729,7 +1735,7 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		return nil
 	}
 
-	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
 	}
 
@@ -2080,7 +2086,7 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		return nil
 	}
 
-	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
 	}
 
@@ -2480,7 +2486,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 		}, nil
 	}
 
-	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
 	}
 
@@ -2680,7 +2686,7 @@ func TestGitOpsCustomSettings(t *testing.T) {
 				return nil
 			}
 
-			ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+			ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 				return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
 			}
 
@@ -3029,7 +3035,7 @@ software:
 				return nil
 			}
 
-			ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+			ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 				return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
 			}
 
@@ -3795,7 +3801,7 @@ func TestGitOpsAndroidCertificatesAdd(t *testing.T) {
 		return nil
 	}
 
-	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
 	}
 
@@ -3868,7 +3874,7 @@ func TestGitOpsAndroidCertificatesChange(t *testing.T) {
 	}
 
 	// Simulate existing certificates
-	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 		existing := []*fleet.CertificateTemplateResponseSummary{
 			{
 				ID:                     1,
@@ -3969,7 +3975,7 @@ func TestGitOpsAndroidCertificatesDeleteOne(t *testing.T) {
 	}
 
 	// Simulate existing certificates
-	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 		existing := []*fleet.CertificateTemplateResponseSummary{
 			{
 				ID:                     1,
@@ -4061,7 +4067,7 @@ func TestGitOpsAndroidCertificatesDeleteAll(t *testing.T) {
 	}
 
 	// Simulate existing certificates
-	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 		existing := []*fleet.CertificateTemplateResponseSummary{
 			{
 				ID:                     1,
