@@ -12,6 +12,7 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 )
 
 const softwareWorkerJobName = "software_worker"
@@ -90,9 +91,9 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 	}
 }
 
-// this is called when a new app is added to Fleet, not when it is updated, so it always
-// sets the install type as AVAILABLE as it's the only possible state for all affected hosts
-// (the app cannot be installed yet).
+// this is called when a new app is added to Fleet and when an existing app is updated
+// (either its scope of affected hosts changed due to labels conditions, or its
+// configuration changed).
 func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicationID string, appTeamID uint, enterpriseName string) error {
 	hosts, err := v.Datastore.GetIncludedHostUUIDMapForAppStoreApp(ctx, appTeamID)
 	if err != nil {
@@ -103,14 +104,25 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
-	_ = config
+	var androidAppConfig struct {
+		ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
+		WorkProfileWidgets   string          `json:"workProfileWidgets"`
+	}
+	if config != nil && config.Configuration != nil {
+		if err := json.Unmarshal(config.Configuration, &androidAppConfig); err != nil {
+			// should never happen, as it is stored as json in the db and is pre-validated
+			return ctxerr.Wrap(ctx, err, "unmarshal android app configuration")
+		}
+	}
 
 	// TODO(mna): load any config, and ensure it gets applied as available with the config
 	// up-to-date (if there is any).
 
 	appPolicies := []*androidmanagement.ApplicationPolicy{{
-		PackageName: applicationID,
-		InstallType: "AVAILABLE",
+		PackageName:          applicationID,
+		InstallType:          "AVAILABLE",
+		ManagedConfiguration: googleapi.RawMessage(androidAppConfig.ManagedConfiguration),
+		WorkProfileWidgets:   androidAppConfig.WorkProfileWidgets,
 	}}
 
 	// Update Android MDM policy to include the app in self service
