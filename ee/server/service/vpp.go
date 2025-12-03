@@ -764,7 +764,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 
 	// if labelsChanged, new hosts may require having the app made available, and if config
 	// changed, the app policy must be updated.
-	if labelsChanged || androidConfigChanged {
+	if meta.Platform == fleet.AndroidPlatform && (labelsChanged || androidConfigChanged) {
 		enterprise, err := svc.ds.GetEnterprise(ctx)
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
