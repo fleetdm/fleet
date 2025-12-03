@@ -3737,6 +3737,11 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		DumpTable(t, q, "software_installers")
+		DumpTable(t, q, "software_title_display_names")
+		return nil
+	})
 	// Batch insert installers should delete previous display names
 	// and ignore in-house and vpp names
 	err = ds.BatchSetSoftwareInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{
