@@ -513,7 +513,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return 0, ctxerr.Wrap(ctx, err, "writing VPP app to db")
 	}
 	if appID.Platform == fleet.AndroidPlatform {
-		err := worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appID.AdamID, ptr.ValOrZero(teamID), androidEnterpriseName)
+		err := worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appID.AdamID, addedApp.AppTeamID, androidEnterpriseName)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
 		}
@@ -757,7 +757,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	}
 
 	// Update the app
-	_, err = svc.ds.InsertVPPAppWithTeam(ctx, appToWrite, teamID)
+	insertedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, appToWrite, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: write app to db")
 	}
@@ -769,7 +769,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
-		err = worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appToWrite.AdamID, ptr.ValOrZero(teamID), enterprise.Name())
+		err = worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appToWrite.AdamID, insertedApp.AppTeamID, enterprise.Name())
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
 		}
