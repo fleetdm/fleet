@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/winget/external_refs"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
@@ -53,15 +54,29 @@ func (ac *AppCommander) isFrozen() (bool, error) {
 
 func (ac *AppCommander) extractAppVersion(installerTFR *fleet.TempFileReader) error {
 	if ac.Version == "latest" {
-		meta, err := file.ExtractInstallerMetadata(installerTFR)
-		if err != nil {
-			return err
+		var version string
+		var err error
+
+		// Adobe Acrobat requires special handling for ZIP-packaged installers
+		if ac.Slug == "adobe-acrobat-pro/windows" {
+			version, err = externalrefs.ExtractVersionFromAdobeZIP(installerTFR)
+			if err != nil {
+				return fmt.Errorf("extract adobe zip version: %w", err)
+			}
+		} else {
+			// Standard metadata extraction for other apps
+			meta, err := file.ExtractInstallerMetadata(installerTFR)
+			if err != nil {
+				return err
+			}
+			version = meta.Version
+			err = installerTFR.Rewind()
+			if err != nil {
+				return err
+			}
 		}
-		ac.Version = meta.Version
-		err = installerTFR.Rewind()
-		if err != nil {
-			return err
-		}
+
+		ac.Version = version
 	}
 
 	return nil
