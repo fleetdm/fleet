@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
@@ -41,8 +42,10 @@ type softwareWorkerArgs struct {
 	HostUUID       string             `json:"host_uuid,omitempty"`
 	ApplicationID  string             `json:"application_id,omitempty"`
 	EnterpriseName string             `json:"enterprise_name,omitempty"`
-	AppTeamID      uint               `json:"app_team_id,omitempty"`
-	HostID         uint               `json:"host_id,omitempty"`
+	// AppTeamID is *not* a team ID, it is the vpp_apps_teams.id value. This is a bit confusing
+	// as a name, but that is what is expected in this field.
+	AppTeamID uint `json:"app_team_id,omitempty"`
+	HostID    uint `json:"host_id,omitempty"`
 
 	// HostEnrollTeamID is the team ID associated with the host at the time
 	// of enrollment, which is the one used to run the setup experience.
@@ -103,7 +106,7 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 
 	fmt.Println(">>>>> makeAndroidAppAvailable: hosts in scope:", spew.Sdump(hosts), applicationID, appTeamID)
 
-	config, err := v.Datastore.GetAndroidAppConfiguration(ctx, applicationID, appTeamID)
+	config, err := v.Datastore.GetAndroidAppConfigurationByAppTeamID(ctx, appTeamID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
@@ -243,6 +246,11 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return ctxerr.Wrapf(ctx, err, "ensuring host-specific policy is applied for host %s", hostUUID)
 	}
 
+	androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
+	}
+
 	appIDs, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get android apps in scope for host")
@@ -252,8 +260,7 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return nil
 	}
 
-	// TODO(mna): load any config and ensure it gets applied with the apps
-	configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, appIDs, appTeamID)
+	configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, appIDs, ptr.ValOrZero(androidHost.TeamID))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 	}
@@ -264,8 +271,8 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 			ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
 			WorkProfileWidgets   string          `json:"workProfileWidgets"`
 		}
-		if config := configsByAppID[appID]; config != nil && config.Configuration != nil {
-			if err := json.Unmarshal(config.Configuration, &androidAppConfig); err != nil {
+		if config := configsByAppID[appID]; config != nil {
+			if err := json.Unmarshal(config, &androidAppConfig); err != nil {
 				// should never happen, as it is stored as json in the db and is pre-validated
 				return ctxerr.Wrapf(ctx, err, "unmarshal android app configuration for app ID %s", appID)
 			}
