@@ -7,7 +7,7 @@ This guide walks you through deploying Fleet using Docker Compose. You'll have a
 ## What you'll need
 
 
-- Docker and Docker Compose installed
+- [Docker](https://docs.docker.com/engine/install/) and [Docker Compose](https://docs.docker.com/compose/install/) installed
 - Ports 1337, 8220, 3306, and 6379 available
 - Basic command line familiarity
 
