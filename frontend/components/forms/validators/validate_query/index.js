@@ -17,9 +17,7 @@ export const validateQuery = (queryText) => {
     parser.astify(queryText, { database: "sqlite" });
     return validQueryResponse;
   } catch (error) {
-    return invalidQueryResponse(
-      "There is a syntax error in your query; please resolve in order to save."
-    );
+    return invalidQueryResponse("Syntax error. Please review before saving.");
   }
 };
 
