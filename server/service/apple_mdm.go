@@ -5347,8 +5347,7 @@ func preprocessProfileContents(
 					caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarOktaSCEPChallengePrefix))
 					ca, ok := oktaCAs[caName]
 					if !ok {
-						level.Error(logger).Log("msg", "Okta SCEP CA not found. "+
-							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
+						level.Error(logger).Log("msg", "Okta SCEP CA not found. This error should never happen since we validated/populated CAs earlier")
 						continue
 					}
 					challenge, err := scepConfig.GetOktaSCEPChallenge(ctx, *ca)
