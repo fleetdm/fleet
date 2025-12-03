@@ -590,6 +590,13 @@
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
+      "name": "Nova",
+      "slug": "nova/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.panic.Nova",
+      "description": "Nova is a native code editor by Panic."
+    },
+    {
       "name": "Nudge",
       "slug": "nudge/darwin",
       "platform": "darwin",

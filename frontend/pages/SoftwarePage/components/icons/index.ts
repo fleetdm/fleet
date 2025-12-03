@@ -80,6 +80,7 @@ import MySqlWorkbench from "./MySqlWorkbench";
 import NordVpn from "./NordVpn";
 import Notion from "./Notion";
 import NotionCalendar from "./NotionCalendar";
+import Nova from "./Nova";
 import Nudge from "./Nudge";
 import OmniGraffle from "./OmniGraffle";
 import OmnissaHorizonClient from "./OmnissaHorizonClient";
@@ -215,6 +216,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "nord vpn": NordVpn,
   notion: Notion,
   "notion calendar": NotionCalendar,
+  nova: Nova,
   nudge: Nudge,
   omnigraffle: OmniGraffle,
   "omnissa horizon client": OmnissaHorizonClient,
