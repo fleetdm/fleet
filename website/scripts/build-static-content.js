@@ -1310,11 +1310,6 @@ module.exports = {
         let linesInAppsJsonFile = appsJsonDataAsAString.split('\n');
         // Then for each item in the json, build a configuration object to add to the sails.builtStaticContent.appLibrary array.
         await sails.helpers.flow.simultaneouslyForEach(appsJsonData.apps, async(app)=>{
-          // FUTURE: add support for windows apps once the page is updated to be multi-platform.
-          if(app.platform !== 'darwin'){
-            return;
-          }
-
           // Determine the line in the JSON that the object for this app starts on.
           // this will allow us to link users directly to the app's position in the JSON file when users want to make a change.
           let lineWithTheAppsSlugKey = _.find(linesInAppsJsonFile, (line)=>{
@@ -1324,7 +1319,7 @@ module.exports = {
 
           let appInformation = {
             name: app.name,
-            identifier: app.slug.split('/'+app.platform)[0],
+            identifier: app.slug.replace(/\//, '-'),
             outputSlug: app.slug,
             bundleIdentifier: app.unique_identifier,
             description: app.description,
@@ -1337,7 +1332,7 @@ module.exports = {
           .intercept('doesNotExist', ()=>{
             return new Error(`Could not build app library configuration from the ee/maintained-apps folder. When attempting to read a JSON configuration file for ${appInformation.identifier}, no file was found at ${path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+app.slug+'.json')}. Was it moved?')}.`);
           });
-          let expectedAppIconFilename = `app-icon-${appInformation.identifier}-60x60@2x.png`;
+          let expectedAppIconFilename = `app-icon-${app.slug.split('/'+app.platform)[0]}-60x60@2x.png`;
 
           // FUTURE: copy the app icons from where they are stored in the repo (when they are stored in the repo).
           let iconImageExistsForThisApp = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', expectedAppIconFilename));
@@ -1389,7 +1384,8 @@ module.exports = {
           scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/\n\s*/g, ' && ').replace(/ && $/, '').replace(/^ && /, '');
 
           // Add the uninstall script and the latest version to this app's configuration.
-          appInformation.uninstallScript = scriptToUninstallThisApp;
+          // Note: we esacape the uninstall script to prevent issues when storing these values in the website's JSON configuration.
+          appInformation.uninstallScript = _.escape(scriptToUninstallThisApp);
           appInformation.version = latestVersionOfThisApp.version.split(',')[0];
           appLibrary.push(appInformation);
         });
