@@ -79,14 +79,14 @@ class AgentApplication : Application() {
         ).setConstraints(
             Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
-                .build()
+                .build(),
         ).build()
 
         WorkManager.getInstance(this)
             .enqueueUniquePeriodicWork(
                 CertificateEnrollmentWorker.WORK_NAME,
                 ExistingPeriodicWorkPolicy.KEEP,
-                workRequest
+                workRequest,
             )
 
         Log.i(TAG, "Scheduled periodic certificate enrollment every 15 minutes")

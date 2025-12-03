@@ -202,17 +202,19 @@ object ApiClient {
         ).fold(
             onSuccess = { res ->
                 Log.i("ApiClient", "successfully retrieved certificate template ${res.id}: ${res.name}")
-                Result.success(res.apply {
-                    setUrl(
-                        serverUrl = credentials.baseUrl,
-                        hostUUID = credentials.hardwareUUID,
-                    )
-                })
+                Result.success(
+                    res.apply {
+                        setUrl(
+                            serverUrl = credentials.baseUrl,
+                            hostUUID = credentials.hardwareUUID,
+                        )
+                    },
+                )
             },
             onFailure = { throwable ->
                 Log.e("ApiClient", "failed to get certificate template $certificateId")
                 Result.failure(throwable)
-            }
+            },
         )
     }
 
@@ -409,7 +411,7 @@ data class GetCertificateTemplateResponse(
     @SerialName("signature_algorithm")
     val signatureAlgorithm: String = "SHA256withRSA",
 
-    var url: String?
+    var url: String?,
 ) {
     fun setUrl(serverUrl: String, hostUUID: String) {
         url = "$serverUrl/mdm/scep/proxy/$hostUUID,g$id,$certificateAuthorityType,$fleetChallenge"

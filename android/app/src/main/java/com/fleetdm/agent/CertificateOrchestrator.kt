@@ -6,10 +6,10 @@ import android.os.Bundle
 import android.util.Log
 import com.fleetdm.agent.scep.ScepClient
 import com.fleetdm.agent.scep.ScepClientImpl
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import java.security.PrivateKey
 import java.security.cert.Certificate
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 /**
  * Orchestrates certificate enrollment operations by coordinating API calls,
@@ -69,7 +69,7 @@ object CertificateOrchestrator {
         context: Context,
         certificateId: Int,
         scepClient: ScepClient = ScepClientImpl(),
-        certificateInstaller: CertificateEnrollmentHandler.CertificateInstaller? = null
+        certificateInstaller: CertificateEnrollmentHandler.CertificateInstaller? = null,
     ): CertificateEnrollmentHandler.EnrollmentResult {
         Log.d(TAG, "Starting certificate enrollment for certificate ID: $certificateId")
 
@@ -79,7 +79,7 @@ object CertificateOrchestrator {
             Log.e(TAG, "Failed to fetch certificate template for ID $certificateId: ${error.message}", error)
             return CertificateEnrollmentHandler.EnrollmentResult.Failure(
                 reason = "Failed to fetch certificate template: ${error.message}",
-                exception = error as? Exception
+                exception = error as? Exception,
             )
         }
 
@@ -91,7 +91,7 @@ object CertificateOrchestrator {
         // Step 3: Create enrollment handler
         val handler = CertificateEnrollmentHandler(
             scepClient = scepClient,
-            certificateInstaller = installer
+            certificateInstaller = installer,
         )
 
         // Step 4: Perform enrollment
@@ -121,7 +121,7 @@ object CertificateOrchestrator {
     suspend fun enrollCertificates(
         context: Context,
         certificateIds: List<Int>,
-        scepClient: ScepClient = ScepClientImpl()
+        scepClient: ScepClient = ScepClientImpl(),
     ): Map<Int, CertificateEnrollmentHandler.EnrollmentResult> = coroutineScope {
         Log.d(TAG, "Starting batch certificate enrollment for ${certificateIds.size} certificates")
 
@@ -166,4 +166,3 @@ object CertificateOrchestrator {
         }
     }
 }
-

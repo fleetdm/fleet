@@ -14,10 +14,7 @@ import androidx.work.WorkerParameters
  * - Returns appropriate Result based on enrollment outcomes
  * - Supports automatic retry for transient failures
  */
-class CertificateEnrollmentWorker(
-    context: Context,
-    workerParams: WorkerParameters
-) : CoroutineWorker(context, workerParams) {
+class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParameters) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
         val attemptCount = runAttemptCount
@@ -40,7 +37,7 @@ class CertificateEnrollmentWorker(
 
         val results = CertificateOrchestrator.enrollCertificates(
             context = applicationContext,
-            certificateIds = certificateIds
+            certificateIds = certificateIds,
         )
 
         // Analyze results to determine worker outcome
@@ -92,8 +89,8 @@ class CertificateEnrollmentWorker(
         private fun shouldRetry(reason: String): Boolean {
             // Retry on network/API failures, not on invalid config
             return reason.contains("network", ignoreCase = true) ||
-                   reason.contains("Failed to fetch", ignoreCase = true) ||
-                   reason.contains("timeout", ignoreCase = true)
+                reason.contains("Failed to fetch", ignoreCase = true) ||
+                reason.contains("timeout", ignoreCase = true)
         }
     }
 }

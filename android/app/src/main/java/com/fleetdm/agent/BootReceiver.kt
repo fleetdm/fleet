@@ -25,7 +25,7 @@ class BootReceiver : BroadcastReceiver() {
                     .setConstraints(
                         Constraints.Builder()
                             .setRequiredNetworkType(NetworkType.CONNECTED)
-                            .build()
+                            .build(),
                     )
                     .build()
 
@@ -33,7 +33,7 @@ class BootReceiver : BroadcastReceiver() {
                     .enqueueUniqueWork(
                         "${CertificateEnrollmentWorker.WORK_NAME}_boot",
                         ExistingWorkPolicy.REPLACE, // Run fresh enrollment on boot
-                        workRequest
+                        workRequest,
                     )
 
                 Log.d(TAG, "Scheduled certificate enrollment after boot")
