@@ -1087,8 +1087,16 @@ const (
 
 var AppStoreAppsPlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform, AndroidPlatform}
 
+var ApplePlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform}
+
+// SupportsAppStoreApps returns whether or not the given platform supports app store apps.
 func (p InstallableDevicePlatform) SupportsAppStoreApps() bool {
 	return slices.Contains(AppStoreAppsPlatforms, p)
+}
+
+// IsApplePlatform returns whether the platform is one of Apple's platforms: macOS, iOS, or iPadOS.
+func (p InstallableDevicePlatform) IsApplePlatform() bool {
+	return slices.Contains(ApplePlatforms, p)
 }
 
 type AppleDevicesToRefetch struct {

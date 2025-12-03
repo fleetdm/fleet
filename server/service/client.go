@@ -2451,6 +2451,7 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	}
 
 	var appsPayload []fleet.VPPBatchPayload
+	fmt.Printf("config.Software.AppStoreApps: %v\n", config.Software.AppStoreApps)
 	appsByAppID := make(map[string]fleet.TeamSpecAppStoreApp, len(config.Software.AppStoreApps))
 	for _, vppApp := range config.Software.AppStoreApps {
 		if vppApp != nil {
@@ -2481,6 +2482,8 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 			})
 		}
 	}
+
+	fmt.Printf("appsPayload: %v\n", appsPayload)
 
 	if err := validateTeamOrNoTeamMacOSSetupSoftware(*config.TeamName, macOSSetup.Software.Value, packagesWithPaths, appsByAppID); err != nil {
 		return nil, nil, err

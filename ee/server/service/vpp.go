@@ -239,6 +239,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				TeamID:           teamID,
 			})
 		}
+
 	}
 
 	if err := svc.ds.BatchInsertVPPApps(ctx, appStoreApps); err != nil {
@@ -272,7 +273,23 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return []fleet.VPPAppResponse{}, nil
 	}
 
-	return svc.ds.GetVPPApps(ctx, teamID)
+	addedApps, err := svc.ds.GetVPPApps(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, app := range addedApps {
+		if app.Platform == fleet.AndroidPlatform {
+			hostsInScope, err := svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, app.AppTeamID)
+			if err != nil {
+				return nil, err
+			}
+
+			fmt.Printf("hostsInScope: %v\n", hostsInScope)
+		}
+	}
+
+	return addedApps, nil
 }
 
 func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet.VPPApp, error) {

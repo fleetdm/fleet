@@ -1251,11 +1251,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			continue
 		}
 
-		// if app store id matches android application id, ignore the app (for now)
-		if androidApplicationID.MatchString(item.AppStoreID) {
-			continue
-		}
-
 		if len(item.LabelsExcludeAny) > 0 && len(item.LabelsIncludeAny) > 0 {
 			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for app store app %q`, item.AppStoreID))
 			continue

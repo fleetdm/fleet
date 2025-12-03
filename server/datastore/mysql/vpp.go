@@ -389,7 +389,7 @@ func (ds *Datastore) getVPPAppTeamCategoryIDs(ctx context.Context, vppAppTeamID 
 	return ids, nil
 }
 
-func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets []fleet.VPPAppTeam) error {
+func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingApps []fleet.VPPAppTeam) error {
 	existingApps, err := ds.GetAssignedVPPApps(ctx, teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "SetTeamVPPApps getting list of existing apps")
@@ -400,7 +400,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 	// install during setup (since we're overwriting those). This is always
 	// called from fleetctl gitops, so it should always be the case anyway.
 	var replacingInstallDuringSetup bool
-	if len(appFleets) == 0 || appFleets[0].InstallDuringSetup != nil {
+	if len(incomingApps) == 0 || incomingApps[0].InstallDuringSetup != nil {
 		replacingInstallDuringSetup = true
 	}
 
@@ -409,7 +409,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 
 	for existingApp, appTeamInfo := range existingApps {
 		var found bool
-		for _, appFleet := range appFleets {
+		for _, appFleet := range incomingApps {
 			// Self service value doesn't matter for removing app from team
 			if existingApp == appFleet.VPPAppID {
 				found = true
@@ -425,46 +425,50 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 	}
 
 	appsWithChangedLabels := make(map[uint]map[uint]struct{})
-	for _, appFleet := range appFleets {
+	var vppTokenRequired bool
+	for _, incomingApp := range incomingApps {
+		if incomingApp.Platform.IsApplePlatform() {
+			vppTokenRequired = true
+		}
 		// upsert it if it does not exist or labels or SelfService or InstallDuringSetup flags are changed
-		existingApp, isExistingApp := existingApps[appFleet.VPPAppID]
-		appFleet.AppTeamID = existingApp.AppTeamID
+		existingApp, isExistingApp := existingApps[incomingApp.VPPAppID]
+		incomingApp.AppTeamID = existingApp.AppTeamID
 		var labelsChanged, categoriesChanged bool
 		if isExistingApp {
-			existingLabels, err := ds.getExistingLabels(ctx, appFleet.AppTeamID)
+			existingLabels, err := ds.getExistingLabels(ctx, incomingApp.AppTeamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting existing labels for vpp app")
 			}
 
-			labelsChanged = !existingLabels.Equal(appFleet.ValidatedLabels)
+			labelsChanged = !existingLabels.Equal(incomingApp.ValidatedLabels)
 
-			existingCatIDs, err := ds.getVPPAppTeamCategoryIDs(ctx, appFleet.AppTeamID)
+			existingCatIDs, err := ds.getVPPAppTeamCategoryIDs(ctx, incomingApp.AppTeamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting existing categories for vpp app")
 			}
 
-			categoriesChanged = !slices.Equal(existingCatIDs, appFleet.CategoryIDs)
+			categoriesChanged = !slices.Equal(existingCatIDs, incomingApp.CategoryIDs)
 
 		}
 
 		// Get the hosts that are NOT in label scope currently (before the update happens)
 		if labelsChanged {
-			hostsNotInScope, err := ds.GetExcludedHostIDMapForVPPApp(ctx, appFleet.AppTeamID)
+			hostsNotInScope, err := ds.GetExcludedHostIDMapForVPPApp(ctx, incomingApp.AppTeamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting hosts not in scope for vpp app")
 			}
-			appsWithChangedLabels[appFleet.AppTeamID] = hostsNotInScope
+			appsWithChangedLabels[incomingApp.AppTeamID] = hostsNotInScope
 
 		}
 
 		if !isExistingApp ||
-			existingApp.SelfService != appFleet.SelfService ||
+			existingApp.SelfService != incomingApp.SelfService ||
 			labelsChanged ||
 			categoriesChanged ||
-			appFleet.InstallDuringSetup != nil &&
+			incomingApp.InstallDuringSetup != nil &&
 				existingApp.InstallDuringSetup != nil &&
-				*appFleet.InstallDuringSetup != *existingApp.InstallDuringSetup {
-			toAddApps = append(toAddApps, appFleet)
+				*incomingApp.InstallDuringSetup != *existingApp.InstallDuringSetup {
+			toAddApps = append(toAddApps, incomingApp)
 		}
 	}
 
@@ -481,7 +485,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 	}
 
 	var vppToken *fleet.VPPTokenDB
-	if len(appFleets) > 0 {
+	if len(incomingApps) > 0 && vppTokenRequired {
 		vppToken, err = ds.GetVPPTokenByTeamID(ctx, teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "SetTeamVPPApps retrieve VPP token ID")
@@ -490,7 +494,11 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, toAdd := range toAddApps {
-			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, &vppToken.ID)
+			var tokenID *uint
+			if vppToken != nil {
+				tokenID = &vppToken.ID
+			}
+			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, tokenID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
 			}
@@ -678,7 +686,7 @@ func (ds *Datastore) GetVPPApps(ctx context.Context, teamID *uint) ([]fleet.VPPA
 
 	// intentionally using writer as this is called right after batch-setting VPP apps
 	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &results, `
-		SELECT vat.team_id, va.title_id, vat.adam_id AS app_store_id, vat.platform,
+		SELECT vat.id AS app_team_id, vat.team_id, va.title_id, vat.adam_id AS app_store_id, vat.platform,
 			COALESCE(icons.filename, '') AS icon_filename, COALESCE(icons.storage_id, '') AS icon_hash_sha256
 		FROM vpp_apps_teams vat
 		JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
