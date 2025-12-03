@@ -137,7 +137,6 @@ import Zed from "./Zed";
 import ZeroOneZeroEditor from "./010Editor";
 import Zoom from "./Zoom";
 
-
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
