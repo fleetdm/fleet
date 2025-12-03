@@ -170,6 +170,11 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 			if strings.HasPrefix(result.Version, appVersion+".") || strings.HasPrefix(result.BundledVersion, appVersion+".") {
 				return true, nil
 			}
+			// Check if expected version starts with found version (handles cases where osquery reports shorter version)
+			// This handles cases where expected is "2025.2.1.8" but osquery reports "2025.2"
+			if strings.HasPrefix(appVersion, result.Version+".") {
+				return true, nil
+			}
 		}
 	}
 

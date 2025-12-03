@@ -2,6 +2,7 @@ import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError, AxiosResponse } from "axios";
 
+import PATHS from "router/paths";
 import { IApiError } from "interfaces/errors";
 import { IConfig } from "interfaces/config";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
@@ -20,7 +21,7 @@ import {
 } from "utilities/constants";
 
 import Spinner from "components/Spinner";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
 
@@ -215,10 +216,11 @@ const BootstrapPackage = ({
       )
     ) {
       return (
-        <TurnOnMdmMessage
+        <GenericMsgWithNavButton
           header="Additional configuration required"
           info="Supported on macOS. To customize, first turn on automatic enrollment."
           buttonText="Turn on"
+          path={PATHS.ADMIN_INTEGRATIONS_MDM}
           router={router}
         />
       );

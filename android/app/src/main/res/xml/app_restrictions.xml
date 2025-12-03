@@ -8,16 +8,16 @@
         android:description="@string/enroll_secret_description" />
 
     <restriction
-        android:key="fleetBaseUrl"
-        android:title="@string/fleet_base_url_title"
+        android:key="serverURL"
+        android:title="@string/server_url_title"
         android:restrictionType="string"
-        android:description="@string/fleet_base_url_description" />
+        android:description="@string/server_url_description" />
 
     <restriction
-        android:key="enrollmentSpecificID"
-        android:title="@string/enrollment_specific_id_title"
+        android:key="hostUUID"
+        android:title="@string/host_uuid_title"
         android:restrictionType="string"
-        android:description="@string/enrollment_specific_id_description" />
+        android:description="@string/host_uuid_description" />
 
     <restriction
         android:key="certificates"

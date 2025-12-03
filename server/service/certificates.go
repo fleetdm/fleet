@@ -3,12 +3,12 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
 type createCertificateTemplateRequest struct {
@@ -46,6 +46,10 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 		return nil, err
 	}
 
+	if err := validateCertificateTemplateFleetVariables(subjectName); err != nil {
+		return nil, &fleet.BadRequestError{Message: err.Error()}
+	}
+
 	certTemplate := &fleet.CertificateTemplate{
 		Name:                   name,
 		TeamID:                 teamID,
@@ -62,9 +66,9 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 }
 
 type listCertificateTemplatesRequest struct {
-	TeamID  uint `query:"team_id"`
-	Page    int  `query:"page,optional"`
-	PerPage int  `query:"per_page,optional"`
+	fleet.ListOptions
+
+	TeamID uint `query:"team_id"`
 }
 
 type listCertificateTemplatesResponse struct {
@@ -77,33 +81,41 @@ func (r listCertificateTemplatesResponse) Error() error { return r.Err }
 
 func listCertificateTemplatesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listCertificateTemplatesRequest)
-	certificates, paginationMetaData, err := svc.ListCertificateTemplates(ctx, req.TeamID, req.Page, req.PerPage)
+	certificates, paginationMetaData, err := svc.ListCertificateTemplates(ctx, req.TeamID, req.ListOptions)
 	if err != nil {
 		return listCertificateTemplatesResponse{Err: err}, nil
 	}
 	return listCertificateTemplatesResponse{Certificates: certificates, Meta: paginationMetaData}, nil
 }
 
-func (svc *Service) ListCertificateTemplates(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListCertificateTemplates(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, nil, err
 	}
 
-	certificates, paginationMetaData, err := svc.ds.GetCertificateTemplatesByTeamID(ctx, teamID, page, perPage)
+	// cursor-based pagination is not supported
+	opts.After = ""
+
+	// custom ordering is not supported, always by sort by id
+	opts.OrderKey = "certificate_templates.id"
+	opts.OrderDirection = fleet.OrderAscending
+
+	// no matching query support
+	opts.MatchQuery = ""
+
+	// always include metadata
+	opts.IncludeMetadata = true
+
+	certificates, metaData, err := svc.ds.GetCertificateTemplatesByTeamID(ctx, teamID, opts)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return certificates, paginationMetaData, nil
+	return certificates, metaData, nil
 }
 
 type getDeviceCertificateTemplateRequest struct {
-	ID      uint   `url:"id"`
-	NodeKey string `query:"node_key"`
-}
-
-func (r *getDeviceCertificateTemplateRequest) hostNodeKey() string {
-	return r.NodeKey
+	ID uint `url:"id"`
 }
 
 type getDeviceCertificateTemplateResponse struct {
@@ -285,6 +297,11 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 			teamID = uint(parsed)
 		}
 
+		// Validate Fleet variables in subject name
+		if err := validateCertificateTemplateFleetVariables(spec.SubjectName); err != nil {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%s (certificate %s)", err.Error(), spec.Name)}
+		}
+
 		cert := &fleet.CertificateTemplate{
 			Name:                   spec.Name,
 			CertificateAuthorityID: spec.CertificateAuthorityId,
@@ -325,43 +342,12 @@ func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certific
 	return svc.ds.BatchDeleteCertificateTemplates(ctx, certificateTemplateIDs)
 }
 
-// replaceCertificateVariables replaces FLEET_VAR_* variables in the subject name with actual host values
-func (svc *Service) replaceCertificateVariables(ctx context.Context, subjectName string, host *fleet.Host) (string, error) {
-	fleetVars := variables.Find(subjectName)
-	if len(fleetVars) == 0 {
-		return subjectName, nil
-	}
-
-	result := subjectName
-	for _, fleetVar := range fleetVars {
-		switch fleetVar {
-		case "HOST_UUID":
-			result = fleet.FleetVarHostUUIDRegexp.ReplaceAllString(result, host.UUID)
-		case "HOST_HARDWARE_SERIAL":
-			result = fleet.FleetVarHostHardwareSerialRegexp.ReplaceAllString(result, host.HardwareSerial)
-		case "HOST_END_USER_IDP_USERNAME":
-			users, err := fleet.GetEndUsers(ctx, svc.ds, host.ID)
-			if err != nil {
-				return "", ctxerr.Wrapf(ctx, err, "getting host end users for variable %s", fleetVar)
-			}
-			if len(users) == 0 || users[0].IdpUserName == "" {
-				return "", ctxerr.Errorf(ctx, "host %s does not have an IDP username for variable %s", host.UUID, fleetVar)
-			}
-			result = fleet.FleetVarHostEndUserIDPUsernameRegexp.ReplaceAllString(result, users[0].IdpUserName)
-		}
-	}
-
-	return result, nil
-}
-
 type updateCertificateStatusRequest struct {
 	CertificateTemplateID uint   `url:"id"`
-	NodeKey               string `json:"node_key"`
 	Status                string `json:"status"`
-}
-
-func (r *updateCertificateStatusRequest) hostNodeKey() string {
-	return r.NodeKey
+	// Detail provides additional information about the status change.
+	// For example, it can be used to provide a reason for a failed status change.
+	Detail *string `json:"detail,omitempty"`
 }
 
 type updateCertificateStatusResponse struct {
@@ -376,7 +362,7 @@ func updateCertificateStatusEndpoint(ctx context.Context, request interface{}, s
 		return nil, errors.New("invalid request")
 	}
 
-	err := svc.UpdateCertificateStatus(ctx, req.CertificateTemplateID, fleet.MDMDeliveryStatus(req.Status))
+	err := svc.UpdateCertificateStatus(ctx, req.CertificateTemplateID, fleet.MDMDeliveryStatus(req.Status), req.Detail)
 	if err != nil {
 		return updateCertificateStatusResponse{Err: err}, nil
 	}
@@ -384,7 +370,12 @@ func updateCertificateStatusEndpoint(ctx context.Context, request interface{}, s
 	return updateCertificateStatusResponse{}, nil
 }
 
-func (svc *Service) UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus) error {
+func (svc *Service) UpdateCertificateStatus(
+	ctx context.Context,
+	certificateTemplateID uint,
+	status fleet.MDMDeliveryStatus,
+	detail *string,
+) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
@@ -399,5 +390,5 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, certificateTemp
 		return fleet.NewInvalidArgumentError("status", string(status))
 	}
 
-	return svc.ds.UpdateCertificateStatus(ctx, host.UUID, certificateTemplateID, status)
+	return svc.ds.UpdateCertificateStatus(ctx, host.UUID, certificateTemplateID, status, detail)
 }

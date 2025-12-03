@@ -730,7 +730,7 @@ func sqlCaseMDMAndroidStatus() string {
 `
 }
 
-func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDMAndroidPolicyRequest) error {
+func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *android.MDMAndroidPolicyRequest) error {
 	const stmt = `
 	INSERT INTO android_policy_requests
 		(request_uuid, request_name, policy_id, payload, status_code, error_details, applied_policy_version, policy_version)
@@ -754,7 +754,7 @@ func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDM
 	return ctxerr.Wrap(ctx, err, "inserting android policy request")
 }
 
-func (ds *Datastore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*fleet.MDMAndroidPolicyRequest, error) {
+func (ds *Datastore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error) {
 	const stmt = `
 		SELECT
 			request_uuid,
@@ -771,7 +771,7 @@ func (ds *Datastore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestU
 			request_uuid = ?
 	`
 
-	req := fleet.MDMAndroidPolicyRequest{}
+	req := android.MDMAndroidPolicyRequest{}
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &req, stmt, requestUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -1526,10 +1526,110 @@ func isAndroidHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext
 			WHERE host_id = ? AND enrolled = 1
 	`, h.ID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
 		return false, ctxerr.Wrap(ctx, err, "check android host mdm enrolled")
 	}
 
 	return isEnrolled, nil
+}
+
+func (ds *Datastore) InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *fleet.HostAndroidVPPSoftwareInstall) error {
+	const stmt = `
+		INSERT INTO
+			host_vpp_software_installs (
+				host_id,
+				adam_id,
+				command_uuid,
+				self_service,
+				associated_event_id,
+				platform
+			)
+		VALUES
+			(?, ?, ?, ?, ?, ?)`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		payload.HostID,
+		payload.AdamID,
+		payload.CommandUUID,
+		false,
+		payload.AssociatedEventID,
+		fleet.AndroidPlatform,
+	)
+	return ctxerr.Wrap(ctx, err, "inserting android setup experience software install")
+}
+
+func (ds *Datastore) ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+	const stmt = `
+SELECT
+	hvsi.host_id,
+	hvsi.adam_id,
+	hvsi.command_uuid,
+	hvsi.associated_event_id
+FROM
+	host_vpp_software_installs hvsi
+	INNER JOIN hosts h ON hvsi.host_id = h.id
+WHERE
+	h.uuid = ? AND
+	h.platform = ? AND
+	CAST(hvsi.associated_event_id AS SIGNED INT) <= ? AND
+	hvsi.verification_at IS NULL AND
+	hvsi.verification_failed_at IS NULL
+`
+
+	var pendingInstalls []*fleet.HostAndroidVPPSoftwareInstall
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &pendingInstalls, stmt, hostUUID, fleet.AndroidPlatform, policyVersion)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing host mdm android vpp apps pending install")
+	}
+	return pendingInstalls, nil
+}
+
+func (ds *Datastore) BulkSetVPPInstallsAsVerified(ctx context.Context, hostID uint, commandUUIDs []string) error {
+	return ds.bulkSetVPPInstallsAsFinalState(ctx, hostID, commandUUIDs, "verification_at")
+}
+
+func (ds *Datastore) BulkSetVPPInstallsAsFailed(ctx context.Context, hostID uint, commandUUIDs []string) error {
+	return ds.bulkSetVPPInstallsAsFinalState(ctx, hostID, commandUUIDs, "verification_failed_at")
+}
+
+func (ds *Datastore) bulkSetVPPInstallsAsFinalState(ctx context.Context, hostID uint, commandUUIDs []string, column string) error {
+	if len(commandUUIDs) == 0 {
+		return nil
+	}
+
+	// For Android, we don't care about the verification command uuid (at least currently),
+	// we just set a random one.
+	stmt := fmt.Sprintf(`
+UPDATE
+	host_vpp_software_installs
+SET
+	%s = CURRENT_TIMESTAMP(6),
+	verification_command_uuid = ?
+WHERE
+	command_uuid IN (?)
+`, column)
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		verificationUUID := uuid.NewString()
+		stmt, args, err := sqlx.In(stmt, verificationUUID, commandUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build set vpp installs as final state query")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "set vpp installs as final state")
+		}
+
+		// TODO(mna): for now we don't use the upcoming queue for Android app installs,
+		// but when we implement the standard Android app installs we probably will. Leaving
+		// this here as a reminder.
+		// if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ...); err != nil {
+		// 	return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install verify")
+		// }
+
+		return nil
+	})
 }
 
 // GetAndroidAppConfiguration retrieves the configuration for an Android app
@@ -1643,10 +1743,10 @@ func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sql
 	}
 
 	stmt := `
-		INSERT INTO 
+		INSERT INTO
 			android_app_configurations (application_id, team_id, global_or_team_id, configuration)
-		VALUES (?, ?, ?, ?) 
-		ON DUPLICATE KEY UPDATE 
+		VALUES (?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
 			configuration = VALUES(configuration)
 	`
 
