@@ -638,7 +638,7 @@ Object with the following structure:
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | url | string | **Required**. The URL of the NDES SCEP endpoint. |
-| admin_url | string | **Required**. The URL of the NDES admin endpoint. |
+| admin_url | string | **Optional**. The URL of the NDES admin endpoint. |
 | password | string | **Required**. The password for the NDES admin endpoint. |
 | username | string | **Required**. The username for the NDES admin endpoint. |
 

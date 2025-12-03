@@ -48,15 +48,10 @@ const FORM_VALIDATIONS: Record<
   adminURL: {
     validations: [
       {
-        name: "required",
-        isValid: (formData: INDESFormData) => {
-          return formData.adminURL.length > 0;
-        },
-      },
-      {
         name: "validUrl",
         isValid: (formData: INDESFormData) => {
-          return valid_url({ url: formData.adminURL });
+          // Only validate URL format if adminURL is provided
+          return formData.adminURL.length === 0 || valid_url({ url: formData.adminURL });
         },
         message: "Must be a valid URL",
       },

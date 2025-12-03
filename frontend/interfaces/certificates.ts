@@ -44,7 +44,7 @@ export interface ICertificatesNDES {
   id?: number;
   type?: "ndes_scep_proxy";
   url: string;
-  admin_url: string;
+  admin_url?: string;
   username: string;
   password: string;
 }
