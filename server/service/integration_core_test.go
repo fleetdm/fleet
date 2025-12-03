@@ -8146,9 +8146,36 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	require.Equal(t, uint(0), profilesSummaryResp.Failed)
 	require.Equal(t, uint(0), profilesSummaryResp.Pending)
 
-	// Clean up: delete no-team certificate templates
+	// creating a certificate
+	var createCertResp createCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", map[string]interface{}{
+		"name":                     "POST No Team Cert",
+		"certificate_authority_id": ca.ID,
+		"subject_name":             "CN=$FLEET_VAR_HOST_UUID",
+		// team_id intentionally omitted - should default to 0
+	}, http.StatusOK, &createCertResp)
+	require.NotZero(t, createCertResp.ID)
+	require.Equal(t, "POST No Team Cert", createCertResp.Name)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &getCertResp)
+	require.NotNil(t, getCertResp.Certificate)
+	require.Equal(t, uint(0), getCertResp.Certificate.TeamID)
+
+	var delResp deleteCertificateTemplateResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &delResp)
+
+	var delBatchResp2 deleteCertificateTemplateSpecsResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
-		"ids":     []uint{noTeamCertificatesResp.Certificates[0].ID, noTeamCertificatesResp.Certificates[1].ID},
+		"ids": []uint{noTeamCertificatesResp.Certificates[0].ID},
+		// team_id intentionally omitted - should default to 0
+	}, http.StatusOK, &delBatchResp2)
+
+	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
+	require.Len(t, noTeamCertificatesResp.Certificates, 1)
+	require.Equal(t, noTeamCertificatesResp.Certificates[0].ID, noTeamCertificatesResp.Certificates[0].ID)
+
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
+		"ids":     []uint{noTeamCertificatesResp.Certificates[0].ID},
 		"team_id": uint(0),
 	}, http.StatusOK, &delBatchResp)
 

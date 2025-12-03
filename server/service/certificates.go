@@ -69,7 +69,7 @@ type listCertificateTemplatesRequest struct {
 	fleet.ListOptions
 
 	// If not provided, intentionally defaults to 0 aka "No team"
-	TeamID uint `query:"team_id"`
+	TeamID uint `query:"team_id,optional"`
 }
 
 type listCertificateTemplatesResponse struct {
