@@ -54,7 +54,6 @@ import SQLEditor from "components/SQLEditor";
 import {
   validateQuery,
   EMPTY_QUERY_ERR,
-  // @ts-ignore
 } from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
@@ -107,7 +106,8 @@ const validateQuerySQL = (query: string) => {
   const { error: queryError, valid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
-    errors.query = queryError;
+    // queryError should be truthy at this point
+    errors.query = queryError ?? "Invalid query";
   }
 
   const valid = !size(errors);
