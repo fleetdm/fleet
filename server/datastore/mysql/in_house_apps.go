@@ -999,7 +999,8 @@ WHERE
 `
 
 	const deleteDisplayNamesNotInList = `
-DELETE stdn
+DELETE
+	stdn
 FROM
 	software_title_display_names stdn
 INNER JOIN
