@@ -6994,6 +6994,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 ```json
 {
+  "count": 2,
   "results": [
     {
       "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
