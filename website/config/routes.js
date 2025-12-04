@@ -1129,6 +1129,8 @@ module.exports.routes = {
   'GET /learn-more-about/microsoft-compliance-partner': '/guides/entra-conditional-access-integration',
   'GET /learn-more-about/microsoft-entra-setup': 'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/TenantProperties.ReactView',
   'GET /learn-more-about/conditional-access': '/guides/entra-conditional-access-integration',
+  'GET /learn-more-about/entra-conditional-access': '/guides/entra-conditional-access-integration',
+  'GET /learn-more-about/okta-conditional-access': '/guides/okta-conditional-access-integration',
   'GET /learn-more-about/organization-logo-size': '/docs/configuration/yaml-files#org-info',
   'GET /learn-more-about/byod-hosts-vpp-install': 'https://github.com/fleetdm/fleet/issues/31138',
   'GET /learn-more-about/install-google-play-apps': 'https://github.com/fleetdm/fleet/issues/25595',
