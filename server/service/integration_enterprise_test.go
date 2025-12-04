@@ -9770,17 +9770,14 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		Platform:      "darwin",
 	}
 	s.uploadSoftwareInstaller(t, darwinSwPayload, http.StatusOK, "")
-	resp = listSoftwareTitlesResponse{}
 
 	// Filtering by platform without team errors
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/titles",
-		listSoftwareTitlesRequest{},
-		http.StatusUnprocessableEntity, &resp,
-		"platform", "darwin",
-	)
+	res := s.Do("GET", "/api/latest/fleet/software/titles?platform=darwin", nil, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, fleet.FilterTitlesByPlatformNeedsTeamIdErrMsg)
 
 	// Filtering by platform with team ok
+	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
 		listSoftwareTitlesRequest{},
@@ -10779,7 +10776,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
 
 	team1.Config.Integrations.GoogleCalendar = &fleet.TeamGoogleCalendarIntegration{
 		Enable:     true,
-		WebhookURL: "https://foo.example.com",
+		WebhookURL: "https://eoo.example.com",
 	}
 	team1, err = s.ds.SaveTeam(ctx, team1)
 	require.NoError(t, err)
