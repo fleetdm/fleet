@@ -3,8 +3,8 @@ import React from "react";
 import { uniqueId } from "lodash";
 
 const FileConfigurationProfile = () => {
-  const clipPathIdA = uniqueId("clip-path-a-");
-  const clipPathIdB = uniqueId("clip-path-b-");
+  const clipPathIdA = uniqueId("clip-path-");
+  const clipPathIdB = uniqueId("clip-path-");
 
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="34" height="40" fill="none">

@@ -9,8 +9,8 @@ interface IPremiumFeatureProps {
 
 const PremiumFeature = ({ size = "medium" }: IPremiumFeatureProps) => {
   const clipPathId = uniqueId("clip-path-");
-  const maskIdA = uniqueId("mask-a-");
-  const maskIdB = uniqueId("mask-b-");
+  const maskIdA = uniqueId("mask-");
+  const maskIdB = uniqueId("mask-");
 
   return (
     <svg

@@ -3,8 +3,8 @@ import React from "react";
 import { uniqueId } from "lodash";
 
 const FilePkg = () => {
-  const clipPathIdA = uniqueId("clip-path-a-");
-  const clipPathIdB = uniqueId("clip-path-b-");
+  const clipPathIdA = uniqueId("clip-path-");
+  const clipPathIdB = uniqueId("clip-path-");
   const maskId = uniqueId("mask-");
 
   return (
