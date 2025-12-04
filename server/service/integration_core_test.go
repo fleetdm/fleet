@@ -8037,10 +8037,12 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 
 	var getCertResp getDeviceCertificateTemplateResponse
 
-	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusBadRequest, map[string]string{
+	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusOK, map[string]string{
 		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
 	})
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
 	require.NoError(t, resp.Body.Close())
+	require.Equal(t, *getCertResp.Certificate.Status, fleet.MDMDeliveryFailed)
 
 	// Add an IDP user for the host
 	err = s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{

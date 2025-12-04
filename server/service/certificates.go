@@ -154,9 +154,19 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 
 	subjectName, err := svc.replaceCertificateVariables(ctx, certificate.SubjectName, host)
 	if err != nil {
-		return nil, &fleet.BadRequestError{
-			Message: fmt.Sprintf("Could not replace certificate variables: %s", err.Error()),
+		// If the certificate variables cannot be replaced, mark the certificate as failed.
+		errorMsg := fmt.Sprintf("Could not replace certificate variables: %s", err.Error())
+		if err := svc.ds.UpsertCertificateStatus(
+			ctx,
+			host.UUID,
+			certificate.ID,
+			fleet.MDMDeliveryFailed,
+			&errorMsg,
+		); err != nil {
+			return nil, err
 		}
+		certificate.Status = &fleet.MDMDeliveryFailed
+		return certificate, nil
 	}
 	certificate.SubjectName = subjectName
 
@@ -202,9 +212,7 @@ func (svc *Service) GetCertificateTemplate(ctx context.Context, id uint, hostUUI
 
 		subjectName, err := svc.replaceCertificateVariables(ctx, certificate.SubjectName, host)
 		if err != nil {
-			return nil, &fleet.BadRequestError{
-				Message: fmt.Sprintf("Could not replace certificate variables: %s", err.Error()),
-			}
+			return nil, ctxerr.Wrap(ctx, err, "replacing certificate variables")
 		}
 		certificate.SubjectName = subjectName
 	}
@@ -394,5 +402,5 @@ func (svc *Service) UpdateCertificateStatus(
 		return fleet.NewInvalidArgumentError("status", string(status))
 	}
 
-	return svc.ds.UpdateCertificateStatus(ctx, host.UUID, certificateTemplateID, status, detail)
+	return svc.ds.UpsertCertificateStatus(ctx, host.UUID, certificateTemplateID, status, detail)
 }
