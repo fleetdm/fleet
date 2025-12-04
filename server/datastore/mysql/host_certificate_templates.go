@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -195,7 +197,19 @@ func (ds *Datastore) UpsertCertificateStatus(
 		return err
 	}
 
+	// If no records were updated, then insert a new status.
 	if rowsAffected == 0 {
+		// We need to check whether the certificate template exists ... we do this way because
+		// there are no FK constraints between host_certificate_templates and certificate_templates.
+		var result uint
+		err := ds.writer(ctx).GetContext(ctx, &result, `SELECT id FROM certificate_templates WHERE id = ?`, certificateTemplateID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("Label").WithMessage(fmt.Sprintf("No certificate template found for template ID '%d'", certificateTemplateID)))
+			}
+			return ctxerr.Wrap(ctx, err, "could not read certificate template for inserting new record")
+		}
+
 		params := []any{hostUUID, certificateTemplateID, status, detail, ""}
 		if _, err := ds.writer(ctx).ExecContext(ctx, insertStmt, params...); err != nil {
 			return ctxerr.Wrap(ctx, err, "could not insert new host certificate template")
