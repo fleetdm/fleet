@@ -2902,16 +2902,7 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 		teamName = "No team"
 		teamID = "0"
 	case config.TeamID != nil:
-		if config.TeamName != nil {
-			teamName = *config.TeamName
-		} else {
-			// Team name should already be provided in yml, but fetch it if not.
-			team, err := c.GetTeam(*config.TeamID)
-			if err != nil {
-				return fmt.Errorf("getting team by ID: %w", err)
-			}
-			teamName = team.Name
-		}
+		teamName = *config.TeamName
 		teamID = fmt.Sprintf("%d", *config.TeamID)
 	default:
 		// global config, ignore
