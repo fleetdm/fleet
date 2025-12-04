@@ -7174,8 +7174,9 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | per_page                  | integer | query | Results per page.                                                         |
 | order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. |
-| request_type              | string  | query | The request type to filter commands by. |
+| host_identifier           | string  | body | The host's `hostname`, `uuid`, or `hardware_serial`. |
+| request_type              | string  | body | The request type to filter commands by. |
+| command_status            | string | body | Valid options are 'ran', 'pending', or 'failed'. Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Windows commands have a '200' and 'Pending' `status` respectively. Apple commands that 'failed' have a 'Failed' `status`. Windows commands that 'failed' have any `status` other than 'Pending' or '200' ('ran').|
 
 #### Example
 
@@ -7187,11 +7188,13 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 ```json
 {
+  "count": 2,
   "results": [
     {
       "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
       "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
       "status": "Acknowledged",
+      "command_status": "ran",
       "updated_at": "2023-04-04:00:00Z",
       "request_type": "ProfileList",
       "hostname": "mycomputer"
@@ -7200,6 +7203,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
       "host_uuid": "322vghee-12c7-8976-83a1-e2118a927342",
       "command_uuid": "d76d69b7-d806-45a9-8e49-9d6dc533485c",
       "status": "200",
+      "command_status": "ran",
       "updated_at": "2023-05-04:00:00Z",
       "request_type": "./Device/Vendor/MSFT/Reboot/RebootNow",
       "hostname": "myhost"
