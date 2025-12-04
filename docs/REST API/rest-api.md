@@ -6982,7 +6982,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | host_identifier           | string  | body | The host's `hostname`, `uuid`, or `hardware_serial`. |
 | request_type              | string  | body | The request type to filter commands by. |
-| command_status            | string | body | Valid options are 'ran', 'pending', or 'failed'. For Apple (macOS, iOS, iPadOS) hosts, MDM commands that 'ran' have an 'Acknowledged' `status`. Windows hosts have a '200' status. For Windows hosts, MDM commands that 'failed' have any `status` other than 'Pending' or '200' ('ran').|
+| command_status            | string | body | Valid options are 'ran', 'pending', or 'failed'. Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Windows commands have a '200' and 'Pending' `status respectively. Apple commands that 'failed' have a 'Failed' `status`. Windows commands that 'failed' have any `status` other than 'Pending' or '200' ('ran').|
 
 #### Example
 
