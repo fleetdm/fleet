@@ -27,6 +27,7 @@ interface IViewYamlModalProps {
   softwareTitleId: number;
   teamId: number;
   iconUrl?: string | null;
+  displayName?: string;
   softwarePackage: ISoftwarePackage;
   onExit: () => void;
   isScriptPackage?: boolean;
@@ -47,6 +48,7 @@ const ViewYamlModal = ({
   softwareTitleId: softwareId,
   teamId,
   iconUrl,
+  displayName,
   softwarePackage,
   onExit,
   isScriptPackage = false,
@@ -83,6 +85,7 @@ const ViewYamlModal = ({
     postInstallScript,
     uninstallScript,
     iconUrl: iconUrl || null,
+    displayName,
     isScriptPackage,
   });
 

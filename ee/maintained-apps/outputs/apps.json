@@ -65,18 +65,18 @@
       "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
     },
     {
-      "name": "Android Studio",
-      "slug": "android-studio/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.google.android.studio",
-      "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
-    },
-    {
       "name": "Adobe Digital Editions",
       "slug": "adobe-digital-editions/darwin",
       "platform": "darwin",
       "unique_identifier": "com.adobe.adobedigitaleditions.app",
       "description": "Adobe Digital Editions is an E-book reader."
+    },
+    {
+      "name": "Android Studio",
+      "slug": "android-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.android.studio",
+      "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
     },
     {
       "name": "AnyDesk",
@@ -107,6 +107,13 @@
       "description": "Beyond Compare is an app used to compare files and folders."
     },
     {
+      "name": "Bitwarden",
+      "slug": "bitwarden/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.bitwarden.desktop",
+      "description": "Bitwarden is a desktop password and login vault."
+    },
+    {
       "name": "Box Drive",
       "slug": "box-drive/darwin",
       "platform": "darwin",
@@ -133,6 +140,20 @@
       "platform": "windows",
       "unique_identifier": "Brave",
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
+    },
+    {
+      "name": "Camtasia",
+      "slug": "camtasia/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.techsmith.camtasia",
+      "description": "Camtasia is a screen recorder and video editor."
+    },
+    {
+      "name": "Camtasia",
+      "slug": "camtasia/windows",
+      "platform": "windows",
+      "unique_identifier": "Camtasia",
+      "description": "Camtasia is a screen recorder and video editor."
     },
     {
       "name": "Canva",
@@ -569,6 +590,13 @@
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
+      "name": "Nova",
+      "slug": "nova/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.panic.Nova",
+      "description": "Nova is a native code editor by Panic."
+    },
+    {
       "name": "Nudge",
       "slug": "nudge/darwin",
       "platform": "darwin",
@@ -623,6 +651,13 @@
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.PhpStorm",
       "description": "PhpStorm is a PHP IDE by JetBrains."
+    },
+    {
+      "name": "Podman Desktop",
+      "slug": "podman-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.podmandesktop.PodmanDesktop",
+      "description": "Open source tool for developers to work with containers and Kubernetes."
     },
     {
       "name": "Postman",
@@ -826,6 +861,13 @@
       "platform": "darwin",
       "unique_identifier": "com.todoist.mac.Todoist",
       "description": "Todoist is a to do list and a planning center for individuals and teams."
+    },
+    {
+      "name": "Tower",
+      "slug": "tower/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.fournova.Tower",
+      "description": "Tower is a git client focusing on power and productivity."
     },
     {
       "name": "Tunnelblick",

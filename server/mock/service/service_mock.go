@@ -390,7 +390,7 @@ type ApplyUserRolesSpecsFunc func(ctx context.Context, specs fleet.UsersRoleSpec
 
 type CreateCertificateTemplateFunc func(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*fleet.CertificateTemplateResponseFull, error)
 
-type ListCertificateTemplatesFunc func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
+type ListCertificateTemplatesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
 
 type GetDeviceCertificateTemplateFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error)
 
@@ -3444,11 +3444,11 @@ func (s *Service) CreateCertificateTemplate(ctx context.Context, name string, te
 	return s.CreateCertificateTemplateFunc(ctx, name, teamID, certificateAuthorityID, subjectName)
 }
 
-func (s *Service) ListCertificateTemplates(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+func (s *Service) ListCertificateTemplates(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListCertificateTemplatesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListCertificateTemplatesFunc(ctx, teamID, page, perPage)
+	return s.ListCertificateTemplatesFunc(ctx, teamID, opts)
 }
 
 func (s *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {

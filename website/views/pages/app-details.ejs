@@ -17,7 +17,7 @@
             <div class="d-flex flex-column">
               <h2 purpose="app-name"><%- thisApp.name %></h2>
               <div purpose="platform-and-version" class="d-flex flex-row">
-                  <p>macOS | <%- thisApp.version %></p>
+                  <p><%- thisApp.platform === 'darwin' ? 'macOS' : 'Windows' %> | <%- thisApp.version %></p>
               </div>
             </div>
           </div>
@@ -31,20 +31,26 @@
             </ol>
             <p>Don’t see <%- thisApp.name %> or the Fleet Desktop icon? Send a <a :href="'/software-catalog/'+thisApp.identifier">link to this page</a> to your IT team.</p>
           </div>
+          <% if(thisApp.platform === 'darwin'){%>
           <div purpose="app-uninstall">
             <h3>Uninstall <%- thisApp.name %></h3>
             <p>Run the following command in your terminal to uninstall <%- thisApp.name %>:</p>
             <div purpose="codeblock">
               <div purpose="copy-button"></div>
-              <pre><code class="hljs bash"><%= thisApp.uninstallScript %></code></pre>
+              <pre><code class="hljs bash"><%= _.unescape(thisApp.uninstallScript) %></code></pre>
             </div>
           </div>
+          <% } %>
           <div purpose="app-check">
             <h3>Is <%- thisApp.name %> up to date?</h3>
             <p>Run this query in Fleet to find old versions of <%- thisApp.name %> across all your computers:</p>
             <div purpose="codeblock">
               <div purpose="copy-button"></div>
+              <% if(thisApp.platform === 'darwin'){%>
               <pre><code class="hljs sql">SELECT 1 FROM apps WHERE bundle_identifier = '<%= thisApp.bundleIdentifier %>' AND bundle_short_version <= '<%- thisApp.version %>';</code></pre>
+              <% } else {%>
+              <pre><code class="hljs sql">SELECT 1 FROM programs WHERE name = '<%= thisApp.bundleIdentifier %>' AND version <= '<%- thisApp.version %>';</code></pre>
+              <% }%>
             </div>
           </div>
         </div>

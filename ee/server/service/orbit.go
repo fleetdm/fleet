@@ -369,6 +369,12 @@ func (svc *Service) SetupExperienceInit(ctx context.Context) (*fleet.SetupExperi
 	// This is an orbit endpoint, not a user-authenticated endpoint.
 	svc.authz.SkipAuthorization(ctx)
 
+	// NOTE: currently, Android does not go through the "init" setup experience flow as it
+	// doesn't support any on-device UI (such as the screen showing setup progress) nor any
+	// ordering of installs - all software to install is provided as part of the Android policy
+	// when the host enrolls in Fleet.
+	// See https://github.com/fleetdm/fleet/issues/33761#issuecomment-3548996114
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, ctxerr.New(ctx, "internal error: missing host from request context")
