@@ -9,6 +9,7 @@ import (
 	"maps"
 	"net/http"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -107,7 +108,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	// 	}}...)
 	// }
 
-	var vppAppTeams, androidApps []fleet.VPPAppTeam
+	var appleApps, androidApps []fleet.VPPAppTeam
 	// Don't check for token if we're only disassociating assets
 	if len(payloads) > 0 {
 		for _, payload := range payloads {
@@ -151,12 +152,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			case fleet.AndroidPlatform:
 				androidApps = append(androidApps, appStoreApp)
 			case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform:
-				vppAppTeams = append(vppAppTeams, appStoreApp)
+				appleApps = append(appleApps, appStoreApp)
 			}
 
 		}
 
-		if len(vppAppTeams) > 0 {
+		if len(appleApps) > 0 {
 			token, err := svc.getVPPToken(ctx, teamID)
 			if err != nil {
 				return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
@@ -180,7 +181,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				assetMap[asset.AdamID] = struct{}{}
 			}
 
-			for _, vppAppID := range vppAppTeams {
+			for _, vppAppID := range appleApps {
 				if _, ok := assetMap[vppAppID.AdamID]; !ok {
 					missingAssets = append(missingAssets, vppAppID.AdamID)
 				}
@@ -199,12 +200,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return nil, nil
 	}
 
-	allPlatformApps := append(vppAppTeams, androidApps...)
+	allPlatformApps := slices.Concat(appleApps, androidApps)
 
 	var appStoreApps []*fleet.VPPApp
 
-	if len(vppAppTeams) > 0 {
-		apps, err := getVPPAppsMetadata(ctx, vppAppTeams)
+	if len(appleApps) > 0 {
+		apps, err := getVPPAppsMetadata(ctx, appleApps)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "refreshing VPP app metadata")
 		}
@@ -226,7 +227,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 
 		for _, a := range androidApps {
-			// TODO(JVE): is there a way to do this in bulk, vs 1 call per app?
 			androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterprise.Name(), a.AdamID)
 			if err != nil {
 				if fleet.IsNotFound(err) {
