@@ -6,6 +6,8 @@ In Fleet, you can install Apple App Store apps on your macOS, iOS, and iPadOS ho
 
 You can also manage which Google Play Store apps are available for self-serivce in your end user's Android work profiles.
 
+Currently, Fleet only supports Apple App Store apps from the United States (US) region. If the app is listed on the [Apple App Store](https://apps.apple.com/) with `/us` in the Apple App Store URL (e.g. https://apps.apple.com/us/app/slack/id618783545), then it's supported.
+
 ## Add app
 
 1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
