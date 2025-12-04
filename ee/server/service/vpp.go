@@ -73,10 +73,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	// https://github.com/fleetdm/fleet/issues/19447#issuecomment-2256598681
 	// The code is already here to support individual platforms, so we can easily enable it later.
 
-	// TODO(JVE): Need to create a list per platform "family". So rn we'd have 2 lists: Apple and Android.
-	// each list can be sent down a platform-specific implementation for validation
-	// then we merge the lists and
-
 	// payloadsWithPlatform := make([]fleet.VPPBatchPayloadWithPlatform, 0, len(payloads))
 	// for _, payload := range payloads {
 	// 	// Currently only macOS is supported for self-service. Don't
@@ -246,8 +242,10 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	}
 
-	if err := svc.ds.BatchInsertVPPApps(ctx, appStoreApps); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
+	if len(appStoreApps) > 0 {
+		if err := svc.ds.BatchInsertVPPApps(ctx, appStoreApps); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
+		}
 	}
 	// Filter out the apps with invalid platforms
 	if len(appStoreApps) != len(allPlatformApps) {
