@@ -145,6 +145,15 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			return ctxerr.Wrapf(ctx, err, "deleting policies for team %d", tid)
 		}
 
+		// Delete related records from teamRefs tables before deleting the team itself
+		// to avoid foreign key constraint violations
+		for _, table := range teamRefs {
+			_, err = tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE team_id=?`, table), tid)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "deleting %s for team %d", table, tid)
+			}
+		}
+
 		_, err = tx.ExecContext(ctx, `DELETE FROM teams WHERE id = ?`, tid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete team %d", tid)
@@ -153,13 +162,6 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type=? AND target_id=?`, fleet.TargetTeam, tid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for team %d", tid)
-		}
-
-		for _, table := range teamRefs {
-			_, err = tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE team_id=?`, table), tid)
-			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "deleting %s for team %d", table, tid)
-			}
 		}
 
 		return nil

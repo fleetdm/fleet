@@ -1716,4 +1716,22 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/Test Host/)).toBeInTheDocument();
     expect(screen.getByText(/is unenrolled from Fleet/)).toBeInTheDocument();
   });
+  it("renders an editedSetupExperienceSoftware type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedSetupExperienceSoftware,
+      details: {
+        platform: "darwin", // macOS
+        team_name: "Bears",
+        team_id: 1,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText(
+        /edited setup experience software for macOS hosts that enroll to the/i
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Bears/i)).toBeInTheDocument();
+    expect(screen.getByText(/team/i)).toBeInTheDocument();
+  });
 });
