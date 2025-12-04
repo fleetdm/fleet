@@ -62,26 +62,6 @@ func instrumentHostLogger(ctx context.Context, hostID uint, extras ...interface{
 	)
 }
 
-// checkURLAuthQueryParam checks for the presence of the "udid" query parameter.
-// If present and set to "true", it sets a flag in the context to indicate URL-based authentication intent.
-func checkURLAuthQueryParam(ctx context.Context, r *http.Request) context.Context {
-	if r.URL.Query().Get("udid") == "true" {
-		return newURLAuthContext(ctx)
-	}
-	return ctx
-}
-
-type urlAuthContextKey struct{}
-
-func newURLAuthContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, urlAuthContextKey{}, true)
-}
-
-func urlAuthFromContext(ctx context.Context) bool {
-	v, ok := ctx.Value(urlAuthContextKey{}).(bool)
-	return ok && v
-}
-
 // authenticatedDevice checks the validity of the device auth token
 // provided in the request, and attaches the corresponding host to the
 // context for the request.
@@ -100,14 +80,18 @@ func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.End
 			// Header presence signals cert auth intent, even if serial is invalid.
 			host, debug, err = svc.AuthenticateDeviceByCertificate(ctx, certSerial, identifier)
 			authnMethod = authz_ctx.AuthnDeviceCertificate
-		} else if urlAuthFromContext(ctx) {
-			// Query param presence signals URL auth intent.
+		} else {
+			// Try UUID auth first (for iOS/iPadOS self-service via URL).
 			// The identifier (from {token}) is treated as the UUID.
 			host, debug, err = svc.AuthenticateDeviceByURL(ctx, identifier)
-			authnMethod = authz_ctx.AuthnDeviceURL
-		} else {
-			host, debug, err = svc.AuthenticateDevice(ctx, identifier)
-			authnMethod = authz_ctx.AuthnDeviceToken
+			if err == nil {
+				authnMethod = authz_ctx.AuthnDeviceURL
+			} else {
+				// Fallback to token auth if UUID auth fails
+				// (not found, wrong platform, or not a valid UUID).
+				host, debug, err = svc.AuthenticateDevice(ctx, identifier)
+				authnMethod = authz_ctx.AuthnDeviceToken
+			}
 		}
 
 		if err != nil {

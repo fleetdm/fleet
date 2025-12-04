@@ -14,35 +14,6 @@ import { IMdmCommandResult } from "interfaces/mdm";
 
 import { IHostSoftwareQueryParams } from "./hosts";
 
-// Module-level flag to track if URL-based auth is enabled for this session.
-// When true, all device API requests will include ?udid=true query parameter.
-let urlAuthEnabled = false;
-
-/**
- * Enable URL-based authentication for device API requests.
- * Call this when the page loads with ?udid=true in the URL.
- */
-export const enableUrlAuth = () => {
-  urlAuthEnabled = true;
-};
-
-/**
- * Check if URL-based auth is currently enabled.
- */
-export const isUrlAuthEnabled = () => urlAuthEnabled;
-
-/**
- * Append ?udid=true to a path if URL auth is enabled.
- * Handles paths that already have query parameters.
- */
-const appendUrlAuthParam = (path: string): string => {
-  if (!urlAuthEnabled) {
-    return path;
-  }
-  const separator = path.includes("?") ? "&" : "?";
-  return `${path}${separator}udid=true`;
-};
-
 export type ILoadHostDetailsExtension = "macadmins";
 
 export interface IDeviceSoftwareQueryKey extends IHostSoftwareQueryParams {
@@ -102,7 +73,7 @@ export default {
     if (exclude_software) {
       path += "?exclude_software=true";
     }
-    return sendRequest("GET", appendUrlAuthParam(path));
+    return sendRequest("GET", path);
   },
   loadHostDetailsExtension: (
     deviceAuthToken: string,
@@ -111,13 +82,13 @@ export default {
     const { DEVICE_USER_DETAILS } = endpoints;
     const path = `${DEVICE_USER_DETAILS}/${deviceAuthToken}/${extension}`;
 
-    return sendRequest("GET", appendUrlAuthParam(path));
+    return sendRequest("GET", path);
   },
   refetch: (deviceAuthToken: string) => {
     const { DEVICE_USER_DETAILS } = endpoints;
     const path = `${DEVICE_USER_DETAILS}/${deviceAuthToken}/refetch`;
 
-    return sendRequest("POST", appendUrlAuthParam(path));
+    return sendRequest("POST", path);
   },
 
   getDeviceSoftware: (
@@ -128,7 +99,7 @@ export default {
     const { id, scope, ...rest } = params;
 
     const path = getPathWithQueryParams(DEVICE_SOFTWARE(id), rest);
-    return sendRequest("GET", appendUrlAuthParam(path));
+    return sendRequest("GET", path);
   },
 
   // getSoftwareIcon doesn't need its own service function because the logic is encapsulated in
@@ -141,7 +112,7 @@ export default {
     const { DEVICE_SOFTWARE_INSTALL } = endpoints;
     const path = DEVICE_SOFTWARE_INSTALL(deviceToken, softwareTitleId);
 
-    return sendRequest("POST", appendUrlAuthParam(path));
+    return sendRequest("POST", path);
   },
 
   uninstallSelfServiceSoftware: (
@@ -149,8 +120,10 @@ export default {
     softwareTitleId: number
   ) => {
     const { DEVICE_SOFTWARE_UNINSTALL } = endpoints;
-    const path = DEVICE_SOFTWARE_UNINSTALL(deviceToken, softwareTitleId);
-    return sendRequest("POST", appendUrlAuthParam(path));
+    return sendRequest(
+      "POST",
+      DEVICE_SOFTWARE_UNINSTALL(deviceToken, softwareTitleId)
+    );
   },
 
   /** Gets more info on FMA/custom package install for device user */
@@ -158,7 +131,7 @@ export default {
     const { DEVICE_SOFTWARE_INSTALL_RESULTS } = endpoints;
     const path = DEVICE_SOFTWARE_INSTALL_RESULTS(deviceToken, uuid);
 
-    return sendRequest("GET", appendUrlAuthParam(path));
+    return sendRequest("GET", path);
   },
 
   /** Gets more info on FMA/custom package uninstall for device user */
@@ -172,7 +145,7 @@ export default {
       scriptExecutionId
     );
 
-    return sendRequest("GET", appendUrlAuthParam(path));
+    return sendRequest("GET", path);
   },
 
   /** Gets more info on VPP install for device user */
@@ -183,7 +156,7 @@ export default {
     const { DEVICE_VPP_COMMAND_RESULTS } = endpoints;
     const path = DEVICE_VPP_COMMAND_RESULTS(deviceToken, uuid);
 
-    return sendRequest("GET", appendUrlAuthParam(path));
+    return sendRequest("GET", path);
   },
 
   getDeviceCertificates: ({
@@ -201,7 +174,7 @@ export default {
       order_direction,
     })}`;
 
-    return sendRequest("GET", appendUrlAuthParam(path));
+    return sendRequest("GET", path);
   },
 
   getSetupExperienceStatuses: ({
@@ -209,20 +182,17 @@ export default {
   }: IGetSetupExperienceStatusesParams): Promise<IGetSetupExperienceStatusesResponse> => {
     const { DEVICE_SETUP_EXPERIENCE_STATUSES } = endpoints;
     const path = DEVICE_SETUP_EXPERIENCE_STATUSES(token);
-    return sendRequest("POST", appendUrlAuthParam(path));
+    return sendRequest("POST", path);
   },
 
   resendProfile: (deviceToken: string, profileUUID: string) => {
     const { DEVICE_RESEND_PROFILE } = endpoints;
     const path = DEVICE_RESEND_PROFILE(deviceToken, profileUUID);
-    return sendRequest("POST", appendUrlAuthParam(path));
+    return sendRequest("POST", path);
   },
 
   getMdmManualEnrollUrl: (token: string) => {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
-    return sendRequest(
-      "GET",
-      appendUrlAuthParam(DEVICE_USER_MDM_ENROLLMENT_PROFILE(token))
-    );
+    return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
   },
 };

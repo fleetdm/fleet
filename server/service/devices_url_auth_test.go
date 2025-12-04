@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"net/http"
-	"net/url"
 	"testing"
 	"time"
 
@@ -13,41 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCheckURLAuthQueryParam(t *testing.T) {
-	t.Run("present", func(t *testing.T) {
-		req := &http.Request{URL: &url.URL{RawQuery: "udid=true"}}
-		ctx := checkURLAuthQueryParam(context.Background(), req)
-		require.True(t, urlAuthFromContext(ctx))
-	})
-
-	t.Run("absent", func(t *testing.T) {
-		req := &http.Request{URL: &url.URL{RawQuery: ""}}
-		ctx := checkURLAuthQueryParam(context.Background(), req)
-		require.False(t, urlAuthFromContext(ctx))
-	})
-
-	t.Run("wrong value", func(t *testing.T) {
-		req := &http.Request{URL: &url.URL{RawQuery: "udid=false"}}
-		ctx := checkURLAuthQueryParam(context.Background(), req)
-		require.False(t, urlAuthFromContext(ctx))
-	})
-}
-
-func TestAuthenticatedDeviceURLAuth(t *testing.T) {
+func TestAuthenticatedDeviceFallbackAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc, _ := newTestService(t, ds, nil, nil)
-
-	// Mock HostByIdentifier for URL auth
-	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
-		if identifier == "valid-uuid" {
-			return &fleet.Host{
-				ID:       1,
-				UUID:     "valid-uuid",
-				Platform: "ios",
-			}, nil
-		}
-		return nil, newNotFoundError()
-	}
 
 	// Mock AppConfig to avoid panic in debugEnabledForHost
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -58,21 +24,84 @@ func TestAuthenticatedDeviceURLAuth(t *testing.T) {
 		return "success", nil
 	})
 
-	t.Run("success_with_query_param", func(t *testing.T) {
-		// Simulate context with URL auth flag set (as if middleware ran)
-		ctx := newURLAuthContext(context.Background())
-		req := mockDeviceAuthRequest{Token: "valid-uuid"}
-		_, err := middleware(ctx, req)
+	t.Run("success_uuid_auth_for_ios", func(t *testing.T) {
+		// Simulate iOS device with UUID in URL (UUID auth should succeed)
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			if identifier == "ios-device-uuid" {
+				return &fleet.Host{
+					ID:       1,
+					UUID:     "ios-device-uuid",
+					Platform: "ios",
+				}, nil
+			}
+			return nil, newNotFoundError()
+		}
+
+		req := mockDeviceAuthRequest{Token: "ios-device-uuid"}
+		_, err := middleware(context.Background(), req)
 		require.NoError(t, err)
 	})
 
-	t.Run("failure_without_query_param", func(t *testing.T) {
-		// Without the flag, it should try token auth and fail (since we didn't mock LoadHostByDeviceAuthToken)
+	t.Run("fallback_to_token_auth_for_macos", func(t *testing.T) {
+		// macOS device with token - UUID auth fails (wrong platform), falls back to token auth
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			// Return macOS host - UUID auth will fail platform check
+			return &fleet.Host{
+				ID:       1,
+				UUID:     "macos-device-uuid",
+				Platform: "darwin",
+			}, nil
+		}
+
+		ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, ttl time.Duration) (*fleet.Host, error) {
+			if authToken == "valid-device-token" {
+				return &fleet.Host{
+					ID:       2,
+					UUID:     "macos-device-uuid",
+					Platform: "darwin",
+				}, nil
+			}
+			return nil, newNotFoundError()
+		}
+
+		req := mockDeviceAuthRequest{Token: "valid-device-token"}
+		_, err := middleware(context.Background(), req)
+		require.NoError(t, err)
+	})
+
+	t.Run("fallback_to_token_auth_when_uuid_not_found", func(t *testing.T) {
+		// UUID not found - falls back to token auth
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return nil, newNotFoundError()
+		}
+
+		ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, ttl time.Duration) (*fleet.Host, error) {
+			if authToken == "valid-device-token" {
+				return &fleet.Host{
+					ID:       3,
+					UUID:     "some-uuid",
+					Platform: "darwin",
+				}, nil
+			}
+			return nil, newNotFoundError()
+		}
+
+		req := mockDeviceAuthRequest{Token: "valid-device-token"}
+		_, err := middleware(context.Background(), req)
+		require.NoError(t, err)
+	})
+
+	t.Run("failure_when_both_auth_methods_fail", func(t *testing.T) {
+		// Neither UUID nor token auth succeeds
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return nil, newNotFoundError()
+		}
+
 		ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, ttl time.Duration) (*fleet.Host, error) {
 			return nil, newNotFoundError()
 		}
 
-		req := mockDeviceAuthRequest{Token: "valid-uuid"}
+		req := mockDeviceAuthRequest{Token: "invalid-token"}
 		_, err := middleware(context.Background(), req)
 		require.Error(t, err)
 	})
