@@ -1612,7 +1612,8 @@ type listHostDeviceMappingResponse struct {
 
 func (r listHostDeviceMappingResponse) Error() error { return r.Err }
 
-// listHostDeviceMappingEndpoint
+// listHostDeviceMappingEndpoint returns the device mappings for a host.
+//
 // Deprecated: Emails are now included in host details endpoint /api/_version_/fleet/hosts/{id}
 func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostDeviceMappingRequest)
