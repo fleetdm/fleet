@@ -22331,8 +22331,19 @@ func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
 		require.Equal(t, "ios", getHostResp.Host.Platform)
 	})
 
-	t.Run("iOS device without certificate header", func(t *testing.T) {
-		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized)
+	t.Run("iOS device without certificate header (UUID fallback auth)", func(t *testing.T) {
+		// Without cert header, UUID auth is used as fallback for iOS/iPadOS devices
+		var getHostResp getDeviceHostResponse
+		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
+		require.NoError(t, res.Body.Close())
+		require.Equal(t, iosHost.ID, getHostResp.Host.ID)
+		require.Equal(t, "ios", getHostResp.Host.Platform)
+	})
+
+	t.Run("iOS device with invalid UUID (no fallback)", func(t *testing.T) {
+		// Invalid UUID should fail both UUID auth and token auth
+		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid-uuid-does-not-exist", nil, http.StatusUnauthorized)
 		res.Body.Close()
 	})
 
