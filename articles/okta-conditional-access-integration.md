@@ -1,6 +1,6 @@
 # Conditional access: Okta
 
-> This page is a stub for an upcoming feature guide.
+> This page is a placeholder for an upcoming feature guide.
 
 Okta conditional access is coming soon. You can follow its progress in [GitHub](https://github.com/fleetdm/fleet/issues/31909).
 
