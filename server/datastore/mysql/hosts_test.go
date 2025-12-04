@@ -12274,6 +12274,7 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 			ProfileIdentifier: "test",
 			ProfileName:       "test",
 			Checksum:          []byte("test-checksum"),
+			Scope:             fleet.PayloadScopeSystem,
 		},
 	})
 	require.NoError(t, err)
