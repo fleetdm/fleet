@@ -95,9 +95,9 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 
 	// Inject host into context
 	ctx = host.NewContext(ctx, h)
-	// Inject authz context
+	// Inject authz context with URL-based auth method (scrubbing only happens for URL auth)
 	authzCtx := &authz.AuthorizationContext{}
-	authzCtx.SetAuthnMethod(authz.AuthnDeviceToken)
+	authzCtx.SetAuthnMethod(authz.AuthnDeviceURL)
 	ctx = authz.NewContext(ctx, authzCtx)
 
 	req := &getDeviceHostRequest{

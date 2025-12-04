@@ -159,20 +159,22 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}
 
 	// Scrub sensitive data from the host response for iOS and iPadOS devices
-	if host.Platform == "ios" || host.Platform == "ipados" {
-		resp.HardwareSerial = ""
-		resp.UUID = ""
-		resp.PrimaryMac = ""
-		resp.TeamName = nil
-		resp.MDM.Profiles = nil
-		resp.Labels = nil
+	if authzCtx, ok := authz.FromContext(ctx); ok && authzCtx.AuthnMethod() == authz.AuthnDeviceURL {
+		if host.Platform == "ios" || host.Platform == "ipados" {
+			resp.HardwareSerial = ""
+			resp.UUID = ""
+			resp.PrimaryMac = ""
+			resp.TeamName = nil
+			resp.MDM.Profiles = nil
+			resp.Labels = nil
 
-		// Scrub sensitive data from the license response
-		scrubbedLicense := *license
-		scrubbedLicense.Organization = ""
-		scrubbedLicense.DeviceCount = 0
-		scrubbedLicense.Expiration = time.Time{}
-		license = &scrubbedLicense
+			// Scrub sensitive data from the license response
+			scrubbedLicense := *license
+			scrubbedLicense.Organization = ""
+			scrubbedLicense.DeviceCount = 0
+			scrubbedLicense.Expiration = time.Time{}
+			license = &scrubbedLicense
+		}
 	}
 
 	resp.DEPAssignedToFleet = ptr.Bool(false)
