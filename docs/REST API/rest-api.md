@@ -5439,7 +5439,9 @@ Returns a list of all the labels in Fleet.
 
 | Name            | Type    | In    | Description   |
 | --------------- | ------- | ----- |------------------------------------- |
-| include_host_counts | boolean | query | Whether or not to calculate host counts for each label. Default is `true`. See "additional notes" for more information.
+| team_id         | integer | query | _Available in Fleet Premium._  Filters to labels belonging to the specified team. |
+| merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global labels in addition to team labels when filtering by `team_id`. (If no `team_id` is provided, this parameter is ignored.) |
+| include_host_counts | boolean | query | Whether or not to calculate host counts for each label. Default is `true`. See "additional notes" for more information. |
 | order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                  |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 
