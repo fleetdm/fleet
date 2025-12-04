@@ -1709,7 +1709,7 @@ type Datastore interface {
 	MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*MDMWindowsCommand, error)
 
 	// MDMWindowsSaveResponse saves a full response
-	MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML EnrichedSyncML) error
+	MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML EnrichedSyncML, commandIDsBeingResent []string) error
 
 	// GetMDMWindowsCommands returns the results of command
 	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
@@ -2543,6 +2543,16 @@ type Datastore interface {
 	GetCurrentTime(ctx context.Context) (time.Time, error)
 
 	UpdateOrDeleteHostMDMWindowsProfile(ctx context.Context, profile *HostMDMWindowsProfile) error
+
+	// GetWindowsMDMCommandsForResending retrieves Windows MDM commands that failed to be delivered
+	// and need to be resent based on their command IDs.
+	//
+	// Returns a slice of MDMWindowsCommand pointers containing the commands to be resent.
+	GetWindowsMDMCommandsForResending(ctx context.Context, failedCommandIds []string) ([]*MDMWindowsCommand, error)
+
+	// ResendWindowsMDMCommand marks the specified Windows MDM command for resend
+	// by inserting a new command entry, command queue, but also updates the host profile reference.
+	ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId string, newCmd *MDMWindowsCommand, oldCmd *MDMWindowsCommand) error
 }
 
 type AndroidDatastore interface {
