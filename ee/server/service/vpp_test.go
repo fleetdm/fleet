@@ -30,6 +30,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 					LabelsExcludeAny: []string{},
 					LabelsIncludeAny: []string{},
 					Categories:       []string{},
+					Platform:         fleet.MacOSPlatform,
 				},
 			}, true)
 			require.ErrorContains(t, err, "could not retrieve vpp token")
@@ -41,6 +42,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 					LabelsExcludeAny: []string{},
 					LabelsIncludeAny: []string{},
 					Categories:       []string{},
+					Platform:         fleet.MacOSPlatform,
 				},
 			}, false)
 			require.ErrorContains(t, err, "could not retrieve vpp token")

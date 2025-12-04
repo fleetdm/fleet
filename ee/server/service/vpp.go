@@ -73,47 +73,73 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	// https://github.com/fleetdm/fleet/issues/19447#issuecomment-2256598681
 	// The code is already here to support individual platforms, so we can easily enable it later.
 
-	// payloadsWithPlatform := make([]fleet.VPPBatchPayloadWithPlatform, 0, len(payloads))
-	// for _, payload := range payloads {
-	// 	// Currently only macOS is supported for self-service. Don't
-	// 	// import vpp apps as self-service for ios or ipados
-	// 	payloadsWithPlatform = append(payloadsWithPlatform, []fleet.VPPBatchPayloadWithPlatform{{
-	// 		AppStoreID:         payload.AppStoreID,
-	// 		SelfService:        payload.SelfService,
-	// 		InstallDuringSetup: payload.InstallDuringSetup,
-	// 		Platform:           fleet.IOSPlatform,
-	// 		LabelsExcludeAny:   payload.LabelsExcludeAny,
-	// 		LabelsIncludeAny:   payload.LabelsIncludeAny,
-	// 		Categories:         payload.Categories,
-	// 	}, {
-	// 		AppStoreID:         payload.AppStoreID,
-	// 		SelfService:        payload.SelfService,
-	// 		InstallDuringSetup: payload.InstallDuringSetup,
-	// 		Platform:           fleet.IPadOSPlatform,
-	// 		LabelsExcludeAny:   payload.LabelsExcludeAny,
-	// 		LabelsIncludeAny:   payload.LabelsIncludeAny,
-	// 		Categories:         payload.Categories,
-	// 	}, {
-	// 		AppStoreID:         payload.AppStoreID,
-	// 		SelfService:        payload.SelfService,
-	// 		Platform:           fleet.MacOSPlatform,
-	// 		InstallDuringSetup: payload.InstallDuringSetup,
-	// 		LabelsExcludeAny:   payload.LabelsExcludeAny,
-	// 		LabelsIncludeAny:   payload.LabelsIncludeAny,
-	// 		Categories:         payload.Categories,
-	// 	}}...)
-	// }
+	payloadsWithPlatform := make([]fleet.VPPBatchPayloadWithPlatform, 0, len(payloads))
+	for _, payload := range payloads {
+		// Currently only macOS is supported for self-service. Don't
+		// import vpp apps as self-service for ios or ipados
+		if payload.Platform == "" {
+			payload.Platform = fleet.MacOSPlatform
+		}
+
+		if payload.Platform.IsApplePlatform() {
+			payloadsWithPlatform = append(payloadsWithPlatform, []fleet.VPPBatchPayloadWithPlatform{{
+				AppStoreID:         payload.AppStoreID,
+				SelfService:        payload.SelfService,
+				InstallDuringSetup: payload.InstallDuringSetup,
+				Platform:           fleet.IOSPlatform,
+				LabelsExcludeAny:   payload.LabelsExcludeAny,
+				LabelsIncludeAny:   payload.LabelsIncludeAny,
+				Categories:         payload.Categories,
+			}, {
+				AppStoreID:         payload.AppStoreID,
+				SelfService:        payload.SelfService,
+				InstallDuringSetup: payload.InstallDuringSetup,
+				Platform:           fleet.IPadOSPlatform,
+				LabelsExcludeAny:   payload.LabelsExcludeAny,
+				LabelsIncludeAny:   payload.LabelsIncludeAny,
+				Categories:         payload.Categories,
+			}, {
+				AppStoreID:         payload.AppStoreID,
+				SelfService:        payload.SelfService,
+				Platform:           fleet.MacOSPlatform,
+				InstallDuringSetup: payload.InstallDuringSetup,
+				LabelsExcludeAny:   payload.LabelsExcludeAny,
+				LabelsIncludeAny:   payload.LabelsIncludeAny,
+				Categories:         payload.Categories,
+			}}...)
+		} else {
+			payloadsWithPlatform = append(payloadsWithPlatform, fleet.VPPBatchPayloadWithPlatform{
+				AppStoreID:         payload.AppStoreID,
+				SelfService:        payload.SelfService,
+				InstallDuringSetup: payload.InstallDuringSetup,
+				Platform:           payload.Platform,
+				LabelsExcludeAny:   payload.LabelsExcludeAny,
+				LabelsIncludeAny:   payload.LabelsIncludeAny,
+				Categories:         payload.Categories,
+			})
+		}
+
+	}
 
 	var appleApps, androidApps []fleet.VPPAppTeam
+	var vppToken string
 	// Don't check for token if we're only disassociating assets
 	if len(payloads) > 0 {
-		for _, payload := range payloads {
+		for _, payload := range payloadsWithPlatform {
 			if payload.Platform == "" {
 				payload.Platform = fleet.MacOSPlatform
 			}
 			if !payload.Platform.SupportsAppStoreApps() {
 				return nil, fleet.NewInvalidArgumentError("app_store_apps.platform",
 					fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
+			}
+
+			var err error
+			if payload.Platform.IsApplePlatform() && vppToken == "" {
+				vppToken, err = svc.getVPPToken(ctx, teamID)
+				if err != nil {
+					return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
+				}
 			}
 
 			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
@@ -154,10 +180,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 
 		if len(appleApps) > 0 {
-			token, err := svc.getVPPToken(ctx, teamID)
-			if err != nil {
-				return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
-			}
 
 			if dryRun {
 				// If we're doing a dry run, we stop here and return no error to avoid making any changes.
@@ -167,7 +189,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 			var missingAssets []string
 
-			assets, err := vpp.GetAssets(ctx, token, nil)
+			assets, err := vpp.GetAssets(ctx, vppToken, nil)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "unable to retrieve assets")
 			}
