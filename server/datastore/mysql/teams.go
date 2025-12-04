@@ -134,7 +134,6 @@ var teamRefs = []string{
 	"mdm_android_configuration_profiles",
 	"software_title_icons",
 	"software_title_display_names",
-	"certificate_templates",
 }
 
 func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
