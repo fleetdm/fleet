@@ -1,6 +1,11 @@
 import React from "react";
 
+import { uniqueId } from "lodash";
+
 const EmptyQueries = () => {
+  const clipPathId = uniqueId("clip-path-");
+  const filterId = uniqueId("filter-");
+
   return (
     <svg
       width="322"
@@ -10,7 +15,7 @@ const EmptyQueries = () => {
       xmlns="http://www.w3.org/2000/svg"
     >
       <circle cx="162.5" cy="101" r="75" fill="#F1F0FF" />
-      <g filter="url(#filter0_d_375_9364)">
+      <g filter={`url(#${filterId})`}>
         <rect x="1" y="61" width="320" height="80" rx="8" fill="white" />
         <rect
           x="0.5"
@@ -74,7 +79,7 @@ const EmptyQueries = () => {
       />
       <rect x="161.5" y="44" width="1" height="17" fill="#C5C7D1" />
       <circle cx="162.5" cy="24" r="24" fill="#63C740" />
-      <g clipPath="url(#clip0_375_9364)">
+      <g clipPath={`url(#${clipPathId})`}>
         <path
           d="M173.1 30.75L169.65 27.45C170.55 26.1 171 24.3 171 22.5C171 16.65 166.35 12 160.5 12C154.65 12 150 16.65 150 22.5C150 28.35 154.65 33 160.5 33C162.3 33 163.95 32.55 165.3 31.8L168.75 35.1C169.35 35.7 170.1 36 170.85 36C171.6 36 172.35 35.7 172.95 35.1C174.3 33.9 174.3 31.95 173.1 30.75ZM151.8 22.5C151.8 17.7 155.7 13.8 160.5 13.8C165.3 13.8 169.2 17.7 169.2 22.5C169.2 27.3 165.3 31.2 160.5 31.2C155.7 31.2 151.8 27.3 151.8 22.5ZM171.9 33.9C171.45 34.35 170.7 34.35 170.1 33.9L166.95 30.9C167.55 30.45 168.15 29.85 168.75 29.1L171.9 32.1C172.35 32.55 172.35 33.3 171.9 33.9Z"
           fill="white"
@@ -86,7 +91,7 @@ const EmptyQueries = () => {
       </g>
       <defs>
         <filter
-          id="filter0_d_375_9364"
+          id={filterId}
           x="0"
           y="60"
           width="322"
@@ -125,7 +130,7 @@ const EmptyQueries = () => {
             result="shape"
           />
         </filter>
-        <clipPath id="clip0_375_9364">
+        <clipPath id={clipPathId}>
           <rect
             width="24"
             height="24"
