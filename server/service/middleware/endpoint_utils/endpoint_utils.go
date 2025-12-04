@@ -568,7 +568,7 @@ func (e *CommonEndpointer[H]) handleEndpoint(path string, f H, v interface{}, ve
 	e.HandleHTTPHandler(path, endpoint, verb)
 }
 
-func (e *CommonEndpointer[H]) makeEndpoint(f H, vwhyV interface{}) http.Handler {
+func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 	next := func(ctx context.Context, request interface{}) (interface{}, error) {
 		return e.EP.CallHandlerFunc(f, ctx, request, e.EP.Service())
 	}
@@ -591,7 +591,7 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, vwhyV interface{}) http.Handler 
 		endp = mw(endp)
 	}
 
-	return newServer(endp, e.MakeDecoderFn(vwhyV), e.EncodeFn, e.Opts)
+	return newServer(endp, e.MakeDecoderFn(v), e.EncodeFn, e.Opts)
 }
 
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn kithttp.EncodeResponseFunc,

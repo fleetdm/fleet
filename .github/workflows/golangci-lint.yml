@@ -102,7 +102,9 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Install dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
+          # The following packages are needed to build Fleet Desktop on Ubuntu.
           sudo apt update -y && sudo apt install -y gcc libgtk-3-dev libayatana-appindicator3-dev
 
       - name: Run incremental go lint
