@@ -302,7 +302,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	// TODO: probably make a helper that can assume it's doing android stuff
 	if len(policiesToUpdate) > 0 && enterprise != nil {
 		for hostUUID, policyID := range policiesToUpdate {
-			err := worker.QueueBulkMakeAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, hostUUID, policyID, appIDs, enterprise.Name())
+			err := worker.QueueBulkSetAndroidAppsAvailableForHost(ctx, svc.ds, svc.logger, hostUUID, policyID, appIDs, enterprise.Name())
 			if err != nil {
 				return nil, ctxerr.WrapWithData(
 					ctx,

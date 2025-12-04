@@ -810,7 +810,8 @@ func removeVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPA
 		return ctxerr.Wrap(ctx, err, "unsetting vpp app policy associations from team")
 	}
 
-	_, err = tx.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE adam_id = ? AND team_id = ? AND platform = ?`, appID.AdamID, teamID, appID.Platform)
+	tmID := ptr.ValOrZero(teamID)
+	_, err = tx.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE adam_id = ? AND global_or_team_id = ? AND platform = ?`, appID.AdamID, tmID, appID.Platform)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting vpp app from team")
 	}

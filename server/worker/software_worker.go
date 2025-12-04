@@ -29,10 +29,10 @@ func (v *SoftwareWorker) Name() string {
 }
 
 const (
-	makeAndroidAppsAvailableForHostTask     SoftwareWorkerTask = "make_android_apps_available_for_host"
-	makeAndroidAppAvailableTask             SoftwareWorkerTask = "make_android_app_available"
-	runAndroidSetupExperienceTask           SoftwareWorkerTask = "run_android_setup_experience"
-	bulkMakeAndroidAppsAvailableForHostTask SoftwareWorkerTask = "bulk_make_android_apps_available_for_host"
+	makeAndroidAppsAvailableForHostTask    SoftwareWorkerTask = "make_android_apps_available_for_host"
+	makeAndroidAppAvailableTask            SoftwareWorkerTask = "make_android_app_available"
+	runAndroidSetupExperienceTask          SoftwareWorkerTask = "run_android_setup_experience"
+	bulkSetAndroidAppsAvailableForHostTask SoftwareWorkerTask = "bulk_set_android_apps_available_for_host"
 )
 
 type softwareWorkerArgs struct {
@@ -87,7 +87,7 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 			runAndroidSetupExperienceTask,
 		)
 
-	case bulkMakeAndroidAppsAvailableForHostTask:
+	case bulkSetAndroidAppsAvailableForHostTask:
 		return ctxerr.Wrapf(ctx, v.bulkMakeAndroidAppsAvailableForHost(
 			ctx,
 			args.HostUUID,
@@ -95,7 +95,7 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 			args.ApplicationIDs,
 			args.EnterpriseName,
 		), "running %s task",
-			bulkMakeAndroidAppsAvailableForHostTask)
+			bulkSetAndroidAppsAvailableForHostTask)
 
 	default:
 		return ctxerr.Errorf(ctx, "unknown task: %v", args.Task)
@@ -301,7 +301,7 @@ func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, log
 
 func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context, hostUUID, policyID string, applicationIDs []string, enterpriseName string) error {
 	// Update Android MDM policy to include the apps in self service
-	_, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, applicationIDs, map[string]string{hostUUID: policyID}, "AVAILABLE")
+	err := v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, applicationIDs, map[string]string{hostUUID: policyID}, "AVAILABLE")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "make android apps available")
 	}
@@ -309,7 +309,7 @@ func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context
 	return nil
 }
 
-func QueueBulkMakeAndroidAppsAvailableForHosts(
+func QueueBulkSetAndroidAppsAvailableForHost(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
@@ -320,7 +320,7 @@ func QueueBulkMakeAndroidAppsAvailableForHosts(
 ) error {
 
 	args := &softwareWorkerArgs{
-		Task:           bulkMakeAndroidAppsAvailableForHostTask,
+		Task:           bulkSetAndroidAppsAvailableForHostTask,
 		HostUUID:       hostUUID,
 		PolicyID:       policyID,
 		EnterpriseName: enterpriseName,
