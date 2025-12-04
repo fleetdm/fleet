@@ -12,6 +12,9 @@ style:
     active: false # Color hex values are standard in Compose
   MaxLineLength:
     active: false # Handled by ktlint
+  ReturnCount:
+    active: true
+    max: 5
 
 complexity:
   CognitiveComplexMethod:
@@ -35,9 +38,6 @@ complexity:
     threshold: 5 # Android receivers often need nested blocks
   TooManyFunctions:
     active: false
-  ReturnCount:
-    active: true
-    max: 5
 
 exceptions:
   TooGenericExceptionCaught:
