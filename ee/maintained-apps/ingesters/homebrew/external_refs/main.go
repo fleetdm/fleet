@@ -28,14 +28,6 @@ func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.F
 	return app, nil
 }
 
-// CiscoJabberVersionTransformer sets the version to "latest" so that the validation
-// extracts the actual app version from the PKG file, which matches what osquery reports.
-// Homebrew reports a build number (e.g., "20251027035315") instead of the app version (e.g., "15.1.2").
-func CiscoJabberVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
-	app.Version = "latest"
-	return app, nil
-}
-
 func EnrichManifest(app *maintained_apps.FMAManifestApp) {
 	// Enrich the app manifest with additional metadata
 	if enrichers, ok := Funcs[app.Slug]; ok {
