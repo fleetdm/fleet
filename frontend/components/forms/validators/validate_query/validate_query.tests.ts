@@ -1,4 +1,4 @@
-import validateQuery from "./index";
+import { validateQuery, EMPTY_QUERY_ERR, INVALID_SYNTAX_ERR } from ".";
 
 const malformedQueries = ["this is not a thing", "SELECT * FROM foo bar baz"];
 const validQueries = [
@@ -22,9 +22,7 @@ describe("validateQuery", () => {
       const { error, valid } = validateQuery(query);
 
       expect(valid).toEqual(false);
-      expect(error).toMatch(
-        "There is a syntax error in your query; please resolve in order to save."
-      );
+      expect(error).toMatch(INVALID_SYNTAX_ERR);
     });
   });
 
@@ -32,13 +30,13 @@ describe("validateQuery", () => {
     const { error, valid } = validateQuery();
 
     expect(valid).toEqual(false);
-    expect(error).toEqual("Query text must be present");
+    expect(error).toEqual(EMPTY_QUERY_ERR);
   });
 
   it("accepts valid queries", () => {
     validQueries.forEach((query) => {
       const { error, valid } = validateQuery(query);
-      expect(valid).toEqual(true, query);
+      expect(valid).toEqual(true);
       expect(error).toBeFalsy();
     });
   });
