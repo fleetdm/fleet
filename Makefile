@@ -212,7 +212,7 @@ lint-js:
 lint-go:
 	golangci-lint run --timeout 15m
 ifndef SKIP_INCREMENTAL
-	golangci-lint run -c .golangci-incremental.yml --new-from-rev=origin/main --timeout 15m ./...
+	golangci-lint run -c .golangci-incremental.yml --new-from-merge-base=origin/main --timeout 15m ./...
 endif
 
 .help-short--lint:
