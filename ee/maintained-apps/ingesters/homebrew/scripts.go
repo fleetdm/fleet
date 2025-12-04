@@ -19,15 +19,6 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 
 	sb.Extract(app.InstallerFormat)
 
-	// If installer_format is "pkg", generate a PKG install script directly
-	// This handles cases where we override the URL to a PKG but the cask has app artifacts
-	if app.InstallerFormat == "pkg" {
-		sb.AddFunction("quit_application", quitApplicationFunc)
-		sb.Writef("quit_application '%s'", app.UniqueIdentifier)
-		sb.Write(`installer -pkg "$INSTALLER_PATH" -target /`)
-		return sb.String(), nil
-	}
-
 	var includeQuitFunc bool
 	for _, artifact := range cask.Artifacts {
 		switch {
