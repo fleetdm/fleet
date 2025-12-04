@@ -5,10 +5,10 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos';"
       },
-      "installer_url": "https://cdn.zoom.us/prod/6.6.11.70003/ZoomInstallerIT.pkg",
+      "installer_url": "https://zoom.us/client/latest/ZoomInstallerIT.pkg",
       "install_script_ref": "2d889c52",
       "uninstall_script_ref": "41cd9913",
-      "sha256": "6d9e706efcf2624f6959f832a0aa5c0ad7a0d2987e64bdcad4efca7c8bf6a20f",
+      "sha256": "no_check",
       "default_categories": [
         "Communication"
       ]
