@@ -750,8 +750,6 @@ If an end user is on vacation (offline for more than 30 days), their certificate
 >
 > If automatic renewal fails, you can resend the configuration profile manually on the host's **Host details** page, the end user's **Fleet Desktop > My Device** page, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#resend-custom-os-setting-configuration-profile).
 
-> 
-
 ## Advanced
 
 ### User scoped certificates
