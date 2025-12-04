@@ -1310,12 +1310,31 @@ module.exports = {
         let linesInAppsJsonFile = appsJsonDataAsAString.split('\n');
         // Then for each item in the json, build a configuration object to add to the sails.builtStaticContent.appLibrary array.
         await sails.helpers.flow.simultaneouslyForEach(appsJsonData.apps, async(app)=>{
+          // Validate that all FMA have the expected values.
+          if(!app.name) {
+            throw new Error(`Could not build software catalog configuration from the ee/maintained-apps/outputs/apps.json file. An app (${util.inspect(app)}) is missing a "name" value. Please add a "name" value for this app and try running this script again.`);
+          }
+          if(!app.slug) {
+            throw new Error(`Could not build software catalog configuration from the ee/maintained-apps/outputs/apps.json file. An app (name: ${app.name}) is missing a "slug" value. Please add a "slug" value for this app and try running this script again.`);
+          }
+          if(!app.unique_identifier) {
+            throw new Error(`Could not build software catalog configuration from the ee/maintained-apps/outputs/apps.json file. An app (name: ${app.name}) is missing a "unique_identifier" value. Please add a "unique_identifier" value for this app and try running this script again.`);
+          }
+          if(!app.description) {
+            throw new Error(`Could not build software catalog configuration from the ee/maintained-apps/outputs/apps.json file. An app (name: ${app.name}) is missing a "description" value. Please add a "description" value for this app and try running this script again.`);
+          }
+          if(!app.platform) {
+            throw new Error(`Could not build software catalog configuration from the ee/maintained-apps/outputs/apps.json file. An app (name: ${app.name}) is missing a "platform" value. Please add a "platform" value for this app and try running this script again.`);
+          }
+
           // Determine the line in the JSON that the object for this app starts on.
           // this will allow us to link users directly to the app's position in the JSON file when users want to make a change.
           let lineWithTheAppsSlugKey = _.find(linesInAppsJsonFile, (line)=>{
             return line.includes(`"slug": "${app.slug}"`);
           });
           let lineNumberForEdittingThisApp = linesInAppsJsonFile.indexOf(lineWithTheAppsSlugKey);
+
+
 
           let appInformation = {
             name: app.name,
@@ -1330,7 +1349,7 @@ module.exports = {
           // Grab the latest information about these apps from the the ee/maintained-apps folder in the repo.
           let detailedInformationAboutThisApp = await sails.helpers.fs.readJson(path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+app.slug+'.json'))
           .intercept('doesNotExist', ()=>{
-            return new Error(`Could not build app library configuration from the ee/maintained-apps folder. When attempting to read a JSON configuration file for ${appInformation.identifier}, no file was found at ${path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+app.slug+'.json')}. Was it moved?')}.`);
+            return new Error(`Could not build software catalog configuration from the ee/maintained-apps folder. When attempting to read a JSON configuration file for ${appInformation.identifier}, no file was found at ${path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+app.slug+'.json')}. Was it moved?')}.`);
           });
           let expectedAppIconFilename = `app-icon-${app.slug.split('/'+app.platform)[0]}-60x60@2x.png`;
 
