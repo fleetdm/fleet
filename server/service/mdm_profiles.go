@@ -367,12 +367,13 @@ type OktaVarsFound struct {
 	urlCA          map[string]struct{}
 	challengeCA    map[string]struct{}
 	renewalIdFound bool
-	// Whether or not presence of renewal ID should be validated.
-	// Currently used for microsoft MDM as it does not support renewal, once it does, this can be reverted.
+	// Okta SCEP does not support renewal - profile redistribution is required instead.
+	// See: https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/okta-ca-dynamic-scep-macos-jamf.htm
 	supportsRenewal bool
 }
 
-// Ok makes sure that both URL and Challenge variables are present and match the CA name, and that the renewal ID is present.
+// Ok makes sure that both URL and Challenge variables are present and match the CA name.
+// Note: Okta does not support SCEP renewal, so renewal ID is not required.
 func (o *OktaVarsFound) Ok() bool {
 	if o == nil {
 		return true
@@ -389,7 +390,8 @@ func (o *OktaVarsFound) Ok() bool {
 			return false
 		}
 	}
-	return o.renewalIdFound
+	// Okta doesn't support renewal, so we don't require renewalIdFound
+	return true
 }
 
 func (o *OktaVarsFound) Found() bool {
@@ -412,11 +414,8 @@ func (o *OktaVarsFound) CAs() []string {
 }
 
 func (o *OktaVarsFound) ErrorMessage() string {
-	if o.renewalIdFound && len(o.challengeCA) == 0 && len(o.urlCA) == 0 {
-		return fleet.SCEPRenewalIDWithoutURLChallengeErrMsg
-	}
-	if !o.renewalIdFound || len(o.challengeCA) == 0 || len(o.urlCA) == 0 {
-		return fmt.Sprintf("SCEP profile for Okta certificate authority requires: $FLEET_VAR_%s<CA_NAME>, $FLEET_VAR_%s<CA_NAME>, and $FLEET_VAR_%s variables.", fleet.FleetVarOktaSCEPChallengePrefix, fleet.FleetVarOktaSCEPProxyURLPrefix, fleet.FleetVarSCEPRenewalID)
+	if len(o.challengeCA) == 0 || len(o.urlCA) == 0 {
+		return fmt.Sprintf("SCEP profile for Okta certificate authority requires: $FLEET_VAR_%s<CA_NAME> and $FLEET_VAR_%s<CA_NAME> variables. Note: Okta does not support SCEP renewal.", fleet.FleetVarOktaSCEPChallengePrefix, fleet.FleetVarOktaSCEPProxyURLPrefix)
 	}
 	for ca := range o.challengeCA {
 		if _, ok := o.urlCA[ca]; !ok {
@@ -490,8 +489,9 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 	customSCEPVars := &CustomSCEPVarsFound{
 		supportsRenewal: platform == fleet.MDMPlatformApple,
 	}
+	// Okta does not support SCEP renewal on any platform
 	oktaVars := &OktaVarsFound{
-		supportsRenewal: platform == fleet.MDMPlatformApple,
+		supportsRenewal: false,
 	}
 	var (
 		digiCertVars  *DigiCertVarsFound
