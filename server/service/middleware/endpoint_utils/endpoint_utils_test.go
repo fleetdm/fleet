@@ -31,7 +31,7 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 		}
 	}
 
-	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
+	authMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			i++
 			authIndex = i
@@ -69,7 +69,7 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			return nil
 		},
-		AuthFunc: authFunc,
+		AuthMiddleware: authMiddleware,
 		CustomMiddleware: []endpoint.Middleware{
 			beforeAuthMiddleware,
 		},

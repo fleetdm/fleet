@@ -115,10 +115,11 @@ func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOpti
 		MakeDecoderFn: makeDecoder,
 		EncodeFn:      encodeResponse,
 		Opts:          opts,
-		AuthFunc:      auth.AuthenticatedUser,
-		FleetService:  svc,
-		Router:        r,
-		Versions:      versions,
+		AuthMiddleware: func(next endpoint.Endpoint) endpoint.Endpoint {
+			return auth.AuthenticatedUser(svc, next)
+		},
+		Router:   r,
+		Versions: versions,
 	}
 }
 
@@ -132,10 +133,11 @@ func newNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.
 		MakeDecoderFn: makeDecoder,
 		EncodeFn:      encodeResponse,
 		Opts:          opts,
-		AuthFunc:      auth.UnauthenticatedRequest,
-		FleetService:  svc,
-		Router:        r,
-		Versions:      versions,
+		AuthMiddleware: func(next endpoint.Endpoint) endpoint.Endpoint {
+			return auth.UnauthenticatedRequest(svc, next)
+		},
+		Router:   r,
+		Versions: versions,
 	}
 }
 
@@ -152,10 +154,11 @@ func newOrbitNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r 
 		MakeDecoderFn: makeDecoder,
 		EncodeFn:      encodeResponse,
 		Opts:          opts,
-		AuthFunc:      auth.UnauthenticatedRequest,
-		FleetService:  svc,
-		Router:        r,
-		Versions:      versions,
+		AuthMiddleware: func(next endpoint.Endpoint) endpoint.Endpoint {
+			return auth.UnauthenticatedRequest(svc, next)
+		},
+		Router:   r,
+		Versions: versions,
 	}
 }
 
@@ -172,10 +175,6 @@ func badRequestf(format string, a ...any) error {
 func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[eu.HandlerFunc] {
-	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
-		return authenticatedDevice(svc, logger, next)
-	}
-
 	// Extract certificate serial from X-Client-Cert-Serial header for certificate-based auth
 	opts = append(opts, kithttp.ServerBefore(extractCertSerialFromHeader))
 	// Inject the fleet.CapabilitiesHeader header to the response for device endpoints
@@ -190,19 +189,17 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts
 		MakeDecoderFn: makeDecoder,
 		EncodeFn:      encodeResponse,
 		Opts:          opts,
-		AuthFunc:      authFunc,
-		FleetService:  svc,
-		Router:        r,
-		Versions:      versions,
+		AuthMiddleware: func(next endpoint.Endpoint) endpoint.Endpoint {
+			return authenticatedDevice(svc, logger, next)
+		},
+		Router:   r,
+		Versions: versions,
 	}
 }
 
 func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[eu.HandlerFunc] {
-	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
-		return authenticatedHost(svc, logger, next)
-	}
 	return &eu.CommonEndpointer[eu.HandlerFunc]{
 		EP: &endpointer{
 			svc: svc,
@@ -210,10 +207,11 @@ func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts [
 		MakeDecoderFn: makeDecoder,
 		EncodeFn:      encodeResponse,
 		Opts:          opts,
-		AuthFunc:      authFunc,
-		FleetService:  svc,
-		Router:        r,
-		Versions:      versions,
+		AuthMiddleware: func(next endpoint.Endpoint) endpoint.Endpoint {
+			return authenticatedHost(svc, logger, next)
+		},
+		Router:   r,
+		Versions: versions,
 	}
 }
 
@@ -236,22 +234,17 @@ func androidAuthenticatedEndpointer(
 		MakeDecoderFn: makeDecoder,
 		EncodeFn:      encodeResponse,
 		Opts:          opts,
-		AuthFunc: func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
+		AuthMiddleware: func(next endpoint.Endpoint) endpoint.Endpoint {
 			return authenticatedOrbitHost(svc, logger, next, authHeaderValue("Node key "))
 		},
-		FleetService: svc,
-		Router:       r,
-		Versions:     versions,
+		Router:   r,
+		Versions: versions,
 	}
 }
 
 func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[eu.HandlerFunc] {
-	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
-		return authenticatedOrbitHost(svc, logger, next, getOrbitNodeKey)
-	}
-
 	// Inject the fleet.Capabilities header to the response for Orbit hosts
 	opts = append(opts, capabilitiesResponseFunc(fleet.GetServerOrbitCapabilities()))
 	// Add the capabilities reported by Orbit to the request context
@@ -264,10 +257,11 @@ func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts 
 		MakeDecoderFn: makeDecoder,
 		EncodeFn:      encodeResponse,
 		Opts:          opts,
-		AuthFunc:      authFunc,
-		FleetService:  svc,
-		Router:        r,
-		Versions:      versions,
+		AuthMiddleware: func(next endpoint.Endpoint) endpoint.Endpoint {
+			return authenticatedOrbitHost(svc, logger, next, getOrbitNodeKey)
+		},
+		Router:   r,
+		Versions: versions,
 	}
 }
 

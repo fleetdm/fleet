@@ -11,6 +11,7 @@ import (
 	eu "github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
+	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
@@ -54,10 +55,11 @@ func newUserAuthenticatedEndpointer(fleetSvc fleet.Service, svc android.Service,
 		MakeDecoderFn: makeDecoder,
 		EncodeFn:      encodeResponse,
 		Opts:          opts,
-		AuthFunc:      auth.AuthenticatedUser,
-		FleetService:  fleetSvc,
-		Router:        r,
-		Versions:      versions,
+		AuthMiddleware: func(next endpoint.Endpoint) endpoint.Endpoint {
+			return auth.AuthenticatedUser(fleetSvc, next)
+		},
+		Router:   r,
+		Versions: versions,
 	}
 }
 
@@ -70,9 +72,10 @@ func newNoAuthEndpointer(fleetSvc fleet.Service, svc android.Service, opts []kit
 		MakeDecoderFn: makeDecoder,
 		EncodeFn:      encodeResponse,
 		Opts:          opts,
-		AuthFunc:      auth.UnauthenticatedRequest,
-		FleetService:  fleetSvc,
-		Router:        r,
-		Versions:      versions,
+		AuthMiddleware: func(next endpoint.Endpoint) endpoint.Endpoint {
+			return auth.UnauthenticatedRequest(fleetSvc, next)
+		},
+		Router:   r,
+		Versions: versions,
 	}
 }

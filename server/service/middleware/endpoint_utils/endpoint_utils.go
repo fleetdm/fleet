@@ -513,19 +513,18 @@ type HandlerFunc func(ctx context.Context, request interface{}, svc fleet.Servic
 
 type AndroidFunc func(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer
 
-type CommonEndpointer[H HandlerFunc | AndroidFunc] struct {
-	EP            Endpointer[H]
-	MakeDecoderFn func(iface interface{}) kithttp.DecodeRequestFunc
-	EncodeFn      kithttp.EncodeResponseFunc
-	Opts          []kithttp.ServerOption
-	AuthFunc      func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint
-	FleetService  fleet.Service
-	Router        *mux.Router
-	Versions      []string
+type CommonEndpointer[H any] struct {
+	EP             Endpointer[H]
+	MakeDecoderFn  func(iface interface{}) kithttp.DecodeRequestFunc
+	EncodeFn       kithttp.EncodeResponseFunc
+	Opts           []kithttp.ServerOption
+	AuthMiddleware endpoint.Middleware
+	Router         *mux.Router
+	Versions       []string
 
-	// CustomMiddleware are middlewares that run before AuthFunc.
+	// CustomMiddleware are middlewares that run before AuthMiddleware.
 	CustomMiddleware []endpoint.Middleware
-	// CustomMiddlewareAfterAuth are middlewares that run after AuthFunc.
+	// CustomMiddlewareAfterAuth are middlewares that run after AuthMiddleware.
 	CustomMiddlewareAfterAuth []endpoint.Middleware
 
 	startingAtVersion string
@@ -534,7 +533,7 @@ type CommonEndpointer[H HandlerFunc | AndroidFunc] struct {
 	usePathPrefix     bool
 }
 
-type Endpointer[H HandlerFunc | AndroidFunc] interface {
+type Endpointer[H any] interface {
 	CallHandlerFunc(f H, ctx context.Context, request interface{}, svc interface{}) (fleet.Errorer, error)
 	Service() interface{}
 }
@@ -582,7 +581,7 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 			endp = mw(endp)
 		}
 	}
-	endp = e.AuthFunc(e.FleetService, endp)
+	endp = e.AuthMiddleware(endp)
 
 	// Apply "before auth" middleware (in reverse order so that the first wraps
 	// the second wraps the third etc.)
