@@ -2102,7 +2102,7 @@ func NewTypedSyncMLCmd(dataType mdm_types.SyncMLDataType, cmdVerb string, cmdTar
 		return nil, errInvalidParameters
 
 	case mdm_types.SFText:
-		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+		if len(cmdData) > 0 && len(cmdTarget) > 0 {
 			rawCmd := newSyncMLCmdText(cmdVerb, cmdTarget, cmdData)
 			return rawCmd, nil
 		}
@@ -2110,7 +2110,7 @@ func NewTypedSyncMLCmd(dataType mdm_types.SyncMLDataType, cmdVerb string, cmdTar
 		return nil, errInvalidParameters
 
 	case mdm_types.SFXml:
-		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+		if len(cmdData) > 0 && len(cmdTarget) > 0 {
 			rawCmd := newSyncMLCmdXml(cmdVerb, cmdTarget, cmdData)
 			return rawCmd, nil
 		}
@@ -2118,7 +2118,7 @@ func NewTypedSyncMLCmd(dataType mdm_types.SyncMLDataType, cmdVerb string, cmdTar
 		return nil, errInvalidParameters
 
 	case mdm_types.SFInteger:
-		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+		if len(cmdData) > 0 && len(cmdTarget) > 0 {
 			rawCmd := newSyncMLCmdInt(cmdVerb, cmdTarget, cmdData)
 			return rawCmd, nil
 		}
@@ -2126,7 +2126,7 @@ func NewTypedSyncMLCmd(dataType mdm_types.SyncMLDataType, cmdVerb string, cmdTar
 		return nil, errInvalidParameters
 
 	case mdm_types.SFBase64:
-		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+		if len(cmdData) > 0 && len(cmdTarget) > 0 {
 			rawCmd := newSyncMLCmdBase64(cmdVerb, cmdTarget, cmdData)
 			return rawCmd, nil
 		}
@@ -2134,7 +2134,7 @@ func NewTypedSyncMLCmd(dataType mdm_types.SyncMLDataType, cmdVerb string, cmdTar
 		return nil, errInvalidParameters
 
 	case mdm_types.SFBoolean:
-		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+		if len(cmdData) > 0 && len(cmdTarget) > 0 {
 			rawCmd := newSyncMLCmdBool(cmdVerb, cmdTarget, cmdData)
 			return rawCmd, nil
 		}
