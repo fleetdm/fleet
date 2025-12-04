@@ -72,10 +72,10 @@ Check out [`/tools/osquery` directory instructions](https://github.com/fleetdm/f
 You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test[-go]` or `make lint[-go]`, using:
 
 ```sh
-go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@43d03392d7dc3746fa776dbddd66dfcccff70651
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@a4b55ebc3471c9fbb763fd56eefede8050f99887
 ```
 
-This installs the version of `golangci-lint` used in our CI environment (currently 2.4.0). Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:
+This installs the version of `golangci-lint` used in our CI environment (currently 2.7.1). Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:
 
 ```sh
 REDIS_TEST=1 MYSQL_TEST=1 make test
