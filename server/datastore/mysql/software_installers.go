@@ -2253,7 +2253,7 @@ VALUES
 
 	const getDisplayNamesForTeam = `
 SELECT 
-	stdn.software_title_id
+	stdn.software_title_id, stdn.display_name
 FROM 
 	software_title_display_names stdn
 INNER JOIN 
@@ -2277,7 +2277,7 @@ WHERE
 		AND vat.global_or_team_id = stdn.team_id);
 `
 
-	const deleteAllSoftwareInstallerDisplayNames = `
+	const deleteAllInstallerDisplayNames = `
 DELETE FROM 
 	software_title_display_names stdn
 WHERE 
@@ -2354,7 +2354,7 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
 			}
 
-			if _, err := tx.ExecContext(ctx, deleteAllSoftwareInstallerDisplayNames, globalOrTeamID); err != nil {
+			if _, err := tx.ExecContext(ctx, deleteAllInstallerDisplayNames, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete all display names associated with software installers")
 			}
 
@@ -2507,19 +2507,21 @@ WHERE
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete display names")
 		}
-		fmt.Println("args: ", args)
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete display names")
 		}
 
 		// Fill a map of title IDs for this team that have a display name
-		var titlesWithDisplayNames []uint
+		var titlesWithDisplayNames []struct {
+			TitleID uint   `db:"software_title_id"`
+			Name    string `db:"display_name"`
+		}
 		if err := sqlx.SelectContext(ctx, tx, &titlesWithDisplayNames, getDisplayNamesForTeam, globalOrTeamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "load display names for updating")
 		}
-		displayNameTitleIDMap := make(map[uint]struct{}, len(titlesWithDisplayNames))
+		displayNameIDMap := make(map[uint]string, len(titlesWithDisplayNames))
 		for _, d := range titlesWithDisplayNames {
-			displayNameTitleIDMap[d] = struct{}{}
+			displayNameIDMap[d.TitleID] = d.Name
 		}
 
 		for _, installer := range installers {
@@ -2724,11 +2726,9 @@ WHERE
 				}
 			}
 
-			// update the display name for the software title if it already exists
-			// or if it does not, and display name is not empty
-
-			if _, ok := displayNameTitleIDMap[titleID]; ok || installer.DisplayName != "" {
-				fmt.Println("Updating display name: ", installer.DisplayName)
+			// update the display name for the software title if it already exists,
+			// or if it does not and display name is not empty
+			if name, ok := displayNameIDMap[titleID]; (ok && name != installer.DisplayName) || (!ok && installer.DisplayName != "") {
 				if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleID, installer.DisplayName); err != nil {
 					return ctxerr.Wrapf(ctx, err, "update software title display name for installer with name %q", installer.Filename)
 				}
