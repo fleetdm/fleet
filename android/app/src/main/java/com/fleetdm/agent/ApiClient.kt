@@ -22,7 +22,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 
-private val Context.credentialStore: DataStore<Preferences> by preferencesDataStore(name = "api_credentials")
+val Context.prefDataStore: DataStore<Preferences> by preferencesDataStore(name = "pref_datastore")
 
 object ApiClient {
     private val json = Json { ignoreUnknownKeys = true }
@@ -39,13 +39,13 @@ object ApiClient {
     fun initialize(context: Context) {
         Log.d("fleet-apiClient", "initializing api client")
         if (!::dataStore.isInitialized) {
-            dataStore = context.applicationContext.credentialStore
+            dataStore = context.applicationContext.prefDataStore
         }
     }
 
     private suspend fun setApiKey(key: String) {
         dataStore.edit { preferences ->
-            preferences[API_KEY] = key
+            preferences[API_KEY] = KeystoreManager.encrypt(key)
         }
     }
 
@@ -57,7 +57,14 @@ object ApiClient {
 
     val apiKeyFlow: Flow<String?>
         get() = dataStore.data.map { preferences ->
-            preferences[API_KEY]
+            preferences[API_KEY]?.let { encrypted ->
+                try {
+                    KeystoreManager.decrypt(encrypted)
+                } catch (e: Exception) {
+                    Log.e("ApiClient", "Failed to decrypt API key", e)
+                    null
+                }
+            }
         }
 
     val baseUrlFlow: Flow<String?>
@@ -65,7 +72,15 @@ object ApiClient {
             preferences[BASE_URL_KEY]
         }
 
-    suspend fun getApiKey(): String? = dataStore.data.first()[API_KEY]
+    suspend fun getApiKey(): String? {
+        val encrypted = dataStore.data.first()[API_KEY] ?: return null
+        return try {
+            KeystoreManager.decrypt(encrypted)
+        } catch (e: Exception) {
+            Log.e("ApiClient", "Failed to decrypt API key", e)
+            null
+        }
+    }
 
     suspend fun getBaseUrl(): String? = dataStore.data.first()[BASE_URL_KEY]
 
@@ -183,6 +198,39 @@ object ApiClient {
             preferences[COMPUTER_NAME] = computerName
             preferences[BASE_URL_KEY] = baseUrl
         }
+    }
+
+    suspend fun getCertificateTemplate(certificateId: Int): Result<GetCertificateTemplateResponse> {
+        val nodeKeyResult = getNodeKeyOrEnroll()
+        val orbitNodeKey = nodeKeyResult.getOrElse { error ->
+            return Result.failure(error)
+        }
+
+        val credentials = getEnrollmentCredentials() ?: return Result.failure(Exception("enroll credentials not set"))
+
+        return makeRequest(
+            endpoint = "/api/fleetd/orbit/certificates/$certificateId",
+            method = "POST",
+            body = GetCertificateTemplateRequest(orbitNodeKey = orbitNodeKey),
+            bodySerializer = GetCertificateTemplateRequest.serializer(),
+            responseSerializer = GetCertificateTemplateResponse.serializer(),
+        ).fold(
+            onSuccess = { res ->
+                Log.i("ApiClient", "successfully retrieved certificate template ${res.id}: ${res.name}")
+                Result.success(
+                    res.apply {
+                        setUrl(
+                            serverUrl = credentials.baseUrl,
+                            hostUUID = credentials.hardwareUUID,
+                        )
+                    },
+                )
+            },
+            onFailure = { throwable ->
+                Log.e("ApiClient", "failed to get certificate template $certificateId")
+                Result.failure(throwable)
+            },
+        )
     }
 
     private suspend fun getEnrollmentCredentials(): EnrollmentCredentials? {
@@ -333,3 +381,54 @@ data class OrbitUpdateChannels(
     @SerialName("desktop")
     val desktop: String = "",
 )
+
+@Serializable
+private data class GetCertificateTemplateRequest(
+    @SerialName("orbit_node_key")
+    val orbitNodeKey: String,
+)
+
+@Serializable
+data class GetCertificateTemplateResponse(
+    @SerialName("id")
+    val id: Int,
+
+    @SerialName("name")
+    val name: String,
+
+    @SerialName("certificate_authority_id")
+    val certificateAuthorityId: String,
+
+    @SerialName("certificate_authority_name")
+    val certificateAuthorityName: String,
+
+    @SerialName("created_at")
+    val createdAt: String,
+
+    @SerialName("subject_name")
+    val subjectName: String,
+
+    @SerialName("certificate_authority_type")
+    val certificateAuthorityType: String,
+
+    @SerialName("status")
+    val status: String,
+
+    @SerialName("scep_challenge")
+    val scepChallenge: String,
+
+    @SerialName("fleet_challenge")
+    val fleetChallenge: String?,
+
+    @SerialName("key_length")
+    val keyLength: Int = 2048,
+
+    @SerialName("signature_algorithm")
+    val signatureAlgorithm: String = "SHA256withRSA",
+
+    var url: String?,
+) {
+    fun setUrl(serverUrl: String, hostUUID: String) {
+        url = "$serverUrl/mdm/scep/proxy/$hostUUID,g$id,$certificateAuthorityType,$fleetChallenge"
+    }
+}

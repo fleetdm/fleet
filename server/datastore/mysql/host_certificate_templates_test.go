@@ -21,7 +21,7 @@ func TestHostCertificateTemplates(t *testing.T) {
 	}{
 		{"ListAndroidHostUUIDsWithDeliverableCertificateTemplates", testListAndroidHostUUIDsWithDeliverableCertificateTemplates},
 		{"ListCertificateTemplatesForHosts", testListCertificateTemplatesForHosts},
-		{"BulkInsertHostCertificateTemplates", testBulkInsertHostCertificateTemplates},
+		{"BulkInsertAndDeleteHostCertificateTemplates", testBulkInsertAndDeleteHostCertificateTemplates},
 		{"UpdateHostCertificateTemplateStatus", testUpdateHostCertificateTemplateStatus},
 	}
 
@@ -430,17 +430,19 @@ func testListCertificateTemplatesForHosts(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testBulkInsertHostCertificateTemplates(t *testing.T, ds *Datastore) {
+func testBulkInsertAndDeleteHostCertificateTemplates(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	var certificateTemplateID uint
+	var certificateTemplateIDTwo uint
+
 	testCases := []struct {
 		name     string
 		before   func(ds *Datastore)
 		testFunc func(*testing.T, *Datastore)
 	}{
 		{
-			"bulk inserts host certificate templates",
+			"bulk inserts and deletes specific records",
 			func(ds *Datastore) {
 				// Create a test team
 				team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
@@ -455,49 +457,146 @@ func testBulkInsertHostCertificateTemplates(t *testing.T, ds *Datastore) {
 					Challenge: ptr.String("test-challenge"),
 				})
 				require.NoError(t, err)
-				caID := ca.ID
 
-				// Insert initial certificates
-				certificateTemplate := fleet.CertificateTemplate{
-					Name:                   "Cert1",
-					TeamID:                 teamID,
-					CertificateAuthorityID: caID,
-					SubjectName:            "CN=Test Subject 1",
-				}
+				// Create two certificate templates
 				res, err := ds.writer(ctx).ExecContext(ctx,
 					"INSERT INTO certificate_templates (name, team_id, certificate_authority_id, subject_name) VALUES (?, ?, ?, ?)",
-					certificateTemplate.Name,
-					certificateTemplate.TeamID,
-					certificateTemplate.CertificateAuthorityID,
-					certificateTemplate.SubjectName,
+					"Cert1", teamID, ca.ID, "CN=Test Subject 1",
 				)
 				require.NoError(t, err)
 				lastID, err := res.LastInsertId()
 				require.NoError(t, err)
 				certificateTemplateID = uint(lastID) //nolint:gosec
+
+				res, err = ds.writer(ctx).ExecContext(ctx,
+					"INSERT INTO certificate_templates (name, team_id, certificate_authority_id, subject_name) VALUES (?, ?, ?, ?)",
+					"Cert2", teamID, ca.ID, "CN=Test Subject 2",
+				)
+				require.NoError(t, err)
+				lastID, err = res.LastInsertId()
+				require.NoError(t, err)
+				certificateTemplateIDTwo = uint(lastID) //nolint:gosec
 			},
 			func(t *testing.T, ds *Datastore) {
-				hostCertTemplates := []fleet.HostCertificateTemplate{
-					{
-						HostUUID:              "host-uuid-1",
-						CertificateTemplateID: certificateTemplateID,
-						FleetChallenge:        "challenge-1",
-						Status:                fleet.MDMDeliveryPending,
-					},
-					{
-						HostUUID:              "host-uuid-2",
-						CertificateTemplateID: certificateTemplateID,
-						FleetChallenge:        "challenge-2",
-						Status:                fleet.MDMDeliveryVerified,
-					},
+				// Insert host certificate templates
+				hostCerts := []fleet.HostCertificateTemplate{
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-1", Status: fleet.MDMDeliveryPending},
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateIDTwo, FleetChallenge: "challenge-2", Status: fleet.MDMDeliveryPending},
+					{HostUUID: "host-2", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-3", Status: fleet.MDMDeliveryVerified},
 				}
-				err := ds.BulkInsertHostCertificateTemplates(ctx, hostCertTemplates)
+				err := ds.BulkInsertHostCertificateTemplates(ctx, hostCerts)
 				require.NoError(t, err)
 
 				var count int
 				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_certificate_templates")
 				require.NoError(t, err)
+				require.Equal(t, 3, count)
+
+				// Delete only host-1's first certificate
+				toDelete := []fleet.HostCertificateTemplate{
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateID},
+				}
+				err = ds.DeleteHostCertificateTemplates(ctx, toDelete)
+				require.NoError(t, err)
+
+				// Verify only 2 records remain
+				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_certificate_templates")
+				require.NoError(t, err)
 				require.Equal(t, 2, count)
+
+				// Verify the correct records remain
+				var remaining []struct {
+					HostUUID              string `db:"host_uuid"`
+					CertificateTemplateID uint   `db:"certificate_template_id"`
+				}
+				err = ds.writer(ctx).SelectContext(ctx, &remaining,
+					"SELECT host_uuid, certificate_template_id FROM host_certificate_templates ORDER BY host_uuid, certificate_template_id")
+				require.NoError(t, err)
+				require.Len(t, remaining, 2)
+				require.Equal(t, "host-1", remaining[0].HostUUID)
+				require.Equal(t, certificateTemplateIDTwo, remaining[0].CertificateTemplateID)
+				require.Equal(t, "host-2", remaining[1].HostUUID)
+				require.Equal(t, certificateTemplateID, remaining[1].CertificateTemplateID)
+			},
+		},
+		{
+			"deletes multiple records at once",
+			func(ds *Datastore) {
+				// Create a test team
+				team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
+				require.NoError(t, err)
+				teamID := team.ID
+
+				// Create a test certificate authority
+				ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+					Type:      string(fleet.CATypeCustomSCEPProxy),
+					Name:      ptr.String("Test SCEP CA"),
+					URL:       ptr.String("http://localhost:8080/scep"),
+					Challenge: ptr.String("test-challenge"),
+				})
+				require.NoError(t, err)
+
+				// Create two certificate templates
+				res, err := ds.writer(ctx).ExecContext(ctx,
+					"INSERT INTO certificate_templates (name, team_id, certificate_authority_id, subject_name) VALUES (?, ?, ?, ?)",
+					"Cert1", teamID, ca.ID, "CN=Test Subject 1",
+				)
+				require.NoError(t, err)
+				lastID, err := res.LastInsertId()
+				require.NoError(t, err)
+				certificateTemplateID = uint(lastID) //nolint:gosec
+
+				res, err = ds.writer(ctx).ExecContext(ctx,
+					"INSERT INTO certificate_templates (name, team_id, certificate_authority_id, subject_name) VALUES (?, ?, ?, ?)",
+					"Cert2", teamID, ca.ID, "CN=Test Subject 2",
+				)
+				require.NoError(t, err)
+				lastID, err = res.LastInsertId()
+				require.NoError(t, err)
+				certificateTemplateIDTwo = uint(lastID) //nolint:gosec
+
+				// Insert host certificate templates
+				hostCerts := []fleet.HostCertificateTemplate{
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-1", Status: fleet.MDMDeliveryPending},
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateIDTwo, FleetChallenge: "challenge-2", Status: fleet.MDMDeliveryPending},
+				}
+				err = ds.BulkInsertHostCertificateTemplates(ctx, hostCerts)
+				require.NoError(t, err)
+			},
+			func(t *testing.T, ds *Datastore) {
+				toDelete := []fleet.HostCertificateTemplate{
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateID},
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateIDTwo},
+				}
+				err := ds.DeleteHostCertificateTemplates(ctx, toDelete)
+				require.NoError(t, err)
+
+				var count int
+				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_certificate_templates")
+				require.NoError(t, err)
+				require.Equal(t, 0, count)
+			},
+		},
+		{
+			"no error when deleting non-existent records",
+			func(ds *Datastore) {},
+			func(t *testing.T, ds *Datastore) {
+				toDelete := []fleet.HostCertificateTemplate{
+					{HostUUID: "non-existent-host", CertificateTemplateID: 999},
+				}
+				err := ds.DeleteHostCertificateTemplates(ctx, toDelete)
+				require.NoError(t, err)
+			},
+		},
+		{
+			"no error with empty list",
+			func(ds *Datastore) {},
+			func(t *testing.T, ds *Datastore) {
+				err := ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{})
+				require.NoError(t, err)
+
+				err = ds.DeleteHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{})
+				require.NoError(t, err)
 			},
 		},
 	}

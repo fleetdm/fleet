@@ -1,9 +1,14 @@
 import React from "react";
 
+import { uniqueId } from "lodash";
+
 const FileScript = () => {
+  const clipPathIdA = uniqueId("clip-path-a");
+  const clipPathIdB = uniqueId("clip-path-b");
+
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="34" height="40" fill="none">
-      <g clipPath="url(#filescript_clippath__a)">
+      <g clipPath={`url(#${clipPathIdA})`}>
         <path
           fill="#fff"
           stroke="#192147"
@@ -19,7 +24,7 @@ const FileScript = () => {
           strokeWidth={0.5}
           d="M24.5.334v5.667c0 .736.597 1.333 1.333 1.333h6"
         />
-        <g clipPath="url(#filescript_clippath__b)">
+        <g clipPath={`url(#${clipPathIdB})`}>
           <path
             fill="#8B8FA2"
             d="M15.113 26.75c.829.807 1.549 1.507 2.018 1.953.545.52.85 1.241.818 1.984-.033.743-.447 1.623-1.909 1.952-2.924.647-3.218-2.154-3.218-2.154l-.087-.817 2.389-2.917h-.011Z"
@@ -54,10 +59,10 @@ const FileScript = () => {
         </g>
       </g>
       <defs>
-        <clipPath id="filescript_clippath__a">
+        <clipPath id={clipPathIdA}>
           <path fill="#fff" d="M0 0h34v40H0z" />
         </clipPath>
-        <clipPath id="filescript_clippath__b">
+        <clipPath id={clipPathIdB}>
           <path fill="#fff" d="M8 9h18v24H8z" />
         </clipPath>
       </defs>
