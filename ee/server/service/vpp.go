@@ -292,9 +292,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			}
 
 			maps.Copy(policiesToUpdate, hostsInScope)
-
-			fmt.Printf("hostsInScope: %v\n", hostsInScope)
-
 			appIDs = append(appIDs, app.AppStoreID)
 		}
 	}
