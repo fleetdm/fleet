@@ -37,5 +37,32 @@ quit_application() {
   fi
 }
 
+restart_chrome() {
+  local console_user
+  console_user=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
+  
+  if [[ -n "$console_user" && "$console_user" != "root" ]]; then
+    echo "Restarting Chrome for user: $console_user"
+    sudo -u "$console_user" open -a "Google Chrome" --args --restore-last-session
+  else
+    echo "No console user found, attempting direct Chrome start..."
+    open -a "Google Chrome" --args --restore-last-session
+  fi
+}
+
+# Check if Chrome was running before we quit it
+CHROME_WAS_RUNNING=false
+if osascript -e "application id \"com.google.Chrome\" is running" 2>/dev/null; then
+  CHROME_WAS_RUNNING=true
+fi
+
 quit_application 'com.google.Chrome'
-installer -pkg "$INSTALLER_PATH" -target /
+installer -pkg "$INSTALLER_PATH" -target / || true
+
+# Restart Chrome if it was running before installation
+if [[ "$CHROME_WAS_RUNNING" == "true" ]]; then
+  sleep 2
+  restart_chrome || true
+fi
+
+exit 0
