@@ -19,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
@@ -508,10 +507,6 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 	// Referer.
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 }
-
-type HandlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error)
-
-type AndroidFunc func(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer
 
 type CommonEndpointer[H any] struct {
 	EP             Endpointer[H]

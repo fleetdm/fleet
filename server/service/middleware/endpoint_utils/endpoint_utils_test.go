@@ -15,6 +15,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// testHandlerFunc is a handler function type used for testing.
+type testHandlerFunc func(ctx context.Context, request any, svc any) (fleet.Errorer, error)
+
 func TestCustomMiddlewareAfterAuth(t *testing.T) {
 	var (
 		i                = 0
@@ -58,7 +61,7 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 	}
 
 	r := mux.NewRouter()
-	ce := &CommonEndpointer[HandlerFunc]{
+	ce := &CommonEndpointer[testHandlerFunc]{
 		EP: nopEP{},
 		MakeDecoderFn: func(iface interface{}) kithttp.DecodeRequestFunc {
 			return func(ctx context.Context, r *http.Request) (request interface{}, err error) {
@@ -79,7 +82,7 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 		},
 		Router: r,
 	}
-	ce.handleEndpoint("/", func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	ce.handleEndpoint("/", func(ctx context.Context, request interface{}, svc any) (fleet.Errorer, error) {
 		fmt.Printf("handler\n")
 		return nopResponse{}, nil
 	}, nil, "GET")
@@ -113,7 +116,7 @@ func (n nopResponse) Error() error {
 
 type nopEP struct{}
 
-func (n nopEP) CallHandlerFunc(f HandlerFunc, ctx context.Context, request interface{}, svc interface{}) (fleet.Errorer, error) {
+func (n nopEP) CallHandlerFunc(_ testHandlerFunc, _ context.Context, _ any, _ any) (fleet.Errorer, error) {
 	return nopResponse{}, nil
 }
 
