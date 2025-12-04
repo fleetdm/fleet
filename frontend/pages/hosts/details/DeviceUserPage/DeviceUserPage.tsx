@@ -14,6 +14,7 @@ import deviceUserAPI, {
   IGetDeviceCertsRequestParams,
   IGetDeviceCertificatesResponse,
   IGetSetupExperienceStatusesResponse,
+  enableUrlAuth,
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
@@ -127,6 +128,7 @@ interface IDeviceUserPageProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       setup_only?: string;
+      udid?: string;
     };
     search?: string;
   };
@@ -140,6 +142,13 @@ const DeviceUserPage = ({
   params: { device_auth_token },
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
+
+  // Enable URL-based auth if udid=true is in the query params.
+  // This must run synchronously before any API calls are made.
+  if (location.query.udid === "true") {
+    enableUrlAuth();
+  }
+
   const isMobileView = useIsMobileWidth();
   const isMobileDevice = isIPhone(navigator) || isIPad(navigator);
 
