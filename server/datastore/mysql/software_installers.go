@@ -2726,8 +2726,7 @@ WHERE
 				}
 			}
 
-			// update the display name for the software title if it already exists,
-			// or if it does not and display name is not empty
+			// update display name for the software title if it needs to be updated or inserted
 			if name, ok := displayNameIDMap[titleID]; (ok && name != installer.DisplayName) || (!ok && installer.DisplayName != "") {
 				if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleID, installer.DisplayName); err != nil {
 					return ctxerr.Wrapf(ctx, err, "update software title display name for installer with name %q", installer.Filename)
