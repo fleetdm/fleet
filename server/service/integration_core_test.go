@@ -8127,6 +8127,10 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	})
 	require.NoError(t, err)
 
+	noTeamOrbitNodeKey := uuid.New().String()
+	noTeamHost.OrbitNodeKey = &noTeamOrbitNodeKey
+	require.NoError(t, s.ds.UpdateHost(ctx, noTeamHost))
+
 	// Add an IDP user for host
 	err = s.ds.ReplaceHostDeviceMapping(ctx, noTeamHost.ID, []*fleet.HostDeviceMapping{
 		{
@@ -8142,8 +8146,13 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	require.Len(t, savedNoTeamCertTemplates, 2)
 	noTeamCertID := savedNoTeamCertTemplates[0].ID
 
+	// Get certificate with orbit node_key (should return replaced variables)
 	var getNoTeamCertResp getDeviceCertificateTemplateResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/fleetd/certificates/%d?node_key=%s", noTeamCertID, *noTeamHost.NodeKey), nil, http.StatusOK, &getNoTeamCertResp)
+	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", noTeamCertID), nil, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", noTeamOrbitNodeKey),
+	})
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getNoTeamCertResp))
+	require.NoError(t, resp.Body.Close())
 	require.NotNil(t, getNoTeamCertResp.Certificate)
 	assert.Contains(t, getNoTeamCertResp.Certificate.SubjectName, "no.team.user@example.com")
 	assert.Contains(t, getNoTeamCertResp.Certificate.SubjectName, "test-no-team-uuid-12345")
