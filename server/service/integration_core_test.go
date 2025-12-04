@@ -8143,7 +8143,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	noTeamCertID := savedNoTeamCertTemplates[0].ID
 
 	var getNoTeamCertResp getDeviceCertificateTemplateResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleetd/certificates/%d?node_key=%s", noTeamCertID, *noTeamHost.NodeKey), nil, http.StatusOK, &getNoTeamCertResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/fleetd/certificates/%d?node_key=%s", noTeamCertID, *noTeamHost.NodeKey), nil, http.StatusOK, &getNoTeamCertResp)
 	require.NotNil(t, getNoTeamCertResp.Certificate)
 	assert.Contains(t, getNoTeamCertResp.Certificate.SubjectName, "no.team.user@example.com")
 	assert.Contains(t, getNoTeamCertResp.Certificate.SubjectName, "test-no-team-uuid-12345")
