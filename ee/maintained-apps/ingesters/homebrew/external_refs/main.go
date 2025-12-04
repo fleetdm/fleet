@@ -14,6 +14,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"google-chrome/darwin":          {ChromePKGInstaller},
 	"1password/darwin":              {OnePasswordPKGInstaller},
 	"zoom/darwin":                   {ZoomPKGInstaller},
+	"slack/darwin":                  {SlackPKGInstaller},
 	"omnissa-horizon-client/darwin": {OmnissaHorizonVersionShortener},
 	"8x8-work/darwin":               {EightXEightWorkVersionShortener},
 	"cisco-jabber/darwin":           {CiscoJabberVersionTransformer},
@@ -36,6 +37,16 @@ func OnePasswordPKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_a
 	// Override installer URL to use 1Password's Universal PKG installer instead of Homebrew's DMG
 	// Version is kept from Homebrew (not set to "latest")
 	app.InstallerURL = "https://downloads.1password.com/mac/1Password.pkg"
+	// Set SHA256 to "no_check" since we're using a different installer URL than Homebrew
+	app.SHA256 = "no_check"
+
+	return app, nil
+}
+
+func SlackPKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	// Override installer URL to use Slack's Universal PKG installer instead of Homebrew's DMG
+	// Version is kept from Homebrew (not set to "latest")
+	app.InstallerURL = "https://slack.com/api/desktop.latestRelease?redirect=1&variant=pkg&arch=universal"
 	// Set SHA256 to "no_check" since we're using a different installer URL than Homebrew
 	app.SHA256 = "no_check"
 
