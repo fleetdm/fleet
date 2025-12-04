@@ -158,6 +158,23 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		return getDeviceHostResponse{Err: err}, nil
 	}
 
+	// Scrub sensitive data from the host response for iOS and iPadOS devices
+	if host.Platform == "ios" || host.Platform == "ipados" {
+		resp.HardwareSerial = ""
+		resp.UUID = ""
+		resp.PrimaryMac = ""
+		resp.TeamName = nil
+		resp.MDM.Profiles = nil
+		resp.Labels = nil
+
+		// Scrub sensitive data from the license response
+		scrubbedLicense := *license
+		scrubbedLicense.Organization = ""
+		scrubbedLicense.DeviceCount = 0
+		scrubbedLicense.Expiration = time.Time{}
+		license = &scrubbedLicense
+	}
+
 	resp.DEPAssignedToFleet = ptr.Bool(false)
 	if ac.MDM.EnabledAndConfigured && license.IsPremium() {
 		hdep, err := svc.GetHostDEPAssignment(ctx, host)
@@ -299,6 +316,36 @@ func (svc *Service) AuthenticateDeviceByCertificate(ctx context.Context, certSer
 	// Verify host platform is iOS or iPadOS
 	if host.Platform != "ios" && host.Platform != "ipados" {
 		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: certificate authentication only supported for iOS and iPadOS devices"))
+	}
+
+	return host, svc.debugEnabledForHost(ctx, host.ID), nil
+}
+
+// AuthenticateDeviceByURL returns the host identified by the URL UUID.
+// This is used for devices accessing endpoints via a unique URL parameter.
+// Returns an error if the UUID doesn't exist or if the host is not iOS/iPadOS.
+func (svc *Service) AuthenticateDeviceByURL(ctx context.Context, urlUUID string) (*fleet.Host, bool, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
+	if urlUUID == "" {
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: missing host UUID"))
+	}
+
+	// Look up the host by UUID
+	host, err := svc.ds.HostByIdentifier(ctx, urlUUID)
+	switch {
+	case err == nil:
+		// OK
+	case fleet.IsNotFound(err):
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: host not found"))
+	default:
+		return nil, false, ctxerr.Wrap(ctx, err, "lookup host by UUID")
+	}
+
+	// Verify host platform is iOS or iPadOS
+	if host.Platform != "ios" && host.Platform != "ipados" {
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: URL authentication only supported for iOS and iPadOS devices"))
 	}
 
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
