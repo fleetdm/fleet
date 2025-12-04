@@ -7976,31 +7976,43 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	})
 	require.NoError(t, err)
 
-	// apply certificate templates
+	// invalid Fleet variable in subject name
 	var applyResp applyCertificateTemplateSpecsResponse
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
 		Specs: []*fleet.CertificateRequestSpec{
 			{
 				Name:                   "Invalid Template",
-				Team:                   fmt.Sprint(team.ID),
+				Team:                   team.Name,
 				CertificateAuthorityId: ca.ID,
 				SubjectName:            "CN=$FLEET_VAR_NOT_VALID/OU=$FLEET_VAR_HOST_UUID",
 			},
 		},
 	}, http.StatusBadRequest, &applyResp)
 
-	// valid templates
+	// test with non-existent team name
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Invalid Team Template",
+				Team:                   "NonExistentTeam",
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
+			},
+		},
+	}, http.StatusNotFound, &applyResp)
+
+	// valid templates - test team name (not team ID)
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
 		Specs: []*fleet.CertificateRequestSpec{
 			{
 				Name:                   "Template 1",
-				Team:                   fmt.Sprint(team.ID),
+				Team:                   team.Name,
 				CertificateAuthorityId: ca.ID,
 				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
 			},
 			{
 				Name:                   "Template 2",
-				Team:                   fmt.Sprint(team.ID),
+				Team:                   team.Name,
 				CertificateAuthorityId: ca.ID,
 				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
 			},
@@ -8089,20 +8101,26 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
 	require.Len(t, listCertifcatesResp.Certificates, 0)
 
-	// certificate templates for "No team" (team_id 0)
+	// certificate templates for "No team"
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
 		Specs: []*fleet.CertificateRequestSpec{
 			{
 				Name:                   "No Team Template 1",
-				Team:                   "0",
+				Team:                   "No team",
 				CertificateAuthorityId: ca.ID,
 				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
 			},
 			{
 				Name:                   "No Team Template 2",
-				Team:                   "0",
+				Team:                   "",
 				CertificateAuthorityId: ca.ID,
 				SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			},
+			{
+				Name: "No Team Template 3",
+				// No Team field, should default to empty string
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
 			},
 		},
 	}, http.StatusOK, &applyResp)
@@ -8110,8 +8128,9 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	// list specs for "no team" (team_id 0)
 	var noTeamCertificatesResp listCertificateTemplatesResponse
 	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
-	require.Len(t, noTeamCertificatesResp.Certificates, 2)
-	assert.ElementsMatch(t, []string{"No Team Template 1", "No Team Template 2"}, []string{noTeamCertificatesResp.Certificates[0].Name, noTeamCertificatesResp.Certificates[1].Name})
+	require.Len(t, noTeamCertificatesResp.Certificates, 3)
+	certNames := []string{noTeamCertificatesResp.Certificates[0].Name, noTeamCertificatesResp.Certificates[1].Name, noTeamCertificatesResp.Certificates[2].Name}
+	assert.ElementsMatch(t, []string{"No Team Template 1", "No Team Template 2", "No Team Template 3"}, certNames)
 
 	// Create a host
 	noTeamHost, err := s.ds.NewHost(ctx, &fleet.Host{
@@ -8143,7 +8162,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 
 	savedNoTeamCertTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, 0, fleet.ListOptions{Page: 0, PerPage: 10})
 	require.NoError(t, err)
-	require.Len(t, savedNoTeamCertTemplates, 2)
+	require.Len(t, savedNoTeamCertTemplates, 3)
 	noTeamCertID := savedNoTeamCertTemplates[0].ID
 
 	// Get certificate with orbit node_key (should return replaced variables)
@@ -8190,11 +8209,11 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	}, http.StatusOK, &delBatchResp2)
 
 	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
-	require.Len(t, noTeamCertificatesResp.Certificates, 1)
+	require.Len(t, noTeamCertificatesResp.Certificates, 2)
 	require.Equal(t, noTeamCertificatesResp.Certificates[0].ID, noTeamCertificatesResp.Certificates[0].ID)
 
 	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
-		"ids":     []uint{noTeamCertificatesResp.Certificates[0].ID},
+		"ids":     []uint{noTeamCertificatesResp.Certificates[0].ID, noTeamCertificatesResp.Certificates[1].ID},
 		"team_id": uint(0),
 	}, http.StatusOK, &delBatchResp)
 

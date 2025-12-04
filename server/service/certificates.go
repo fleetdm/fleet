@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -274,21 +273,33 @@ func applyCertificateTemplateSpecsEndpoint(ctx context.Context, request interfac
 	return applyCertificateTemplateSpecsResponse{}, nil
 }
 
-func (svc *Service) checkCertificateTemplateSpecAuthorization(ctx context.Context, specs []*fleet.CertificateRequestSpec) error {
-	teamIDs := make(map[uint]bool)
+func (svc *Service) resolveTeamNamesForSpecs(ctx context.Context, specs []*fleet.CertificateRequestSpec) (map[string]uint, error) {
+	teamNameToID := make(map[string]uint)
+
 	for _, spec := range specs {
-		var teamID uint
-		if spec.Team != "" {
-			parsed, err := strconv.ParseUint(spec.Team, 10, 0)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "parsing team ID")
-			}
-			teamID = uint(parsed)
+		if _, ok := teamNameToID[spec.Team]; ok {
+			continue
 		}
-		teamIDs[teamID] = true
+
+		// Handle empty string and "No team" as teamID = 0
+		if spec.Team == "" || spec.Team == "No team" {
+			teamNameToID[spec.Team] = 0
+			continue
+		}
+
+		team, err := svc.ds.TeamByName(ctx, spec.Team)
+		if err != nil {
+			svc.authz.SkipAuthorization(ctx)
+			return nil, ctxerr.Wrap(ctx, err, "getting team by name")
+		}
+		teamNameToID[spec.Team] = team.ID
 	}
 
-	for teamID := range teamIDs {
+	return teamNameToID, nil
+}
+
+func (svc *Service) checkCertificateTemplateSpecAuthorization(ctx context.Context, teamNameToID map[string]uint) error {
+	for _, teamID := range teamNameToID {
 		if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: teamID}, fleet.ActionWrite); err != nil {
 			return err
 		}
@@ -298,7 +309,12 @@ func (svc *Service) checkCertificateTemplateSpecAuthorization(ctx context.Contex
 }
 
 func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*fleet.CertificateRequestSpec) error {
-	if err := svc.checkCertificateTemplateSpecAuthorization(ctx, specs); err != nil {
+	teamNameToID, err := svc.resolveTeamNamesForSpecs(ctx, specs)
+	if err != nil {
+		return err
+	}
+
+	if err := svc.checkCertificateTemplateSpecAuthorization(ctx, teamNameToID); err != nil {
 		return err
 	}
 
@@ -323,19 +339,13 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 		if ca.Type != string(fleet.CATypeCustomSCEPProxy) {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("Ccertificate `%s`: Currently, only the custom_scep_proxy certificate authority is supported.", spec.Name)}
 		}
-		var teamID uint
-		if spec.Team != "" {
-			parsed, err := strconv.ParseUint(spec.Team, 10, 0)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "parsing team ID")
-			}
-			teamID = uint(parsed)
-		}
 
 		// Validate Fleet variables in subject name
 		if err := validateCertificateTemplateFleetVariables(spec.SubjectName); err != nil {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%s (certificate %s)", err.Error(), spec.Name)}
 		}
+
+		teamID := teamNameToID[spec.Team]
 
 		cert := &fleet.CertificateTemplate{
 			Name:                   spec.Name,
