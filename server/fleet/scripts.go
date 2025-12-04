@@ -522,9 +522,6 @@ func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
 		return PendingActionUnlock
 	case s.IsPendingWipe():
 		return PendingActionWipe
-	case s.IsLocked():
-		// If device is locked (and not pending unlock/wipe), show "unlock" as the pending action
-		return PendingActionUnlock
 	default:
 		return PendingActionNone
 	}

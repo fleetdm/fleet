@@ -3901,12 +3901,12 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, hosts, 4)
 
-		// Host 1 should show locked
+		// Host 1 should show locked with NO pending action
 		require.NotNil(t, hosts[0].MDM)
 		require.NotNil(t, hosts[0].MDM.DeviceStatus)
 		require.Equal(t, string(fleet.DeviceStatusLocked), *hosts[0].MDM.DeviceStatus)
 		require.NotNil(t, hosts[0].MDM.PendingAction)
-		require.Equal(t, string(fleet.PendingActionUnlock), *hosts[0].MDM.PendingAction)
+		require.Equal(t, string(fleet.PendingActionNone), *hosts[0].MDM.PendingAction)
 	})
 
 	t.Run("wipe pending", func(t *testing.T) {
@@ -3994,7 +3994,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		// Host 1: locked
 		require.NotNil(t, hosts[0].MDM)
 		require.Equal(t, string(fleet.DeviceStatusLocked), *hosts[0].MDM.DeviceStatus)
-		require.Equal(t, string(fleet.PendingActionUnlock), *hosts[0].MDM.PendingAction)
+		require.Equal(t, string(fleet.PendingActionNone), *hosts[0].MDM.PendingAction)
 
 		// Host 2: pending wipe
 		require.NotNil(t, hosts[1].MDM)
@@ -4033,7 +4033,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		// Host 2 should show locked (via script)
 		require.NotNil(t, hosts[1].MDM)
 		require.Equal(t, string(fleet.DeviceStatusLocked), *hosts[1].MDM.DeviceStatus)
-		require.Equal(t, string(fleet.PendingActionUnlock), *hosts[1].MDM.PendingAction)
+		require.Equal(t, string(fleet.PendingActionNone), *hosts[1].MDM.PendingAction)
 
 		// Test with failed script
 		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {

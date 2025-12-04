@@ -12273,6 +12273,7 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 			CommandUUID:       lockCmdUUID,
 			ProfileIdentifier: "test",
 			ProfileName:       "test",
+			Checksum:          []byte("test-checksum"),
 		},
 	})
 	require.NoError(t, err)
