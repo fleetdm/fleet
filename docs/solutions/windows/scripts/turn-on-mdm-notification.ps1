@@ -1,15 +1,18 @@
 # Set message and MDM Window variables
 $message = @'
-IT requires you to migrate this PC to Fleet.
-Please sign in using your work credentials when prompted.
-After you have finished, open Fleet Desktop from your system tray and select Refetch on your My device page to tell your organization that MDM is on.
+Mobile device management is off. MDM lets your org change settings & install software.
+
+A 'Setup work or school' prompt will appear soon. Enter your work credentials.
+
+Click Fleet Desktop from your system tray, My device, and Refetch to confirm MDM is on.
 '@
 
 $uri = "ms-device-enrollment:?mode=mdm"
+
 
 # Send the message first
 msg.exe * $message
 
 # Wait a few seconds before opening the "Set up a work or school account" window to give the end user a chance to read the message
-Start-Sleep -Seconds 10
+Start-Sleep -Seconds 5
 Start-Process $uri -ErrorAction Stop
