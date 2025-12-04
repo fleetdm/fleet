@@ -46,7 +46,7 @@ restart_zoom() {
 # Get console user once (used by both quit and restart)
 CONSOLE_USER=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
 
-# Check if Zoom is running (only check once)
+# Check if Zoom is running
 ZOOM_WAS_RUNNING=false
 if osascript -e "application id \"us.zoom.xos\" is running" 2>/dev/null; then
   ZOOM_WAS_RUNNING=true
