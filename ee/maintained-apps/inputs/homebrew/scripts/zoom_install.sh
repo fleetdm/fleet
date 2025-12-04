@@ -2,15 +2,9 @@
 
 quit_application() {
   local bundle_id="$1"
+  local console_user="$2"
   local timeout_duration=10
 
-  # check if the application is running
-  if ! osascript -e "application id \"$bundle_id\" is running" 2>/dev/null; then
-    return
-  fi
-
-  local console_user
-  console_user=$(stat -f "%Su" /dev/console)
   if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
     return
@@ -37,6 +31,33 @@ quit_application() {
   fi
 }
 
-quit_application 'us.zoom.xos'
+restart_zoom() {
+  local console_user="$1"
+  
+  if [[ -n "$console_user" && "$console_user" != "root" ]]; then
+    echo "Restarting Zoom for user: $console_user"
+    sudo -u "$console_user" open -a "zoom.us"
+  else
+    echo "No console user found, attempting direct Zoom start..."
+    open -a "zoom.us"
+  fi
+}
+
+# Get console user once (used by both quit and restart)
+CONSOLE_USER=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
+
+# Check if Zoom is running (only check once)
+ZOOM_WAS_RUNNING=false
+if osascript -e "application id \"us.zoom.xos\" is running" 2>/dev/null; then
+  ZOOM_WAS_RUNNING=true
+  quit_application 'us.zoom.xos' "$CONSOLE_USER"
+fi
+
 installer -pkg "$INSTALLER_PATH" -target /
+
+# Restart Zoom if it was running before installation
+if [[ "$ZOOM_WAS_RUNNING" == "true" ]]; then
+  sleep 2
+  restart_zoom "$CONSOLE_USER" || true
+fi
 
