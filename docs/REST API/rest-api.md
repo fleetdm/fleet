@@ -5234,6 +5234,7 @@ Add a dynamic or manual label.
 | hosts       | array | body | The list of host identifiers (`hardware_serial` or `uuid`). The label will apply to any host with a matching identifier. Only one of either `query` (to create a dynamic label), `hosts` (to create a manual label), or `host_ids` (to create a manual label)  can be included in the request. |
 | host_ids    | array | body | The list of Fleet host IDs the label will apply to.  Only one of either `query` (to create a dynamic label) or `hosts`/`host_ids` (to create a manual label)  can be included in the request. |
 | platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. |
+| team_id     | integer | body | _Available in Fleet Premium_. Scopes the label to the specified team. |
 
 If `query`, `criteria`, and `hosts` aren't specified, a manual label with no hosts will be created.
 
@@ -5384,6 +5385,14 @@ Returns a list of all the labels in Fleet.
 
 `GET /api/v1/fleet/labels/summary`
 
+#### Parameters
+
+| Name            | Type    | In    | Description   |
+| --------------- | ------- | ----- |------------------------------------- |
+| team_id         | integer | query | _Available in Fleet Premium._  Filters to labels belonging to the specified team. |
+| merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global labels in addition to team labels when filtering by `team_id`. (If no `team_id` is provided, this parameter is ignored.) |
+| global          | boolean | query | _Available in Fleet Premium_. If `true`, will filter to only global labels. Cannot be used with `team_id`. |
+
 #### Example
 
 `GET /api/v1/fleet/labels/summary`
@@ -5431,7 +5440,7 @@ Returns a list of all the labels in Fleet.
 
 ### List labels
 
-Returns a list of all the labels in Fleet.
+Returns a list of labels.
 
 `GET /api/v1/fleet/labels`
 
@@ -5439,11 +5448,13 @@ Returns a list of all the labels in Fleet.
 
 | Name            | Type    | In    | Description   |
 | --------------- | ------- | ----- |------------------------------------- |
-| team_id         | integer | query | _Available in Fleet Premium._  Filters to labels belonging to the specified team. |
-| merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global labels in addition to team labels when filtering by `team_id`. (If no `team_id` is provided, this parameter is ignored.) |
 | include_host_counts | boolean | query | Whether or not to calculate host counts for each label. Default is `true`. See "additional notes" for more information. |
 | order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                  |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| team_id         | integer | query | _Available in Fleet Premium._  Filters to labels belonging to the specified team. |
+| merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global labels in addition to team labels when filtering by `team_id`. (If no `team_id` is provided, this parameter is ignored.) |
+| global          | boolean | query | _Available in Fleet Premium_. If `true`, will filter to only global labels. Cannot be used with `team_id`. |
+
 
 When `include_host_counts` is `true` (or omitted), `host_count` will only be included for `labels` that are in use by one or more hosts, but `count` will always be included, even if it is `0`. When `include_host_counts` is `false`, `host_count` will always be omitted, and `count` will be returned as `0` for each label. Setting `include_host_counts=false` will improve API performance, especially on deployments with large numbers of hosts and labels.
 
@@ -5471,7 +5482,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "display_text": "All Hosts",
       "count": 7,
       "host_ids": null,
-      "author_id": 1
+      "author_id": 1,
+      "team_id": null
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5487,7 +5499,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "display_text": "macOS",
       "count": 1,
       "host_ids": null,
-      "author_id": 1
+      "author_id": 1,
+      "team_id": null
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5503,7 +5516,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "display_text": "Ubuntu Linux",
       "count": 3,
       "host_ids": null,
-      "author_id": 1
+      "author_id": 1,
+      "team_id": null
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5518,7 +5532,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "display_text": "CentOS Linux",
       "count": 3,
       "host_ids": null,
-      "author_id": 1
+      "author_id": 1,
+      "team_id": null
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5533,7 +5548,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "display_text": "MS Windows",
       "count": 0,
       "host_ids": null,
-      "author_id": 1
+      "author_id": 1,
+      "team_id": null
     }
   ]
 }
@@ -5557,7 +5573,7 @@ Returns a list of the hosts that belong to the specified label.
 | after                    | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                                                                                                                   |
 | status                   | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                 |
 | query                    | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`.                                                                                                                         |
-| team_id                  | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts in the specified team.                                                                                                                                |
+| team_id                  | integer | query | _Available in Fleet Premium_. Filters a global label to only include hosts in the specified team.                                                                                                                                |
 | disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
 | mdm_id                   | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
 | mdm_name                 | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).      |
