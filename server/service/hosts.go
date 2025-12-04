@@ -1115,7 +1115,9 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 	var host *fleet.Host
 	// iOS and iPadOS refetch are not authenticated with device token because these devices do not have Fleet Desktop,
 	// so we don't handle that case
-	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) && !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceURL) {
 		var err error
 		if err = svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return err
@@ -1626,7 +1628,9 @@ func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc
 }
 
 func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) && !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceURL) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
 		}
@@ -1909,7 +1913,9 @@ func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.MacadminsData, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) && !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceURL) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
 		}
@@ -3113,7 +3119,9 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	var includeAvailableForInstall bool
 
 	var host *fleet.Host
-	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) && !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceURL) {
 		includeAvailableForInstall = true
 
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
@@ -3230,7 +3238,9 @@ func listHostCertificatesEndpoint(ctx context.Context, request interface{}, svc 
 }
 
 func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificatePayload, *fleet.PaginationMetadata, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) && !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceURL) {
 		host, err := svc.ds.HostLite(ctx, hostID)
 		if err != nil {
 			svc.authz.SkipAuthorization(ctx)

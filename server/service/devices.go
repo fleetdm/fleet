@@ -233,7 +233,9 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) GetHostDEPAssignment(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error) {
-	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate)
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceURL)
 	if !alreadyAuthd {
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 			return nil, err
@@ -733,7 +735,9 @@ func fleetdError(ctx context.Context, request interface{}, svc fleet.Service) (f
 }
 
 func (svc *Service) LogFleetdError(ctx context.Context, fleetdError fleet.FleetdError) error {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) && !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceURL) {
 		return ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 
@@ -788,7 +792,9 @@ func getDeviceMDMManualEnrollProfileEndpoint(ctx context.Context, request interf
 
 func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error) {
 	// must be device-authenticated, no additional authorization is required
-	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) && !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceURL) {
 		return nil, ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 
