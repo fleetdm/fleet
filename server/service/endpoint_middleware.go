@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/certserial"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -157,9 +158,14 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 	return middleware_log.Logged(authHostFunc)
 }
 
-func authenticatedOrbitHost(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
+func authenticatedOrbitHost(
+	svc fleet.Service,
+	logger log.Logger,
+	next endpoint.Endpoint,
+	orbitNodeKeyGetter func(context.Context, interface{}) (string, error),
+) endpoint.Endpoint {
 	authHostFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
-		nodeKey, err := getOrbitNodeKey(request)
+		nodeKey, err := orbitNodeKeyGetter(ctx, request)
 		if err != nil {
 			return nil, err
 		}
@@ -194,11 +200,20 @@ func authenticatedOrbitHost(svc fleet.Service, logger log.Logger, next endpoint.
 	return middleware_log.Logged(authHostFunc)
 }
 
-func getOrbitNodeKey(r interface{}) (string, error) {
+func getOrbitNodeKey(ctx context.Context, r interface{}) (string, error) {
 	if onk, err := r.(interface{ orbitHostNodeKey() string }); err {
 		return onk.orbitHostNodeKey(), nil
 	}
 	return "", errors.New("error getting orbit node key")
+}
+
+func authHeaderValue(prefix string) func(ctx context.Context, r interface{}) (string, error) {
+	return func(ctx context.Context, r interface{}) (string, error) {
+		if authHeader, ok := ctx.Value(kithttp.ContextKeyRequestAuthorization).(string); ok {
+			return strings.TrimPrefix(authHeader, prefix), nil
+		}
+		return "", nil
+	}
 }
 
 func getNodeKey(r interface{}) (string, error) {

@@ -116,3 +116,4 @@ fleet_tables_*.ext
 # Local dev files
 .env
 .tool-versions
+.zed/

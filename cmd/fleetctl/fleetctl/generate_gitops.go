@@ -1481,6 +1481,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				}
 			}
 		case sw.AppStoreApp != nil:
+			// ignore Android VPP apps for now
+			if sw.AppStoreApp.Platform == "android" {
+				continue
+			}
 			softwareSpec["app_store_id"] = sw.AppStoreApp.AppStoreID
 		default:
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error: software %s has no software package or app store app\n", sw.Name)

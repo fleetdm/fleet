@@ -387,13 +387,15 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return 0, fleet.NewUserMessageError(errors.New("Currently, automatic install is only supported on macOS, Windows, and Linux. Please add the app without automatic_install and manually install it on the Host details page."), http.StatusBadRequest)
 	}
 
+	isAndroidAppID := androidApplicationID.MatchString(appID.AdamID)
+
 	var app *fleet.VPPApp
 
 	// Different flows based on platform
 	switch appID.Platform {
 	case fleet.AndroidPlatform:
-		if !androidApplicationID.MatchString(appID.AdamID) {
-			return 0, fleet.NewInvalidArgumentError("app_store_id", "app_store_id must be a valid Android application ID")
+		if !isAndroidAppID {
+			return 0, fleet.NewInvalidArgumentError("app_store_id", "Application ID must be a valid Android application ID")
 		}
 		appID.SelfService = true
 		appID.AddAutoInstallPolicy = false
@@ -425,6 +427,16 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}
 
 	default:
+		if isAndroidAppID {
+			return 0, fleet.NewInvalidArgumentError(
+				"app_store_id",
+				fmt.Sprintf(
+					"Couldn't add software. %s isn't available in Apple Business Manager or Play Store. Please purchase a license in Apple Business Manager or find the app in Play Store and try again.",
+					appID.AdamID,
+				),
+			)
+		}
+
 		vppToken, err := svc.getVPPToken(ctx, teamID)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "retrieving VPP token")
@@ -650,7 +662,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	}
 
 	selfServiceVal := meta.SelfService
-	if payload.SelfService != nil {
+	if payload.SelfService != nil && meta.Platform != fleet.AndroidPlatform {
 		selfServiceVal = *payload.SelfService
 	}
 

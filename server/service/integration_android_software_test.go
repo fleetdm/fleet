@@ -7,35 +7,32 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"testing"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
+func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	ctx := context.Background()
 	t := s.T()
 
+	s.setVPPTokenForTeam(0)
 	appConf, err := s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
 	appConf.MDM.AndroidEnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
-	s.setVPPTokenForTeam(0)
-
-	t.Cleanup(func() {
-		appConf, err := s.ds.AppConfig(context.Background())
-		require.NoError(s.T(), err)
-		appConf.MDM.AndroidEnabledAndConfigured = true
-		err = s.ds.SaveAppConfig(context.Background(), appConf)
-		require.NoError(s.T(), err)
-	})
 
 	// Adding android app before android MDM is turned on should fail
 	var addAppResp addAppStoreAppResponse
@@ -47,63 +44,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		&addAppResp,
 	)
 
-	EnterpriseID := "LC02k5wxw7"
-	EnterpriseSignupURL := "https://enterprise.google.com/signup/android/email?origin=android&thirdPartyToken=B4D779F1C4DD9A440"
-	s.androidAPIClient.InitCommonMocks()
-
-	s.androidAPIClient.EnterprisesCreateFunc = func(_ context.Context, _ androidmgmt.EnterprisesCreateRequest) (androidmgmt.EnterprisesCreateResponse, error) {
-		return androidmgmt.EnterprisesCreateResponse{
-			EnterpriseName: "enterprises/" + EnterpriseID,
-			TopicName:      "projects/android/topics/ae98ed130-5ce2-4ddb-a90a-191ec76976d5",
-		}, nil
-	}
-	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, _ *androidmanagement.Policy) (*androidmanagement.Policy, error) {
-		assert.Contains(t, policyName, EnterpriseID)
-		return &androidmanagement.Policy{}, nil
-	}
-	s.androidAPIClient.EnterpriseDeleteFunc = func(_ context.Context, enterpriseName string) error {
-		assert.Equal(t, "enterprises/"+EnterpriseID, enterpriseName)
-		return nil
-	}
-
-	s.androidAPIClient.SignupURLsCreateFunc = func(_ context.Context, _, callbackURL string) (*android.SignupDetails, error) {
-		s.proxyCallbackURL = callbackURL
-		return &android.SignupDetails{
-			Url:  EnterpriseSignupURL,
-			Name: "signupUrls/Cb08124d0999c464f",
-		}, nil
-	}
-
-	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
-		return &androidmanagement.Policy{}, nil
-	}
-
-	s.androidAPIClient.EnterprisesDevicesPatchFunc = func(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
-		return &androidmanagement.Device{}, nil
-	}
-
-	// Create enterprise
-	var signupResp android.EnterpriseSignupResponse
-	s.DoJSON("GET", "/api/v1/fleet/android_enterprise/signup_url", nil, http.StatusOK, &signupResp)
-
-	const enterpriseToken = "enterpriseToken"
-
-	// callback URL includes the host, need to extract the path so we can call it with our
-	// HTTP request helpers
-	u, err := url.Parse(s.proxyCallbackURL)
-	require.NoError(t, err)
-	s.Do("GET", u.Path, nil, http.StatusOK, "enterpriseToken", enterpriseToken)
-
-	// Update the LIST mock to return the enterprise after "creation"
-	s.androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
-		return []*androidmanagement.Enterprise{
-			{Name: "enterprises/" + EnterpriseID},
-		}, nil
-	}
-
-	resp := android.GetEnterpriseResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusOK, &resp)
-	assert.Equal(t, EnterpriseID, resp.EnterpriseID)
+	s.enableAndroidMDM(t)
 
 	// Android MDM setup
 	androidApp := &fleet.VPPApp{
@@ -125,7 +66,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "thisisnotanappid", Platform: fleet.AndroidPlatform},
 		http.StatusUnprocessableEntity,
 	)
-	require.Contains(t, extractServerErrorText(r.Body), "app_store_id must be a valid Android application ID")
+	require.Contains(t, extractServerErrorText(r.Body), "Application ID must be a valid Android application ID")
 
 	// Missing platform: should fail
 	r = s.Do(
@@ -134,7 +75,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "com.valid.app.id"},
 		http.StatusUnprocessableEntity,
 	)
-	require.Contains(t, extractServerErrorText(r.Body), "Error: Couldn't add software. com.valid.app.id isn't available in Apple Business Manager. Please purchase license in Apple Business Manager and try again.")
+	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. com.valid.app.id isn't available in Apple Business Manager or Play Store. Please purchase a license in Apple Business Manager or find the app in Play Store and try again.")
 
 	// Valid application ID format, but app isn't found: should fail
 	// Update mock to return a 404
@@ -148,11 +89,20 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "com.app.id.not.found", Platform: fleet.AndroidPlatform},
 		http.StatusUnprocessableEntity,
 	)
-	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
+	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
 
 	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
 		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: "Test App"}, nil
 	}
+
+	// Valid application ID format, but wrong platform specified: should fail
+	r = s.Do(
+		"POST",
+		"/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{AppStoreID: "com.valid", Platform: fleet.MacOSPlatform},
+		http.StatusUnprocessableEntity,
+	)
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add software. com.valid isn't available in Apple Business Manager or Play Store. Please purchase a license in Apple Business Manager or find the app in Play Store and try again.")
 
 	// Add Android app
 	s.DoJSON(
@@ -162,6 +112,15 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		http.StatusOK,
 		&addAppResp,
 	)
+
+	// self_service is coerced to be true
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var selfService bool
+		err := sqlx.GetContext(ctx, q, &selfService, "SELECT self_service FROM vpp_apps_teams WHERE adam_id = ?", androidApp.AdamID)
+		s.Require().NoError(err)
+		s.Assert().True(selfService)
+		return nil
+	})
 
 	secrets, err := s.ds.GetEnrollSecrets(ctx, nil)
 	require.NoError(t, err)
@@ -213,6 +172,19 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 	s.Assert().NotNil(getHostSw.Software[0].AppStoreApp)
 	s.Assert().Equal(androidApp.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
 
+	// Should see it in software titles
+	err = s.ds.SyncHostsSoftware(context.Background(), time.Now())
+	require.NoError(t, err)
+	err = s.ds.SyncHostsSoftwareTitles(context.Background(), time.Now())
+	require.NoError(t, err)
+
+	var listSWTitles listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(0))
+
+	s.Assert().Len(listSWTitles.SoftwareTitles, 1)
+	s.Assert().Equal(androidApp.AdamID, listSWTitles.SoftwareTitles[0].AppStoreApp.AppStoreID)
+	s.Assert().Empty(listSWTitles.SoftwareTitles[0].AppStoreApp.Version)
+
 	// Google AMAPI hasn't been hit yet
 	s.Assert().False(s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 
@@ -221,6 +193,23 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 
 	// Should have hit the android API endpoint
 	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+
+	s.DoJSON(
+		"PATCH",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", getHostSw.Software[0].ID),
+		&updateAppStoreAppRequest{SelfService: ptr.Bool(false)},
+		http.StatusOK,
+		&addAppResp,
+	)
+
+	// Even though we sent self_service: false, self_service remains true
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var selfService bool
+		err := sqlx.GetContext(ctx, q, &selfService, "SELECT self_service FROM vpp_apps_teams WHERE adam_id = ?", getHostSw.Software[0].AppStoreApp.AppStoreID)
+		s.Require().NoError(err)
+		s.Assert().True(selfService)
+		return nil
+	})
 
 	// Test Android app configurations
 
@@ -308,4 +297,202 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_icon_url":"https://example.com/1.jpg", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "software_display_name":"", "platform": "%s", "self_service": true,"configuration": %s}`,
 			"", "Test App", appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", androidAppWithConfig.Platform, newConfig), 0)
+}
+
+func (s *integrationMDMTestSuite) TestAndroidSetupExperienceSoftware() {
+	t := s.T()
+	s.enableAndroidMDM(t)
+
+	app1 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.test1",
+				Platform: fleet.AndroidPlatform,
+			},
+		},
+		Name:             "Test1",
+		BundleIdentifier: "com.test1",
+		IconURL:          "https://example.com/1",
+	}
+	app2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.test2",
+				Platform: fleet.AndroidPlatform,
+			},
+		},
+		Name:             "Test2",
+		BundleIdentifier: "com.test2",
+		IconURL:          "https://example.com/2",
+	}
+
+	androidApps := []*fleet.VPPApp{app1, app2}
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		for _, app := range androidApps {
+			if app.AdamID == packageName {
+				return &androidmanagement.Application{IconUrl: app.IconURL, Title: app.Name}, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
+
+	// add Android app 1
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: app1.AdamID,
+		Platform:   fleet.AndroidPlatform,
+	}, http.StatusOK, &addAppResp)
+	app1TitleID := addAppResp.TitleID
+
+	// add Android app 2
+	addAppResp = addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: app2.AdamID,
+		Platform:   fleet.AndroidPlatform,
+	}, http.StatusOK, &addAppResp)
+	app2TitleID := addAppResp.TitleID
+
+	require.NotEqual(t, app1TitleID, app2TitleID)
+
+	// add app 1 to Android setup experience
+	var putResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+		Platform: string(fleet.AndroidPlatform),
+		TeamID:   0,
+		TitleIDs: []uint{app1TitleID},
+	}, http.StatusOK, &putResp)
+
+	// verify that the expected activity got created
+	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
+		`{"platform": "android", "team_id": 0, "team_name": ""}`, 0)
+
+	// list the available setup experience software and verify that only app 1 is installed at setup
+	var getResp getSetupExperienceSoftwareResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", nil, http.StatusOK, &getResp,
+		"team_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
+	require.Len(t, getResp.SoftwareTitles, 2)
+	require.Equal(t, app1TitleID, getResp.SoftwareTitles[0].ID)
+	require.Equal(t, app1.Name, getResp.SoftwareTitles[0].Name)
+	require.Equal(t, app1.AdamID, getResp.SoftwareTitles[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getResp.SoftwareTitles[0].AppStoreApp.InstallDuringSetup)
+	require.True(t, *getResp.SoftwareTitles[0].AppStoreApp.InstallDuringSetup)
+	require.Equal(t, app2TitleID, getResp.SoftwareTitles[1].ID)
+	require.Equal(t, app2.Name, getResp.SoftwareTitles[1].Name)
+	require.Equal(t, app2.AdamID, getResp.SoftwareTitles[1].AppStoreApp.AppStoreID)
+	require.NotNil(t, getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
+	require.False(t, *getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
+
+	// set app1 and app2 to be installed at setup
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+		Platform: string(fleet.AndroidPlatform),
+		TeamID:   0,
+		TitleIDs: []uint{app1TitleID, app2TitleID},
+	}, http.StatusOK, &putResp)
+
+	getResp = getSetupExperienceSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", nil, http.StatusOK, &getResp,
+		"team_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
+	require.Len(t, getResp.SoftwareTitles, 2)
+	require.Equal(t, app1TitleID, getResp.SoftwareTitles[0].ID)
+	require.NotNil(t, getResp.SoftwareTitles[0].AppStoreApp.InstallDuringSetup)
+	require.True(t, *getResp.SoftwareTitles[0].AppStoreApp.InstallDuringSetup)
+	require.Equal(t, app2TitleID, getResp.SoftwareTitles[1].ID)
+	require.NotNil(t, getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
+	require.True(t, *getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
+
+	// unset all apps to be installed at setup
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+		Platform: string(fleet.AndroidPlatform),
+		TeamID:   0,
+		TitleIDs: []uint{},
+	}, http.StatusOK, &putResp)
+
+	getResp = getSetupExperienceSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", nil, http.StatusOK, &getResp,
+		"team_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
+	require.Len(t, getResp.SoftwareTitles, 2)
+	require.Equal(t, app1TitleID, getResp.SoftwareTitles[0].ID)
+	require.NotNil(t, getResp.SoftwareTitles[0].AppStoreApp.InstallDuringSetup)
+	require.False(t, *getResp.SoftwareTitles[0].AppStoreApp.InstallDuringSetup)
+	require.Equal(t, app2TitleID, getResp.SoftwareTitles[1].ID)
+	require.NotNil(t, getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
+	require.False(t, *getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
+}
+
+func (s *integrationMDMTestSuite) enableAndroidMDM(t *testing.T) string {
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+
+	t.Cleanup(func() {
+		appConf, err := s.ds.AppConfig(context.Background())
+		require.NoError(s.T(), err)
+		appConf.MDM.AndroidEnabledAndConfigured = true
+		err = s.ds.SaveAppConfig(context.Background(), appConf)
+		require.NoError(s.T(), err)
+	})
+
+	enterpriseID := "LC02k5wxw7"
+	enterpriseSignupURL := "https://enterprise.google.com/signup/android/email?origin=android&thirdPartyToken=B4D779F1C4DD9A440"
+	s.androidAPIClient.InitCommonMocks()
+
+	s.androidAPIClient.EnterprisesCreateFunc = func(_ context.Context, _ androidmgmt.EnterprisesCreateRequest) (androidmgmt.EnterprisesCreateResponse, error) {
+		return androidmgmt.EnterprisesCreateResponse{
+			EnterpriseName: "enterprises/" + enterpriseID,
+			TopicName:      "projects/android/topics/ae98ed130-5ce2-4ddb-a90a-191ec76976d5",
+		}, nil
+	}
+
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, _ *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+		assert.Contains(t, policyName, enterpriseID)
+		return &androidmanagement.Policy{}, nil
+	}
+
+	s.androidAPIClient.EnterpriseDeleteFunc = func(_ context.Context, enterpriseName string) error {
+		assert.Equal(t, "enterprises/"+enterpriseID, enterpriseName)
+		return nil
+	}
+
+	s.androidAPIClient.SignupURLsCreateFunc = func(_ context.Context, _, callbackURL string) (*android.SignupDetails, error) {
+		s.proxyCallbackURL = callbackURL
+		return &android.SignupDetails{
+			Url:  enterpriseSignupURL,
+			Name: "signupUrls/Cb08124d0999c464f",
+		}, nil
+	}
+
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{}, nil
+	}
+
+	s.androidAPIClient.EnterprisesDevicesPatchFunc = func(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return &androidmanagement.Device{}, nil
+	}
+
+	// Create enterprise
+	var signupResp android.EnterpriseSignupResponse
+	s.DoJSON("GET", "/api/v1/fleet/android_enterprise/signup_url", nil, http.StatusOK, &signupResp)
+
+	const enterpriseToken = "enterpriseToken"
+
+	// callback URL includes the host, need to extract the path so we can call it with our
+	// HTTP request helpers
+	u, err := url.Parse(s.proxyCallbackURL)
+	require.NoError(t, err)
+	s.Do("GET", u.Path, nil, http.StatusOK, "enterpriseToken", enterpriseToken)
+
+	// Update the LIST mock to return the enterprise after "creation"
+	s.androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{
+			{Name: "enterprises/" + enterpriseID},
+		}, nil
+	}
+
+	resp := android.GetEnterpriseResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusOK, &resp)
+	assert.Equal(t, enterpriseID, resp.EnterpriseID)
+
+	return enterpriseID
 }
