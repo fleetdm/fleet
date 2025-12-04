@@ -5391,7 +5391,6 @@ Returns a list of all the labels in Fleet.
 | --------------- | ------- | ----- |------------------------------------- |
 | team_id         | integer | query | _Available in Fleet Premium._  Filters to labels belonging to the specified team. |
 | merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global labels in addition to team labels when filtering by `team_id`. (If no `team_id` is provided, this parameter is ignored.) |
-| global          | boolean | query | _Available in Fleet Premium_. If `true`, will filter to only global labels. Cannot be used with `team_id`. |
 
 #### Example
 
@@ -5453,8 +5452,6 @@ Returns a list of labels.
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | team_id         | integer | query | _Available in Fleet Premium._  Filters to labels belonging to the specified team. |
 | merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global labels in addition to team labels when filtering by `team_id`. (If no `team_id` is provided, this parameter is ignored.) |
-| global          | boolean | query | _Available in Fleet Premium_. If `true`, will filter to only global labels. Cannot be used with `team_id`. |
-
 
 When `include_host_counts` is `true` (or omitted), `host_count` will only be included for `labels` that are in use by one or more hosts, but `count` will always be included, even if it is `0`. When `include_host_counts` is `false`, `host_count` will always be omitted, and `count` will be returned as `0` for each label. Setting `include_host_counts=false` will improve API performance, especially on deployments with large numbers of hosts and labels.
 
