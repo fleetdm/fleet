@@ -12301,7 +12301,7 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 
 	// Add result for lock command (acknowledged)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, 'Acknowledged', '')`, h1.UUID, lockCmdUUID)
+		_, err := q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, 'Acknowledged', '<?xml version="1.0" encoding="UTF-8"?><plist></plist>')`, h1.UUID, lockCmdUUID)
 		return err
 	})
 
