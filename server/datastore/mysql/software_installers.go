@@ -2252,43 +2252,24 @@ VALUES
 `
 
 	const getDisplayNamesForTeam = `
-SELECT 
+SELECT
 	stdn.software_title_id, stdn.display_name
-FROM 
+FROM
 	software_title_display_names stdn
-INNER JOIN 
+INNER JOIN
 	software_installers si ON stdn.software_title_id = si.title_id AND stdn.team_id = si.global_or_team_id
-WHERE 
-	stdn.team_id = ? 
+WHERE
+	stdn.team_id = ?
 `
 
 	const deleteDisplayNamesNotInList = `
-DELETE FROM 
+DELETE stdn
+FROM
 	software_title_display_names stdn
-WHERE 
-	stdn.team_id = ?
-	AND stdn.software_title_id NOT IN (?)
-	AND NOT EXISTS (
-		SELECT 1 FROM in_house_apps iha WHERE iha.title_id = stdn.software_title_id 
-		AND iha.global_or_team_id = stdn.team_id)
-	AND NOT EXISTS (
-		SELECT 1 FROM vpp_apps va JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id
-		WHERE va.title_id = stdn.software_title_id 
-		AND vat.global_or_team_id = stdn.team_id);
-`
-
-	const deleteAllInstallerDisplayNames = `
-DELETE FROM 
-	software_title_display_names stdn
-WHERE 
-	stdn.team_id = ?
-	AND NOT EXISTS (
-		SELECT 1 FROM in_house_apps iha WHERE iha.title_id = stdn.software_title_id 
-		AND iha.global_or_team_id = stdn.team_id)
-	AND NOT EXISTS (
-		SELECT 1 FROM vpp_apps va JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id
-		WHERE va.title_id = stdn.software_title_id 
-		AND vat.global_or_team_id = stdn.team_id);
+INNER JOIN
+	software_installers si ON stdn.software_title_id = si.title_id AND stdn.team_id = si.global_or_team_id
+WHERE
+	stdn.team_id = ? AND stdn.software_title_id NOT IN (?)
 `
 
 	// use a team id of 0 if no-team
@@ -2350,12 +2331,14 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "mark all host software installs as removed")
 			}
 
-			if _, err := tx.ExecContext(ctx, deleteAllInstallersInTeam, globalOrTeamID); err != nil {
-				return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
+			// reuse query to delete all display names associated with installers, by providing just 0
+			// which should make the WHERE clause equivalent to WHERE stdn.team_id = ? AND TRUE
+			if _, err := tx.ExecContext(ctx, deleteDisplayNamesNotInList, globalOrTeamID, 0); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all display names associated with software installers")
 			}
 
-			if _, err := tx.ExecContext(ctx, deleteAllInstallerDisplayNames, globalOrTeamID); err != nil {
-				return ctxerr.Wrap(ctx, err, "delete all display names associated with software installers")
+			if _, err := tx.ExecContext(ctx, deleteAllInstallersInTeam, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
 			}
 
 			return nil
@@ -2495,20 +2478,20 @@ WHERE
 			return ctxerr.Wrap(ctx, err, "mark obsolete host software installs as removed")
 		}
 
-		stmt, args, err = sqlx.In(deleteInstallersNotInList, globalOrTeamID, titleIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete installers")
-		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
-		}
-
 		stmt, args, err = sqlx.In(deleteDisplayNamesNotInList, globalOrTeamID, titleIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete display names")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete display names")
+		}
+
+		stmt, args, err = sqlx.In(deleteInstallersNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete installers")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
 		}
 
 		// Fill a map of title IDs for this team that have a display name
@@ -2727,6 +2710,7 @@ WHERE
 			}
 
 			// update display name for the software title if it needs to be updated or inserted
+			// no deletions will happen, display names will be set to empty if needed
 			if name, ok := displayNameIDMap[titleID]; (ok && name != installer.DisplayName) || (!ok && installer.DisplayName != "") {
 				if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleID, installer.DisplayName); err != nil {
 					return ctxerr.Wrapf(ctx, err, "update software title display name for installer with name %q", installer.Filename)
