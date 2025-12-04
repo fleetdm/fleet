@@ -8,10 +8,15 @@ on:
       - prepare-*
     paths:
       - '**.go'
+      - '.github/workflows/golangci-lint.yml'
+      - '.golangci.yml'
+      - '.golangci-incremental.yml'
   pull_request:
     paths:
       - '**.go'
       - '.github/workflows/golangci-lint.yml'
+      - '.golangci.yml'
+      - '.golangci-incremental.yml'
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
