@@ -134,7 +134,7 @@ When People receives [notification of a Fleetie's role changing](https://fleetdm
       - Under the "Compensation" heading, select edit and update the "Job title" and input the specific date the change happened. Save the changes.
     - For updating Remote (non-US Fleeties):
       - Login to Remote and navigate to "Requests".
-      - Click "New Requet" and select the employee from the dropdown box. Then, select "Employee Agreement Amendement". 
+      - Click "New Request" and select the employee from the dropdown box. Then, select "Employee Agreement Amendement". 
       - Follow Remote's prompts to complete the amendement. 
       - Take any relevant follow-up steps as directed by Remote in order to make the required changes to the Fleetie's profile. 
 
