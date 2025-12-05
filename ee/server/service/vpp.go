@@ -121,7 +121,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	}
 
-	var appleApps, androidApps []fleet.VPPAppTeam
+	var incomingAppleApps, incomingAndroidApps []fleet.VPPAppTeam
 	var vppToken string
 	// Don't check for token if we're only disassociating assets
 	if len(payloads) > 0 {
@@ -172,15 +172,14 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			}
 			switch payload.Platform {
 			case fleet.AndroidPlatform:
-				androidApps = append(androidApps, appStoreApp)
+				incomingAndroidApps = append(incomingAndroidApps, appStoreApp)
 			case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform:
-				appleApps = append(appleApps, appStoreApp)
+				incomingAppleApps = append(incomingAppleApps, appStoreApp)
 			}
 
 		}
 
-		if len(appleApps) > 0 {
-
+		if len(incomingAppleApps) > 0 {
 			if dryRun {
 				// If we're doing a dry run, we stop here and return no error to avoid making any changes.
 				// That way we validate if a VPP token is available even on dry runs keeping it consistent.
@@ -199,7 +198,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				assetMap[asset.AdamID] = struct{}{}
 			}
 
-			for _, vppAppID := range appleApps {
+			for _, vppAppID := range incomingAppleApps {
 				if _, ok := assetMap[vppAppID.AdamID]; !ok {
 					missingAssets = append(missingAssets, vppAppID.AdamID)
 				}
@@ -218,12 +217,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return nil, nil
 	}
 
-	allPlatformApps := slices.Concat(appleApps, androidApps)
+	allPlatformApps := slices.Concat(incomingAppleApps, incomingAndroidApps)
 
 	var appStoreApps []*fleet.VPPApp
 
-	if len(appleApps) > 0 {
-		apps, err := getVPPAppsMetadata(ctx, appleApps)
+	if len(incomingAppleApps) > 0 {
+		apps, err := getVPPAppsMetadata(ctx, incomingAppleApps)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "refreshing VPP app metadata")
 		}
@@ -237,14 +236,14 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	}
 
 	var enterprise *android.Enterprise
-	if len(androidApps) > 0 {
+	if len(incomingAndroidApps) > 0 {
 		var err error
 		enterprise, err = svc.ds.GetEnterprise(ctx)
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
 
-		for _, a := range androidApps {
+		for _, a := range incomingAndroidApps {
 			androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterprise.Name(), a.AdamID)
 			if err != nil {
 				if fleet.IsNotFound(err) {
@@ -261,7 +260,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				TeamID:           teamID,
 			})
 		}
-
 	}
 
 	if len(appStoreApps) > 0 {
@@ -316,7 +314,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
-	// TODO: probably make a helper that can assume it's doing android stuff
 	if len(policiesToUpdate) > 0 && enterprise != nil {
 		for hostUUID, policyID := range policiesToUpdate {
 			err := worker.QueueBulkSetAndroidAppsAvailableForHost(ctx, svc.ds, svc.logger, hostUUID, policyID, appIDs, enterprise.Name())
