@@ -79,11 +79,6 @@ controls:
     bootstrap_package: ""
     enable_end_user_authentication: true
     macos_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
-    software:
-      - package_path: ../lib/macos/software/google-chrome.yml # Google Chrome for macOS
-      - package_path: ../lib/macos/software/zoom.yml # Zoom for macOS
-      - package_path: ../lib/macos/software/1password.yml # 1Password for macOS
-      - app_store_id: '803453959' # Slack Desktop
   macos_updates:
     deadline:
     minimum_version:
@@ -143,18 +138,16 @@ software:
       self_service: true
       categories:
         - Browsers
-    - path: ../lib/macos/software/google-chrome.yml # Google Chrome for macOS
-      self_service: true
-      categories:
-        - Browsers
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
       self_service: true
+      setup_experience: true
     - path: ../lib/macos/software/santa.yml # Santa for macOS
       self_service: true
       labels_include_any:
         - Santa test devices
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
       self_service: true
+      setup_experience: true
       categories:
         - Productivity
         - Communication
@@ -168,18 +161,21 @@ software:
       self_service: false
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
       self_service: true
+      setup_experience: true
       categories:
         - Communication
       labels_include_any:
         - "Debian-based Linux hosts"
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
       self_service: true
+      setup_experience: true
       categories:
         - Communication
       labels_include_any:
         - "RPM-based Linux hosts"
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
       self_service: true
+      setup_experience: true
       categories:
         - Productivity
         - Communication
@@ -187,6 +183,7 @@ software:
         - "Debian-based Linux hosts"
     - path: ../lib/linux/software/slack-rpm.yml # Slack for RedHat
       self_service: true
+      setup_experience: true
       categories:
         - Productivity
         - Communication
@@ -194,40 +191,41 @@ software:
         - "RPM-based Linux hosts"
     - path: ../lib/windows/software/slack.yml # Slack for Windows
       self_service: true
+      setup_experience: true
       categories:
         - Productivity
         - Communication
       labels_include_any:
         - "x86-based Windows hosts"
-    - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
-      self_service: true
-      categories:
-        - Communication
-      labels_include_any:
-        - "ARM-based Windows hosts"
+    # Commenting out until #25407 is implemented
+    # - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
+    #  self_service: true
+    #  categories:
+    #    - Communication
+    #  labels_include_any:
+    #    - "ARM-based Windows hosts"
     - path: ../lib/windows/software/zoom.yml # Zoom for Windows (x86)
       self_service: true
+      setup_experience: true
       categories:
         - Communication
       labels_include_any:
         - "x86-based Windows hosts"
-    - path: ../lib/windows/software/google-chrome.yml # Google Chrome for Windows
-      self_service: true
-      categories:
-        - Browsers
-      labels_include_any:
-        - "x86-based Windows hosts"
-    - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
-      self_service: true
-      categories:
-        - Browsers
-      labels_include_any:
-        - "ARM-based Windows hosts"
+    # Commenting out until #25407 is implemented
+    # - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
+    #   self_service: true
+    #   setup_experience: true
+    #   categories:
+    #     - Browsers
+    #   labels_include_any:
+    #     - "ARM-based Windows hosts"
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
       self_service: true
+      setup_experience: true
   app_store_apps:
     - app_store_id: '803453959' # Slack Desktop
       self_service: true
+      setup_experience: true
       categories:
         - Communication
         - Productivity
@@ -235,6 +233,11 @@ software:
       self_service: true
   fleet_maintained_apps:
     # macOS apps
+    - slug: google-chrome/darwin # Google Chrome for macOS
+      self_service: true
+      setup_experience: true
+      categories:
+        - Browsers
     - slug: brave-browser/darwin # Brave for macOS (ARM)
       self_service: true
       labels_include_any:
@@ -252,6 +255,13 @@ software:
     - slug: microsoft-teams/darwin # Microsoft Teams for macOS
       self_service: true
     # Windows apps
+    - slug: google-chrome/windows # Google Chrome for Windows
+      self_service: true
+      setup_experience: true
+      categories:
+        - Browsers
+      labels_include_any:
+        - "x86-based Windows hosts"
     - slug: brave-browser/windows # Brave for Windows
       self_service: true
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows

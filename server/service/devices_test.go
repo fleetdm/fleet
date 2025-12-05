@@ -143,7 +143,6 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 			require.EqualValues(t, 1, *sum.FailingPolicies)
 			assert.Equal(t, ptr.Bool(true), sum.SelfService)
 		}
-
 	})
 
 	t.Run("different app config values for unmanaged host", func(t *testing.T) {
@@ -247,7 +246,6 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 			require.Equal(t, c.out, sum.Notifications, fmt.Sprintf("enabled_and_configured: %t | macos_migration.enable: %t", c.mdm.EnabledAndConfigured, c.mdm.MacOSMigration.Enable))
 			require.EqualValues(t, 1, *sum.FailingPolicies)
 		}
-
 	})
 
 	t.Run("different host attributes", func(t *testing.T) {
@@ -474,7 +472,6 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 				}
 			})
 		}
-
 	})
 }
 

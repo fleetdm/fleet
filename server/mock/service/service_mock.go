@@ -208,6 +208,8 @@ type AuthenticateDeviceFunc func(ctx context.Context, authToken string) (host *f
 
 type AuthenticateDeviceByCertificateFunc func(ctx context.Context, certSerial uint64, hostUUID string) (host *fleet.Host, debug bool, err error)
 
+type AuthenticateIDeviceByURLFunc func(ctx context.Context, urlUUID string) (host *fleet.Host, debug bool, err error)
+
 type ListHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error)
 
 type GetHostFunc func(ctx context.Context, id uint, opts fleet.HostDetailOptions) (host *fleet.HostDetail, err error)
@@ -1151,6 +1153,9 @@ type Service struct {
 
 	AuthenticateDeviceByCertificateFunc        AuthenticateDeviceByCertificateFunc
 	AuthenticateDeviceByCertificateFuncInvoked bool
+
+	AuthenticateIDeviceByURLFunc        AuthenticateIDeviceByURLFunc
+	AuthenticateIDeviceByURLFuncInvoked bool
 
 	ListHostsFunc        ListHostsFunc
 	ListHostsFuncInvoked bool
@@ -2805,6 +2810,13 @@ func (s *Service) AuthenticateDeviceByCertificate(ctx context.Context, certSeria
 	s.AuthenticateDeviceByCertificateFuncInvoked = true
 	s.mu.Unlock()
 	return s.AuthenticateDeviceByCertificateFunc(ctx, certSerial, hostUUID)
+}
+
+func (s *Service) AuthenticateIDeviceByURL(ctx context.Context, urlUUID string) (host *fleet.Host, debug bool, err error) {
+	s.mu.Lock()
+	s.AuthenticateIDeviceByURLFuncInvoked = true
+	s.mu.Unlock()
+	return s.AuthenticateIDeviceByURLFunc(ctx, urlUUID)
 }
 
 func (s *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error) {
