@@ -253,12 +253,25 @@ object CertificateOrchestrator {
         when (result) {
             is CertificateEnrollmentHandler.EnrollmentResult.Success -> {
                 Log.i(TAG, "Certificate enrollment successful for ID $certificateId with alias: ${result.alias}")
+                ApiClient.updateCertificateStatus(
+                    certificateId = certificateId,
+                    status = "verified",
+                ).onFailure { error ->
+                    Log.e(TAG, "Failed to update certificate status to verified for ID $certificateId: ${error.message}", error)
+                }
 
                 // Store certificate installation in DataStore
                 storeCertificateInstallation(context, certificateId, result.alias)
             }
             is CertificateEnrollmentHandler.EnrollmentResult.Failure -> {
                 Log.e(TAG, "Certificate enrollment failed for ID $certificateId: ${result.reason}", result.exception)
+                ApiClient.updateCertificateStatus(
+                    certificateId = certificateId,
+                    status = "failed",
+                    detail = result.reason,
+                ).onFailure { error ->
+                    Log.e(TAG, "Failed to update certificate status to failed for ID $certificateId: ${error.message}", error)
+                }
             }
         }
 
