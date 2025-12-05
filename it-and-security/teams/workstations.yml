@@ -206,13 +206,14 @@ software:
         - Communication
       labels_include_any:
         - "x86-based Windows hosts"
-    - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
-      self_service: true
-      install_during_setup: true
-      categories:
-        - Browsers
-      labels_include_any:
-        - "ARM-based Windows hosts"
+    # Commenting out until #25407 is implemented
+    # - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
+    #   self_service: true
+    #   install_during_setup: true
+    #   categories:
+    #     - Browsers
+    #   labels_include_any:
+    #     - "ARM-based Windows hosts"
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
       self_service: true
   app_store_apps:
@@ -227,7 +228,7 @@ software:
     # macOS apps
     - slug: google-chrome/darwin # Google Chrome for macOS
       self_service: true
-      install_during_setup: true
+      setup_experience: true
       categories:
         - Browsers
     - slug: brave-browser/darwin # Brave for macOS (ARM)
@@ -249,7 +250,7 @@ software:
     # Windows apps
     - slug: google-chrome/windows # Google Chrome for Windows
       self_service: true
-      install_during_setup: true
+      setup_experience: true
       categories:
         - Browsers
       labels_include_any:
