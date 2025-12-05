@@ -250,13 +250,6 @@ software:
         - Communication
       labels_include_any:
         - "RPM-based Linux hosts"
-    - path: ../lib/windows/software/slack.yml # Slack for Windows
-      self_service: true
-      categories:
-        - Productivity
-        - Communication
-      labels_include_any:
-        - "x86-based Windows hosts"
     - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
       self_service: true
       categories:
@@ -278,15 +271,18 @@ software:
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
       self_service: true
   app_store_apps:
-    - app_store_id: '803453959' # Slack Desktop
-      self_service: true
-      categories:
-        - Communication
-        - Productivity
     - app_store_id: '409183694' # Keynote
       self_service: true
   fleet_maintained_apps:
     # macOS apps
+    - slug: slack/darwin # Slack for macOS
+      self_service: true
+      setup_experience: true
+      post_install_script:
+        path: ../lib/macos/scripts/migrate-slack-preferences.sh
+      categories:
+        - Communication
+        - Productivity
     - slug: google-chrome/darwin # Google Chrome for macOS
       self_service: true
       categories:
@@ -308,6 +304,14 @@ software:
     - slug: microsoft-teams/darwin # Microsoft Teams for macOS
       self_service: true
     # Windows apps
+    - slug: slack/windows # Slack for Windows
+      self_service: true
+      setup_experience: true
+      categories:
+        - Productivity
+        - Communication
+      labels_include_any:
+        - "x86-based Windows hosts"
     - slug: google-chrome/windows # Google Chrome for Windows
       self_service: true
       categories:
