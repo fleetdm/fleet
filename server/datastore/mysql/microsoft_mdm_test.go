@@ -2835,9 +2835,10 @@ func windowsConfigProfileForTest(t *testing.T, name, locURI string, labels ...*f
 }
 
 func testSaveResponse(t *testing.T, ds *Datastore) {
-	// Set up: 2 devices, 1 command, 1 response for 1 device
+	// Set up: 3 devices, 1 command, 1 response for 1 device
 	enrolledDevice1 := createEnrolledDevice(t, ds)
 	enrolledDevice2 := createEnrolledDevice(t, ds)
+	enrolledDevice3 := createEnrolledDevice(t, ds)
 
 	atomicCommandUUID := uuid.NewString()
 	replaceCommandUUID := uuid.NewString()
@@ -2867,7 +2868,7 @@ func testSaveResponse(t *testing.T, ds *Datastore) {
 		TargetLocURI: "",
 	}
 	err := ds.mdmWindowsInsertCommandForHostsDB(context.Background(), ds.primary,
-		[]string{enrolledDevice1.MDMDeviceID, enrolledDevice2.MDMDeviceID}, cmd)
+		[]string{enrolledDevice1.MDMDeviceID, enrolledDevice2.MDMDeviceID, enrolledDevice3.MDMDeviceID}, cmd)
 	require.NoError(t, err)
 
 	// We only found a batch update method, so we are using a single statement here to insert host profile, for simplicity.
@@ -2881,7 +2882,6 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, atomicCommandUUID, replaceCommandUUID)
 
 	// Do test
-	// TODO: Follow up, if we want to do extra logic here to test the top-level command
 	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice1.MDMDeviceID, enrichedSyncML, []string{})
 	require.NoError(t, err)
 
@@ -2898,7 +2898,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 		return sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?",
 			atomicCommandUUID)
 	})
-	assert.Equal(t, 1, count, "Only one device has responded, so the command should still be in the queue")
+	assert.Equal(t, 2, count, "Only one device has responded, so the command should still be in the queue")
 
 	// Finish setting up the second device for testing
 	ExecAdhocSQL(t, ds, func(t sqlx.ExtContext) error {
@@ -2910,7 +2910,6 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice2.Hos
 	enrichedSyncML2 := createResponseAsEnrichedSyncML(t, enrolledDevice2, atomicCommandUUID, replaceCommandUUID)
 
 	// Do test on the second device
-	// TODO: Follow up, if we want to do extra logic here to test the top-level command
 	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice2.MDMDeviceID, enrichedSyncML2, []string{})
 	require.NoError(t, err)
 
@@ -2923,7 +2922,35 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice2.Hos
 		return sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?",
 			atomicCommandUUID)
 	})
-	assert.Empty(t, count, "All devices have responded, so the command should be completely removed from the queue")
+	assert.Equal(t, count, 1, "Two out of three have responded, so the command should still be in the queue for the last host")
+
+	// Third device, which in our test case failed and will have it's command resent
+	ExecAdhocSQL(t, ds, func(t sqlx.ExtContext) error {
+		_, err := t.ExecContext(context.Background(), `
+INSERT INTO host_mdm_windows_profiles (host_uuid, status, operation_type, command_uuid, profile_name, profile_uuid)
+VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice3.HostUUID, atomicCommandUUID, uuid.NewString())
+		return err
+	})
+	enrichedSyncML3 := createResponseAsEnrichedSyncML(t, enrolledDevice3, atomicCommandUUID, replaceCommandUUID)
+
+	// Do test on the third device
+	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice3.MDMDeviceID, enrichedSyncML3, []string{atomicCommandUUID})
+	require.NoError(t, err)
+
+	// Verify results does not exist for the third device
+	results, err = ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID)
+	require.NoError(t, err)
+	require.Len(t, results, 2) // still two
+	for _, res := range results {
+		assert.NotEqual(t, enrolledDevice3.HostUUID, res.HostUUID, "Host 3 should not have a result recorded")
+	}
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?",
+			atomicCommandUUID)
+	})
+	// We still expect one here, as the clearing of the command from the queue will happen in the resend flow.
+	assert.Equal(t, count, 1, "All devices have responded, so the command should be completely removed from the queue")
 }
 
 func createResponseAsEnrichedSyncML(t *testing.T, enrolledDevice *fleet.MDMWindowsEnrolledDevice, atomicCommandUUID string,
@@ -3431,7 +3458,7 @@ func testGetWindowsMDMCommandsForResending(t *testing.T, ds *Datastore) {
 	require.Empty(t, commands)
 
 	// Insert a command
-	rawCommand := []byte(fmt.Sprintf(`%s`, cmdUUID))
+	rawCommand := []byte(cmdUUID)
 	err = ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.writer(ctx), []string{dev.HostUUID}, &fleet.MDMWindowsCommand{
 		CommandUUID: topLevelCmdUUID,
 		RawCommand:  rawCommand,

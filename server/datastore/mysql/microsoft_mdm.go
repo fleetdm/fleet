@@ -351,8 +351,11 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 		}
 
 		if len(matchingCmds) == 0 {
-			level.Warn(ds.logger).Log("msg", "unmatched Windows MDM commands", "uuids", enrichedSyncML.CmdRefUUIDs, "mdm_device_id",
-				deviceID)
+			if len(commandIDsBeingResent) == 0 {
+				// Only log if not resending commands as we then can expect no matching commands
+				level.Warn(ds.logger).Log("msg", "unmatched Windows MDM commands", "uuids", strings.Join(enrichedSyncML.CmdRefUUIDs, ","), "mdm_device_id",
+					deviceID)
+			}
 			return nil
 		}
 
@@ -561,7 +564,7 @@ FROM
     windows_mdm_commands wmc
     LEFT JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = wmc.command_uuid
     LEFT JOIN windows_mdm_responses wmr ON wmr.id = wmcr.response_id
-    LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid
+    LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid AND wmcr.command_uuid IS NULL
     LEFT JOIN mdm_windows_enrollments mwe ON mwe.id = COALESCE(
         wmcr.enrollment_id,
         wmcq.enrollment_id
