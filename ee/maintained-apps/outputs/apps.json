@@ -457,6 +457,13 @@
       "description": "JetBrains tools manager."
     },
     {
+      "name": "KeePassXC",
+      "slug": "keepassxc/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.keepassx.keepassxc",
+      "description": "KeePassXC is a password manager app."
+    },
+    {
       "name": "Linear",
       "slug": "linear-linear/darwin",
       "platform": "darwin",
@@ -686,6 +693,13 @@
       "platform": "darwin",
       "unique_identifier": "ch.protonmail.desktop",
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
+    },
+    {
+      "name": "ProtonVPN",
+      "slug": "protonvpn/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ch.protonvpn.mac",
+      "description": "ProtonVPN is a VPN client focusing on security."
     },
     {
       "name": "PyCharm Community Edition",

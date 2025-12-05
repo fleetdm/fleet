@@ -64,6 +64,7 @@ import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
 import JetBrainsToolbox from "./JetBrainsToolbox";
+import KeePassXc from "./KeePassXc";
 import Linear from "./Linear";
 import LinuxOS from "./LinuxOS";
 import LittleSnitch from "./LittleSnitch";
@@ -96,6 +97,7 @@ import Postman from "./Postman";
 import Pritunl from "./Pritunl";
 import Privileges from "./Privileges";
 import ProtonMail from "./ProtonMail";
+import ProtonVpn from "./ProtonVpn";
 import PyCharm from "./PyCharm";
 import PyCharmCe from "./PyCharmCe";
 import RancherDesktop from "./RancherDesktop";
@@ -184,6 +186,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   falcon: Falcon,
   figma: Figma,
   firefox: Firefox,
+  keepassxc: KeePassXc,
   "mozilla firefox": Firefox,
   "github desktop": GitHubDesktop,
   gitkraken: GitKraken,
@@ -233,6 +236,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   privileges: Privileges,
   pritunl: Pritunl,
   "proton mail": ProtonMail,
+  protonvpn: ProtonVpn,
   "pycharm ce": PyCharmCe,
   pycharm: PyCharm,
   "rancher desktop": RancherDesktop,
