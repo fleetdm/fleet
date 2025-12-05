@@ -358,6 +358,10 @@ type Service interface {
 	// This is used for iOS/iPadOS devices accessing My Device page via client certificates.
 	// Returns an error if the certificate doesn't match the host or if the host is not iOS/iPadOS.
 	AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (host *Host, debug bool, err error)
+	// AuthenticateIDeviceByURL loads host identified by the URL UUID.
+	// This is used for iOS/iPadOS devices (iDevices) accessing endpoints via a unique URL parameter.
+	// Returns an error if the UUID doesn't exist or if the host is not iOS/iPadOS.
+	AuthenticateIDeviceByURL(ctx context.Context, urlUUID string) (host *Host, debug bool, err error)
 
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
 	// GetHost returns the host with the provided ID.
