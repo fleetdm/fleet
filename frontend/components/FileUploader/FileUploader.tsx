@@ -158,10 +158,10 @@ export const FileUploader = ({
   const renderUploadButton = () => {
     let buttonMarkup = (
       <>
+        {buttonMessage}
         {buttonType === "brand-inverse-icon" && (
           <Icon color="core-fleet-green" name="upload" />
         )}
-        <span>{buttonMessage}</span>
       </>
     );
     // If we want to actual do file uploading, wrap in a label that
@@ -221,7 +221,7 @@ export const FileUploader = ({
           onClick={onButtonClick || undefined}
           tabIndex={0}
         >
-          <label htmlFor="upload-file">{buttonMarkup}</label>
+          {buttonMarkup}
         </Button>
       </TooltipWrapper>
     );
