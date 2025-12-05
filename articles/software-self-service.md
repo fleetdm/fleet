@@ -48,7 +48,7 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 - **Removable:** Uncheck it.
 - **Icon:** Upload a square icon that will be displayed as the app icon on the home screen.
 - **Full Screen:** Check this field, and **Ignore Web Clip manifest scope**.
-- **Target Application Bundle Identifier:** Select **Choose...**, type "safari" in search box, and select **Safari - com.apple.mobilesafari**.
+- **Target Application Bundle Identifier:** Select **Choose...**, type "safari" in the search box, and select **Safari - com.apple.mobilesafari**.
 
 ## IT admin experience
 
@@ -73,11 +73,11 @@ How to update, install, or uninstall self-service software:
 
 **macOS and Windows:**
 
-1. Find the Fleet icon in your menu bar (macOS) or system tray (Windows) and select **Self-service.** This will open your default web browser to the list of self-service software available to update, install, or uninstall.
+Find the Fleet icon in your menu bar (macOS) or system tray (Windows) and select **Self-service.** This will open your default web browser to the list of self-service software available to update, install, or uninstall.
 
 **iOS and iPadOS:**
 
-1. Tap the **Self-service** icon on your home screen. This opens the self-service software catalog where you can install apps.
+Tap the **Self-service** icon on your home screen. This opens the self-service software catalog where you can install apps.
 
 If updates are available, end users can update one or all available self-service software. They can also view update progress and error details directly.
 
