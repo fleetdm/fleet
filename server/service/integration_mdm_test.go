@@ -11699,8 +11699,6 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 			w := &worker.SoftwareWorker{}
 			var j fleet.Job
 
-			mysql.DumpTable(t, q, "jobs")
-
 			err := sqlx.GetContext(ctx, q, &j, "SELECT * FROM jobs WHERE name = ? ORDER BY updated_at DESC LIMIT 1", w.Name())
 			s.Require().NoError(err)
 
@@ -11744,12 +11742,6 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	s.runWorker()
 	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
 	checkJobs([]string{driveAppID})
-
-	mysql.ExecAdhocSQL(s.T(), s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(s.T(), q, "jobs")
-		return nil
-	})
-
 }
 
 func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {
