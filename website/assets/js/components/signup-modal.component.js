@@ -185,7 +185,8 @@ parasails.registerComponent('signupModal', {
     // (Note: This isn't just for convenience-- it's crucial that
     // the parent logic can use this event to update its scope.)
     $(this.$el).on('hide.bs.modal', ()=>{
-
+      // Close the mobile navigation menu if it is open.
+      $('#navbarToggleExternalContent').collapse('hide');
       this._bsModalIsAnimatingOut = true;
       this.$emit('close');
 
