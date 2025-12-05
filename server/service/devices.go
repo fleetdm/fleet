@@ -325,10 +325,10 @@ func (svc *Service) AuthenticateDeviceByCertificate(ctx context.Context, certSer
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
 }
 
-// AuthenticateDeviceByURL returns the host identified by the URL UUID.
-// This is used for devices accessing endpoints via a unique URL parameter.
+// AuthenticateIDeviceByURL returns the host identified by the URL UUID.
+// This is used for iOS/iPadOS devices (iDevices) accessing endpoints via a unique URL parameter.
 // Returns an error if the UUID doesn't exist or if the host is not iOS/iPadOS.
-func (svc *Service) AuthenticateDeviceByURL(ctx context.Context, urlUUID string) (*fleet.Host, bool, error) {
+func (svc *Service) AuthenticateIDeviceByURL(ctx context.Context, urlUUID string) (*fleet.Host, bool, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -735,9 +735,9 @@ func fleetdError(ctx context.Context, request interface{}, svc fleet.Service) (f
 }
 
 func (svc *Service) LogFleetdError(ctx context.Context, fleetdError fleet.FleetdError) error {
+	// iOS/iPadOS devices don't have fleetd, so URL auth is not allowed here.
 	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) &&
-		!svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate) &&
-		!svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceURL) {
+		!svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate) {
 		return ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 
@@ -792,9 +792,9 @@ func getDeviceMDMManualEnrollProfileEndpoint(ctx context.Context, request interf
 
 func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error) {
 	// must be device-authenticated, no additional authorization is required
+	// iOS/iPadOS devices are enrolled via MDM profile or ABM, so URL auth is not allowed here.
 	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) &&
-		!svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate) &&
-		!svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceURL) {
+		!svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate) {
 		return nil, ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 

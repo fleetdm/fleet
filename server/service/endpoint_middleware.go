@@ -81,16 +81,15 @@ func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.End
 			host, debug, err = svc.AuthenticateDeviceByCertificate(ctx, certSerial, identifier)
 			authnMethod = authz_ctx.AuthnDeviceCertificate
 		} else {
-			// Try UUID auth first (for iOS/iPadOS self-service via URL).
-			// The identifier (from {token}) is treated as the UUID.
-			host, debug, err = svc.AuthenticateDeviceByURL(ctx, identifier)
+			// Try token auth first (hot path for Fleet Desktop).
+			host, debug, err = svc.AuthenticateDevice(ctx, identifier)
 			if err == nil {
-				authnMethod = authz_ctx.AuthnDeviceURL
-			} else {
-				// Fallback to token auth if UUID auth fails
-				// (not found, wrong platform, or not a valid UUID).
-				host, debug, err = svc.AuthenticateDevice(ctx, identifier)
 				authnMethod = authz_ctx.AuthnDeviceToken
+			} else {
+				// Fallback to UUID auth for iOS/iPadOS self-service via URL.
+				// The identifier (from {token}) is treated as the device UUID.
+				host, debug, err = svc.AuthenticateIDeviceByURL(ctx, identifier)
+				authnMethod = authz_ctx.AuthnDeviceURL
 			}
 		}
 

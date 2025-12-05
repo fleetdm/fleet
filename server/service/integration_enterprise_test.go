@@ -22237,7 +22237,7 @@ func generateTestCertForDeviceAuth(t *testing.T, certSerial uint64, deviceUUID s
 	return string(certPEM), certHash, cert
 }
 
-func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
+func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -22474,6 +22474,14 @@ func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
 			"X-Client-Cert-Serial": "0",
 		}
 		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized, headers)
+		res.Body.Close()
+	})
+
+	t.Run("macOS device UUID in URL should be rejected (not iOS/iPadOS)", func(t *testing.T) {
+		// Using macOS host UUID directly in URL should fail:
+		// - Token auth fails (macHost.UUID is not a valid token)
+		// - UUID auth fails (platform is darwin, not iOS/iPadOS)
+		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", macHost.UUID), nil, http.StatusUnauthorized)
 		res.Body.Close()
 	})
 

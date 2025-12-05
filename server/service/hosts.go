@@ -1914,9 +1914,13 @@ func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.MacadminsData, error) {
+	// iOS/iPadOS devices don't have macadmins data (Munki, etc.), return nil early.
+	if svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceURL) {
+		return nil, nil
+	}
+
 	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) &&
-		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) &&
-		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceURL) {
+		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
 		}

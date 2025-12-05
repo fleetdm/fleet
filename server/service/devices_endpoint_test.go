@@ -132,7 +132,16 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 
 func TestGetDeviceHostEndpointNoScrubbingForMacOS(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+	testLicense := &fleet.LicenseInfo{
+		Tier:         fleet.TierPremium,
+		Organization: "Test Org",
+		DeviceCount:  100,
+		Expiration:   time.Now().Add(24 * time.Hour),
+	}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+		SkipCreateTestUsers: true,
+		License:             testLicense,
+	})
 
 	h := &fleet.Host{
 		ID:             1,
@@ -236,11 +245,8 @@ func TestGetDeviceHostEndpointNoScrubbingForMacOS(t *testing.T) {
 	assert.Equal(t, "visible-team", *deviceResp.Host.TeamName)
 	assert.NotNil(t, deviceResp.Host.MDM.Profiles)
 
-	// Verify License is NOT scrubbed
-	// Default license in newTestService has values?
-	// We can check that they are not empty/zero if the default mock provides them.
-	// Or we can mock License explicitly if needed.
-	// For now, just checking they are not the zero values we set in scrubbing.
-	// Actually, newTestService might return a license with empty values if not configured.
-	// Let's check if we can assert on what we know.
+	// Verify License is NOT scrubbed (values match what we set in testLicense)
+	assert.Equal(t, "Test Org", deviceResp.License.Organization)
+	assert.Equal(t, 100, deviceResp.License.DeviceCount)
+	assert.False(t, deviceResp.License.Expiration.IsZero())
 }
