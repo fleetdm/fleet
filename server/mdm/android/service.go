@@ -22,7 +22,7 @@ type Service interface {
 	UnenrollAndroidHost(ctx context.Context, hostID uint) error
 
 	EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error)
-	AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string, installType string) (map[string]*MDMAndroidPolicyRequest, error)
+	AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*MDMAndroidPolicyRequest, error)
 	AddFleetAgentToAndroidPolicy(ctx context.Context, enterpriseName string, hostConfigs map[string]AgentManagedConfiguration) error
 	// BuildAndSendFleetAgentConfig builds the complete AgentManagedConfiguration for the given hosts
 	// (including certificate templates) and sends it to the Android Management API.

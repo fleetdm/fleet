@@ -193,7 +193,7 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 
 	type androidAppConfig struct {
 		ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
-		WorkProfileWidgets   json.RawMessage `json:"workProfileWidgets"`
+		WorkProfileWidgets   string          `json:"workProfileWidgets"`
 	}
 
 	var cfg androidAppConfig

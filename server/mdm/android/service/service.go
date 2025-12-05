@@ -870,15 +870,7 @@ func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName,
 
 // Adds the specified apps to the host-specific Android policy of the provided hosts, and
 // returns a map of host UUID to the policy request object of their updated policy on success.
-func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string, installType string) (map[string]*android.MDMAndroidPolicyRequest, error) {
-	var appPolicies []*androidmanagement.ApplicationPolicy
-	for _, a := range applicationIDs {
-		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
-			PackageName: a,
-			InstallType: installType,
-		})
-	}
-
+func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
 	var errs []error
 	hostToPolicyRequest := make(map[string]*android.MDMAndroidPolicyRequest, len(hostUUIDs))
 	for uuid, policyID := range hostUUIDs {

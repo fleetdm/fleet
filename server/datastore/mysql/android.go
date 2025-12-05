@@ -1660,6 +1660,65 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID stri
 	return &config, nil
 }
 
+func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*fleet.AndroidAppConfiguration, error) {
+	stmt := `
+	SELECT
+		aac.id,
+		aac.application_id,
+		aac.team_id,
+		aac.global_or_team_id,
+		aac.configuration,
+		aac.created_at,
+		aac.updated_at
+	FROM android_app_configurations aac
+	JOIN vpp_apps_teams vat
+		ON vat.adam_id = aac.application_id AND vat.global_or_team_id = aac.global_or_team_id
+	WHERE vat.id = ?
+`
+
+	var config fleet.AndroidAppConfiguration
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, vppAppTeamID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get android app configuration")
+	}
+
+	return &config, nil
+}
+
+func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error) {
+	const bulkGetStmt = `
+	SELECT
+		application_id,
+		configuration
+	FROM android_app_configurations
+	WHERE application_id IN (?) AND global_or_team_id = ?
+	`
+
+	if len(appIDs) == 0 {
+		return nil, nil
+	}
+
+	stmt, args, err := sqlx.In(bulkGetStmt, appIDs, globalOrTeamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building bulk get android app configurations query")
+	}
+
+	var configs []*fleet.AndroidAppConfiguration
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &configs, stmt, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk get android app configurations")
+	}
+
+	m := make(map[string]json.RawMessage, len(configs))
+	for _, c := range configs {
+		m[c.ApplicationID] = c.Configuration
+	}
+	return m, nil
+}
+
 // InsertAndroidAppConfiguration creates a new Android app configuration entry.
 func (ds *Datastore) InsertAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
 	stmt := `
