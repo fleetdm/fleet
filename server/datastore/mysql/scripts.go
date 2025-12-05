@@ -1820,17 +1820,26 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 			}
 		}
 
-		// Query command results
-		resultStmt := `SELECT command_uuid, enrollment_id, status_code FROM windows_mdm_command_results WHERE command_uuid IN (?)`
+		// Query command results - JOIN with enrollments to get host_uuid
+		resultStmt := `
+			SELECT
+				wcr.command_uuid,
+				we.host_uuid,
+				wcr.status_code
+			FROM
+				windows_mdm_command_results wcr
+				INNER JOIN mdm_windows_enrollments we ON wcr.enrollment_id = we.id
+			WHERE
+				wcr.command_uuid IN (?)`
 		resultQuery, resultArgs, err := sqlx.In(resultStmt, cmdUUIDs)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "build IN query for windows command results")
 		}
 
 		var results []struct {
-			CommandUUID  string `db:"command_uuid"`
-			EnrollmentID string `db:"enrollment_id"`
-			StatusCode   string `db:"status_code"`
+			CommandUUID string `db:"command_uuid"`
+			HostUUID    string `db:"host_uuid"`
+			StatusCode  string `db:"status_code"`
 		}
 
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, resultQuery, resultArgs...); err != nil {
@@ -1843,10 +1852,10 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 			if resultMap[res.CommandUUID] == nil {
 				resultMap[res.CommandUUID] = make(map[string]*fleet.MDMCommandResult)
 			}
-			resultMap[res.CommandUUID][res.EnrollmentID] = &fleet.MDMCommandResult{
+			resultMap[res.CommandUUID][res.HostUUID] = &fleet.MDMCommandResult{
 				CommandUUID: res.CommandUUID,
 				Status:      res.StatusCode,
-				HostUUID:    res.EnrollmentID,
+				HostUUID:    res.HostUUID,
 			}
 		}
 
