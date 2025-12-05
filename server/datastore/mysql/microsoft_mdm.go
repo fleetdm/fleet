@@ -2469,8 +2469,6 @@ func (ds *Datastore) GetWindowsMDMCommandsForResending(ctx context.Context, fail
 
 	stmt += fmt.Sprintf(" ORDER BY created_at DESC LIMIT %d", len(failedCommandIds))
 
-	fmt.Println(stmt)
-
 	var commands []*fleet.MDMWindowsCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, stmt); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting windows mdm commands for resending")
