@@ -51,7 +51,8 @@ The Fleet app is available in Okta's catalog. This is the fastest way to set up 
 5. Configure the basics:
    - **Application Label**: Name for your Fleet instance (e.g., "Fleet Production")
    - **Entity ID**: Must match exactly what you set in Fleet under **Settings > Integrations > Single sign-on (SSO)** (e.g., `fleet`)
-   - **Fleet instance base URL**: Your Fleet URL from **Settings > Organization settings > Fleet web address** (e.g., `https://fleetprod.cloud.fleetdm.com`)
+   - **Fleet instance base URL**: Your Fleet URL from **Settings > Organization settings > Fleet web address** (e.g., `fleetprod.cloud.fleetdm.com`)
+   > Note: Be sure to omit `https://` as it will be added automatically when the app is created in Okta.
 
 6. Assign users:
    - Go to the **Assignments** tab
