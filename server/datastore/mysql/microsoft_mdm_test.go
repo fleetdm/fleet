@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
+	"database/sql"
 	"encoding/xml"
 	"fmt"
 	"strings"
@@ -49,6 +50,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestSetMDMWindowsProfilesWithVariables", testSetMDMWindowsProfilesWithVariables},
 		{"TestWindowsMDMManagedSCEPCertificates", testWindowsMDMManagedSCEPCertificates},
 		{"TestGetWindowsMDMCommandsForResending", testGetWindowsMDMCommandsForResending},
+		{"TestResendWindowsMDMCommand", testResendWindowsMDMCommand},
 	}
 
 	for _, c := range cases {
@@ -3447,4 +3449,90 @@ func testGetWindowsMDMCommandsForResending(t *testing.T, ds *Datastore) {
 	commands, err = ds.GetWindowsMDMCommandsForResending(ctx, []string{topLevelCmdUUID})
 	require.NoError(t, err)
 	require.Empty(t, commands)
+}
+
+func testResendWindowsMDMCommand(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	dev := createMDMWindowsEnrollment(ctx, t, ds)
+	cmdUUID := uuid.NewString()
+
+	// Query enrollment id from mdm_windows_enrollments
+	var enrollmentID int64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &enrollmentID, "SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ?", dev.MDMDeviceID)
+	})
+	require.Greater(t, enrollmentID, int64(0), "Enrollment ID should be greater than 0")
+
+	// Insert host profile entry
+	err := ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+		{
+			HostUUID:      dev.HostUUID,
+			ProfileUUID:   uuid.NewString(),
+			ProfileName:   "test-profile",
+			Status:        &fleet.MDMDeliveryFailed,
+			OperationType: fleet.MDMOperationTypeInstall,
+			CommandUUID:   cmdUUID,
+			Checksum:      []byte("checksum"),
+			Detail:        "fake detail we expect to be cleared on resend",
+		},
+	})
+	require.NoError(t, err)
+
+	// Insert a command for the original profile
+	cmdBody := []byte(`<Add></Add>`)
+	cmd := &fleet.MDMWindowsCommand{
+		CommandUUID: cmdUUID,
+		RawCommand:  cmdBody,
+	}
+	err = ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.writer(ctx), []string{dev.HostUUID}, cmd)
+	require.NoError(t, err)
+
+	// Verify we have a windows_mdm_command_queue entry
+	var count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ? AND enrollment_id = ?",
+			cmd.CommandUUID, enrollmentID)
+	})
+	assert.Equal(t, 1, count, "Command queue entry should exist before resend")
+
+	// Resend command
+	// We manually do replacement here
+	newCmdUUID := uuid.NewString()
+	newBody := []byte(`<Replace></Replace>`)
+	newCmd := &fleet.MDMWindowsCommand{
+		CommandUUID: newCmdUUID,
+		RawCommand:  newBody,
+	}
+	err = ds.ResendWindowsMDMCommand(ctx, dev.MDMDeviceID, newCmd, cmd)
+	require.NoError(t, err)
+
+	// Verify we have a windows_mdm_command_queue entry for the new command
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ? AND enrollment_id = ?",
+			newCmd.CommandUUID, enrollmentID)
+	})
+	assert.Equal(t, 1, count, "New command queue entry should exist after resend")
+
+	// verify we don't have a windows_mdm_command_queue entry for the old command
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ? AND enrollment_id = ?",
+			cmd.CommandUUID, enrollmentID)
+	})
+	assert.Equal(t, 0, count, "Old command queue entry should not exist after resend")
+
+	// Verify host profile status is reset and detail cleared
+	var status string
+	var detail sql.NullString
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &status, "SELECT status FROM host_mdm_windows_profiles WHERE command_uuid = ? AND host_uuid = ?",
+			newCmd.CommandUUID, dev.HostUUID)
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &detail, "SELECT detail FROM host_mdm_windows_profiles WHERE command_uuid = ? AND host_uuid = ?",
+			newCmd.CommandUUID, dev.HostUUID)
+	})
+	assert.Equal(t, string(fleet.MDMDeliveryPending), status, "Host profile status should be reset to pending on resend")
+	require.True(t, detail.Valid, "Host profile detail should be cleared on resend")
+	assert.Empty(t, detail.String, "Host profile detail should be cleared on resend")
 }
