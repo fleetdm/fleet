@@ -2972,12 +2972,8 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 				if err != nil {
 					return fmt.Errorf("getting certificate %q details: %w", cert.Name, err)
 				}
-				if fullCert.SubjectName != newCert.SubjectName {
-					// subjectName changed, mark for deletion (will be recreated)
-					certificatesToDelete = append(certificatesToDelete, cert.ID)
-				}
-				if fullCert.CertificateAuthorityId != newCert.CertificateAuthorityId {
-					// CA changed, mark for deletion (will be recreated)
+				if fullCert.SubjectName != newCert.SubjectName || fullCert.CertificateAuthorityId != newCert.CertificateAuthorityId {
+					// SubjectName or CA changed, mark for deletion (will be recreated)
 					certificatesToDelete = append(certificatesToDelete, cert.ID)
 				}
 			}
