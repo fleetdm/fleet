@@ -22,6 +22,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import SoftwareIcon from "../../icons/SoftwareIcon";
 import OSIcon from "../../icons/OSIcon";
@@ -122,16 +123,22 @@ const SoftwareDetailsSummary = ({
                 <TooltipTruncatedText value={displayName} />
               )}
             </h1>
+
             {onClickEditIcon && (
-              <div className={`${baseClass}__edit-icon`}>
-                <Button
-                  onClick={onClickEditIcon}
-                  className={`${baseClass}__edit-icon-btn`}
-                  variant="icon"
-                >
-                  <Icon name="pencil" />
-                </Button>
-              </div>
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <div className={`${baseClass}__edit-icon`}>
+                    <Button
+                      onClick={onClickEditIcon}
+                      className={`${baseClass}__edit-icon-btn`}
+                      disabled={disableChildren}
+                      variant="icon"
+                    >
+                      <Icon name="pencil" />
+                    </Button>
+                  </div>
+                )}
+              />
             )}
           </div>
           <dl className={`${baseClass}__description-list`}>

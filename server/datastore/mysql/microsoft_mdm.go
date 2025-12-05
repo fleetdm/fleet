@@ -536,32 +536,28 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 }
 
 func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
-	query := `
-SELECT
+	query := `SELECT
     mwe.host_uuid,
-    wmcr.command_uuid,
-    wmcr.status_code as status,
-    wmcr.updated_at,
-    wmc.target_loc_uri as request_type,
-    wmr.raw_response as result,
-    wmc.raw_command as payload
+    wmc.command_uuid,
+    COALESCE(wmcr.status_code, '101') AS status,
+    COALESCE(
+        wmcr.updated_at,
+        wmc.updated_at
+    ) as updated_at,
+    wmc.target_loc_uri AS request_type,
+    COALESCE(wmr.raw_response, '') AS result,
+    wmc.raw_command AS payload
 FROM
-    windows_mdm_command_results wmcr
-INNER JOIN
     windows_mdm_commands wmc
-ON
-    wmcr.command_uuid = wmc.command_uuid
-INNER JOIN
-    mdm_windows_enrollments mwe
-ON
-    wmcr.enrollment_id = mwe.id
-INNER JOIN
-    windows_mdm_responses wmr
-ON
-    wmr.id = wmcr.response_id
+    LEFT JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = wmc.command_uuid
+    LEFT JOIN windows_mdm_responses wmr ON wmr.id = wmcr.response_id
+    LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid
+    LEFT JOIN mdm_windows_enrollments mwe ON mwe.id = COALESCE(
+        wmcr.enrollment_id,
+        wmcq.enrollment_id
+    )
 WHERE
-    wmcr.command_uuid = ?
-`
+    wmc.command_uuid = ?`
 
 	var results []*fleet.MDMCommandResult
 	err := sqlx.SelectContext(

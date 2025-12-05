@@ -124,7 +124,7 @@ fleetctl user create --name 'API User' --email 'api@example.com' --password 'tem
 On Fleet Premium, use the `--team <team_id>:<role>` to create an API-only user on a team:
 
 ```sh
-fleetctl user create --name 'API User' --email 'api@example.com' --password 'temp@pass123' --api-only --team 4: gitops
+fleetctl user create --name 'API User' --email 'api@example.com' --password 'temp@pass123' --api-only --team 4:gitops
 ```
 
 #### Changing permissions

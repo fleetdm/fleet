@@ -24,12 +24,13 @@ func (ds *Datastore) GetMDMCommandPlatform(ctx context.Context, commandUUID stri
 SELECT CASE
 	WHEN EXISTS (SELECT 1 FROM nano_commands WHERE command_uuid = ?) THEN 'darwin'
 	WHEN EXISTS (SELECT 1 FROM windows_mdm_commands WHERE command_uuid = ?) THEN 'windows'
+	WHEN EXISTS (SELECT 1 FROM host_vpp_software_installs WHERE command_uuid = ? AND platform = 'android') THEN 'android'
 	ELSE ''
 END AS platform
 `
 
 	var p string
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &p, stmt, commandUUID, commandUUID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &p, stmt, commandUUID, commandUUID, commandUUID); err != nil {
 		return "", err
 	}
 	if p == "" {
@@ -63,7 +64,7 @@ WHERE
 SELECT
     mwe.host_uuid,
     wmc.command_uuid,
-    COALESCE(NULLIF(wmcr.status_code, ''), 'Pending') as status,
+    COALESCE(NULLIF(wmcr.status_code, ''), '101') as status,
     COALESCE(wmc.updated_at, wmc.created_at) as updated_at,
     wmc.target_loc_uri as request_type,
     h.hostname,
@@ -227,7 +228,7 @@ SELECT
 	mwe.host_uuid,
 	wq.command_uuid,
 	COALESCE(wcr.updated_at, wc.created_at) AS updated_at,
-	COALESCE(NULLIF(wcr.status_code, ''), 'Pending') AS status,
+	COALESCE(NULLIF(wcr.status_code, ''), '101') AS status,
 	wc.target_loc_uri AS request_type
 FROM
 	windows_mdm_command_queue wq

@@ -18,6 +18,11 @@ agent_options:
     osqueryd: edge
 controls:
   android_enabled_and_configured: true
+  android_settings:
+    certificates:
+    - certificate_authority_name: DIGIDOO
+      name: my_certypoo
+      subject_name: CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
   enable_disk_encryption: true
   ios_updates:
     deadline: "2021-12-31"

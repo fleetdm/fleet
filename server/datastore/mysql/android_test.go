@@ -1737,7 +1737,7 @@ func testGetAndroidPolicyRequestByUUID(t *testing.T, ds *Datastore) {
 
 	t.Run("Correctly retrieves the policy request", func(t *testing.T) {
 		// Create a test policy request
-		err := ds.NewAndroidPolicyRequest(ctx, &fleet.MDMAndroidPolicyRequest{
+		err := ds.NewAndroidPolicyRequest(ctx, &android.MDMAndroidPolicyRequest{
 			RequestUUID: policyRequestUUID,
 			Payload:     json.RawMessage(`{"key": "value"}`),
 		})

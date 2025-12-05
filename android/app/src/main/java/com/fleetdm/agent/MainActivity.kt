@@ -25,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -55,16 +54,14 @@ class MainActivity : ComponentActivity() {
         val appRestrictions = restrictionsManager.applicationRestrictions
         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
 
-        ApiClient.initialize(this)
-
         setContent {
-            val enrollSecret by remember { mutableStateOf(appRestrictions.getString("enrollSecret")) }
-            val delegatedScopes by remember { mutableStateOf(dpm.getDelegatedScopes(null, packageName)) }
+            val enrollSecret by remember { mutableStateOf(appRestrictions.getString("enroll_secret")) }
+            val delegatedScopes by remember { mutableStateOf(dpm.getDelegatedScopes(null, packageName).toList()) }
             val delegatedCertScope by remember {
                 mutableStateOf(delegatedScopes.contains(DevicePolicyManager.DELEGATION_CERT_INSTALL))
             }
             val androidID by remember { mutableStateOf(Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)) }
-            val enrollmentSpecificID by remember { mutableStateOf(appRestrictions.getString("enrollmentSpecificID")) }
+            val enrollmentSpecificID by remember { mutableStateOf(appRestrictions.getString("host_uuid")) }
             val certRequestList by remember {
                 mutableStateOf(appRestrictions.getParcelableArray("certificates", Bundle::class.java)?.toList())
             }
@@ -83,16 +80,14 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
-                mutableStateOf(grantedPermissions)
+                mutableStateOf(grantedPermissions.toList())
             }
             val fleetBaseUrl by remember {
-                mutableStateOf(appRestrictions.getString("fleetBaseUrl"))
+                mutableStateOf(appRestrictions.getString("server_url"))
             }
-            var enrollBody by remember { mutableStateOf("enroll not run") }
             var installedCertificates: List<CertificateInfo> by remember { mutableStateOf(listOf()) }
             val apiKey by ApiClient.apiKeyFlow.collectAsState(initial = null)
             val baseUrl by ApiClient.baseUrlFlow.collectAsState(initial = null)
-            val scope = rememberCoroutineScope()
 
             LaunchedEffect(Unit) {
                 installedCertificates = listKeystoreCertificates()
@@ -107,42 +102,20 @@ class MainActivity : ComponentActivity() {
                         ) {
                             StatusScreen()
                             KeyValue("packageName", packageName)
-                            KeyValue("enrollSecret", enrollSecret)
+                            KeyValue("versionName", packageManager.getPackageInfo(packageName, 0).versionName)
+                            KeyValue("longVersionCode", packageManager.getPackageInfo(packageName, 0).longVersionCode.toString())
+                            KeyValue("enroll_secret", enrollSecret)
                             KeyValue("delegatedScopes", delegatedScopes.toString())
                             KeyValue("delegated cert scope", delegatedCertScope.toString())
                             KeyValue("android id", androidID)
-                            KeyValue("enrollmentSpecificID (MC)", enrollmentSpecificID)
-                            KeyValue("fleetBaseUrl (MC)", fleetBaseUrl)
+                            KeyValue("host_uuid (MC)", enrollmentSpecificID)
+                            KeyValue("server_url (MC)", fleetBaseUrl)
                             KeyValue("orbit_node_key (datastore)", apiKey)
                             KeyValue("base_url (datastore)", baseUrl)
                             KeyValue("certificate_ids", certIds.toString())
                             PermissionList(
                                 permissionsList = permissionsList,
                             )
-                            Button(onClick = {
-                                scope.launch {
-                                    enrollBody = "launched!!"
-                                    if (enrollSecret == null) {
-                                        enrollBody = "no enroll secret"
-                                    }
-                                    if (fleetBaseUrl == null) {
-                                        enrollBody = "no fleet URL"
-                                    }
-                                    try {
-                                        Log.d("main_activity", "sending request!")
-                                        val resp = ApiClient.enroll(
-                                            baseUrl = fleetBaseUrl ?: "",
-                                            enrollSecret = enrollSecret ?: "",
-                                            hardwareUUID = enrollmentSpecificID ?: "",
-                                            computerName = Build.MODEL,
-                                        )
-                                        enrollBody = resp.toString()
-                                    } catch (e: Exception) {
-                                        enrollBody = e.toString()
-                                    }
-                                }
-                            }) { Text("enroll") }
-                            Text(enrollBody)
                             CertificateList(certificateList = installedCertificates)
                         }
                     },

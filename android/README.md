@@ -3,6 +3,7 @@
 - [Requirements](#requirements)
 - [Building the project](#building-the-project)
 - [Deploying via Android MDM](#deploying-via-android-mdm-development)
+- [How the app starts](#how-the-app-starts)
 - [Running tests](#running-tests)
 - [Code quality](#code-quality)
 - [Troubleshooting](#troubleshooting)
@@ -94,14 +95,28 @@ ls "$(grep sdk.dir local.properties | cut -d= -f2)/build-tools/"
 jarsigner -verify app/build/outputs/bundle/release/app-release.aab
 ```
 
+
+### Getting the SHA256 fingerprint
+
+The SHA256 fingerprint is required for MDM deployment. You can get it from your keystore.
+
+```bash
+keytool -list -v -keystore keystore.jks -alias fleet-android
+# Grab SHA256
+echo <SHA256> | xxd -r -p | base64
+```
+
+Copy the fingerprint for use in `FLEET_DEV_ANDROID_AGENT_SHA256`
+
 ## Deploying via Android MDM (development)
 
-This feature is behind the feature flag `FLEET_DEV_ANDROID_AGENT_PACKAGE`. Requires `FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS` to be set in your workarea.
+This feature is behind the feature flag `FLEET_DEV_ANDROID_AGENT_PACKAGE`. Requires `FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS` to be set in your workarea to get the Google Play URL.
 
-1. **Set the feature flag on your Fleet server:**
+1. **Set these env vars on your Fleet server:**
 
 ```bash
 export FLEET_DEV_ANDROID_AGENT_PACKAGE=com.fleetdm.agent.private.<yourname>
+export FLEET_DEV_ANDROID_AGENT_SHA256=<SHA256 fingerprint>
 ```
 
 2. **Change the `applicationId` in `app/build.gradle.kts`:**
@@ -130,6 +145,33 @@ go run tools/android/android.go --command enterprises.webTokens.create --enterpr
 
 The agent should start installing shortly. Check Google Play in your Work profile. If it shows as pending, try restarting the device.
 
+## How the app starts
+
+The Fleet Android agent is designed to run automatically without user interaction. The app starts in three scenarios:
+
+### 1. On installation (COMPANION_APP role)
+
+When the app is installed via MDM, Android Device Policy assigns it the `COMPANION_APP` role. This triggers `RoleNotificationReceiverService`, which starts the app process and runs `AgentApplication.onCreate()`.
+
+### 2. On device boot
+
+When the device boots, `BootReceiver` receives the `ACTION_BOOT_COMPLETED` broadcast and starts the app process, triggering `AgentApplication.onCreate()`.
+
+### 3. Periodically every 15 minutes
+
+`AgentApplication.onCreate()` schedules a `ConfigCheckWorker` to run every 15 minutes using WorkManager. This ensures the app wakes up periodically even if the process is killed.
+
+**Note:** WorkManager ensures reliable background execution. The work persists across device reboots and process death.
+
+### Why not ACTION_APPLICATION_RESTRICTIONS_CHANGED?
+
+We don't use `ACTION_APPLICATION_RESTRICTIONS_CHANGED` to detect MDM config changes because:
+
+1. This broadcast can only be registered dynamically (not in the manifest)
+2. On Android 14+, [context-registered broadcasts are queued when the app is in cached state](https://developer.android.com/about/versions/14/behavior-changes-all#pending-broadcasts-queued)
+
+This means the broadcast won't wake the app immediately when configs change if the app is in the background. WorkManager polling every 15 minutes is the reliable solution for detecting config changes.
+
 ### Full build with tests
 
 ```bash
@@ -148,6 +190,45 @@ This runs:
 
 ```bash
 ./gradlew test
+```
+
+### Integration tests (with real SCEP server)
+
+Integration tests are skipped by default. To run them:
+
+```bash
+./gradlew test -PrunIntegrationTests=true \
+  -Pscep.url=https://your-scep-server.com/scep \
+  -Pscep.challenge=your-challenge-password
+```
+
+#### Setting Up a Test SCEP Server
+
+Integration tests require a real SCEP server. Options:
+
+1. **Production-grade SCEP servers:**
+   - Microsoft NDES (Network Device Enrollment Service)
+   - OpenXPKI
+   - Ejbca
+
+2. **Lightweight test servers:**
+   - micromdm/scep (Docker)
+   - jscep test server
+
+### Docker SCEP Server (Easiest)
+
+```bash
+docker run -p 8080:8080 \
+  -e SCEP_CHALLENGE=test-challenge-123 \
+  micromdm/scep:latest
+```
+
+### Running Integration Tests
+
+```bash
+./gradlew test -PrunIntegrationTests=true \
+  -Pscep.url=http://localhost:8080/scep \
+  -Pscep.challenge=test-challenge-123
 ```
 
 ### Instrumented tests (requires emulator/device)

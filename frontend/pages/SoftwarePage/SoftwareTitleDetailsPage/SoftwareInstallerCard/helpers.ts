@@ -48,3 +48,6 @@ export const downloadFile = (url: string, fileName: string) => {
   // Clean up above-created "a" element
   downloadLink.remove();
 };
+
+export const PLAY_STORE_APP_BASE_URL =
+  "https://play.google.com/store/apps/details?id=";

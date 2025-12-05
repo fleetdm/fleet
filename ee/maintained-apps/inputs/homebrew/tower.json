@@ -1,0 +1,8 @@
+{
+  "name": "Tower",
+  "unique_identifier": "com.fournova.Tower",
+  "token": "tower",
+  "installer_format": "zip",
+  "slug": "tower/darwin",
+  "default_categories": ["Developer tools"]
+}

@@ -10,6 +10,7 @@ describe("createPackageYaml", () => {
     version,
     url,
     icon_url: iconUrl,
+    display_name: displayName,
     hash_sha256: sha256,
     pre_install_query: preInstallQuery,
     install_script: installScript,
@@ -22,6 +23,7 @@ describe("createPackageYaml", () => {
       softwareTitle: "Falcon Sensor Test Package",
       packageName: name,
       iconUrl,
+      displayName,
       version,
       url,
       sha256,
@@ -50,6 +52,7 @@ describe("createPackageYaml", () => {
       softwareTitle: "Falcon Sensor Test Package",
       packageName: name,
       iconUrl,
+      displayName,
       version,
       url: undefined,
       sha256: undefined,
@@ -69,6 +72,7 @@ describe("createPackageYaml", () => {
       softwareTitle: "Falcon Sensor Test Package",
       packageName: name,
       iconUrl,
+      displayName,
       version,
       url: undefined,
       sha256: undefined,
@@ -91,6 +95,7 @@ describe("createPackageYaml", () => {
       softwareTitle: "Falcon Sensor Test Package",
       packageName: name,
       iconUrl,
+      displayName,
       version,
       url: undefined,
       sha256: undefined,
@@ -111,6 +116,7 @@ describe("createPackageYaml", () => {
       softwareTitle: "Null Hash",
       packageName: name,
       iconUrl,
+      displayName,
       version,
       url: undefined,
       sha256: null,
@@ -124,6 +130,7 @@ describe("createPackageYaml", () => {
       softwareTitle: "Empty Hash",
       packageName: name,
       iconUrl,
+      displayName,
       version,
       url: undefined,
       sha256: "",
@@ -155,6 +162,7 @@ describe("createPackageYaml", () => {
       postInstallScript,
       uninstallScript,
       iconUrl: null,
+      displayName,
       isScriptPackage: true,
     });
 
@@ -168,6 +176,29 @@ describe("createPackageYaml", () => {
     expect(yaml).not.toContain("post_install_script");
     expect(yaml).not.toContain("uninstall_script");
     expect(yaml).not.toContain("pre_install_query");
+  });
+
+  it("generates icon url and display name", () => {
+    const yaml = createPackageYaml({
+      softwareTitle: "Falcon Sensor Test Package",
+      packageName: name,
+      iconUrl: "falcon",
+      displayName: "Falcon",
+      version,
+      url: undefined,
+      sha256,
+      preInstallQuery: undefined,
+      installScript: undefined,
+      postInstallScript: undefined,
+      uninstallScript: undefined,
+    });
+
+    expect(yaml)
+      .toBe(`# Falcon Sensor Test Package (TestPackage-1.2.3.pkg) version 1.2.3
+- hash_sha256: abcd1234
+  display_name: Falcon
+  icon:
+    path: ./icons/falcon-sensor-test-package-icon.png`);
   });
 });
 

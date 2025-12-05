@@ -233,7 +233,9 @@ func (svc *Service) SandboxEnabled() bool {
 }
 
 func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) && !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
 		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 			return nil, err
 		}

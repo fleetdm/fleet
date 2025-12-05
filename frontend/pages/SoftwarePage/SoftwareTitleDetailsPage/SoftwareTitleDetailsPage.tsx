@@ -165,6 +165,7 @@ const SoftwareTitleDetailsPage = ({
         name={name}
         version={version}
         iconUrl={title.icon_url}
+        displayName={title.display_name}
         addedTimestamp={addedTimestamp}
         status={status}
         isSelfService={isSelfService}

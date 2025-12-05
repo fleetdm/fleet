@@ -249,7 +249,7 @@ export const getUiStatus = (
   }
 
   // **Recently_uninstalled check comes BEFORE update_available**
-  if (software.status === null && lastUninstallDate && hostSoftwareUpdatedAt) {
+  if (status === null && lastUninstallDate && hostSoftwareUpdatedAt) {
     const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastUninstallDate);
     if (newerDate === lastUninstallDate || recentUserActionDetected) {
       return "recently_uninstalled";
@@ -276,19 +276,18 @@ export const getUiStatus = (
   }
 
   // 6. Recently installed (not an update)
-  if (
-    software.status === "installed" &&
-    lastInstallDate &&
-    hostSoftwareUpdatedAt
-  ) {
-    const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastInstallDate);
-    if (newerDate === lastInstallDate || recentUserActionDetected) {
-      return "recently_installed";
+  if (status === "installed") {
+    if (lastInstallDate && hostSoftwareUpdatedAt) {
+      const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastInstallDate);
+      if (newerDate === lastInstallDate || recentUserActionDetected) {
+        return "recently_installed";
+      }
     }
+    return "installed";
   }
 
   // 7. Tarballs edge case
-  if (software.source === "tgz_packages" && software.status === "installed") {
+  if (source === "tgz_packages" && status === "installed") {
     return "installed";
   }
 

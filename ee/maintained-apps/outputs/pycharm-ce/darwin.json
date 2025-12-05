@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2025.2.4",
+      "version": "2025.2.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.pycharm.ce';"
       },
-      "installer_url": "https://download.jetbrains.com/python/pycharm-community-2025.2.4-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/python/pycharm-community-2025.2.5-aarch64.dmg",
       "install_script_ref": "2b5c7e02",
       "uninstall_script_ref": "f80fbecb",
-      "sha256": "0b945c8687bf678baa51315ee4cbbfe3e24736fd029fed2ce527ff1563a1278b",
+      "sha256": "040a4ed6bb7563972d844c450f615d0d11385e524fbbfdbfc9fc68d78811e994",
       "default_categories": [
         "Developer tools"
       ]

@@ -29,7 +29,7 @@ const UploadedPackageView = ({
         automatically enroll to this team. Delete the package to upload a new
         one.{" "}
         <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience"
+          url="https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package"
           text="Learn more"
           newTab
         />

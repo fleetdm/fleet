@@ -2305,16 +2305,14 @@ func (c *Client) DoGitOps(
 		return nil, nil, err
 	}
 
-	if !incoming.IsNoTeam() {
-		// Apply Android certificates if present
-		err = c.doGitOpsAndroidCertificates(incoming, logFn, dryRun)
-		if err != nil {
-			var gitOpsErr *gitOpsValidationError
-			if errors.As(err, &gitOpsErr) {
-				return nil, nil, gitOpsErr.WithFileContext(baseDir, filename)
-			}
-			return nil, nil, err
+	// Apply Android certificates if present
+	err = c.doGitOpsAndroidCertificates(incoming, logFn, dryRun)
+	if err != nil {
+		var gitOpsErr *gitOpsValidationError
+		if errors.As(err, &gitOpsErr) {
+			return nil, nil, gitOpsErr.WithFileContext(baseDir, filename)
 		}
+		return nil, nil, err
 	}
 
 	// apply icon changes from software installers and VPP apps
@@ -2870,30 +2868,29 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 }
 
 func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
-	if config.Controls.AndroidSettings == nil {
-		return nil
+	certificates := make([]fleet.CertificateTemplateSpec, 0)
+
+	// Extract Android certificates from config if there are any.
+	if config.Controls.AndroidSettings != nil {
+		androidSettings, ok := config.Controls.AndroidSettings.(fleet.AndroidSettings)
+		if ok && androidSettings.Certificates.Valid && len(androidSettings.Certificates.Value) > 0 {
+			certificates = androidSettings.Certificates.Value
+		}
 	}
 
-	androidSettings, ok := config.Controls.AndroidSettings.(fleet.AndroidSettings)
-	if !ok {
-		return nil
-	}
-
-	if !androidSettings.Certificates.Valid || len(androidSettings.Certificates.Value) == 0 {
-		return nil
-	}
-
-	certificates := androidSettings.Certificates.Value
 	numCerts := len(certificates)
 
 	teamID := ""
-	if config.TeamID != nil {
+	switch {
+	case config.TeamID != nil:
 		teamID = fmt.Sprintf("%d", *config.TeamID)
-	} else {
-		return errors.New("applying Android certificates: Team ID is required")
+	case config.IsNoTeam():
+		//  "No team"
+		teamID = "0"
+	default:
+		// global config, ignore
+		return nil
 	}
-
-	logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 
 	// existing certificate templates
 	existingCertificates, err := c.GetCertificateTemplates(teamID)
@@ -2901,14 +2898,22 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 		return fmt.Errorf("applying Android certificates: getting existing Android certificates: %w", err)
 	}
 
+	if numCerts == 0 && len(existingCertificates) == 0 {
+		return nil
+	}
+
+	if numCerts > 0 {
+		logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+	}
+
 	// getting certificate authorities
 	cas, err := c.GetCertificateAuthorities()
 	if err != nil {
 		return fmt.Errorf("getting certificate authorities: %w", err)
 	}
-	caIDsByName := make(map[string]uint)
+	casByName := make(map[string]*fleet.CertificateAuthoritySummary)
 	for _, ca := range cas {
-		caIDsByName[ca.Name] = ca.ID
+		casByName[ca.Name] = ca
 	}
 
 	certRequests := make([]*fleet.CertificateRequestSpec, len(certificates))
@@ -2920,16 +2925,27 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 			)
 		}
 
-		caID, ok := caIDsByName[certificates[i].CertificateAuthorityName]
+		// Validate Fleet variables in subject name
+		if err := validateCertificateTemplateFleetVariables(certificates[i].SubjectName); err != nil {
+			return newGitOpsValidationError(
+				fmt.Sprintf(`Invalid Fleet variable in certificate %q: %s`, certificates[i].Name, err.Error()),
+			)
+		}
+
+		ca, ok := casByName[certificates[i].CertificateAuthorityName]
 		if !ok {
 			return fmt.Errorf("certificate authority %q not found for certificate %q",
 				certificates[i].CertificateAuthorityName, certificates[i].Name)
+		}
+		// Validate that the CA is the right type.
+		if ca.Type != string(fleet.CATypeCustomSCEPProxy) {
+			return newGitOpsValidationError(fmt.Sprintf("Android certificates: CA `%s` has type `%s`. Currently, only the custom_scep_proxy certificate authority is supported.", ca.Name, ca.Type))
 		}
 
 		certRequests[i] = &fleet.CertificateRequestSpec{
 			Name:                   certificates[i].Name,
 			Team:                   teamID,
-			CertificateAuthorityId: caID,
+			CertificateAuthorityId: ca.ID,
 			SubjectName:            certificates[i].SubjectName,
 		}
 		if _, ok := certsToBeAdded[certificates[i].Name]; ok {
@@ -2968,13 +2984,15 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 		}
 	}
 
-	if dryRun {
-		logFn("[+] would've applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
-	} else {
-		if err := c.ApplyCertificateSpecs(certRequests); err != nil {
-			return fmt.Errorf("applying Android certificates: %w", err)
+	if numCerts > 0 {
+		if dryRun {
+			logFn("[+] would've applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+		} else {
+			if err := c.ApplyCertificateSpecs(certRequests); err != nil {
+				return fmt.Errorf("applying Android certificates: %w", err)
+			}
+			logFn("[+] applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 		}
-		logFn("[+] applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 	}
 
 	return nil

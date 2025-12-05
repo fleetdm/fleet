@@ -76,7 +76,7 @@ const SelectSoftwareTable = ({
         <p className={`${baseClass}__help-text`}>
           Software will be installed on{" "}
           {platform === "linux" ? "compatible platforms" : "all hosts"}.
-          Currently, custom targets (labels) don&apos;t apply during set up
+          Currently, custom targets (labels) don&apos;t apply during setup
           experience.
         </p>
       )}

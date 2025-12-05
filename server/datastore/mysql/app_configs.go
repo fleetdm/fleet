@@ -242,6 +242,7 @@ func getEnrollSecretsDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint
 		sql += "team_id = ?"
 		args = append(args, teamID)
 	}
+	sql += " ORDER BY secret" // secret is the primary key
 	var secrets []*fleet.EnrollSecret
 	if err := sqlx.SelectContext(ctx, q, &secrets, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get secrets")

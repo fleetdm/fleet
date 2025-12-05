@@ -9,11 +9,10 @@ import { ITeamConfig } from "interfaces/team";
 
 import SectionHeader from "components/SectionHeader/SectionHeader";
 import Spinner from "components/Spinner";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import RequireEndUserAuth from "./components/RequireEndUserAuth/RequireEndUserAuth";
 import EndUserAuthForm from "./components/EndUserAuthForm/EndUserAuthForm";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
@@ -76,10 +75,6 @@ const EndUserAuthentication = ({
     teamConfig
   );
 
-  const onClickConnect = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER);
-  };
-
   const renderContent = () => {
     if (!globalConfig || isLoadingGlobalConfig || isLoadingTeamConfig) {
       return <Spinner />;
@@ -88,7 +83,13 @@ const EndUserAuthentication = ({
     return (
       <SetupExperienceContentContainer>
         {!isIdPConfigured(mdmConfig) ? (
-          <RequireEndUserAuth onClickConnect={onClickConnect} />
+          <GenericMsgWithNavButton
+            header="Require end user authentication during setup"
+            info="Connect Fleet to your identity provider (IdP) to get started."
+            buttonText="Connect"
+            router={router}
+            path={PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER}
+          />
         ) : (
           <EndUserAuthForm
             currentTeamId={currentTeamId}

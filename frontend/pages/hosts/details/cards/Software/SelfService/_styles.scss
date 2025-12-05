@@ -21,6 +21,10 @@
     justify-content: space-between;
     gap: $pad-medium;
     align-items: center;
+
+    .search-field__tooltip-container {
+      width: 100%;
+    }
   }
 
   &__table {

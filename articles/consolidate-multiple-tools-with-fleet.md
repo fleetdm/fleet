@@ -26,7 +26,7 @@ The comapny also wanted to reduce the load on their engineering teams without sa
 
 ## Solution
 
-So, their refinements eventually led to a replacement of their legacy device management tooling with Fleet: a cross-platform device management solution that supports macOS, multiple Linux flavors, Windows, iOS / iPadOS, Chromebook, and Android.
+Their refinements eventually led to a replacement of their legacy device management tooling with Fleet: a cross-platform device management solution that supports macOS, multiple Linux flavors, Windows, iOS / iPadOS, Chromebook, and Android.
 
 The company was already using Fleet in early 2023 for managing [osquery](https://www.osquery.io/) in threat detection and compliance use cases with [scheduled queries](https://fleetdm.com/guides/queries).
 
@@ -54,11 +54,11 @@ Mad props to how easy making a deploy pkg of the agent was. I wish everyone made
 **— Staff Client Platform Engineer**
 </div>
 
-The ability to easily build Fleet's agent deployment packages allowed a quick install of `fleetd` across the company's devices. By supporting all of their platforms, Fleet enabled the comapny to deploy `fleetd` for managing osquery and device management, elimintating legacy tooling in the process.
+The ability to easily build Fleet's agent deployment packages allowed a quick install of `fleetd` across the company's computers. By supporting all of their platforms, Fleet enabled the comapny to deploy `fleetd` for managing osquery and device management, elimintating legacy tooling in the process.
 
 ### Audits
 
-By switching to Fleet, the company wasted less time around device audits by unblocking data collection and overcoming change management inertia, allowing IT to move faster with less manual intervention. 
+Switching to Fleet meant wasting less time on device audits by unblocking data collection and overcoming change management inertia. This allows IT to move faster with less manual intervention. 
 
 ### Device health
 

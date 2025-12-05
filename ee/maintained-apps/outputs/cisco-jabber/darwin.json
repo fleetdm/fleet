@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "latest",
+      "version": "15.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cisco.jabber';"
       },

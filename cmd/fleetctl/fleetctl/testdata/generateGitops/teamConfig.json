@@ -134,6 +134,15 @@
         },
         "windows_settings": {
             "custom_settings": null
+        },
+        "android_settings": {
+            "certificates": [
+                {
+                    "certificate_authority_name": "DIGIDOO",
+                    "name": "my_certypoo",
+                    "subject_name": "CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+                }
+            ]
         }
     },
     "scripts": [

@@ -21,7 +21,7 @@ Managing security, control, and flexibility across diverse devices can be challe
 
 ### Self-service Apple App Store apps
 
-Fleet enables organizations to assign and install Apple App Store apps purchased through the Volume Purchase Program (VPP) directly via Self-Service using Fleet Desktop. This feature lets IT administrators [make VPP-purchased apps available to end users](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet). 
+Fleet enables organizations to assign and install Apple App Store apps purchased through the Volume Purchase Program (VPP) directly via Self-Service using Fleet Desktop. This feature lets IT administrators [make VPP-purchased apps available to end users](https://fleetdm.com/guides/install-app-store-apps). 
 
 By integrating VPP app distribution into the Fleet Desktop Self-Service portal, organizations can streamline the deployment of essential software across their macOS devices. This ensures that users have easy access to the tools they need while maintaining control over software distribution. This update enhances the overall user experience and operational efficiency, empowering end users to install approved applications with minimal IT intervention.
 

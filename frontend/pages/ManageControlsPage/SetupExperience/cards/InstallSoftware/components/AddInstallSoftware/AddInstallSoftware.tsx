@@ -11,7 +11,8 @@ import mdmAPI from "services/entities/mdm";
 import Button from "components/buttons/Button";
 import { ISoftwareTitle } from "interfaces/software";
 import Checkbox from "components/forms/fields/Checkbox";
-import LinkWithContext from "components/LinkWithContext";
+import CustomLink from "components/CustomLink";
+
 import RevealButton from "components/buttons/RevealButton";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -82,24 +83,26 @@ const AddInstallSoftware = ({
         platformText = "iPadOS";
         break;
       default:
-        platformText = capitalize(platform);
+        platformText = capitalize(platform); // e.g. Windows, Android
     }
 
     if (noSoftwareUploaded) {
       return (
         <>
           No {platformText} software available. You can add software on the{" "}
-          <LinkWithContext
-            to={PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}
-            currentQueryParams={{ team_id: currentTeamId }}
-            withParams={{ type: "query", names: ["team_id"] }}
-          >
-            Software page
-          </LinkWithContext>
+          <CustomLink
+            url={`${PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}?team_id=${currentTeamId}`}
+            text="Software page"
+          />
           .
         </>
       );
     }
+
+    const orderTooltip =
+      platform === "android"
+        ? "Software order will vary."
+        : "Installation order will depend on software name, starting with 0-9 then A-Z.";
 
     return installSoftwareDuringSetupCount === 0 ? (
       "No software selected."
@@ -107,9 +110,10 @@ const AddInstallSoftware = ({
       <>
         {installSoftwareDuringSetupCount} software item
         {installSoftwareDuringSetupCount > 1 && "s"} will be{" "}
-        <TooltipWrapper tipContent="Installation order will depend on software name, starting with 0-9 then A-Z.">
-          installed during setup.
+        <TooltipWrapper tipContent={orderTooltip}>
+          installed during setup
         </TooltipWrapper>
+        .
       </>
     );
   };

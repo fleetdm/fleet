@@ -4,7 +4,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet you can deploy [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps), [App Store (VPP) apps](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet), and custom packages to your hosts.
+In Fleet you can deploy [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps), [App Store (VPP) apps](https://fleetdm.com/guides/install-app-store-apps), and custom packages to your hosts.
 
 This guide will walk you through steps to manually install custom packages on your hosts.
 

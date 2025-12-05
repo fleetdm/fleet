@@ -4,11 +4,11 @@ import type { SVGProps } from "react";
 
 const Word = (props: SVGProps<SVGSVGElement>) => {
   // Create unique IDs for the SVG gradients
-  const gradAId = uniqueId("word-gradient-a-");
-  const gradBId = uniqueId("word-gradient-b-");
-  const gradCId = uniqueId("word-gradient-c-");
-  const gradDId = uniqueId("word-gradient-d-");
-  const gradEId = uniqueId("word-gradient-e-");
+  const gradAId = uniqueId("word-gradient-");
+  const gradBId = uniqueId("word-gradient-");
+  const gradCId = uniqueId("word-gradient-");
+  const gradDId = uniqueId("word-gradient-");
+  const gradEId = uniqueId("word-gradient-");
 
   return (
     <svg fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>

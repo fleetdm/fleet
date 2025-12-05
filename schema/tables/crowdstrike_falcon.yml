@@ -1,11 +1,18 @@
 name: crowdstrike_falcon
-notes: This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
+notes: |-
+  This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
 description: Information about Crowdstrike Falcon, collected via the falconctl utility.
 platforms:
   - darwin
   - linux
 evented: false
 examples: |-
+  Get the agent ID of the CrowdStrike Falcon agent on all macOS and Linux hosts.
+
+  ```
+  SELECT agent_id FROM crowdstrike_falcon;
+  ```
+
   Output most table information, swapping customer ID for its length to avoid leaking sensitive information.
 
   ```

@@ -208,6 +208,8 @@ type AuthenticateDeviceFunc func(ctx context.Context, authToken string) (host *f
 
 type AuthenticateDeviceByCertificateFunc func(ctx context.Context, certSerial uint64, hostUUID string) (host *fleet.Host, debug bool, err error)
 
+type AuthenticateIDeviceByURLFunc func(ctx context.Context, urlUUID string) (host *fleet.Host, debug bool, err error)
+
 type ListHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error)
 
 type GetHostFunc func(ctx context.Context, id uint, opts fleet.HostDetailOptions) (host *fleet.HostDetail, err error)
@@ -390,7 +392,7 @@ type ApplyUserRolesSpecsFunc func(ctx context.Context, specs fleet.UsersRoleSpec
 
 type CreateCertificateTemplateFunc func(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*fleet.CertificateTemplateResponseFull, error)
 
-type ListCertificateTemplatesFunc func(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
+type ListCertificateTemplatesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
 
 type GetDeviceCertificateTemplateFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error)
 
@@ -402,7 +404,7 @@ type ApplyCertificateTemplateSpecsFunc func(ctx context.Context, specs []*fleet.
 
 type DeleteCertificateTemplateSpecsFunc func(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
 
-type UpdateCertificateStatusFunc func(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus) error
+type UpdateCertificateStatusFunc func(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error
 
 type GlobalScheduleQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
 
@@ -1151,6 +1153,9 @@ type Service struct {
 
 	AuthenticateDeviceByCertificateFunc        AuthenticateDeviceByCertificateFunc
 	AuthenticateDeviceByCertificateFuncInvoked bool
+
+	AuthenticateIDeviceByURLFunc        AuthenticateIDeviceByURLFunc
+	AuthenticateIDeviceByURLFuncInvoked bool
 
 	ListHostsFunc        ListHostsFunc
 	ListHostsFuncInvoked bool
@@ -2807,6 +2812,13 @@ func (s *Service) AuthenticateDeviceByCertificate(ctx context.Context, certSeria
 	return s.AuthenticateDeviceByCertificateFunc(ctx, certSerial, hostUUID)
 }
 
+func (s *Service) AuthenticateIDeviceByURL(ctx context.Context, urlUUID string) (host *fleet.Host, debug bool, err error) {
+	s.mu.Lock()
+	s.AuthenticateIDeviceByURLFuncInvoked = true
+	s.mu.Unlock()
+	return s.AuthenticateIDeviceByURLFunc(ctx, urlUUID)
+}
+
 func (s *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error) {
 	s.mu.Lock()
 	s.ListHostsFuncInvoked = true
@@ -3444,11 +3456,11 @@ func (s *Service) CreateCertificateTemplate(ctx context.Context, name string, te
 	return s.CreateCertificateTemplateFunc(ctx, name, teamID, certificateAuthorityID, subjectName)
 }
 
-func (s *Service) ListCertificateTemplates(ctx context.Context, teamID uint, page int, perPage int) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+func (s *Service) ListCertificateTemplates(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListCertificateTemplatesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListCertificateTemplatesFunc(ctx, teamID, page, perPage)
+	return s.ListCertificateTemplatesFunc(ctx, teamID, opts)
 }
 
 func (s *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
@@ -3486,11 +3498,11 @@ func (s *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certificat
 	return s.DeleteCertificateTemplateSpecsFunc(ctx, certificateTemplateIDs, teamID)
 }
 
-func (s *Service) UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus) error {
+func (s *Service) UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error {
 	s.mu.Lock()
 	s.UpdateCertificateStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateCertificateStatusFunc(ctx, certificateTemplateID, status)
+	return s.UpdateCertificateStatusFunc(ctx, certificateTemplateID, status, detail)
 }
 
 func (s *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {

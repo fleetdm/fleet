@@ -1,0 +1,8 @@
+{
+  "name": "Nova",
+  "unique_identifier": "com.panic.Nova",
+  "token": "nova",
+  "installer_format": "zip",
+  "slug": "nova/darwin",
+  "default_categories": ["Developer tools"]
+}

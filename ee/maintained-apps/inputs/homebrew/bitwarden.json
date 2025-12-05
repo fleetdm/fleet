@@ -1,0 +1,8 @@
+{
+  "name": "Bitwarden",
+  "unique_identifier": "com.bitwarden.desktop",
+  "token": "bitwarden",
+  "installer_format": "dmg",
+  "slug": "bitwarden/darwin",
+  "default_categories": ["Productivity"]
+}

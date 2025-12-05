@@ -8,10 +8,6 @@ Migrating from your current MDM solution to Fleet? Head to the [migration instru
 
 Entra conditional access is supported even if you're not using MDM features in Fleet.
 
-Migrating from your current MDM solution to Fleet? Head to the [migration instructions](#migration).
-
-Entra conditional access is supported even if you're not using MDM features in Fleet.
-
 [Microsoft](https://learn.microsoft.com/en-us/intune/intune-service/protect/device-compliance-partners) requires that this feature is only supported if you're using Fleet's managed cloud.
 
 - [Step 1: Create a "Fleet conditional access" group in Entra](#step-1-create-a-fleet-conditional-access-group-in-entra)
@@ -73,17 +69,18 @@ We will need to create a dynamic label to determine which macOS devices have "Co
 
 We will use this label to conditionally deploy a Platform SSO configuration profile (next step).
 
-Head to **Hosts > Filter by platform or label > Add label + > Dynamic**.
+Select the avatar on the right side of the top navigation and select **Labels > Add label**.
 
 - Name: `Company Portal installed`
 - Description: `Company Portal is installed on the host.`
+- Type: `Dynamic`
 - Query:
   ```sql
   SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.CompanyPortalMac';
   ```
 - Platform: `macOS`
 
-### Depoloy Platform SSO configuration profile
+### Deploy Platform SSO configuration profile
 
 For Entra's "Conditional Access" feature we need to deploy a Platform SSO extension for Company Portal.
 The extension must be deployed via configuration profiles. For more information see https://learn.microsoft.com/en-us/intune/intune-service/configuration/platform-sso-macos#step-3---deploy-the-company-portal-app-for-macos.

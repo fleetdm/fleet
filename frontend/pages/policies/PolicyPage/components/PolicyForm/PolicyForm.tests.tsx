@@ -10,7 +10,6 @@ import createMockUser from "__mocks__/userMock";
 import createMockConfig from "__mocks__/configMock";
 
 import { ILabelSummary } from "interfaces/label";
-import PolicyProvider from "context/policy";
 import PolicyForm from "./PolicyForm";
 
 const baseUrl = (path: string) => {

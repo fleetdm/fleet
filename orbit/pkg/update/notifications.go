@@ -276,7 +276,7 @@ type runScriptsConfigReceiver struct {
 	// ScriptsExecutionEnabled indicates if this agent allows scripts execution.
 	// If it doesn't, scripts are not executed, but a response is returned to the
 	// Fleet server so it knows the agent processed the request. Note that this
-	// should be set to the value of the --scripts-enabled command-line flag. An
+	// should be set to the value of the --enable-scripts command-line flag. An
 	// additional, dynamic check is done automatically by the
 	// runScriptsConfigReceiver if this field is false to get the value from the
 	// MDM configuration profile.
@@ -404,7 +404,7 @@ func (h *runScriptsConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 
 func (h *runScriptsConfigReceiver) scriptsEnabled() bool {
 	// scripts are always enabled if the agent is started with the
-	// --scripts-enabled flag. If it is not started with this flag, then
+	// --enable-scripts flag. If it is not started with this flag, then
 	// scripts are enabled only if the mdm profile says so.
 	return h.ScriptsExecutionEnabled || h.dynamicScriptsEnabled.Load()
 }
