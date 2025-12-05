@@ -213,16 +213,32 @@ type MDMAppleErrorChainItem struct {
 // "/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM".
 //
 // See https://osquery.io/schema/5.15.0/#certificates
-func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNameDetails, error) {
-	str = strings.TrimSpace(str)
-	str = strings.Trim(str, "/")
+func ExtractDetailsFromOsqueryDistinguishedName(hostPlatform string, dn string) (*HostCertificateNameDetails, error) {
+	if strings.EqualFold(hostPlatform, "windows") {
+		return parseWindowsDN(dn)
+	}
+	return parseNonWindowsDN(dn)
+}
 
-	str = strings.ReplaceAll(str, `\/`, `<<SLASH>>`) // Replace with our own "safe" sequence
-	parts := strings.Split(str, "/")
+// TODO: verify osquery output for linux certs is similar to macOS?
+
+// parseNonWindowsDN takes a distinguished name string and returns the country,
+// organization, and organizational unit. It assumes provided string follows the formatting used by
+// osquery `certificates` table[1] for macOS hosts, which appears to follow the style used by openSSL for `-subj`
+// values). Key-value pairs are assumed to be separated by forward slashes, for example:
+// "/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM".
+//
+// See https://osquery.io/schema/5.15.0/#certificates
+func parseNonWindowsDN(dn string) (*HostCertificateNameDetails, error) {
+	dn = strings.TrimSpace(dn)
+	dn = strings.Trim(dn, "/")
+
+	dn = strings.ReplaceAll(dn, `\/`, `<<SLASH>>`) // Replace with our own "safe" sequence
+	parts := strings.Split(dn, "/")
 
 	if len(parts) == 1 {
 		// Try to split into parts based on +
-		parts = strings.Split(str, "+")
+		parts = strings.Split(dn, "+")
 	}
 
 	ouParts := []string{}
@@ -231,7 +247,7 @@ func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNam
 		key, value, found := strings.Cut(part, "=")
 
 		if !found {
-			return nil, fmt.Errorf("invalid distinguished name, wrong key value pair format: %s", str)
+			return nil, fmt.Errorf("invalid distinguished name, wrong key value pair format: %s", dn)
 		}
 
 		value = strings.ReplaceAll(strings.Trim(value, " "), `<<SLASH>>`, `/`) // Replace our "safe" sequence with forward slash
@@ -252,7 +268,7 @@ func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNam
 			// To handle both cases, we collect all OU values and join them with `+OU=` below.
 			// We should probably reconsider our approaches for normalization of cert data
 			// across the board.
-			// FIXME: How should this work with the edge case covered by PR 33152 (see line 224 above)?
+			// FIXME: How should this work with the edge case covered by PR 33152 (e.g., "+" separator above)?
 			ouParts = append(ouParts, strings.Trim(value, " "))
 		case "CN":
 			details.CommonName = strings.Trim(value, " ")
@@ -261,6 +277,70 @@ func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNam
 	details.OrganizationalUnit = strings.Join(ouParts, "+OU=")
 
 	return &details, nil
+}
+
+// FIXME: parseWindowsDN takes a distinguished name string from a Windows host but does not parse it
+// because the format of the distinguished name as reported by osquery on Windows hosts is not
+// well-ordered. For now, it simply sets the provided string as the CommonName and leaves other fields
+// empty.
+//
+// To address this, we will likely need to modify the osquery certificates table. The issue is that
+// osquery on Windows reports only the values in a comma-separated list without corresponding keys
+// (instead of key-value pairs as on macOS, e.g., /C=US/O=Org/OU=Unit/CN=Name),  When a value is missing
+// (country, for example), the list shifts left such that the position of the values is not
+// consistent, making it very difficult to map which value is which.
+func parseWindowsDN(dn string) (*HostCertificateNameDetails, error) {
+	return &HostCertificateNameDetails{
+		CommonName:         dn,
+		Country:            "",
+		Organization:       "",
+		OrganizationalUnit: "",
+	}, nil
+}
+
+// DedupeWindowsHostCertificates deduplicates host certificates reported from Windows hosts.
+// On Windows, the osquery certificates table returns duplicate entries for the same certificate
+// if it is present in multiple certificate stores. This function deduplicates them based on the
+// SHA1 sum, keeping only one instance of each unique certificate. For user certificates, it also
+// considers the username to ensure that certificates owned by different users are not deduplicated
+// together.
+func DedupeWindowsHostCertificates(certs []*HostCertificateRecord) []*HostCertificateRecord {
+	if len(certs) == 0 {
+		return certs
+	}
+
+	// TODO: decide business logic for deduplication of host certificates on Windows hosts; also do
+	// we want any logging here to indicate that deduplication occurred?
+
+	systemCertsBySha1 := make(map[string]*HostCertificateRecord)
+	userCertsBySha1User := make(map[string]*HostCertificateRecord)
+
+	for _, cert := range certs {
+		sha1 := strings.ToUpper(fmt.Sprintf("%x", cert.SHA1Sum))
+		if cert.Source == SystemHostCertificate {
+			if _, exists := systemCertsBySha1[sha1]; exists {
+				// already have a system cert with this sha1, skip duplicates
+				continue
+			}
+			systemCertsBySha1[sha1] = cert
+		} else if cert.Source == UserHostCertificate {
+			key := sha1 + "|" + cert.Username
+			if _, exists := userCertsBySha1User[key]; exists {
+				// already have a system cert with this sha1, skip duplicates
+				continue
+			}
+			userCertsBySha1User[key] = cert
+		}
+	}
+
+	deduped := make([]*HostCertificateRecord, 0, len(systemCertsBySha1)+len(userCertsBySha1User))
+	for _, cert := range systemCertsBySha1 {
+		deduped = append(deduped, cert)
+	}
+	for _, cert := range userCertsBySha1User {
+		deduped = append(deduped, cert)
+	}
+	return deduped
 }
 
 func firstOrEmpty(s []string) string {
