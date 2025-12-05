@@ -48,6 +48,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsSaveResponse", testSaveResponse},
 		{"TestSetMDMWindowsProfilesWithVariables", testSetMDMWindowsProfilesWithVariables},
 		{"TestWindowsMDMManagedSCEPCertificates", testWindowsMDMManagedSCEPCertificates},
+		{"TestGetWindowsMDMCommandsForResending", testGetWindowsMDMCommandsForResending},
 	}
 
 	for _, c := range cases {
@@ -1390,33 +1391,10 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 		return res.LastInsertId()
 	}
 
-	h, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:      "test-win-host-name",
-		OsqueryHostID: ptr.String("1337"),
-		NodeKey:       ptr.String("1337"),
-		UUID:          "test-win-host-uuid",
-		Platform:      "windows",
-	})
-	require.NoError(t, err)
-
-	dev := &fleet.MDMWindowsEnrolledDevice{
-		MDMDeviceID:            "test-device-id",
-		MDMHardwareID:          "test-hardware-id",
-		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
-		MDMDeviceType:          "dt",
-		MDMDeviceName:          "dn",
-		MDMEnrollType:          "et",
-		MDMEnrollUserID:        "euid",
-		MDMEnrollProtoVersion:  "epv",
-		MDMEnrollClientVersion: "ecv",
-		MDMNotInOOBE:           false,
-		HostUUID:               h.UUID,
-	}
-
-	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, dev))
+	dev := createMDMWindowsEnrollment(ctx, t, ds)
 	var enrollmentID uint
 	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &enrollmentID, `SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, dev.MDMDeviceID))
-	_, err = ds.writer(ctx).ExecContext(ctx,
+	_, err := ds.writer(ctx).ExecContext(ctx,
 		`UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE id = ?`, dev.HostUUID, enrollmentID)
 	require.NoError(t, err)
 
@@ -1457,6 +1435,34 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	results, err = ds.GetMDMWindowsCommandResults(ctx, "unknown-cmd-uuid")
 	require.NoError(t, err) // expect no error here, just no results
 	require.Empty(t, results)
+}
+
+func createMDMWindowsEnrollment(ctx context.Context, t *testing.T, ds *Datastore) *fleet.MDMWindowsEnrolledDevice {
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-win-host-name",
+		OsqueryHostID: ptr.String("1337"),
+		NodeKey:       ptr.String("1337"),
+		UUID:          "test-win-host-uuid",
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	dev := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            "test-device-id",
+		MDMHardwareID:          "test-hardware-id",
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "dt",
+		MDMDeviceName:          "dn",
+		MDMEnrollType:          "et",
+		MDMEnrollUserID:        "euid",
+		MDMEnrollProtoVersion:  "epv",
+		MDMEnrollClientVersion: "ecv",
+		MDMNotInOOBE:           false,
+		HostUUID:               h.UUID,
+	}
+
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, dev))
+	return dev
 }
 
 func testMDMWindowsCommandResultsWithPendingResult(t *testing.T, ds *Datastore) {
@@ -2873,7 +2879,8 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, atomicCommandUUID, replaceCommandUUID)
 
 	// Do test
-	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice1.MDMDeviceID, enrichedSyncML)
+	// TODO: Follow up, if we want to do extra logic here to test the top-level command
+	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice1.MDMDeviceID, enrichedSyncML, []string{})
 	require.NoError(t, err)
 
 	// Verify results
@@ -2901,7 +2908,8 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice2.Hos
 	enrichedSyncML2 := createResponseAsEnrichedSyncML(t, enrolledDevice2, atomicCommandUUID, replaceCommandUUID)
 
 	// Do test on the second device
-	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice2.MDMDeviceID, enrichedSyncML2)
+	// TODO: Follow up, if we want to do extra logic here to test the top-level command
+	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice2.MDMDeviceID, enrichedSyncML2, []string{})
 	require.NoError(t, err)
 
 	// Verify results for the second device
@@ -3404,4 +3412,39 @@ func testWindowsMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 						}) */
 		})
 	}
+}
+
+func testGetWindowsMDMCommandsForResending(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	topLevelCmdUUID := uuid.NewString()
+	cmdUUID := uuid.NewString()
+
+	// Create entry in mdm_windows_enrollments table for command queue
+	dev := createMDMWindowsEnrollment(ctx, t, ds)
+
+	// No commands in windows_mdm_commands so doesn't matter what we put in
+	commands, err := ds.GetWindowsMDMCommandsForResending(ctx, []string{cmdUUID})
+	require.NoError(t, err)
+	require.Empty(t, commands)
+
+	// Insert a command
+	rawCommand := []byte(fmt.Sprintf(`%s`, cmdUUID))
+	err = ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.writer(ctx), []string{dev.HostUUID}, &fleet.MDMWindowsCommand{
+		CommandUUID: topLevelCmdUUID,
+		RawCommand:  rawCommand,
+	})
+	require.NoError(t, err)
+
+	// Fetch command for resending
+	commands, err = ds.GetWindowsMDMCommandsForResending(ctx, []string{cmdUUID})
+	require.NoError(t, err)
+	require.Len(t, commands, 1)
+	assert.Equal(t, topLevelCmdUUID, commands[0].CommandUUID)
+	assert.Equal(t, rawCommand, commands[0].RawCommand)
+
+	// Check that we search raw body and not match on command_uuid
+	commands, err = ds.GetWindowsMDMCommandsForResending(ctx, []string{topLevelCmdUUID})
+	require.NoError(t, err)
+	require.Empty(t, commands)
 }
