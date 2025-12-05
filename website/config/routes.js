@@ -1140,6 +1140,7 @@ module.exports.routes = {
   'GET /learn-more-about/example-android-profile': 'https://gist.github.com/marko-lisica/45ee31f6850e1f002141c1b5b43ce519',
   'GET /learn-more-about/manual-enrollment-profile': '/docs/rest-api/rest-api#get-manual-enrollment-profile',
   'GET /learn-more-about/deleting-android-enterprise': '/guides/android-mdm-setup#deleting-android-enterprise-in-google-admin',
+  'GET /learn-more-about/google-admin-emm': 'https://admin.google.com/ac/devices/settings/thirdparty',
   'GET /learn-more-about/setup-experience/install-software': '/guides/setup-experience#install-software',
   'GET /learn-more-about/setup-experience/run-script': '/guides/setup-experience#run-script',
   'GET /learn-more-about/setup-experience/end-user-authentication': '/guides/setup-experience#end-user-authentication',
