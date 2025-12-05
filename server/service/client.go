@@ -2917,7 +2917,7 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 	}
 
 	certRequests := make([]*fleet.CertificateRequestSpec, len(certificates))
-	certsToBeAdded := make(map[string]struct{})
+	certsToBeAdded := make(map[string]*fleet.CertificateRequestSpec, len(certificates))
 	for i := range certificates {
 		if !certificates[i].NameValid() {
 			return newGitOpsValidationError(
@@ -2957,14 +2957,29 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 			)
 		}
 
-		certsToBeAdded[certificates[i].Name] = struct{}{}
+		certsToBeAdded[certificates[i].Name] = certRequests[i]
 	}
 
 	var certificatesToDelete []uint
 	for _, cert := range existingCertificates {
 		if cert != nil {
-			if _, ok := certsToBeAdded[cert.Name]; !ok {
+			newCert, exists := certsToBeAdded[cert.Name]
+			if !exists {
 				certificatesToDelete = append(certificatesToDelete, cert.ID)
+			} else {
+				// Certificate exists
+				fullCert, err := c.GetCertificateTemplate(cert.ID, nil)
+				if err != nil {
+					return fmt.Errorf("getting certificate %q details: %w", cert.Name, err)
+				}
+				if fullCert.SubjectName != newCert.SubjectName {
+					// subjectName changed, mark for deletion (will be recreated)
+					certificatesToDelete = append(certificatesToDelete, cert.ID)
+				}
+				if fullCert.CertificateAuthorityId != newCert.CertificateAuthorityId {
+					// CA changed, mark for deletion (will be recreated)
+					certificatesToDelete = append(certificatesToDelete, cert.ID)
+				}
 			}
 		}
 	}
