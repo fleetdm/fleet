@@ -90,7 +90,7 @@ object ApiClient {
         body: R? = null,
         bodySerializer: KSerializer<R>? = null,
         responseSerializer: KSerializer<T>,
-        authorizationHeader: String? = null,
+        authorized: Boolean = true,
     ): Result<T> = withContext(Dispatchers.IO) {
         var connection: HttpURLConnection? = null
         try {
@@ -120,7 +120,14 @@ object ApiClient {
                 useCaches = false
                 doInput = true
                 setRequestProperty("Content-Type", "application/json")
-                authorizationHeader?.let { setRequestProperty("Authorization", it) }
+                if (authorized) {
+                    getNodeKeyOrEnroll().fold(
+                        onFailure = { throwable -> return@withContext Result.failure(throwable) },
+                        onSuccess = { nodeKey ->
+                            setRequestProperty("Authorization", "Node key $nodeKey")
+                        },
+                    )
+                }
                 connectTimeout = 15000
                 readTimeout = 15000
 
@@ -166,6 +173,7 @@ object ApiClient {
             ),
             bodySerializer = EnrollRequest.serializer(),
             responseSerializer = EnrollResponse.serializer(),
+            authorized = false,
         )
         resp.onSuccess { value ->
             setApiKey(value.orbitNodeKey)
@@ -190,6 +198,7 @@ object ApiClient {
             body = GetConfigRequest(orbitNodeKey = orbitNodeKey),
             bodySerializer = GetConfigRequest.serializer(),
             responseSerializer = OrbitConfig.serializer(),
+            authorized = false,
         )
     }
 
@@ -216,6 +225,7 @@ object ApiClient {
             body = GetCertificateTemplateRequest(orbitNodeKey = orbitNodeKey),
             bodySerializer = GetCertificateTemplateRequest.serializer(),
             responseSerializer = GetCertificateTemplateResponse.serializer(),
+            authorized = false,
         ).fold(
             onSuccess = { res ->
                 Log.i("ApiClient", "successfully retrieved certificate template ${res.id}: ${res.name}")
@@ -235,39 +245,27 @@ object ApiClient {
         )
     }
 
-    suspend fun updateCertificateStatus(
-        certificateId: Int,
-        status: String,
-        detail: String? = null,
-    ): Result<Unit> {
-        val nodeKeyResult = getNodeKeyOrEnroll()
-        val orbitNodeKey = nodeKeyResult.getOrElse { error ->
-            return Result.failure(error)
-        }
-
-        return makeRequest(
-            endpoint = "/api/fleetd/certificates/$certificateId/status",
-            method = "PUT",
-            body = UpdateCertificateStatusRequest(status = status, detail = detail),
-            bodySerializer = UpdateCertificateStatusRequest.serializer(),
-            responseSerializer = UpdateCertificateStatusResponse.serializer(),
-            authorizationHeader = "Node key $orbitNodeKey",
-        ).fold(
-            onSuccess = { response ->
-                if (response.error != null) {
-                    Log.e("ApiClient", "failed to update certificate status $certificateId: ${response.error}")
-                    Result.failure(Exception(response.error))
-                } else {
-                    Log.i("ApiClient", "successfully updated certificate status for $certificateId to $status")
-                    Result.success(Unit)
-                }
-            },
-            onFailure = { throwable ->
-                Log.e("ApiClient", "failed to update certificate status $certificateId: ${throwable.message}")
-                Result.failure(throwable)
-            },
-        )
-    }
+    suspend fun updateCertificateStatus(certificateId: Int, status: String, detail: String? = null): Result<Unit> = makeRequest(
+        endpoint = "/api/fleetd/certificates/$certificateId/status",
+        method = "PUT",
+        body = UpdateCertificateStatusRequest(status = status, detail = detail),
+        bodySerializer = UpdateCertificateStatusRequest.serializer(),
+        responseSerializer = UpdateCertificateStatusResponse.serializer(),
+    ).fold(
+        onSuccess = { response ->
+            if (response.error != null) {
+                Log.e("ApiClient", "failed to update certificate status $certificateId: ${response.error}")
+                Result.failure(Exception(response.error))
+            } else {
+                Log.i("ApiClient", "successfully updated certificate status for $certificateId to $status")
+                Result.success(Unit)
+            }
+        },
+        onFailure = { throwable ->
+            Log.e("ApiClient", "failed to update certificate status $certificateId: ${throwable.message}")
+            Result.failure(throwable)
+        },
+    )
 
     private suspend fun getEnrollmentCredentials(): EnrollmentCredentials? {
         val prefs = dataStore.data.first()
