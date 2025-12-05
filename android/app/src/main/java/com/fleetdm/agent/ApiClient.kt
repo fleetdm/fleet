@@ -90,6 +90,7 @@ object ApiClient {
         body: R? = null,
         bodySerializer: KSerializer<R>? = null,
         responseSerializer: KSerializer<T>,
+        authorizationHeader: String? = null,
     ): Result<T> = withContext(Dispatchers.IO) {
         var connection: HttpURLConnection? = null
         try {
@@ -119,6 +120,7 @@ object ApiClient {
                 useCaches = false
                 doInput = true
                 setRequestProperty("Content-Type", "application/json")
+                authorizationHeader?.let { setRequestProperty("Authorization", it) }
                 connectTimeout = 15000
                 readTimeout = 15000
 
@@ -228,6 +230,40 @@ object ApiClient {
             },
             onFailure = { throwable ->
                 Log.e("ApiClient", "failed to get certificate template $certificateId")
+                Result.failure(throwable)
+            },
+        )
+    }
+
+    suspend fun updateCertificateStatus(
+        certificateId: Int,
+        status: String,
+        detail: String? = null,
+    ): Result<Unit> {
+        val nodeKeyResult = getNodeKeyOrEnroll()
+        val orbitNodeKey = nodeKeyResult.getOrElse { error ->
+            return Result.failure(error)
+        }
+
+        return makeRequest(
+            endpoint = "/api/fleetd/certificates/$certificateId/status",
+            method = "PUT",
+            body = UpdateCertificateStatusRequest(status = status, detail = detail),
+            bodySerializer = UpdateCertificateStatusRequest.serializer(),
+            responseSerializer = UpdateCertificateStatusResponse.serializer(),
+            authorizationHeader = "Node key $orbitNodeKey",
+        ).fold(
+            onSuccess = { response ->
+                if (response.error != null) {
+                    Log.e("ApiClient", "failed to update certificate status $certificateId: ${response.error}")
+                    Result.failure(Exception(response.error))
+                } else {
+                    Log.i("ApiClient", "successfully updated certificate status for $certificateId to $status")
+                    Result.success(Unit)
+                }
+            },
+            onFailure = { throwable ->
+                Log.e("ApiClient", "failed to update certificate status $certificateId: ${throwable.message}")
                 Result.failure(throwable)
             },
         )
@@ -386,6 +422,20 @@ data class OrbitUpdateChannels(
 private data class GetCertificateTemplateRequest(
     @SerialName("orbit_node_key")
     val orbitNodeKey: String,
+)
+
+@Serializable
+data class UpdateCertificateStatusRequest(
+    @SerialName("status")
+    val status: String,
+    @SerialName("detail")
+    val detail: String? = null,
+)
+
+@Serializable
+private data class UpdateCertificateStatusResponse(
+    @SerialName("error")
+    val error: String? = null,
 )
 
 @Serializable
