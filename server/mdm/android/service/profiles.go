@@ -472,6 +472,7 @@ func (r *profileReconciler) processCertificateTemplateBatch(ctx context.Context,
 	}
 
 	svc := &Service{
+		logger:           kitlog.NewNopLogger(),
 		ds:               r.DS,
 		fleetDS:          r.DS,
 		androidAPIClient: r.Client,

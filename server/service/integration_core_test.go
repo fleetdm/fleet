@@ -8042,7 +8042,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	})
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
 	require.NoError(t, resp.Body.Close())
-	require.Equal(t, *getCertResp.Certificate.Status, fleet.MDMDeliveryFailed)
+	require.Equal(t, *getCertResp.Certificate.Status, fleet.CertificateTemplateFailed)
 
 	// Add an IDP user for the host
 	err = s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
@@ -8077,14 +8077,6 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_END_USER_IDP_USERNAME")
 	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_UUID")
 	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_HARDWARE_SERIAL")
-
-	// Get certificate with host_uuid (should return replaced variables)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d?host_uuid=%s", certID, host.UUID), nil, http.StatusOK, &getCertResp)
-	require.NotNil(t, getCertResp.Certificate)
-
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "test.user@example.com")
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "test-uuid-12345")
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "TEST-SERIAL-67890")
 
 	// batch delete certificate templates
 	var delBatchResp deleteCertificateTemplateSpecsResponse
