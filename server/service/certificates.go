@@ -289,7 +289,6 @@ func (svc *Service) resolveTeamNamesForSpecs(ctx context.Context, specs []*fleet
 
 		team, err := svc.ds.TeamByName(ctx, spec.Team)
 		if err != nil {
-			svc.authz.SkipAuthorization(ctx)
 			return nil, ctxerr.Wrap(ctx, err, "getting team by name")
 		}
 		teamNameToID[spec.Team] = team.ID
@@ -311,6 +310,7 @@ func (svc *Service) checkCertificateTemplateSpecAuthorization(ctx context.Contex
 func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*fleet.CertificateRequestSpec) error {
 	teamNameToID, err := svc.resolveTeamNamesForSpecs(ctx, specs)
 	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
 		return err
 	}
 
