@@ -206,8 +206,17 @@ func (c *Client) do(ctx context.Context, name, method, path string, in interface
 		return req, err
 	}
 
+	limit20KiB := 20 * 1024
 	if c.logger != nil {
-		c.logger.Debug("msg", "Apple DEP Request returned 200 status", "url", req.URL.String(), "apple_request_uuid", appleRequestUUID, "body", string(bodyBytes))
+		responseBodyString := ""
+		// This should cover large DEP requests without overwhelming the logs and get the data needed
+		// for the most important ones like assign profile responses
+		if len(bodyBytes) > limit20KiB {
+			responseBodyString = string(bodyBytes[:limit20KiB]) + "...[truncated]"
+		} else {
+			responseBodyString = string(bodyBytes)
+		}
+		c.logger.Debug("msg", "Apple DEP Request returned 200 status", "url", req.URL.String(), "apple_request_uuid", appleRequestUUID, "body", responseBodyString)
 	}
 
 	if out != nil {
