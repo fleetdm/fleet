@@ -457,6 +457,13 @@
       "description": "JetBrains tools manager."
     },
     {
+      "name": "KeePassXC",
+      "slug": "keepassxc/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.keepassx.keepassxc",
+      "description": "KeePassXC is a password manager app."
+    },
+    {
       "name": "Linear",
       "slug": "linear-linear/darwin",
       "platform": "darwin",
