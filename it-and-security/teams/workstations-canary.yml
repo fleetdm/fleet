@@ -250,13 +250,6 @@ software:
         - Communication
       labels_include_any:
         - "RPM-based Linux hosts"
-    - path: ../lib/windows/software/slack.yml # Slack for Windows
-      self_service: true
-      categories:
-        - Productivity
-        - Communication
-      labels_include_any:
-        - "x86-based Windows hosts"
     - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
       self_service: true
       categories:
@@ -311,6 +304,14 @@ software:
     - slug: microsoft-teams/darwin # Microsoft Teams for macOS
       self_service: true
     # Windows apps
+    - slug: slack/windows # Slack for Windows
+      self_service: true
+      setup_experience: true
+      categories:
+        - Productivity
+        - Communication
+      labels_include_any:
+        - "x86-based Windows hosts"
     - slug: google-chrome/windows # Google Chrome for Windows
       self_service: true
       categories:
