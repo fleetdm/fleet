@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/log"
 )
 
 const (
@@ -82,6 +83,9 @@ type Client struct {
 	// an HTTP client that handles DEP API authentication and session management
 	client    depclient.Doer
 	afterHook func(ctx context.Context, err error) error
+
+	// Optional logger for debugging
+	logger log.Logger
 }
 
 // ClientOption defines the functional options type for NewClient.
@@ -95,6 +99,12 @@ type ClientOption func(*Client)
 func WithAfterHook(hook func(ctx context.Context, err error) error) ClientOption {
 	return func(c *Client) {
 		c.afterHook = hook
+	}
+}
+
+func WithLogger(logger log.Logger) ClientOption {
+	return func(c *Client) {
+		c.logger = logger
 	}
 }
 
@@ -162,7 +172,9 @@ func (c *Client) do(ctx context.Context, name, method, path string, in interface
 		req.Header.Set("Accept", mediaType)
 	}
 
-	fmt.Printf("DEP REQ: %s %s body=%s\n", method, req.URL.String(), bodyStr)
+	if c.logger != nil {
+		c.logger.Debug("msg", "sending request to Apple DEP", "method", method, "url", req.URL.String(), "body", bodyStr)
+	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -170,11 +182,6 @@ func (c *Client) do(ctx context.Context, name, method, path string, in interface
 		return req, err
 	}
 	defer resp.Body.Close()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return req, err
-	}
 
 	appleRequestUUID := ""
 	if hdr, ok := resp.Header[http.CanonicalHeaderKey("X-Apple-Request-UUID")]; ok {
@@ -185,12 +192,20 @@ func (c *Client) do(ctx context.Context, name, method, path string, in interface
 			appleRequestUUID += hdrValue
 		}
 	}
-	fmt.Printf("DEP Resp Apple Request UUID %s status %d: body %s\n", appleRequestUUID, resp.StatusCode, string(bodyBytes))
 
 	if resp.StatusCode == http.StatusUnauthorized {
-		return req, fmt.Errorf("unhandled auth error: %w", depclient.NewAuthError(resp))
+		return req, fmt.Errorf("unhandled auth error on request %s: %w", appleRequestUUID, depclient.NewAuthError(resp))
 	} else if resp.StatusCode != http.StatusOK {
 		return req, NewHTTPError(resp)
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return req, err
+	}
+
+	if c.logger != nil {
+		c.logger.Debug("msg", "Apple DEP Request returned 200 status", "url", req.URL.String(), "apple_request_uuid", appleRequestUUID, "body", string(bodyBytes))
 	}
 
 	if out != nil {
