@@ -251,7 +251,7 @@ To [change a teammate's compensation](https://fleetdm.com/handbook/company/commu
 4. Once compensation decisions have been finalized, the Head of People will send the teammate's manager a Slack DM to communicate the compensation decision and asking them to inform the teammate.
 5. Update the respective payroll platform (Gusto or Remote): 
    - In Gusto, navigate to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
-   - In Remote, navigate to "Requests", select the employee from the dropdown box, and begin the process for an employee agreement amendment. 
+   - In Remote, navigate to "Requests", start a new request, select the employee from the dropdown box, and begin the process for an employee agreement amendment. 
 7. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying Adding to the "Notes" cell.
   - Update the "¶¶ Annual OTE ($)" column with the new compensation information.
   - Update the "Last compensation change" column with the effective date from payroll platform.
