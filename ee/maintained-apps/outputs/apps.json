@@ -457,6 +457,13 @@
       "description": "JetBrains tools manager."
     },
     {
+      "name": "KeePassXC",
+      "slug": "keepassxc/windows",
+      "platform": "windows",
+      "unique_identifier": "KeePassXC",
+      "description": "KeePassXC is a cross-platform password manager for securely storing passwords and other sensitive data."
+    },
+    {
       "name": "Linear",
       "slug": "linear-linear/darwin",
       "platform": "darwin",
