@@ -76,7 +76,7 @@ Here's how:
   - Audit the "Strategy" slide.
   - Audit the "Goals" slide
 
-The day before the All hands, the Head of People and the CEO will review the slides and prepare slides that reflect the CEO vision and focus. 
+The day before the All hands, the Head of People and the CEO will review and prepare slides that reflect the CEO vision and focus. 
 
 
 ### Share recording of all hands meeting
