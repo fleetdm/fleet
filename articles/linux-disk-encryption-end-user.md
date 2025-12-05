@@ -6,7 +6,7 @@ LUKS (Linux Unified Key Setup) is a standard tool for encrypting Linux disks. It
 
 Fleet securely stores a passphrase to ensure that the data on your work computer is always recoverable. To get your computer set up for key escrow, you will first need to enable disk encryption on your end, then provide your encryption passphrase to Fleet.
 
-Currenly, Fleet does not support escrowing Linux disk encryption keys on hosts that have multiple user acocunts. For Linux hosts that need to have multiple user accounts, the best practice is to create and escrow the disk encryption before creating additional user accounts on the host.
+Currently, Fleet does not support escrowing Linux disk encryption keys on hosts that have multiple user accounts. For Linux hosts that need to have multiple user accounts, the best practice is to create and escrow the disk encryption before creating additional user accounts on the host.
 
 Follow the steps below to get set up.
 
