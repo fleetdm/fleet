@@ -172,6 +172,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			}
 			switch payload.Platform {
 			case fleet.AndroidPlatform:
+				appStoreApp.SelfService = true
 				incomingAndroidApps = append(incomingAndroidApps, appStoreApp)
 			case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform:
 				incomingAppleApps = append(incomingAppleApps, appStoreApp)
