@@ -8185,7 +8185,6 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &getCertResp)
 	require.NotNil(t, getCertResp.Certificate)
-	require.Equal(t, uint(0), getCertResp.Certificate.TeamID)
 
 	var delResp deleteCertificateTemplateResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &delResp)

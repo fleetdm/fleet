@@ -130,8 +130,8 @@ type getDeviceCertificateTemplateRequest struct {
 }
 
 type getDeviceCertificateTemplateResponse struct {
-	Certificate *fleet.CertificateTemplateResponseFull `json:"certificate"`
-	Err         error                                  `json:"error,omitempty"`
+	Certificate *fleet.CertificateTemplateDeviceResponseFull `json:"certificate"`
+	Err         error                                        `json:"error,omitempty"`
 }
 
 func (r getDeviceCertificateTemplateResponse) Error() error { return r.Err }
@@ -145,7 +145,7 @@ func getDeviceCertificateTemplateEndpoint(ctx context.Context, request interface
 	return getDeviceCertificateTemplateResponse{Certificate: certificate}, nil
 }
 
-func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
+func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateDeviceResponseFull, error) {
 	// skipauth: This endpoint uses node key authentication instead of user authentication.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -182,11 +182,11 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 			return nil, err
 		}
 		certificate.Status = &fleet.MDMDeliveryFailed
-		return certificate, nil
+		return certificate.ToDeviceResponse(), nil
 	}
 	certificate.SubjectName = subjectName
 
-	return certificate, nil
+	return certificate.ToDeviceResponse(), nil
 }
 
 type getCertificateTemplateRequest struct {
