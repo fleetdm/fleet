@@ -178,7 +178,9 @@ func (c *Client) do(ctx context.Context, name, method, path string, in interface
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		fmt.Printf("DEP RESP ERR: %s\n", err)
+		if c.logger != nil {
+			c.logger.Debug("msg", "error sending request to Apple DEP", "url", req.URL.String(), "error", err)
+		}
 		return req, err
 	}
 	defer resp.Body.Close()
