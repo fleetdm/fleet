@@ -12315,13 +12315,13 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	// Test with lock command acknowledged
+	// Test with lock command acknowledged - device is now locked with no pending action
 	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, hosts)
 	require.NoError(t, err)
 	h1Status = statusMap[h1.ID]
 	require.NotNil(t, h1Status)
 	require.Equal(t, fleet.DeviceStatusLocked, h1Status.DeviceStatus())
-	require.Equal(t, fleet.PendingActionUnlock, h1Status.PendingAction())
+	require.Equal(t, fleet.PendingActionNone, h1Status.PendingAction())
 
 	// Add a wipe command for h2 (Windows)
 	wipeCmdUUID := "wipe-cmd-uuid-2"
