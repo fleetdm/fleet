@@ -140,12 +140,14 @@ func (c *Client) doWithAfterHook(ctx context.Context, name, method, path string,
 // We encode in to JSON and decode any returned body as JSON to out.
 func (c *Client) do(ctx context.Context, name, method, path string, in interface{}, out interface{}) (*http.Request, error) {
 	var body io.Reader
+	bodyStr := "[empty]"
 	if in != nil {
 		bodyBytes, err := json.Marshal(in)
 		if err != nil {
 			return nil, err
 		}
 		body = bytes.NewBuffer(bodyBytes)
+		bodyStr = string(bodyBytes)
 	}
 
 	req, err := depclient.NewRequestWithContext(ctx, name, c.store, method, path, body)
@@ -160,11 +162,30 @@ func (c *Client) do(ctx context.Context, name, method, path string, in interface
 		req.Header.Set("Accept", mediaType)
 	}
 
+	fmt.Printf("DEP REQ: %s %s body=%s\n", method, req.URL.String(), bodyStr)
+
 	resp, err := c.client.Do(req)
 	if err != nil {
+		fmt.Printf("DEP RESP ERR: %s\n", err)
 		return req, err
 	}
 	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return req, err
+	}
+
+	appleRequestUUID := ""
+	if hdr, ok := resp.Header[http.CanonicalHeaderKey("X-Apple-Request-UUID")]; ok {
+		for _, hdrValue := range hdr {
+			if appleRequestUUID != "" {
+				appleRequestUUID += ", "
+			}
+			appleRequestUUID += hdrValue
+		}
+	}
+	fmt.Printf("DEP Resp Apple Request UUID %s status %d: body %s\n", appleRequestUUID, resp.StatusCode, string(bodyBytes))
 
 	if resp.StatusCode == http.StatusUnauthorized {
 		return req, fmt.Errorf("unhandled auth error: %w", depclient.NewAuthError(resp))
@@ -173,7 +194,7 @@ func (c *Client) do(ctx context.Context, name, method, path string, in interface
 	}
 
 	if out != nil {
-		err := json.NewDecoder(resp.Body).Decode(out)
+		err := json.NewDecoder(bytes.NewReader(bodyBytes)).Decode(out)
 		if err != nil {
 			return req, err
 		}
