@@ -205,7 +205,8 @@ func (ds *Datastore) UpsertCertificateStatus(
 		err := ds.writer(ctx).GetContext(ctx, &result, `SELECT id FROM certificate_templates WHERE id = ?`, certificateTemplateID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return ctxerr.Wrap(ctx, notFound("Label").WithMessage(fmt.Sprintf("No certificate template found for template ID '%d'", certificateTemplateID)))
+				return ctxerr.Wrap(ctx, notFound("CertificateTemplate").WithMessage(fmt.Sprintf("No certificate template found for template ID '%d'",
+					certificateTemplateID)))
 			}
 			return ctxerr.Wrap(ctx, err, "could not read certificate template for inserting new record")
 		}
