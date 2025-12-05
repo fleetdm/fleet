@@ -1,2 +1,0 @@
-- Fixed UI bug in OS settings modal that caused status tooltip to flicker when refetching host
-  details.
