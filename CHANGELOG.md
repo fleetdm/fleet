@@ -1,3 +1,102 @@
+## Fleet 4.78.0 (Dec 05, 2025)
+
+### Bug fixes
+
+- Fleet UI: Added ability to create/view/delete Google Play Store software for Android
+- Improved request validation by returning an informative error when trying to filter `software_titles` with `platform` without a `team_id`
+- Fleet UI: Added ability to change software display names
+- Hide software host count and version table when no hosts have the software installed.
+* Switched configurations referencing Redis 5 to Redis 6. Fleet is no longer verified to work with Redis 5 or below.
+- Fixed bug that prevented users from editing custom EST certificates URLs.
+* Improved performance by avoiding unneeded extra queries when fetching team information
+* Added better error messages when using build-in labels on GitOps and on the LabelSpecs endpoint.
+* Added support for in-house (".ipa") apps to `fleetctl gitops`.
+* Fleet UI: Return pre-install query output in Install Details modal
+- Fixed an issue where using bitwise operators in a query incorrectly marked the query as invalid.
+- Setup experience software now installs in alphanumeric order.
+- Added a new error UI for file uploaders, and applied it in the Okta Conditional Access modal
+* Prevent multiple false positive vulnerability matches for the VSCode golang extension
+- Add activity log entries for host deletion and expiration.
+- Fixed issue where MDM profile retry limits were interfering with Smallstep SCEP proxy renewal
+  attempts, particularly in cases of expired SCEP challenges.
+- Updated MDM enrollment flow for BYOD macOS hosts to enable end user authentication prior to
+  downloading the MDM profile via the "My device" page.
+- Made returning host_count optional in the "List Labels" API, to improve performance.
+* Updated existing /setup_experience/script POST endpoint to allow updating the macOS setup experience script in-place, and modified gitops to remove the DELETE call
+* Detect vulnerabilities in JetBrains IDE plugins
+* Fixed incorrect status code on failure to interpolate certificate template variables.
+- Updated `last_restarted_at` property for hosts to be more reliable.
+* Fixed Android configuration profiles downloading as unusable .xml files with content "[object Object]". Android profiles now download correctly as .json files with properly formatted JSON content, matching what was originally uploaded.
+- Fixed the tab order of elements in the login form
+Updated Go to 1.25.3.
+* Add ability to deploy certificates from Custom SCEP certificate authorities on Windows.
+- Fixed UI bug where the option to resend MDM profiles for macOS hosts was incorrectly presented to non-admin and non-maintainer users.
+- Adjusted UI section headers and layout of Settings > Integrations in Fleet Free.
+- Fixed an issue that prevented GitOps from saving multiple queries with the same label.
+* Support Custom EST certificate authorities
+* Added status counts to batch script detail page tabs.
+* Updated 'fleetd/certificates/<id>' and 'fleetd/certificates/<id>/status' to authenticate using the orbit_node_key provided in the 'Authentication' header.
+* Fixed an issue where "Exclude Any" label scoping did work properly for iOS, iPadOS and Android hosts
+* Added $FLEET_VAR_HOST_PLATFORM for Apple platforms (`macos`, `ios`, `ipados`)
+- Added endpoint for hosts to update certificate status
+- Allow users to save Fleet Queries even if their SQL is deemed invalid by the Fleet UI
+* Moved End user authentication SSO settings under Integrations > SSO in global settings.
+* Added detail column to host_certificate_template table.
+- change where mdm_enrolled activity is created so it occures after the inital Token Update command. This allows the webhook to fire after the host can recieve additonal commands from fleet MDM.
+* Optimized the cleanup Apple host profiles query to reduce probability of DB locking.
+* MDM enrolled android devices receive certificate templates in managedConfigurations
+* Fix a layout issue on the script batch details page
+- Added support for Android `systemUpdate` profiles in Fleet Premium.
+- Fixed bug that prevented filtering by platform when listing hosts with failed profiles.
+* Simplified setup experience configuration UI.
+* Added self-service install support for custom IPA apps on iOS and iPadOS.
+* Added experimental FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT configuration to allow deploying custom OS settings including Filevault payloads and macOS and Windows update settings
+- Added integration for Okta conditional access, where Fleet acts as a factor and blocks end users from logging into third-party apps, via Okta, if they are failing specific policies.
+- Added Okta conditional access configuration to the Fleet UI under Settings -> Integrations -> Conditional access.
+* Redact API tokens in `fleetctl config set` to prevent accidental logging.
+* Add ability to deploy user-scoped SCEP profiles for Windows hosts
+* Fleet UI: Fixed software action buttons to disable immediately on click to prevent multiple clicks
+- Support installation of setup-experience VPP apps on manual-enrolled iOS/iPadOS devices
+* Added a configuration option to require Windows users turn on MDM manually via work or school account, rather than have enrollment happen automatically
+* Improve MDM command result endpoint response for pending windows commands
+* Fixed non-sense UI placeholder element, by replacing it with it's actual value.
+* Fixed installer for Cisco Secure Client not showing as installed in inventory/library due to using the wrong bundle identifier. This application should show up correctly now in the software inventory.
+- Fixed UI bug in OS settings modal that caused status tooltip to flicker when refetching host
+  details.
+* Added support to the Android platform for setup experience software.
+- Implement UI logic to call existing manual update IdP API functionality
+- Implement UI logic and new DELETE endpoint to manually remove host IdP mappings
+- Add activities when manually updating or deleting host IdP mappings
+- Prevent false positive CVE matches for [`Logi Bolt.app`](https://support.logi.com/hc/en-us/articles/4418089333655-Logi-Bolt-App)
+- fix errors when trying to run the apple_mdm_iphone_ipad_refetcher cron job
+* Fixed a race condition when resending Apple Profiles that would not truly resend the latest profile
+- Updated the layout and styling of file uploader buttons across the UI
+- Fleet UI: Fixed table styling for selecting table rows
+- add UI for allowing windows hosts to manually enroll into fleet mdm
+* Added support for $FLEET_VAR_HOST_HARDWARE_SERIAL and $FLEET_VAR_HOST_PLATFORM in Windows profiles
+- add ability to filter the activites on the dashboard page
+- Added a missing redirect to the Fleet website
+- Updated error message when attempting to run software install script on host with scripts disabled
+  to refer to `--enable-scripts` flag (instead of `--scripts-enabled`).
+* Regenerate FileVault profile on Apple MDM turn on, if team has Disk Encryption enabled. 
+- fixes the connect message on the controls end user auth page so that it is consistant with the other set up experience subsections
+Improved performance of `/api/latest/fleet/software/versions` API endpoint.
+* Update host expiry logic to not delete macOS hosts that checkin via MDM protocol but not via orbit
+- Mosyle added to the list of well-known MDM platforms
+- Ingest `upgrade_code`s from Windows software, and serve to all relevant software endpoints
+* Reduce Android API usage by listing devices instead of getting, and checking Android Enterprise disconnects hourly.
+* updated queries / APIs that drive the OS Settings UI to include the status of host cert templates.
+- fixed issue where vulnerabilities would occasionally show as missing
+- added vulnerability seeding and performance testing tools
+- removed the premium check for host OS settings in host summary
+* Reduced android device reconciler frequency to 1 hour
+- Improved handling of softawre install statuses in the UI, fixing a bug where "installed" software
+  sometimes showed up as "uninstalled" when certain other pieces of data were not also present
+- add InstallAnywhere as a self-extracting archive for PE metadata extraction
+* Updated built-in SVG icons to avoid rendering issues when certain combinations of icons are on the same page
+- add consistant spacing to UI elements on the mdm page
+* Added certificate_templates and gitops support for managing them
+
 ## Fleet 4.76.1 (Nov 14, 2025)
 
 ### Bug fixes
