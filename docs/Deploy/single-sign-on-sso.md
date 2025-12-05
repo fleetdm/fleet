@@ -69,7 +69,7 @@ The Fleet app is available in Okta's catalog. This is the fastest way to set up 
    - **Metadata URL**: Paste the URL from Okta
    - Click **Save**
 
-Fleet's SAML implementation requires the following attributes:
+Fleet's SAML implementation requires the following attributes to be populated in Okta:
 - `username`
 - `displayName`
 
