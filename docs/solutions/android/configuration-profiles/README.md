@@ -1,0 +1,2 @@
+- `modifyAccountsDisabled.json`: disables adding work accounts
+- `accountTypesWithManagementDisabled.json`: disables adding Google work accounts specifically
