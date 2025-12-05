@@ -25,6 +25,7 @@ const AndroidLatestVersionWithTooltip = ({
               id: androidPlayStoreId,
             })}
             newTab
+            variant="tooltip-link"
           />
         </span>
       }
