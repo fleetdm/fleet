@@ -58,7 +58,7 @@ Here's how:
    Copy the template in the consultants column of the KPIs and send the teammate's DRI a direct message in Slack with an FYI including the total hours logged since last Saturday at midnight.
    - **For international consultants:**  
    When they submit their monthly invoice (which already includes a breakdown of total hours worked), download the invoice from Remote and route to the DRI for approval. 
-4. The following Monday, check for updates to logged hours and ensure the KPI sheet aligns with HRIS records. If there are discrepancies between what was previously reported, reconfirm logged hours with the teammate's DRI and update the KPI sheet to reflect the correct amount.
+3. The following Monday, check for updates to logged hours and ensure the KPI sheet aligns with HRIS records. If there are discrepancies between what was previously reported, reconfirm logged hours with the teammate's DRI and update the KPI sheet to reflect the correct amount.
 
 
 ### Prepare for the All hands
@@ -76,7 +76,7 @@ Here's how:
   - Audit the "Strategy" slide.
   - Audit the "Goals" slide
 
-The day before the All hands, the Head of People and the CEO will review and prepare slides that reflect the CEO vision and focus. 
+The day before the All hands, the Head of People and the CEO will review and prepare slides that reflect the CEO's vision and focus. 
 
 
 ### Share recording of all hands meeting
@@ -129,11 +129,11 @@ When People receives [notification of a Fleetie's role changing](https://fleetdm
    -  If the benchmark is significantly different, take the steps to [update a team member's compensation](#prepare-salary-benchmarking-information).
 4. Update the relevant payroll/HRIS system.
     - For updating Gusto (US-based Fleeties):
-      - Login to Gusto and navigate to "People > Team members".
+      - Log in to Gusto and navigate to "People > Team members".
       - Find the Fleetie and select them to see their profile page.
       - Under the "Compensation" heading, select edit and update the "Job title" and input the specific date the change happened. Save the changes.
     - For updating Remote (non-US Fleeties):
-      - Login to Remote and navigate to "Requests".
+      - Log in to Remote and navigate to "Requests".
       - Click "New Request" and select the employee from the dropdown box. Then, select "Employee Agreement Amendement". 
       - Follow Remote's prompts to complete the amendement. 
       - Take any relevant follow-up steps as directed by Remote in order to make the required changes to the Fleetie's profile. 
@@ -152,7 +152,7 @@ When People receives notification of a Fleetie's manager changing, follow these 
     - Remove the person from the "Team" section of the old department and add them to the "Team" section of the new department.
 3. If the person's level of confidential access will change along with the change to their manager, then update that level of access:
     - Update Google Workspace to make sure this person lives in the correct Google Group, removing them from the old and/or adding them to the new.
-    - Update 1password to remove this person from old vaults and/or add them to new vaults.
+    - Update 1Password to remove this person from old vaults and/or add them to new vaults.
     - For a team member moving from "classified" to "confidential" access, check Gusto, Remote, and other systems to remove their access.
 
 > **Note:** The Fleeties spreadsheet is the source of truth for who everyone's manager is and their job titles.
@@ -251,8 +251,8 @@ To [change a teammate's compensation](https://fleetdm.com/handbook/company/commu
 4. Once compensation decisions have been finalized, the Head of People will send the teammate's manager a Slack DM to communicate the compensation decision and asking them to inform the teammate.
 5. Update the respective payroll platform (Gusto or Remote): 
    - In Gusto, navigate to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
-   - In Remote, navigate to "Requests", start a new request, select the employee from the dropdown box, and begin the process for an employee agreement amendment. 
-7. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying Adding to the "Notes" cell.
+   - In Remote, navigate to "Requests", start a new request, select the employee from the dropdown box, and begin the process for an employee agreement amendement. 
+7. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by adding to the "Notes" cell.
   - Update the "¶¶ Annual OTE ($)" column with the new compensation information.
   - Update the "Last compensation change" column with the effective date from payroll platform.
   - Update the "¶¶ Notes" column. **⚠️ MAKE SURE NOT TO DELETE ANY EXISTING NOTES ⚠️** Add the note to the top of the cell using the following format: `As of YYYY-MM-DD OTE +15k` (pattern match off of other 2024 notes). Link your note to the relevant title in the ["¶¶ 💌 Compensation decisions (offer math)" (classified Google Doc)](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?tab=t.0#heading=h.slomq4whmyas).
