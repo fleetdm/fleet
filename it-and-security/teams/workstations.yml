@@ -80,7 +80,6 @@ controls:
     enable_end_user_authentication: true
     macos_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
     software:
-      - package_path: ../lib/macos/software/google-chrome.yml # Google Chrome for macOS
       - package_path: ../lib/macos/software/zoom.yml # Zoom for macOS
       - package_path: ../lib/macos/software/1password.yml # 1Password for macOS
       - app_store_id: '803453959' # Slack Desktop
@@ -140,10 +139,6 @@ queries:
 software:
   packages:
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
-      self_service: true
-      categories:
-        - Browsers
-    - path: ../lib/macos/software/google-chrome.yml # Google Chrome for macOS
       self_service: true
       categories:
         - Browsers
@@ -211,12 +206,6 @@ software:
         - Communication
       labels_include_any:
         - "x86-based Windows hosts"
-    - path: ../lib/windows/software/google-chrome.yml # Google Chrome for Windows
-      self_service: true
-      categories:
-        - Browsers
-      labels_include_any:
-        - "x86-based Windows hosts"
     - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
       self_service: true
       categories:
@@ -235,6 +224,11 @@ software:
       self_service: true
   fleet_maintained_apps:
     # macOS apps
+    - slug: google-chrome/darwin # Google Chrome for macOS
+      self_service: true
+      install_during_setup: true
+      categories:
+        - Browsers
     - slug: brave-browser/darwin # Brave for macOS (ARM)
       self_service: true
       labels_include_any:
@@ -252,6 +246,12 @@ software:
     - slug: microsoft-teams/darwin # Microsoft Teams for macOS
       self_service: true
     # Windows apps
+    - slug: google-chrome/windows # Google Chrome for Windows
+      self_service: true
+      categories:
+        - Browsers
+      labels_include_any:
+        - "x86-based Windows hosts"
     - slug: brave-browser/windows # Brave for Windows
       self_service: true
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
