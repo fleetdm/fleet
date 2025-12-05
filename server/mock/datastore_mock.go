@@ -1637,7 +1637,7 @@ type UpdateCertificateAuthorityByIDFunc func(ctx context.Context, id uint, certi
 
 type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error
 
-type UpdateCertificateStatusFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error
+type UpsertCertificateStatusFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error
 
 type BatchUpsertCertificateTemplatesFunc func(ctx context.Context, certificates []*fleet.CertificateTemplate) error
 
@@ -4087,8 +4087,8 @@ type DataStore struct {
 	BatchApplyCertificateAuthoritiesFunc        BatchApplyCertificateAuthoritiesFunc
 	BatchApplyCertificateAuthoritiesFuncInvoked bool
 
-	UpdateCertificateStatusFunc        UpdateCertificateStatusFunc
-	UpdateCertificateStatusFuncInvoked bool
+	UpsertCertificateStatusFunc        UpsertCertificateStatusFunc
+	UpsertCertificateStatusFuncInvoked bool
 
 	BatchUpsertCertificateTemplatesFunc        BatchUpsertCertificateTemplatesFunc
 	BatchUpsertCertificateTemplatesFuncInvoked bool
@@ -9781,11 +9781,11 @@ func (s *DataStore) BatchApplyCertificateAuthorities(ctx context.Context, ops fl
 	return s.BatchApplyCertificateAuthoritiesFunc(ctx, ops)
 }
 
-func (s *DataStore) UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error {
+func (s *DataStore) UpsertCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error {
 	s.mu.Lock()
-	s.UpdateCertificateStatusFuncInvoked = true
+	s.UpsertCertificateStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateCertificateStatusFunc(ctx, hostUUID, certificateTemplateID, status, detail)
+	return s.UpsertCertificateStatusFunc(ctx, hostUUID, certificateTemplateID, status, detail)
 }
 
 func (s *DataStore) BatchUpsertCertificateTemplates(ctx context.Context, certificates []*fleet.CertificateTemplate) error {
