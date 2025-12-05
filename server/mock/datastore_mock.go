@@ -1659,6 +1659,8 @@ type GetCertificateTemplateForHostFunc func(ctx context.Context, hostUUID string
 
 type BulkInsertHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
 
+type DeleteHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
+
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
 type UpdateOrDeleteHostMDMWindowsProfileFunc func(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error
@@ -4117,6 +4119,9 @@ type DataStore struct {
 
 	BulkInsertHostCertificateTemplatesFunc        BulkInsertHostCertificateTemplatesFunc
 	BulkInsertHostCertificateTemplatesFuncInvoked bool
+
+	DeleteHostCertificateTemplatesFunc        DeleteHostCertificateTemplatesFunc
+	DeleteHostCertificateTemplatesFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -9851,6 +9856,13 @@ func (s *DataStore) BulkInsertHostCertificateTemplates(ctx context.Context, host
 	s.BulkInsertHostCertificateTemplatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.BulkInsertHostCertificateTemplatesFunc(ctx, hostCertTemplates)
+}
+
+func (s *DataStore) DeleteHostCertificateTemplates(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error {
+	s.mu.Lock()
+	s.DeleteHostCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostCertificateTemplatesFunc(ctx, hostCertTemplates)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {

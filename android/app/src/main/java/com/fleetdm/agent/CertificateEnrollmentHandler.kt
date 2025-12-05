@@ -34,11 +34,8 @@ class CertificateEnrollmentHandler(private val scepClient: ScepClient, private v
     /**
      * Main enrollment flow: parse config, enroll via SCEP, install certificate.
      */
-    suspend fun handleEnrollment(certDataJson: String): EnrollmentResult {
+    suspend fun handleEnrollment(config: GetCertificateTemplateResponse): EnrollmentResult {
         return try {
-            // Step 1: Parse configuration
-            val config = parseScepConfig(certDataJson)
-
             // Step 2: Perform SCEP enrollment
             val result = performEnrollment(config) ?: return EnrollmentResult.Failure(
                 reason = "SCEP enrollment failed or returned null",
@@ -47,13 +44,13 @@ class CertificateEnrollmentHandler(private val scepClient: ScepClient, private v
 
             // Step 3: Install certificate
             val installed = certificateInstaller.installCertificate(
-                config.alias,
+                config.name,
                 result.privateKey,
                 result.certificateChain.toTypedArray(),
             )
 
             if (installed) {
-                EnrollmentResult.Success(config.alias)
+                EnrollmentResult.Success(config.name)
             } else {
                 EnrollmentResult.Failure("Certificate installation failed")
             }
@@ -65,27 +62,10 @@ class CertificateEnrollmentHandler(private val scepClient: ScepClient, private v
     }
 
     /**
-     * Parses JSON configuration into ScepConfig object.
-     */
-    fun parseScepConfig(jsonString: String): ScepConfig = try {
-        val json = JSONObject(jsonString)
-        ScepConfig(
-            url = json.getString("scep_url"),
-            challenge = json.getString("challenge"),
-            alias = json.getString("alias"),
-            subject = json.getString("subject"),
-            keyLength = json.optInt("key_length", 2048),
-            signatureAlgorithm = json.optString("signature_algorithm", "SHA256withRSA"),
-        )
-    } catch (e: Exception) {
-        throw IllegalArgumentException("Invalid SCEP configuration: ${e.message}", e)
-    }
-
-    /**
      * Performs SCEP enrollment, returning result or null on failure.
      */
     @Suppress("SwallowedException")
-    suspend fun performEnrollment(config: ScepConfig): ScepResult? = try {
+    suspend fun performEnrollment(config: GetCertificateTemplateResponse): ScepResult? = try {
         scepClient.enroll(config)
     } catch (e: ScepEnrollmentException) {
         // Enrollment failure is expected in some scenarios (pending approval, invalid challenge)

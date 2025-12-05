@@ -12,12 +12,14 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"brave-browser/darwin":          {BraveVersionTransformer},
 	"whatsapp/darwin":               {WhatsAppVersionShortener},
 	"google-chrome/darwin":          {ChromePKGInstaller},
+	"1password/darwin":              {OnePasswordPKGInstaller},
+	"zoom/darwin":                   {ZoomPKGInstaller},
+	"slack/darwin":                  {SlackPKGInstaller},
 	"omnissa-horizon-client/darwin": {OmnissaHorizonVersionShortener},
 	"8x8-work/darwin":               {EightXEightWorkVersionShortener},
 	"cisco-jabber/darwin":           {CiscoJabberVersionTransformer},
 	"parallels/darwin":              {ParallelsVersionShortener},
 	"github/darwin":                 {GitHubDesktopVersionShortener},
-	"onedrive/darwin":               {OneDriveVersionTransformer},
 	"camtasia/darwin":               {CamtasiaVersionTransformer},
 }
 
@@ -25,15 +27,39 @@ func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.F
 	// Override installer URL to use Google's PKG installer instead of Homebrew's DMG
 	// Version is kept from Homebrew (not set to "latest")
 	app.InstallerURL = "https://dl.google.com/dl/chrome/mac/universal/stable/gcem/GoogleChrome.pkg"
+	// Set SHA256 to "no_check" since we're using a different installer URL than Homebrew
+	app.SHA256 = "no_check"
 
 	return app, nil
 }
 
-// CiscoJabberVersionTransformer sets the version to "latest" so that the validation
-// extracts the actual app version from the PKG file, which matches what osquery reports.
-// Homebrew reports a build number (e.g., "20251027035315") instead of the app version (e.g., "15.1.2").
-func CiscoJabberVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
-	app.Version = "latest"
+func OnePasswordPKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	// Override installer URL to use 1Password's Universal PKG installer instead of Homebrew's DMG
+	// Version is kept from Homebrew (not set to "latest")
+	app.InstallerURL = "https://downloads.1password.com/mac/1Password.pkg"
+	// Set SHA256 to "no_check" since we're using a different installer URL than Homebrew
+	app.SHA256 = "no_check"
+
+	return app, nil
+}
+
+func SlackPKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	// Override installer URL to use Slack's Universal PKG installer instead of Homebrew's DMG
+	// Version is kept from Homebrew (not set to "latest")
+	app.InstallerURL = "https://slack.com/api/desktop.latestRelease?redirect=1&variant=pkg&arch=universal"
+	// Set SHA256 to "no_check" since we're using a different installer URL than Homebrew
+	app.SHA256 = "no_check"
+
+	return app, nil
+}
+
+func ZoomPKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	// Override installer URL to use Zoom's Universal PKG installer instead of Homebrew's DMG
+	// Version is kept from Homebrew (not set to "latest")
+	app.InstallerURL = "https://zoom.us/client/latest/ZoomInstallerIT.pkg"
+	// Set SHA256 to "no_check" since we're using a different installer URL than Homebrew
+	app.SHA256 = "no_check"
+
 	return app, nil
 }
 

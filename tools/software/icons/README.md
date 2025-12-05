@@ -25,5 +25,6 @@ This will generate two files:
 ## Notes
 
 - The SVG generated is embedded with a base64-encoded 32×32 version of the app's 128×128 PNG icon.
-- The TSX component name is derived from the app’s name (e.g. `Google Chrome.app` → `GoogleChrome.tsx`).
+- The TSX component name is derived from the app's name (e.g. `Google Chrome.app` → `GoogleChrome.tsx`).
 - The script ensures consistent formatting and naming conventions across icon components.
+- **The script automatically adds the import statement and map entry to `frontend/pages/SoftwarePage/components/icons/index.ts`**, so you don't need to manually update the index file. The app name used in the map is extracted from the app's `Info.plist` (`CFBundleName` or `CFBundleDisplayName`).
