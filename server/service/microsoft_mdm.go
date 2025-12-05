@@ -1577,6 +1577,11 @@ func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alr
 	// We use a new list here to track the top-level (atomic) commandID so that we can skip it being re-triggered in the saveResponse flow.
 	topLevelExists := []string{}
 	for _, cmd := range commands {
+		if !strings.Contains(string(cmd.RawCommand), "<Add>") {
+			// Only Add commands can be re-issued as Replace
+			continue
+		}
+
 		// Copy value, and avoid referencing the old values
 		newCmd := &fleet.MDMWindowsCommand{
 			CommandUUID:  cmd.CommandUUID,
