@@ -193,6 +193,12 @@ This works because every Fleetie grants edit access to everyone else at Fleet as
 Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
 Looking to add, change, or remove a shared calendar? [Create an issue](https://fleetdm.com/handbook/it-and-enablement#contact-us) and the appropriate DRI will reply with feedback.
 
+### 1:1 meetings 
+All managers at Fleet have [1:1 meetings](https://handbook.gitlab.com/handbook/leadership/1-1/) with their direct reports at least once a month. These are dedicated spaces for coaching, two-way feedback, and alignment on priorities. To schedule a 1:1:
+1. Create a copy of the [1:1 agenda template](https://docs.google.com/document/d/1dxN1Q0GMawFrgKB_KxJ77N2pS-vXmopB358r-Q8Gxis/edit?tab=t.0) and rename the document "🧑‍🚀 YOUR_GITHUB_USER_NAME : SUPERVISOR_GITHUB_USER_NAME".
+2. [Schedule a meeting](https://fleetdm.com/handbook/company/communications#internal-meeting-scheduling) with your manager and title the calendar event by copying your 1:1 agenda title and appending "[no shadows]" to the end (this tells other team members that this is a private conversation).
+3. Link the agenda in the calendar event description before saving.
+
 
 ### Skip-level 1:1 meetings 
 
