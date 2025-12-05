@@ -695,6 +695,13 @@
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
     },
     {
+      "name": "ProtonVPN",
+      "slug": "protonvpn/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ch.protonvpn.mac",
+      "description": "ProtonVPN is a VPN client focusing on security."
+    },
+    {
       "name": "PyCharm Community Edition",
       "slug": "pycharm-ce/darwin",
       "platform": "darwin",
