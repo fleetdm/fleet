@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -168,7 +168,7 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 		)
 		separator := " || "
 		for _, err := range l.Errs {
-			var ewi fleet.ErrWithInternal
+			var ewi platform_http.ErrWithInternal
 			if errors.As(err, &ewi) {
 				if internalErrs == "" {
 					internalErrs = ewi.Internal()
@@ -182,7 +182,7 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 					errs += separator + err.Error()
 				}
 			}
-			var ewuuid fleet.ErrorUUIDer
+			var ewuuid platform_http.ErrorUUIDer
 			if errors.As(err, &ewuuid) {
 				if uuid := ewuuid.UUID(); uuid != "" {
 					uuids = append(uuids, uuid)
@@ -209,7 +209,7 @@ func (l *LoggingContext) setLevelError() bool {
 	}
 
 	if len(l.Errs) == 1 {
-		var ew fleet.ErrWithIsClientError
+		var ew platform_http.ErrWithIsClientError
 		if errors.As(l.Errs[0], &ew) && ew.IsClientError() {
 			return false
 		}
