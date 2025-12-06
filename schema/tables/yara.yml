@@ -1,4 +1,6 @@
 name: yara
+notes: |-
+  - `count` is a reserved word. When creating a query for a column with the same name wrap it in qoutations ("count").
 examples: |-
   Look for files under `/root` that match a Yara signature. This example uses the [EICAR test file](https://www.eicar.org/download-anti-malware-testfile/).
 
