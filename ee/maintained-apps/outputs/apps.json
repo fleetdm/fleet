@@ -1017,6 +1017,13 @@
       "description": "Wrike is a project management app."
     },
     {
+      "name": "Yubico Authenticator",
+      "slug": "yubico-authenticator/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.yubico.yubioath",
+      "description": "Yubico Authenticator is an application for generating TOTP and HOTP codes."
+    },
+    {
       "name": "Yubikey Manager",
       "slug": "yubico-yubikey-manager/darwin",
       "platform": "darwin",
