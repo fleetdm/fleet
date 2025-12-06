@@ -800,6 +800,13 @@
       "description": "Slack is a team communication and collaboration software for modern workplaces."
     },
     {
+      "name": "Snagit",
+      "slug": "snagit/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.TechSmith.Snagit",
+      "description": "Snagit is screen capture software."
+    },
+    {
       "name": "Spotify",
       "slug": "spotify/darwin",
       "platform": "darwin",

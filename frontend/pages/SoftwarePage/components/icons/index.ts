@@ -112,6 +112,7 @@ import Safari from "./Safari";
 import Santa from "./Santa";
 import Signal from "./Signal";
 import Slack from "./Slack";
+import Snagit from "./Snagit";
 import Spotify from "./Spotify";
 import SublimeText from "./SublimeText";
 import TablePlus from "./TablePlus";
@@ -255,6 +256,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   santa: Santa,
   signal: Signal,
   slack: Slack,
+  snagit: Snagit,
   spotify: Spotify,
   "sublime text": SublimeText,
   tableplus: TablePlus,
