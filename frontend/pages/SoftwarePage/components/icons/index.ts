@@ -110,6 +110,7 @@ import RustRover from "./RustRover";
 import Safari from "./Safari";
 import Santa from "./Santa";
 import Signal from "./Signal";
+import Sketch from "./Sketch";
 import Slack from "./Slack";
 import Spotify from "./Spotify";
 import SublimeText from "./SublimeText";
@@ -252,6 +253,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   safari: Safari,
   santa: Santa,
   signal: Signal,
+  sketch: Sketch,
   slack: Slack,
   spotify: Spotify,
   "sublime text": SublimeText,

@@ -779,6 +779,13 @@
       "description": "Signal is an instant messaging application focusing on security."
     },
     {
+      "name": "Sketch",
+      "slug": "sketch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.bohemiancoding.sketch3",
+      "description": "Sketch is a digital design and prototyping platform."
+    },
+    {
       "name": "Slack",
       "slug": "slack/darwin",
       "platform": "darwin",
