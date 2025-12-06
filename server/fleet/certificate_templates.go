@@ -2,7 +2,7 @@ package fleet
 
 type CertificateRequestSpec struct {
 	Name                   string `json:"name"`
-	Team                   string `json:"team"`
+	Team                   string `json:"team,omitempty"`
 	CertificateAuthorityId uint   `json:"certificate_authority_id"`
 	SubjectName            string `json:"subject_name"`
 }
