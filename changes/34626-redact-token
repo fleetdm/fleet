@@ -1,1 +1,0 @@
-* Redact API tokens in `fleetctl config set` to prevent accidental logging.
