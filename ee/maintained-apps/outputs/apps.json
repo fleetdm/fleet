@@ -968,6 +968,13 @@
       "description": "Windows App helps you connect to Windows from your Mac."
     },
     {
+      "name": "Wireshark",
+      "slug": "wireshark-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.wireshark.Wireshark",
+      "description": "Wireshark is a network protocol analyzer."
+    },
+    {
       "name": "Wrike",
       "slug": "wrike/darwin",
       "platform": "darwin",
