@@ -341,6 +341,17 @@ func replaceHostCertsSourcesDB(ctx context.Context, tx sqlx.ExtContext, toReplac
 		return nil
 	}
 
+	// FIXME: It is entirely possible for the caller to pass duplicates in the toReplaceSources slice
+	// (e.g. multiple elements with the same source and username for the same certificate ID).
+	// Although this function checks against duplicates in the database, it does not deduplicate the
+	// slice itself. This can lead to unique constraint violations when ths function inserts new sources.
+	//
+	// For Apple, it was implicitly assumed that there would be no incoming duplicates (likely based
+	// on Apple KeyChain behavior). But for Windows, duplicates are commonly reported by osquery. We
+	// should consider the best pattern for ensuring deduplication happens here or up the call
+	// stack. For now, we are deduping Windows certs in the upstream osqquery directIngest function,
+	// but that may not be the best approach if we want to guard against other potential issues.
+
 	// Sort by host_certificate_id to ensure consistent lock ordering and prevent deadlocks
 	slices.SortFunc(toReplaceSources, func(a, b *fleet.HostCertificateRecord) int {
 		if a.ID != b.ID {

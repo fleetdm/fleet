@@ -804,6 +804,22 @@ var extraDetailQueries = map[string]DetailQuery{
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestHostCertificates,
 	},
+	// TODO: confirm how we want to denote source for Windows certs
+	"certificates_windows": {
+		Query: `
+	SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1, "system" as source,
+		path
+	FROM
+		certificates
+	WHERE
+		store = 'Personal';`,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestHostCertificates,
+	},
 }
 
 // mdmQueries are used by the Fleet server to compliment certain MDM
@@ -3206,12 +3222,13 @@ func directIngestHostCertificates(
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "decoding sha1", "err", err)
 			continue
 		}
-		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(row["subject"])
+		// TODO: verify whether we can safely assume the platform is populated on host
+		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject"])
 		if err != nil {
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting subject details", "err", err)
 			continue
 		}
-		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(row["issuer"])
+		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["issuer"])
 		if err != nil {
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting issuer details", "err", err)
 			continue
@@ -3258,6 +3275,13 @@ func directIngestHostCertificates(
 			Source:                    source,
 			Username:                  username,
 		})
+	}
+
+	if host.Platform == "windows" {
+		// On Windows, the osquery certificates table returns duplicate
+		// entries for the same certificate if it is present in multiple
+		// certificate stores. We deduplicate them here based on the SHA1 sum.
+		certs = fleet.DedupeWindowsHostCertificates(certs)
 	}
 
 	if len(certs) == 0 {
