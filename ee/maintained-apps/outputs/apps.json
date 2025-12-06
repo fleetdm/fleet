@@ -730,6 +730,13 @@
       "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
     },
     {
+      "name": "Quip",
+      "slug": "quip/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.quip.Desktop",
+      "description": "Quip is a tool for teams to create living documents."
+    },
+    {
       "name": "Rancher Desktop",
       "slug": "rancher/darwin",
       "platform": "darwin",
