@@ -101,6 +101,7 @@ import ProtonMail from "./ProtonMail";
 import ProtonVpn from "./ProtonVpn";
 import PyCharm from "./PyCharm";
 import PyCharmCe from "./PyCharmCe";
+import Quip from "./Quip";
 import RancherDesktop from "./RancherDesktop";
 import Rectangle from "./Rectangle";
 import Rider from "./Rider";
@@ -242,6 +243,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   protonvpn: ProtonVpn,
   "pycharm ce": PyCharmCe,
   pycharm: PyCharm,
+  quip: Quip,
   "rancher desktop": RancherDesktop,
   rectangle: Rectangle,
   rider: Rider,
