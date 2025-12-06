@@ -42,6 +42,7 @@ import DisplayLinkManager from "./DisplayLinkManager";
 import Docker from "./Docker";
 import Drawio from "./DrawIo";
 import Dropbox from "./Dropbox";
+import Eclipse from "./Eclipse";
 import Edge from "./Edge";
 import EightXEightWork from "./8X8Work";
 import Excel from "./Excel";
@@ -191,6 +192,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   docker: Docker,
   "draw.io": Drawio,
   dropbox: Dropbox,
+  eclipse: Eclipse,
   falcon: Falcon,
   figma: Figma,
   firefox: Firefox,

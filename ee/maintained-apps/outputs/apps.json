@@ -310,6 +310,13 @@
       "description": "Dropbox is a client for the Dropbox cloud storage service."
     },
     {
+      "name": "Eclipse IDE",
+      "slug": "eclipse-ide/darwin",
+      "platform": "darwin",
+      "unique_identifier": "epp.package.committers",
+      "description": "Eclipse IDE is an Eclipse integrated development environment for Java."
+    },
+    {
       "name": "Figma",
       "slug": "figma/darwin",
       "platform": "darwin",
