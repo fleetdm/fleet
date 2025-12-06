@@ -499,11 +499,29 @@ NEW_COMPONENT_NAME="${SVG_COMPONENT_NAME#Svg}"
 sed -i '' "s/$SVG_COMPONENT_NAME/$NEW_COMPONENT_NAME/g" "$TSX_FILE"
 
 # Extract app name from Info.plist for map key
-APP_DISPLAY_NAME=$(defaults read "$INFO_PLIST" CFBundleName 2>/dev/null || \
-                   plutil -extract CFBundleName raw "$INFO_PLIST" 2>/dev/null || \
-                   defaults read "$INFO_PLIST" CFBundleDisplayName 2>/dev/null || \
-                   plutil -extract CFBundleDisplayName raw "$INFO_PLIST" 2>/dev/null || \
-                   echo "$APP_NAME")
+# Note: plutil writes errors to stdout, so we need to handle them carefully
+APP_DISPLAY_NAME=""
+# Try defaults read first (most reliable)
+if defaults read "$INFO_PLIST" CFBundleName &>/dev/null; then
+  APP_DISPLAY_NAME=$(defaults read "$INFO_PLIST" CFBundleName 2>/dev/null)
+# Try plutil, filtering out error messages
+elif plutil_output=$(plutil -extract CFBundleName raw "$INFO_PLIST" 2>&1); then
+  APP_DISPLAY_NAME=$(echo "$plutil_output" | grep -v "^$INFO_PLIST:" | head -1)
+fi
+# If still empty, try CFBundleDisplayName
+if [[ -z "$APP_DISPLAY_NAME" ]]; then
+  if defaults read "$INFO_PLIST" CFBundleDisplayName &>/dev/null; then
+    APP_DISPLAY_NAME=$(defaults read "$INFO_PLIST" CFBundleDisplayName 2>/dev/null)
+  elif plutil_output=$(plutil -extract CFBundleDisplayName raw "$INFO_PLIST" 2>&1); then
+    APP_DISPLAY_NAME=$(echo "$plutil_output" | grep -v "^$INFO_PLIST:" | head -1)
+  fi
+fi
+# Fallback to app name if extraction failed
+if [[ -z "$APP_DISPLAY_NAME" ]]; then
+  APP_DISPLAY_NAME="$APP_NAME"
+fi
+# Clean up any trailing newlines or whitespace
+APP_DISPLAY_NAME=$(echo "$APP_DISPLAY_NAME" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
 # Update index.ts with import and map entry
 echo "Updating index.ts with new icon..."

@@ -133,6 +133,7 @@ import WindowsApp from "./WindowsApp";
 import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
+import Wireshark from "./Wireshark";
 import Word from "./Word";
 import WrikeForMac from "./WrikeForMac";
 import YubikeyManager from "./YubikeyManager";
@@ -272,6 +273,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows app": WindowsApp,
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
+  wireshark: Wireshark,
   "wrike for mac": WrikeForMac,
   wrike: WrikeForMac,
   "yubikey manager": YubikeyManager,
