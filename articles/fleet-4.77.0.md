@@ -47,7 +47,6 @@ Fleet added [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-
 ## Changes
 
 ### Security Engineers
-- Added integration for Okta conditional access, where Fleet acts as a factor and blocks end users from logging into third-party apps, via Okta, if they are failing specific policies.
 - Added activity log entries for: host deletion and expiration, updating or deleting host IdP mappings.
 - Resolved multiple false positive vulnerability matches for the VSCode golang extension.
 - Resolved false positive CVE matches for [`Logi Bolt.app`](https://support.logi.com/hc/en-us/articles/4418089333655-Logi-Bolt-App).
