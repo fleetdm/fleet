@@ -513,6 +513,13 @@
       "description": "Messenger is a native desktop app for Messenger (formerly Facebook Messenger)."
     },
     {
+      "name": "Microsoft Auto Update",
+      "slug": "microsoft-auto-update/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.autoupdate2",
+      "description": "Microsoft Auto Update provides updates to various Microsoft products."
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
