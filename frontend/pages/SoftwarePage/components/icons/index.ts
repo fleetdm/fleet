@@ -140,6 +140,7 @@ import WindowsOS from "./WindowsOS";
 import Wireshark from "./Wireshark";
 import Word from "./Word";
 import WrikeForMac from "./WrikeForMac";
+import YubicoAuthenticator from "./YubicoAuthenticator";
 import YubikeyManager from "./YubikeyManager";
 import Zed from "./Zed";
 import ZeroOneZeroEditor from "./010Editor";
@@ -284,6 +285,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   wireshark: Wireshark,
   "wrike for mac": WrikeForMac,
   wrike: WrikeForMac,
+  "yubico authenticator": YubicoAuthenticator,
   "yubikey manager": YubikeyManager,
   zed: Zed,
 } as const;
