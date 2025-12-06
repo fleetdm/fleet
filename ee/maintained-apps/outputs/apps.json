@@ -464,6 +464,13 @@
       "description": "KeePassXC is a password manager app."
     },
     {
+      "name": "LibreOffice",
+      "slug": "libreoffice/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.libreoffice.script",
+      "description": "LibreOffice is a free cross-platform office suite."
+    },
+    {
       "name": "Linear",
       "slug": "linear-linear/darwin",
       "platform": "darwin",
