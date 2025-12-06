@@ -1653,11 +1653,43 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		return ext, nil
 	}
 
+	// Handle Windows zip files specially since they require scripts (like exe)
+	// and share magic bytes with IPA files, so we check the extension first
+	if ext == "zip" {
+		platform, err := fleet.SoftwareInstallerPlatformFromExtension(ext)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "determining platform for zip file")
+		}
+		if platform == "windows" {
+			// For Windows zip files, create basic metadata manually
+			// since they require custom install/uninstall scripts
+			if err := svc.addZipPackageMetadata(ctx, payload); err != nil {
+				return "", err
+			}
+			// Validate that install and uninstall scripts are provided
+			if failOnBlankScript {
+				if payload.InstallScript == "" {
+					return "", &fleet.BadRequestError{
+						Message: "Couldn't add. Install script is required for .zip packages.",
+					}
+				}
+				if payload.UninstallScript == "" {
+					return "", &fleet.BadRequestError{
+						Message: "Couldn't add. Uninstall script is required for .zip packages.",
+					}
+				}
+			}
+			return ext, nil
+		}
+		// For non-Windows zip files (e.g., macOS), let ExtractInstallerMetadata handle it
+		// (it will detect it as IPA due to shared magic bytes, but that's handled elsewhere)
+	}
+
 	meta, err := file.ExtractInstallerMetadata(payload.InstallerFile)
 	if err != nil {
 		if errors.Is(err, file.ErrUnsupportedType) {
 			return "", &fleet.BadRequestError{
-				Message:     "Couldn't edit software. File type not supported. The file should be .pkg, .msi, .exe, .deb, .rpm, .tar.gz, .sh, .ipa or .ps1.",
+				Message:     "Couldn't edit software. File type not supported. The file should be .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .ipa or .ps1.",
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
@@ -1670,7 +1702,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		return "", ctxerr.Wrap(ctx, err, "extracting metadata from installer")
 	}
 
-	if len(meta.PackageIDs) == 0 && meta.Extension != "tar.gz" {
+	if len(meta.PackageIDs) == 0 && meta.Extension != "tar.gz" && meta.Extension != "zip" {
 		return "", &fleet.BadRequestError{
 			Message:     "Couldn't add. Unable to extract necessary metadata.",
 			InternalErr: ctxerr.New(ctx, "extracting package IDs from installer metadata"),
@@ -1700,8 +1732,14 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 
 	// Software edits validate non-empty scripts later, so set failOnBlankScript to false
 	if payload.InstallScript == "" && failOnBlankScript && payload.Extension != "ipa" {
+		ext := strings.ToLower(payload.Extension)
+		if ext == "zip" {
+			return "", &fleet.BadRequestError{
+				Message: "Couldn't add. Install script is required for .zip packages.",
+			}
+		}
 		return "", &fleet.BadRequestError{
-			Message: fmt.Sprintf("Couldn't add. Install script is required for .%s packages.", strings.ToLower(payload.Extension)),
+			Message: fmt.Sprintf("Couldn't add. Install script is required for .%s packages.", ext),
 		}
 	}
 
@@ -1798,6 +1836,45 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "determining platform from extension")
 	}
+	payload.Platform = platform
+
+	return nil
+}
+
+func (svc *Service) addZipPackageMetadata(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
+	if payload == nil {
+		return ctxerr.New(ctx, "payload is required")
+	}
+
+	if payload.InstallerFile == nil {
+		return ctxerr.New(ctx, "installer file is required")
+	}
+
+	shaSum, err := file.SHA256FromTempFileReader(payload.InstallerFile)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "calculating zip SHA256")
+	}
+
+	if err := payload.InstallerFile.Rewind(); err != nil {
+		return ctxerr.Wrap(ctx, err, "resetting zip file reader")
+	}
+
+	if payload.Title == "" {
+		base := filepath.Base(payload.Filename)
+		payload.Title = strings.TrimSuffix(base, filepath.Ext(base))
+	}
+
+	platform, err := fleet.SoftwareInstallerPlatformFromExtension("zip")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "determining platform from extension")
+	}
+
+	payload.Version = ""
+	payload.StorageID = shaSum
+	payload.BundleIdentifier = ""
+	payload.PackageIDs = nil // Zip files require scripts, so no package IDs extracted
+	payload.Extension = "zip"
+	payload.Source = "programs" // Same as exe and msi
 	payload.Platform = platform
 
 	return nil
@@ -2166,13 +2243,15 @@ func (svc *Service) softwareBatchUpload(
 					}
 
 					teamInstaller := teamInstallers[0]
-					if teamInstaller.Extension == "exe" {
+					if teamInstaller.Extension == "exe" || teamInstaller.Extension == "zip" {
 						if p.InstallScript == "" {
-							return errors.New("Couldn't edit. Install script is required for .exe packages.")
+							ext := teamInstaller.Extension
+							return fmt.Errorf("Couldn't edit. Install script is required for .%s packages.", ext)
 						}
 
 						if p.UninstallScript == "" {
-							return errors.New("Couldn't edit. Uninstall script is required for .exe packages.")
+							ext := teamInstaller.Extension
+							return fmt.Errorf("Couldn't edit. Uninstall script is required for .%s packages.", ext)
 						}
 					}
 
