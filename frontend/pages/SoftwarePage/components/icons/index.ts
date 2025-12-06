@@ -74,6 +74,7 @@ import Loom from "./Loom";
 import LuLu from "./LuLu";
 import MacOS from "./MacOS";
 import Messenger from "./Messenger";
+import MicrosoftAutoUpdate from "./MicrosoftAutoUpdate";
 import MicrosoftOneNote from "./MicrosoftOneNote";
 import MicrosoftOutlook from "./MicrosoftOutlook";
 import MicrosoftPowerPoint from "./MicrosoftPowerPoint";
@@ -190,6 +191,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   firefox: Firefox,
   keepassxc: KeePassXc,
   libreoffice: LibreOffice,
+  "microsoft autoupdate": MicrosoftAutoUpdate,
   "mozilla firefox": Firefox,
   "github desktop": GitHubDesktop,
   gitkraken: GitKraken,
