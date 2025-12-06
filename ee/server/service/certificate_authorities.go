@@ -156,6 +156,23 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		activity = fleet.ActivityAddedSmallstep{Name: p.Smallstep.Name}
 	}
 
+	if p.Okta != nil {
+		p.Okta.Preprocess()
+
+		if err := svc.validateOktaSCEPProxy(ctx, p.Okta, errPrefix); err != nil {
+			return nil, err
+		}
+
+		caToCreate.Type = string(fleet.CATypeOkta)
+		caToCreate.Name = &p.Okta.Name
+		caToCreate.URL = &p.Okta.URL
+		caToCreate.ChallengeURL = &p.Okta.ChallengeURL
+		caToCreate.Username = &p.Okta.Username
+		caToCreate.Password = &p.Okta.Password
+		caDisplayType = "Okta"
+		activity = fleet.ActivityAddedOkta{Name: p.Okta.Name}
+	}
+
 	createdCA, err := svc.ds.NewCertificateAuthority(ctx, caToCreate)
 	if err != nil {
 		if errors.As(err, &fleet.ConflictError{}) {
@@ -192,6 +209,9 @@ func (svc *Service) validatePayload(p *fleet.CertificateAuthorityPayload, errPre
 		casToCreate++
 	}
 	if p.CustomESTProxy != nil {
+		casToCreate++
+	}
+	if p.Okta != nil {
 		casToCreate++
 	}
 	if casToCreate == 0 {
@@ -428,6 +448,30 @@ func (svc *Service) validateSmallstepSCEPProxy(ctx context.Context, smallstepSCE
 	}
 	if err := svc.scepConfigService.ValidateSmallstepChallengeURL(ctx, *smallstepSCEP); err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to validate Smallstep SCEP admin URL", "err", err)
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid challenge URL or credentials. Please correct and try again.", errPrefix)}
+	}
+	return nil
+}
+
+func (svc *Service) validateOktaSCEPProxy(ctx context.Context, oktaSCEP *fleet.OktaSCEPProxyCA, errPrefix string) error {
+	if err := validateCAName(oktaSCEP.Name, errPrefix); err != nil {
+		return err
+	}
+	if err := validateURL(oktaSCEP.URL, "Okta SCEP", errPrefix); err != nil {
+		return err
+	}
+	if oktaSCEP.Username == "" {
+		return fleet.NewInvalidArgumentError("username", fmt.Sprintf("%sOkta username cannot be empty", errPrefix))
+	}
+	if oktaSCEP.Password == "" || oktaSCEP.Password == fleet.MaskedPassword {
+		return fleet.NewInvalidArgumentError("password", fmt.Sprintf("%sOkta password cannot be empty", errPrefix))
+	}
+	if err := svc.scepConfigService.ValidateSCEPURL(ctx, oktaSCEP.URL); err != nil {
+		level.Error(svc.logger).Log("msg", "Failed to validate Okta SCEP URL", "err", err)
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
+	}
+	if err := svc.scepConfigService.ValidateOktaChallengeURL(ctx, *oktaSCEP); err != nil {
+		level.Error(svc.logger).Log("msg", "Failed to validate Okta challenge URL", "err", err)
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid challenge URL or credentials. Please correct and try again.", errPrefix)}
 	}
 	return nil
