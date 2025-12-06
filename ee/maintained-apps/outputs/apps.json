@@ -394,6 +394,13 @@
       "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
     },
     {
+      "name": "GPG Suite",
+      "slug": "gpg-suite/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.gpgtools.gpgkeychain",
+      "description": "GPG Suite is a collection of tools to protect your emails and files."
+    },
+    {
       "name": "Grammarly Desktop",
       "slug": "grammarly-desktop/darwin",
       "platform": "darwin",
