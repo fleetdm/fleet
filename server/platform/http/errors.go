@@ -209,6 +209,14 @@ func (e *Error) Error() string {
 	return e.Message
 }
 
+// ErrWithIsClientError is an interface for errors that explicitly specify
+// whether they are client errors or not. By default, errors are treated as
+// server errors.
+type ErrWithIsClientError interface {
+	error
+	IsClientError() bool
+}
+
 // OrderDirection defines the order direction for list queries.
 type OrderDirection int
 

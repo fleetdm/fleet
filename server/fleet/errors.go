@@ -52,13 +52,8 @@ type ErrWithLogFields = platform_http.ErrWithLogFields
 // ErrWithRetryAfter is an alias for platform_http.ErrWithRetryAfter.
 type ErrWithRetryAfter = platform_http.ErrWithRetryAfter
 
-// ErrWithIsClientError is an interface for errors that explicitly specify
-// whether they are client errors or not. By default, errors are treated as
-// server errors.
-type ErrWithIsClientError interface {
-	error
-	IsClientError() bool
-}
+// ErrWithIsClientError is an alias for platform_http.ErrWithIsClientError.
+type ErrWithIsClientError = platform_http.ErrWithIsClientError
 
 type invalidArgWithStatusError struct {
 	InvalidArgumentError
