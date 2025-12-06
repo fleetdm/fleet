@@ -1275,7 +1275,8 @@ None.
     "windows_require_bitlocker_pin": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
-      "deadline": "2022-01-01"
+      "deadline": "2022-01-01",
+      "update_new_hosts": true
     },
     "ios_updates": {
       "minimum_version": "17.0.1",
@@ -1584,7 +1585,8 @@ Modifies the Fleet's configuration with the supplied information.
     "windows_require_bitlocker_pin": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
-      "deadline": "2022-01-01"
+      "deadline": "2022-01-01",
+      "update_new_hosts": true
     },
     "ios_updates": {
       "minimum_version": "17.0.1",
@@ -2159,6 +2161,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be prompted to update when their OS is below this version. |
 | deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (noon local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions). |
+| update_new_hosts                          | string  | macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`. |
 
 <br/>
 
@@ -2270,7 +2273,8 @@ _Available in Fleet Premium._
     "windows_require_bitlocker_pin": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
-      "deadline": "2022-01-01"
+      "deadline": "2022-01-01",
+      "update_new_hosts": true
     },
     "windows_updates": {
       "deadline_days": 5,
@@ -4764,7 +4768,9 @@ _Available in Fleet Premium_
 
 Sends a command to lock the specified macOS, iOS, iPadOS, Linux, or Windows host. The host is locked once it comes online.
 
-To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). For iOS and iPadOS, this enables Lost Mode.
+To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). 
+
+For iOS and iPadOS, this enables [Lost Mode](https://developer.apple.com/documentation/devicemanagement/enable-lost-mode-command) and sends a [Device Location](https://developer.apple.com/documentation/devicemanagement/device-location-command) MDM command. To see location, use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint.
 
 `POST /api/v1/fleet/hosts/:id/lock`
 
@@ -7164,8 +7170,9 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | per_page                  | integer | query | Results per page.                                                         |
 | order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. |
-| request_type              | string  | query | The request type to filter commands by. |
+| host_identifier           | string  | body | The host's `hostname`, `uuid`, or `hardware_serial`. |
+| request_type              | string  | body | The request type to filter commands by. |
+| command_status            | string | body | Valid options are 'ran', 'pending', or 'failed'. Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Windows commands have a '200' and 'Pending' `status` respectively. Apple commands that 'failed' have a 'Failed' `status`. Windows commands that 'failed' have any `status` other than 'Pending' or '200' ('ran').|
 
 #### Example
 
@@ -7177,11 +7184,13 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 ```json
 {
+  "count": 2,
   "results": [
     {
       "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
       "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
       "status": "Acknowledged",
+      "command_status": "ran",
       "updated_at": "2023-04-04:00:00Z",
       "request_type": "ProfileList",
       "hostname": "mycomputer"
@@ -7190,6 +7199,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
       "host_uuid": "322vghee-12c7-8976-83a1-e2118a927342",
       "command_uuid": "d76d69b7-d806-45a9-8e49-9d6dc533485c",
       "status": "200",
+      "command_status": "ran",
       "updated_at": "2023-05-04:00:00Z",
       "request_type": "./Device/Vendor/MSFT/Reboot/RebootNow",
       "hostname": "myhost"
@@ -11671,7 +11681,8 @@ _Available in Fleet Premium_
       "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
-        "deadline": "2022-01-01"
+        "deadline": "2022-01-01",
+        "update_new_hosts": true
       },
       "windows_updates": {
         "deadline_days": 5,
@@ -11999,6 +12010,7 @@ _Available in Fleet Premium_
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                 | string  | Hosts that belong to this team and are enrolled into Fleet's MDM will be prompted to update when their OS is below this version.                                                                           |
 | deadline                        | string  | Hosts that belong to this team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (noon local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions).                                                                    |
+| update_new_hosts                          | string  | macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`. |
 
 <br/>
 
@@ -12079,7 +12091,8 @@ _Available in Fleet Premium_
   "mdm": {
     "macos_updates": {
       "minimum_version": "12.3.1",
-      "deadline": "2025-04-01"
+      "deadline": "2025-04-01",
+      "update_new_hosts": true
     },
     "ios_updates": {
       "minimum_version": "18.3.1",
@@ -12218,7 +12231,8 @@ _Available in Fleet Premium_
       "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
-        "deadline": "2022-01-01"
+        "deadline": "2022-01-01",
+        "update_new_hosts": true
       },
       "windows_updates": {
         "deadline_days": 5,
