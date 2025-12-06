@@ -12,7 +12,7 @@ import (
 
 var (
 	ErrNoContext               = errors.New("context key not set")
-	ErrPasswordResetRequired   = &passwordResetRequiredError{}
+	ErrPasswordResetRequired   = platform_http.ErrPasswordResetRequired
 	ErrMissingLicense          = &licenseError{}
 	ErrMDMNotConfigured        = &MDMNotConfiguredError{}
 	ErrWindowsMDMNotConfigured = &WindowsMDMNotConfiguredError{}
@@ -145,76 +145,23 @@ func (e InvalidArgumentError) Invalid() []map[string]string {
 // BadRequestError is an alias for platform_http.BadRequestError.
 type BadRequestError = platform_http.BadRequestError
 
-type AuthFailedError struct {
-	// internal is the reason that should only be logged internally
-	internal string
+// AuthFailedError is an alias for platform_http.AuthFailedError.
+type AuthFailedError = platform_http.AuthFailedError
 
-	ErrorWithUUID
-}
+// NewAuthFailedError is an alias for platform_http.NewAuthFailedError.
+var NewAuthFailedError = platform_http.NewAuthFailedError
 
-func NewAuthFailedError(internal string) *AuthFailedError {
-	return &AuthFailedError{internal: internal}
-}
+// AuthRequiredError is an alias for platform_http.AuthRequiredError.
+type AuthRequiredError = platform_http.AuthRequiredError
 
-func (e AuthFailedError) Error() string {
-	return "Authentication failed"
-}
+// NewAuthRequiredError is an alias for platform_http.NewAuthRequiredError.
+var NewAuthRequiredError = platform_http.NewAuthRequiredError
 
-func (e AuthFailedError) Internal() string {
-	return e.internal
-}
+// AuthHeaderRequiredError is an alias for platform_http.AuthHeaderRequiredError.
+type AuthHeaderRequiredError = platform_http.AuthHeaderRequiredError
 
-func (e AuthFailedError) StatusCode() int {
-	return http.StatusUnauthorized
-}
-
-type AuthRequiredError struct {
-	// internal is the reason that should only be logged internally
-	internal string
-
-	ErrorWithUUID
-}
-
-func NewAuthRequiredError(internal string) *AuthRequiredError {
-	return &AuthRequiredError{internal: internal}
-}
-
-func (e AuthRequiredError) Error() string {
-	return "Authentication required"
-}
-
-func (e AuthRequiredError) Internal() string {
-	return e.internal
-}
-
-func (e AuthRequiredError) StatusCode() int {
-	return http.StatusUnauthorized
-}
-
-type AuthHeaderRequiredError struct {
-	// internal is the reason that should only be logged internally
-	internal string
-
-	ErrorWithUUID
-}
-
-func NewAuthHeaderRequiredError(internal string) *AuthHeaderRequiredError {
-	return &AuthHeaderRequiredError{
-		internal: internal,
-	}
-}
-
-func (e AuthHeaderRequiredError) Error() string {
-	return "Authorization header required"
-}
-
-func (e AuthHeaderRequiredError) Internal() string {
-	return e.internal
-}
-
-func (e AuthHeaderRequiredError) StatusCode() int {
-	return http.StatusUnauthorized
-}
+// NewAuthHeaderRequiredError is an alias for platform_http.NewAuthHeaderRequiredError.
+var NewAuthHeaderRequiredError = platform_http.NewAuthHeaderRequiredError
 
 // PermissionError, set when user is authenticated, but not allowed to perform action
 type PermissionError struct {
@@ -277,18 +224,6 @@ func (e licenseError) Error() string {
 
 func (e licenseError) StatusCode() int {
 	return http.StatusPaymentRequired
-}
-
-type passwordResetRequiredError struct {
-	ErrorWithUUID
-}
-
-func (e passwordResetRequiredError) Error() string {
-	return "password reset required"
-}
-
-func (e passwordResetRequiredError) StatusCode() int {
-	return http.StatusUnauthorized
 }
 
 // MDMNotConfiguredError is used when an MDM endpoint or resource is accessed

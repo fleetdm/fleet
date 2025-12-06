@@ -217,6 +217,109 @@ type ErrWithIsClientError interface {
 	IsClientError() bool
 }
 
+// AuthFailedError is returned when authentication fails.
+type AuthFailedError struct {
+	// internal is the reason that should only be logged internally
+	internal string
+
+	ErrorWithUUID
+}
+
+// NewAuthFailedError creates a new AuthFailedError.
+func NewAuthFailedError(internal string) *AuthFailedError {
+	return &AuthFailedError{internal: internal}
+}
+
+// Error implements the error interface.
+func (e AuthFailedError) Error() string {
+	return "Authentication failed"
+}
+
+// Internal implements ErrWithInternal.
+func (e AuthFailedError) Internal() string {
+	return e.internal
+}
+
+// StatusCode implements kithttp.StatusCoder.
+func (e AuthFailedError) StatusCode() int {
+	return http.StatusUnauthorized
+}
+
+// AuthRequiredError is returned when authentication is required.
+type AuthRequiredError struct {
+	// internal is the reason that should only be logged internally
+	internal string
+
+	ErrorWithUUID
+}
+
+// NewAuthRequiredError creates a new AuthRequiredError.
+func NewAuthRequiredError(internal string) *AuthRequiredError {
+	return &AuthRequiredError{internal: internal}
+}
+
+// Error implements the error interface.
+func (e AuthRequiredError) Error() string {
+	return "Authentication required"
+}
+
+// Internal implements ErrWithInternal.
+func (e AuthRequiredError) Internal() string {
+	return e.internal
+}
+
+// StatusCode implements kithttp.StatusCoder.
+func (e AuthRequiredError) StatusCode() int {
+	return http.StatusUnauthorized
+}
+
+// AuthHeaderRequiredError is returned when an authorization header is required.
+type AuthHeaderRequiredError struct {
+	// internal is the reason that should only be logged internally
+	internal string
+
+	ErrorWithUUID
+}
+
+// NewAuthHeaderRequiredError creates a new AuthHeaderRequiredError.
+func NewAuthHeaderRequiredError(internal string) *AuthHeaderRequiredError {
+	return &AuthHeaderRequiredError{
+		internal: internal,
+	}
+}
+
+// Error implements the error interface.
+func (e AuthHeaderRequiredError) Error() string {
+	return "Authorization header required"
+}
+
+// Internal implements ErrWithInternal.
+func (e AuthHeaderRequiredError) Internal() string {
+	return e.internal
+}
+
+// StatusCode implements kithttp.StatusCoder.
+func (e AuthHeaderRequiredError) StatusCode() int {
+	return http.StatusUnauthorized
+}
+
+// ErrPasswordResetRequired is returned when a password reset is required.
+var ErrPasswordResetRequired = &passwordResetRequiredError{}
+
+type passwordResetRequiredError struct {
+	ErrorWithUUID
+}
+
+// Error implements the error interface.
+func (e passwordResetRequiredError) Error() string {
+	return "password reset required"
+}
+
+// StatusCode implements kithttp.StatusCoder.
+func (e passwordResetRequiredError) StatusCode() int {
+	return http.StatusUnauthorized
+}
+
 // OrderDirection defines the order direction for list queries.
 type OrderDirection int
 
