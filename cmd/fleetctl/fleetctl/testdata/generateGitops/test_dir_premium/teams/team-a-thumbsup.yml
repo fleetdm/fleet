@@ -71,10 +71,11 @@ software:
     - Productivity
     - Utilities
     icon:
-      path: "../lib/team-a-👍/icons/my-app-store-app--icon.png"
+      path: "../lib/team-a-👍/icons/my-app-store-app-darwin-icon.png"
     labels_exclude_any:
     - Label C
     - Label D
+    platform: darwin
     self_service: true
   packages:
   - categories:
