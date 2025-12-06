@@ -113,6 +113,7 @@ import Santa from "./Santa";
 import Signal from "./Signal";
 import Sketch from "./Sketch";
 import Slack from "./Slack";
+import Snagit from "./Snagit";
 import Sourcetree from "./Sourcetree";
 import Spotify from "./Spotify";
 import SublimeText from "./SublimeText";
@@ -258,6 +259,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   signal: Signal,
   sketch: Sketch,
   slack: Slack,
+  snagit: Snagit,
   sourcetree: Sourcetree,
   spotify: Spotify,
   "sublime text": SublimeText,
