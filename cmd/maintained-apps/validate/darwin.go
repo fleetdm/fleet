@@ -161,6 +161,14 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 				return true, nil
 			}
 
+			// GPG Suite's installer version (e.g., "2023.3") doesn't match the app bundle version
+			// (e.g., "1.12" with bundled version "1800"). We only verify that the app exists
+			// rather than checking the version.
+			if uniqueAppIdentifier == "org.gpgtools.gpgkeychain" {
+				level.Info(logger).Log("msg", "GPG Suite detected - skipping version check due to version mismatch between installer and app bundle")
+				return true, nil
+			}
+
 			// Check exact match first
 			if result.Version == appVersion || result.BundledVersion == appVersion {
 				return true, nil
