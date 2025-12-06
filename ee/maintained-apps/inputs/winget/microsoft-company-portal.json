@@ -1,6 +1,6 @@
 {
-    "name": "Microsoft Company Portal",
-    "slug": "microsoft-company-portal/windows",
+    "name": "Company Portal",
+    "slug": "company-portal/windows",
     "package_identifier": "Microsoft.CompanyPortal",
     "unique_identifier": "Microsoft Company Portal",
     "install_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_company_portal_install.ps1",

@@ -85,59 +85,84 @@ Exit `$exitCode
 $exitCode = 0
 
 try {
-
-    # Wait for an interactive user to be logged on
+    # Wait for an interactive user to be logged on (with timeout for safety)
+    $maxWaitTime = 60  # 60 seconds max wait
+    $waitStart = Get-Date
+    $userName = $null
+    
     while ($true) {
         $userName = (Get-CimInstance Win32_ComputerSystem).UserName
+        $elapsed = (New-Timespan -Start $waitStart).TotalSeconds
 
         if ($userName -and $userName -like "*\*") {
+            Write-Host "Found interactive user: $userName"
             break
-        } else {
-            Start-Sleep -Seconds 5
         }
+        if ($elapsed -gt $maxWaitTime) {
+            throw "Timeout waiting for interactive user to log on after $maxWaitTime seconds"
+        }
+        Write-Host "Waiting for interactive user... (elapsed: $([math]::Round($elapsed))s)"
+        Start-Sleep -Seconds 2
     }
 
     # Write the install script to disk
+    Write-Host "Writing install script to: $scriptPath"
     Set-Content -Path $scriptPath -Value $userScript -Force
 
     # Build task action: run script (output goes to stdout for Fleet)
+    Write-Host "Creating scheduled task..."
     $action = New-ScheduledTaskAction -Execute "powershell.exe" `
         -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scriptPath`""
 
-    $trigger = New-ScheduledTaskTrigger -AtLogOn
+    # Use immediate trigger instead of AtLogOn so it runs right away
+    $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date)
 
-    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -StartWhenAvailable
 
     $principal = New-ScheduledTaskPrincipal -UserId $userName -RunLevel Highest
 
     $task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal
 
+    Write-Host "Registering scheduled task: $taskName"
     Register-ScheduledTask -TaskName $taskName -InputObject $task -User $userName -Force | Out-Null
 
-    # Start the task
+    # Start the task immediately
+    Write-Host "Starting scheduled task..."
     Start-ScheduledTask -TaskName $taskName
 
     # Wait for it to start
+    Write-Host "Waiting for task to start..."
     $startDate = Get-Date
     $state = (Get-ScheduledTask -TaskName $taskName).State
     while ($state -ne "Running") {
         Start-Sleep -Seconds 1
         $elapsed = (New-Timespan -Start $startDate).TotalSeconds
-        if ($elapsed -gt 120) { throw "Timeout waiting for task to start." }
+        if ($elapsed -gt 120) { 
+            Write-Host "ERROR: Timeout waiting for task to start. Current state: $state"
+            throw "Timeout waiting for task to start." 
+        }
         $state = (Get-ScheduledTask -TaskName $taskName).State
     }
+    Write-Host "Task started successfully"
 
     # Wait for it to complete
+    Write-Host "Waiting for task to complete..."
     while ($state -eq "Running") {
         Start-Sleep -Seconds 5
         $elapsed = (New-Timespan -Start $startDate).TotalSeconds
-        if ($elapsed -gt 120) { throw "Timeout waiting for task to finish." }
+        if ($elapsed -gt 300) { 
+            Write-Host "ERROR: Timeout waiting for task to finish. Current state: $state"
+            throw "Timeout waiting for task to finish." 
+        }
         $state = (Get-ScheduledTask -TaskName $taskName).State
     }
+    Write-Host "Task completed with state: $state"
 
     if (Test-Path $exitCodeFile) {
         $exitCode = Get-Content $exitCodeFile
+        Write-Host "Exit code from task: $exitCode"
     } else {
+        Write-Host "WARNING: Exit code file not found: $exitCodeFile"
         $exitCode = 1
     }
 

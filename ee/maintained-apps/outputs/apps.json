@@ -226,6 +226,13 @@
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
+      "name": "Company Portal",
+      "slug": "company-portal/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Company Portal",
+      "description": "Microsoft Company Portal is the app for accessing company resources and managing devices in a secure environment."
+    },
+    {
       "name": "Cursor",
       "slug": "cursor/darwin",
       "platform": "darwin",
@@ -525,13 +532,6 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.autoupdate2",
       "description": "Microsoft Auto Update provides updates to various Microsoft products."
-    },
-    {
-      "name": "Microsoft Company Portal",
-      "slug": "microsoft-company-portal/windows",
-      "platform": "windows",
-      "unique_identifier": "Microsoft Company Portal",
-      "description": ""
     },
     {
       "name": "Microsoft Edge",
