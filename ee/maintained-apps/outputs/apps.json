@@ -807,6 +807,13 @@
       "description": "Slack is a team communication and collaboration software for modern workplaces."
     },
     {
+      "name": "SourceTree",
+      "slug": "sourcetree/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.torusknot.SourceTreeNotMAS",
+      "description": "SourceTree is a graphical client for Git version control."
+    },
+    {
       "name": "Spotify",
       "slug": "spotify/darwin",
       "platform": "darwin",
