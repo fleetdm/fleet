@@ -72,6 +72,13 @@
       "description": "Adobe Digital Editions is an E-book reader."
     },
     {
+      "name": "Android Studio",
+      "slug": "android-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.android.studio",
+      "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
+    },
+    {
       "name": "AnyDesk",
       "slug": "anydesk/darwin",
       "platform": "darwin",
@@ -100,6 +107,13 @@
       "description": "Beyond Compare is an app used to compare files and folders."
     },
     {
+      "name": "Bitwarden",
+      "slug": "bitwarden/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.bitwarden.desktop",
+      "description": "Bitwarden is a desktop password and login vault."
+    },
+    {
       "name": "Box Drive",
       "slug": "box-drive/darwin",
       "platform": "darwin",
@@ -126,6 +140,20 @@
       "platform": "windows",
       "unique_identifier": "Brave",
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
+    },
+    {
+      "name": "Camtasia",
+      "slug": "camtasia/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.techsmith.camtasia",
+      "description": "Camtasia is a screen recorder and video editor."
+    },
+    {
+      "name": "Camtasia",
+      "slug": "camtasia/windows",
+      "platform": "windows",
+      "unique_identifier": "Camtasia",
+      "description": "Camtasia is a screen recorder and video editor."
     },
     {
       "name": "Canva",
@@ -311,6 +339,13 @@
     },
     {
       "name": "GitHub Desktop",
+      "slug": "github-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "GitHub Desktop",
+      "description": "GitHub Desktop is a desktop client for GitHub repositories."
+    },
+    {
+      "name": "GitHub Desktop",
       "slug": "github/darwin",
       "platform": "darwin",
       "unique_identifier": "com.github.GitHubClient",
@@ -420,6 +455,13 @@
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.toolbox",
       "description": "JetBrains tools manager."
+    },
+    {
+      "name": "KeePassXC",
+      "slug": "keepassxc/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.keepassx.keepassxc",
+      "description": "KeePassXC is a password manager app."
     },
     {
       "name": "Linear",
@@ -555,6 +597,13 @@
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
+      "name": "Nova",
+      "slug": "nova/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.panic.Nova",
+      "description": "Nova is a native code editor by Panic."
+    },
+    {
       "name": "Nudge",
       "slug": "nudge/darwin",
       "platform": "darwin",
@@ -609,6 +658,13 @@
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.PhpStorm",
       "description": "PhpStorm is a PHP IDE by JetBrains."
+    },
+    {
+      "name": "Podman Desktop",
+      "slug": "podman-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.podmandesktop.PodmanDesktop",
+      "description": "Open source tool for developers to work with containers and Kubernetes."
     },
     {
       "name": "Postman",
@@ -730,6 +786,13 @@
       "description": "Sublime Text is a text editor for code, markup, and prose."
     },
     {
+      "name": "Sublime Text",
+      "slug": "sublime-text/windows",
+      "platform": "windows",
+      "unique_identifier": "Sublime Text",
+      "description": "Sublime Text is a text editor for code, markup, and prose."
+    },
+    {
       "name": "TablePlus",
       "slug": "tableplus/darwin",
       "platform": "darwin",
@@ -741,6 +804,13 @@
       "slug": "tailscale-app/darwin",
       "platform": "darwin",
       "unique_identifier": "io.tailscale.ipn.macsys",
+      "description": "Tailscale is mesh VPN based on WireGuard."
+    },
+    {
+      "name": "Tailscale",
+      "slug": "tailscale/windows",
+      "platform": "windows",
+      "unique_identifier": "Tailscale",
       "description": "Tailscale is mesh VPN based on WireGuard."
     },
     {
@@ -798,6 +868,13 @@
       "platform": "darwin",
       "unique_identifier": "com.todoist.mac.Todoist",
       "description": "Todoist is a to do list and a planning center for individuals and teams."
+    },
+    {
+      "name": "Tower",
+      "slug": "tower/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.fournova.Tower",
+      "description": "Tower is a git client focusing on power and productivity."
     },
     {
       "name": "Tunnelblick",

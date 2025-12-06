@@ -1417,7 +1417,9 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	// we need to use ds.Host because ds.HostLite doesn't return the orbit node key
 	host, err := svc.ds.Host(ctx, hostID)
 
-	fromMyDevicePage := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate)
+	fromMyDevicePage := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL)
 
 	if err != nil {
 		// if error is because the host does not exist, check first if the user
@@ -1536,7 +1538,9 @@ func (svc *Service) insertSoftwareUninstallRequest(ctx context.Context, executio
 }
 
 func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {
-	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) {
+	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
 		return svc.getDeviceSoftwareInstallResults(ctx, resultUUID)
 	}
 
@@ -2339,7 +2343,10 @@ func (svc *Service) softwareBatchUpload(
 			if installer.Filename == "" {
 				installer.Filename = fmt.Sprintf("package.%s", ext)
 			}
-			if installer.Title == "" {
+			if installer.Title == "" && installer.Extension != "ipa" {
+				// If an IPA is specified via hash rather than downloaded via URL, we won't have a title populated,
+				// and should try to pull the title from the database if it exists. If we can't extract title name for
+				// some reason, filename should only be used after attempting to pull data from the database.
 				installer.Title = installer.Filename
 			}
 

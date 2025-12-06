@@ -219,6 +219,34 @@ func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts [
 	}
 }
 
+func androidAuthenticatedEndpointer(
+	svc fleet.Service,
+	logger log.Logger,
+	opts []kithttp.ServerOption,
+	r *mux.Router,
+	versions ...string,
+) *eu.CommonEndpointer[eu.HandlerFunc] {
+	// Inject the fleet.Capabilities header to the response for Orbit hosts
+	opts = append(opts, capabilitiesResponseFunc(fleet.GetServerOrbitCapabilities()))
+	// Add the capabilities reported by Orbit to the request context
+	opts = append(opts, capabilitiesContextFunc())
+
+	return &eu.CommonEndpointer[eu.HandlerFunc]{
+		EP: &endpointer{
+			svc: svc,
+		},
+		MakeDecoderFn: makeDecoder,
+		EncodeFn:      encodeResponse,
+		Opts:          opts,
+		AuthFunc: func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
+			return authenticatedOrbitHost(svc, logger, next, authHeaderValue("Node key "))
+		},
+		FleetService: svc,
+		Router:       r,
+		Versions:     versions,
+	}
+}
+
 func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
@@ -235,7 +263,7 @@ func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts 
 		EncodeFn:      encodeResponse,
 		Opts:          opts,
 		AuthMiddleware: func(next endpoint.Endpoint) endpoint.Endpoint {
-			return authenticatedOrbitHost(svc, logger, next)
+			return authenticatedOrbitHost(svc, logger, next, getOrbitNodeKey)
 		},
 		Router:   r,
 		Versions: versions,

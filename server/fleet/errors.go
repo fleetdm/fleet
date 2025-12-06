@@ -511,7 +511,7 @@ func NewOrbitIDPAuthRequiredError() *OrbitError {
 	}
 }
 
-// Message that may surfaced by the server or the fleetctl client.
+// Messages that may be surfaced by the server or the fleetctl client.
 const (
 	// Hosts, general
 	HostNotFoundErrMsg           = "Host doesn't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
@@ -550,6 +550,9 @@ const (
 	// NDES/SCEP validation
 	MultipleSCEPPayloadsErrMsg          = "Add only one SCEP payload."
 	SCEPVariablesNotInSCEPPayloadErrMsg = "Variables prefixed with \"$FLEET_VAR_SCEP_\", \"$FLEET_VAR_CUSTOM_SCEP_\", \"$FLEET_VAR_NDES_SCEP\" and \"$FLEET_VAR_SMALLSTEP_\" must only be in the SCEP payload."
+
+	// Invalid list options combinations
+	FilterTitlesByPlatformNeedsTeamIdErrMsg = "The 'platform' and 'team_id' parameters must be used together to filter the software available for install."
 )
 
 // Error message variables

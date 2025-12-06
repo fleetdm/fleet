@@ -19,7 +19,7 @@ import DataError from "components/DataError";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 
 import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import AddAbmModal from "./components/AddAbmModal";
@@ -144,7 +144,9 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
 
     if (!config?.mdm.enabled_and_configured) {
       return (
-        <TurnOnMdmMessage
+        <GenericMsgWithNavButton
+          path={PATHS.ADMIN_INTEGRATIONS_MDM}
+          buttonText="Turn on"
           router={router}
           header="Turn on Apple MDM"
           info="To add your ABM and enable automatic enrollment for macOS, iOS, and
