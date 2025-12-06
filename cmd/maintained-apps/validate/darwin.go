@@ -164,16 +164,8 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 			// GPG Suite's installer version (e.g., "2023.3") doesn't match the app bundle version
 			// (e.g., "1.12" with bundled version "1800"). We only verify that the app exists
 			// rather than checking the version.
-			// However, we still need to verify the app path exists on disk for uninstall verification,
-			// as osquery may have stale data.
 			if uniqueAppIdentifier == "org.gpgtools.gpgkeychain" {
 				level.Info(logger).Log("msg", "GPG Suite detected - skipping version check due to version mismatch between installer and app bundle")
-				// Verify the app path exists on disk (for uninstall verification)
-				// osquery may have stale data, so we check the filesystem directly
-				if _, err := os.Stat(result.Path); os.IsNotExist(err) {
-					level.Info(logger).Log("msg", fmt.Sprintf("GPG Suite app path '%s' does not exist on disk", result.Path))
-					return false, nil
-				}
 				return true, nil
 			}
 
