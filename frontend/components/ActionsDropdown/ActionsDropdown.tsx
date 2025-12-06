@@ -64,7 +64,10 @@ const CustomDropdownIndicator = (
   const variant = (selectProps as { variant?: "button" }).variant;
 
   const color =
-    isFocused || selectProps.menuIsOpen || variant === "button"
+    isFocused ||
+    selectProps.menuIsOpen ||
+    variant === "button" ||
+    variant === "small-button"
       ? "ui-fleet-black-75"
       : "core-fleet-black";
 
@@ -221,11 +224,12 @@ const ActionsDropdown = ({
     placeholder: (provided, state) => ({
       ...provided,
       color:
-        state.isFocused || variant === "button"
+        state.isFocused || variant === "button" || variant === "small-button"
           ? COLORS["ui-fleet-black-75"]
           : COLORS["core-fleet-black"],
       fontSize: "13px",
-      fontWeight: variant === "button" ? "600" : undefined,
+      fontWeight:
+        variant === "button" || variant === "small-button" ? "600" : undefined,
       lineHeight: "normal",
       paddingLeft: 0,
       marginTop: "1px",
