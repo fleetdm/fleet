@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -20,6 +21,9 @@ func SetRequestsContexts(svc fleet.Service) kithttp.RequestFunc {
 			v, err := AuthViewer(ctx, string(bearer), svc)
 			if err == nil {
 				ctx = viewer.NewContext(ctx, *v)
+				// Register viewer as error/telemetry attribute provider for ctxerr enrichment
+				ctx = ctxerr.AddErrorAttributeProvider(ctx, v)
+				ctx = ctxerr.AddTelemetryProvider(ctx, v)
 			}
 		}
 
