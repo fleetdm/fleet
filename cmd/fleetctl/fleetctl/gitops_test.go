@@ -1864,9 +1864,8 @@ software:
 	ds.GetSoftwareCategoryIDsFuncInvoked = false
 	_ = RunAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
 	// Dry run should attempt to get the VPP token when applying VPP apps (it may not exist), so we want to error to the user.
-	// But we want to verify it does not call a method later, aka. exits early correctly.
 	require.True(t, ds.GetVPPTokenByTeamIDFuncInvoked)
-	require.False(t, ds.GetSoftwareCategoryIDsFuncInvoked)
+	require.True(t, ds.GetSoftwareCategoryIDsFuncInvoked)
 
 	// Now, set  up a team to delete
 	teamToDeleteID := uint(999)

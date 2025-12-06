@@ -4046,7 +4046,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		"self_service":            opts.SelfServiceOnly,
 		"min_cvss":                opts.MinimumCVSS,
 		"max_cvss":                opts.MaximumCVSS,
-		"vpp_apps_platforms":      fleet.VPPAppsPlatforms,
+		"vpp_apps_platforms":      fleet.AppStoreAppsPlatforms,
 		"known_exploit":           1,
 	}
 	var hasCVEMetaFilters bool
