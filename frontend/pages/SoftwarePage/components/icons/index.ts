@@ -33,6 +33,7 @@ import CitrixWorkspace from "./CitrixWorkspace";
 import Claude from "./Claude";
 import ClickUp from "./ClickUp";
 import Cloudflare from "./Cloudflare";
+import CompanyPortal from "./CompanyPortal";
 import CreativeCloud from "./AdobeCreativeCloud";
 import Cursor from "./Cursor";
 import Cyberduck from "./Cyberduck";
