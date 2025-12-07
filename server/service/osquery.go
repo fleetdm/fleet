@@ -138,7 +138,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	if !canEnroll {
 		deviceCount := "unknown"
 		if lic, _ := license.FromContext(ctx); lic != nil {
-			deviceCount = strconv.Itoa(lic.DeviceCount)
+			deviceCount = strconv.Itoa(lic.GetDeviceCount())
 		}
 		return "", newOsqueryErrorWithInvalidNode(fmt.Sprintf("enroll host failed: maximum number of hosts reached: %s", deviceCount))
 	}

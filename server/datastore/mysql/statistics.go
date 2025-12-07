@@ -144,7 +144,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.NumHostsNotResponding = amountHostsNotResponding
 		stats.Organization = "unknown"
 		if lic != nil && lic.IsPremium() {
-			stats.Organization = lic.Organization
+			stats.Organization = lic.GetOrganization()
 		}
 		stats.AIFeaturesDisabled = appConfig.ServerSettings.AIFeaturesDisabled
 		stats.MaintenanceWindowsConfigured = len(appConfig.Integrations.GoogleCalendar) > 0 && appConfig.Integrations.GoogleCalendar[0].Domain != "" && len(appConfig.Integrations.GoogleCalendar[0].ApiKey) > 0
@@ -187,7 +187,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 				LicenseTier:         fleet.TierFree,
 			}
 			if lic != nil {
-				stats.LicenseTier = lic.Tier
+				stats.LicenseTier = lic.GetTier()
 			}
 			if err := computeStats(&stats, time.Now().Add(-frequency)); err != nil {
 				return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "compute statistics")
@@ -212,7 +212,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		LicenseTier:         fleet.TierFree,
 	}
 	if lic != nil {
-		stats.LicenseTier = lic.Tier
+		stats.LicenseTier = lic.GetTier()
 	}
 	if err := computeStats(&stats, lastUpdated); err != nil {
 		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "compute statistics")
