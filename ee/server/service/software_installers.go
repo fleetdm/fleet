@@ -1869,7 +1869,8 @@ func (svc *Service) addZipPackageMetadata(ctx context.Context, payload *fleet.Up
 		return ctxerr.Wrap(ctx, err, "determining platform from extension")
 	}
 
-	payload.Version = ""
+	// Don't overwrite version if it's already set (e.g., from Fleet Maintained App manifest)
+	// Zip files don't have extractable version metadata, so preserve any existing version
 	payload.StorageID = shaSum
 	payload.BundleIdentifier = ""
 	payload.PackageIDs = nil // Zip files require scripts, so no package IDs extracted
