@@ -35,17 +35,14 @@ const PKG_TYPE_TO_ID_TEXT = {
 } as const;
 
 const getInstallScriptTooltip = (pkgType: PackageType) => {
-  if (
-    !isFleetMaintainedPackageType(pkgType) &&
-    (pkgType === "exe" || pkgType === "zip" || pkgType === "tar.gz")
-  ) {
+  if (pkgType === "exe" || pkgType === "tar.gz") {
     if (pkgType === "exe") {
       return "Required for .exe packages.";
     }
-    if (pkgType === "zip") {
-      return "Required for .zip packages.";
-    }
     return "Required for .tar.gz archives.";
+  }
+  if (pkgType === "zip" && isWindowsPackageType(pkgType)) {
+    return "Required for .zip packages.";
   }
   return undefined;
 };
@@ -99,17 +96,14 @@ const getPostInstallHelpText = (pkgType: PackageType) => {
 };
 
 const getUninstallScriptTooltip = (pkgType: PackageType) => {
-  if (
-    !isFleetMaintainedPackageType(pkgType) &&
-    (pkgType === "exe" || pkgType === "zip" || pkgType === "tar.gz")
-  ) {
+  if (pkgType === "exe" || pkgType === "tar.gz") {
     if (pkgType === "exe") {
       return "Required for .exe packages.";
     }
-    if (pkgType === "zip") {
-      return "Required for .zip packages.";
-    }
     return "Required for .tar.gz archives.";
+  }
+  if (pkgType === "zip" && isWindowsPackageType(pkgType)) {
+    return "Required for .zip packages.";
   }
   return undefined;
 };
@@ -134,7 +128,7 @@ const getUninstallHelpText = (pkgType: PackageType) => {
     );
   }
 
-  if (pkgType === "zip") {
+  if (pkgType === "zip" && isWindowsPackageType(pkgType)) {
     return (
       <>
         For Windows, Fleet only creates uninstall scripts for .msi packages.
