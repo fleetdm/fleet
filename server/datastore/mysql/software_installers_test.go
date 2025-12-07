@@ -3773,11 +3773,15 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	require.Len(t, names, 3)
 	require.NotContains(t, names, "update2")
 	require.Contains(t, names, "batch_name1")
+	require.Contains(t, names, "VPP1")
+	require.Contains(t, names, "ipa_foo")
 
 	err = ds.BatchSetSoftwareInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{})
 	require.NoError(t, err)
 	names = getAllDisplayNames()
 	require.Len(t, names, 2)
+	require.Contains(t, names, "VPP1")
+	require.Contains(t, names, "ipa_foo")
 }
 
 func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore) {
