@@ -118,24 +118,36 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 		return false, nil
 	}
 	
-	level.Info(logger).Log("msg", "App not found in programs table, checking for provisioned AppX package...")
+	level.Info(logger).Log("msg", fmt.Sprintf("App not found in programs table, checking for provisioned AppX package with DisplayName: '%s'", uniqueIdentifier))
 	
 	// Search by DisplayName using exact match (unique_identifier should match DisplayName)
+	// Use single quotes in PowerShell to avoid issues with special characters
 	provisionedQuery := fmt.Sprintf(`Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq '%s' } | Select-Object -First 1 | ConvertTo-Json -Depth 5`, uniqueIdentifier)
+	level.Info(logger).Log("msg", fmt.Sprintf("Executing PowerShell query: %s", provisionedQuery))
 	cmd = exec.CommandContext(execTimeout, "powershell", "-NoProfile", "-NonInteractive", "-Command", provisionedQuery)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		level.Info(logger).Log("msg", fmt.Sprintf("Error checking for provisioned package: %v", err))
+		level.Info(logger).Log("msg", fmt.Sprintf("Error checking for provisioned package: %v, output: %s", err, string(output)))
 		return false, nil
 	}
 	
+	level.Info(logger).Log("msg", fmt.Sprintf("PowerShell query output length: %d", len(output)))
 	if len(output) > 0 {
-		var provisioned struct {
-			DisplayName string `json:"DisplayName"`
-			PackageName string `json:"PackageName"`
-			Version     string `json:"Version"` // Version is a string like "11.2.1495.0"
-		}
-		if err := json.Unmarshal(output, &provisioned); err == nil && (provisioned.DisplayName != "" || provisioned.PackageName != "") {
+		outputStr := strings.TrimSpace(string(output))
+		level.Info(logger).Log("msg", fmt.Sprintf("PowerShell query output: %s", outputStr))
+		
+		// Handle case where PowerShell returns an empty array []
+		if outputStr == "[]" || outputStr == "null" {
+			level.Info(logger).Log("msg", "PowerShell returned empty array or null")
+		} else {
+			var provisioned struct {
+				DisplayName string `json:"DisplayName"`
+				PackageName string `json:"PackageName"`
+				Version     string `json:"Version"` // Version is a string like "11.2.1495.0"
+			}
+			if err := json.Unmarshal([]byte(outputStr), &provisioned); err != nil {
+				level.Info(logger).Log("msg", fmt.Sprintf("Error unmarshaling JSON: %v, raw output: %s", err, outputStr))
+			} else if provisioned.DisplayName != "" || provisioned.PackageName != "" {
 			provisionedVersion := provisioned.Version
 			level.Info(logger).Log("msg", fmt.Sprintf("Found provisioned AppX package: '%s' (Package: %s), Version: %s", provisioned.DisplayName, provisioned.PackageName, provisionedVersion))
 			
@@ -155,6 +167,7 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 			}
 			level.Info(logger).Log("msg", fmt.Sprintf("Provisioned version '%s' (normalized: %s) does not match expected version '%s' (normalized: %s)", provisionedVersion, normalizedProvisioned, appVersion, normalizedExpected))
 			return false, nil
+			}
 		}
 	}
 	
