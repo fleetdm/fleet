@@ -122,8 +122,8 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 	
 	// Search by DisplayName using exact match (unique_identifier should match DisplayName)
 	provisionedQuery := fmt.Sprintf(`Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq '%s' } | Select-Object -First 1 | ConvertTo-Json -Depth 5`, uniqueIdentifier)
-	cmd := exec.CommandContext(execTimeout, "powershell", "-NoProfile", "-NonInteractive", "-Command", provisionedQuery)
-	output, err := cmd.CombinedOutput()
+	cmd = exec.CommandContext(execTimeout, "powershell", "-NoProfile", "-NonInteractive", "-Command", provisionedQuery)
+	output, err = cmd.CombinedOutput()
 	if err != nil {
 		level.Info(logger).Log("msg", fmt.Sprintf("Error checking for provisioned package: %v", err))
 		return false, nil
