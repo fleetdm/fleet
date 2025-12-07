@@ -24,6 +24,8 @@ func SetRequestsContexts(svc fleet.Service) kithttp.RequestFunc {
 				// Register viewer as error/telemetry attribute provider for ctxerr enrichment
 				ctx = ctxerr.AddErrorAttributeProvider(ctx, v)
 				ctx = ctxerr.AddTelemetryProvider(ctx, v)
+				// Register viewer as user emailer for logging
+				ctx = logging.WithUserEmailer(ctx, v)
 			}
 		}
 

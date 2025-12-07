@@ -7,12 +7,32 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
+
+// UserEmailer provides the user's email for logging purposes.
+// This interface allows the logging package to remain decoupled from
+// the viewer package while still being able to log user information.
+type UserEmailer interface {
+	Email() string
+}
+
+type userEmailerKey struct{}
+
+// WithUserEmailer returns a context with the UserEmailer stored for logging.
+// This should be called by authentication middleware after the user is identified.
+func WithUserEmailer(ctx context.Context, emailer UserEmailer) context.Context {
+	return context.WithValue(ctx, userEmailerKey{}, emailer)
+}
+
+// UserEmailerFromContext retrieves the UserEmailer from the context.
+func UserEmailerFromContext(ctx context.Context) (UserEmailer, bool) {
+	v, ok := ctx.Value(userEmailerKey{}).(UserEmailer)
+	return v, ok
+}
 
 type key int
 
@@ -138,9 +158,8 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 
 	if !l.SkipUser {
 		loggedInUser := "unauthenticated"
-		vc, ok := viewer.FromContext(ctx)
-		if ok {
-			loggedInUser = vc.Email()
+		if emailer, ok := UserEmailerFromContext(ctx); ok {
+			loggedInUser = emailer.Email()
 		}
 		keyvals = append(keyvals, "user", loggedInUser)
 	}
