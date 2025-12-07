@@ -18,8 +18,9 @@ import { IPackageFormData } from "../PackageForm/PackageForm";
 import AdvancedOptionsFields from "../AdvancedOptionsFields";
 
 const getSupportedScriptTypeText = (pkgType: PackageType) => {
-  return `Currently, ${isWindowsPackageType(pkgType) ? "PowerS" : "s"
-    }hell scripts are supported.`;
+  return `Currently, ${
+    isWindowsPackageType(pkgType) ? "PowerS" : "s"
+  }hell scripts are supported.`;
 };
 
 const PKG_TYPE_TO_ID_TEXT = {

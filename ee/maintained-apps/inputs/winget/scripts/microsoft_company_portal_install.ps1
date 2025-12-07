@@ -34,13 +34,8 @@ try {
 
     # Provision for all future users
     Write-Host "[2/4] Provisioning for all future users..."
-    try {
-        $provisionResult = Add-AppProvisionedPackage -Online -PackagePath `$appxPath -SkipLicense -ErrorAction Stop 2>&1
-        Write-Host "[2/4] Provisioning complete"
-    } catch {
-        Write-Host "[2/4] Provisioning error: `$(`$_.Exception.Message)"
-        throw
-    }
+    Add-AppProvisionedPackage -Online -PackagePath `$appxPath -SkipLicense -ErrorAction Stop
+    Write-Host "[2/4] Provisioning complete"
 
     # Also install for current user so osquery can detect it immediately
     Write-Host "[3/4] Installing for current user..."
