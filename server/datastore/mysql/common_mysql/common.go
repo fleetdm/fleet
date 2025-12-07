@@ -14,13 +14,12 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrok/sqlmw"
-	_ "github.com/shogo82148/rdsmysql/v2"
 )
 
 // ConnectorFactory creates a driver.Connector for custom database authentication.
 // This allows injecting authentication mechanisms (like AWS IAM) without adding
 // dependencies to this package.
-type ConnectorFactory func(driverName, dsn string, logger log.Logger) (driver.Connector, error)
+type ConnectorFactory func(dsn string, logger log.Logger) (driver.Connector, error)
 
 // TestSQLMode combines ANSI mode components with MySQL 8 default strict modes for testing
 // ANSI mode includes: REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, ONLY_FULL_GROUP_BY
@@ -65,14 +64,14 @@ func NewDB(conf *config.MysqlConfig, opts *DBOptions, otelDriverName string) (*s
 	dsn := generateMysqlConnectionString(*conf)
 
 	var db *sqlx.DB
-	var err error
 	if opts.ConnectorFactory != nil {
-		connector, err := opts.ConnectorFactory(driverName, dsn, opts.Logger)
+		connector, err := opts.ConnectorFactory(dsn, opts.Logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create connector: %w", err)
 		}
 		db = sqlx.NewDb(sql.OpenDB(connector), driverName)
 	} else {
+		var err error
 		db, err = sqlx.Open(driverName, dsn)
 		if err != nil {
 			return nil, err

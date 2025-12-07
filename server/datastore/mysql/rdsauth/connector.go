@@ -13,6 +13,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/go-kit/log"
 	"github.com/go-sql-driver/mysql"
+	// Blank import registers the "rdsmysql" TLS config with pre-loaded AWS RDS CA certificates
+	_ "github.com/shogo82148/rdsmysql/v2"
 )
 
 // iamAuthTokenGenerator generates AWS IAM authentication tokens for RDS MySQL
@@ -69,10 +71,9 @@ func (g *iamAuthTokenGenerator) newToken(ctx context.Context) (string, error) {
 
 // Connector implements driver.Connector for IAM authentication
 type Connector struct {
-	driverName string
-	baseDSN    string
-	tokenGen   *iamAuthTokenGenerator
-	logger     log.Logger
+	baseDSN  string
+	tokenGen *iamAuthTokenGenerator
+	logger   log.Logger
 }
 
 // Connect implements driver.Connector
@@ -105,7 +106,7 @@ func (c *Connector) Driver() driver.Driver {
 // NewConnectorFactory returns a factory function that creates IAM-authenticated
 // database connectors. This factory can be injected into common_mysql.NewDB
 // to enable IAM authentication without adding AWS dependencies to common_mysql.
-func NewConnectorFactory(conf *config.MysqlConfig, host, port string) (func(driverName, dsn string, logger log.Logger) (driver.Connector, error), error) {
+func NewConnectorFactory(conf *config.MysqlConfig, host, port string) (func(dsn string, logger log.Logger) (driver.Connector, error), error) {
 	tokenGen, err := newIAMAuthTokenGenerator(
 		host,
 		conf.Username,
@@ -118,12 +119,11 @@ func NewConnectorFactory(conf *config.MysqlConfig, host, port string) (func(driv
 		return nil, fmt.Errorf("failed to create IAM token generator: %w", err)
 	}
 
-	return func(driverName, dsn string, logger log.Logger) (driver.Connector, error) {
+	return func(dsn string, logger log.Logger) (driver.Connector, error) {
 		return &Connector{
-			driverName: driverName,
-			baseDSN:    dsn,
-			tokenGen:   tokenGen,
-			logger:     logger,
+			baseDSN:  dsn,
+			tokenGen: tokenGen,
+			logger:   logger,
 		}, nil
 	}, nil
 }
