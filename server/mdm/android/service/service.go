@@ -345,7 +345,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 			ApplicationReportsEnabled:    true,
 			ApplicationReportingSettings: nil,
 		},
-	})
+	}, androidmgmt.PoliciesPatchOpts{ExcludeApps: true})
 	if err != nil && !androidmgmt.IsNotModifiedError(err) {
 		return ctxerr.Wrapf(ctx, err, "patching %d policy", android.DefaultAndroidPolicyID)
 	}
@@ -910,9 +910,9 @@ func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterprise
 ) error {
 	var errs []error
 	if packageName := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE"); packageName != "" {
-		sha256Fingerprint := os.Getenv("FLEET_DEV_ANDROID_AGENT_SHA256")
+		sha256Fingerprint := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
 		if sha256Fingerprint == "" {
-			return ctxerr.New(ctx, "FLEET_DEV_ANDROID_AGENT_SHA256 must be set when FLEET_DEV_ANDROID_AGENT_PACKAGE is set")
+			return ctxerr.New(ctx, "FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256 must be set when FLEET_DEV_ANDROID_AGENT_PACKAGE is set")
 		}
 		for uuid, managedConfig := range hostConfigs {
 			policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, uuid)
@@ -983,7 +983,7 @@ func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
 			ApplicationReportsEnabled:    true,
 			ApplicationReportingSettings: nil,
 		},
-	})
+	}, androidmgmt.PoliciesPatchOpts{ExcludeApps: true})
 	if err != nil && !androidmgmt.IsNotModifiedError(err) {
 		return ctxerr.Wrapf(ctx, err, "enabling app reports on %d default policy", android.DefaultAndroidPolicyID)
 	}
@@ -1028,7 +1028,7 @@ func (svc *Service) PatchPolicy(ctx context.Context, policyID, policyName string
 		return false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 	}
 
-	applied, apiErr := svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy)
+	applied, apiErr := svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{ExcludeApps: true})
 	if apiErr != nil {
 		var gerr *googleapi.Error
 		if errors.As(apiErr, &gerr) {
@@ -1287,5 +1287,23 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		}
 	}
 
+	return nil
+}
+
+func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string, installType string) error {
+	var appPolicies []*androidmanagement.ApplicationPolicy
+	for _, a := range applicationIDs {
+		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{PackageName: a, InstallType: "AVAILABLE"})
+	}
+	for _, policyID := range hostUUIDs {
+
+		policy := &androidmanagement.Policy{Applications: appPolicies}
+		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, policyID)
+
+		_, err := svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{OnlyUpdateApps: true})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "setting apps list for android policy")
+		}
+	}
 	return nil
 }

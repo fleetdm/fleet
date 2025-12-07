@@ -310,6 +310,13 @@
       "description": "Dropbox is a client for the Dropbox cloud storage service."
     },
     {
+      "name": "Eclipse IDE",
+      "slug": "eclipse-ide/darwin",
+      "platform": "darwin",
+      "unique_identifier": "epp.package.committers",
+      "description": "Eclipse IDE is an Eclipse integrated development environment for Java."
+    },
+    {
       "name": "Figma",
       "slug": "figma/darwin",
       "platform": "darwin",
@@ -464,6 +471,13 @@
       "description": "KeePassXC is a password manager app."
     },
     {
+      "name": "LibreOffice",
+      "slug": "libreoffice/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.libreoffice.script",
+      "description": "LibreOffice is a free cross-platform office suite."
+    },
+    {
       "name": "Linear",
       "slug": "linear-linear/darwin",
       "platform": "darwin",
@@ -504,6 +518,13 @@
       "platform": "darwin",
       "unique_identifier": "com.facebook.archon.developerID",
       "description": "Messenger is a native desktop app for Messenger (formerly Facebook Messenger)."
+    },
+    {
+      "name": "Microsoft Auto Update",
+      "slug": "microsoft-auto-update/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.autoupdate2",
+      "description": "Microsoft Auto Update provides updates to various Microsoft products."
     },
     {
       "name": "Microsoft Edge",
@@ -695,6 +716,13 @@
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
     },
     {
+      "name": "ProtonVPN",
+      "slug": "protonvpn/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ch.protonvpn.mac",
+      "description": "ProtonVPN is a VPN client focusing on security."
+    },
+    {
       "name": "PyCharm Community Edition",
       "slug": "pycharm-ce/darwin",
       "platform": "darwin",
@@ -707,6 +735,13 @@
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.pycharm",
       "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
+    },
+    {
+      "name": "Quip",
+      "slug": "quip/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.quip.Desktop",
+      "description": "Quip is a tool for teams to create living documents."
     },
     {
       "name": "Rancher Desktop",
@@ -758,6 +793,13 @@
       "description": "Signal is an instant messaging application focusing on security."
     },
     {
+      "name": "Sketch",
+      "slug": "sketch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.bohemiancoding.sketch3",
+      "description": "Sketch is a digital design and prototyping platform."
+    },
+    {
       "name": "Slack",
       "slug": "slack/darwin",
       "platform": "darwin",
@@ -770,6 +812,20 @@
       "platform": "windows",
       "unique_identifier": "Slack",
       "description": "Slack is a team communication and collaboration software for modern workplaces."
+    },
+    {
+      "name": "Snagit",
+      "slug": "snagit/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.TechSmith.Snagit",
+      "description": "Snagit is screen capture software."
+    },
+    {
+      "name": "SourceTree",
+      "slug": "sourcetree/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.torusknot.SourceTreeNotMAS",
+      "description": "SourceTree is a graphical client for Git version control."
     },
     {
       "name": "Spotify",
@@ -954,11 +1010,25 @@
       "description": "Windows App helps you connect to Windows from your Mac."
     },
     {
+      "name": "Wireshark",
+      "slug": "wireshark-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.wireshark.Wireshark",
+      "description": "Wireshark is a network protocol analyzer."
+    },
+    {
       "name": "Wrike",
       "slug": "wrike/darwin",
       "platform": "darwin",
       "unique_identifier": "com.wrike.Wrike",
       "description": "Wrike is a project management app."
+    },
+    {
+      "name": "Yubico Authenticator",
+      "slug": "yubico-authenticator/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.yubico.yubioath",
+      "description": "Yubico Authenticator is an application for generating TOTP and HOTP codes."
     },
     {
       "name": "Yubikey Manager",

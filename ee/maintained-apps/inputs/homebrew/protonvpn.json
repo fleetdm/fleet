@@ -1,0 +1,8 @@
+{
+  "name": "ProtonVPN",
+  "unique_identifier": "ch.protonvpn.mac",
+  "token": "protonvpn",
+  "installer_format": "dmg",
+  "slug": "protonvpn/darwin",
+  "default_categories": ["Productivity"]
+}

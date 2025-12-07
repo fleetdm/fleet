@@ -124,9 +124,12 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 	assert.Empty(t, deviceResp.License.Organization)
 	assert.Zero(t, deviceResp.License.DeviceCount)
 	assert.True(t, deviceResp.License.Expiration.IsZero())
+	assert.Equal(t, "", deviceResp.Host.Hostname)
+	assert.Equal(t, "", deviceResp.Host.ComputerName)
+	assert.Equal(t, "", deviceResp.Host.DisplayText)
+	assert.Equal(t, "", deviceResp.Host.DisplayName)
 
 	// Verify other fields are present
-	assert.Equal(t, "test-host", deviceResp.Host.Hostname)
 	assert.Equal(t, "http://example.com/logo.png", deviceResp.OrgLogoURL)
 }
 

@@ -1601,11 +1601,11 @@ FROM (
 
 	SELECT host_id
 	FROM host_vpp_software_installs hvsi
-	WHERE 
+	WHERE
 		hvsi.adam_id = ? AND
 		hvsi.platform = ? AND
-		hvsi.platform = 'android' AND 
-		hvsi.verification_at IS NULL AND 
+		hvsi.platform = 'android' AND
+		hvsi.verification_at IS NULL AND
 		hvsi.verification_failed_at IS NULL
 	) combined_pending
 ) hss ON hss.host_id = h.id`
@@ -3014,7 +3014,7 @@ WHERE
 
 	var hostIDs []uint
 	if err := sqlx.SelectContext(ctx, tx, &hostIDs, stmt, softwareID, softwareID, softwareID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
+		return nil, ctxerr.Wrap(ctx, err, "listing host ids included in software scope")
 	}
 
 	res := make(map[uint]struct{}, len(hostIDs))
@@ -3043,16 +3043,17 @@ WHERE
 `, filter)
 
 	var queryResults []struct {
-		UUID            string `db:"uuid"`
-		AppliedPolicyID string `db:"applied_policy_id"`
+		UUID            string  `db:"uuid"`
+		AppliedPolicyID *string `db:"applied_policy_id"`
 	}
 	if err := sqlx.SelectContext(ctx, tx, &queryResults, stmt, softwareID, softwareID, softwareID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
+		return nil, ctxerr.Wrap(ctx, err, "listing host uuids included in software scope")
 	}
 
 	res := make(map[string]string, len(queryResults))
 	for _, result := range queryResults {
-		res[result.UUID] = result.AppliedPolicyID
+		polID := ptr.ValOrZero(result.AppliedPolicyID)
+		res[result.UUID] = polID
 	}
 
 	return res, nil

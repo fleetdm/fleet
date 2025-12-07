@@ -1593,7 +1593,7 @@ The following stubs are included only to make links backward compatible.
 Please see 📖[handbook/company/communications#competition](https://fleetdm.com/handbook/company/communications#new-fleeties).
 
 ##### Customer support service level agreements (SLAs)
-Please see 📖[handbook/company/go-to-market-groups#customer-support-service-level-agreements-slas](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-agreements-slas).
+Please see 📖[handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos).
 
 For below, please see 📖[handbook/company/communications#scheduling-a-meeting](https://fleetdm.com/handbook/company/communications#scheduling-a-meeting).
 ##### Internal meetings

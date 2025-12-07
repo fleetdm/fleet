@@ -23,6 +23,8 @@ type Service interface {
 
 	EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error)
 	AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string, installType string) (map[string]*MDMAndroidPolicyRequest, error)
+	// SetAppsForAndroidPolicy sets the available apps for the given hosts' Android MDM policy to the given list of apps.
+	SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string, installType string) error
 	AddFleetAgentToAndroidPolicy(ctx context.Context, enterpriseName string, hostConfigs map[string]AgentManagedConfiguration) error
 	// BuildAndSendFleetAgentConfig builds the complete AgentManagedConfiguration for the given hosts
 	// (including certificate templates) and sends it to the Android Management API.
