@@ -58,19 +58,35 @@ try {
     `$appxPath = `$appxFiles[0].FullName
     Write-Log "Found appx file: `$appxPath"
 
-    # Provision for all future users
+    # Provision for all future users (this works in headless environments)
     Write-Log "[2/4] Provisioning for all future users..."
-    `$provisionResult = Add-AppProvisionedPackage -Online -PackagePath `$appxPath -SkipLicense -ErrorAction Stop 2>&1
-    Write-Log "Provisioning output: `$provisionResult"
-    Write-Log "[2/4] Provisioning complete"
+    try {
+        `$provisionResult = Add-AppProvisionedPackage -Online -PackagePath `$appxPath -SkipLicense -ErrorAction Stop 2>&1
+        Write-Log "Provisioning output: `$provisionResult"
+        Write-Log "[2/4] Provisioning complete"
+    } catch {
+        Write-Log "ERROR: Provisioning failed: `$(`$_.Exception.Message)"
+        throw
+    }
 
     # Also install for current user so osquery can detect it immediately
+    # Note: This may fail in headless/CI environments, but provisioning is sufficient
     Write-Log "[3/4] Installing for current user..."
-    `$installResult = Add-AppxPackage -Path `$appxPath -ErrorAction Stop 2>&1
-    Write-Log "Installation output: `$installResult"
-    Write-Log "[3/4] Installation complete"
+    `$userInstallSuccess = `$false
+    try {
+        `$installResult = Add-AppxPackage -Path `$appxPath -ErrorAction Stop 2>&1
+        Write-Log "Installation output: `$installResult"
+        `$userInstallSuccess = `$true
+        Write-Log "[3/4] Installation complete"
+    } catch {
+        Write-Log "WARNING: User installation failed (may be headless environment): `$(`$_.Exception.Message)"
+        Write-Log "[3/4] Continuing anyway - package is provisioned for future users"
+        # Don't fail the script if user install fails - provisioning is the important part
+    }
 
     # Poll for package registration (up to 30 seconds)
+    # In headless environments, the package may not show up in Get-AppxPackage
+    # but it's still provisioned and will appear for future users
     Write-Log "[4/4] Polling for registration (max 30s)..."
     `$maxAttempts = 30
     `$attempt = 0
@@ -86,18 +102,30 @@ try {
         `$attempt++
     }
 
-    if (-not `$installed) {
-        Write-Log "[4/4] ERROR: Package not registered after `$attempt seconds"
+    # Check if package is provisioned (works even if user install failed)
+    `$provisioned = Get-AppxProvisionedPackage -Online | Where-Object { `$_.DisplayName -like "*Company Portal*" } | Select-Object -First 1
+    if (`$provisioned) {
+        Write-Log "Package is provisioned: `$(`$provisioned.DisplayName)"
+    }
+
+    if (-not `$installed -and -not `$provisioned) {
+        Write-Log "[4/4] ERROR: Package not registered and not provisioned"
         `$exitCode = 1
+    } elseif (-not `$installed) {
+        # Package is provisioned but not installed for current user (likely headless environment)
+        Write-Log "[4/4] Package is provisioned but not installed for current user (headless environment?)"
+        Write-Log "=== Installation Successful (Provisioned) ==="
+        Write-Log "Package will be available for future user logins"
+        # Still consider this successful - provisioning is what matters
     } else {
         Write-Log "=== Installation Successful ==="
         Write-Log "Package: `$(`$installed.PackageFullName)"
         Write-Log "Version: `$(`$installed.Version)"
-        
-        # Give osquery time to detect the app in the programs table
-        Write-Log "Waiting for osquery to detect app (5 seconds)..."
-        Start-Sleep -Seconds 5
     }
+    
+    # Give osquery time to detect the app in the programs table
+    Write-Log "Waiting for osquery to detect app (5 seconds)..."
+    Start-Sleep -Seconds 5
 } catch {
     Write-Log "=== Installation Failed ==="
     Write-Log "Error: `$(`$_.Exception.Message)"
@@ -198,11 +226,17 @@ try {
         $exitCode = 1
     }
     
-    # Read and display the log file
+    # Read and display the log file (last 100 lines to avoid truncation)
     if (Test-Path $logFile) {
-        Write-Host "=== Task Output Log ==="
-        $logContent = Get-Content $logFile -Raw
-        Write-Host $logContent
+        Write-Host "=== Task Output Log (last 100 lines) ==="
+        $logLines = Get-Content $logFile
+        $lineCount = $logLines.Count
+        if ($lineCount -gt 100) {
+            Write-Host "... (showing last 100 of $lineCount lines) ..."
+            $logLines[-100..-1] | ForEach-Object { Write-Host $_ }
+        } else {
+            $logLines | ForEach-Object { Write-Host $_ }
+        }
         Write-Host "=== End Task Output Log ==="
     } else {
         Write-Host "WARNING: Log file not found at $logFile"
