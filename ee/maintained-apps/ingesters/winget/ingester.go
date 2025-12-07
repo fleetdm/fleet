@@ -221,6 +221,9 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			if scope == "" {
 				if installerType == installerTypeMSI {
 					scope = machineScope
+				} else if installerType == installerTypeMSIX || installerType == "zip" {
+					// AppX/MSIX packages and zip files containing AppX are typically user-scoped
+					scope = userScope
 				}
 			}
 		}
@@ -374,6 +377,7 @@ var fileTypes = map[string]struct{}{
 	installerTypeMSI:  {},
 	installerTypeMSIX: {},
 	installerTypeExe:  {},
+	"zip":             {},
 }
 
 func isFileType(installerType string) bool {
