@@ -3,8 +3,8 @@ package common_mysql
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
-	"net"
 	"net/url"
 	"time"
 
@@ -16,6 +16,11 @@ import (
 	"github.com/ngrok/sqlmw"
 	_ "github.com/shogo82148/rdsmysql/v2"
 )
+
+// ConnectorFactory creates a driver.Connector for custom database authentication.
+// This allows injecting authentication mechanisms (like AWS IAM) without adding
+// dependencies to this package.
+type ConnectorFactory func(driverName, dsn string, logger log.Logger) (driver.Connector, error)
 
 // TestSQLMode combines ANSI mode components with MySQL 8 default strict modes for testing
 // ANSI mode includes: REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, ONLY_FULL_GROUP_BY
@@ -34,28 +39,13 @@ type DBOptions struct {
 	MinLastOpenedAtDiff time.Duration
 	SqlMode             string
 	PrivateKey          string
+	// ConnectorFactory is an optional factory for creating custom database connectors.
+	// When set, it's used instead of the standard connection method.
+	ConnectorFactory ConnectorFactory
 }
 
 func NewDB(conf *config.MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB, error) {
 	driverName := "mysql"
-
-	// Parse host and port
-	host, port, err := net.SplitHostPort(conf.Address)
-	if err != nil {
-		host = conf.Address
-		port = "3306"
-	}
-
-	// Auto-detect RDS and use IAM auth if no password is provided
-	var iamTokenGen *awsIAMAuthTokenGenerator
-	useIAMAuth := false
-	if conf.Password == "" && conf.PasswordPath == "" && conf.Region != "" {
-		useIAMAuth = true
-		iamTokenGen, err = newAWSIAMAuthTokenGenerator(host, conf.Username, port, conf.Region, conf.StsAssumeRoleArn, conf.StsExternalID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create IAM token generator: %w", err)
-		}
-	}
 
 	if opts.TracingConfig != nil && opts.TracingConfig.TracingEnabled {
 		if opts.TracingConfig.TracingType == "opentelemetry" {
@@ -72,24 +62,21 @@ func NewDB(conf *config.MysqlConfig, opts *DBOptions, otelDriverName string) (*s
 		conf.SQLMode = opts.SqlMode
 	}
 
+	dsn := generateMysqlConnectionString(*conf)
+
 	var db *sqlx.DB
-	if useIAMAuth {
-		connector := &awsIAMAuthConnector{
-			driverName: driverName,
-			baseDSN:    generateMysqlConnectionString(*conf),
-			tokenGen:   iamTokenGen,
-			logger:     opts.Logger,
+	var err error
+	if opts.ConnectorFactory != nil {
+		connector, err := opts.ConnectorFactory(driverName, dsn, opts.Logger)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create connector: %w", err)
 		}
 		db = sqlx.NewDb(sql.OpenDB(connector), driverName)
 	} else {
-		dsn := generateMysqlConnectionString(*conf)
 		db, err = sqlx.Open(driverName, dsn)
 		if err != nil {
 			return nil, err
 		}
-	}
-	if err != nil {
-		return nil, err
 	}
 
 	db.SetMaxIdleConns(conf.MaxIdleConns)
