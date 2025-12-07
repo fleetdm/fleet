@@ -327,3 +327,39 @@ const (
 	OrderAscending OrderDirection = iota
 	OrderDescending
 )
+
+// ForbiddenErrorMessage is the error message that should be returned to
+// clients when an action is forbidden. It is intentionally vague to prevent
+// disclosing information that a client should not have access to.
+const ForbiddenErrorMessage = "forbidden"
+
+// CheckMissing is the error to return when no authorization check was performed
+// by the service.
+type CheckMissing struct {
+	response interface{}
+
+	ErrorWithUUID
+}
+
+// CheckMissingWithResponse creates a new error indicating the authorization
+// check was missed, and including the response for further analysis by the error
+// encoder.
+func CheckMissingWithResponse(response interface{}) *CheckMissing {
+	return &CheckMissing{response: response}
+}
+
+// Error implements the error interface.
+func (e *CheckMissing) Error() string {
+	return ForbiddenErrorMessage
+}
+
+// Internal implements the ErrWithInternal interface.
+func (e *CheckMissing) Internal() string {
+	return "Missing authorization check"
+}
+
+// Response returns the response that was generated before the authorization
+// check was found to be missing.
+func (e *CheckMissing) Response() interface{} {
+	return e.response
+}

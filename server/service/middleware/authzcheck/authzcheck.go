@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/go-kit/kit/endpoint"
@@ -52,7 +51,7 @@ func (m *Middleware) AuthzCheck() endpoint.Middleware {
 			// marshal to a generic error and log that the check was missed.
 			if !authzctx.Checked() {
 				// Getting to here means there is an authorization-related bug in our code.
-				return nil, authz.CheckMissingWithResponse(response)
+				return nil, platform_http.CheckMissingWithResponse(response)
 			}
 
 			return response, err
