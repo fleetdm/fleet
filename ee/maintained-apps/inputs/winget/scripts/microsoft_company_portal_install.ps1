@@ -3,6 +3,7 @@ $zipPath = "${env:INSTALLER_PATH}"
 $taskName = "fleet-install-$softwareName.zip"
 $scriptPath = "$env:PUBLIC\install-$softwareName.ps1"
 $exitCodeFile = "$env:PUBLIC\install-exitcode-$softwareName.txt"
+$outputFile = "$env:PUBLIC\install-output-$softwareName.txt"
 
 $userScript = @"
 `$zipPath = "$zipPath"
@@ -109,10 +110,19 @@ try {
     Write-Host "Writing install script to: $scriptPath"
     Set-Content -Path $scriptPath -Value $userScript -Force
 
-    # Build task action: run script (output goes to stdout for Fleet)
+    # Build task action: run script and capture output to file
     Write-Host "Creating scheduled task..."
+    # Use a wrapper command that redirects output
+    $wrapperScript = @"
+`$ErrorActionPreference = 'Stop'
+& `"$scriptPath`" *> `"$outputFile`"
+exit `$LASTEXITCODE
+"@
+    $wrapperPath = "$env:PUBLIC\install-wrapper-$softwareName.ps1"
+    Set-Content -Path $wrapperPath -Value $wrapperScript -Force
+    
     $action = New-ScheduledTaskAction -Execute "powershell.exe" `
-        -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scriptPath`""
+        -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$wrapperPath`""
 
     # Use immediate trigger instead of AtLogOn so it runs right away
     $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date)
@@ -158,6 +168,15 @@ try {
     }
     Write-Host "Task completed with state: $state"
 
+    # Read and display output from the task
+    if (Test-Path $outputFile) {
+        Write-Host "Task output:"
+        $taskOutput = Get-Content $outputFile -Raw
+        Write-Host $taskOutput
+    } else {
+        Write-Host "WARNING: Output file not found: $outputFile"
+    }
+
     if (Test-Path $exitCodeFile) {
         $exitCode = Get-Content $exitCodeFile
         Write-Host "Exit code from task: $exitCode"
@@ -174,6 +193,8 @@ try {
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
     Remove-Item -Path $scriptPath -Force -ErrorAction SilentlyContinue
     Remove-Item -Path $exitCodeFile -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $outputFile -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path "$env:PUBLIC\install-wrapper-$softwareName.ps1" -Force -ErrorAction SilentlyContinue
 }
 
 Exit $exitCode
