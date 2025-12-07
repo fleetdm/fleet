@@ -229,7 +229,7 @@
       "name": "Company Portal",
       "slug": "company-portal/windows",
       "platform": "windows",
-      "unique_identifier": "Microsoft Company Portal",
+      "unique_identifier": "Microsoft.CompanyPortal",
       "description": "Microsoft Company Portal is the app for accessing company resources and managing devices in a secure environment."
     },
     {
