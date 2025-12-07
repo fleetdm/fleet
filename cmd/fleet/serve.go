@@ -258,7 +258,7 @@ the way that the Fleet server works.
 			ds = mds
 
 			// Initialize activity bounded context service using shared connections
-			activitySvc, err := activity_bootstrap.NewService(dbConns.Primary, dbConns.Replica)
+			activitySvc, err := activity_bootstrap.NewService(dbConns.Primary, dbConns.Replica, logger)
 			if err != nil {
 				initFatal(err, "initializing activity service")
 			}
