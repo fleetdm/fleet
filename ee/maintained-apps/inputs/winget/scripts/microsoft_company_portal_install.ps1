@@ -3,27 +3,38 @@ $zipPath = "${env:INSTALLER_PATH}"
 $taskName = "fleet-install-$softwareName.zip"
 $scriptPath = "$env:PUBLIC\install-$softwareName.ps1"
 $exitCodeFile = "$env:PUBLIC\install-exitcode-$softwareName.txt"
+$logFile = "$env:PUBLIC\install-log-$softwareName.txt"
 
 $userScript = @"
 `$ErrorActionPreference = "Stop"
 `$zipPath = "$zipPath"
 `$exitCodeFile = "$exitCodeFile"
+`$logFile = "$logFile"
 `$exitCode = 0
 `$extractPath = "$env:TEMP\fleet-companyportal-extract"
 
+# Redirect all output to log file and stdout
+function Write-Log {
+    param([string]`$Message)
+    `$timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    `$logMessage = "[`$timestamp] `$Message"
+    Add-Content -Path `$logFile -Value `$logMessage -Force
+    Write-Host `$Message
+}
+
 try {
-    Write-Host "=== Company Portal Installation Start ==="
-    Write-Host "Zip Path: `$zipPath"
-    Write-Host "Extract Path: `$extractPath"
+    Write-Log "=== Company Portal Installation Start ==="
+    Write-Log "Zip Path: `$zipPath"
+    Write-Log "Extract Path: `$extractPath"
 
     # Verify zip file exists
     if (-not (Test-Path `$zipPath)) {
         throw "Zip file not found: `$zipPath"
     }
-    Write-Host "Zip file exists"
+    Write-Log "Zip file exists"
 
     # Extract the zip file
-    Write-Host "[1/4] Extracting zip file..."
+    Write-Log "[1/4] Extracting zip file..."
     if (Test-Path `$extractPath) {
         Remove-Item -Path `$extractPath -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -31,10 +42,10 @@ try {
     
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [System.IO.Compression.ZipFile]::ExtractToDirectory(`$zipPath, `$extractPath)
-    Write-Host "[1/4] Extraction complete"
+    Write-Log "[1/4] Extraction complete"
 
     # Find the nested appx file dynamically
-    Write-Host "Searching for appx/appxbundle files..."
+    Write-Log "Searching for appx/appxbundle files..."
     `$appxFiles = Get-ChildItem -Path `$extractPath -Recurse -Filter "*.appxbundle" -ErrorAction SilentlyContinue
     if (-not `$appxFiles) {
         `$appxFiles = Get-ChildItem -Path `$extractPath -Recurse -Filter "*.appx" -ErrorAction SilentlyContinue
@@ -45,20 +56,22 @@ try {
     }
     
     `$appxPath = `$appxFiles[0].FullName
-    Write-Host "Found appx file: `$appxPath"
+    Write-Log "Found appx file: `$appxPath"
 
     # Provision for all future users
-    Write-Host "[2/4] Provisioning for all future users..."
-    Add-AppProvisionedPackage -Online -PackagePath `$appxPath -SkipLicense -ErrorAction Stop
-    Write-Host "[2/4] Provisioning complete"
+    Write-Log "[2/4] Provisioning for all future users..."
+    `$provisionResult = Add-AppProvisionedPackage -Online -PackagePath `$appxPath -SkipLicense -ErrorAction Stop 2>&1
+    Write-Log "Provisioning output: `$provisionResult"
+    Write-Log "[2/4] Provisioning complete"
 
     # Also install for current user so osquery can detect it immediately
-    Write-Host "[3/4] Installing for current user..."
-    Add-AppxPackage -Path `$appxPath -ErrorAction Stop
-    Write-Host "[3/4] Installation complete"
+    Write-Log "[3/4] Installing for current user..."
+    `$installResult = Add-AppxPackage -Path `$appxPath -ErrorAction Stop 2>&1
+    Write-Log "Installation output: `$installResult"
+    Write-Log "[3/4] Installation complete"
 
     # Poll for package registration (up to 30 seconds)
-    Write-Host "[4/4] Polling for registration (max 30s)..."
+    Write-Log "[4/4] Polling for registration (max 30s)..."
     `$maxAttempts = 30
     `$attempt = 0
     `$installed = `$null
@@ -66,7 +79,7 @@ try {
     while (`$attempt -lt `$maxAttempts) {
         `$installed = Get-AppxPackage -Name "Microsoft.CompanyPortal" -ErrorAction SilentlyContinue
         if (`$installed) {
-            Write-Host "[4/4] Package registered after `$attempt seconds"
+            Write-Log "[4/4] Package registered after `$attempt seconds"
             break
         }
         Start-Sleep -Seconds 1
@@ -74,28 +87,28 @@ try {
     }
 
     if (-not `$installed) {
-        Write-Host "[4/4] ERROR: Package not registered after `$attempt seconds"
+        Write-Log "[4/4] ERROR: Package not registered after `$attempt seconds"
         `$exitCode = 1
     } else {
-        Write-Host "=== Installation Successful ==="
-        Write-Host "Package: `$(`$installed.PackageFullName)"
-        Write-Host "Version: `$(`$installed.Version)"
+        Write-Log "=== Installation Successful ==="
+        Write-Log "Package: `$(`$installed.PackageFullName)"
+        Write-Log "Version: `$(`$installed.Version)"
         
         # Give osquery time to detect the app in the programs table
-        Write-Host "Waiting for osquery to detect app (5 seconds)..."
+        Write-Log "Waiting for osquery to detect app (5 seconds)..."
         Start-Sleep -Seconds 5
     }
 } catch {
-    Write-Host "=== Installation Failed ==="
-    Write-Host "Error: `$(`$_.Exception.Message)"
-    Write-Host "Stack: `$(`$_.ScriptStackTrace)"
+    Write-Log "=== Installation Failed ==="
+    Write-Log "Error: `$(`$_.Exception.Message)"
+    Write-Log "Stack: `$(`$_.ScriptStackTrace)"
     `$exitCode = 1
 } finally {
     # Clean up extracted files
     if (Test-Path `$extractPath) {
         Remove-Item -Path `$extractPath -Recurse -Force -ErrorAction SilentlyContinue
     }
-    Write-Host "Exit Code: `$exitCode"
+    Write-Log "Exit Code: `$exitCode"
     Set-Content -Path `$exitCodeFile -Value `$exitCode -Force
 }
 
@@ -137,7 +150,7 @@ try {
     Set-Content -Path $scriptPath -Value $userScript -Force
     Write-Host "Script written successfully"
 
-    # Build task action: run script (output goes to stdout for Fleet)
+    # Build task action: run script (output is captured via Write-Log function)
     $action = New-ScheduledTaskAction -Execute "powershell.exe" `
         -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scriptPath`""
 
@@ -184,6 +197,16 @@ try {
         Write-Host "WARNING: Exit code file not found, assuming failure"
         $exitCode = 1
     }
+    
+    # Read and display the log file
+    if (Test-Path $logFile) {
+        Write-Host "=== Task Output Log ==="
+        $logContent = Get-Content $logFile -Raw
+        Write-Host $logContent
+        Write-Host "=== End Task Output Log ==="
+    } else {
+        Write-Host "WARNING: Log file not found at $logFile"
+    }
 
 } catch {
     Write-Host "=== Wrapper Error ==="
@@ -196,6 +219,7 @@ try {
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
     Remove-Item -Path $scriptPath -Force -ErrorAction SilentlyContinue
     Remove-Item -Path $exitCodeFile -Force -ErrorAction SilentlyContinue
+    # Keep log file for debugging, but could remove it: Remove-Item -Path $logFile -Force -ErrorAction SilentlyContinue
     Write-Host "=== Company Portal Install Wrapper End ==="
 }
 
