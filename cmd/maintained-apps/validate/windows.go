@@ -117,7 +117,7 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 	if uniqueIdentifier == "" {
 		return false, nil
 	}
-	
+
 	// Search by DisplayName using exact match (unique_identifier should match DisplayName)
 	provisionedQuery := fmt.Sprintf(`Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq '%s' } | Select-Object -First 1 | ConvertTo-Json -Depth 5`, uniqueIdentifier)
 	cmd = exec.CommandContext(execTimeout, "powershell", "-NoProfile", "-NonInteractive", "-Command", provisionedQuery)
@@ -125,14 +125,14 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 	if err != nil {
 		return false, nil
 	}
-	
+
 	if len(output) > 0 {
 		outputStr := strings.TrimSpace(string(output))
 		// Handle case where PowerShell returns an empty array []
 		if outputStr == "[]" || outputStr == "null" {
 			return false, nil
 		}
-		
+
 		var provisioned struct {
 			DisplayName string `json:"DisplayName"`
 			PackageName string `json:"PackageName"`
@@ -141,15 +141,15 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 		if err := json.Unmarshal([]byte(outputStr), &provisioned); err != nil {
 			return false, nil
 		}
-		
+
 		if provisioned.DisplayName != "" || provisioned.PackageName != "" {
 			provisionedVersion := provisioned.Version
 			level.Info(logger).Log("msg", fmt.Sprintf("Found provisioned AppX package: '%s', Version: %s", provisioned.DisplayName, provisionedVersion))
-			
+
 			// Normalize both versions for comparison
 			normalizedProvisioned := normalizeVersion(provisionedVersion)
 			normalizedExpected := normalizeVersion(appVersion)
-			
+
 			// Check if version matches (exact or prefix match)
 			if normalizedProvisioned == normalizedExpected ||
 				strings.HasPrefix(normalizedProvisioned, normalizedExpected+".") ||
