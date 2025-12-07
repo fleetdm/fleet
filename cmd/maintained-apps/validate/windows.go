@@ -25,7 +25,7 @@ func postApplicationInstall(_ kitlog.Logger, _ string) error {
 	return nil
 }
 
-func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion, appPath string) (bool, error) {
+func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentifier, appVersion, appPath string) (bool, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -92,6 +92,50 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion
 			// This handles cases where the app version is "3.5.4.0" but expected is "3.5.4"
 			if strings.HasPrefix(result.Version, appVersion+".") {
 				return true, nil
+			}
+		}
+	}
+
+	// For AppX packages (like Company Portal), check if the package is provisioned
+	// Provisioned packages don't show up in the programs table until a user logs in
+	// Use unique identifier if available, otherwise fall back to app name
+	searchTerm := uniqueIdentifier
+	if searchTerm == "" {
+		searchTerm = appName
+	}
+	if strings.Contains(strings.ToLower(searchTerm), "company portal") || strings.Contains(strings.ToLower(searchTerm), "microsoft.companyportal") {
+		level.Info(logger).Log("msg", "App not found in programs table, checking for provisioned AppX package...")
+		// Search by DisplayName or PackageName
+		provisionedQuery := fmt.Sprintf(`Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -like '*%s*' -or $_.PackageName -like '*%s*' } | Select-Object -First 1 | ConvertTo-Json -Depth 5`, searchTerm, searchTerm)
+		cmd := exec.CommandContext(execTimeout, "powershell", "-NoProfile", "-NonInteractive", "-Command", provisionedQuery)
+		output, err := cmd.CombinedOutput()
+		if err == nil && len(output) > 0 {
+			var provisioned struct {
+				DisplayName string `json:"DisplayName"`
+				PackageName string `json:"PackageName"`
+				Version     struct {
+					Major    int `json:"Major"`
+					Minor    int `json:"Minor"`
+					Build    int `json:"Build"`
+					Revision int `json:"Revision"`
+				} `json:"Version"`
+			}
+			if err := json.Unmarshal(output, &provisioned); err == nil && (provisioned.DisplayName != "" || provisioned.PackageName != "") {
+				// Format version as "Major.Minor.Build.Revision"
+				provisionedVersion := fmt.Sprintf("%d.%d.%d.%d",
+					provisioned.Version.Major,
+					provisioned.Version.Minor,
+					provisioned.Version.Build,
+					provisioned.Version.Revision)
+				level.Info(logger).Log("msg", fmt.Sprintf("Found provisioned AppX package: '%s' (Package: %s), Version: %s", provisioned.DisplayName, provisioned.PackageName, provisionedVersion))
+				
+				// Check if version matches (exact or prefix match)
+				// Also check if expected version starts with provisioned version (handles cases where expected is "11.2.1495" but provisioned is "11.2.1495.0")
+				if provisionedVersion == appVersion || strings.HasPrefix(provisionedVersion, appVersion+".") || strings.HasPrefix(appVersion, provisionedVersion+".") {
+					level.Info(logger).Log("msg", "Provisioned AppX package version matches expected version")
+					return true, nil
+				}
+				level.Info(logger).Log("msg", fmt.Sprintf("Provisioned version '%s' does not match expected version '%s'", provisionedVersion, appVersion))
 			}
 		}
 	}
