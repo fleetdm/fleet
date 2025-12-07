@@ -3,7 +3,7 @@
     {
       "version": "11.2.1495.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Company Portal' AND publisher = 'Microsoft Corporation';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft.CompanyPortal' AND publisher = 'Microsoft Corporation';"
       },
       "installer_url": "https://download.microsoft.com/download/ac93b367-7b17-4838-a079-c6f3377bf582/CompanyPortal-Universal-Production_x64_x86_ARM_ARM64.appxupload_Windows10_PreinstallKit.zip",
       "install_script_ref": "46aaefa3",

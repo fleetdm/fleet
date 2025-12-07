@@ -124,7 +124,44 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 	searchTerms = append(searchTerms, appName)
 	// Add common variations for Company Portal
 	if strings.Contains(strings.ToLower(appName), "company portal") || strings.Contains(strings.ToLower(uniqueIdentifier), "company portal") {
-		searchTerms = append(searchTerms, "Company Portal", "Microsoft.CompanyPortal", "Microsoft Company Portal")
+		searchTerms = append(searchTerms, "Company Portal", "Microsoft.CompanyPortal", "Microsoft Company Portal", "CompanyPortal")
+	}
+	
+	// Also try searching by package identifier if it matches a pattern
+	// For Company Portal, the DisplayName is "Microsoft.CompanyPortal" (exact match)
+	if strings.Contains(strings.ToLower(appName), "company portal") || strings.Contains(strings.ToLower(uniqueIdentifier), "company portal") {
+		// Try exact match first
+		exactQuery := `Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq 'Microsoft.CompanyPortal' } | Select-Object -First 1 | ConvertTo-Json -Depth 5`
+		exactCmd := exec.CommandContext(execTimeout, "powershell", "-NoProfile", "-NonInteractive", "-Command", exactQuery)
+		exactOutput, err := exactCmd.CombinedOutput()
+		if err == nil && len(exactOutput) > 0 {
+			var provisioned struct {
+				DisplayName string `json:"DisplayName"`
+				PackageName string `json:"PackageName"`
+				Version     string `json:"Version"`
+			}
+			if err := json.Unmarshal(exactOutput, &provisioned); err == nil && (provisioned.DisplayName != "" || provisioned.PackageName != "") {
+				provisionedVersion := provisioned.Version
+				level.Info(logger).Log("msg", fmt.Sprintf("Found provisioned AppX package (exact match): '%s' (Package: %s), Version: %s", provisioned.DisplayName, provisioned.PackageName, provisionedVersion))
+				
+				// Normalize both versions for comparison
+				normalizedProvisioned := normalizeVersion(provisionedVersion)
+				normalizedExpected := normalizeVersion(appVersion)
+				
+				// Check if version matches
+				if normalizedProvisioned == normalizedExpected ||
+					strings.HasPrefix(normalizedProvisioned, normalizedExpected+".") ||
+					strings.HasPrefix(normalizedExpected, normalizedProvisioned+".") ||
+					provisionedVersion == appVersion ||
+					strings.HasPrefix(provisionedVersion, appVersion+".") ||
+					strings.HasPrefix(appVersion, provisionedVersion+".") {
+					level.Info(logger).Log("msg", fmt.Sprintf("Provisioned AppX package version matches expected version (provisioned: %s, expected: %s)", provisionedVersion, appVersion))
+					return true, nil
+				}
+				level.Info(logger).Log("msg", fmt.Sprintf("Provisioned version '%s' (normalized: %s) does not match expected version '%s' (normalized: %s)", provisionedVersion, normalizedProvisioned, appVersion, normalizedExpected))
+				return false, nil
+			}
+		}
 	}
 	
 	// First, list all provisioned packages for debugging
@@ -152,20 +189,10 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 			var provisioned struct {
 				DisplayName string `json:"DisplayName"`
 				PackageName string `json:"PackageName"`
-				Version     struct {
-					Major    int `json:"Major"`
-					Minor    int `json:"Minor"`
-					Build    int `json:"Build"`
-					Revision int `json:"Revision"`
-				} `json:"Version"`
+				Version     string `json:"Version"` // Version is a string like "11.2.1495.0"
 			}
 			if err := json.Unmarshal(output, &provisioned); err == nil && (provisioned.DisplayName != "" || provisioned.PackageName != "") {
-				// Format version as "Major.Minor.Build.Revision"
-				provisionedVersion := fmt.Sprintf("%d.%d.%d.%d",
-					provisioned.Version.Major,
-					provisioned.Version.Minor,
-					provisioned.Version.Build,
-					provisioned.Version.Revision)
+				provisionedVersion := provisioned.Version
 				level.Info(logger).Log("msg", fmt.Sprintf("Found provisioned AppX package: '%s' (Package: %s), Version: %s", provisioned.DisplayName, provisioned.PackageName, provisionedVersion))
 				
 				// Normalize both versions for comparison
