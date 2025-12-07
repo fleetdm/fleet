@@ -25,6 +25,21 @@ func postApplicationInstall(_ kitlog.Logger, _ string) error {
 	return nil
 }
 
+// normalizeVersion normalizes version strings for comparison
+// Handles cases like "11.2.1495.0" vs "11.2.1495" by padding with zeros
+func normalizeVersion(version string) string {
+	parts := strings.Split(version, ".")
+	// Ensure we have at least 4 parts (Major.Minor.Build.Revision)
+	for len(parts) < 4 {
+		parts = append(parts, "0")
+	}
+	// Trim to 4 parts max
+	if len(parts) > 4 {
+		parts = parts[:4]
+	}
+	return strings.Join(parts, ".")
+}
+
 func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentifier, appVersion, appPath string) (bool, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -98,18 +113,42 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 
 	// For AppX packages (like Company Portal), check if the package is provisioned
 	// Provisioned packages don't show up in the programs table until a user logs in
-	// Use unique identifier if available, otherwise fall back to app name
-	searchTerm := uniqueIdentifier
-	if searchTerm == "" {
-		searchTerm = appName
+	// Try multiple search strategies: by unique identifier, app name, and common AppX package names
+	level.Info(logger).Log("msg", "App not found in programs table, checking for provisioned AppX package...")
+	
+	// Build search terms - try unique identifier, app name, and package identifier patterns
+	searchTerms := []string{}
+	if uniqueIdentifier != "" {
+		searchTerms = append(searchTerms, uniqueIdentifier)
 	}
-	if strings.Contains(strings.ToLower(searchTerm), "company portal") || strings.Contains(strings.ToLower(searchTerm), "microsoft.companyportal") {
-		level.Info(logger).Log("msg", "App not found in programs table, checking for provisioned AppX package...")
-		// Search by DisplayName or PackageName
+	searchTerms = append(searchTerms, appName)
+	// Add common variations for Company Portal
+	if strings.Contains(strings.ToLower(appName), "company portal") || strings.Contains(strings.ToLower(uniqueIdentifier), "company portal") {
+		searchTerms = append(searchTerms, "Company Portal", "Microsoft.CompanyPortal", "Microsoft Company Portal")
+	}
+	
+	// First, list all provisioned packages for debugging
+	listQuery := `Get-AppxProvisionedPackage -Online | Select-Object DisplayName, PackageName, Version | ConvertTo-Json -Depth 5`
+	listCmd := exec.CommandContext(execTimeout, "powershell", "-NoProfile", "-NonInteractive", "-Command", listQuery)
+	listOutput, _ := listCmd.CombinedOutput()
+	if len(listOutput) > 0 {
+		level.Info(logger).Log("msg", fmt.Sprintf("All provisioned packages: %s", string(listOutput)))
+	}
+	
+	// Try to find the package using various search terms
+	for _, searchTerm := range searchTerms {
+		if searchTerm == "" {
+			continue
+		}
+		// Search by DisplayName or PackageName (case-insensitive)
 		provisionedQuery := fmt.Sprintf(`Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -like '*%s*' -or $_.PackageName -like '*%s*' } | Select-Object -First 1 | ConvertTo-Json -Depth 5`, searchTerm, searchTerm)
 		cmd := exec.CommandContext(execTimeout, "powershell", "-NoProfile", "-NonInteractive", "-Command", provisionedQuery)
 		output, err := cmd.CombinedOutput()
-		if err == nil && len(output) > 0 {
+		if err != nil {
+			level.Info(logger).Log("msg", fmt.Sprintf("Error checking for provisioned package with search term '%s': %v", searchTerm, err))
+			continue
+		}
+		if len(output) > 0 {
 			var provisioned struct {
 				DisplayName string `json:"DisplayName"`
 				PackageName string `json:"PackageName"`
@@ -129,16 +168,29 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 					provisioned.Version.Revision)
 				level.Info(logger).Log("msg", fmt.Sprintf("Found provisioned AppX package: '%s' (Package: %s), Version: %s", provisioned.DisplayName, provisioned.PackageName, provisionedVersion))
 				
+				// Normalize both versions for comparison
+				normalizedProvisioned := normalizeVersion(provisionedVersion)
+				normalizedExpected := normalizeVersion(appVersion)
+				
 				// Check if version matches (exact or prefix match)
 				// Also check if expected version starts with provisioned version (handles cases where expected is "11.2.1495" but provisioned is "11.2.1495.0")
-				if provisionedVersion == appVersion || strings.HasPrefix(provisionedVersion, appVersion+".") || strings.HasPrefix(appVersion, provisionedVersion+".") {
-					level.Info(logger).Log("msg", "Provisioned AppX package version matches expected version")
+				if normalizedProvisioned == normalizedExpected ||
+					strings.HasPrefix(normalizedProvisioned, normalizedExpected+".") ||
+					strings.HasPrefix(normalizedExpected, normalizedProvisioned+".") ||
+					provisionedVersion == appVersion ||
+					strings.HasPrefix(provisionedVersion, appVersion+".") ||
+					strings.HasPrefix(appVersion, provisionedVersion+".") {
+					level.Info(logger).Log("msg", fmt.Sprintf("Provisioned AppX package version matches expected version (provisioned: %s, expected: %s)", provisionedVersion, appVersion))
 					return true, nil
 				}
-				level.Info(logger).Log("msg", fmt.Sprintf("Provisioned version '%s' does not match expected version '%s'", provisionedVersion, appVersion))
+				level.Info(logger).Log("msg", fmt.Sprintf("Provisioned version '%s' (normalized: %s) does not match expected version '%s' (normalized: %s)", provisionedVersion, normalizedProvisioned, appVersion, normalizedExpected))
+				// Found the package but version doesn't match - return false
+				return false, nil
 			}
 		}
 	}
+	
+	level.Info(logger).Log("msg", "No provisioned AppX package found matching search terms")
 
 	return false, nil
 }
