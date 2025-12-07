@@ -109,15 +109,12 @@ const getUninstallScriptTooltip = (pkgType: PackageType) => {
 };
 
 const getUninstallHelpText = (pkgType: PackageType) => {
-  if (isFleetMaintainedPackageType(pkgType)) {
-    return "Currently, only shell scripts are supported.";
-  }
-
-  if (pkgType === "exe") {
+  // Check for Windows zip files first (before isFleetMaintainedPackageType check)
+  if (pkgType === "zip" && isWindowsPackageType(pkgType)) {
     return (
       <>
         For Windows, Fleet only creates uninstall scripts for .msi packages.
-        $PACKAGE_ID will be populated with the software name from the .exe file
+        $PACKAGE_ID will be populated with the software name from the .zip file
         after it&apos;s added. {getSupportedScriptTypeText(pkgType)}{" "}
         <CustomLink
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/exe-install-scripts`}
@@ -128,11 +125,15 @@ const getUninstallHelpText = (pkgType: PackageType) => {
     );
   }
 
-  if (pkgType === "zip" && isWindowsPackageType(pkgType)) {
+  if (isFleetMaintainedPackageType(pkgType)) {
+    return "Currently, only shell scripts are supported.";
+  }
+
+  if (pkgType === "exe") {
     return (
       <>
         For Windows, Fleet only creates uninstall scripts for .msi packages.
-        $PACKAGE_ID will be populated with the software name from the .zip file
+        $PACKAGE_ID will be populated with the software name from the .exe file
         after it&apos;s added. {getSupportedScriptTypeText(pkgType)}{" "}
         <CustomLink
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/exe-install-scripts`}

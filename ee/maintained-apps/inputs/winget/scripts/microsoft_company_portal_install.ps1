@@ -34,8 +34,13 @@ try {
 
     # Provision for all future users
     Write-Host "[2/4] Provisioning for all future users..."
-    Add-AppProvisionedPackage -Online -PackagePath `$appxPath -SkipLicense -ErrorAction Stop
-    Write-Host "[2/4] Provisioning complete"
+    try {
+        $provisionResult = Add-AppProvisionedPackage -Online -PackagePath `$appxPath -SkipLicense -ErrorAction Stop 2>&1
+        Write-Host "[2/4] Provisioning complete"
+    } catch {
+        Write-Host "[2/4] Provisioning error: `$(`$_.Exception.Message)"
+        throw
+    }
 
     # Also install for current user so osquery can detect it immediately
     Write-Host "[3/4] Installing for current user..."
@@ -65,6 +70,10 @@ try {
         Write-Host "=== Installation Successful ==="
         Write-Host "Package: `$(`$installed.PackageFullName)"
         Write-Host "Version: `$(`$installed.Version)"
+        
+        # Give osquery time to detect the app in the programs table
+        Write-Host "Waiting for osquery to detect app (5 seconds)..."
+        Start-Sleep -Seconds 5
     }
 } catch {
     Write-Host "=== Installation Failed ==="
