@@ -155,12 +155,13 @@ const LoginForm = ({
   }
 
   return (
-    <form onSubmit={onFormSubmit} className={loginFormClass}>
+    <form onSubmit={onFormSubmit} className={loginFormClass} noValidate>
       {baseError && <div className="form__base-error">{baseError}</div>}
       <div className={`${baseClass}__form`}>
         <InputFieldWithIcon
           error={errors.email}
           autofocus
+          type="email"
           label="Email"
           placeholder="Email"
           value={formData.email}
@@ -174,24 +175,24 @@ const LoginForm = ({
           value={formData.password}
           onChange={onInputChange("password")}
         />
-        <div className={`${baseClass}__forgot-link`}>
-          <CustomLink
-            className={`${baseClass}__forgot-link`}
-            url={paths.FORGOT_PASSWORD}
-            text="Forgot password?"
-          />
-        </div>
       </div>
       {/* Actions displayed using CSS column-reverse to preserve tab order */}
-      <div className={`${baseClass}__login-actions`}>
-        <Button
-          className={`${baseClass}__login-btn`}
-          isLoading={isSubmitting}
-          type="submit"
-        >
-          Log in
-        </Button>
-        {ssoEnabled && renderSingleSignOnButton()}
+      <div className={`${baseClass}__actions`}>
+        <div className={`${baseClass}__login-actions`}>
+          <Button
+            className={`${baseClass}__login-btn`}
+            isLoading={isSubmitting}
+            type="submit"
+          >
+            Log in
+          </Button>
+          {ssoEnabled && renderSingleSignOnButton()}
+        </div>
+        <CustomLink
+          className={`${baseClass}__forgot-link`}
+          url={paths.FORGOT_PASSWORD}
+          text="Forgot password?"
+        />
       </div>
     </form>
   );

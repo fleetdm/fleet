@@ -28,9 +28,12 @@ export type ISupportedGraphicNames = Extract<
 >;
 
 interface IFileUploaderProps {
+  label?: React.ReactNode;
   graphicName: ISupportedGraphicNames | ISupportedGraphicNames[];
   message: React.ReactNode;
   title?: string;
+  /** allow error state within the file uploader, as opposed to on its label */
+  internalError?: string;
   additionalInfo?: string;
   /** Controls the loading spinner on the upload button */
   isLoading?: boolean;
@@ -79,9 +82,11 @@ interface IFileUploaderProps {
  * A component that encapsulates the UI for uploading a file and a file selected.
  */
 export const FileUploader = ({
+  label,
   graphicName: graphicNames,
   message,
   title,
+  internalError,
   additionalInfo,
   isLoading = false,
   disabled = false,
@@ -103,6 +108,7 @@ export const FileUploader = ({
 
   const classes = classnames(baseClass, className, {
     [`${baseClass}__file-preview`]: isFileSelected,
+    [`${baseClass}__error`]: !!internalError,
   });
   const buttonVariant =
     buttonType === "button" ? "default" : "brand-inverse-icon";
@@ -132,6 +138,11 @@ export const FileUploader = ({
     }
   };
 
+  const renderLabel = () => {
+    return label ? (
+      <div className={`${baseClass}__label form-field__label`}>{label}</div>
+    ) : null;
+  };
   const renderGraphics = () => {
     const graphicNamesArr =
       typeof graphicNames === "string" ? [graphicNames] : graphicNames;
@@ -147,10 +158,10 @@ export const FileUploader = ({
   const renderUploadButton = () => {
     let buttonMarkup = (
       <>
+        {buttonMessage}
         {buttonType === "brand-inverse-icon" && (
           <Icon color="core-fleet-green" name="upload" />
         )}
-        <span>{buttonMessage}</span>
       </>
     );
     // If we want to actual do file uploading, wrap in a label that
@@ -210,61 +221,74 @@ export const FileUploader = ({
           onClick={onButtonClick || undefined}
           tabIndex={0}
         >
-          <label htmlFor="upload-file">{buttonMarkup}</label>
+          {buttonMarkup}
         </Button>
       </TooltipWrapper>
     );
   };
 
+  const renderTitle = () => {
+    if (internalError) {
+      return (
+        <div className={`${baseClass}__internal-error`}>{internalError}</div>
+      );
+    }
+    if (title) {
+      return <div className={`${baseClass}__title`}>{title}</div>;
+    }
+    return null;
+  };
+
   const renderFileUploader = () => {
     return (
-      <>
-        <div className="content-wrapper">
-          <div className="outer">
-            <div className="inner">
-              <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
-              {title && <div className={`${baseClass}__title`}>{title}</div>}
-              <p className={`${baseClass}__message`}>{message}</p>
-              {additionalInfo && (
-                <p className={`${baseClass}__additional-info`}>
-                  {additionalInfo}
-                </p>
-              )}
-            </div>
-            {renderUploadButton()}
-            {/* If onButtonClick is provided, we're not actually uploading files here. */}
-            {!onButtonClick && (
-              <input
-                ref={fileInputRef}
-                accept={accept}
-                id="upload-file"
-                type="file"
-                onChange={onFileSelect}
-              />
+      <div className="content-wrapper">
+        <div className="outer">
+          <div className="inner">
+            <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
+            {renderTitle()}
+            <p className={`${baseClass}__message`}>{message}</p>
+            {additionalInfo && (
+              <p className={`${baseClass}__additional-info`}>
+                {additionalInfo}
+              </p>
             )}
           </div>
+          {renderUploadButton()}
+          {/* If onButtonClick is provided, we're not actually uploading files here. */}
+          {!onButtonClick && (
+            <input
+              ref={fileInputRef}
+              accept={accept}
+              id="upload-file"
+              type="file"
+              onChange={onFileSelect}
+            />
+          )}
         </div>
-      </>
+      </div>
     );
   };
 
   return (
-    <Card color="grey" className={classes}>
-      {fileDetails ? (
-        <FileDetails
-          graphicNames={graphicNames}
-          fileDetails={fileDetails}
-          canEdit={canEdit}
-          onDeleteFile={onDeleteFile}
-          onFileSelect={onFileSelect}
-          accept={accept}
-          gitopsCompatible={gitopsCompatible}
-          gitOpsModeEnabled={gitOpsModeEnabled}
-        />
-      ) : (
-        renderFileUploader()
-      )}
-    </Card>
+    <div className={`${baseClass}__wrapper form-field`}>
+      {renderLabel()}
+      <Card color="grey" className={classes}>
+        {fileDetails ? (
+          <FileDetails
+            graphicNames={graphicNames}
+            fileDetails={fileDetails}
+            canEdit={canEdit}
+            onDeleteFile={onDeleteFile}
+            onFileSelect={onFileSelect}
+            accept={accept}
+            gitopsCompatible={gitopsCompatible}
+            gitOpsModeEnabled={gitOpsModeEnabled}
+          />
+        ) : (
+          renderFileUploader()
+        )}
+      </Card>
+    </div>
   );
 };
 

@@ -155,6 +155,64 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 	}
 	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
 
+	// Searching activites currently only supports searching by user name or email.
+	if opt.ListOptions.MatchQuery != "" {
+
+		activitiesQ += " AND (a.user_name LIKE ? OR a.user_email LIKE ?" // Final ')' will be added at the bottom of this IF
+		args = append(args, opt.ListOptions.MatchQuery+"%", opt.ListOptions.MatchQuery+"%")
+
+		// Also search the users table here to get the most up to date information
+		users, err := ds.ListUsers(ctx, fleet.UserListOptions{
+			ListOptions: fleet.ListOptions{
+				MatchQuery: opt.ListOptions.MatchQuery,
+			},
+		})
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "list users for activity search")
+		}
+
+		if len(users) != 0 {
+			userIds := make([]uint, 0, len(users))
+			for _, u := range users {
+				userIds = append(userIds, u.ID)
+			}
+
+			inQ, inArgs, err := sqlx.In("a.user_id IN (?)", userIds)
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "bind user IDs for IN clause")
+			}
+			inQ = ds.reader(ctx).Rebind(inQ)
+			activitiesQ += " OR " + inQ
+			args = append(args, inArgs...)
+		}
+
+		activitiesQ += ")"
+	}
+
+	if opt.ActivityType != "" {
+		activitiesQ += " AND a.activity_type = ?"
+		args = append(args, opt.ActivityType)
+	}
+
+	if opt.StartCreatedAt != "" || opt.EndCreatedAt != "" {
+		start := opt.StartCreatedAt
+		end := opt.EndCreatedAt
+		switch {
+		case start == "" && end != "":
+			// Only EndCreatedAt is set, so filter up to end
+			activitiesQ += " AND a.created_at <= ?"
+			args = append(args, end)
+		case start != "" && end == "":
+			// Only StartCreatedAt is set, so filter from start to now
+			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
+			args = append(args, start, time.Now().UTC())
+		case start != "" && end != "":
+			// Both are set
+			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
+			args = append(args, start, end)
+		}
+	}
+
 	activitiesQ, args = appendListOptionsWithCursorToSQL(activitiesQ, args, &opt.ListOptions)
 
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, activitiesQ, args...)
@@ -206,6 +264,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 	}
 
 	if len(lookup) != 0 {
+		// TODO: We left this query here for user replacement, to keep the scope simple, and the users table is never going to be super big, so it won't tank performance.
 		usersQ := `
 			SELECT u.id, u.name, u.gravatar_url, u.email, u.api_only
 			FROM users u
@@ -486,7 +545,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ''),
 				'command_uuid', ua.execution_id,
-				'self_service', false,
+				'self_service', ua.payload->'$.self_service' IS TRUE,
 				'status', 'pending_install'
 			) AS details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
@@ -1460,14 +1519,18 @@ SELECT
 	ua.user_id,
 	COALESCE(ua.payload->'$.self_service', 0),
 	siua.policy_id,
-	COALESCE(ua.payload->>'$.installer_filename', '[deleted installer]'),
-	COALESCE(ua.payload->>'$.version', 'unknown'),
-	siua.software_title_id,
-	COALESCE(ua.payload->>'$.software_title_name', '[deleted title]')
+	COALESCE(si.filename, ua.payload->>'$.installer_filename', '[deleted installer]'),
+	COALESCE(si.version, ua.payload->>'$.version', 'unknown'),
+	COALESCE(si.title_id, siua.software_title_id),
+	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]')
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua
 		ON siua.upcoming_activity_id = ua.id
+	LEFT JOIN software_installers si
+		ON si.id = siua.software_installer_id
+	LEFT JOIN software_titles st
+		ON st.id = si.title_id
 WHERE
 	ua.host_id = ? AND
 	ua.execution_id IN (?)
@@ -1526,14 +1589,18 @@ SELECT
 	ua.user_id,
 	1,  -- uninstall
 	'', -- no installer_filename for uninstalls
-	siua.software_title_id,
-	COALESCE(ua.payload->>'$.software_title_name', '[deleted title]'),
+	COALESCE(si.title_id, siua.software_title_id),
+	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]'),
 	COALESCE(ua.payload->>'$.self_service', FALSE),
 	'unknown'
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua
 		ON siua.upcoming_activity_id = ua.id
+	LEFT JOIN software_installers si
+		ON si.id = siua.software_installer_id
+	LEFT JOIN software_titles st
+		ON st.id = si.title_id
 WHERE
 	ua.host_id = ? AND
 	ua.execution_id IN (?)
@@ -1730,13 +1797,14 @@ func (ds *Datastore) activateNextInHouseAppInstallActivity(ctx context.Context, 
 	const insStmt = `
 INSERT INTO
 	host_in_house_software_installs
-(host_id, in_house_app_id, command_uuid, user_id, platform)
+(host_id, in_house_app_id, command_uuid, user_id, platform, self_service)
 SELECT
 	ua.host_id,
 	ihua.in_house_app_id,
 	ua.execution_id,
 	ua.user_id,
-	iha.platform
+	iha.platform,
+	COALESCE(ua.payload->'$.self_service', 0)
 FROM
 	upcoming_activities ua
 	INNER JOIN in_house_app_upcoming_activities ihua

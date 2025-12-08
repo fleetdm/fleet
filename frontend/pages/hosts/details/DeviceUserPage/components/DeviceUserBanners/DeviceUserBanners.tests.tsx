@@ -19,9 +19,9 @@ describe("Device User Banners", () => {
         connectedToFleetMdm
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
-        onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
       />
     );
     expect(screen.getByText(turnOnMdmExpcetedText)).toBeInTheDocument();
@@ -36,9 +36,9 @@ describe("Device User Banners", () => {
         connectedToFleetMdm
         macDiskEncryptionStatus="action_required"
         diskEncryptionActionRequired="rotate_key"
-        onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
       />
     );
     expect(
@@ -58,9 +58,9 @@ describe("Device User Banners", () => {
         connectedToFleetMdm
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
-        onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
       />
     );
     expect(
@@ -81,9 +81,9 @@ describe("Device User Banners", () => {
         connectedToFleetMdm
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
-        onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
       />
     );
     expect(
@@ -104,9 +104,9 @@ describe("Device User Banners", () => {
         connectedToFleetMdm
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
-        onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
       />
     );
     expect(screen.getByText(createPINExepectedText)).toBeInTheDocument();
@@ -121,10 +121,10 @@ describe("Device User Banners", () => {
         connectedToFleetMdm
         macDiskEncryptionStatus="verifying"
         diskEncryptionActionRequired={null}
-        onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
         diskEncryptionOSSetting={{ status: "verifying", detail: "" }}
         onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
       />
     );
 
@@ -146,9 +146,9 @@ describe("Device User Banners", () => {
         connectedToFleetMdm={false}
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
-        onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
       />
     );
 

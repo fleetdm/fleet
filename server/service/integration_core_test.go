@@ -101,6 +101,82 @@ func (s *integrationTestSuite) TestSlowOsqueryHost() {
 	assert.Equal(t, http.StatusRequestTimeout, resp.StatusCode)
 }
 
+// TestMDMAnyMiddlewareAccess performs an end-to-end check through the HTTP
+// handler to confirm the new middleware respects each platform toggle.
+func (s *integrationTestSuite) TestMDMAnyMiddlewareAccess() {
+	t := s.T()
+	ctx := context.Background()
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+
+	ensureAppleMDMAssets := func() {
+		assets := []fleet.MDMConfigAsset{
+			{Name: fleet.MDMAssetCACert, Value: []byte("test-ca-cert")},
+			{Name: fleet.MDMAssetCAKey, Value: []byte("test-ca-key")},
+			{Name: fleet.MDMAssetAPNSCert, Value: []byte("test-apns-cert")},
+			{Name: fleet.MDMAssetAPNSKey, Value: []byte("test-apns-key")},
+		}
+		if err := s.ds.InsertMDMConfigAssets(ctx, assets, nil); err != nil && !mysql.IsDuplicate(err) {
+			require.NoError(t, err)
+		}
+	}
+	ensureAppleMDMAssets()
+
+	origMDM := appCfg.MDM
+	defer func(orig fleet.MDM) {
+		appCfg.MDM = orig
+		require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+		require.NoError(t, s.ds.SetAndroidEnabledAndConfigured(ctx, orig.AndroidEnabledAndConfigured))
+	}(origMDM)
+
+	const endpoint = "/api/latest/fleet/configuration_profiles"
+
+	requestProfiles := func() *http.Response {
+		req, err := http.NewRequest("GET", s.server.URL+endpoint, nil)
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+s.token)
+
+		resp, err := fleethttp.NewClient().Do(req)
+		require.NoError(t, err)
+		return resp
+	}
+
+	setConfig := func(apple, windows, android bool) {
+		appCfg.MDM.EnabledAndConfigured = apple
+		appCfg.MDM.WindowsEnabledAndConfigured = windows
+		require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+
+		require.NoError(t, s.ds.SetAndroidEnabledAndConfigured(ctx, android))
+
+		appCfg, err = s.ds.AppConfig(ctx)
+		require.NoError(t, err)
+	}
+
+	setConfig(false, false, false)
+	res := s.Do("GET", endpoint, nil, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+	require.NoError(t, res.Body.Close())
+
+	assertNotMDMNotConfigured := func() {
+		resp := requestProfiles()
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+		require.NotEqual(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotContains(t, string(body), fleet.ErrMDMNotConfigured.Error())
+	}
+
+	setConfig(true, false, false)
+	assertNotMDMNotConfigured()
+
+	setConfig(false, true, false)
+	assertNotMDMNotConfigured()
+
+	setConfig(false, false, true)
+	assertNotMDMNotConfigured()
+}
+
 func (s *integrationTestSuite) TestDistributedReadWithChangedQueries() {
 	t := s.T()
 
@@ -2029,6 +2105,137 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts[0].Labels, 2)
 	require.Equal(t, label1.Name, resp.Hosts[0].Labels[0].Name)
 	require.Equal(t, label2.Name, resp.Hosts[0].Labels[1].Name)
+}
+
+func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a host for this test
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(t.Name() + "1"),
+		OsqueryHostID:   ptr.String(t.Name() + "1"),
+		UUID:            t.Name() + "1",
+		Hostname:        t.Name() + "foo.local",
+		PrimaryIP:       "192.168.1.10",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	// Create software with installed paths and signature information
+	software := []fleet.Software{
+		{
+			Name:             "Google Chrome.app",
+			Version:          "121.0.6167.160",
+			Source:           "chrome_extensions",
+			ExtensionID:      "test-extension-id",
+			ExtensionFor:     "chrome",
+			BundleIdentifier: "com.google.Chrome",
+		},
+	}
+	hostSoftware, err := s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.Len(t, hostSoftware.CurrInstalled(), 1)
+
+	// Add installed paths and signature information
+	swPaths := map[string]struct{}{}
+	for _, s := range software {
+		pathItems := [][3]string{
+			{"/Applications/Google Chrome.app", "EQHXZ8M8AV", "abc123hash"},
+			{"/Users/test/Applications/Google Chrome.app", "", ""},
+		}
+		for _, pathItem := range pathItems {
+			path := pathItem[0]
+			teamIdentifier := pathItem[1]
+			cdHash := pathItem[2]
+			key := fmt.Sprintf(
+				"%s%s%s%s%s%s%s",
+				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+			)
+			swPaths[key] = struct{}{}
+		}
+	}
+	err = s.ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, hostSoftware)
+	require.NoError(t, err)
+
+	// Sync to ensure counts are updated
+	err = s.ds.SyncHostsSoftware(ctx, time.Now().UTC())
+	require.NoError(t, err)
+
+	// Test: GET /api/latest/fleet/hosts with populate_software=true
+	var listResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "populate_software", "true")
+
+	// Find our test host in the response
+	var testHost *fleet.HostResponse
+	for i, h := range listResp.Hosts {
+		if h.ID == host.ID {
+			testHost = &listResp.Hosts[i]
+			break
+		}
+	}
+	require.NotNil(t, testHost, "test host not found in response")
+
+	// Verify software is populated
+	require.NotEmpty(t, testHost.Software, "software should be populated")
+	require.Len(t, testHost.Software, 1, "expected 1 software entry")
+
+	// Verify the software entry has the expected fields
+	sw := testHost.Software[0]
+	assert.Equal(t, "Google Chrome.app", sw.Name)
+	assert.Equal(t, "121.0.6167.160", sw.Version)
+	assert.Equal(t, "chrome_extensions", sw.Source)
+	assert.Equal(t, "test-extension-id", sw.ExtensionID)
+	assert.Equal(t, "chrome", sw.ExtensionFor)
+	assert.Equal(t, "chrome", sw.Browser) // backward compatibility field
+	assert.Equal(t, "com.google.Chrome", sw.BundleIdentifier)
+
+	// Verify installed_paths is populated and not empty
+	assert.NotEmpty(t, sw.InstalledPaths, "installed_paths should be populated")
+	assert.Len(t, sw.InstalledPaths, 2, "expected 2 installed paths")
+	assert.Contains(t, sw.InstalledPaths, "/Applications/Google Chrome.app")
+	assert.Contains(t, sw.InstalledPaths, "/Users/test/Applications/Google Chrome.app")
+
+	// Verify signature_information is populated
+	assert.NotEmpty(t, sw.PathSignatureInformation, "signature_information should be populated")
+	assert.Len(t, sw.PathSignatureInformation, 2, "expected 2 signature information entries")
+
+	// Sort by installed path for consistent ordering
+	sort.Slice(sw.PathSignatureInformation, func(i, j int) bool {
+		return sw.PathSignatureInformation[i].InstalledPath < sw.PathSignatureInformation[j].InstalledPath
+	})
+
+	// Verify first signature information (system-level with team identifier)
+	sigInfo0 := sw.PathSignatureInformation[0]
+	assert.Equal(t, "/Applications/Google Chrome.app", sigInfo0.InstalledPath)
+	assert.Equal(t, "EQHXZ8M8AV", sigInfo0.TeamIdentifier)
+	assert.NotNil(t, sigInfo0.HashSha256)
+	assert.Equal(t, "abc123hash", *sigInfo0.HashSha256)
+
+	// Verify second signature information (user-level without team identifier)
+	sigInfo1 := sw.PathSignatureInformation[1]
+	assert.Equal(t, "/Users/test/Applications/Google Chrome.app", sigInfo1.InstalledPath)
+	assert.Equal(t, "", sigInfo1.TeamIdentifier)
+	assert.Nil(t, sigInfo1.HashSha256)
+
+	// Also verify the JSON marshaling by checking the raw JSON response
+	rawResp := s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, "populate_software", "true")
+	defer rawResp.Body.Close()
+	body, err := io.ReadAll(rawResp.Body)
+	require.NoError(t, err)
+
+	// Verify the JSON contains our expected fields
+	assert.Contains(t, string(body), "installed_paths", "JSON should contain installed_paths field")
+	assert.Contains(t, string(body), "signature_information", "JSON should contain signature_information field")
+	assert.Contains(t, string(body), "/Applications/Google Chrome.app", "JSON should contain the installed path")
+	assert.Contains(t, string(body), "EQHXZ8M8AV", "JSON should contain the team identifier")
+	assert.Contains(t, string(body), "abc123hash", "JSON should contain the hash")
 }
 
 func (s *integrationTestSuite) TestInvites() {
@@ -3985,6 +4192,12 @@ func (s *integrationTestSuite) TestHostDeviceMappingIDP() {
 	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
 		putHostDeviceMappingRequest{Email: "idp.user1@example.com", Source: "idp"},
 		http.StatusPaymentRequired, &putResp)
+
+	// Test 6: Delete IDP endpoint rejects request on Fleet Free
+	var delResp deleteHostIDPResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping/idp", host.ID),
+		deleteHostIDPRequest{},
+		http.StatusPaymentRequired, &delResp)
 }
 
 func (s *integrationTestSuite) TestListHostsDeviceMappingSize() {
@@ -7746,6 +7959,247 @@ func (s *integrationTestSuite) TestQuerySpecs() {
 	assert.Equal(t, uint(3), delBatchResp.Deleted)
 }
 
+func (s *integrationTestSuite) TestCertificatesSpecs() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
+	require.NoError(t, err)
+
+	// Create a test certificate authority
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("Test SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+
+	// apply certificate templates
+	var applyResp applyCertificateTemplateSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Invalid Template",
+				Team:                   fmt.Sprint(team.ID),
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_NOT_VALID/OU=$FLEET_VAR_HOST_UUID",
+			},
+		},
+	}, http.StatusBadRequest, &applyResp)
+
+	// valid templates
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Template 1",
+				Team:                   fmt.Sprint(team.ID),
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			},
+			{
+				Name:                   "Template 2",
+				Team:                   fmt.Sprint(team.ID),
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
+			},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// list specs
+	var listCertifcatesResp listCertificateTemplatesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
+	require.Len(t, listCertifcatesResp.Certificates, 2)
+	assert.ElementsMatch(t, []string{"Template 1", "Template 2"}, []string{listCertifcatesResp.Certificates[0].Name, listCertifcatesResp.Certificates[1].Name})
+
+	// Create a host to get certificate get by id endpoint
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("test-cert-node-key"),
+		UUID:            "test-uuid-12345",
+		Hostname:        "test-cert-host.local",
+		HardwareSerial:  "TEST-SERIAL-67890",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	orbitNodeKey := uuid.New().String()
+	host.OrbitNodeKey = &orbitNodeKey
+	require.NoError(t, s.ds.UpdateHost(ctx, host))
+
+	savedCertificateTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, team.ID, fleet.ListOptions{Page: 0, PerPage: 10})
+	require.NoError(t, err)
+	certID := savedCertificateTemplates[0].ID
+
+	var getCertResp getDeviceCertificateTemplateResponse
+
+	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+	})
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, *getCertResp.Certificate.Status, fleet.CertificateTemplateFailed)
+
+	// Add an IDP user for the host
+	err = s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: host.ID,
+			Email:  "test.user@example.com",
+			Source: fleet.DeviceMappingMDMIdpAccounts,
+		},
+	}, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+
+	// Get certificate without node_key
+	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusUnauthorized, nil)
+	require.NoError(t, resp.Body.Close())
+
+	// Get certificate with node_key (should return replaced variables)
+	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+	})
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
+	require.NoError(t, resp.Body.Close())
+	require.NotNil(t, getCertResp.Certificate)
+
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "test.user@example.com")
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "test-uuid-12345")
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "TEST-SERIAL-67890")
+
+	// Get certificate without host_uuid (should return subject with variables)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", certID), nil, http.StatusOK, &getCertResp)
+	require.NotNil(t, getCertResp.Certificate)
+
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_END_USER_IDP_USERNAME")
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_UUID")
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_HARDWARE_SERIAL")
+
+	// batch delete certificate templates
+	var delBatchResp deleteCertificateTemplateSpecsResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
+		"ids": []uint{listCertifcatesResp.Certificates[0].ID, listCertifcatesResp.Certificates[1].ID},
+	}, http.StatusOK, &delBatchResp)
+
+	// list specs
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
+	require.Len(t, listCertifcatesResp.Certificates, 0)
+
+	// certificate templates for "No team" (team_id 0)
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "No Team Template 1",
+				Team:                   "0",
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
+			},
+			{
+				Name:                   "No Team Template 2",
+				Team:                   "0",
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// list specs for "no team" (team_id 0)
+	var noTeamCertificatesResp listCertificateTemplatesResponse
+	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
+	require.Len(t, noTeamCertificatesResp.Certificates, 2)
+	assert.ElementsMatch(t, []string{"No Team Template 1", "No Team Template 2"}, []string{noTeamCertificatesResp.Certificates[0].Name, noTeamCertificatesResp.Certificates[1].Name})
+
+	// Create a host
+	noTeamHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("test-cert-no-team-node-key"),
+		UUID:            "test-no-team-uuid-12345",
+		Hostname:        "test-cert-no-team-host.local",
+		HardwareSerial:  "TEST-NO-TEAM-SERIAL",
+		TeamID:          nil, // No team
+	})
+	require.NoError(t, err)
+
+	noTeamOrbitNodeKey := uuid.New().String()
+	noTeamHost.OrbitNodeKey = &noTeamOrbitNodeKey
+	require.NoError(t, s.ds.UpdateHost(ctx, noTeamHost))
+
+	// Add an IDP user for host
+	err = s.ds.ReplaceHostDeviceMapping(ctx, noTeamHost.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: noTeamHost.ID,
+			Email:  "no.team.user@example.com",
+			Source: fleet.DeviceMappingMDMIdpAccounts,
+		},
+	}, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+
+	savedNoTeamCertTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, 0, fleet.ListOptions{Page: 0, PerPage: 10})
+	require.NoError(t, err)
+	require.Len(t, savedNoTeamCertTemplates, 2)
+	noTeamCertID := savedNoTeamCertTemplates[0].ID
+
+	// Get certificate with orbit node_key (should return replaced variables)
+	var getNoTeamCertResp getDeviceCertificateTemplateResponse
+	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", noTeamCertID), nil, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", noTeamOrbitNodeKey),
+	})
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getNoTeamCertResp))
+	require.NoError(t, resp.Body.Close())
+	require.NotNil(t, getNoTeamCertResp.Certificate)
+	assert.Contains(t, getNoTeamCertResp.Certificate.SubjectName, "no.team.user@example.com")
+	assert.Contains(t, getNoTeamCertResp.Certificate.SubjectName, "test-no-team-uuid-12345")
+
+	var profilesSummaryResp getMDMProfilesSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", nil, http.StatusOK, &profilesSummaryResp)
+	require.NotNil(t, profilesSummaryResp)
+	require.Equal(t, uint(0), profilesSummaryResp.Verified)
+	require.Equal(t, uint(0), profilesSummaryResp.Verifying)
+	require.Equal(t, uint(0), profilesSummaryResp.Failed)
+	require.Equal(t, uint(0), profilesSummaryResp.Pending)
+
+	// creating a certificate
+	var createCertResp createCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", map[string]interface{}{
+		"name":                     "POST No Team Cert",
+		"certificate_authority_id": ca.ID,
+		"subject_name":             "CN=$FLEET_VAR_HOST_UUID",
+		// team_id intentionally omitted - should default to 0
+	}, http.StatusOK, &createCertResp)
+	require.NotZero(t, createCertResp.ID)
+	require.Equal(t, "POST No Team Cert", createCertResp.Name)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &getCertResp)
+	require.NotNil(t, getCertResp.Certificate)
+
+	var delResp deleteCertificateTemplateResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &delResp)
+
+	var delBatchResp2 deleteCertificateTemplateSpecsResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
+		"ids": []uint{noTeamCertificatesResp.Certificates[0].ID},
+		// team_id intentionally omitted - should default to 0
+	}, http.StatusOK, &delBatchResp2)
+
+	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
+	require.Len(t, noTeamCertificatesResp.Certificates, 1)
+	require.Equal(t, noTeamCertificatesResp.Certificates[0].ID, noTeamCertificatesResp.Certificates[0].ID)
+
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
+		"ids":     []uint{noTeamCertificatesResp.Certificates[0].ID},
+		"team_id": uint(0),
+	}, http.StatusOK, &delBatchResp)
+
+	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
+	require.Len(t, noTeamCertificatesResp.Certificates, 0)
+}
+
 func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	t := s.T()
 
@@ -10218,6 +10672,10 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 			params = getOrbitSetupExperienceStatusRequest{
 				OrbitNodeKey: *h.OrbitNodeKey,
 			}
+		}
+		// These routes don't require MDM because they can be used to change end-user auth, but they do require a license.
+		if route.method == "PATCH" && (route.path == "/api/latest/fleet/setup_experience" || route.path == "/api/latest/fleet/mdm/apple/setup") {
+			expectedErr = fleet.ErrMissingLicense
 		}
 		res := s.Do(route.method, path, params, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
@@ -14292,4 +14750,147 @@ func (s *integrationTestSuite) TestConditionalAccessOnlyCloud() {
 	var d conditionalAccessMicrosoftDeleteResponse
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
 		http.StatusBadRequest, &d)
+}
+
+func (s *integrationTestSuite) TestUpdateHostCertificateTemplate() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a test team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
+	require.NoError(t, err)
+	teamID := team.ID
+
+	// Create a test certificate authority
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("TestUpdateHostCertificateTemplate SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID := ca.ID
+
+	certTemplate := &fleet.CertificateTemplate{
+		Name:                   "TestUpdateHostCertificateTemplate-Cert",
+		TeamID:                 teamID,
+		CertificateAuthorityID: caID,
+		SubjectName:            "CN=Test Subject 1",
+	}
+	savedTemplate, err := s.ds.CreateCertificateTemplate(ctx, certTemplate)
+	require.NoError(t, err)
+	require.NotNil(t, savedTemplate)
+
+	orbitNodeKey := uuid.New().String()
+	uuid := uuid.New().String()
+	hostName := "test-update-host-certificate-template"
+
+	// Create a host
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		NodeKey:  &orbitNodeKey,
+		UUID:     uuid,
+		Hostname: hostName,
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	host.OrbitNodeKey = &orbitNodeKey
+	require.NoError(t, s.ds.UpdateHost(ctx, host))
+
+	certificateTemplateID := savedTemplate.ID
+
+	// Delete the certificate after the test is done, so the team can be deleted.
+	defer func() {
+		// Clean up
+		err = s.ds.DeleteCertificateTemplate(ctx, certificateTemplateID)
+		require.NoError(t, err)
+	}()
+
+	// Create a record in host_certificate_templates using ad hoc SQL
+	sql := `
+INSERT INTO host_certificate_templates (
+	host_uuid,
+	certificate_template_id,
+	status,
+	fleet_challenge
+) VALUES (?, ?, ?, ?);
+	`
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err = q.ExecContext(ctx, sql, host.UUID, certificateTemplateID, "pending", "some_challenge_value")
+		require.NoError(t, err)
+		return nil
+	})
+
+	// Test cases
+	cases := []struct {
+		name                    string
+		templateID              uint
+		newStatus               string
+		detail                  *string
+		expectedResponseStatus  int
+		expectedResponseMessage string
+		headers                 map[string]string
+	}{
+		{
+			name:                   "Valid Update",
+			templateID:             certificateTemplateID,
+			newStatus:              "verified",
+			detail:                 ptr.String("Certificate Verified"),
+			expectedResponseStatus: http.StatusOK,
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
+		},
+		{
+			name:                    "Invalid Status",
+			templateID:              certificateTemplateID,
+			newStatus:               "invalid_status",
+			expectedResponseStatus:  http.StatusUnprocessableEntity,
+			expectedResponseMessage: "invalid status value",
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
+		},
+		{
+			name:                    "Wrong node key",
+			templateID:              certificateTemplateID,
+			newStatus:               "verified",
+			expectedResponseStatus:  http.StatusUnauthorized,
+			expectedResponseMessage: "host certificate template not found",
+			headers: map[string]string{
+				"Authorization": "Node key wrong-node-key",
+			},
+		},
+		{
+			name:                    "With no auth headers",
+			templateID:              certificateTemplateID,
+			newStatus:               "verified",
+			expectedResponseStatus:  http.StatusUnauthorized,
+			expectedResponseMessage: "host certificate template not found",
+		},
+		{
+			name:                    "Wrong Template ID",
+			templateID:              9999,
+			newStatus:               "verified",
+			expectedResponseStatus:  http.StatusNotFound,
+			expectedResponseMessage: "host certificate template not found",
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("TestUpdateHostCertificateTemplate:%s", tc.name), func(t *testing.T) {
+			req, err := json.Marshal(updateCertificateStatusRequest{
+				Status: tc.newStatus,
+				Detail: tc.detail,
+			})
+			require.NoError(t, err)
+
+			resp := s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", tc.templateID), req, tc.expectedResponseStatus, tc.headers)
+			require.NoError(t, resp.Body.Close())
+		})
+	}
 }

@@ -24,6 +24,7 @@ describe("InstallerDetailsWidget", () => {
     version: "v1.2.3",
     isFma: false,
     isScriptPackage: false,
+    androidPlayStoreLink: undefined,
   };
 
   it("renders the package icon when installerType is 'package'", () => {
@@ -97,9 +98,24 @@ describe("InstallerDetailsWidget", () => {
   });
 
   it("renders VPP label", () => {
-    render(<InstallerDetailsWidget {...defaultProps} installerType="vpp" />);
+    render(
+      <InstallerDetailsWidget {...defaultProps} installerType="app-store" />
+    );
 
     expect(screen.getByText(/App Store \(VPP\)/i)).toBeInTheDocument();
+  });
+
+  it("renders Google Play Store label and 'latest' for version", () => {
+    render(
+      <InstallerDetailsWidget
+        {...defaultProps}
+        installerType="app-store"
+        androidPlayStoreLink="link-here"
+      />
+    );
+
+    expect(screen.getByText(/Google Play Store/i)).toBeInTheDocument();
+    expect(screen.getByText(/latest/i)).toBeInTheDocument();
   });
 
   it("InstallerName disables tooltip if not truncated", () => {

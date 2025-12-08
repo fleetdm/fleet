@@ -1,0 +1,1 @@
+* Optimized the cleanup Apple host profiles query to reduce probability of DB locking.

@@ -6,15 +6,18 @@ import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
+import paths from "router/paths";
+import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
 import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
+import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
 import {
   CATEGORIES_ITEMS,
   ICategory,
 } from "pages/hosts/details/cards/Software/SelfService/helpers";
 import Button from "components/buttons/Button";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 const baseClass = "software-options-selector";
 
@@ -42,8 +45,9 @@ const CategoriesSelector = ({
                 value={selectedCategories.includes(cat.value)}
                 onChange={onSelectCategory}
                 parseTarget
-              />
-              <div className={`${baseClass}__label-name`}>{cat.label}</div>
+              >
+                <div className={`${baseClass}__label-name`}>{cat.label}</div>
+              </Checkbox>
             </div>
           );
         })}
@@ -63,7 +67,8 @@ interface ISoftwareOptionsSelector {
   formData:
     | IFleetMaintainedAppFormData
     | ISoftwareVppFormData
-    | IPackageFormData;
+    | IPackageFormData
+    | ISoftwareAndroidFormData;
   /** Only used in create mode not edit mode for FMA, VPP, and custom packages */
   onToggleAutomaticInstall: (value: boolean) => void;
   onToggleSelfService: (value: boolean) => void;
@@ -104,8 +109,9 @@ const SoftwareOptionsSelector = ({
   const classNames = classnames(baseClass, className);
 
   const isPlatformIosOrIpados =
-    platform === "ios" || platform === "ipados" || isIpaPackage;
-  const isSelfServiceDisabled = disableOptions || isPlatformIosOrIpados;
+    isIPadOrIPhone(platform || "") || isIpaPackage || false;
+  const isPlatformAndroid = isAndroid(platform || "");
+  const isSelfServiceDisabled = disableOptions;
   const isAutomaticInstallDisabled =
     disableOptions ||
     isPlatformIosOrIpados ||
@@ -149,22 +155,46 @@ const SoftwareOptionsSelector = ({
   // Ability to set categories when adding software is in a future ticket #28061
   const canSelectSoftwareCategories = formData.selfService && isEditingSoftware;
 
+  const renderOptionsDescription = () => {
+    if (isPlatformAndroid) {
+      return (
+        <p>
+          Currently, Android apps can only be added as self-service and the end
+          user can install them from the <strong>Play Store</strong> in their
+          work profile. Additionally, you can install it when hosts enroll on
+          the{" "}
+          <CustomLink
+            url={paths.CONTROLS_INSTALL_SOFTWARE("android")}
+            text="Setup experience"
+          />{" "}
+          page.
+        </p>
+      );
+    }
+    // Render unavailable description for iOS or iPadOS add software form only
+    return isPlatformIosOrIpados && !isEditingSoftware ? (
+      <p>
+        Automatic install for iOS and iPadOS is coming soon. Today, you can
+        manually install it from the <strong>Host details</strong> page for each
+        host.
+      </p>
+    ) : null;
+  };
+
   return (
     <div className={`form-field ${classNames}`}>
       <div className="form-field__label">Options</div>
-      {isPlatformIosOrIpados && (
-        <p>
-          Currently, self-service and automatic installation are not available
-          for iOS and iPadOS. Today, you can manually install on the{" "}
-          <b>Host details</b> page for each host.
-        </p>
-      )}
+      {renderOptionsDescription()}
       <div className={`${baseClass}__self-service`}>
         <Checkbox
           value={formData.selfService}
           onChange={(newVal: boolean) => onToggleSelfService(newVal)}
           className={`${baseClass}__self-service-checkbox`}
-          labelTooltipContent={!isSelfServiceDisabled && SELF_SERVICE_TOOLTIP}
+          labelTooltipContent={
+            !isSelfServiceDisabled &&
+            getSelfServiceTooltip(isPlatformIosOrIpados, isPlatformAndroid)
+          }
+          labelTooltipClickable // Allow interaction with link in tooltip
           disabled={isSelfServiceDisabled}
         >
           Self-service

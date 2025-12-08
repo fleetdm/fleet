@@ -45,6 +45,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesPackagesOnly", testSoftwareTitlesPackagesOnly},
 		{"SoftwareTitleByIDHostCount", testSoftwareTitleHostCount},
 		{"ListSoftwareTitlesInHouseApps", testListSoftwareTitlesInHouseApps},
+		{"ListSoftwareTitlesByPlatform", testListSoftwareTitlesByPlatform},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2217,7 +2218,7 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 	}
 
 	// install software on host
-	updateSw, err := fleet.SoftwareFromOsqueryRow("foo", "1.0", "apps", "", "", "", "", "com.foo.installer", "", "", "")
+	updateSw, err := fleet.SoftwareFromOsqueryRow("foo", "1.0", "apps", "", "", "", "", "com.foo.installer", "", "", "", "")
 	require.NoError(t, err)
 
 	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installers[0], fleet.HostSoftwareInstallOptions{})
@@ -2314,6 +2315,7 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 		Extension:        "ipa",
 		UserID:           user.ID,
 		TeamID:           &team1.ID,
+		SelfService:      true,
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
@@ -2376,8 +2378,8 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
 				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
 			},
 		},
@@ -2398,8 +2400,8 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
 			},
 		},
 		{
@@ -2419,8 +2421,8 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
 				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
 			},
 		},
@@ -2435,7 +2437,12 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 				TeamID:          &team1.ID,
 				SelfServiceOnly: true,
 			},
-			wantCount: 0,
+			wantCount: 2,
+			wantNames: []string{"in-house2", "in-house2"},
+			wantInstallers: []*fleet.SoftwarePackageOrApp{
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
+			},
 		},
 		{
 			desc: "macos only",
@@ -2469,7 +2476,7 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantNames: []string{"in-house1", "in-house2"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
 			},
 		},
 		{
@@ -2488,8 +2495,8 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
 				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
 				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
 			},
 		},
@@ -2504,4 +2511,83 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			assertInstallers(t, titles, c.wantInstallers)
 		})
 	}
+}
+
+func testListSoftwareTitlesByPlatform(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host.ID})))
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "1.0.0", Source: "apps"},
+		{Name: "bar", Version: "2.0.0", Source: "deb_packages"},
+		{Name: "baz", Version: "3.0.0", Source: "rpm_packages"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	// create a software package that matches foo
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "foo",
+		Source:          "apps",
+		InstallScript:   "echo foo",
+		Filename:        "foo.pkg",
+		UserID:          user.ID,
+		TeamID:          &team1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		Platform:        string(fleet.MacOSPlatform),
+	})
+	require.NoError(t, err)
+
+	// Sync and reconcile
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+
+	opts := fleet.SoftwareTitleListOptions{}
+
+	// no filter, all titles
+	titles, counts, _, err := ds.ListSoftwareTitles(ctx, opts, adminFilter)
+	require.NoError(t, err)
+	require.Equal(t, len(software), counts)
+	require.Len(t, titles, len(software))
+
+	// errs with platform without team_id
+	opts.Platform = "darwin"
+	_, _, _, err = ds.ListSoftwareTitles(ctx, opts, adminFilter)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), fleet.FilterTitlesByPlatformNeedsTeamIdErrMsg)
+
+	// okay with team 1, just 1 res
+	opts.TeamID = &team1.ID
+	titles, counts, _, err = ds.ListSoftwareTitles(ctx, opts, adminFilter)
+	require.NoError(t, err)
+	// should only contain installable software
+	require.Equal(t, counts, 1)
+	require.Len(t, titles, 1)
+	require.Equal(t, titles[0].Name, "foo")
+
+	// okay with team 2, no results
+	opts.TeamID = &team2.ID
+	titles, counts, _, err = ds.ListSoftwareTitles(ctx, opts, adminFilter)
+	require.NoError(t, err)
+	require.Equal(t, counts, 0)
+	require.Len(t, titles, 0)
+
+	// okay with team 1, no windows sw
+	opts.TeamID = &team1.ID
+	opts.Platform = "windows"
+	titles, counts, _, err = ds.ListSoftwareTitles(ctx, opts, adminFilter)
+	require.NoError(t, err)
+	require.Zero(t, counts)
+	require.Empty(t, titles)
 }

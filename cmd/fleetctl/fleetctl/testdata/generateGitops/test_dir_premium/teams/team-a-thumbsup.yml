@@ -18,6 +18,11 @@ agent_options:
     osqueryd: edge
 controls:
   android_enabled_and_configured: true
+  android_settings:
+    certificates:
+    - certificate_authority_name: DIGIDOO
+      name: my_certypoo
+      subject_name: CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
   enable_disk_encryption: true
   ios_updates:
     deadline: "2021-12-31"
@@ -66,10 +71,11 @@ software:
     - Productivity
     - Utilities
     icon:
-      path: "../lib/team-a-👍/icons/my-app-store-app--icon.png"
+      path: "../lib/team-a-👍/icons/my-app-store-app-darwin-icon.png"
     labels_exclude_any:
     - Label C
     - Label D
+    platform: darwin
     self_service: true
   packages:
   - categories:

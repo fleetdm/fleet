@@ -41,16 +41,17 @@ provider "aws" {
   }
 }
 
-# Read EKS VPC from remote state
-data "terraform_remote_state" "eks_vpc" {
+# Read shared VPC from remote state
+data "terraform_remote_state" "shared_vpc" {
   backend = "s3"
   config = {
-    bucket         = "fleet-terraform-state20220408141538466600000002"
-    key            = "loadtesting/shared/eks-vpc/terraform.tfstate"
-    region         = "us-east-2"
-    encrypt        = true
-    kms_key_id     = "9f98a443-ffd7-4dbe-a9c3-37df89b2e42a"
-    dynamodb_table = "tf-remote-state-lock"
+    bucket               = "fleet-terraform-state20220408141538466600000002"
+    key                  = "loadtesting/loadtesting/shared/terraform.tfstate"
+    workspace_key_prefix = "loadtesting"
+    region               = "us-east-2"
+    encrypt              = true
+    kms_key_id           = "9f98a443-ffd7-4dbe-a9c3-37df89b2e42a"
+    dynamodb_table       = "tf-remote-state-lock"
     assume_role = {
       role_arn = "arn:aws:iam::353365949058:role/terraform-loadtesting"
     }
@@ -108,8 +109,8 @@ module "eks" {
 
   endpoint_public_access = true
 
-  vpc_id     = data.terraform_remote_state.eks_vpc.outputs.vpc.vpc_id
-  subnet_ids = data.terraform_remote_state.eks_vpc.outputs.vpc.private_subnets
+  vpc_id     = data.terraform_remote_state.shared_vpc.outputs.vpc.vpc_id
+  subnet_ids = data.terraform_remote_state.shared_vpc.outputs.vpc.private_subnets
 
   # IMPORTANT: Install critical addons BEFORE node group to avoid circular dependency
   # Nodes need VPC CNI to become Ready, but terraform waits for nodes to be Ready
@@ -133,10 +134,10 @@ module "eks" {
   # Managed node group
   eks_managed_node_groups = {
     default = {
-      min_size       = 2
-      max_size       = 2
-      desired_size   = 2
-      instance_types = ["t3.xlarge"]
+      min_size       = 1
+      max_size       = 1
+      desired_size   = 1
+      instance_types = ["t3.2xlarge"]
     }
   }
 
@@ -219,11 +220,16 @@ resource "helm_release" "signoz" {
   repository = "https://charts.signoz.io"
   chart      = "signoz"
   namespace  = "signoz"
-  timeout    = 1200 # 20 minutes for initial deployment
+  timeout    = 3600 # 60 minutes - allows for worst-case AWS delays during both apply and destroy
 
   create_namespace = true
   wait             = true
   wait_for_jobs    = false
+
+  # OTEL Collector configuration overrides for production stability
+  values = [
+    file("${path.module}/otel-collector-values.yaml")
+  ]
 
   set {
     name  = "cloud"
@@ -292,25 +298,24 @@ resource "helm_release" "signoz" {
   }
 
   # OTEL Collector resource configuration for loadtest
-  # Default 200Mi is way too low and causes OOMKills
   set {
     name  = "otelCollector.resources.requests.memory"
-    value = "2Gi"
+    value = "8Gi"
   }
 
   set {
     name  = "otelCollector.resources.limits.memory"
-    value = "4Gi"
+    value = "12Gi"
   }
 
   set {
     name  = "otelCollector.resources.requests.cpu"
-    value = "500m"
+    value = "1000m"
   }
 
   set {
     name  = "otelCollector.resources.limits.cpu"
-    value = "2000m"
+    value = "4000m"
   }
 
   # Only need 1 replica since we have 1 LoadBalancer endpoint

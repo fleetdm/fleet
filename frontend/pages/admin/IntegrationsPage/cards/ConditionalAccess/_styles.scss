@@ -1,4 +1,14 @@
 .conditional-access {
+  &__page-description {
+    margin-bottom: $pad-large;
+  }
+
+  &__cards {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
   &__success {
     .info-banner__info {
       display: flex;

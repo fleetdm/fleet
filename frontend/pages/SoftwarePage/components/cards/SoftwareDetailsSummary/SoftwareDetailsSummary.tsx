@@ -16,11 +16,13 @@ import {
 import DataSet from "components/DataSet";
 import LastUpdatedHostCount from "components/LastUpdatedHostCount";
 import TooltipWrapper from "components/TooltipWrapper";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import SoftwareIcon from "../../icons/SoftwareIcon";
 import OSIcon from "../../icons/OSIcon";
@@ -28,7 +30,10 @@ import OSIcon from "../../icons/OSIcon";
 const baseClass = "software-details-summary";
 
 interface ISoftwareDetailsSummaryProps {
-  title: string;
+  /** Name displayed in UI */
+  displayName: string;
+  /** Name is keyed for fallback icon  */
+  name?: string;
   type?: string;
   hostCount?: number;
   countsUpdatedAt?: string;
@@ -36,7 +41,6 @@ interface ISoftwareDetailsSummaryProps {
    * Optional as isPreview mode doesn't have host count/link
    */
   queryParams?: QueryParams;
-  name?: string;
   source?: string;
   versions?: number;
   iconUrl?: string | null;
@@ -52,7 +56,7 @@ interface ISoftwareDetailsSummaryProps {
 }
 
 const SoftwareDetailsSummary = ({
-  title,
+  displayName,
   type,
   hostCount,
   countsUpdatedAt,
@@ -107,28 +111,36 @@ const SoftwareDetailsSummary = ({
           renderSoftwareIcon()
         )}
         <dl className={`${baseClass}__info`}>
-          <h1>
-            {ROLLING_ARCH_LINUX_VERSIONS.includes(title) ? (
-              // wrap a tooltip around the "rolling" suffix
-              <>
-                {title.slice(0, -8)}
-                <TooltipWrapperArchLinuxRolling />
-              </>
-            ) : (
-              title
-            )}
+          <div className={`${baseClass}__title-edit-icon`}>
+            <h1>
+              {ROLLING_ARCH_LINUX_VERSIONS.includes(displayName) ? (
+                // wrap a tooltip around the "rolling" suffix
+                <>
+                  {displayName.slice(0, -8)}
+                  <TooltipWrapperArchLinuxRolling />
+                </>
+              ) : (
+                <TooltipTruncatedText value={displayName} />
+              )}
+            </h1>
+
             {onClickEditIcon && (
-              <div className={`${baseClass}__edit-icon`}>
-                <Button
-                  onClick={onClickEditIcon}
-                  className={`${baseClass}__edit-icon-btn`}
-                  variant="icon"
-                >
-                  <Icon name="pencil" />
-                </Button>
-              </div>
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <div className={`${baseClass}__edit-icon`}>
+                    <Button
+                      onClick={onClickEditIcon}
+                      className={`${baseClass}__edit-icon-btn`}
+                      disabled={disableChildren}
+                      variant="icon"
+                    >
+                      <Icon name="pencil" />
+                    </Button>
+                  </div>
+                )}
+              />
             )}
-          </h1>
+          </div>
           <dl className={`${baseClass}__description-list`}>
             {!!type && <DataSet title="Type" value={type} />}
 

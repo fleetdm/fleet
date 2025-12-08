@@ -32,6 +32,11 @@ labels:
   name: Label C
 org_settings:
   certificate_authorities:
+    custom_est_proxy:
+    - name: some-est-name
+      password: # TODO: Add your EST password here
+      url: https://some-est-url.example.com
+      username: some-est-username
     custom_scep_proxy:
     - challenge: # TODO: Add your custom SCEP proxy challenge here
       name: some-custom-scep-proxy-name

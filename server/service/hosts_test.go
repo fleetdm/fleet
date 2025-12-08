@@ -793,8 +793,11 @@ func TestHostAuth(t *testing.T) {
 	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
 		return nil, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: id}, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: id}, nil
 	}
 	ds.NewActivityFunc = func(ctx context.Context, u *fleet.User, a fleet.ActivityDetails, details []byte, createdAt time.Time) error {
 		return nil
@@ -1484,8 +1487,8 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
 		return nil, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
-		return &fleet.Team{ID: id}, nil
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: id}, nil
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
@@ -1612,28 +1615,28 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 	}
 
 	ds.ListVulnsByMultipleOSVersionsFunc = func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool,
-		teamID *uint,
-	) (map[string]fleet.Vulnerabilities, error) {
+		teamID *uint, maxVulnerabilities *int,
+	) (map[string]fleet.OSVulnerabilitiesWithCount, error) {
 		return nil, nil
 	}
 
 	// team exists with stats
-	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(1), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
+	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(1), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 1)
 
 	// team exists but no stats
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(2), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(2), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false, nil)
 	require.NoError(t, err)
 	assert.Empty(t, vers.OSVersions)
 
 	// team does not exist
-	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(3), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
+	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(3), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false, nil)
 	require.Error(t, err)
 	require.Contains(t, fmt.Sprint(err), "does not exist")
 
 	// some unknown error
-	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(4), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
+	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(4), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false, nil)
 	require.Error(t, err)
 	require.Equal(t, "some unknown error", fmt.Sprint(err))
 }
@@ -1660,14 +1663,14 @@ func TestOSVersionsListOptions(t *testing.T) {
 	}
 
 	ds.ListVulnsByMultipleOSVersionsFunc = func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool,
-		teamID *uint,
-	) (map[string]fleet.Vulnerabilities, error) {
+		teamID *uint, maxVulnerabilities *int,
+	) (map[string]fleet.OSVulnerabilitiesWithCount, error) {
 		return nil, nil
 	}
 
 	// test default descending count sort
 	opts := fleet.ListOptions{}
-	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 6)
 	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[0].NameOnly)
@@ -1680,7 +1683,7 @@ func TestOSVersionsListOptions(t *testing.T) {
 
 	// test ascending count sort
 	opts = fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderAscending}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 6)
 	assert.Equal(t, "macOS 12.1", vers.OSVersions[0].NameOnly)
@@ -1693,7 +1696,7 @@ func TestOSVersionsListOptions(t *testing.T) {
 
 	// pagination
 	opts = fleet.ListOptions{Page: 0, PerPage: 2}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 2)
 	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[0].NameOnly)
@@ -1701,7 +1704,7 @@ func TestOSVersionsListOptions(t *testing.T) {
 	assert.Equal(t, now, vers.CountsUpdatedAt)
 
 	opts = fleet.ListOptions{Page: 1, PerPage: 2}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 2)
 	assert.Equal(t, "Windows 11 Pro 22H2", vers.OSVersions[0].NameOnly)
@@ -1710,7 +1713,7 @@ func TestOSVersionsListOptions(t *testing.T) {
 
 	// pagination + ascending hosts_count sort
 	opts = fleet.ListOptions{Page: 0, PerPage: 2, OrderKey: "hosts_count", OrderDirection: fleet.OrderAscending}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 2)
 	assert.Equal(t, "macOS 12.1", vers.OSVersions[0].NameOnly)
@@ -1719,14 +1722,14 @@ func TestOSVersionsListOptions(t *testing.T) {
 
 	// per page too high
 	opts = fleet.ListOptions{Page: 0, PerPage: 1000}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 6)
 	assert.Equal(t, now, vers.CountsUpdatedAt)
 
 	// Page number too high
 	opts = fleet.ListOptions{Page: 1000, PerPage: 2}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 0)
 	assert.Equal(t, now, vers.CountsUpdatedAt)
@@ -1748,14 +1751,14 @@ func TestOSVersionsDefaultPagination(t *testing.T) {
 	}
 
 	ds.ListVulnsByMultipleOSVersionsFunc = func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool,
-		teamID *uint,
-	) (map[string]fleet.Vulnerabilities, error) {
+		teamID *uint, maxVulnerabilities *int,
+	) (map[string]fleet.OSVulnerabilitiesWithCount, error) {
 		return nil, nil
 	}
 
 	// test default descending count sort + default pagination (page 0, per_page 20)
 	opts := fleet.ListOptions{}
-	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 20)
 	assert.Equal(t, "Version 49", vers.OSVersions[0].NameOnly)
@@ -3164,6 +3167,12 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
 			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "user@example.com", Source: fleet.DeviceMappingIDP}}, nil
 		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)
 		result, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", fleet.DeviceMappingIDP)
@@ -3195,6 +3204,12 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		}
 		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
 			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "any@username.com", Source: fleet.DeviceMappingIDP}}, nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
 		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)
@@ -3296,5 +3311,261 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.SetOrUpdateCustomHostDeviceMappingFuncInvoked)
 		require.NotNil(t, result)
+	})
+}
+
+func TestDeleteHostDeviceIDPMapping(t *testing.T) {
+	t.Run("success by admin on premium", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+		ds.DeleteHostIDPFunc = func(ctx context.Context, id uint) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		err := svc.DeleteHostIDP(userCtx, 1)
+		require.True(t, ds.DeleteHostIDPFuncInvoked)
+		require.True(t, ds.NewActivityFuncInvoked)
+		require.NoError(t, err)
+	})
+	t.Run("failure by admin on free", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+		ds.DeleteHostIDPFunc = func(ctx context.Context, id uint) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		err := svc.DeleteHostIDP(userCtx, 1)
+		// err is license err
+		assert.Equal(t, fleet.ErrMissingLicense, err)
+
+		require.False(t, ds.DeleteHostIDPFuncInvoked)
+		require.False(t, ds.NewActivityFuncInvoked)
+	})
+
+	t.Run("authorization tests", func(t *testing.T) {
+		teamHost := &fleet.Host{ID: 1, TeamID: ptr.Uint(1)}
+		globalHost := &fleet.Host{ID: 2}
+
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+		ds.DeleteHostIDPFunc = func(ctx context.Context, id uint) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
+
+		testCases := []struct {
+			name       string
+			user       *fleet.User
+			host       *fleet.Host
+			shouldFail bool
+		}{
+			// Global roles
+			{
+				name:       "global admin can delete global host IDP",
+				user:       test.UserAdmin,
+				host:       globalHost,
+				shouldFail: false,
+			},
+			{
+				name:       "global admin can delete team host IDP",
+				user:       test.UserAdmin,
+				host:       teamHost,
+				shouldFail: false,
+			},
+			{
+				name:       "global maintainer can delete global host IDP",
+				user:       test.UserMaintainer,
+				host:       globalHost,
+				shouldFail: false,
+			},
+			{
+				name:       "global maintainer can delete team host IDP",
+				user:       test.UserMaintainer,
+				host:       teamHost,
+				shouldFail: false,
+			},
+			{
+				name:       "global observer cannot delete global host IDP",
+				user:       test.UserObserver,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			{
+				name:       "global observer cannot delete team host IDP",
+				user:       test.UserObserver,
+				host:       teamHost,
+				shouldFail: true,
+			},
+			{
+				name:       "global observer plus cannot delete global host IDP",
+				user:       test.UserObserverPlus,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			{
+				name:       "global observer plus cannot delete team host IDP",
+				user:       test.UserObserverPlus,
+				host:       teamHost,
+				shouldFail: true,
+			},
+			{
+				name:       "global gitops cannot delete global host IDP",
+				user:       test.UserGitOps,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			{
+				name:       "global gitops cannot delete team host IDP",
+				user:       test.UserGitOps,
+				host:       teamHost,
+				shouldFail: true,
+			},
+			// Team roles - correct team
+			{
+				name:       "team admin can delete team host IDP",
+				user:       test.UserTeamAdminTeam1,
+				host:       teamHost,
+				shouldFail: false,
+			},
+			{
+				name:       "team admin cannot delete global host IDP",
+				user:       test.UserTeamAdminTeam1,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			{
+				name:       "team maintainer can delete team host IDP",
+				user:       test.UserTeamMaintainerTeam1,
+				host:       teamHost,
+				shouldFail: false,
+			},
+			{
+				name:       "team maintainer cannot delete global host IDP",
+				user:       test.UserTeamMaintainerTeam1,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			{
+				name:       "team observer cannot delete team host IDP",
+				user:       test.UserTeamObserverTeam1,
+				host:       teamHost,
+				shouldFail: true,
+			},
+			{
+				name:       "team observer cannot delete global host IDP",
+				user:       test.UserTeamObserverTeam1,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			{
+				name:       "team observer plus cannot delete team host IDP",
+				user:       test.UserTeamObserverPlusTeam1,
+				host:       teamHost,
+				shouldFail: true,
+			},
+			{
+				name:       "team observer plus cannot delete global host IDP",
+				user:       test.UserTeamObserverPlusTeam1,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			{
+				name:       "team gitops cannot delete team host IDP",
+				user:       test.UserTeamGitOpsTeam1,
+				host:       teamHost,
+				shouldFail: true,
+			},
+			{
+				name:       "team gitops cannot delete global host IDP",
+				user:       test.UserTeamGitOpsTeam1,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			// Team roles - wrong team
+			{
+				name:       "team admin from different team cannot delete team host IDP",
+				user:       test.UserTeamAdminTeam2,
+				host:       teamHost,
+				shouldFail: true,
+			},
+			{
+				name:       "team maintainer from different team cannot delete team host IDP",
+				user:       test.UserTeamMaintainerTeam2,
+				host:       teamHost,
+				shouldFail: true,
+			},
+			// No roles
+			{
+				name:       "user with no roles cannot delete global host IDP",
+				user:       test.UserNoRoles,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			{
+				name:       "user with no roles cannot delete team host IDP",
+				user:       test.UserNoRoles,
+				host:       teamHost,
+				shouldFail: true,
+			},
+		}
+
+		for _, tc := range testCases {
+			// reset ds mock flags
+			ds.DeleteHostIDPFuncInvoked = false
+			ds.NewActivityFuncInvoked = false
+
+			// redefine this datastore mock for each test case since its return value is specific per case
+			ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				// this will always be true, since the method is called with tc.host.ID in the first place
+				if id == tc.host.ID {
+					return tc.host, nil
+				}
+				return nil, sql.ErrNoRows
+			}
+
+			t.Run(tc.name, func(t *testing.T) {
+				userCtx := test.UserContext(ctx, tc.user)
+				err := svc.DeleteHostIDP(userCtx, tc.host.ID)
+
+				if tc.shouldFail {
+					require.Error(t, err)
+					require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+					require.False(t, ds.DeleteHostIDPFuncInvoked)
+					require.False(t, ds.NewActivityFuncInvoked)
+				} else {
+					require.NoError(t, err)
+					require.True(t, ds.DeleteHostIDPFuncInvoked)
+					require.True(t, ds.NewActivityFuncInvoked)
+				}
+			})
+		}
 	})
 }
