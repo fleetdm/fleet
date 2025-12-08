@@ -135,12 +135,12 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 	// Track certificate templates that are created
 	var createdCertificates []fleet.CertificateTemplate
 
-	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) (map[uint]bool, error) {
+	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) ([]uint, error) {
 		createdCertificates = nil
-		createdMap := make(map[uint]bool)
+		createdMap := make([]uint, 0, len(certificates))
 		for _, cert := range certificates {
 			createdCertificates = append(createdCertificates, *cert)
-			createdMap[cert.TeamID] = true
+			createdMap = append(createdMap, cert.TeamID)
 		}
 		return createdMap, nil
 	}

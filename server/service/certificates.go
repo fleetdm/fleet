@@ -363,7 +363,7 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 	}
 
 	// Only create activity for teams that actually had certificates affected
-	for teamID := range teamsModified {
+	for _, teamID := range teamsModified {
 		var tmID *uint
 		var tmName *string
 		if teamID != 0 {

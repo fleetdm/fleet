@@ -146,7 +146,7 @@ func (ds *Datastore) DeleteCertificateTemplate(ctx context.Context, id uint) err
 	return nil
 }
 
-func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certificateTemplates []*fleet.CertificateTemplate) (map[uint]bool, error) {
+func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certificateTemplates []*fleet.CertificateTemplate) ([]uint, error) {
 	if len(certificateTemplates) == 0 {
 		return nil, nil
 	}
@@ -163,7 +163,7 @@ func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certif
 			team_id = VALUES(team_id)
 	`
 
-	teamsModified := make(map[uint]bool)
+	teamsModified := make([]uint, 0, len(certificateTemplates))
 	for _, cert := range certificateTemplates {
 		result, err := ds.writer(ctx).ExecContext(ctx, sqlInsertCertificate, cert.Name, cert.TeamID, cert.CertificateAuthorityID, cert.SubjectName)
 		if err != nil {
@@ -171,7 +171,7 @@ func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certif
 		}
 
 		if insertOnDuplicateDidInsertOrUpdate(result) {
-			teamsModified[cert.TeamID] = true
+			teamsModified = append(teamsModified, cert.TeamID)
 		}
 	}
 

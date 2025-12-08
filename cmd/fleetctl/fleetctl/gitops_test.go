@@ -3805,12 +3805,12 @@ func TestGitOpsAndroidCertificatesAdd(t *testing.T) {
 	// Track certificate templates that are created
 	var createdCertificates []fleet.CertificateTemplate
 
-	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) (map[uint]bool, error) {
+	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) ([]uint, error) {
 		createdCertificates = nil
-		createdMap := make(map[uint]bool)
+		createdMap := make([]uint, 0, len(certificates))
 		for _, cert := range certificates {
 			createdCertificates = append(createdCertificates, *cert)
-			createdMap[cert.TeamID] = true
+			createdMap = append(createdMap, cert.TeamID)
 		}
 		return createdMap, nil
 	}
@@ -3894,12 +3894,12 @@ func TestGitOpsAndroidCertificatesChange(t *testing.T) {
 	var updatedCertificates []fleet.CertificateTemplate
 	var deletedCertificateIDs []uint
 
-	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) (map[uint]bool, error) {
+	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) ([]uint, error) {
 		updatedCertificates = nil
-		createdMap := make(map[uint]bool)
+		createdMap := make([]uint, 0, len(certificates))
 		for _, cert := range certificates {
 			updatedCertificates = append(updatedCertificates, *cert)
-			createdMap[cert.TeamID] = true
+			createdMap = append(createdMap, cert.TeamID)
 		}
 		return createdMap, nil
 	}
@@ -4146,12 +4146,12 @@ func TestGitOpsAndroidCertificatesDeleteOne(t *testing.T) {
 		return true, nil
 	}
 
-	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) (map[uint]bool, error) {
+	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) ([]uint, error) {
 		remainingCertificates = nil
-		createdMap := make(map[uint]bool)
+		createdMap := make([]uint, 0, len(certificates))
 		for _, cert := range certificates {
 			remainingCertificates = append(remainingCertificates, *cert)
-			createdMap[cert.TeamID] = true
+			createdMap = append(createdMap, cert.TeamID)
 		}
 		return createdMap, nil
 	}

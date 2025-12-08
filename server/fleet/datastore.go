@@ -2517,7 +2517,7 @@ type Datastore interface {
 
 	// BatchUpsertCertificateTemplates upserts a batch of certificates.
 	// Returns a map of team IDs that had certificates inserted or updated.
-	BatchUpsertCertificateTemplates(ctx context.Context, certificates []*CertificateTemplate) (map[uint]bool, error)
+	BatchUpsertCertificateTemplates(ctx context.Context, certificates []*CertificateTemplate) ([]uint, error)
 	// BatchDeleteCertificateTemplates deletes a batch of certificates.
 	// Returns true if any rows were deleted.
 	BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) (bool, error)
