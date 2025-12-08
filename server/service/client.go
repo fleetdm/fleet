@@ -2275,6 +2275,21 @@ func (c *Client) DoGitOps(
 			if ok && teamID == 0 {
 				if dryRun {
 					logFn("[+] would've added any policies/queries to new team %s\n", *incoming.TeamName)
+
+					numCerts := 0
+					if incoming.Controls.AndroidSettings != nil {
+						if androidSettings, ok := incoming.Controls.AndroidSettings.(fleet.AndroidSettings); ok {
+							if androidSettings.Certificates.Valid {
+								numCerts = len(androidSettings.Certificates.Value)
+							}
+						}
+					}
+					if numCerts > 0 {
+						logFn("[+] would've added %s to new team %s\n",
+							numberWithPluralization(numCerts, "Android certificate", "Android certificates"),
+							*incoming.TeamName)
+					}
+
 					return nil, postOps, nil
 				}
 				return nil, nil, fmt.Errorf("team %s not created", *incoming.TeamName)
@@ -2881,12 +2896,14 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 	numCerts := len(certificates)
 
 	teamID := ""
+	teamName := ""
 	switch {
-	case config.TeamID != nil:
-		teamID = fmt.Sprintf("%d", *config.TeamID)
 	case config.IsNoTeam():
-		//  "No team"
+		teamName = "No team"
 		teamID = "0"
+	case config.TeamID != nil:
+		teamName = *config.TeamName
+		teamID = fmt.Sprintf("%d", *config.TeamID)
 	default:
 		// global config, ignore
 		return nil
@@ -2902,7 +2919,9 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 		return nil
 	}
 
-	if numCerts > 0 {
+	if dryRun {
+		logFn("[+] would have attempted to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+	} else {
 		logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 	}
 
@@ -2944,7 +2963,7 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 
 		certRequests[i] = &fleet.CertificateRequestSpec{
 			Name:                   certificates[i].Name,
-			Team:                   teamID,
+			Team:                   teamName,
 			CertificateAuthorityId: ca.ID,
 			SubjectName:            certificates[i].SubjectName,
 		}
@@ -2995,15 +3014,15 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 		}
 	}
 
-	if numCerts > 0 {
-		if dryRun {
-			logFn("[+] would've applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
-		} else {
+	if dryRun {
+		logFn("[+] would've applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+	} else {
+		if numCerts > 0 {
 			if err := c.ApplyCertificateSpecs(certRequests); err != nil {
 				return fmt.Errorf("applying Android certificates: %w", err)
 			}
-			logFn("[+] applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 		}
+		logFn("[+] applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 	}
 
 	return nil
