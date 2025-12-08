@@ -70,8 +70,8 @@ object CertificateOrchestrator {
         val restrictionsManager = context.getSystemService(Context.RESTRICTIONS_SERVICE) as android.content.RestrictionsManager
         val appRestrictions = restrictionsManager.applicationRestrictions
 
-        val certRequestList = appRestrictions.getParcelableArray("certificates", Bundle::class.java)?.toList()
-        return certRequestList?.map { bundle -> bundle.getInt("certificate_id") }
+        val certRequestList = appRestrictions.getParcelableArray("certificate_templates", Bundle::class.java)?.toList()
+        return certRequestList?.map { bundle -> bundle.getInt("id") }
     }
 
     /**

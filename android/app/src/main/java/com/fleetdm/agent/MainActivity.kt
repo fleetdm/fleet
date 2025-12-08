@@ -62,10 +62,7 @@ class MainActivity : ComponentActivity() {
             }
             val androidID by remember { mutableStateOf(Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)) }
             val enrollmentSpecificID by remember { mutableStateOf(appRestrictions.getString("host_uuid")) }
-            val certRequestList by remember {
-                mutableStateOf(appRestrictions.getParcelableArray("certificates", Bundle::class.java)?.toList())
-            }
-            val certIds by remember { mutableStateOf(certRequestList?.map { bundle -> bundle.getInt("certificate_id") }) }
+            val certIds by remember { mutableStateOf(CertificateOrchestrator.getCertificateIDs(this)) }
             val permissionsList by remember {
                 val grantedPermissions = mutableListOf<String>()
                 val packageInfo: PackageInfo = packageManager.getPackageInfo(packageName, PackageManager.GET_PERMISSIONS)
@@ -112,7 +109,7 @@ class MainActivity : ComponentActivity() {
                             KeyValue("server_url (MC)", fleetBaseUrl)
                             KeyValue("orbit_node_key (datastore)", apiKey)
                             KeyValue("base_url (datastore)", baseUrl)
-                            KeyValue("certificate_ids", certIds.toString())
+                            KeyValue("certificate_templates->id", certIds.toString())
                             PermissionList(
                                 permissionsList = permissionsList,
                             )

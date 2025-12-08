@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 
@@ -220,12 +221,11 @@ object ApiClient {
         val credentials = getEnrollmentCredentials() ?: return Result.failure(Exception("enroll credentials not set"))
 
         return makeRequest(
-            endpoint = "/api/fleetd/orbit/certificates/$certificateId",
-            method = "POST",
+            endpoint = "/api/fleetd/certificates/$certificateId",
+            method = "GET",
             body = GetCertificateTemplateRequest(orbitNodeKey = orbitNodeKey),
             bodySerializer = GetCertificateTemplateRequest.serializer(),
             responseSerializer = GetCertificateTemplateResponse.serializer(),
-            authorized = false,
         ).fold(
             onSuccess = { res ->
                 Log.i("ApiClient", "successfully retrieved certificate template ${res.id}: ${res.name}")
@@ -438,6 +438,7 @@ private data class UpdateCertificateStatusResponse(
 
 @Serializable
 data class GetCertificateTemplateResponse(
+    // CertificateTemplateResponseSummary
     @SerialName("id")
     val id: Int,
 
@@ -453,6 +454,7 @@ data class GetCertificateTemplateResponse(
     @SerialName("created_at")
     val createdAt: String,
 
+    // CertificateTemplateResponseFull
     @SerialName("subject_name")
     val subjectName: String,
 
@@ -463,20 +465,21 @@ data class GetCertificateTemplateResponse(
     val status: String,
 
     @SerialName("scep_challenge")
-    val scepChallenge: String,
+    val scepChallenge: String? = "",
 
     @SerialName("fleet_challenge")
-    val fleetChallenge: String?,
+    val fleetChallenge: String? = "",
 
-    @SerialName("key_length")
+    @Transient
     val keyLength: Int = 2048,
 
-    @SerialName("signature_algorithm")
+    @Transient
     val signatureAlgorithm: String = "SHA256withRSA",
 
-    var url: String?,
+    @Transient
+    var url: String? = null,
 ) {
     fun setUrl(serverUrl: String, hostUUID: String) {
-        url = "$serverUrl/mdm/scep/proxy/$hostUUID,g$id,$certificateAuthorityType,$fleetChallenge"
+        url = "$serverUrl/mdm/scep/proxy/$hostUUID,g$id,$certificateAuthorityType,${fleetChallenge ?: ""}"
     }
 }

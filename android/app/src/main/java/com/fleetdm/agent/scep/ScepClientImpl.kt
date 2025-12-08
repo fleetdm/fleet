@@ -81,7 +81,7 @@ class ScepClientImpl : ScepClient {
             val client = Client(server, verifier)
 
             // Step 5: Build Certificate Signing Request (CSR)
-            val csr = buildCsr(entity, keyPair, config.scepChallenge, config.signatureAlgorithm)
+            val csr = buildCsr(entity, keyPair, config.scepChallenge ?: "", config.signatureAlgorithm)
 
             // Step 6: Send enrollment request
             val response = try {
