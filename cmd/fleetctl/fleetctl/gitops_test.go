@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -1863,9 +1864,8 @@ software:
 	ds.GetSoftwareCategoryIDsFuncInvoked = false
 	_ = RunAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
 	// Dry run should attempt to get the VPP token when applying VPP apps (it may not exist), so we want to error to the user.
-	// But we want to verify it does not call a method later, aka. exits early correctly.
 	require.True(t, ds.GetVPPTokenByTeamIDFuncInvoked)
-	require.False(t, ds.GetSoftwareCategoryIDsFuncInvoked)
+	require.True(t, ds.GetSoftwareCategoryIDsFuncInvoked)
 
 	// Now, set  up a team to delete
 	teamToDeleteID := uint(999)
@@ -3888,8 +3888,9 @@ func TestGitOpsAndroidCertificatesChange(t *testing.T) {
 	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 	setupAndroidCertificatesTestMocks(t, ds)
 
-	// Track certificate templates
+	// Track certificate templates actions
 	var updatedCertificates []fleet.CertificateTemplate
+	var deletedCertificateIDs []uint
 
 	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) error {
 		updatedCertificates = nil
@@ -3916,11 +3917,38 @@ func TestGitOpsAndroidCertificatesChange(t *testing.T) {
 		return existing, &fleet.PaginationMetadata{}, nil
 	}
 
+	// Simulate full certificate details for existing certificates
+	ds.GetCertificateTemplateByIdFunc = func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
+		switch id {
+		case 1:
+			return &fleet.CertificateTemplateResponseFull{
+				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+					ID:                     1,
+					Name:                   "Certificate 1",
+					CertificateAuthorityId: 1,
+				},
+				SubjectName: "CN=Original Subject 1",
+			}, nil
+		case 2:
+			return &fleet.CertificateTemplateResponseFull{
+				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+					ID:                     2,
+					Name:                   "Certificate 2",
+					CertificateAuthorityId: 2,
+				},
+				SubjectName: "CN=Original Subject 2",
+			}, nil
+		default:
+			return nil, errors.New("certificate not found")
+		}
+	}
+
 	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) error {
+		deletedCertificateIDs = append(deletedCertificateIDs, ids...)
 		return nil
 	}
 
-	// Create team config with modified certificates
+	// Create team config with modified subjectNames
 	teamConfig := `
 name: %s
 team_settings:
@@ -3970,12 +3998,134 @@ software: null
 	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
 	require.NoError(t, err)
 
-	// Verify certificates were updated with new subject names
-	require.Len(t, updatedCertificates, 2)
+	// Verify both certificates were deleted because their SubjectName changed
+	require.Len(t, deletedCertificateIDs, 2, "Both certificates should be deleted due to SubjectName changes")
+	assert.Contains(t, deletedCertificateIDs, uint(1), "Certificate 1 should be deleted")
+	assert.Contains(t, deletedCertificateIDs, uint(2), "Certificate 2 should be deleted")
+
+	// Verify both certificates were recreated with new subject names
+	require.Len(t, updatedCertificates, 2, "Both certificates should be recreated")
 	assert.Equal(t, "Certificate 1", updatedCertificates[0].Name)
 	assert.Equal(t, "CN=Updated Subject 1", updatedCertificates[0].SubjectName)
 	assert.Equal(t, "Certificate 2", updatedCertificates[1].Name)
 	assert.Equal(t, "CN=Updated Subject 2", updatedCertificates[1].SubjectName)
+
+	// Create team config with modified certificate authorities (swapped CAs)
+	updatedCertificates = make([]fleet.CertificateTemplate, 0)
+	deletedCertificateIDs = make([]uint, 0)
+	teamConfig = `
+name: %s
+team_settings:
+  secrets:
+    - secret: TestSecret
+  mdm:
+    macos_updates:
+      minimum_version: null
+      deadline: null
+    macos_settings:
+      custom_settings: null
+    macos_setup:
+      bootstrap_package: null
+      enable_end_user_authentication: false
+      macos_setup_assistant: null
+    windows_updates:
+      deadline_days: null
+      grace_period_days: null
+    windows_settings:
+      custom_settings: null
+agent_options:
+  config:
+    options:
+      pack_delimiter: /
+  overrides: {}
+controls:
+  android_settings:
+    certificates:
+      - name: "Certificate 1"
+        certificate_authority_name: "Test CA 2"
+        subject_name: "CN=Original Subject 1"
+      - name: "Certificate 2"
+        certificate_authority_name: "Test CA 1"
+        subject_name: "CN=Original Subject 2"
+policies: []
+queries: []
+software: null
+`
+
+	teamFile, err = os.CreateTemp(tmpDir, "team-*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, teamName))
+	require.NoError(t, err)
+
+	// Run GitOps
+	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	require.NoError(t, err)
+
+	// Verify both certificates were deleted because their SubjectName changed
+	require.Len(t, deletedCertificateIDs, 2, "Both certificates should be deleted due to SubjectName changes")
+	assert.Contains(t, deletedCertificateIDs, uint(1), "Certificate 1 should be deleted")
+	assert.Contains(t, deletedCertificateIDs, uint(2), "Certificate 2 should be deleted")
+
+	// Verify both certificates were recreated with new subject names
+	require.Len(t, updatedCertificates, 2, "Both certificates should be recreated")
+	assert.Equal(t, "Certificate 1", updatedCertificates[0].Name)
+	assert.Equal(t, uint(2), updatedCertificates[0].CertificateAuthorityID)
+	assert.Equal(t, "Certificate 2", updatedCertificates[1].Name)
+	assert.Equal(t, uint(1), updatedCertificates[1].CertificateAuthorityID)
+
+	// Create team config with no changes, make sure we don't delete
+	updatedCertificates = make([]fleet.CertificateTemplate, 0)
+	deletedCertificateIDs = make([]uint, 0)
+	teamConfig = `
+name: %s
+team_settings:
+  secrets:
+    - secret: TestSecret
+  mdm:
+    macos_updates:
+      minimum_version: null
+      deadline: null
+    macos_settings:
+      custom_settings: null
+    macos_setup:
+      bootstrap_package: null
+      enable_end_user_authentication: false
+      macos_setup_assistant: null
+    windows_updates:
+      deadline_days: null
+      grace_period_days: null
+    windows_settings:
+      custom_settings: null
+agent_options:
+  config:
+    options:
+      pack_delimiter: /
+  overrides: {}
+controls:
+  android_settings:
+    certificates:
+      - name: "Certificate 1"
+        certificate_authority_name: "Test CA 1"
+        subject_name: "CN=Original Subject 1"
+      - name: "Certificate 2"
+        certificate_authority_name: "Test CA 2"
+        subject_name: "CN=Original Subject 2"
+policies: []
+queries: []
+software: null
+`
+
+	teamFile, err = os.CreateTemp(tmpDir, "team-*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, teamName))
+	require.NoError(t, err)
+
+	// Run GitOps
+	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	require.NoError(t, err)
+
+	require.Len(t, deletedCertificateIDs, 0, "No certificates should be deleted when there are no changes")
+	require.Len(t, updatedCertificates, 2, "Both certificates should be present without changes")
 }
 
 // TestGitOpsAndroidCertificatesDeleteOne tests deleting one certificate while leaving others via GitOps
@@ -4015,6 +4165,32 @@ func TestGitOpsAndroidCertificatesDeleteOne(t *testing.T) {
 			},
 		}
 		return existing, &fleet.PaginationMetadata{}, nil
+	}
+
+	// Mock GetCertificateTemplateByIdFunc to return full certificate details
+	ds.GetCertificateTemplateByIdFunc = func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
+		switch id {
+		case 1:
+			return &fleet.CertificateTemplateResponseFull{
+				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+					ID:                     1,
+					Name:                   "Certificate 1",
+					CertificateAuthorityId: 1,
+				},
+				SubjectName: "CN=Device Certificate 1",
+			}, nil
+		case 2:
+			return &fleet.CertificateTemplateResponseFull{
+				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+					ID:                     2,
+					Name:                   "Certificate 2",
+					CertificateAuthorityId: 2,
+				},
+				SubjectName: "CN=Device Certificate 2",
+			}, nil
+		default:
+			return nil, errors.New("certificate not found")
+		}
 	}
 
 	// Create team config with only one certificate (Certificate 1 removed)

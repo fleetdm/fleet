@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -130,8 +129,8 @@ type getDeviceCertificateTemplateRequest struct {
 }
 
 type getDeviceCertificateTemplateResponse struct {
-	Certificate *fleet.CertificateTemplateResponseFull `json:"certificate"`
-	Err         error                                  `json:"error,omitempty"`
+	Certificate *fleet.CertificateTemplateDeviceResponseFull `json:"certificate"`
+	Err         error                                        `json:"error,omitempty"`
 }
 
 func (r getDeviceCertificateTemplateResponse) Error() error { return r.Err }
@@ -145,7 +144,7 @@ func getDeviceCertificateTemplateEndpoint(ctx context.Context, request interface
 	return getDeviceCertificateTemplateResponse{Certificate: certificate}, nil
 }
 
-func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
+func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateDeviceResponseFull, error) {
 	// skipauth: This endpoint uses node key authentication instead of user authentication.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -170,16 +169,27 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 
 	subjectName, err := svc.replaceCertificateVariables(ctx, certificate.SubjectName, host)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "replacing certificate variables")
+		// If the certificate variables cannot be replaced, mark the certificate as failed.
+		errorMsg := fmt.Sprintf("Could not replace certificate variables: %s", err.Error())
+		if err := svc.ds.UpsertCertificateStatus(
+			ctx,
+			host.UUID,
+			certificate.ID,
+			fleet.MDMDeliveryFailed,
+			&errorMsg,
+		); err != nil {
+			return nil, err
+		}
+		certificate.Status = &fleet.MDMDeliveryFailed
+		return certificate.ToDeviceResponse(), nil
 	}
 	certificate.SubjectName = subjectName
 
-	return certificate, nil
+	return certificate.ToDeviceResponse(), nil
 }
 
 type getCertificateTemplateRequest struct {
-	ID       uint    `url:"id"`
-	HostUUID *string `query:"host_uuid,optional"`
+	ID uint `url:"id"`
 }
 
 type getCertificateTemplateResponse struct {
@@ -191,34 +201,22 @@ func (r getCertificateTemplateResponse) Error() error { return r.Err }
 
 func getCertificateTemplateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getCertificateTemplateRequest)
-	certificate, err := svc.GetCertificateTemplate(ctx, req.ID, req.HostUUID)
+	certificate, err := svc.GetCertificateTemplate(ctx, req.ID)
 	if err != nil {
 		return getCertificateTemplateResponse{Err: err}, nil
 	}
 	return getCertificateTemplateResponse{Certificate: certificate}, nil
 }
 
-func (svc *Service) GetCertificateTemplate(ctx context.Context, id uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error) {
+func (svc *Service) GetCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
 	certificate, err := svc.ds.GetCertificateTemplateById(ctx, id)
 	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
 		return nil, err
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: certificate.TeamID}, fleet.ActionRead); err != nil {
 		return nil, err
-	}
-
-	if hostUUID != nil {
-		host, err := svc.ds.HostByIdentifier(ctx, *hostUUID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting host for variable replacement")
-		}
-
-		subjectName, err := svc.replaceCertificateVariables(ctx, certificate.SubjectName, host)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "replacing certificate variables")
-		}
-		certificate.SubjectName = subjectName
 	}
 
 	return certificate, nil
@@ -274,21 +272,32 @@ func applyCertificateTemplateSpecsEndpoint(ctx context.Context, request interfac
 	return applyCertificateTemplateSpecsResponse{}, nil
 }
 
-func (svc *Service) checkCertificateTemplateSpecAuthorization(ctx context.Context, specs []*fleet.CertificateRequestSpec) error {
-	teamIDs := make(map[uint]bool)
+func (svc *Service) resolveTeamNamesForSpecs(ctx context.Context, specs []*fleet.CertificateRequestSpec) (map[string]uint, error) {
+	teamNameToID := make(map[string]uint)
+
 	for _, spec := range specs {
-		var teamID uint
-		if spec.Team != "" {
-			parsed, err := strconv.ParseUint(spec.Team, 10, 0)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "parsing team ID")
-			}
-			teamID = uint(parsed)
+		if _, ok := teamNameToID[spec.Team]; ok {
+			continue
 		}
-		teamIDs[teamID] = true
+
+		// Handle empty string and "No team" as teamID = 0
+		if spec.Team == "" || spec.Team == "No team" {
+			teamNameToID[spec.Team] = 0
+			continue
+		}
+
+		team, err := svc.ds.TeamByName(ctx, spec.Team)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting team by name")
+		}
+		teamNameToID[spec.Team] = team.ID
 	}
 
-	for teamID := range teamIDs {
+	return teamNameToID, nil
+}
+
+func (svc *Service) checkCertificateTemplateSpecAuthorization(ctx context.Context, teamNameToID map[string]uint) error {
+	for _, teamID := range teamNameToID {
 		if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: teamID}, fleet.ActionWrite); err != nil {
 			return err
 		}
@@ -298,7 +307,13 @@ func (svc *Service) checkCertificateTemplateSpecAuthorization(ctx context.Contex
 }
 
 func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*fleet.CertificateRequestSpec) error {
-	if err := svc.checkCertificateTemplateSpecAuthorization(ctx, specs); err != nil {
+	teamNameToID, err := svc.resolveTeamNamesForSpecs(ctx, specs)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return err
+	}
+
+	if err := svc.checkCertificateTemplateSpecAuthorization(ctx, teamNameToID); err != nil {
 		return err
 	}
 
@@ -323,19 +338,13 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 		if ca.Type != string(fleet.CATypeCustomSCEPProxy) {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("Ccertificate `%s`: Currently, only the custom_scep_proxy certificate authority is supported.", spec.Name)}
 		}
-		var teamID uint
-		if spec.Team != "" {
-			parsed, err := strconv.ParseUint(spec.Team, 10, 0)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "parsing team ID")
-			}
-			teamID = uint(parsed)
-		}
 
 		// Validate Fleet variables in subject name
 		if err := validateCertificateTemplateFleetVariables(spec.SubjectName); err != nil {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%s (certificate %s)", err.Error(), spec.Name)}
 		}
+
+		teamID := teamNameToID[spec.Team]
 
 		cert := &fleet.CertificateTemplate{
 			Name:                   spec.Name,
@@ -425,5 +434,5 @@ func (svc *Service) UpdateCertificateStatus(
 		return fleet.NewInvalidArgumentError("status", string(status))
 	}
 
-	return svc.ds.UpdateCertificateStatus(ctx, host.UUID, certificateTemplateID, status, detail)
+	return svc.ds.UpsertCertificateStatus(ctx, host.UUID, certificateTemplateID, status, detail)
 }

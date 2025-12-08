@@ -717,7 +717,7 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 				require.Equal(t, 1, count)
 
-				certificates[0].SubjectName = "CN=Updated Subject 1"
+				certificates[0].SubjectName = "Updated Subject"
 				err = ds.BatchUpsertCertificateTemplates(ctx, certificates)
 				require.NoError(t, err)
 
@@ -725,10 +725,10 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 				require.Equal(t, 1, count)
 
-				var updatedSubject string
-				err = ds.writer(ctx).GetContext(ctx, &updatedSubject, "SELECT subject_name FROM certificate_templates WHERE name = ?", "Cert1")
+				var subjectName string
+				err = ds.writer(ctx).GetContext(ctx, &subjectName, "SELECT subject_name FROM certificate_templates WHERE name = ?", "Cert1")
 				require.NoError(t, err)
-				require.Equal(t, "CN=Updated Subject 1", updatedSubject)
+				require.Equal(t, "CN=Test Subject 1", subjectName)
 			},
 		},
 	}

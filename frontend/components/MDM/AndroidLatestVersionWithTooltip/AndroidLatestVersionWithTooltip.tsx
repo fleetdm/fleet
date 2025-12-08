@@ -6,6 +6,7 @@ import { getPathWithQueryParams } from "utilities/url";
 import { ANDROID_PLAY_STORE_URL } from "utilities/constants";
 
 interface IAndroidLatestVersionWithTooltipProps {
+  /** e.g. com.android.chrome, Component will build link URL using this ID */
   androidPlayStoreId: string;
 }
 
@@ -25,6 +26,7 @@ const AndroidLatestVersionWithTooltip = ({
               id: androidPlayStoreId,
             })}
             newTab
+            variant="tooltip-link"
           />
         </span>
       }
