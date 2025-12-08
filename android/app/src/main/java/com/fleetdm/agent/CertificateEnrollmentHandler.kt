@@ -1,11 +1,9 @@
 package com.fleetdm.agent
 
 import com.fleetdm.agent.scep.ScepClient
-import com.fleetdm.agent.scep.ScepConfig
 import com.fleetdm.agent.scep.ScepEnrollmentException
 import com.fleetdm.agent.scep.ScepException
 import com.fleetdm.agent.scep.ScepResult
-import org.json.JSONObject
 import java.security.PrivateKey
 import java.security.cert.Certificate
 
@@ -13,7 +11,15 @@ import java.security.cert.Certificate
  * Handles certificate enrollment business logic without Android framework dependencies.
  * Can be easily tested without Robolectric.
  */
-class CertificateEnrollmentHandler(private val scepClient: ScepClient, private val certificateInstaller: CertificateInstaller) {
+class CertificateEnrollmentHandler(
+    private val scepClient: ScepClient,
+    private val certificateInstaller: CertificateInstaller,
+    private val logger: Logger = NoOpLogger(),
+) {
+
+    companion object {
+        private const val TAG = "CertificateEnrollmentHandler"
+    }
 
     /**
      * Interface for certificate installation - allows different implementations
@@ -64,17 +70,16 @@ class CertificateEnrollmentHandler(private val scepClient: ScepClient, private v
     /**
      * Performs SCEP enrollment, returning result or null on failure.
      */
-    @Suppress("SwallowedException")
     suspend fun performEnrollment(config: GetCertificateTemplateResponse): ScepResult? = try {
         scepClient.enroll(config)
     } catch (e: ScepEnrollmentException) {
-        // Enrollment failure is expected in some scenarios (pending approval, invalid challenge)
+        logger.w(TAG, "SCEP enrollment failed (pending approval or invalid challenge): ${e.message}", e)
         null
     } catch (e: ScepException) {
-        // SCEP protocol errors are expected in some scenarios
+        logger.w(TAG, "SCEP protocol error: ${e.message}", e)
         null
     } catch (e: Exception) {
-        // Unexpected errors are logged by the SCEP client
+        logger.e(TAG, "Unexpected error during SCEP enrollment: ${e.message}", e)
         null
     }
 }

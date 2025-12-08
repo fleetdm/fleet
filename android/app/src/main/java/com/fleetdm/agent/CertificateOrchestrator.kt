@@ -244,6 +244,7 @@ object CertificateOrchestrator {
         val handler = CertificateEnrollmentHandler(
             scepClient = scepClient,
             certificateInstaller = installer,
+            logger = AndroidLogger(),
         )
 
         // Step 5: Perform enrollment
@@ -331,6 +332,18 @@ object CertificateOrchestrator {
             }
 
             return success
+        }
+    }
+
+    /**
+     * Android-specific logger using android.util.Log.
+     */
+    class AndroidLogger : Logger {
+        override fun w(tag: String, message: String, throwable: Throwable?) {
+            Log.w(tag, message, throwable)
+        }
+        override fun e(tag: String, message: String, throwable: Throwable?) {
+            Log.e(tag, message, throwable)
         }
     }
 }
