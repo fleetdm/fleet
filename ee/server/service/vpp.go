@@ -81,8 +81,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			payload.Platform = fleet.MacOSPlatform
 		}
 
-		fmt.Printf("payload.DisplayName: %v\n", payload.DisplayName)
-
 		if payload.Platform.IsApplePlatform() {
 			payloadsWithPlatform = append(payloadsWithPlatform, []fleet.VPPBatchPayloadWithPlatform{{
 				AppStoreID:         payload.AppStoreID,
@@ -276,12 +274,10 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
-	appStoreIDIdx := make(map[string]uint, len(appStoreApps))
+	appStoreIDToTitleID := make(map[string]uint, len(appStoreApps))
 	for _, a := range appStoreApps {
-		appStoreIDIdx[a.AdamID] = a.TitleID
+		appStoreIDToTitleID[a.AdamID] = a.TitleID
 	}
-
-	fmt.Printf("appStoreIDIdx: %v\n", appStoreIDIdx)
 
 	// Filter out the apps with invalid platforms
 	if len(appStoreApps) != len(allPlatformApps) {
@@ -291,7 +287,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
-	if err := svc.ds.SetTeamVPPApps(ctx, teamID, allPlatformApps, appStoreIDIdx); err != nil {
+	if err := svc.ds.SetTeamVPPApps(ctx, teamID, allPlatformApps, appStoreIDToTitleID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "no vpp token to set team vpp assets"), http.StatusUnprocessableEntity)
 		}

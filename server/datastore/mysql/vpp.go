@@ -451,8 +451,6 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 
 			existingDisplayName := ptr.ValOrZero(existingApp.DisplayName)
 			incomingDisplayName := ptr.ValOrZero(incomingApp.DisplayName)
-			fmt.Printf("existingDisplayName: %v\n", existingDisplayName)
-			fmt.Printf("incomingDisplayName: %v\n", incomingDisplayName)
 			displayNameChanged = existingDisplayName != incomingDisplayName
 
 		}
