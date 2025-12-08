@@ -107,23 +107,17 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
-
-	var androidAppConfig struct {
-		ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
-		WorkProfileWidgets   string          `json:"workProfileWidgets"`
-	}
+	var configByAppID map[string]json.RawMessage
 	if config != nil && config.Configuration != nil {
-		if err := json.Unmarshal(config.Configuration, &androidAppConfig); err != nil {
-			// should never happen, as it is stored as json in the db and is pre-validated
-			return ctxerr.Wrap(ctx, err, "unmarshal android app configuration")
+		configByAppID = map[string]json.RawMessage{
+			applicationID: config.Configuration,
 		}
 	}
-	appPolicies := []*androidmanagement.ApplicationPolicy{{
-		PackageName:          applicationID,
-		InstallType:          "AVAILABLE",
-		ManagedConfiguration: googleapi.RawMessage(androidAppConfig.ManagedConfiguration),
-		WorkProfileWidgets:   androidAppConfig.WorkProfileWidgets,
-	}}
+
+	appPolicies, err := buildApplicationPolicyWithConfig(ctx, []string{applicationID}, configByAppID, "AVAILABLE")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building application policies with config")
+	}
 
 	// Update Android MDM policy to include the app in self service
 	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, hosts)
@@ -131,23 +125,6 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 	}
 
-	return nil
-}
-
-func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, applicationID string, appTeamID uint, enterpriseName string) error {
-	args := &softwareWorkerArgs{
-		Task:           makeAndroidAppAvailableTask,
-		ApplicationID:  applicationID,
-		AppTeamID:      appTeamID,
-		EnterpriseName: enterpriseName,
-	}
-
-	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "queueing job")
-	}
-
-	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", makeAndroidAppAvailableTask)
 	return nil
 }
 
@@ -254,24 +231,9 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 	}
 
-	appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))
-	for _, appID := range appIDs {
-		var androidAppConfig struct {
-			ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
-			WorkProfileWidgets   string          `json:"workProfileWidgets"`
-		}
-		if config := configsByAppID[appID]; config != nil {
-			if err := json.Unmarshal(config, &androidAppConfig); err != nil {
-				// should never happen, as it is stored as json in the db and is pre-validated
-				return ctxerr.Wrapf(ctx, err, "unmarshal android app configuration for app ID %s", appID)
-			}
-		}
-		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
-			PackageName:          appID,
-			InstallType:          "AVAILABLE",
-			ManagedConfiguration: googleapi.RawMessage(androidAppConfig.ManagedConfiguration),
-			WorkProfileWidgets:   androidAppConfig.WorkProfileWidgets,
-		})
+	appPolicies, err := buildApplicationPolicyWithConfig(ctx, appIDs, configsByAppID, "AVAILABLE")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building application policies with config")
 	}
 
 	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: hostUUID})
@@ -327,24 +289,9 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 			return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 		}
 
-		appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))
-		for _, appID := range appIDs {
-			var androidAppConfig struct {
-				ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
-				WorkProfileWidgets   string          `json:"workProfileWidgets"`
-			}
-			if config := configsByAppID[appID]; config != nil {
-				if err := json.Unmarshal(config, &androidAppConfig); err != nil {
-					// should never happen, as it is stored as json in the db and is pre-validated
-					return ctxerr.Wrapf(ctx, err, "unmarshal android app configuration for app ID %s", appID)
-				}
-			}
-			appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
-				PackageName:          appID,
-				InstallType:          "PREINSTALLED",
-				ManagedConfiguration: googleapi.RawMessage(androidAppConfig.ManagedConfiguration),
-				WorkProfileWidgets:   androidAppConfig.WorkProfileWidgets,
-			})
+		appPolicies, err := buildApplicationPolicyWithConfig(ctx, appIDs, configsByAppID, "PREINSTALLED")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building application policies with config")
 		}
 
 		// assign those apps to the host's Android policy
@@ -383,6 +330,31 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 	return nil
 }
 
+func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
+	configsByAppID map[string]json.RawMessage, installType string) ([]*androidmanagement.ApplicationPolicy, error) {
+
+	appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))
+	for _, appID := range appIDs {
+		var androidAppConfig struct {
+			ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
+			WorkProfileWidgets   string          `json:"workProfileWidgets"`
+		}
+		if config := configsByAppID[appID]; config != nil {
+			if err := json.Unmarshal(config, &androidAppConfig); err != nil {
+				// should never happen, as it is stored as json in the db and is pre-validated
+				return nil, ctxerr.Wrap(ctx, err, "unmarshal android app configuration")
+			}
+		}
+		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
+			PackageName:          appID,
+			InstallType:          installType,
+			ManagedConfiguration: googleapi.RawMessage(androidAppConfig.ManagedConfiguration),
+			WorkProfileWidgets:   androidAppConfig.WorkProfileWidgets,
+		})
+	}
+	return appPolicies, nil
+}
+
 func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	hostUUID string, hostEnrollTeamID *uint, enterpriseName string) error {
 
@@ -403,5 +375,22 @@ func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, log
 	}
 
 	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	return nil
+}
+
+func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, applicationID string, appTeamID uint, enterpriseName string) error {
+	args := &softwareWorkerArgs{
+		Task:           makeAndroidAppAvailableTask,
+		ApplicationID:  applicationID,
+		AppTeamID:      appTeamID,
+		EnterpriseName: enterpriseName,
+	}
+
+	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "queueing job")
+	}
+
+	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", makeAndroidAppAvailableTask)
 	return nil
 }
