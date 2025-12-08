@@ -352,6 +352,11 @@ To connect via Docker:
 docker-compose exec mysql mysql -uroot -ptoor -Dfleet
 ```
 
+## MySQL replica delay
+
+To set up replication delay on a local dev setup, follow the instructions at [/tools/mysql-replica-testing](https://github.com/fleetdm/fleet/tree/main/tools/mysql-replica-testing). This will create a new primary/secondary database for testing delay issues and will not affect your existing database.
+
+
 ## Redis REPL
 
 Connect to the `redis-cli` in REPL mode to view and interact directly with the contents stored in Redis.
