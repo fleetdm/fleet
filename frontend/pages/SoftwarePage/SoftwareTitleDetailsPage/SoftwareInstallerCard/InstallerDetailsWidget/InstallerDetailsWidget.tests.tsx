@@ -24,7 +24,7 @@ describe("InstallerDetailsWidget", () => {
     version: "v1.2.3",
     isFma: false,
     isScriptPackage: false,
-    androidPlayStoreLink: undefined,
+    androidPlayStoreId: undefined,
   };
 
   it("renders the package icon when installerType is 'package'", () => {
@@ -110,7 +110,7 @@ describe("InstallerDetailsWidget", () => {
       <InstallerDetailsWidget
         {...defaultProps}
         installerType="app-store"
-        androidPlayStoreLink="link-here"
+        androidPlayStoreId="com.android.appname"
       />
     );
 
