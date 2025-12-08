@@ -564,6 +564,20 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  editedAndroidCertificate: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited certificate templates for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "android",
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
   addedCertificateAuthority: (name = "") => {
     return name ? (
       <>
@@ -1711,6 +1725,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EditedAndroidProfile: {
       return TAGGED_TEMPLATES.editedAndroidProfile(activity, isPremiumTier);
+    }
+    case ActivityType.EditedAndroidCertificate: {
+      return TAGGED_TEMPLATES.editedAndroidCertificate(activity, isPremiumTier);
     }
     case ActivityType.AddedNdesScepProxy: {
       return TAGGED_TEMPLATES.addedCertificateAuthority("NDES");

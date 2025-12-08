@@ -77,6 +77,7 @@ export enum ActivityType {
   CreatedAndroidProfile = "created_android_profile",
   DeletedAndroidProfile = "deleted_android_profile",
   EditedAndroidProfile = "edited_android_profile",
+  EditedAndroidCertificate = "edited_android_certificate",
   // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
   // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
   EnabledDiskEncryption = "enabled_disk_encryption",
@@ -409,6 +410,8 @@ export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
     "Deleted configuration profile: Android",
   [ActivityType.EditedAndroidProfile]:
     "GitOps: edited configuration profiles: Android",
+  [ActivityType.EditedAndroidCertificate]:
+    "GitOps: edited certificate templates: Android",
   [ActivityType.AddedConditionalAccessOkta]: "Added conditional access: Okta",
   [ActivityType.DeletedConditionalAccessOkta]:
     "Deleted conditional access: Okta",

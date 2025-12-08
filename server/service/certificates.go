@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -356,7 +357,34 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 		certificates = append(certificates, cert)
 	}
 
-	return svc.ds.BatchUpsertCertificateTemplates(ctx, certificates)
+	teamsModified, err := svc.ds.BatchUpsertCertificateTemplates(ctx, certificates)
+	if err != nil {
+		return err
+	}
+
+	// Only create activity for teams that actually had certificates affected
+	for teamID := range teamsModified {
+		var tmID *uint
+		var tmName *string
+		if teamID != 0 {
+			team, err := svc.ds.TeamLite(ctx, teamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting team for activity")
+			}
+			tmID = &team.ID
+			tmName = &team.Name
+		}
+
+		if err := svc.NewActivity(
+			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidCertificate{
+				TeamID:   tmID,
+				TeamName: tmName,
+			}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for edited android certificate")
+		}
+	}
+
+	return nil
 }
 
 type deleteCertificateTemplateSpecsRequest struct {
@@ -383,7 +411,37 @@ func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certific
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
-	return svc.ds.BatchDeleteCertificateTemplates(ctx, certificateTemplateIDs)
+
+	deletedRows, err := svc.ds.BatchDeleteCertificateTemplates(ctx, certificateTemplateIDs)
+	if err != nil {
+		return err
+	}
+
+	if !deletedRows {
+		return nil
+	}
+
+	// Only create activity if rows were actually deleted
+	var tmID *uint
+	var tmName *string
+	if teamID != 0 {
+		team, err := svc.ds.TeamLite(ctx, teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting team for activity")
+		}
+		tmID = &team.ID
+		tmName = &team.Name
+	}
+
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidCertificate{
+			TeamID:   tmID,
+			TeamName: tmName,
+		}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for edited android certificate")
+	}
+
+	return nil
 }
 
 type updateCertificateStatusRequest struct {
