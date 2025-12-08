@@ -298,51 +298,6 @@ func parseWindowsDN(dn string) (*HostCertificateNameDetails, error) {
 	}, nil
 }
 
-// DedupeWindowsHostCertificates deduplicates host certificates reported from Windows hosts.
-// On Windows, the osquery certificates table returns duplicate entries for the same certificate
-// if it is present in multiple certificate stores. This function deduplicates them based on the
-// SHA1 sum, keeping only one instance of each unique certificate. For user certificates, it also
-// considers the username to ensure that certificates owned by different users are not deduplicated
-// together.
-func DedupeWindowsHostCertificates(certs []*HostCertificateRecord) []*HostCertificateRecord {
-	if len(certs) == 0 {
-		return certs
-	}
-
-	// TODO: decide business logic for deduplication of host certificates on Windows hosts; also do
-	// we want any logging here to indicate that deduplication occurred?
-
-	systemCertsBySha1 := make(map[string]*HostCertificateRecord)
-	userCertsBySha1User := make(map[string]*HostCertificateRecord)
-
-	for _, cert := range certs {
-		sha1 := strings.ToUpper(fmt.Sprintf("%x", cert.SHA1Sum))
-		if cert.Source == SystemHostCertificate {
-			if _, exists := systemCertsBySha1[sha1]; exists {
-				// already have a system cert with this sha1, skip duplicates
-				continue
-			}
-			systemCertsBySha1[sha1] = cert
-		} else if cert.Source == UserHostCertificate {
-			key := sha1 + "|" + cert.Username
-			if _, exists := userCertsBySha1User[key]; exists {
-				// already have a system cert with this sha1, skip duplicates
-				continue
-			}
-			userCertsBySha1User[key] = cert
-		}
-	}
-
-	deduped := make([]*HostCertificateRecord, 0, len(systemCertsBySha1)+len(userCertsBySha1User))
-	for _, cert := range systemCertsBySha1 {
-		deduped = append(deduped, cert)
-	}
-	for _, cert := range userCertsBySha1User {
-		deduped = append(deduped, cert)
-	}
-	return deduped
-}
-
 func firstOrEmpty(s []string) string {
 	if len(s) > 0 {
 		return s[0]
