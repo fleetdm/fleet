@@ -24,6 +24,7 @@
       - [Mailpit SMTP server with plain authentication](#mailpit-smtp-server-with-plain-authentication)
   - [Development database management](#development-database-management)
   - [MySQL shell](#mysql-shell)
+  - [MySQL replica delay](#mysql-replica-delay)
   - [Redis REPL](#redis-repl)
   - [Testing SSO](#testing-sso)
     - [Configuration](#configuration)
@@ -351,6 +352,11 @@ To connect via Docker:
 ```sh
 docker-compose exec mysql mysql -uroot -ptoor -Dfleet
 ```
+
+## MySQL replica delay
+
+To set up replication delay on a local dev setup, follow the instructions at [/tools/mysql-replica-testing](https://github.com/fleetdm/fleet/tree/main/tools/mysql-replica-testing). This will create a new primary/secondary database for testing delay issues and will not affect your existing database.
+
 
 ## Redis REPL
 
