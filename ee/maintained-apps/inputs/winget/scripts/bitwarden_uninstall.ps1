@@ -16,6 +16,10 @@ $paths = @(
 
 $exitCode = 0
 
+Write-Host "Starting Bitwarden uninstall script"
+Write-Host "Searching for DisplayName: $displayName"
+Write-Host "Searching for Publisher: $publisher"
+
 try {
     # Kill any running Bitwarden processes before uninstalling
     Stop-Process -Name "Bitwarden" -Force -ErrorAction SilentlyContinue
@@ -25,10 +29,25 @@ try {
         -ErrorAction SilentlyContinue |
             ForEach-Object { Get-ItemProperty $_.PSPath }
 
+    Write-Host "Found $($uninstallKeys.Count) total uninstall entries in registry"
+    
+    # Debug: List all Bitwarden-like entries
+    $bitwardenLike = $uninstallKeys | Where-Object { $_.DisplayName -and $_.DisplayName -like "*Bitwarden*" }
+    Write-Host "Found $($bitwardenLike.Count) entries matching '*Bitwarden*'"
+    foreach ($entry in $bitwardenLike) {
+        Write-Host "  - DisplayName: $($entry.DisplayName), Publisher: $($entry.Publisher)"
+    }
+
     $foundUninstaller = $false
     foreach ($key in $uninstallKeys) {
-        if ($key.DisplayName -and ($key.DisplayName -eq $displayName -or $key.DisplayName -like "$displayName*") -and ($publisher -eq "" -or $key.Publisher -eq $publisher)) {
-            $foundUninstaller = $true
+        # More lenient matching - check DisplayName first, then publisher
+        $nameMatches = $key.DisplayName -and ($key.DisplayName -eq $displayName -or $key.DisplayName -like "$displayName*")
+        $publisherMatches = $publisher -eq "" -or $key.Publisher -eq $publisher -or $key.Publisher -like "*$publisher*"
+        
+        if ($nameMatches) {
+            Write-Host "Checking entry: DisplayName='$($key.DisplayName)', Publisher='$($key.Publisher)'"
+            if ($publisherMatches -or $publisher -eq "") {
+                $foundUninstaller = $true
             Write-Host "Found Bitwarden installation: $($key.DisplayName)"
             Write-Host "UninstallString: $($key.UninstallString)"
             Write-Host "QuietUninstallString: $($key.QuietUninstallString)"
@@ -110,11 +129,18 @@ try {
             
             # Exit the loop once the software is found and uninstalled.
             break
+            } else {
+                Write-Host "  Publisher mismatch: expected '$publisher', found '$($key.Publisher)'"
+            }
         }
     }
 
     if (-not $foundUninstaller) {
-        Write-Host "Uninstaller for '$displayName' not found."
+        Write-Host "ERROR: Uninstaller for '$displayName' not found in registry."
+        Write-Host "Searched paths:"
+        foreach ($path in $paths) {
+            Write-Host "  - $path"
+        }
         # Change exit code to 0 if you don't want to fail if uninstaller is not
         # found. This could happen if program was already uninstalled.
         $exitCode = 0
