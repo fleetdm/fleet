@@ -804,7 +804,6 @@ var extraDetailQueries = map[string]DetailQuery{
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestHostCertificates,
 	},
-	// TODO: confirm how we want to denote source for Windows certs
 	"certificates_windows": {
 		Query: `
 	SELECT
