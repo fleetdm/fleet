@@ -492,6 +492,13 @@
       "description": "KeePassXC is a password manager app."
     },
     {
+      "name": "KeePassXC",
+      "slug": "keepassxc/windows",
+      "platform": "windows",
+      "unique_identifier": "KeePassXC",
+      "description": "KeePassXC is a cross-platform password manager for securely storing passwords and other sensitive data."
+    },
+    {
       "name": "LibreOffice",
       "slug": "libreoffice/darwin",
       "platform": "darwin",
