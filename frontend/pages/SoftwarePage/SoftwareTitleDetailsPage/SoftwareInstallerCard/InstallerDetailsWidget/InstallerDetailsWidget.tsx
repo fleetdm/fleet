@@ -46,7 +46,7 @@ const InstallerName = ({ name }: IInstallerNameProps) => {
 const renderInstallerDisplayText = (
   installerType: string,
   isFma: boolean,
-  androidPlaystoreId?: string
+  androidPlayStoreId?: string
 ) => {
   if (installerType === "package") {
     return isFma ? "Fleet-maintained" : "Custom package";
