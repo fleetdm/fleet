@@ -83,6 +83,8 @@ type generateGitopsClient interface {
 	GetSetupExperienceScript(teamID uint) (*fleet.Script, error)
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
+	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
+	GetCertificateTemplate(certificateID uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -1064,9 +1066,46 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		}
 	}
 
-	if cmd.AppConfig.License.IsPremium() {
-		mdmT := reflect.TypeOf(fleet.TeamMDM{})
+	// Get any Android certificate templates.
+	var certSummaries []*fleet.CertificateTemplateResponseSummary
+	var err error
+	if teamId == nil {
+		certSummaries, err = cmd.Client.GetCertificateTemplates("")
+	} else {
+		certSummaries, err = cmd.Client.GetCertificateTemplates(strconv.FormatUint(uint64(*teamId), 10))
+	}
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting certificate templates: %s\n", err)
+		return nil, err
+	}
 
+	mdmT := reflect.TypeOf(fleet.TeamMDM{})
+
+	if len(certSummaries) > 0 {
+		androidSettingsType := reflect.TypeOf(fleet.AndroidSettings{})
+		certType := reflect.TypeOf(fleet.CertificateTemplateResponseFull{})
+		fullCerts := make([]map[string]interface{}, 0, len(certSummaries))
+		for _, certSummary := range certSummaries {
+			certFull, err := cmd.Client.GetCertificateTemplate(certSummary.ID, nil)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting certificate template details for ID %d: %s\n", certSummary.ID, err)
+				return nil, err
+			}
+			fullCerts = append(fullCerts, map[string]interface{}{
+				jsonFieldName(certType, "Name"):                     certFull.Name,
+				jsonFieldName(certType, "CertificateAuthorityName"): certFull.CertificateAuthorityName,
+				jsonFieldName(certType, "SubjectName"):              certFull.SubjectName,
+			})
+		}
+		androidSettings, ok := result[jsonFieldName(mdmT, "AndroidSettings")].(map[string]interface{})
+		if !ok {
+			androidSettings = map[string]interface{}{}
+		}
+		androidSettings[jsonFieldName(androidSettingsType, "Certificates")] = fullCerts
+		result[jsonFieldName(mdmT, "AndroidSettings")] = androidSettings
+	}
+
+	if cmd.AppConfig.License.IsPremium() {
 		if teamMdm != nil {
 			result[jsonFieldName(mdmT, "EnableDiskEncryption")] = teamMdm.EnableDiskEncryption
 			result[jsonFieldName(mdmT, "RequireBitLockerPIN")] = teamMdm.RequireBitLockerPIN
@@ -1523,6 +1562,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				softwareSpec["categories"] = softwareTitle.SoftwarePackage.Categories
 			}
 
+			if softwareTitle.DisplayName != "" {
+				softwareSpec["display_name"] = softwareTitle.DisplayName
+			}
+
 			// each package is listed once in software, so we can pull icon directly here
 			if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
 				fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
@@ -1543,12 +1586,17 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 		if softwareTitle.AppStoreApp != nil {
 			filenamePrefix := generateFilename(sw.Name) + "-" + sw.AppStoreApp.Platform
+			softwareSpec["platform"] = softwareTitle.AppStoreApp.Platform
 			if softwareTitle.AppStoreApp.SelfService {
 				softwareSpec["self_service"] = softwareTitle.AppStoreApp.SelfService
 			}
 
 			if softwareTitle.AppStoreApp.Categories != nil {
 				softwareSpec["categories"] = softwareTitle.AppStoreApp.Categories
+			}
+
+			if softwareTitle.DisplayName != "" {
+				softwareSpec["display_name"] = softwareTitle.DisplayName
 			}
 
 			if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {

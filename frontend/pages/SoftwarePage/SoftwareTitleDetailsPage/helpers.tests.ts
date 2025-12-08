@@ -3,10 +3,11 @@ import { getInstallerCardInfo } from "./helpers";
 
 describe("SoftwareTitleDetailsPage helpers", () => {
   describe("getPackageCardInfo", () => {
-    it("returns the correct data for a software package", () => {
+    it("returns the correct data for a software package (and without a custom display_name)", () => {
       const softwareTitle: ISoftwareTitleDetails = {
         id: 1,
         name: "Test Software",
+        // display_name: undefined
         icon_url: "https://example.com/icon.png",
         versions: [{ id: 1, version: "1.0.0", vulnerabilities: [] }],
         software_package: {
@@ -38,6 +39,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
       expect(packageCardInfo).toEqual({
         softwarePackage: softwareTitle.software_package,
         name: "TestPackage.pkg", // packages should display the package name not the software title name
+        softwareDisplayName: "Test Software",
         version: "1.0.0",
         addedTimestamp: "2021-01-01T00:00:00Z",
         softwareTitleName: "Test Software",
@@ -51,7 +53,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         isSelfService: true,
       });
     });
-    it("returns the correct data for an app store app", () => {
+    it("returns the correct data for an app store app (and with a custom display name)", () => {
       const softwareTitle: ISoftwareTitleDetails = {
         id: 1,
         name: "Test Software",
@@ -83,6 +85,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
       expect(packageCardInfo).toEqual({
         softwarePackage: softwareTitle.app_store_app,
         name: "Test Software", // apps should display the software title name (backend should ensure the app name and software title name match)
+        softwareDisplayName: "Test App",
         version: "1.0.1",
         addedTimestamp: "2020-01-01T00:00:00.000Z",
         softwareTitleName: "Test Software",

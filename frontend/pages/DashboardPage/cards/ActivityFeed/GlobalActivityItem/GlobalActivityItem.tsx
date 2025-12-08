@@ -745,8 +745,8 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        required end user authentication for macOS hosts that automatically
-        enroll to{" "}
+        required end user authentication for macOS, iOS, iPadOS, and Android
+        hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
             the <b>{activity.details.team_name}</b> team
@@ -762,8 +762,8 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        removed end user authentication requirement for macOS hosts that
-        automatically enroll to{" "}
+        removed end user authentication requirement for macOS, iOS, iPadOS, and
+        Android hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
             the <b>{activity.details.team_name}</b> team
@@ -1589,7 +1589,7 @@ const TAGGED_TEMPLATES = {
         platformText = "iPadOS";
         break;
       default:
-        platformText = capitalize(platform);
+        platformText = capitalize(platform); // e.g. Windows, Android
     }
 
     return (

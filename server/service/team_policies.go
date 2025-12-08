@@ -158,6 +158,7 @@ func (svc *Service) populatePolicyInstallSoftware(ctx context.Context, p *fleet.
 		p.InstallSoftware = &fleet.PolicySoftwareTitle{
 			SoftwareTitleID: *installerMetadata.TitleID,
 			Name:            installerMetadata.SoftwareTitle,
+			DisplayName:     installerMetadata.DisplayName,
 		}
 		return nil
 	} else if p.VPPAppsTeamsID != nil {

@@ -45,6 +45,7 @@ func isWindowsHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext
 // MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
 // returns the device information.
 func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	// Only fetch the most recently enrolled entry which matches the one we enqueue commands for
 	stmt := `SELECT
 		id,
 		mdm_device_id,
@@ -60,7 +61,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		created_at,
 		updated_at,
 		host_uuid
-		FROM mdm_windows_enrollments WHERE mdm_device_id = ?`
+		FROM mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC LIMIT 1`
 
 	var winMDMDevice fleet.MDMWindowsEnrolledDevice
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &winMDMDevice, stmt, mdmDeviceID); err != nil {
@@ -68,6 +69,38 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(mdmDeviceID))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsGetEnrolledDeviceWithDeviceID")
+	}
+	return &winMDMDevice, nil
+}
+
+// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
+// returns the device information.
+func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	// Only fetch the most recently enrolled entry which matches the one we enqueue commands for
+	stmt := `SELECT
+		id,
+		mdm_device_id,
+		mdm_hardware_id,
+		device_state,
+		device_type,
+		device_name,
+		enroll_type,
+		enroll_user_id,
+		enroll_proto_version,
+		enroll_client_version,
+		not_in_oobe,
+		created_at,
+		updated_at,
+		host_uuid
+		FROM mdm_windows_enrollments WHERE host_uuid = ? ORDER BY created_at DESC LIMIT 1`
+
+	var winMDMDevice fleet.MDMWindowsEnrolledDevice
+	// use the writer because this is sometimes fetched soon after updating the host UUID
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &winMDMDevice, stmt, hostUUID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(hostUUID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsGetEnrolledDeviceWithHostUUID")
 	}
 	return &winMDMDevice, nil
 }
@@ -503,32 +536,28 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 }
 
 func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
-	query := `
-SELECT
+	query := `SELECT
     mwe.host_uuid,
-    wmcr.command_uuid,
-    wmcr.status_code as status,
-    wmcr.updated_at,
-    wmc.target_loc_uri as request_type,
-    wmr.raw_response as result,
-    wmc.raw_command as payload
+    wmc.command_uuid,
+    COALESCE(wmcr.status_code, '101') AS status,
+    COALESCE(
+        wmcr.updated_at,
+        wmc.updated_at
+    ) as updated_at,
+    wmc.target_loc_uri AS request_type,
+    COALESCE(wmr.raw_response, '') AS result,
+    wmc.raw_command AS payload
 FROM
-    windows_mdm_command_results wmcr
-INNER JOIN
     windows_mdm_commands wmc
-ON
-    wmcr.command_uuid = wmc.command_uuid
-INNER JOIN
-    mdm_windows_enrollments mwe
-ON
-    wmcr.enrollment_id = mwe.id
-INNER JOIN
-    windows_mdm_responses wmr
-ON
-    wmr.id = wmcr.response_id
+    LEFT JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = wmc.command_uuid
+    LEFT JOIN windows_mdm_responses wmr ON wmr.id = wmcr.response_id
+    LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid
+    LEFT JOIN mdm_windows_enrollments mwe ON mwe.id = COALESCE(
+        wmcr.enrollment_id,
+        wmcq.enrollment_id
+    )
 WHERE
-    wmcr.command_uuid = ?
-`
+    wmc.command_uuid = ?`
 
 	var results []*fleet.MDMCommandResult
 	err := sqlx.SelectContext(
@@ -545,12 +574,19 @@ WHERE
 	return results, nil
 }
 
-func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) error {
-	stmt := `UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE mdm_device_id = ?`
-	if _, err := ds.writer(ctx).Exec(stmt, hostUUID, mdmDeviceID); err != nil {
-		return ctxerr.Wrap(ctx, err, "setting host_uuid for windows enrollment")
+func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error) {
+	// The final clause ensures we only update if the host UUID changes so we can tell the caller as this basically
+	// signals a new MDM enrollment in certain cases, as it is the first time we associate a host with an enrollment
+	stmt := `UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE mdm_device_id = ? AND host_uuid <> ?`
+	res, err := ds.writer(ctx).Exec(stmt, hostUUID, mdmDeviceID, hostUUID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "setting host_uuid for windows enrollment")
 	}
-	return nil
+	aff, err := res.RowsAffected()
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking rows affected when setting host_uuid for windows enrollment")
+	}
+	return aff > 0, nil
 }
 
 // whereBitLockerStatus returns a string suitable for inclusion within a SQL WHERE clause to filter by

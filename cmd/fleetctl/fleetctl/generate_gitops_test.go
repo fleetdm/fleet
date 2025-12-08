@@ -261,6 +261,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				Name: "My App Store App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
 					AppStoreID: "com.example.team-software",
+					Platform:   string(fleet.MacOSPlatform),
 				},
 				HashSHA256: ptr.String("app-store-app-hash"),
 			},
@@ -385,12 +386,14 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		return &fleet.SoftwareTitle{
 			ID: 2,
 			AppStoreApp: &fleet.VPPAppStoreApp{
+				VPPAppID: fleet.VPPAppID{Platform: fleet.MacOSPlatform},
 				LabelsExcludeAny: []fleet.SoftwareScopeLabel{{
 					LabelName: "Label C",
 				}, {
 					LabelName: "Label D",
 				}},
-				Categories:  []string{"Productivity", "Utilities"},
+				Categories: []string{"Productivity", "Utilities"},
+
 				SelfService: true,
 			},
 			IconUrl: ptr.String("/api/icon2.png"),
@@ -579,6 +582,35 @@ func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.Gro
 	}
 
 	return &res, nil
+}
+
+func (MockClient) GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error) {
+	var res []*fleet.CertificateTemplateResponseSummary
+	if teamID == "1" {
+		res = []*fleet.CertificateTemplateResponseSummary{
+			{
+				ID:                       1,
+				CertificateAuthorityName: "DIGIDOO",
+				Name:                     "my_certypoo",
+			},
+		}
+	}
+	return res, nil
+}
+
+func (MockClient) GetCertificateTemplate(certificateID uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error) {
+	var res *fleet.CertificateTemplateResponseFull
+	if certificateID == 1 {
+		res = &fleet.CertificateTemplateResponseFull{
+			CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+				ID:                       1,
+				CertificateAuthorityName: "DIGIDOO",
+				Name:                     "my_certypoo",
+			},
+			SubjectName: "CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+		}
+	}
+	return res, nil
 }
 
 func maskSecret(value string, shouldShowSecret bool) string {

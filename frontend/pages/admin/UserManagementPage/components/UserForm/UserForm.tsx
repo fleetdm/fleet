@@ -552,6 +552,7 @@ const UserForm = ({
         label="Email"
         error={formErrors.email}
         name="email"
+        type="email"
         onChange={onInputChange}
         onBlur={onInputBlur}
         parseTarget

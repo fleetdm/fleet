@@ -1,0 +1,8 @@
+{
+  "name": "Zed",
+  "unique_identifier": "dev.zed.Zed",
+  "token": "zed",
+  "installer_format": "dmg",
+  "slug": "zed/darwin",
+  "default_categories": ["Developer tools"]
+}

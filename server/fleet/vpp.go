@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -46,7 +47,10 @@ type VPPAppTeam struct {
 	// automatically created when a VPP app is added to Fleet. This field should be set after VPP
 	// app creation if AddAutoInstallPolicy is true.
 	AddedAutomaticInstallPolicy *Policy `json:"-"`
-	DisplayName                 string  `json:"display_name"`
+	DisplayName                 *string `json:"display_name"`
+	// Configuration is a json file used to customize Android app
+	// behavior/settings. Applicable to Android apps only.
+	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,
@@ -104,6 +108,9 @@ type VPPAppStoreApp struct {
 	// "Browsers", etc.
 	Categories  []string `json:"categories"`
 	DisplayName string   `json:"display_name"`
+	// Configuration is a json file used to customize Android app
+	// behavior/settings. Applicable to Android apps only.
+	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.
@@ -134,7 +141,31 @@ type HostVPPSoftwareInstall struct {
 	BundleIdentifier     string     `db:"bundle_identifier"`
 }
 
+// HostAndroidVPPSoftwareInstall represents the payload needed to
+// insert a VPP software install record for an Android host.
+//
+// NOTE: Currently only supported for setup experience, to revisit when
+// we support Android app installs at-large (as it will then go through
+// the upcoming queue). For this reason, user ID and (Fleet-) policy id
+// are always null and self-service is always false, while platform is
+// always android.
+type HostAndroidVPPSoftwareInstall struct {
+	HostID            uint   `db:"host_id"`
+	AdamID            string `db:"adam_id"`             // for Android, this is the e.g. com.chrome application ID
+	CommandUUID       string `db:"command_uuid"`        // uuid of the corresponding android_policy_request row
+	AssociatedEventID string `db:"associated_event_id"` // for Android (for the current setup-experience-only approach), we overload this field to store the Android policy version ID
+}
+
 const (
 	DefaultVPPInstallVerifyTimeout = 10 * time.Minute
 	DefaultVPPVerifyRequestDelay   = 5 * time.Second
 )
+
+type AppStoreAppUpdatePayload struct {
+	SelfService      *bool
+	LabelsIncludeAny []string
+	LabelsExcludeAny []string
+	Categories       []string
+	DisplayName      *string
+	Configuration    json.RawMessage
+}

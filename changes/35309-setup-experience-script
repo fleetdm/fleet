@@ -1,1 +1,0 @@
-* Updated existing /setup_experience/script POST endpoint to allow updating the macOS setup experience script in-place, and modified gitops to remove the DELETE call

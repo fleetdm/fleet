@@ -142,6 +142,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 		return &fleet.GroupedCertificateAuthorities{}, nil
 	}
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
 	var cachedDS fleet.Datastore
 	if len(opts) > 0 && opts[0].NoCacheDatastore {
 		cachedDS = ds
@@ -482,6 +485,14 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 		return nil
+	}
+
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
+
+	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+		return nil, nil
 	}
 
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)

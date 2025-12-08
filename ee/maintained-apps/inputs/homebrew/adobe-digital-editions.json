@@ -1,0 +1,8 @@
+{
+  "name": "Adobe Digital Editions",
+  "unique_identifier": "com.adobe.adobedigitaleditions.app",
+  "token": "adobe-digital-editions",
+  "installer_format": "dmg",
+  "slug": "adobe-digital-editions/darwin",
+  "default_categories": ["Productivity"]
+}

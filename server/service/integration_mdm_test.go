@@ -35,8 +35,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/tests"
+	"google.golang.org/api/androidmanagement/v1"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -103,8 +107,10 @@ type integrationMDMTestSuite struct {
 	depStorage                 nanodep_storage.AllDEPStorage
 	profileSchedule            *schedule.Schedule
 	integrationsSchedule       *schedule.Schedule
+	cleanupsSchedule           *schedule.Schedule
 	onProfileJobDone           func() // function called when profileSchedule.Trigger() job completed
 	onIntegrationsScheduleDone func() // function called when integrationsSchedule.Trigger() job completed
+	onCleanupScheduleDone      func() // function called when cleanupsSchedule.Trigger() job completed
 	mdmStorage                 *mysql.NanoMDMStorage
 	worker                     *worker.Worker
 	// Flag to skip jobs processing by worker
@@ -244,6 +250,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	var integrationsSchedule *schedule.Schedule
 	var profileSchedule *schedule.Schedule
+	var cleanupsSchedule *schedule.Schedule
 	cronLog := kitlog.NewJSONLogger(os.Stdout)
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		cronLog = kitlog.NewNopLogger()
@@ -362,6 +369,23 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			},
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
+					const name = string(fleet.CronCleanupsThenAggregation)
+					logger := cronLog
+					cleanupsSchedule = schedule.New(
+						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
+						schedule.WithLogger(logger),
+						schedule.WithJob("cleanup_android_enterprise", func(ctx context.Context) error {
+							if s.onCleanupScheduleDone != nil {
+								defer s.onCleanupScheduleDone()
+							}
+							return androidSvc.VerifyExistingEnterpriseIfAny(ctx)
+						}),
+					)
+					return cleanupsSchedule, nil
+				}
+			},
+			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
+				return func() (fleet.CronSchedule, error) {
 					const name = string(fleet.CronAppleMDMIPhoneIPadRefetcher)
 					logger := cronLog
 					refetcherSchedule := schedule.New(
@@ -407,6 +431,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.depStorage = depStorage
 	s.integrationsSchedule = integrationsSchedule
 	s.profileSchedule = profileSchedule
+	s.cleanupsSchedule = cleanupsSchedule
 	s.mdmStorage = mdmStorage
 	s.mdmCommander = mdmCommander
 	s.logger = serverLogger
@@ -788,6 +813,13 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_apps;")
 		return err
 	})
+
+	err = s.ds.DeleteAllEnterprises(ctx)
+	require.NoError(t, err)
+
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = false
+	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
+	s.androidAPIClient.EnterprisesDevicesPatchFuncInvoked = false
 }
 
 func (s *integrationMDMTestSuite) mockDEPResponse(orgName string, handler http.Handler) {
@@ -1359,19 +1391,76 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform st
 
 func createWindowsHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testing.T) (*fleet.Host, *mdmtest.TestWindowsMDMClient) {
 	host := createOrbitEnrolledHost(t, "windows", uuid.NewString(), ds)
-	mdmDevice := enrollWindowsHostInMDM(t, host, ds, fleetServerURL)
+	mdmDevice := enrollWindowsHostInMDMViaOrbit(t, host, ds, fleetServerURL)
 	return host, mdmDevice
 }
 
-func enrollWindowsHostInMDM(t *testing.T, host *fleet.Host, ds fleet.Datastore, fleetServerURL string) *mdmtest.TestWindowsMDMClient {
+func enrollWindowsHostInMDMViaOrbit(t *testing.T, host *fleet.Host, ds fleet.Datastore, fleetServerURL string) *mdmtest.TestWindowsMDMClient {
 	mdmDevice := mdmtest.NewTestMDMClientWindowsProgramatic(fleetServerURL, *host.OrbitNodeKey)
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
-	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(context.Background(), host.UUID, mdmDevice.DeviceID)
+	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(context.Background(), host.UUID, mdmDevice.DeviceID)
 	require.NoError(t, err)
 	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, fleetServerURL, false, fleet.WellKnownMDMFleet, "", false)
 	require.NoError(t, err)
 	return mdmDevice
+}
+
+// Simulates a host being orbit enrolled first then an MDM enrollment coming via the settings app
+func createWindowsHostThenEnrollMDMViaSettingsApp(ds fleet.Datastore, fleetServerURL, email string, t *testing.T) (*fleet.Host, *mdmtest.TestWindowsMDMClient) {
+	host := createOrbitEnrolledHost(t, "windows", uuid.NewString(), ds)
+	mdmDevice := enrollWindowsMDMViaSettingsApp(t, ds, fleetServerURL, email)
+	return host, mdmDevice
+}
+
+// Note that this method only creates the MDM Enrollment but it will still need to be linked to the host record either
+// via DS methods or by simualting a refetch.
+func enrollWindowsMDMViaSettingsApp(t *testing.T, ds fleet.Datastore, fleetServerURL, email string) *mdmtest.TestWindowsMDMClient {
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientNotInOOBE())
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+	return mdmDevice
+}
+
+func enrollWindowsHostInMDMViaAutopilot(t *testing.T, ds fleet.Datastore, fleetServerURL, email string) *mdmtest.TestWindowsMDMClient {
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email)
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+	return mdmDevice
+}
+
+// Simulates a host fetching queries then reporting the queries required for an Azure-initiated Windows host to
+// link up to its MDM enrollment.
+func (s *integrationMDMTestSuite) simulateMDMWindowsQueries(t *testing.T, host *fleet.Host, mdmDevice *mdmtest.TestWindowsMDMClient) {
+	s.lq.On("QueriesForHost", host.ID).Return(map[string]string{fmt.Sprintf("%d", host.ID): "select 1 from osquery;"}, nil)
+	req := getDistributedQueriesRequest{NodeKey: *host.NodeKey}
+	var dqResp getDistributedQueriesResponse
+
+	// Ensure we can read distributed queries for the host.
+	err := s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
+	require.NoError(t, err)
+
+	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_mdm_device_id_windows")
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_mdm_windows")
+
+	distributedReq := SubmitDistributedQueryResultsRequest{
+		NodeKey: *host.NodeKey,
+		Results: map[string][]map[string]string{
+			"fleet_detail_query_mdm_windows": {
+				{"aad_resource_id": s.server.URL, "discovery_service_url": s.server.URL + "/api/mdm/microsoft/discovery", "provider_id": "Fleet", "installation_type": "Client"},
+			},
+			"fleet_detail_query_mdm_device_id_windows": {
+				{"name": "DeviceClientId", "data": mdmDevice.DeviceID},
+			},
+		},
+		Statuses: map[string]fleet.OsqueryStatus{
+			"fleet_detail_query_mdm_device_id_windows": 0,
+			"fleet_detail_query_mdm_windows":           0,
+		},
+	}
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
 }
 
 func loadEnrollmentProfileDEPToken(t *testing.T, ds *mysql.Datastore) string {
@@ -6942,8 +7031,10 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 			mdmDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *host.OrbitNodeKey)
 			err := mdmDevice.Enroll()
 			require.NoError(t, err)
-			err = s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, mdmDevice.DeviceID)
+			updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, mdmDevice.DeviceID)
 			require.NoError(t, err)
+			// No update should have been made because the orbit enrolled path results in an immediately linked hostUUID->windows enrollment
+			require.False(t, updated)
 			err = s.ds.SetOrUpdateMDMData(ctx, host.ID, meta.isServer, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
 			require.NoError(t, err)
 		} else {
@@ -6979,10 +7070,29 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 		}
 	}
 
+	// enable Windows MDM manual enrollment
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_turn_on_windows_mdm_manually": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
+	assert.True(t, acResp.MDM.EnableTurnOnWindowsMDMManually)
+	// No hosts should be told to enroll or unenroll because (un)enrollment is all done by the end-user
+	for _, meta := range metadataHosts {
+		var resp orbitGetConfigResponse
+		s.DoJSON("POST", "/api/fleet/orbit/config",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
+			http.StatusOK, &resp)
+		require.Equal(t, false, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
+		require.Equal(t, false, resp.Notifications.NeedsMDMMigration)
+		require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
+		require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
+	}
+
 	// enable Windows MDM migration
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_migration_enabled": true }
+		"mdm": { "windows_migration_enabled": true, "enable_turn_on_windows_mdm_manually": false }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	assert.True(t, acResp.MDM.WindowsMigrationEnabled)
@@ -8139,14 +8249,197 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 
 	// simulate fleetd installed and enrolled
 	host := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
-	err = s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, d.DeviceID)
+	updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, d.DeviceID)
 	require.NoError(t, err)
+	require.True(t, updated)
 	err = s.ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, "1.23", sql.NullString{}, sql.NullBool{})
 	require.NoError(t, err)
 
 	// start a new management session again, Fleetd is reported as installed so
 	// it does not receive the commands
 	checkinAndAck(false)
+}
+
+func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping() {
+	t := s.T()
+	ctx := context.Background()
+
+	// define a global enroll secret
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
+	require.NoError(t, err)
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        "team1_" + t.Name(),
+		Description: "desc team1_" + t.Name(),
+	})
+	require.NoError(t, err)
+
+	// Enroll another host to ensure the wires don't get crossed somehow
+	autopilotUserMail := "swan@example.com"
+	autopilotDevice := enrollWindowsHostInMDMViaAutopilot(t, s.ds, s.server.URL, autopilotUserMail)
+	require.NoError(t, autopilotDevice.Enroll())
+
+	settingsAppUserMail := "fleetie@example.com"
+	settingsAppHost, settingsAppDevice := createWindowsHostThenEnrollMDMViaSettingsApp(s.ds, s.server.URL, settingsAppUserMail, t)
+	require.NoError(t, settingsAppDevice.Enroll())
+
+	// Transfer the host to the team. Ensure it doesn't wind up in "No team" at the end
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{settingsAppHost.ID}}, http.StatusOK, &addHostsToTeamResponse{})
+
+	checkinAndAck := func(device *mdmtest.TestWindowsMDMClient, expectFleetdCmds bool) {
+		cmds, err := device.StartManagementSession()
+		require.NoError(t, err)
+
+		if !expectFleetdCmds {
+			// receives only the 2 status commands
+			require.Len(t, cmds, 2)
+			for _, c := range cmds {
+				require.Equal(t, "Status", c.Verb, c)
+			}
+			return
+		}
+
+		// Enrollment via settings app or autopilot always results in a fleetd install command, even if already installed,
+		// as there's no way to tell at point of MDM enrollment if fleetd is already installed.
+		// 2 status + 2 commands to install fleetd
+		require.Len(t, cmds, 4)
+		var fleetdAddCmd, fleetdExecCmd fleet.ProtoCmdOperation
+		for _, c := range cmds {
+			switch c.Verb {
+			case "Add":
+				fleetdAddCmd = c
+			case "Exec":
+				fleetdExecCmd = c
+			}
+		}
+		require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdAddCmd.Cmd.GetTargetURI())
+		require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdExecCmd.Cmd.GetTargetURI())
+		require.Len(t, fleetdExecCmd.Cmd.Items, 1)
+
+		var installJob struct {
+			Product struct {
+				ContentURL  string `xml:"Download>ContentURLList>ContentURL"`
+				FileHash    string `xml:"Validation>FileHash"`
+				CommandLine string `xml:"Enforcement>CommandLine"`
+			} `xml:"Product"`
+		}
+		err = xml.Unmarshal([]byte(fleetdExecCmd.Cmd.Items[0].Data.Content), &installJob)
+		require.NoError(t, err)
+		require.Equal(t, s.mockedDownloadFleetdmMeta.MSIURL, installJob.Product.ContentURL)
+		require.Equal(t, s.mockedDownloadFleetdmMeta.MSISha256, installJob.Product.FileHash)
+		// Test name is our simulated enroll secret
+		require.Contains(t, installJob.Product.CommandLine, "FLEET_SECRET=\""+t.Name()+"\"")
+
+		// reply with success for both commands
+		msgID, err := device.GetCurrentMsgID()
+		require.NoError(t, err)
+
+		device.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdStatus},
+			MsgRef:  &msgID,
+			CmdRef:  &fleetdAddCmd.Cmd.CmdID.Value,
+			Cmd:     &fleetdAddCmd.Verb,
+			Data:    ptr.String("200"),
+			Items:   nil,
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+		})
+		device.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdStatus},
+			MsgRef:  &msgID,
+			CmdRef:  &fleetdExecCmd.Cmd.CmdID.Value,
+			Cmd:     &fleetdExecCmd.Verb,
+			Data:    ptr.String("200"),
+			Items:   nil,
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+		})
+		cmds, err = device.SendResponse()
+		require.NoError(t, err)
+
+		// the ack of the message should be the only returned command
+		require.Len(t, cmds, 1)
+	}
+
+	// start a management session, will receive the install fleetd commands
+	checkinAndAck(settingsAppDevice, true)
+
+	// start a new management session again, Fleetd is not reported as installed
+	// so it receives the commands again.
+	// Note: This doesn't mean on a real host the actual install will run twice, review
+	// Microsoft MDM code to see how this is done so that it only installs once
+	checkinAndAck(settingsAppDevice, true)
+
+	// Start a management session for the autopilot device then create the host
+	checkinAndAck(autopilotDevice, true)
+
+	autopilotHost := createOrbitEnrolledHost(t, "windows", uuid.NewString(), s.ds)
+
+	// A new management session should still send the install commands for now
+	checkinAndAck(autopilotDevice, true)
+
+	// Simulate fleetd fetching queries and reporting back the device ID via MDM queries
+	// for the "settings app" device
+	s.simulateMDMWindowsQueries(t, settingsAppHost, settingsAppDevice)
+
+	// The MDM Enrollment should now be linked to the host
+	mdmEnrollment, err := s.ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, settingsAppHost.UUID)
+	require.NoError(t, err)
+	require.Equal(t, settingsAppDevice.DeviceID, mdmEnrollment.MDMDeviceID)
+
+	// start a new management session again, Fleetd is reported as installed so
+	// it does not receive the commands
+	checkinAndAck(settingsAppDevice, false)
+
+	// But the autopilot device still receives commands...
+	checkinAndAck(autopilotDevice, true)
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", settingsAppHost.ID), nil, http.StatusOK, &hostResp)
+	// Host was not transferred
+	require.NotNil(t, hostResp.Host.TeamID)
+	require.Equal(t, team.ID, *hostResp.Host.TeamID)
+
+	// Host enrolled via settings app and is marked as enrolled manually
+	require.NotNil(t, hostResp.Host.MDM.EnrollmentStatus)
+	require.Equal(t, "On (manual)", *hostResp.Host.MDM.EnrollmentStatus)
+
+	// Host has the end user mapped correctly
+	require.Len(t, hostResp.Host.EndUsers, 1)
+	require.Equal(t, settingsAppUserMail, hostResp.Host.EndUsers[0].IdpUserName)
+
+	// Autopilot host checks in, gets queries, reports back
+	s.simulateMDMWindowsQueries(t, autopilotHost, autopilotDevice)
+
+	mdmEnrollment, err = s.ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, autopilotHost.UUID)
+	require.NoError(t, err)
+	require.Equal(t, autopilotDevice.DeviceID, mdmEnrollment.MDMDeviceID)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", autopilotHost.ID), nil, http.StatusOK, &hostResp)
+
+	// Host enrolled via Autopilot and is marked as enrolled automatically
+	require.NotNil(t, hostResp.Host.MDM.EnrollmentStatus)
+	require.Equal(t, "On (automatic)", *hostResp.Host.MDM.EnrollmentStatus)
+
+	// Host has the end user mapped correctly
+	require.Len(t, hostResp.Host.EndUsers, 1)
+	require.Equal(t, autopilotUserMail, hostResp.Host.EndUsers[0].IdpUserName)
+
+	// Re-run the queries
+	s.simulateMDMWindowsQueries(t, autopilotHost, autopilotDevice)
+	s.simulateMDMWindowsQueries(t, settingsAppHost, settingsAppDevice)
+
+	// Just as a final sanity check the autopilot host is still marked as enrolled automatically
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", autopilotHost.ID), nil, http.StatusOK, &hostResp)
+
+	// Host enrolled via Autopilot and is marked as enrolled automatically
+	require.NotNil(t, hostResp.Host.MDM.EnrollmentStatus)
+	require.Equal(t, "On (automatic)", *hostResp.Host.MDM.EnrollmentStatus)
+
+	// And the Settings app host manually
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", settingsAppHost.ID), nil, http.StatusOK, &hostResp)
+
+	// Host enrolled via settings app and is marked as enrolled manually
+	require.NotNil(t, hostResp.Host.MDM.EnrollmentStatus)
+	require.Equal(t, "On (manual)", *hostResp.Host.MDM.EnrollmentStatus)
 }
 
 func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
@@ -8357,7 +8650,9 @@ func (s *integrationMDMTestSuite) TestUpdateMDMWindowsEnrollmentsHostUUID() {
 	require.Empty(t, gotDevice.HostUUID)
 
 	// simulate first report osquery host details
-	require.NoError(t, s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, d.MDMDeviceID))
+	updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, d.MDMDeviceID)
+	require.NoError(t, err)
+	require.True(t, updated)
 
 	// check that the host uuid was updated
 	gotDevice, err = s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
@@ -9391,6 +9686,27 @@ func (s *integrationMDMTestSuite) runIntegrationsSchedule() {
 	_, err := s.integrationsSchedule.Trigger()
 	require.NoError(s.T(), err)
 	<-ch
+}
+
+func (s *integrationMDMTestSuite) awaitRunCleanupSchedule() {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	s.onCleanupScheduleDone = wg.Done
+	_, err := s.cleanupsSchedule.Trigger()
+	require.NoError(s.T(), err)
+	// Add timeout detection
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Completed successfully
+	case <-time.After(5 * time.Minute):
+		s.T().Fatalf("Cleanup schedule jobs timed out after 5 minutes")
+	}
 }
 
 func (s *integrationMDMTestSuite) getRawTokenValue(content string) string {
@@ -10990,6 +11306,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	tmGood, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		Name:        t.Name() + " good",
 		Description: "desc",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "goodsecret"}},
 	})
 	require.NoError(t, err)
 
@@ -11283,6 +11600,148 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	checkSetupExperienceVPP(t, "macos", tmGood.ID, []string{})
 	checkSetupExperienceVPP(t, string(fleet.IPadOSPlatform), tmGood.ID, []string{})
 	checkSetupExperienceVPP(t, string(fleet.IOSPlatform), tmGood.ID, []string{})
+
+	// ===================================================
+	//                   Android apps
+	// ===================================================
+
+	// Android MDM not set up yet, should fail
+	resp := s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+		{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}, {AppStoreID: "com.foo.bar", Platform: fleet.AndroidPlatform},
+	}}, http.StatusBadRequest, "team_name", tmGood.Name)
+
+	s.Assert().Contains(extractServerErrorText(resp.Body), "Android MDM is not enabled")
+
+	s.enableAndroidMDM(s.T())
+
+	// Android app not found, should fail
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		return nil, &notFoundError{}
+	}
+	resp = s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+		{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}, {AppStoreID: "com.app.not.found", Platform: fleet.AndroidPlatform},
+	}}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
+
+	s.Assert().Contains(extractServerErrorText(resp.Body), "Validation Failed: Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
+
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		return &androidmanagement.Application{}, nil
+	}
+
+	// Enroll an Android host
+	secrets, err := s.ds.GetEnrollSecrets(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken}, nil)
+	require.NoError(t, err)
+	pubsubToken := assets[fleet.MDMAssetAndroidPubSubToken]
+	require.NotEmpty(t, pubsubToken.Value)
+
+	deviceID1 := createAndroidDeviceID("test-android")
+
+	enterpriseSpecificID1 := strings.ToUpper(uuid.New().String())
+	var req android_service.PubSubPushRequest
+	for _, d := range []struct {
+		id  string
+		esi string
+	}{{deviceID1, enterpriseSpecificID1}} {
+		enrollmentMessage := enrollmentMessageWithEnterpriseSpecificID(
+			t,
+			androidmanagement.Device{
+				Name:                d.id,
+				EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
+			},
+			d.esi,
+		)
+
+		req = android_service.PubSubPushRequest{
+			PubSubMessage: *enrollmentMessage,
+		}
+
+		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
+	}
+
+	var hosts listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "query", enterpriseSpecificID1)
+
+	assert.Len(t, hosts.Hosts, 1)
+
+	// Run setup experience job
+	s.runWorker()
+	time.Sleep(time.Second)
+
+	chromeAppID := "com.google.chrome"
+	driveAppID := "com.google.drive"
+	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+		{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID},
+		{AppStoreID: chromeAppID, Platform: fleet.AndroidPlatform},
+		{AppStoreID: driveAppID, Platform: fleet.AndroidPlatform},
+	}}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
+	require.Len(t, batchAssociateResponse.Apps, 3)
+
+	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, assoc, 3)
+
+	for _, a := range []fleet.VPPAppID{
+		{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform},
+		{AdamID: chromeAppID, Platform: fleet.AndroidPlatform},
+		{AdamID: driveAppID, Platform: fleet.AndroidPlatform},
+	} {
+		assert.Contains(t, assoc, a)
+	}
+
+	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
+
+	checkJobs := func(expectedAppIDs []string) {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			w := &worker.SoftwareWorker{}
+			var j fleet.Job
+
+			err := sqlx.GetContext(ctx, q, &j, "SELECT * FROM jobs WHERE name = ? ORDER BY updated_at DESC LIMIT 1", w.Name())
+			s.Require().NoError(err)
+
+			var args map[string]any
+			s.Require().NoError(json.Unmarshal(*j.Args, &args))
+			s.Assert().Equal("bulk_set_android_apps_available_for_host", args["task"])
+			s.Assert().Equal(fleet.JobStateSuccess, j.State)
+			s.Assert().ElementsMatch(expectedAppIDs, args["application_ids"])
+
+			return nil
+		})
+
+	}
+
+	// Run worker to set apps available to device
+	time.Sleep(time.Second)
+	s.runWorker()
+	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
+	checkJobs([]string{chromeAppID, driveAppID})
+
+	// Remove an app
+	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+		{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID},
+		{AppStoreID: driveAppID, Platform: fleet.AndroidPlatform},
+	}}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
+	require.Len(t, batchAssociateResponse.Apps, 2)
+
+	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, assoc, 2)
+
+	for _, a := range []fleet.VPPAppID{
+		{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform},
+		{AdamID: driveAppID, Platform: fleet.AndroidPlatform},
+	} {
+		assert.Contains(t, assoc, a)
+	}
+
+	time.Sleep(time.Second)
+	s.runWorker()
+	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+	checkJobs([]string{driveAppID})
 }
 
 func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {
@@ -11786,7 +12245,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.Len(t, resp.SoftwareTitles, 1)
 		nonVPPTitleID := resp.SoftwareTitles[0].ID
 
-		updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false}
+		updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false)}
 
 		// Attempt to update the non-VPP software using the VPP path. Should fail.
 		s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", nonVPPTitleID), updateAppReq, http.StatusNotFound)
@@ -11818,7 +12277,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.False(t, updateAppResp.AppStoreApp.SelfService)
 		require.Equal(t, fleet.MacOSPlatform, updateAppResp.AppStoreApp.Platform)
 
-		activityData = `{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/2", "team_id": %d, "software_title_id": %d, "platform": "%s", "self_service": false, "labels_include_any": [{"id": %d, "name": %q}]}`
+		activityData = `{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/2", "team_id": %d, "software_title_id": %d, "platform": "%s", "self_service": false, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": ""}`
 		s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(),
 			fmt.Sprintf(activityData, team.Name,
 				excludeAnyApp.Name, excludeAnyApp.AdamID, team.ID, titleID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
@@ -13288,7 +13747,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 
 	// Update the app to exclude any with l2. We should not enqueue an install here because mdmHost2
 	// has l2 (but it will re-enqueue the script for execution, immediately "activated")
-	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsExcludeAny: []string{l2.Name}}
+	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), LabelsExcludeAny: []string{l2.Name}}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK)
 
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
@@ -13357,7 +13816,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 
 	// Update the app to include any with l1. We should now enqueue an install as the app is in scope
 	// (in addition to the script execution, which will be the only one "activated").
-	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsIncludeAny: []string{l1.Name, l2.Name}}
+	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), LabelsIncludeAny: []string{l1.Name, l2.Name}}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK)
 
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
@@ -15282,6 +15741,156 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	assert.Len(t, res.Integrations.DigiCert.Value, 3)*/
 }
 
+func (s *integrationMDMTestSuite) TestDigiCertIntegrationWithHostPlatform() {
+	t := s.T()
+	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
+	digiCertServer := createMockDigiCertServer(t)
+
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConfig.MDM.MacOSSetup = fleet.MacOSSetup{
+		EnableEndUserAuthentication: false,
+	}
+	err = s.ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
+
+	// Add DigiCert config
+	ca := newMockDigicertCA(digiCertServer.server.URL, "my_CA")
+	ca.APIToken = "api_token0"
+	certPayload := createCertificateAuthorityRequest{
+		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
+			DigiCert: &ca,
+		},
+	}
+	res := createCertificateAuthorityResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &res)
+
+	// Create a host and then enroll to MDM.
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setupPusher(s, t, mdmDevice)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(profiles), 0)
+
+	// Receive enrollment profiles (we are not checking/testing these here)
+	for {
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		if cmd == nil {
+			break
+		}
+		_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// ////////////////////////////////
+	// Test DigiCert CA with HOST_PLATFORM Fleet variable
+	caPlatform := fleet.DigiCertCA{
+		Name:                          "PlatformVar",
+		URL:                           digiCertServer.server.URL,
+		APIToken:                      "api_token",
+		ProfileID:                     "profile_id",
+		CertificateCommonName:         "$FLEET_VAR_" + string(fleet.FleetVarHostPlatform) + "-device",
+		CertificateUserPrincipalNames: []string{"${FLEET_VAR_" + string(fleet.FleetVarHostPlatform) + "}@example.com"},
+		CertificateSeatID:             "seat_${FLEET_VAR_" + string(fleet.FleetVarHostPlatform) + "}",
+	}
+	certPayload = createCertificateAuthorityRequest{
+		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
+			DigiCert: &caPlatform,
+		},
+	}
+	resPlatform := createCertificateAuthorityResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &resPlatform)
+
+	profilePlatform := digiCertForTest("N5", "I5", "PlatformVar")
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N5", Contents: profilePlatform},
+	}}, http.StatusNoContent)
+	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(profiles), 1)
+
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	s.assertConfigProfilesByIdentifier(nil, "I5", true)
+
+	// Check that status is pending (and not failed)
+	getHostResp := getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	found := false
+	for _, prof := range *getHostResp.Host.MDM.Profiles {
+		if prof.Name == "N5" {
+			found = true
+			assert.Equal(t, fleet.MDMDeliveryPending, *prof.Status)
+			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
+			assert.Empty(t, prof.Detail)
+			continue
+		}
+	}
+	assert.True(t, found)
+
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd, "Expecting PKCS12 certificate for platform variable")
+	require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+	fullCmd := micromdm.CommandPayload{}
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
+	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	assert.Nil(t, cmd)
+
+	require.NotNil(t, fullCmd.Command)
+	require.NotNil(t, fullCmd.Command.InstallProfile)
+	rawProfile := fullCmd.Command.InstallProfile.Payload
+	if !bytes.HasPrefix(rawProfile, []byte("<?xml")) {
+		p7, err := pkcs7.Parse(rawProfile)
+		require.NoError(t, err)
+		require.NoError(t, p7.Verify())
+		rawProfile = p7.Content
+	}
+
+	type pkcs12Profile struct {
+		PayloadContent []map[string]interface{} `plist:"PayloadContent"`
+	}
+
+	pkcs12Prof := pkcs12Profile{}
+	require.NoError(t, plist.Unmarshal(rawProfile, &pkcs12Prof))
+	assert.Equal(t, "com.apple.security.pkcs12", pkcs12Prof.PayloadContent[0]["PayloadType"].(string))
+	password := pkcs12Prof.PayloadContent[0]["Password"].(string)
+	data := pkcs12Prof.PayloadContent[0]["PayloadContent"].([]byte)
+	_, certificate, err := pkcs12.Decode(data, password)
+	require.NoError(t, err)
+	// darwin platform should be converted to "macos"
+	assert.Equal(t, "macos-device", certificate.Subject.CommonName)
+
+	// Check request to DigiCert for platform variable replacement
+	digiCertServer.certReqMu.Lock()
+	assert.Equal(t, caPlatform.ProfileID, digiCertServer.certReq.Profile["id"])
+	assert.Equal(t, "seat_macos", digiCertServer.certReq.Seat["seat_id"])
+	assert.Equal(t, "x509", digiCertServer.certReq.DeliveryFormat)
+	assert.Equal(t, "macos-device", digiCertServer.certReq.Attributes["subject"].(map[string]interface{})["common_name"])
+
+	// Need to convert UPNs to string slice since assert.Equal cannot compare string slice and interface slice
+	upnsReceived := digiCertServer.certReq.Attributes["extensions"].(map[string]interface{})["san"].(map[string]interface{})["user_principal_names"].([]interface{})
+	var stringSlice []string
+	for _, item := range upnsReceived {
+		if str, ok := item.(string); ok {
+			stringSlice = append(stringSlice, str)
+		}
+	}
+	assert.Equal(t, []string{"macos@example.com"}, stringSlice)
+	digiCertServer.certReqMu.Unlock()
+
+	// ////////////////////////////////
+	// Modify the CN/UPN/Seat ID of the profile -- DigiCert verification should not happen
+	digiCertServer.server.Close() // so that verify fails if attempted
+}
+
 //go:embed testdata/profiles/digicert.mobileconfig
 var digiCertMobileconfig string
 
@@ -15774,7 +16383,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	// Invalid profile identifier
 	scepRes := s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"invalid_identifier,p1234-uuid", nil, http.StatusBadRequest, nil, "operation", "GetCACaps")
 	scepResErr := extractServerErrorText(scepRes.Body)
-	require.Contains(t, scepResErr, "invalid profile UUID (only Apple and Windows")
+	require.Contains(t, scepResErr, "invalid profile UUID (only Apple, Windows, and Android")
 
 	// Verify Windows profiles is allowed (with dummy values that will fail lookup)
 	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"invalid_identifier,w1234-uuid", nil, http.StatusBadRequest, nil, "operation", "GetCACaps")
@@ -16431,7 +17040,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 
 	// Update the include any labels. The host has label2, so this means that the software
 	// moved in scope.
-	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsIncludeAny: []string{label2.Name}}
+	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), LabelsIncludeAny: []string{label2.Name}}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK)
 
 	// Send back a failed result for the policy.
@@ -16453,7 +17062,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	require.Equal(t, uint(1), policy1.FailingHostCount)
 
 	// Update to exclude_any: label 2. This moves the software out of scope. The policy is still failing.
-	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsExcludeAny: []string{label2.Name}}
+	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), LabelsExcludeAny: []string{label2.Name}}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK)
 
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -16495,7 +17104,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	require.Equal(t, uint(1), policy1.FailingHostCount)
 
 	// Update to exclude_any: label 2. This moves the software out of scope. The policy is still failing.
-	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsExcludeAny: []string{label2.Name}}
+	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), LabelsExcludeAny: []string{label2.Name}}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK)
 
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -16507,7 +17116,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 
 	// Update to exclude_any: label3. Host has label1, label2, so the app is in scope again and
 	// status should clear.
-	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsExcludeAny: []string{label3.Name}}
+	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), LabelsExcludeAny: []string{label3.Name}}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK)
 
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -16858,7 +17467,7 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	}
 
 	// enroll a Windows host in Fleet MDM
-	enrollWindowsHostInMDM(t, winHost1, s.ds, s.server.URL)
+	enrollWindowsHostInMDMViaOrbit(t, winHost1, s.ds, s.server.URL)
 
 	// stats should now count this host
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Pending: 1}, nil)
@@ -17748,7 +18357,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	require.Contains(t, titleResponse.SoftwareTitle.AppStoreApp.Categories, cat3.Name)
 
 	// update the app and change categories
-	updateAppReq := &updateAppStoreAppRequest{TeamID: nil, SelfService: true}
+	updateAppReq := &updateAppStoreAppRequest{TeamID: nil, SelfService: ptr.Bool(true)}
 	updateAppReq.Categories = []string{cat1.Name, cat3.Name}
 	var updateAppResp updateAppStoreAppResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK, &updateAppResp)
@@ -18086,8 +18695,10 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	newHostDevice.HardwareID = winMDMClient.HardwareID
 	err = newHostDevice.Enroll()
 	require.NoError(t, err)
-	err = s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, newHost.UUID, newHostDevice.DeviceID)
+	updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, newHost.UUID, newHostDevice.DeviceID)
 	require.NoError(t, err)
+	// The MDM Enrollment should have linked the host UUID to the Windows enrollment so there should have been no update
+	require.False(t, updated)
 	err = s.ds.SetOrUpdateMDMData(ctx, newHost.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
 	require.NoError(t, err)
 
@@ -18106,4 +18717,88 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", newHost.ID), nil, http.StatusOK, &wipeResp)
 	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
 	require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
+}
+
+func (s *integrationMDMTestSuite) TestAndroidEnterpriseDeletedDetection() {
+	t := s.T()
+	ctx := t.Context()
+
+	// ----- SETUP
+
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	originalAppConfig := *appConfig
+	appConfig.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		err := s.ds.SaveAppConfig(context.Background(), &originalAppConfig)
+		require.NoError(t, err)
+	})
+
+	// ---- SETUP DONE
+
+	s.androidAPIClient.InitCommonMocks()
+
+	var proxyCallbackURL string
+	s.androidAPIClient.SignupURLsCreateFunc = func(_ context.Context, _, callbackURL string) (*android.SignupDetails, error) {
+		url, err := url.Parse(callbackURL)
+		require.NoError(t, err)
+		proxyCallbackURL = url.EscapedPath() + "?" + url.RawQuery
+		return &android.SignupDetails{
+			Url:  tests.EnterpriseSignupURL,
+			Name: "signupUrls/Cb0812d0999c464f",
+		}, nil
+	}
+	s.androidAPIClient.EnterprisesCreateFunc = func(_ context.Context, _ androidmgmt.EnterprisesCreateRequest) (androidmgmt.EnterprisesCreateResponse, error) {
+		return androidmgmt.EnterprisesCreateResponse{
+			EnterpriseName: "enterprises/" + tests.EnterpriseID,
+			TopicName:      "projects/android/topics/ae98ed130-5ce2-4ddb-a90a-191ec76976d5",
+		}, nil
+	}
+	s.androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{}, nil
+	}
+
+	// First, create an enterprise to test with
+	var signupResp android.EnterpriseSignupResponse
+	s.DoJSON("GET", "/api/latest/fleet/android_enterprise/signup_url", nil, http.StatusOK, &signupResp)
+
+	const enterpriseToken = "enterpriseToken"
+	s.Do("GET", proxyCallbackURL, nil, http.StatusOK, "enterpriseToken", enterpriseToken)
+
+	// Update LIST mock to return the enterprise after "creation"
+	s.androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{
+			{Name: "enterprises/" + tests.EnterpriseID},
+		}, nil
+	}
+
+	// Verify enterprise exists
+	var resp android.GetEnterpriseResponse
+	s.DoJSON("GET", "/api/latest/fleet/android_enterprise", nil, http.StatusOK, &resp)
+	assert.Equal(t, tests.EnterpriseID, resp.EnterpriseID)
+
+	t.Run("enterprise deleted detection", func(t *testing.T) {
+		// Mock EnterprisesListFunc to return empty list (enterprise deleted)
+		s.androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+			return []*androidmanagement.Enterprise{}, nil
+		}
+
+		// Attempt to get enterprise - should return 200 until cron is ran
+		var getResp android.GetEnterpriseResponse
+		s.DoJSON("GET", "/api/latest/fleet/android_enterprise", nil, http.StatusOK, &getResp)
+		// Verify LIST API was not called
+		assert.False(t, s.androidAPIClient.EnterprisesListFuncInvoked)
+
+		// Trigger cron
+		s.awaitRunCleanupSchedule()
+
+		// Verify LIST API was called
+		assert.True(t, s.androidAPIClient.EnterprisesListFuncInvoked)
+
+		// Attempt to get enterprise - should now return 404 since cron detected deletion
+		s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusNotFound, &getResp)
+	})
 }

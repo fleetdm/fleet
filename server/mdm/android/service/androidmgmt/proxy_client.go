@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -40,7 +42,15 @@ func NewProxyClient(ctx context.Context, logger kitlog.Logger, licenseKey string
 		proxyEndpoint = defaultProxyEndpoint
 	}
 
-	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if slices.Contains(groups, "request") && slices.Contains(groups, "headers") && a.Key == "Authorization" {
+				// Redact request Authorization headers
+				a.Value = slog.StringValue("REDACTED")
+			}
+			return a
+		},
+	}))
 	// We use the same client that we use to directly connect to Google to minimize issues/maintenance.
 	// But we point it to our proxy endpoint instead of Google.
 	mgmt, err := androidmanagement.NewService(ctx,
@@ -148,8 +158,23 @@ func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCrea
 	}, nil
 }
 
-func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
-	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).UpdateMask(policyFieldMask)
+type PoliciesPatchOpts struct {
+	// OnlyUpdateApps tells the client to only update the policy's application list.
+	OnlyUpdateApps bool
+	// ExcludeApps tells the client to not update the policy's application list.
+	ExcludeApps bool
+}
+
+func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx)
+
+	switch {
+	case opts.ExcludeApps:
+		call = call.UpdateMask(policyFieldMask)
+	case opts.OnlyUpdateApps:
+		call = call.UpdateMask("applications")
+	}
+
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 	ret, err := call.Do()
 	switch {
@@ -200,9 +225,19 @@ func (p *ProxyClient) EnterprisesDevicesDelete(ctx context.Context, deviceName s
 	return nil
 }
 
-func (p *ProxyClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string,
-	token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
+func (p *ProxyClient) EnterprisesDevicesListPartial(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error) {
+	call := p.mgmt.Enterprises.Devices.List(enterpriseName).Context(ctx).PageToken(pageToken).PageSize(100).Fields("nextPageToken", "devices/name")
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	resp, err := call.Do()
+	if err != nil {
+		return nil, fmt.Errorf("listing devices: %w", err)
+	}
+	return resp, nil
+}
 
+func (p *ProxyClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string,
+	token *androidmanagement.EnrollmentToken,
+) (*androidmanagement.EnrollmentToken, error) {
 	call := p.mgmt.Enterprises.EnrollmentTokens.Create(enterpriseName, token).Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 	token, err := call.Do()
@@ -268,16 +303,14 @@ func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseNam
 
 	app, err := call.Do()
 	if err != nil {
-		var gapiErr *googleapi.Error
-		if errors.As(err, &gapiErr) {
-			if gapiErr.Code == http.StatusNotFound {
-				return nil, ctxerr.Wrap(ctx, appNotFoundError{})
-			}
+		if isErrorCode(err, http.StatusNotFound) || (isErrorCode(err, http.StatusInternalServerError) && strings.Contains(err.Error(), "Requested entity was not found")) {
+			// For some reason, the AMAPI can return a 500 when an app is not found.
+			return nil, ctxerr.Wrap(ctx, appNotFoundError{})
 		}
+
 		return nil, fmt.Errorf("getting application %s: %w", packageName, err)
 	}
 	return app, nil
-
 }
 
 func (p *ProxyClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {

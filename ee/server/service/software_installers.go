@@ -327,21 +327,23 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	dirty := make(map[string]bool)
 
-	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
-	}
-
-	if len(catIDs) != len(payload.Categories) {
-		return nil, &fleet.BadRequestError{
-			Message:     "some or all of the categories provided don't exist",
-			InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
+	if payload.Categories != nil {
+		payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
+		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
 		}
-	}
 
-	payload.CategoryIDs = catIDs
-	dirty["Categories"] = true
+		if len(catIDs) != len(payload.Categories) {
+			return nil, &fleet.BadRequestError{
+				Message:     "some or all of the categories provided don't exist",
+				InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
+			}
+		}
+
+		payload.CategoryIDs = catIDs
+		dirty["Categories"] = true
+	}
 
 	// Handle in house apps separately
 	if software.InHouseAppCount == 1 {
@@ -366,7 +368,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	payload.InstallerID = existingInstaller.InstallerID
 
-	if software.DisplayName != payload.DisplayName {
+	if payload.DisplayName != nil && *payload.DisplayName != software.DisplayName {
+		trimmed := strings.TrimSpace(*payload.DisplayName)
+		if trimmed == "" && *payload.DisplayName != "" {
+			return nil, fleet.NewInvalidArgumentError("display_name", "Cannot have a display name that is all whitespace.")
+		}
+
+		*payload.DisplayName = trimmed
 		dirty["DisplayName"] = true
 	}
 
@@ -389,14 +397,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		actTeamID = payload.TeamID
 	}
 	activity := fleet.ActivityTypeEditedSoftware{
-		SoftwareTitle:       existingInstaller.SoftwareTitle,
-		TeamName:            teamName,
-		TeamID:              actTeamID,
-		SelfService:         existingInstaller.SelfService,
-		SoftwarePackage:     &existingInstaller.Name,
-		SoftwareTitleID:     payload.TitleID,
-		SoftwareIconURL:     existingInstaller.IconUrl,
-		SoftwareDisplayName: payload.DisplayName,
+		SoftwareTitle:   existingInstaller.SoftwareTitle,
+		TeamName:        teamName,
+		TeamID:          actTeamID,
+		SelfService:     existingInstaller.SelfService,
+		SoftwarePackage: &existingInstaller.Name,
+		SoftwareTitleID: payload.TitleID,
+		SoftwareIconURL: existingInstaller.IconUrl,
 	}
 
 	if payload.SelfService != nil && *payload.SelfService != existingInstaller.SelfService {
@@ -644,6 +651,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		activity.LabelsExcludeAny = actLabelsExcl
 		if payload.SelfService != nil {
 			activity.SelfService = *payload.SelfService
+		}
+		if payload.DisplayName != nil {
+			activity.SoftwareDisplayName = *payload.DisplayName
 		}
 		if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "creating activity for edited software")
@@ -1407,7 +1417,9 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	// we need to use ds.Host because ds.HostLite doesn't return the orbit node key
 	host, err := svc.ds.Host(ctx, hostID)
 
-	fromMyDevicePage := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate)
+	fromMyDevicePage := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL)
 
 	if err != nil {
 		// if error is because the host does not exist, check first if the user
@@ -1526,7 +1538,9 @@ func (svc *Service) insertSoftwareUninstallRequest(ctx context.Context, executio
 }
 
 func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {
-	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) {
+	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
 		return svc.getDeviceSoftwareInstallResults(ctx, resultUUID)
 	}
 
@@ -2073,6 +2087,7 @@ func (svc *Service) softwareBatchUpload(
 				LabelsExcludeAny:   p.LabelsExcludeAny,
 				ValidatedLabels:    p.ValidatedLabels,
 				Categories:         p.Categories,
+				DisplayName:        p.DisplayName,
 			}
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
@@ -2328,7 +2343,10 @@ func (svc *Service) softwareBatchUpload(
 			if installer.Filename == "" {
 				installer.Filename = fmt.Sprintf("package.%s", ext)
 			}
-			if installer.Title == "" {
+			if installer.Title == "" && installer.Extension != "ipa" {
+				// If an IPA is specified via hash rather than downloaded via URL, we won't have a title populated,
+				// and should try to pull the title from the database if it exists. If we can't extract title name for
+				// some reason, filename should only be used after attempting to pull data from the database.
 				installer.Title = installer.Filename
 			}
 
