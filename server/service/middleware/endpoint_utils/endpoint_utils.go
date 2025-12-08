@@ -18,8 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
-	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
@@ -87,7 +86,7 @@ func BadRequestErr(publicMsg string, internalErr error) error {
 	if errors.As(internalErr, &opErr) {
 		return fmt.Errorf(publicMsg+", internal: %w", internalErr)
 	}
-	return &fleet.BadRequestError{
+	return &platform_http.BadRequestError{
 		Message:     publicMsg,
 		InternalErr: internalErr,
 	}
@@ -186,7 +185,7 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair) error {
 			if optional {
 				return nil
 			}
-			return &fleet.BadRequestError{Message: fmt.Sprintf("Param %s is required", queryTagValue)}
+			return &platform_http.BadRequestError{Message: fmt.Sprintf("Param %s is required", queryTagValue)}
 		}
 		field := fp.V
 		if field.Kind() == reflect.Ptr {
@@ -217,11 +216,11 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair) error {
 			case "order_direction", "inherited_order_direction":
 				switch queryVal {
 				case "desc":
-					queryValInt = int(fleet.OrderDescending)
+					queryValInt = int(platform_http.OrderDescending)
 				case "asc":
-					queryValInt = int(fleet.OrderAscending)
+					queryValInt = int(platform_http.OrderAscending)
 				default:
-					return &fleet.BadRequestError{Message: "unknown order_direction: " + queryVal}
+					return &platform_http.BadRequestError{Message: "unknown order_direction: " + queryVal}
 				}
 			default:
 				queryValInt, err = strconv.Atoi(queryVal)
@@ -298,17 +297,17 @@ func (h *ErrorHandler) Handle(ctx context.Context, err error) {
 		logger = log.With(logger, "took", time.Since(startTime))
 	}
 
-	var ewi fleet.ErrWithInternal
+	var ewi platform_http.ErrWithInternal
 	if errors.As(err, &ewi) {
 		logger = log.With(logger, "internal", ewi.Internal())
 	}
 
-	var ewlf fleet.ErrWithLogFields
+	var ewlf platform_http.ErrWithLogFields
 	if errors.As(err, &ewlf) {
 		logger = log.With(logger, ewlf.LogFields()...)
 	}
 
-	var uuider fleet.ErrorUUIDer
+	var uuider platform_http.ErrorUUIDer
 	if errors.As(err, &uuider) {
 		logger = log.With(logger, "uuid", uuider.UUID())
 	}
@@ -442,13 +441,13 @@ func MakeDecoder(
 
 			_, jsonExpected := fp.Sf.Tag.Lookup("json")
 			if jsonExpected && nilBody {
-				return nil, &fleet.BadRequestError{Message: "Expected JSON Body"}
+				return nil, &platform_http.BadRequestError{Message: "Expected JSON Body"}
 			}
 
 			isContentJson := r.Header.Get("Content-Type") == "application/json"
 			isCrossSite := r.Header.Get("Origin") != "" || r.Header.Get("Referer") != ""
 			if jsonExpected && isCrossSite && !isContentJson {
-				return nil, fleet.NewUserMessageError(errors.New("Expected Content-Type \"application/json\""), http.StatusUnsupportedMediaType)
+				return nil, platform_http.NewUserMessageError(errors.New("Expected Content-Type \"application/json\""), http.StatusUnsupportedMediaType)
 			}
 
 			err = DecodeQueryTagValue(r, fp)
@@ -472,7 +471,7 @@ func MakeDecoder(
 						return nil, err
 					}
 					if val && !fp.V.IsZero() {
-						return nil, &fleet.BadRequestError{Message: fmt.Sprintf(
+						return nil, &platform_http.BadRequestError{Message: fmt.Sprintf(
 							"option %s requires a premium license",
 							fp.Sf.Name,
 						)}
@@ -509,23 +508,20 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 }
 
-type HandlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error)
-
-type AndroidFunc func(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer
-
-type CommonEndpointer[H HandlerFunc | AndroidFunc] struct {
+type CommonEndpointer[H any] struct {
 	EP            Endpointer[H]
 	MakeDecoderFn func(iface interface{}) kithttp.DecodeRequestFunc
 	EncodeFn      kithttp.EncodeResponseFunc
 	Opts          []kithttp.ServerOption
-	AuthFunc      func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint
-	FleetService  fleet.Service
 	Router        *mux.Router
 	Versions      []string
 
-	// CustomMiddleware are middlewares that run before AuthFunc.
+	// AuthMiddleware is a pre-built authentication middleware.
+	AuthMiddleware endpoint.Middleware
+
+	// CustomMiddleware are middlewares that run before authentication.
 	CustomMiddleware []endpoint.Middleware
-	// CustomMiddlewareAfterAuth are middlewares that run after AuthFunc.
+	// CustomMiddlewareAfterAuth are middlewares that run after authentication.
 	CustomMiddlewareAfterAuth []endpoint.Middleware
 
 	startingAtVersion string
@@ -534,8 +530,8 @@ type CommonEndpointer[H HandlerFunc | AndroidFunc] struct {
 	usePathPrefix     bool
 }
 
-type Endpointer[H HandlerFunc | AndroidFunc] interface {
-	CallHandlerFunc(f H, ctx context.Context, request interface{}, svc interface{}) (fleet.Errorer, error)
+type Endpointer[H any] interface {
+	CallHandlerFunc(f H, ctx context.Context, request interface{}, svc interface{}) (platform_http.Errorer, error)
 	Service() interface{}
 }
 
@@ -582,7 +578,10 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 			endp = mw(endp)
 		}
 	}
-	endp = e.AuthFunc(e.FleetService, endp)
+	// Apply authentication middleware
+	if e.AuthMiddleware != nil {
+		endp = e.AuthMiddleware(endp)
+	}
 
 	// Apply "before auth" middleware (in reverse order so that the first wraps
 	// the second wraps the third etc.)
@@ -749,7 +748,7 @@ func EncodeCommonResponse(
 		return err
 	}
 
-	if e, ok := response.(fleet.Errorer); ok && e.Error() != nil {
+	if e, ok := response.(platform_http.Errorer); ok && e.Error() != nil {
 		EncodeError(ctx, e.Error(), w)
 		return nil
 	}
