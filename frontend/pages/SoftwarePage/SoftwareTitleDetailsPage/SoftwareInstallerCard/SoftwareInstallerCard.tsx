@@ -36,7 +36,6 @@ import {
   APP_STORE_APP_ACTION_OPTIONS,
   SOFTWARE_PACKAGE_ACTION_OPTIONS,
   downloadFile,
-  PLAY_STORE_APP_BASE_URL,
 } from "./helpers";
 import InstallerStatusTable from "./InstallerStatusTable";
 import InstallerPoliciesTable from "./InstallerPoliciesTable";
