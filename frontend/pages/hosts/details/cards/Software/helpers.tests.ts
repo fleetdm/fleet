@@ -379,8 +379,8 @@ describe("getUiStatus", () => {
 describe("getSoftwareSubheader", () => {
   test("undefined for fleet free", () => {
     const result = getSoftwareSubheader({
-      platform: "ios",
-      hostMdmEnrollmentStatus: "On (personal)",
+      platform: "windows",
+      hostMdmEnrollmentStatus: "Off",
       isMyDevicePage: true,
       isPremiumTier: false,
     });
