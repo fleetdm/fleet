@@ -45,6 +45,7 @@ import Dropbox from "./Dropbox";
 import Eclipse from "./Eclipse";
 import Edge from "./Edge";
 import EightXEightWork from "./8X8Work";
+import Evernote from "./Evernote";
 import Excel from "./Excel";
 import Extension from "./Extension";
 import Falcon from "./Falcon";
@@ -193,6 +194,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "draw.io": Drawio,
   dropbox: Dropbox,
   eclipse: Eclipse,
+  evernote: Evernote,
   falcon: Falcon,
   figma: Figma,
   firefox: Firefox,
