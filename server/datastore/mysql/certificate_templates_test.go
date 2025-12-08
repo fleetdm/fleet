@@ -1152,6 +1152,7 @@ func testGetCertificateTemplateForHost(t *testing.T, ds *Datastore) {
 			CertificateTemplateID: ct1.ID,
 			FleetChallenge:        "challenge-123",
 			Status:                fleet.MDMDeliveryPending,
+			OperationType:         fleet.MDMOperationTypeInstall,
 		},
 	})
 	require.NoError(t, err)
