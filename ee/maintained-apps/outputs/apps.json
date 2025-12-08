@@ -485,6 +485,7 @@
       "description": "JetBrains tools manager."
     },
     {
+      "name": "KeePassXC",
       "slug": "keepassxc/darwin",
       "platform": "darwin",
       "unique_identifier": "org.keepassx.keepassxc",
