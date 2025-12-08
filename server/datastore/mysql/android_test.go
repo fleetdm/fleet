@@ -60,6 +60,7 @@ func TestAndroid(t *testing.T) {
 		{"AndroidAppConfiguration_CascadeDeleteTeam", testAndroidAppConfigurationCascadeDeleteTeam},
 		{"AndroidAppConfiguration_GlobalVsTeam", testAndroidAppConfigurationGlobalVsTeam},
 		{"AddDeleteAndroidAppWithConfiguration", testAddDeleteAndroidAppWithConfiguration},
+		{"HasAndroidAppConfigurationChanged", testHasAndroidAppConfigurationChanged},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2618,4 +2619,95 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 	require.ErrorContains(t, err, "not found")
 	_, err = ds.GetAndroidAppConfiguration(ctx, app1.AdamID, team1.ID)
 	require.ErrorContains(t, err, "not found")
+}
+
+func testHasAndroidAppConfigurationChanged(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	appID := "com.example.testapp"
+	setupTestApp(t, ds, appID)
+
+	config := &fleet.AndroidAppConfiguration{
+		ApplicationID:  appID,
+		TeamID:         nil,
+		GlobalOrTeamID: 0,
+		Configuration:  json.RawMessage(`{"managedConfiguration": {"a": 1}}`),
+	}
+	err := ds.InsertAndroidAppConfiguration(ctx, config)
+	require.NoError(t, err)
+
+	cases := []struct {
+		desc         string
+		newConfig    string
+		compareAppID string
+		changed      bool
+	}{
+		{
+			desc:         "empty new config",
+			newConfig:    "",
+			compareAppID: appID,
+			changed:      true,
+		},
+		{
+			desc:         "empty object",
+			newConfig:    "{}",
+			compareAppID: appID,
+			changed:      true,
+		},
+		{
+			desc:         "boolean instead of object",
+			newConfig:    "false",
+			compareAppID: appID,
+			changed:      true,
+		},
+		{
+			desc:         "empty managedConfiguration",
+			newConfig:    `{"managedConfiguration": {}}`,
+			compareAppID: appID,
+			changed:      true,
+		},
+		{
+			desc:         "same config",
+			newConfig:    `{"managedConfiguration": {"a":1}}`,
+			compareAppID: appID,
+			changed:      false,
+		},
+		{
+			desc:         "slightly different config",
+			newConfig:    `{"managedConfiguration": {"a":"b"}}`,
+			compareAppID: appID,
+			changed:      true,
+		},
+		{
+			desc:         "expanded different config",
+			newConfig:    `{"managedConfiguration": {"a":1, "b":2}}`,
+			compareAppID: appID,
+			changed:      true,
+		},
+		{
+			desc:         "very different config",
+			newConfig:    `{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`,
+			compareAppID: appID,
+			changed:      true,
+		},
+		{
+			desc:         "empty compared to non-existing",
+			newConfig:    ``,
+			compareAppID: "com.no-such.app",
+			changed:      false,
+		},
+		{
+			desc:         "some config compared to non-existing",
+			newConfig:    `{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`,
+			compareAppID: "com.no-such.app",
+			changed:      true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			got, err := ds.HasAndroidAppConfigurationChanged(ctx, c.compareAppID, 0, json.RawMessage(c.newConfig))
+			require.NoError(t, err)
+			require.Equal(t, c.changed, got)
+		})
+	}
 }
