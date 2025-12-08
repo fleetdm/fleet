@@ -2094,7 +2094,7 @@ _Available in Fleet Premium._
 | okta_assertion_consumer_service_url | string  | The assertion consumer service URL found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
 | okta_audience_uri                   | string  | The audience URI found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
 | okta_certificate                    | string  | The certificate provided by Okta during the **Set Up Authenticator** workflow      |
-| snooze_enabled                    | boolean  | Whether to allow end users the option to "snooze" condtional access blocking for a single login attempt. |
+| snooze_enabled                    | boolean  | Whether to allow end users the option to "snooze" conditional access blocking for a single login attempt. |
 
 
 When updating conditional access config, all `conditional_access` fields must either be empty or included in the request.
