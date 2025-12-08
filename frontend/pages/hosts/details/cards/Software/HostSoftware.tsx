@@ -336,6 +336,7 @@ const HostSoftware = ({
             platform,
             isMyDevicePage: true,
             hostMdmEnrollmentStatus,
+            isPremiumTier,
           })}
         />
         {renderHostSoftware()}
@@ -351,6 +352,7 @@ const HostSoftware = ({
             platform,
             isMyDevicePage: false,
             hostMdmEnrollmentStatus,
+            isPremiumTier,
           })}
         />
       )}

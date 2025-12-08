@@ -417,6 +417,7 @@ interface IGetSoftwareSubheader {
   platform: HostPlatform;
   hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
   isMyDevicePage?: boolean;
+  isPremiumTier?: boolean;
 }
 
 /**
@@ -427,7 +428,12 @@ export const getSoftwareSubheader = ({
   platform,
   hostMdmEnrollmentStatus,
   isMyDevicePage,
-}: IGetSoftwareSubheader): string => {
+  isPremiumTier,
+}: IGetSoftwareSubheader): string | undefined => {
+  /** Fleet free does not have headers for this section */
+  if (!isPremiumTier) {
+    return undefined;
+  }
   if (isIPadOrIPhone(platform)) {
     if (hostMdmEnrollmentStatus === "On (personal)") {
       return isMyDevicePage
