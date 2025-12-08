@@ -147,6 +147,8 @@ object ApiClient {
                     ?: "HTTP $responseCode"
             }
 
+            // Log.d("ApiClient", "server response from $method $endpoint ($responseCode): $response")
+
             if (responseCode in 200..299) {
                 val parsed = json.decodeFromString(string = response, deserializer = responseSerializer)
                 Result.success(parsed)
@@ -225,9 +227,10 @@ object ApiClient {
             method = "GET",
             body = GetCertificateTemplateRequest(orbitNodeKey = orbitNodeKey),
             bodySerializer = GetCertificateTemplateRequest.serializer(),
-            responseSerializer = GetCertificateTemplateResponse.serializer(),
+            responseSerializer = GetCertificateTemplateResponseWrapper.serializer(),
         ).fold(
-            onSuccess = { res ->
+            onSuccess = { wrapper ->
+                val res = wrapper.certificate
                 Log.i("ApiClient", "successfully retrieved certificate template ${res.id}: ${res.name}")
                 Result.success(
                     res.apply {
@@ -437,6 +440,12 @@ private data class UpdateCertificateStatusResponse(
 )
 
 @Serializable
+data class GetCertificateTemplateResponseWrapper(
+    @SerialName("certificate")
+    val certificate: GetCertificateTemplateResponse,
+)
+
+@Serializable
 data class GetCertificateTemplateResponse(
     // CertificateTemplateResponseSummary
     @SerialName("id")
@@ -446,7 +455,7 @@ data class GetCertificateTemplateResponse(
     val name: String,
 
     @SerialName("certificate_authority_id")
-    val certificateAuthorityId: String,
+    val certificateAuthorityId: Int,
 
     @SerialName("certificate_authority_name")
     val certificateAuthorityName: String,

@@ -122,7 +122,7 @@ class ScepIntegrationTest {
             val uniqueId = System.currentTimeMillis()
             val template = createTemplate(
                 url = testTemplate.url ?: "https://scep.example.com/scep",
-                challenge = testTemplate.scepChallenge,
+                challenge = testTemplate.scepChallenge ?: "test-challenge",
                 name = "test-cert-$keySize-$uniqueId",
                 subject = "CN=IntegrationTestDevice-$keySize-$uniqueId,O=FleetDM,C=US",
                 keyLength = keySize,
