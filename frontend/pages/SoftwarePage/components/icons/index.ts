@@ -55,6 +55,7 @@ import GitHubDesktop from "./GitHubDesktop";
 import GitKraken from "./GitKraken";
 import GoLand from "./GoLand";
 import GoogleDrive from "./GoogleDrive";
+import GpgKeychain from "./GpgKeychain";
 import GrammarlyDesktop from "./GrammarlyDesktop";
 import Granola from "./Granola";
 import IMazingProfileEditor from "./IMazingProfileEditor";
@@ -198,6 +199,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   falcon: Falcon,
   figma: Figma,
   firefox: Firefox,
+  "gpg keychain": GpgKeychain,
   keepassxc: KeePassXc,
   libreoffice: LibreOffice,
   "microsoft autoupdate": MicrosoftAutoUpdate,
