@@ -250,6 +250,7 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 - We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
+- To save everyone time, please [don't ask to ask: just ask](https://dontasktoask.com/).
 
 > **Need an app that you don't see in Fleet Slack?** [Create a IT & Enablement issue](https://fleetdm.com/handbook/it-and-enablement#contact-us) to request an app be added to the Fleet Slack workspace.
 
