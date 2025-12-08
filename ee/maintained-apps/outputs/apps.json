@@ -121,6 +121,13 @@
       "description": "Bitwarden is a desktop password and login vault."
     },
     {
+      "name": "Bitwarden",
+      "slug": "bitwarden/windows",
+      "platform": "windows",
+      "unique_identifier": "Bitwarden",
+      "description": "Bitwarden is a desktop password and login vault."
+    },
+    {
       "name": "Box Drive",
       "slug": "box-drive/darwin",
       "platform": "darwin",
