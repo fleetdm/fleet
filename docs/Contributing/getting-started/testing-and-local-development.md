@@ -24,6 +24,7 @@
       - [Mailpit SMTP server with plain authentication](#mailpit-smtp-server-with-plain-authentication)
   - [Development database management](#development-database-management)
   - [MySQL shell](#mysql-shell)
+  - [MySQL replica delay](#mysql-replica-delay)
   - [Redis REPL](#redis-repl)
   - [Testing SSO](#testing-sso)
     - [Configuration](#configuration)
