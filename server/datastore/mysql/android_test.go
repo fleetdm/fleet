@@ -2366,6 +2366,18 @@ func testInsertAndGetAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	require.NotZero(t, retrieved.ID)
 	require.NotZero(t, retrieved.CreatedAt)
 	require.NotZero(t, retrieved.UpdatedAt)
+
+	// test bulk-get configuration
+	configsByAppID, err := ds.BulkGetAndroidAppConfigurations(testCtx(), []string{appID}, 0)
+	require.NoError(t, err)
+	require.Len(t, configsByAppID, 1)
+	require.Equal(t, string(retrieved.Configuration), string(configsByAppID[appID]))
+
+	// bulk-get configuration returns any known app config, ignores others
+	configsByAppID, err = ds.BulkGetAndroidAppConfigurations(testCtx(), []string{appID, "no-such-app"}, 0)
+	require.NoError(t, err)
+	require.Len(t, configsByAppID, 1)
+	require.Equal(t, string(retrieved.Configuration), string(configsByAppID[appID]))
 }
 
 func testUpdateAndroidAppConfiguration(t *testing.T, ds *Datastore) {
