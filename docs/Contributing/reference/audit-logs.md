@@ -2290,6 +2290,25 @@ This activity contains the following field:
 }
 ```
 
+## host_snoozed_conditional_access
+
+Generated when a host snoozes conditional access.
+
+This activity contains the following field:
+- "host_display_name": The display name of the snoozed host.
+- "host_id": The ID of the snoozed host.
+- "idp_full_name": The end user's full name from Okta.
+
+#### Example
+
+```json
+{
+  "host_display_name": "Anna's MacBook Pro",
+  "host_id": 123,
+  "idp_full_name": "Anna Chao"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
