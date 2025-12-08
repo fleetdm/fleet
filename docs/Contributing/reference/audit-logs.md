@@ -2275,6 +2275,21 @@ This activity contains the following fields:
 }
 ```
 
+## updated_conditional_access_snooze
+
+Generated when conditional access snooze settings are updated.
+
+This activity contains the following field:
+- "snooze_enabled": Whether conditional access snooze was enabled.
+
+#### Example
+
+```json
+{
+  "snooze_enabled": true
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
