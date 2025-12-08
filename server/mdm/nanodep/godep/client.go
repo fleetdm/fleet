@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/log"
 )
 
 const (
@@ -82,6 +83,9 @@ type Client struct {
 	// an HTTP client that handles DEP API authentication and session management
 	client    depclient.Doer
 	afterHook func(ctx context.Context, err error) error
+
+	// Optional logger for debugging
+	logger log.Logger
 }
 
 // ClientOption defines the functional options type for NewClient.
@@ -95,6 +99,12 @@ type ClientOption func(*Client)
 func WithAfterHook(hook func(ctx context.Context, err error) error) ClientOption {
 	return func(c *Client) {
 		c.afterHook = hook
+	}
+}
+
+func WithLogger(logger log.Logger) ClientOption {
+	return func(c *Client) {
+		c.logger = logger
 	}
 }
 
@@ -140,12 +150,14 @@ func (c *Client) doWithAfterHook(ctx context.Context, name, method, path string,
 // We encode in to JSON and decode any returned body as JSON to out.
 func (c *Client) do(ctx context.Context, name, method, path string, in interface{}, out interface{}) (*http.Request, error) {
 	var body io.Reader
+	bodyStr := "[empty]"
 	if in != nil {
 		bodyBytes, err := json.Marshal(in)
 		if err != nil {
 			return nil, err
 		}
 		body = bytes.NewBuffer(bodyBytes)
+		bodyStr = string(bodyBytes)
 	}
 
 	req, err := depclient.NewRequestWithContext(ctx, name, c.store, method, path, body)
@@ -160,20 +172,55 @@ func (c *Client) do(ctx context.Context, name, method, path string, in interface
 		req.Header.Set("Accept", mediaType)
 	}
 
+	if c.logger != nil {
+		c.logger.Debug("msg", "sending request to Apple DEP", "method", method, "url", req.URL.String(), "body", bodyStr)
+	}
+
 	resp, err := c.client.Do(req)
 	if err != nil {
+		if c.logger != nil {
+			c.logger.Debug("msg", "error sending request to Apple DEP", "url", req.URL.String(), "error", err)
+		}
 		return req, err
 	}
 	defer resp.Body.Close()
 
+	appleRequestUUID := ""
+	if hdr, ok := resp.Header[http.CanonicalHeaderKey("X-Apple-Request-UUID")]; ok {
+		for _, hdrValue := range hdr {
+			if appleRequestUUID != "" {
+				appleRequestUUID += ", "
+			}
+			appleRequestUUID += hdrValue
+		}
+	}
+
 	if resp.StatusCode == http.StatusUnauthorized {
-		return req, fmt.Errorf("unhandled auth error: %w", depclient.NewAuthError(resp))
+		return req, fmt.Errorf("unhandled auth error on request %s: %w", appleRequestUUID, depclient.NewAuthError(resp))
 	} else if resp.StatusCode != http.StatusOK {
 		return req, NewHTTPError(resp)
 	}
 
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return req, err
+	}
+
+	limit30KiB := 30 * 1024
+	if c.logger != nil {
+		responseBodyString := ""
+		// This should cover large DEP requests without overwhelming the logs and get the data needed
+		// for the most important ones like assign profile responses
+		if len(bodyBytes) > limit30KiB {
+			responseBodyString = string(bodyBytes[:limit30KiB]) + "...[truncated]"
+		} else {
+			responseBodyString = string(bodyBytes)
+		}
+		c.logger.Debug("msg", "Apple DEP Request returned 200 status", "url", req.URL.String(), "apple_request_uuid", appleRequestUUID, "body", responseBodyString)
+	}
+
 	if out != nil {
-		err := json.NewDecoder(resp.Body).Decode(out)
+		err := json.NewDecoder(bytes.NewReader(bodyBytes)).Decode(out)
 		if err != nil {
 			return req, err
 		}
