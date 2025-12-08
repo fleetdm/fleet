@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/activity"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -513,7 +514,9 @@ type HandlerFunc func(ctx context.Context, request interface{}, svc fleet.Servic
 
 type AndroidFunc func(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer
 
-type CommonEndpointer[H HandlerFunc | AndroidFunc] struct {
+type ActivityFunc func(ctx context.Context, request interface{}, svc activity.Service) fleet.Errorer
+
+type CommonEndpointer[H HandlerFunc | AndroidFunc | ActivityFunc] struct {
 	EP            Endpointer[H]
 	MakeDecoderFn func(iface interface{}) kithttp.DecodeRequestFunc
 	EncodeFn      kithttp.EncodeResponseFunc
@@ -534,7 +537,7 @@ type CommonEndpointer[H HandlerFunc | AndroidFunc] struct {
 	usePathPrefix     bool
 }
 
-type Endpointer[H HandlerFunc | AndroidFunc] interface {
+type Endpointer[H HandlerFunc | AndroidFunc | ActivityFunc] interface {
 	CallHandlerFunc(f H, ctx context.Context, request interface{}, svc interface{}) (fleet.Errorer, error)
 	Service() interface{}
 }
