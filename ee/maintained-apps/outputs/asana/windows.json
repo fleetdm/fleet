@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "2.5.1",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Asana' AND publisher = 'Asana, Inc.';"
+      },
+      "installer_url": "https://desktop-downloads.asana.com/win32_x64/prod/v2.5.1/AsanaSetup.exe",
+      "install_script_ref": "7d7fdd9d",
+      "uninstall_script_ref": "223f54f6",
+      "sha256": "c760d8e3b8c8f014a5ed29d8996cf0524e03332b4fdb635aa9637d88b414b06c",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "223f54f6": "# Attempts to locate Asana's uninstaller from registry and execute it silently\n\n$displayName = \"Asana\"\n$publisher = \"Asana, Inc.\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like \"$displayName*\") -and ($publisher -eq \"\" -or $_.Publisher -eq $publisher)\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n# Kill any running Asana processes before uninstalling\nStop-Process -Name \"Asana\" -Force -ErrorAction SilentlyContinue\n\n$uninstallString = $uninstall.UninstallString\n$exePath = \"\"\n$arguments = \"\"\n\n# Parse the uninstall string to extract executable path and existing arguments\n# Handles both quoted and unquoted paths\nif ($uninstallString -match '^\"([^\"]+)\"(.*)') {\n    $exePath = $matches[1]\n    $arguments = $matches[2].Trim()\n} elseif ($uninstallString -match '^([^\\s]+)(.*)') {\n    $exePath = $matches[1]\n    $arguments = $matches[2].Trim()\n} else {\n    Write-Host \"Error: Could not parse uninstall string: $uninstallString\"\n    Exit 1\n}\n\n# Build argument list array, preserving existing arguments and adding --silent for silent\n$argumentList = @()\nif ($arguments -ne '') {\n    # Split existing arguments and add them\n    $argumentList += $arguments -split '\\s+'\n}\n$argumentList += \"--silent\"\n\nWrite-Host \"Uninstall executable: $exePath\"\nWrite-Host \"Uninstall arguments: $($argumentList -join ' ')\"\n\ntry {\n    $processOptions = @{\n        FilePath = $exePath\n        ArgumentList = $argumentList\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n    \n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    \n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n\n",
+    "7d7fdd9d": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Add argument to install silently\n# Asana uses --silent for silent installation\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"--silent\"\n  PassThru = $true\n  Wait = $true\n}\n    \n# Start process and track exit code\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\n# Prints the exit code\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n\n"
+  }
+}

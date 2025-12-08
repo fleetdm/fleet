@@ -368,6 +368,7 @@ export const generateCustomDropdownStyles = (
       padding: 0,
       display: "flex",
       gap: PADDING[variant === "button" ? "pad-xsmall" : "pad-small"],
+      flexWrap: "nowrap", // This ensures the value is on a single line and truncated
     }),
     option: (provided, state) => ({
       ...provided,

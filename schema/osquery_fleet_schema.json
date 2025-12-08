@@ -5537,7 +5537,7 @@
       "linux"
     ],
     "evented": false,
-    "examples": "Output most table information, swapping customer ID for its length to avoid leaking sensitive information.\n\n```\nSELECT agent_id, LENGTH(cid), falcon_version, reduced_functionality_mode, sensor_loaded FROM crowdstrike_falcon;\n```",
+    "examples": "Get the agent ID of the CrowdStrike Falcon agent on all macOS and Linux hosts.\n\n```\nSELECT agent_id FROM crowdstrike_falcon;\n```\n\nOutput most table information, swapping customer ID for its length to avoid leaking sensitive information.\n\n```\nSELECT agent_id, LENGTH(cid), falcon_version, reduced_functionality_mode, sensor_loaded FROM crowdstrike_falcon;\n```",
     "columns": [
       {
         "name": "agent_id",
@@ -7493,7 +7493,7 @@
   },
   {
     "name": "dns_resolvers",
-    "description": "Resolvers used by this host.",
+    "description": "Resolvers used by this host. Note: On Windows this data is available in the interface_details table.",
     "url": "https://fleetdm.com/tables/dns_resolvers",
     "platforms": [
       "darwin",
@@ -17866,7 +17866,7 @@
       },
       {
         "name": "blocks_free",
-        "description": "Mounted device free blocks",
+        "description": "Mounted device blocks available to root users, a superset of blocks_available",
         "type": "bigint",
         "notes": "",
         "hidden": false,
@@ -17875,7 +17875,7 @@
       },
       {
         "name": "blocks_available",
-        "description": "Mounted device available blocks",
+        "description": "Mounted device blocks available to non-root users",
         "type": "bigint",
         "notes": "",
         "hidden": false,
