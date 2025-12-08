@@ -4,8 +4,9 @@ $displayName = "Bitwarden"
 $publisher = "8bit Solutions LLC"
 
 # Some uninstallers require a flag to run silently.
-# NSIS installers typically use "/S" for silent uninstall
-$uninstallArgs = "/S"
+# Bitwarden's NSIS installer requires both "/allusers" and "/S" for silent uninstall
+# Reference: https://silentinstallhq.com/bitwarden-install-and-uninstall-powershell/
+$uninstallArgs = "/allusers /S"
 
 $paths = @(
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
@@ -55,13 +56,27 @@ try {
                 Write-Host "QuietUninstallString: $($key.QuietUninstallString)"
             
             # Prefer QuietUninstallString if available - it's designed for silent uninstalls
-            # If QuietUninstallString exists, use it directly without modification
+            # Bitwarden requires /allusers /S for proper uninstall
             if ($key.QuietUninstallString) {
                 Write-Host "Using QuietUninstallString for silent uninstall"
                 $uninstallCommand = $key.QuietUninstallString
                 
-                # Execute QuietUninstallString directly via cmd.exe
-                # This is more reliable than parsing and reconstructing
+                # Check if /allusers /S is already in the command
+                if ($uninstallCommand -notmatch '/allusers.*/S' -and $uninstallCommand -notmatch '/S.*/allusers') {
+                    # Parse to add /allusers /S
+                    $splitArgs = $uninstallCommand.Split('"')
+                    if ($splitArgs.Length -gt 1) {
+                        $exePath = $splitArgs[1]
+                        $existingArgs = if ($splitArgs.Length -eq 3) { $splitArgs[2].Trim() } else { "" }
+                        $existingArgs = $existingArgs -replace '/allusers', '' -replace '/S', '' -replace '\s+', ' '
+                        $newArgs = if ($existingArgs) { "$existingArgs /allusers /S" } else { "/allusers /S" }
+                        $uninstallCommand = "`"$exePath`" $newArgs"
+                    } else {
+                        # No quotes, append /allusers /S
+                        $uninstallCommand = "$uninstallCommand /allusers /S"
+                    }
+                }
+                
                 Write-Host "Executing: cmd.exe /c `"$uninstallCommand`""
                 $process = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "`"$uninstallCommand`"" -PassThru -Wait -NoNewWindow
                 $exitCode = $process.ExitCode
@@ -72,11 +87,16 @@ try {
                 $uninstallCommand = $key.UninstallString
                 
                 # Parse the uninstall command to separate executable from arguments
+                # Remove any existing /allusers from the UninstallString, we'll add it back
+                $uninstallCommand = $uninstallCommand -replace '/allusers', '' -replace '"', ''
+                
                 $splitArgs = $uninstallCommand.Split('"')
                 if ($splitArgs.Length -gt 1) {
                     if ($splitArgs.Length -eq 3) {
                         $existingArgs = $splitArgs[2].Trim()
-                        $uninstallArgs = if ($existingArgs) { "$existingArgs /S" } else { "/S" }
+                        # Remove /allusers if present, we'll add it back with /S
+                        $existingArgs = $existingArgs -replace '/allusers', '' -replace '\s+', ' '
+                        $uninstallArgs = if ($existingArgs) { "$existingArgs /allusers /S" } else { "/allusers /S" }
                     } elseif ($splitArgs.Length -gt 3) {
                         Throw `
                             "Uninstall command contains multiple quoted strings. " +
@@ -84,6 +104,14 @@ try {
                                 "Uninstall command: $uninstallCommand"
                     }
                     $uninstallCommand = $splitArgs[1]
+                } else {
+                    # No quotes, try to split on space
+                    $parts = $uninstallCommand -split '\s+', 2
+                    if ($parts.Length -gt 1) {
+                        $uninstallCommand = $parts[0]
+                        $existingArgs = $parts[1] -replace '/allusers', '' -replace '\s+', ' '
+                        $uninstallArgs = if ($existingArgs) { "$existingArgs /allusers /S" } else { "/allusers /S" }
+                    }
                 }
                 Write-Host "Uninstall executable: $uninstallCommand"
                 Write-Host "Uninstall args: $uninstallArgs"
