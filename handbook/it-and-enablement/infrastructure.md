@@ -1,4 +1,4 @@
-# Infrastructure
+# IT systems
 
 This page covers infrastructure management processes for Fleet, including domain registration and other foundational technology needs.
 
@@ -10,5 +10,5 @@ Domain name registrations are handled through Namecheap. Access is managed via 1
 
 
 <meta name="maintainedBy" value="allenhouchins">
-<meta name="title" value="Infrastructure">
+<meta name="title" value="IT systems">
 

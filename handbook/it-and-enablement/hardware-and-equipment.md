@@ -14,7 +14,7 @@ Fleet maintains standardized hardware configurations across three tiers to ensur
 
 Fleet uses three hardware tiers based on role requirements:
 
-- **Engineer tier**: For engineering roles requiring maximum performance for development, compilation, and resource-intensive tasks.
+- **Engineering tier**: For engineering roles requiring maximum performance for development, compilation, and resource-intensive tasks.
   - Department: Engineering
 - **Tech tier**: For technical roles that require virtualization and other resource-intensive applications.
   - Departments: Product Design, IT & Enablement, Customer Success (technical roles)
@@ -29,11 +29,11 @@ performance data, cost-effectiveness, and market availability to ensure we're pr
 equipment for each role tier while maintaining cost efficiency. Specifications will be updated
 regularly and as new hardware becomes available and testing is completed.
 
-### Apple devices
+### Apple devices (MacBooks)
 
-All Apple devices must be enrolled in Apple Business Manager (ABM) to ensure proper device management and security.
+All MacBooks must be enrolled in Apple Business Manager (ABM) to ensure proper device management and security.
 
-**Engineer tier**
+**Engineering tier**
 - *Specifications to be provided*
 
 **Tech tier**
@@ -52,7 +52,7 @@ All Apple devices must be enrolled in Apple Business Manager (ABM) to ensure pro
 
 Windows devices are purchased through [frame.work](https://frame.work/).
 
-**Engineer tier**
+**Engineering tier**
 - *Specifications to be provided*
 
 **Tech tier**
@@ -83,7 +83,7 @@ To be fully supported by Fleet for internal use, Linux distributions must suppor
 
 > **Note:** While Fleet Desktop is also supported on Debian and Omarchy, these distributions do not currently support disk encryption escrow and are not recommended for internal Fleet use unless specific requirements necessitate them.
 
-**Engineer tier**
+**Engineering tier**
 - *Specifications to be provided*
 
 **Tech tier**
