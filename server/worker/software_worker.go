@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -104,13 +103,10 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 		return ctxerr.Wrap(ctx, err, "add app store app: getting android hosts in scope")
 	}
 
-	fmt.Println(">>>>> makeAndroidAppAvailable: hosts in scope:", spew.Sdump(hosts), applicationID, appTeamID)
-
 	config, err := v.Datastore.GetAndroidAppConfigurationByAppTeamID(ctx, appTeamID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
-	fmt.Println(">>>>> makeAndroidAppAvailable: config :", spew.Sdump(config))
 
 	var androidAppConfig struct {
 		ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
@@ -122,19 +118,12 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 			return ctxerr.Wrap(ctx, err, "unmarshal android app configuration")
 		}
 	}
-	fmt.Println(">>>>> makeAndroidAppAvailable: unmarshaled config :", spew.Sdump(androidAppConfig))
-
-	// TODO(mna): load any config, and ensure it gets applied as available with the config
-	// up-to-date (if there is any).
-
 	appPolicies := []*androidmanagement.ApplicationPolicy{{
 		PackageName:          applicationID,
 		InstallType:          "AVAILABLE",
 		ManagedConfiguration: googleapi.RawMessage(androidAppConfig.ManagedConfiguration),
 		WorkProfileWidgets:   androidAppConfig.WorkProfileWidgets,
 	}}
-
-	fmt.Println(">>>>> makeAndroidAppAvailable: appPolicies:", spew.Sdump(appPolicies))
 
 	// Update Android MDM policy to include the app in self service
 	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, hosts)
@@ -329,17 +318,32 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 	}
 
 	if len(appIDs) > 0 {
-		// TODO(mna): ACTUALLY test and see if we need to load the configs here, as any available app
-		// would've had its config setup by the previous call to makeAndroidAppsAvailableForHost (as
-		// all android apps are currently self-service, even the setup experience ones). So maybe the
-		// configured configs will already apply for this installation (I think they should).
-		// ~~load any config and ensure it gets applied with the apps~~
+		// NOTE: from my tests, we do need to re-apply the app configs when installing apps,
+		// even if they were already applied when making the apps available for self-service.
+		// However, once installed, if the app config changes it is applied automatically by the
+		// policy change (no need to re-install).
+		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, appIDs, hostEnrollTeamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
+		}
 
 		appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))
 		for _, appID := range appIDs {
+			var androidAppConfig struct {
+				ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
+				WorkProfileWidgets   string          `json:"workProfileWidgets"`
+			}
+			if config := configsByAppID[appID]; config != nil {
+				if err := json.Unmarshal(config, &androidAppConfig); err != nil {
+					// should never happen, as it is stored as json in the db and is pre-validated
+					return ctxerr.Wrapf(ctx, err, "unmarshal android app configuration for app ID %s", appID)
+				}
+			}
 			appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
-				PackageName: appID,
-				InstallType: "PREINSTALLED",
+				PackageName:          appID,
+				InstallType:          "PREINSTALLED",
+				ManagedConfiguration: googleapi.RawMessage(androidAppConfig.ManagedConfiguration),
+				WorkProfileWidgets:   androidAppConfig.WorkProfileWidgets,
 			})
 		}
 
