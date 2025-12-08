@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -70,6 +72,34 @@ func (ds *Datastore) ListCertificateTemplatesForHosts(ctx context.Context, hostU
 	return results, nil
 }
 
+// GetCertificateTemplateForHost returns a certificate template for a specific host and certificate template ID
+func (ds *Datastore) GetCertificateTemplateForHost(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
+	const stmt = `
+		SELECT
+			hosts.uuid AS host_uuid,
+			certificate_templates.id AS certificate_template_id,
+			host_certificate_templates.fleet_challenge AS fleet_challenge,
+			host_certificate_templates.status AS status,
+			certificate_authorities.type AS ca_type,
+			certificate_authorities.name AS ca_name
+		FROM certificate_templates
+		INNER JOIN hosts ON hosts.team_id = certificate_templates.team_id
+		INNER JOIN certificate_authorities ON certificate_authorities.id = certificate_templates.certificate_authority_id
+		LEFT JOIN host_certificate_templates
+			ON host_certificate_templates.host_uuid = hosts.uuid
+			AND host_certificate_templates.certificate_template_id = certificate_templates.id
+		WHERE
+			hosts.uuid = ? AND certificate_templates.id = ?
+	`
+
+	var result fleet.CertificateTemplateForHost
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, hostUUID, certificateTemplateID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get certificate template for host")
+	}
+
+	return &result, nil
+}
+
 // BulkInsertHostCertificateTemplates inserts multiple host_certificate_templates records
 func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error {
 	if len(hostCertTemplates) == 0 {
@@ -104,24 +134,60 @@ func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hos
 	return nil
 }
 
-func (ds *Datastore) UpdateCertificateStatus(
+// DeleteHostCertificateTemplates deletes specific host_certificate_templates records
+// identified by (host_uuid, certificate_template_id) pairs.
+func (ds *Datastore) DeleteHostCertificateTemplates(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error {
+	if len(hostCertTemplates) == 0 {
+		return nil
+	}
+
+	// Build placeholders and args for tuple matching
+	var placeholders strings.Builder
+	args := make([]any, 0, len(hostCertTemplates)*2)
+
+	for i, hct := range hostCertTemplates {
+		if i > 0 {
+			placeholders.WriteString(",")
+		}
+		placeholders.WriteString("(?,?)")
+		args = append(args, hct.HostUUID, hct.CertificateTemplateID)
+	}
+
+	stmt := fmt.Sprintf(
+		"DELETE FROM host_certificate_templates WHERE (host_uuid, certificate_template_id) IN (%s)",
+		placeholders.String(),
+	)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host_certificate_templates")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) UpsertCertificateStatus(
 	ctx context.Context,
 	hostUUID string,
 	certificateTemplateID uint,
 	status fleet.MDMDeliveryStatus,
 	detail *string,
 ) error {
+	updateStmt := `
+    UPDATE host_certificate_templates
+    SET status = ?, detail = ?
+    WHERE host_uuid = ? AND certificate_template_id = ?`
+
+	insertStmt := `
+		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge)
+		VALUES (?, ?, ?, ?, ?)`
+
 	// Validate the status.
 	if !status.IsValid() {
 		return ctxerr.Wrap(ctx, fmt.Errorf("Invalid status '%s'", string(status)))
 	}
 
 	// Attempt to update the certificate status for the given host and template.
-	result, err := ds.writer(ctx).ExecContext(ctx, `
-    UPDATE host_certificate_templates
-    SET status = ?, detail = ?
-    WHERE host_uuid = ? AND certificate_template_id = ?
-`, status, detail, hostUUID, certificateTemplateID)
+	result, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, detail, hostUUID, certificateTemplateID)
 	if err != nil {
 		return err
 	}
@@ -131,8 +197,24 @@ func (ds *Datastore) UpdateCertificateStatus(
 		return err
 	}
 
+	// If no records were updated, then insert a new status.
 	if rowsAffected == 0 {
-		return ctxerr.Wrap(ctx, notFound("Label").WithMessage(fmt.Sprintf("No certificate found for host UUID '%s' and template ID '%d'", hostUUID, certificateTemplateID)))
+		// We need to check whether the certificate template exists ... we do this way because
+		// there are no FK constraints between host_certificate_templates and certificate_templates.
+		var result uint
+		err := ds.writer(ctx).GetContext(ctx, &result, `SELECT id FROM certificate_templates WHERE id = ?`, certificateTemplateID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("CertificateTemplate").WithMessage(fmt.Sprintf("No certificate template found for template ID '%d'",
+					certificateTemplateID)))
+			}
+			return ctxerr.Wrap(ctx, err, "could not read certificate template for inserting new record")
+		}
+
+		params := []any{hostUUID, certificateTemplateID, status, detail, ""}
+		if _, err := ds.writer(ctx).ExecContext(ctx, insertStmt, params...); err != nil {
+			return ctxerr.Wrap(ctx, err, "could not insert new host certificate template")
+		}
 	}
 
 	return nil

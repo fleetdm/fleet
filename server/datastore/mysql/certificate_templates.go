@@ -54,6 +54,7 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 }
 
 func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+	// for no team pass 0 as teamID
 	args := []any{teamID}
 
 	fromClause := `
@@ -161,9 +162,7 @@ func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certif
 		) VALUES %s
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
-			team_id = VALUES(team_id),
-			certificate_authority_id = VALUES(certificate_authority_id),
-			subject_name = VALUES(subject_name)
+			team_id = VALUES(team_id)
 	`
 
 	var placeholders strings.Builder
@@ -234,7 +233,7 @@ func (ds *Datastore) GetMDMProfileSummaryFromHostCertificateTemplates(ctx contex
 	var stmt string
 	var args []interface{}
 
-	if teamID != nil && *teamID > 0 {
+	if teamID != nil {
 		stmt = `
 SELECT
 	hct.status AS status,

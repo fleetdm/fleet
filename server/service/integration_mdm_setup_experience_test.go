@@ -3436,6 +3436,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 		TitleIDs: []uint{app1TitleID},
 	}, http.StatusOK, &putResp)
 
+	// Run worker to flush out no-op "make_android_app_available" tasks from adding the apps above
+	s.runWorkerUntilDone()
+
 	// list the available setup experience software and verify that only app 1 is installed at setup
 	var getResp getSetupExperienceSoftwareResponse
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", nil, http.StatusOK, &getResp,

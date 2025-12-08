@@ -31,15 +31,17 @@ func (v *SoftwareWorker) Name() string {
 }
 
 const (
-	makeAndroidAppsAvailableForHostTask SoftwareWorkerTask = "make_android_apps_available_for_host"
-	makeAndroidAppAvailableTask         SoftwareWorkerTask = "make_android_app_available"
-	runAndroidSetupExperienceTask       SoftwareWorkerTask = "run_android_setup_experience"
+	makeAndroidAppsAvailableForHostTask    SoftwareWorkerTask = "make_android_apps_available_for_host"
+	makeAndroidAppAvailableTask            SoftwareWorkerTask = "make_android_app_available"
+	runAndroidSetupExperienceTask          SoftwareWorkerTask = "run_android_setup_experience"
+	bulkSetAndroidAppsAvailableForHostTask SoftwareWorkerTask = "bulk_set_android_apps_available_for_host"
 )
 
 type softwareWorkerArgs struct {
 	Task           SoftwareWorkerTask `json:"task"`
 	HostUUID       string             `json:"host_uuid,omitempty"`
 	ApplicationID  string             `json:"application_id,omitempty"`
+	ApplicationIDs []string           `json:"application_ids,omitempty"`
 	EnterpriseName string             `json:"enterprise_name,omitempty"`
 	// AppTeamID is *not* a team ID, it is the vpp_apps_teams.id value. This is a bit confusing
 	// as a name, but that is what is expected in this field.
@@ -89,6 +91,16 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 			runAndroidSetupExperienceTask,
 		)
 
+	case bulkSetAndroidAppsAvailableForHostTask:
+		return ctxerr.Wrapf(ctx, v.bulkMakeAndroidAppsAvailableForHost(
+			ctx,
+			args.HostUUID,
+			args.PolicyID,
+			args.ApplicationIDs,
+			args.EnterpriseName,
+		), "running %s task",
+			bulkSetAndroidAppsAvailableForHostTask)
+
 	default:
 		return ctxerr.Errorf(ctx, "unknown task: %v", args.Task)
 	}
@@ -130,14 +142,7 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 
 func (v *SoftwareWorker) ensureHostSpecificPolicyIsApplied(ctx context.Context, hostUUID string, enterpriseName, policyID string) error {
 	if policyID == fmt.Sprint(android.DefaultAndroidPolicyID) {
-		// Get the host once for both enroll secret and device patching
-		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
-		}
-
 		var policy androidmanagement.Policy
-
 		policy.StatusReportingSettings = &androidmanagement.StatusReportingSettings{
 			DeviceSettingsEnabled:        true,
 			MemoryInfoEnabled:            true,
@@ -153,36 +158,14 @@ func (v *SoftwareWorker) ensureHostSpecificPolicyIsApplied(ctx context.Context, 
 		}
 
 		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, hostUUID)
-		_, err = v.AndroidModule.PatchPolicy(ctx, hostUUID, policyName, &policy, nil)
+		_, err := v.AndroidModule.PatchPolicy(ctx, hostUUID, policyName, &policy, nil)
 		if err != nil {
 			return err
 		}
 
-		// Get enroll secrets for the host's team (nil means global/no team)
-		enrollSecrets, err := v.Datastore.GetEnrollSecrets(ctx, androidHost.Host.TeamID)
+		err = v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "get enroll secrets for team %v", androidHost.Host.TeamID)
-		}
-		if len(enrollSecrets) == 0 {
-			return ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
-		}
-		// Use the first enroll secret
-		enrollSecret := enrollSecrets[0].Secret
-
-		appConfig, err := v.Datastore.AppConfig(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get app config")
-		}
-
-		err = v.AndroidModule.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, map[string]android.AgentManagedConfiguration{
-			hostUUID: {
-				ServerURL:    appConfig.ServerSettings.ServerURL,
-				HostUUID:     hostUUID,
-				EnrollSecret: enrollSecret,
-			},
-		})
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "add fleet agent to android policy for host %s", hostUUID)
+			return ctxerr.Wrapf(ctx, err, "build and send fleet agent config for host %s", hostUUID)
 		}
 
 		device := &androidmanagement.Device{
@@ -197,6 +180,10 @@ func (v *SoftwareWorker) ensureHostSpecificPolicyIsApplied(ctx context.Context, 
 			// we probably don't want to re-enable it by accident. Those are the only
 			// 2 valid states when patching a device.
 			State: "ACTIVE",
+		}
+		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
 		}
 		deviceName := fmt.Sprintf("%s/devices/%s", enterpriseName, androidHost.DeviceID)
 		_, err = v.AndroidModule.PatchDevice(ctx, hostUUID, deviceName, device)
@@ -391,6 +378,43 @@ func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, lo
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", makeAndroidAppAvailableTask)
+	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	return nil
+}
+
+func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context, hostUUID, policyID string, applicationIDs []string, enterpriseName string) error {
+	// Update Android MDM policy to include the apps in self service
+	err := v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, applicationIDs, map[string]string{hostUUID: policyID}, "AVAILABLE")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "make android apps available")
+	}
+
+	return nil
+}
+
+func QueueBulkSetAndroidAppsAvailableForHost(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	hostUUID string,
+	policyID string,
+	applicationIDs []string,
+	enterpriseName string,
+) error {
+
+	args := &softwareWorkerArgs{
+		Task:           bulkSetAndroidAppsAvailableForHostTask,
+		HostUUID:       hostUUID,
+		PolicyID:       policyID,
+		EnterpriseName: enterpriseName,
+		ApplicationIDs: applicationIDs,
+	}
+
+	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "queueing job")
+	}
+
+	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
 	return nil
 }
