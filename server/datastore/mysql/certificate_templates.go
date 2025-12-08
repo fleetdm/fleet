@@ -163,7 +163,7 @@ func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certif
 			team_id = VALUES(team_id)
 	`
 
-	teamsModified := make([]uint, 0, len(certificateTemplates))
+	teamsModifiedSet := make(map[uint]struct{})
 	for _, cert := range certificateTemplates {
 		result, err := ds.writer(ctx).ExecContext(ctx, sqlInsertCertificate, cert.Name, cert.TeamID, cert.CertificateAuthorityID, cert.SubjectName)
 		if err != nil {
@@ -171,8 +171,13 @@ func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certif
 		}
 
 		if insertOnDuplicateDidInsertOrUpdate(result) {
-			teamsModified = append(teamsModified, cert.TeamID)
+			teamsModifiedSet[cert.TeamID] = struct{}{}
 		}
+	}
+
+	teamsModified := make([]uint, 0, len(teamsModifiedSet))
+	for teamID := range teamsModifiedSet {
+		teamsModified = append(teamsModified, teamID)
 	}
 
 	return teamsModified, nil

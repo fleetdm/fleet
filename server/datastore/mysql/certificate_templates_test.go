@@ -678,7 +678,7 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 				require.Equal(t, 2, count)
 
 				require.Len(t, teamsModified, 1)
-				require.True(t, teamsModified[teamID])
+				require.Equal(t, teamsModified[0], teamID)
 			},
 		},
 		{
