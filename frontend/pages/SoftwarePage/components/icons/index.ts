@@ -131,6 +131,7 @@ import Terminal from "./Terminal";
 import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
 import Tower from "./Tower";
+import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
 import VisualStudioCode from "./VisualStudioCode";
@@ -283,6 +284,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   thunderbird: Thunderbird,
   todoist: Todoist,
   tower: Tower,
+  transmit: Transmit,
   tunnelblick: Tunnelblick,
   twingate: Twingate,
   "vnc viewer": VncViewer,

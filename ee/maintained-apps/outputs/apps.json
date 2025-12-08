@@ -968,6 +968,13 @@
       "description": "Tower is a git client focusing on power and productivity."
     },
     {
+      "name": "Transmit",
+      "slug": "transmit/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.panic.Transmit",
+      "description": "Transmit is a file transfer application."
+    },
+    {
       "name": "Tunnelblick",
       "slug": "tunnelblick/darwin",
       "platform": "darwin",
