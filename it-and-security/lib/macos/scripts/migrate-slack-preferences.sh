@@ -378,8 +378,10 @@ main() {
     user_homes=$(get_user_homes)
     
     if [[ -z "$user_homes" ]]; then
-        log_error "No user home directories found"
-        exit 1
+        log_info "No user home directories found (likely during Setup experience with no users created yet)"
+        log_info "Skipping preferences migration - no migration needed at this time"
+        log_success "Script completed successfully (no users to migrate)"
+        exit 0
     fi
     
     # Get console user once (used for launching Slack)
