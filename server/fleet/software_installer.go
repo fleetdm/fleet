@@ -195,6 +195,7 @@ type VPPAppResponse struct {
 	LocalIconHash string `json:"-" db:"-"`
 	// LocalIconPath is the path to the icon specified in YAML
 	LocalIconPath string `json:"-" db:"-"`
+	AppTeamID     uint   `json:"-" db:"app_team_id"`
 }
 
 func (v VPPAppResponse) GetTeamID() uint {
@@ -419,7 +420,7 @@ type HostSoftwareInstallerResult struct {
 const (
 	SoftwareInstallerQueryFailCopy          = "Query didn't return result or failed\nInstall stopped"
 	SoftwareInstallerQuerySuccessCopy       = "Query returned result\nProceeding to install..."
-	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --scripts-enabled."
+	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --enable-scripts."
 	SoftwareInstallerInstallFailCopy        = "Installing software...\nFailed\n%s"
 	SoftwareInstallerInstallSuccessCopy     = "Installing software...\nSuccess\n%s"
 	SoftwareInstallerPostInstallSuccessCopy = "Running script...\nExit code: 0 (Success)\n%s"
@@ -516,6 +517,7 @@ type UploadSoftwareInstallerPayload struct {
 	AutomaticInstallQuery string
 	Categories            []string
 	CategoryIDs           []uint
+	DisplayName           string
 	// AddedAutomaticInstallPolicy is the auto-install policy that can be
 	// automatically created when a software installer is added to Fleet. This field should be set
 	// after software installer creation if AutomaticInstall is true.
@@ -567,13 +569,13 @@ type UpdateSoftwareInstallerPayload struct {
 	Categories      []string
 	CategoryIDs     []uint
 	// DisplayName is an end-user friendly name.
-	DisplayName string
+	DisplayName *string
 }
 
 func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
 	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
-		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.DisplayName == existing.DisplayName
+		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.DisplayName == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -733,6 +735,7 @@ type SoftwarePackageSpec struct {
 	ReferencedYamlPath string   `json:"referenced_yaml_path"`
 	SHA256             string   `json:"hash_sha256"`
 	Categories         []string `json:"categories"`
+	DisplayName        string   `json:"display_name,omitempty"`
 }
 
 func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) SoftwarePackageSpec {

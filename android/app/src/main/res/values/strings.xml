@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Fleet Agent</string>
+
+    <string name="enroll_secret_title">Enroll Secret</string>
+    <string name="enroll_secret_description">Secret used to enroll in a fleet instance</string>
+    <string name="server_url_title">Fleet Base URL</string>
+    <string name="server_url_description">The base URL of the fleet server</string>
+    <string name="certificates_title">Certificates</string>
+    <string name="certificates_description">Array of bundles containing certificate information</string>
+    <string name="certificate_title">Certificate</string>
+    <string name="certificate_description">Certificate information</string>
+    <string name="certificate_id_title">Certificate ID</string>
+    <string name="certificate_id_description">Certificate ID to be requested</string>
+    <string name="host_uuid_title">Host UUID</string>
+    <string name="host_uuid_description">The host UUID to present to fleet during enrollment</string>
+</resources>

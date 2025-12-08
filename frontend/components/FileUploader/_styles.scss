@@ -13,10 +13,18 @@
     @include content-wrapper();
   }
 
+  &__error {
+    border-color: $core-vibrant-red;
+  }
+
   // when the file preview is showing, we want the padding to be
   // slightly smaller on the top and bottom.
   &__file-preview {
     padding: $pad-medium $pad-large;
+  }
+
+  &__internal-error {
+    color: $core-vibrant-red;
   }
 
   &__graphics {

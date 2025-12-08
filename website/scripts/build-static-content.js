@@ -813,7 +813,7 @@ module.exports = {
             }
             let pageTitle = openPosition.jobTitle;
 
-            let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [Series B](https://www.businesswire.com/news/home/20250617550974/en/Fleet-Adds-%2427M-to-Usher-in-New-Era-of-Open-Device-Management) startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div><img alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"></div><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div><div purpose="quote-attribution"><strong>Dhruv Majumdar</strong><p>Director Of Cyber Risk & Advisory</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\n[Message us your Linkedin profile](/contact#message). \n\n\n >The salary range for this role is ${openPosition.onTargetEarnings ? openPosition.onTargetEarnings : '$48,000 - $480,000'}. Fleet provides competitive compensation based on our [compensation philosophy](https://fleetdm.com/handbook/company/communications#compensation), as well as comprehensive [benefits](https://fleetdm.com/handbook/company/communications#benefits).`;
+            let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [Series B](https://www.businesswire.com/news/home/20250617550974/en/Fleet-Adds-%2427M-to-Usher-in-New-Era-of-Open-Device-Management) startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div><img alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"></div><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\n[Message us your Linkedin profile](/contact#message). \n\n\n >The salary range for this role is ${openPosition.onTargetEarnings ? openPosition.onTargetEarnings : '$48,000 - $480,000'}. Fleet provides competitive compensation based on our [compensation philosophy](https://fleetdm.com/handbook/company/communications#compensation), as well as comprehensive [benefits](https://fleetdm.com/handbook/company/communications#benefits).`;
 
 
             let htmlStringForThisPosition = await sails.helpers.strings.toHtml.with({mdString: mdStringForThisOpenPosition});
@@ -1310,9 +1310,21 @@ module.exports = {
         let linesInAppsJsonFile = appsJsonDataAsAString.split('\n');
         // Then for each item in the json, build a configuration object to add to the sails.builtStaticContent.appLibrary array.
         await sails.helpers.flow.simultaneouslyForEach(appsJsonData.apps, async(app)=>{
-          // FUTURE: add support for windows apps once the page is updated to be multi-platform.
-          if(app.platform !== 'darwin'){
-            return;
+          // Validate that all FMA have the expected values.
+          if(!app.name) {
+            throw new Error(`Could not build software catalog configuration from the ee/maintained-apps/outputs/apps.json file. An app (${util.inspect(app)}) is missing a "name" value. Please add a "name" value for this app and try running this script again.`);
+          }
+          if(!app.slug) {
+            throw new Error(`Could not build software catalog configuration from the ee/maintained-apps/outputs/apps.json file. An app (name: ${app.name}) is missing a "slug" value. Please add a "slug" value for this app and try running this script again.`);
+          }
+          if(!app.unique_identifier) {
+            throw new Error(`Could not build software catalog configuration from the ee/maintained-apps/outputs/apps.json file. An app (name: ${app.name}) is missing a "unique_identifier" value. Please add a "unique_identifier" value for this app and try running this script again.`);
+          }
+          if(!app.description) {
+            throw new Error(`Could not build software catalog configuration from the ee/maintained-apps/outputs/apps.json file. An app (name: ${app.name}) is missing a "description" value. Please add a "description" value for this app and try running this script again.`);
+          }
+          if(!app.platform) {
+            throw new Error(`Could not build software catalog configuration from the ee/maintained-apps/outputs/apps.json file. An app (name: ${app.name}) is missing a "platform" value. Please add a "platform" value for this app and try running this script again.`);
           }
 
           // Determine the line in the JSON that the object for this app starts on.
@@ -1322,9 +1334,11 @@ module.exports = {
           });
           let lineNumberForEdittingThisApp = linesInAppsJsonFile.indexOf(lineWithTheAppsSlugKey);
 
+
+
           let appInformation = {
             name: app.name,
-            identifier: app.slug.split('/'+app.platform)[0],
+            identifier: app.slug.replace(/\//, '-'),
             outputSlug: app.slug,
             bundleIdentifier: app.unique_identifier,
             description: app.description,
@@ -1335,9 +1349,9 @@ module.exports = {
           // Grab the latest information about these apps from the the ee/maintained-apps folder in the repo.
           let detailedInformationAboutThisApp = await sails.helpers.fs.readJson(path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+app.slug+'.json'))
           .intercept('doesNotExist', ()=>{
-            return new Error(`Could not build app library configuration from the ee/maintained-apps folder. When attempting to read a JSON configuration file for ${appInformation.identifier}, no file was found at ${path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+app.slug+'.json')}. Was it moved?')}.`);
+            return new Error(`Could not build software catalog configuration from the ee/maintained-apps folder. When attempting to read a JSON configuration file for ${appInformation.identifier}, no file was found at ${path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+app.slug+'.json')}. Was it moved?')}.`);
           });
-          let expectedAppIconFilename = `app-icon-${appInformation.identifier}-60x60@2x.png`;
+          let expectedAppIconFilename = `app-icon-${app.slug.split('/'+app.platform)[0]}-60x60@2x.png`;
 
           // FUTURE: copy the app icons from where they are stored in the repo (when they are stored in the repo).
           let iconImageExistsForThisApp = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', expectedAppIconFilename));
@@ -1389,7 +1403,8 @@ module.exports = {
           scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/\n\s*/g, ' && ').replace(/ && $/, '').replace(/^ && /, '');
 
           // Add the uninstall script and the latest version to this app's configuration.
-          appInformation.uninstallScript = scriptToUninstallThisApp;
+          // Note: we esacape the uninstall script to prevent issues when storing these values in the website's JSON configuration.
+          appInformation.uninstallScript = _.escape(scriptToUninstallThisApp);
           appInformation.version = latestVersionOfThisApp.version.split(',')[0];
           appLibrary.push(appInformation);
         });

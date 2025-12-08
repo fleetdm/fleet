@@ -25,3 +25,4 @@ app_store_apps:
     - Productivity
     - Utilities
     self_service: true
+    platform: darwin

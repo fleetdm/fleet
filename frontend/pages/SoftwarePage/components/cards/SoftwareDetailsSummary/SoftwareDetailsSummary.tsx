@@ -22,6 +22,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import SoftwareIcon from "../../icons/SoftwareIcon";
 import OSIcon from "../../icons/OSIcon";
@@ -110,28 +111,36 @@ const SoftwareDetailsSummary = ({
           renderSoftwareIcon()
         )}
         <dl className={`${baseClass}__info`}>
-          <h1>
-            {ROLLING_ARCH_LINUX_VERSIONS.includes(displayName) ? (
-              // wrap a tooltip around the "rolling" suffix
-              <>
-                {displayName.slice(0, -8)}
-                <TooltipWrapperArchLinuxRolling />
-              </>
-            ) : (
-              <TooltipTruncatedText value={displayName} />
-            )}
+          <div className={`${baseClass}__title-edit-icon`}>
+            <h1>
+              {ROLLING_ARCH_LINUX_VERSIONS.includes(displayName) ? (
+                // wrap a tooltip around the "rolling" suffix
+                <>
+                  {displayName.slice(0, -8)}
+                  <TooltipWrapperArchLinuxRolling />
+                </>
+              ) : (
+                <TooltipTruncatedText value={displayName} />
+              )}
+            </h1>
+
             {onClickEditIcon && (
-              <div className={`${baseClass}__edit-icon`}>
-                <Button
-                  onClick={onClickEditIcon}
-                  className={`${baseClass}__edit-icon-btn`}
-                  variant="icon"
-                >
-                  <Icon name="pencil" />
-                </Button>
-              </div>
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <div className={`${baseClass}__edit-icon`}>
+                    <Button
+                      onClick={onClickEditIcon}
+                      className={`${baseClass}__edit-icon-btn`}
+                      disabled={disableChildren}
+                      variant="icon"
+                    >
+                      <Icon name="pencil" />
+                    </Button>
+                  </div>
+                )}
+              />
             )}
-          </h1>
+          </div>
           <dl className={`${baseClass}__description-list`}>
             {!!type && <DataSet title="Type" value={type} />}
 

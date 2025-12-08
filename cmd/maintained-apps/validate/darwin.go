@@ -152,7 +152,35 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 			result.Name = software.Name
 
 			level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s, Bundled Version: %s", result.Name, result.Path, result.Version, result.BundledVersion))
+
+			// OneDrive auto-updates immediately after installation, so the installed version
+			// might be newer than the installer version. For OneDrive, we only verify that
+			// the app exists rather than checking the version.
+			if uniqueAppIdentifier == "com.microsoft.OneDrive" {
+				level.Info(logger).Log("msg", "OneDrive detected - skipping version check due to auto-update behavior")
+				return true, nil
+			}
+
+			// GPG Suite's installer version (e.g., "2023.3") doesn't match the app bundle version
+			// (e.g., "1.12" with bundled version "1800"). We only verify that the app exists
+			// rather than checking the version.
+			if uniqueAppIdentifier == "org.gpgtools.gpgkeychain" {
+				level.Info(logger).Log("msg", "GPG Suite detected - skipping version check due to version mismatch between installer and app bundle")
+				return true, nil
+			}
+
+			// Check exact match first
 			if result.Version == appVersion || result.BundledVersion == appVersion {
+				return true, nil
+			}
+			// Check if found version starts with expected version (handles suffixes like ".CE")
+			// This handles cases where the app version is "8.0.44.CE" but expected is "8.0.44"
+			if strings.HasPrefix(result.Version, appVersion+".") || strings.HasPrefix(result.BundledVersion, appVersion+".") {
+				return true, nil
+			}
+			// Check if expected version starts with found version (handles cases where osquery reports shorter version)
+			// This handles cases where expected is "2025.2.1.8" but osquery reports "2025.2"
+			if strings.HasPrefix(appVersion, result.Version+".") {
 				return true, nil
 			}
 		}

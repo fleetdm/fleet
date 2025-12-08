@@ -1678,6 +1678,7 @@ This activity contains the following fields:
 - "team_id": ID of the team on which this App Store app was updated, or `null`if it was updated on no team.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
+- "software_display_name": Display name of the software title.
 
 #### Example
 
@@ -1701,6 +1702,7 @@ This activity contains the following fields:
       "id": 17
     }
   ]
+  "software_display_name": "Logic Pro DAW"
 }
 ```
 
@@ -2240,7 +2242,7 @@ This activity contains the following fields:
 Generated when a user edits setup experience software.
 
 This activity contains the following fields:
-- "platform": the platform of the host ("darwin", "windows", or "linux").
+- "platform": the platform of the host ("darwin", "android", "windows", or "linux").
 - "team_id": the ID of the team associated with the setup experience (0 for "No team").
 - "team_name": the name of the team associated with the setup experience (empty for "No team").
 

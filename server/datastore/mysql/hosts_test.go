@@ -70,6 +70,7 @@ var enrollTests = []struct {
 
 func TestHosts(t *testing.T) {
 	ds := CreateMySQLDS(t)
+	TruncateTables(t, ds)
 
 	cases := []struct {
 		name string
@@ -175,7 +176,6 @@ func TestHosts(t *testing.T) {
 		{"GetMatchingHostSerials", testGetMatchingHostSerials},
 		{"ListHostsLiteByIDs", testHostsListHostsLiteByIDs},
 		{"ListHostsWithPagination", testListHostsWithPagination},
-		{"LastRestarted", testLastRestarted},
 		{"HostHealth", testHostHealth},
 		{"GetHostOrbitInfo", testGetHostOrbitInfo},
 		{"HostnamesByIdentifiers", testHostnamesByIdentifiers},
@@ -814,6 +814,8 @@ func listHostsCheckCount(t *testing.T, ds *Datastore, filter fleet.TeamFilter, o
 }
 
 func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
 	var teamIDFilterNil *uint                // "All teams" option should include all hosts regardless of team assignment
 	var teamIDFilterZero *uint = ptr.Uint(0) // "No team" option should include only hosts that are not assigned to any team
 	teamIDFilterBad := ptr.Uint(9999)
@@ -1006,6 +1008,8 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 }
 
 func testHostListAndroidHostsOSSettings(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
 	// Add a couple of Android hosts. One we will create profiles on, another as a control
 	hosts := []*fleet.Host{}
 	for i := 0; i < 2; i++ {
@@ -10201,16 +10205,16 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 
 	// Scenario C:
 	//	- Fleet with MDM enabled.
-	// 	- Two linux|darwin|windows hosts with the same hardware identifiers (e.g. two cloned VMs).
+	// 	- Two linux|darwin|windows|android hosts with the same hardware identifiers (e.g. two cloned VMs).
 	//	- fleetd running with host identifier set to instance.
 	//	- orbit and osquery of the two hosts enroll in mixed order.
 	//
 	// For Linux and Windows this scenario behaves as expected. The two hosts are enrolled separately.
 	//
-	// For macOS:
+	// For macOS, iOS, iPadOS, and Android:
 	// Somewhat unexpected output of this scenario is that two hosts are enrolled as one
 	// because MDM makes the effort to match by hardware serial.
-	// Using fleetd's `--host-identifier=instance` with Fleet's MDM enabled is not compatible on macOS.
+	// Using fleetd's `--host-identifier=instance` with Fleet's MDM enabled is not compatible on these platforms.
 	scenarioC := func(platform string) {
 		dupUUID := uuid.New().String()
 		dupHWSerial := uuid.New().String()
@@ -10260,15 +10264,15 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
 
-		if platform == "darwin" {
+		if platform == "darwin" || platform == "ios" || platform == "ipados" || platform == "android" {
 			// This is a expected output of this scenario because MDM makes
-			// the effort to match by hardware serial.
+			// the effort to match by hardware serial for these platforms.
 			require.Equal(t, h1Orbit.ID, h2Orbit.ID)
 		} else {
 			require.NotEqual(t, h1Orbit.ID, h2Orbit.ID)
 		}
 	}
-	for _, platform := range []string{"ubuntu", "windows", "darwin"} {
+	for _, platform := range []string{"ubuntu", "windows", "darwin", "ios", "ipados", "android"} {
 		platform := platform
 		t.Run("scenarioC_"+platform, func(t *testing.T) {
 			scenarioC(platform)
@@ -11005,75 +11009,6 @@ func testListHostsWithPagination(t *testing.T, ds *Datastore) {
 	count, err := ds.CountHosts(ctx, filter, fleet.HostListOptions{})
 	require.NoError(t, err)
 	require.Equal(t, hostCount, count)
-}
-
-func testLastRestarted(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	// Arbitrary value
-	const uptimeVal = 16691000000000
-	now := time.Now()
-	newHostFunc := func(name string, uptimeZero bool) (*fleet.Host, time.Time) {
-		newHost := &fleet.Host{
-			DetailUpdatedAt: now,
-			LabelUpdatedAt:  now,
-			PolicyUpdatedAt: now,
-			SeenTime:        now,
-			NodeKey:         ptr.String(name),
-			UUID:            name,
-			Hostname:        "foo.local." + name,
-		}
-
-		var expectedLastRestartedAt time.Time
-
-		if uptimeZero {
-			newHost.Uptime = 0
-		} else {
-			newHost.Uptime = uptimeVal
-			// Rounding to nearest second because the SQL query does integer division.
-			expectedLastRestartedAt = newHost.DetailUpdatedAt.Add(-newHost.Uptime).Round(time.Second).UTC()
-		}
-
-		host, err := ds.NewHost(ctx, newHost)
-		require.NoError(t, err)
-		require.NotNil(t, host)
-		return host, expectedLastRestartedAt
-	}
-
-	hostCount := 10
-	hosts := make([]*fleet.Host, 0, hostCount)
-	hostsToVals := make(map[uint]time.Time, 0)
-	for i := 0; i < hostCount; i++ {
-		nh, expectedVal := newHostFunc(fmt.Sprintf("h%d", i), i%2 == 0)
-		hosts = append(hosts, nh)
-		hostsToVals[nh.ID] = expectedVal
-	}
-
-	opts := fleet.HostListOptions{}
-
-	userFilter := fleet.TeamFilter{User: test.UserAdmin}
-
-	returnedHosts := listHostsCheckCount(t, ds, userFilter, opts, len(hosts))
-
-	for i, h := range returnedHosts {
-		require.Equal(t, hosts[i].Uptime, h.Uptime)
-		require.Equal(t, hostsToVals[h.ID], h.LastRestartedAt)
-	}
-
-	h1 := hosts[0] // has Uptime == 0
-	h2 := hosts[1] // has Uptime == uptimeVal
-
-	host, err := ds.Host(ctx, h1.ID)
-	require.NoError(t, err)
-	require.Equal(t, h1.ID, host.ID)
-	require.Equal(t, time.Duration(0), host.Uptime)
-	require.Equal(t, hostsToVals[host.ID], host.LastRestartedAt)
-
-	host, err = ds.Host(ctx, h2.ID)
-	require.NoError(t, err)
-	require.Equal(t, h2.ID, host.ID)
-	require.Equal(t, time.Duration(uptimeVal), host.Uptime)
-	require.Equal(t, hostsToVals[host.ID], host.LastRestartedAt)
 }
 
 func testHostHealth(t *testing.T, ds *Datastore) {

@@ -233,7 +233,18 @@ export const HostInstallerActionCell = ({
     uninstall: getInstallerActionButtonConfig("uninstall", ui_status),
   });
 
+  // Local “clicked” state so the button disables immediately
+  const [
+    isInstallUninstallPendingLocal,
+    setIsInstallUninstallPendingLocal,
+  ] = useState(false);
+
   useEffect(() => {
+    // reset local pending state when status leaves pending (API round‑trip finished)
+    if (status !== "pending_install" && status !== "pending_uninstall") {
+      setIsInstallUninstallPendingLocal(false);
+    }
+
     // We update the text/icon only when we see a change to a non-pending status
     // Pending statuses keep the original text shown (e.g. "Retry" text on failed
     // install shouldn't change to "Install" text because it was clicked and went
@@ -291,10 +302,23 @@ export const HostInstallerActionCell = ({
     installedVersionsDetected,
   });
 
+  // Wrap handlers to disable action button(s) immediately, important for slow connections/APIs
+  const handleInstallClick = () => {
+    if (installDisabled || isInstallUninstallPendingLocal) return;
+    setIsInstallUninstallPendingLocal(true);
+    onClickInstallAction(id, SCRIPT_PACKAGE_SOURCES.includes(software.source));
+  };
+
+  const handleUninstallClick = () => {
+    if (uninstallDisabled || isInstallUninstallPendingLocal) return;
+    setIsInstallUninstallPendingLocal(true);
+    onClickUninstallAction();
+  };
+
   const onSelectOption = (option: string) => {
     switch (option) {
       case "uninstall":
-        onClickUninstallAction();
+        handleUninstallClick();
         break;
       case "instructions":
         onClickOpenInstructionsAction && onClickOpenInstructionsAction();
@@ -307,13 +331,8 @@ export const HostInstallerActionCell = ({
     <HostInstallerActionButton
       baseClass={baseClass}
       tooltip={installTooltip}
-      disabled={installDisabled}
-      onClick={() =>
-        onClickInstallAction(
-          id,
-          SCRIPT_PACKAGE_SOURCES.includes(software.source)
-        )
-      }
+      disabled={installDisabled || isInstallUninstallPendingLocal}
+      onClick={handleInstallClick}
       icon={buttonDisplayConfig.install.icon}
       text={buttonDisplayConfig.install.text}
       testId={`${baseClass}__install-button--test`}
@@ -329,8 +348,8 @@ export const HostInstallerActionCell = ({
       <HostInstallerActionButton
         baseClass={baseClass}
         tooltip={uninstallTooltip}
-        disabled={uninstallDisabled}
-        onClick={onClickUninstallAction}
+        disabled={uninstallDisabled || isInstallUninstallPendingLocal}
+        onClick={handleUninstallClick}
         icon={buttonDisplayConfig.uninstall.icon}
         text={buttonDisplayConfig.uninstall.text}
         testId={`${baseClass}__uninstall-button--test`}
@@ -350,7 +369,7 @@ export const HostInstallerActionCell = ({
             options={getMoreActionsDropdownOptions(
               canViewOpenInstructions,
               canUninstallSoftware,
-              uninstallDisabled,
+              uninstallDisabled || isInstallUninstallPendingLocal,
               uninstallTooltip,
               buttonDisplayConfig.uninstall.text
             )}

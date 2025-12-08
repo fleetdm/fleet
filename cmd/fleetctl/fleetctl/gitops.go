@@ -261,25 +261,29 @@ func gitopsCommand() *cli.Command {
 				// Check if any used labels are not in the proposed labels list.
 				// If there are, we'll bail out with helpful error messages.
 				unknownLabelsUsed := false
+				builtInLabelsUsed := false
+
 				for labelUsed := range labelsUsed {
 					if slices.Index(proposedLabelNames, labelUsed) == -1 {
 						if _, ok := storedLabelNames[fleet.LabelTypeBuiltIn][labelUsed]; ok {
 							logf(
-								fmt.Sprintf(
-									"[!] '%s' label is built-in. Only custom labels are supported. If you want to target a specific platform please use 'platform' instead. If not, please create a custom label and try again. \n",
-									labelUsed,
-								),
+								"[!] '%s' label is built-in. Only custom labels are supported. If you want to target a specific platform please use 'platform' instead. If not, please create a custom label and try again. \n",
+								labelUsed,
 							)
+							builtInLabelsUsed = true
 						} else {
 							for _, labelUser := range labelsUsed[labelUsed] {
 								logf("[!] Unknown label '%s' is referenced by %s '%s'\n", labelUsed, labelUser.Type, labelUser.Name)
 							}
+							unknownLabelsUsed = true
 						}
-						unknownLabelsUsed = true
 					}
 				}
 				if unknownLabelsUsed {
 					return errors.New("Please create the missing labels, or update your settings to not refer to these labels.")
+				}
+				if builtInLabelsUsed {
+					return errors.New("Please update your settings to not refer to built-in labels.")
 				}
 
 				// Special handling for tokens is required because they link to teams (by

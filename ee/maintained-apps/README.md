@@ -24,9 +24,9 @@
    go run cmd/maintained-apps/main.go --slug="<slug-name>" --debug
    ```
 
-5. The contributor is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)). These are generated using the [generate-icons](https://github.com/fleetdm/fleet/tree/main/tools/software/icons) script.
+5. The contributor is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)). These are generated using the [generate-icons](https://github.com/fleetdm/fleet/tree/main/tools/software/icons) script. **The script automatically adds the import statement and map entry to `frontend/pages/SoftwarePage/components/icons/index.ts`**, so you don't need to manually update the index file.
 
-6. Add a description for the app in `outputs/apps.json` file. You can use descriptions from [Homebrew formulae](https://formulae.brew.sh/).
+6. Add a description for the app in `outputs/apps.json` file. You can use descriptions from [Homebrew formulae](https://formulae.brew.sh/). For consistency and presentation on the website, the description should follow sentence casing and the following format: `<App Name>` is a(n) (copy description from Homebrew)., making sure to end with a `.`.
 
 7. Open a PR to the `fleet` repository with the above changes. The [#g-software Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added reviewer. Also, @ mention the #g-software Product Designer (PD) in a comment that points them to the new icon. This way, the icon change gets a second pair of eyes.
 
@@ -49,7 +49,7 @@
 
 ## Adding a new app (Windows)
 
-1. Find the Winget PackageIdentifier in the [winget-pkgs repo](https://github.com/microsoft/winget-pkgs).
+1. Find the Winget `PackageIdentifier` in the relevant [winget-pkgs repo manifest](https://github.com/microsoft/winget-pkgs/tree/master/manifests).
 
 2. Get the unique identifier that Fleet will use for matching the software with software inventory:
   - On a test Windows host, install the app manually, then run the following PowerShell script that correlates to the defined `installer_scope`:
@@ -73,13 +73,15 @@ If the `unique_identifier` doesn't match the `DisplayName`, then Fleet will inco
 }
 ```
 
-4. Run the following command from the root of the Fleet repo to generate the app's output data:
+
+4. Run `go run cmd/maintained-apps/main.go --slug="<app-name>/windows" --debug` from the root of the
+   Fleet repo to generate the app's output data, replacing `<app-name>` with your app's name, for example:
 
 ```bash
 go run cmd/maintained-apps/main.go --slug="box-drive/windows" --debug
 ```
 
-5. The contributor is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)). These are generated using the [generate-icons](https://github.com/fleetdm/fleet/tree/main/tools/software/icons) script.
+5. The contributor is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)). These are generated using the [generate-icons](https://github.com/fleetdm/fleet/tree/main/tools/software/icons) script. **The script automatically adds the import statement and map entry to `frontend/pages/SoftwarePage/components/icons/index.ts`**, so you don't need to manually update the index file.
 
 6. Add a description for the app in outputs/apps.json file. You can use descriptions from the wingest manifest.
 

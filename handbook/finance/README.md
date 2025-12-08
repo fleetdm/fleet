@@ -12,7 +12,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-finance&projects=&template=1-custom-request.md) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in [#help-finance](https://fleetdm.slack.com/archives/C047N5L6EGH))
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-finance&projects=&template=1-custom-request.md) and a team member will get back to you within one business day (if urgent, mention a [team member](#team) in [#help-finance](https://fleetdm.slack.com/archives/C047N5L6EGH)).
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/80) for this department, including pending tasks and the status of new requests.
 
@@ -118,10 +118,9 @@ Use the following steps to update the [💸Finance department KPIs](https://docs
 - Open the ["Time-to-invoice" tab](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=1835263594) in the [💸 Finance  metrics spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0). Enter the year and month + customer name in column A, then the # of days between the close date and the invoice date in column B. After entering new entries you will probably have to adjust the formula in column D to include the new cells in the average and make sure the formula includes no further back than the last three months of invoices.
 
 **Overdue delinquent invoices**: 
-- Download the [“Accounts receivable agings detail” report](https://qbo.intuit.com/app/report/builder?rptId=sbg:73f15f2c-2671-4831-9f24-1faef280cfa2&type=system&token=AR_AGING_DET&previousRoute=standardreports&previousRouteText=Back%20to%20standard%20reports) from accounting system. 
-- Identify the invoices that are overdue.
+- Download “Accounts receivable aging details” report from the accounting system.
+- Review invoices that are overdue, and check against bank transactions to make sure the latest payments are applied to the invoices.
 - Enter the number of invoices overdue in the KPI spreadsheet, and leave a comment on that cell with the names of the companies of overdue customers, if any.
-- Follow the steps outlined in "Communicate the status of customer financial actions" in the handbook to follow-up on payment for the outstanding invoices. 
 
 **Commission payroll**: 
 - Make sure commission payroll was run on time by logging into [Gusto](https://www.gusto.com) and [Plane](https://plane.com/) to check for off-cycle payrolls in line with expected commission calculated in the [Commission calculator spreadsheet](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing).
@@ -179,7 +178,7 @@ Thanks,
 ```
 
 6. Update the opportunity and the opportunity billing cycle in Salesforce to include the "Invoice date" as the day the invoice was sent.
-8. Notify the AE/CSM that the invoice has been sent.
+8. Update github ticket that invoice was sent out on YYYY-MM-DD.
 
 > Certain vendors require invoices submitted via a payment portal (such as Coupa). Once you've generated the invoice using the steps above, upload it to the relevant payment portal and email the billing contact to let them know you've submitted the invoice.
 
@@ -359,7 +358,7 @@ Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up 
 
 Follow these steps to perform quarterly reporting for Fleet's investors:
 1. Login to Chronograph and upload our profit and loss statement (P&L), balance sheet and cash flow statements for CRV (all in one book saved in [Google Drive](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM).
-2. Provide updated metrics for the following items using Fleet's [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+2. Provide updated metrics for the following items using Fleet's [Operating model (Confidential)](https://docs.google.com/spreadsheets/d/1CgMAad-vzBoVS_FfovglX0XbqVKlaD-ssjGTL3ayxMw/edit?gid=86625913#gid=86625913).
     - Headcount at end of the previous quarter.
     - Starting ARR for the previous quarter.
     - Total new ARR for the previous quarter.
@@ -369,11 +368,8 @@ Follow these steps to perform quarterly reporting for Fleet's investors:
     - Starting number of customers, churned customers, and the number of new customers Fleet gained during the previous quarter.
     - Total amount of Fleet customers at the end of the previous quarter.
     - Gross margin % 
-      - How to calculate: (total revenue for the quarter - cost of goods sold for the quarter)/total revenue for the quarter (these metrics can be found in our books from Pilot). Chronograph will automatically conver this number to a %.
     - Net dollar retention rate
-      - How to calculate: (starting ARR + new subscriptions and expansions - churn)/starting ARR. 
     - Cash burn
-      - How to calculate: start of quarter runway - end of quarter runway. 
 
 
 ### Deliver annual report for venture line

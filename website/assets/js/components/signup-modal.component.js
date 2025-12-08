@@ -35,7 +35,14 @@ parasails.registerComponent('signupModal', {
         firstName: {required: true},
         lastName: {required: true},
         emailAddress: {required: true, isEmail: true},
-        password: {required: true},
+        password: {
+          required: true,
+          minLength: 12,
+          maxLength: 48,
+          custom: (value)=>{
+            return value.match(/^(?=.*\d)(?=.*[^A-Za-z0-9]).{12,48}$/);
+          }
+        },
       },
       // Login form
       loginFormData: {},
@@ -81,35 +88,37 @@ parasails.registerComponent('signupModal', {
           </div>
           <ajax-form action="signup" purpose="modal-form" class="self-service-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="signupFormErrors" :form-data="signupFormData" :form-rules="signupFormRules" @submitted="submittedSignupForm()" v-if="formToDisplay === 'signup'">
             <div class="form-group">
-              <label for="email-address">Work email *</label>
-              <input tabindex="1" class="form-control" id="email-address"  :class="[signupFormErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="signupFormData.emailAddress" @input="typeClearOneFormError('emailAddress')">
+              <label purpose="modal-form-label" for="email-address">Work email *</label>
+              <input tabindex="1" purpose="modal-form-input" class="form-control" id="email-address"  :class="[signupFormErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="signupFormData.emailAddress" @input="typeClearOneFormError('emailAddress')">
               <div class="invalid-feedback" v-if="signupFormErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
             </div>
             <div class="form-group">
-              <label for="password">Choose a password *</label>
-              <input tabindex="2" class="form-control" id="password" type="password"  :class="[signupFormErrors.password ? 'is-invalid' : '']" v-model.trim="signupFormData.password" autocomplete="new-password" @input="typeClearOneFormError('password')">
+              <label purpose="modal-form-label" for="password">Choose a password *</label>
+              <input tabindex="2" purpose="modal-form-input" class="form-control" id="password" type="password"  :class="[signupFormErrors.password ? 'is-invalid' : '']" v-model.trim="signupFormData.password" autocomplete="new-password" @input="typeClearOneFormError('password')">
               <div class="invalid-feedback" v-if="signupFormErrors.password === 'minLength'">Password too short.</div>
+              <div class="invalid-feedback" v-if="signupFormErrors.password === 'maxLength'">Password too long.</div>
+              <div class="invalid-feedback" v-if="signupFormErrors.password === 'custom'">Password does not meet requirements.</div>
               <div class="invalid-feedback" v-if="signupFormErrors.password === 'required'">Please enter a password.</div>
-              <p class="mt-2 small"> Minimum length is 8 characters</p>
+              <p purpose="modal-form-note" class="mt-2">Passwords must be 12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#).</p>
             </div>
             <div class="row">
               <div class="col-12 col-sm-6 pr-sm-2">
                 <div class="form-group">
-                  <label for="first-name">First name *</label>
-                  <input tabindex="4" class="form-control" id="first-name" type="text"  :class="[signupFormErrors.firstName ? 'is-invalid' : '']" v-model.trim="signupFormData.firstName" autocomplete="first-name" @input="typeClearOneFormError('firstName')">
+                  <label purpose="modal-form-label" for="first-name">First name *</label>
+                  <input tabindex="4" purpose="modal-form-input" class="form-control" id="first-name" type="text"  :class="[signupFormErrors.firstName ? 'is-invalid' : '']" v-model.trim="signupFormData.firstName" autocomplete="first-name" @input="typeClearOneFormError('firstName')">
                   <div class="invalid-feedback" v-if="signupFormErrors.firstName">Please enter your first name.</div>
                 </div>
               </div>
               <div class="col-12 col-sm-6 pl-sm-2">
                 <div class="form-group">
-                  <label for="last-name">Last name *</label>
-                  <input tabindex="5" class="form-control" id="last-name" type="text"  :class="[signupFormErrors.lastName ? 'is-invalid' : '']" v-model.trim="signupFormData.lastName" autocomplete="last-name" @input="typeClearOneFormError('lastName')">
+                  <label purpose="modal-form-label" for="last-name">Last name *</label>
+                  <input tabindex="5" purpose="modal-form-input" class="form-control" id="last-name" type="text"  :class="[signupFormErrors.lastName ? 'is-invalid' : '']" v-model.trim="signupFormData.lastName" autocomplete="last-name" @input="typeClearOneFormError('lastName')">
                   <div class="invalid-feedback" v-if="signupFormErrors.lastName">Please enter your last name.</div>
                 </div>
               </div>
             </div>
             <cloud-error v-if="cloudError==='emailAlreadyInUse'">
-              This email is already linked to a Fleet account.<br> Please <a @click="formToDisplay = 'login'">sign in</a> with your email and password.
+              This email is already linked to a Fleet account.<br> Please <a purpose="modal-form-link" @click="formToDisplay = 'login'">sign in</a> with your email and password.
             </cloud-error>
             <cloud-error v-if="cloudError === 'invalidEmailDomain'">
                 Please enter your work or school email address.
@@ -117,32 +126,32 @@ parasails.registerComponent('signupModal', {
             <blockquote purpose="tip" v-if="cloudError === 'invalidEmailDomain'">
               <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
               <div class="d-block">
-                <p>Don’t have a work email? Try a local demo of <a href="/try-fleet">Fleet Free</a> instead.</p>
+                <p>Don’t have a work email? Try a local demo of <a purpose="modal-form-link" href="/try-fleet">Fleet Free</a> instead.</p>
               </div>
             </blockquote>
             <cloud-error purpose="cloud-error" v-if="cloudError && !['emailAlreadyInUse', 'invalidEmailDomain'].includes(cloudError)"></cloud-error>
-            <p class="small">By signing up you agree to our <a href="/legal/privacy">privacy policy</a> and <a href="/terms">terms of service</a>.</p>
-            <ajax-button tabindex="6" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="!cloudError">Agree and continue</ajax-button>
-            <ajax-button tabindex="7" purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="cloudError" @click="clickResetForm()">Try again</ajax-button>
+            <p purpose="modal-form-note">By signing up you agree to our <a purpose="modal-form-link" href="/legal/privacy">privacy policy</a> and <a purpose="modal-form-link" href="/terms">terms of service</a>.</p>
+            <ajax-button tabindex="6" purpose="modal-form-submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="!cloudError">Agree and continue</ajax-button>
+            <ajax-button tabindex="7" purpose="modal-form-submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="cloudError" @click="clickResetForm()">Try again</ajax-button>
           </ajax-form>
           <ajax-form class="w-100" action="login" purpose="modal-form"  :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="loginFormData" :form-rules="loginFormRules" :form-errors.sync="loginFormErrors" @submitted="submittedLoginForm()" v-else>
             <div class="form-group">
-              <label for="email">Email</label>
-              <input tabindex="1" type="email" class="form-control" :class="[loginFormErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="loginFormData.emailAddress" autocomplete="email" focus-first>
+              <label purpose="modal-form-label" for="email">Email</label>
+              <input tabindex="1" type="email" purpose="modal-form-input" class="form-control" :class="[loginFormErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="loginFormData.emailAddress" autocomplete="email" focus-first>
               <div class="invalid-feedback" v-if="loginFormErrors.emailAddress">Please provide a valid email address.</div>
             </div>
             <div class="form-group">
-              <label for="password">Password</label>
-              <input tabindex="2" type="password" class="form-control" :class="[loginFormErrors.password ? 'is-invalid' : '']" v-model.trim="loginFormData.password" autocomplete="current-password">
+              <label purpose="modal-form-label" for="password">Password</label>
+              <input tabindex="2" type="password" purpose="modal-form-input" class="form-control" :class="[loginFormErrors.password ? 'is-invalid' : '']" v-model.trim="loginFormData.password" autocomplete="current-password">
               <div class="invalid-feedback" v-if="loginFormErrors.password">Please enter your password.</div>
             </div>
-            <cloud-error v-if="cloudError === 'noUser'">The email address provided doesn't match an existing account. Create an account <a @click="formToDisplay = 'signup'">here</a>.</cloud-error>
+            <cloud-error v-if="cloudError === 'noUser'">The email address provided doesn't match an existing account. Create an account <a purpose="modal-form-link" @click="formToDisplay = 'signup'">here</a>.</cloud-error>
             <cloud-error v-else-if="cloudError === 'badCombo'">Something’s not quite right with your email or password.</cloud-error>
             <cloud-error v-else-if="cloudError"></cloud-error>
             <div class="pb-3">
-              <ajax-button tabindex="3" :syncing="syncing" spinner="true" purpose="submit-button" class="btn-primary mt-4 btn-lg btn-block">Sign in</ajax-button>
+              <ajax-button tabindex="3" :syncing="syncing" spinner="true" purpose="modal-form-submit-button" class="btn-primary mt-4 btn-lg btn-block">Sign in</ajax-button>
             </div>
-            <span class="text-center small"><a href="/customers/forgot-password">Forgot your password?</a></span>
+            <span purpose="modal-form-note" class="text-center"><a purpose="modal-form-link" href="/customers/forgot-password">Forgot your password?</a></span>
           </ajax-form>
           </div>
         </div><!-- /.modal-content -->
@@ -176,7 +185,8 @@ parasails.registerComponent('signupModal', {
     // (Note: This isn't just for convenience-- it's crucial that
     // the parent logic can use this event to update its scope.)
     $(this.$el).on('hide.bs.modal', ()=>{
-
+      // Close the mobile navigation menu if it is open.
+      $('#navbarToggleExternalContent').collapse('hide');
       this._bsModalIsAnimatingOut = true;
       this.$emit('close');
 

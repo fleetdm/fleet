@@ -208,6 +208,8 @@ type AuthenticateDeviceFunc func(ctx context.Context, authToken string) (host *f
 
 type AuthenticateDeviceByCertificateFunc func(ctx context.Context, certSerial uint64, hostUUID string) (host *fleet.Host, debug bool, err error)
 
+type AuthenticateIDeviceByURLFunc func(ctx context.Context, urlUUID string) (host *fleet.Host, debug bool, err error)
+
 type ListHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error)
 
 type GetHostFunc func(ctx context.Context, id uint, opts fleet.HostDetailOptions) (host *fleet.HostDetail, err error)
@@ -388,6 +390,22 @@ type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, execu
 
 type ApplyUserRolesSpecsFunc func(ctx context.Context, specs fleet.UsersRoleSpec) error
 
+type CreateCertificateTemplateFunc func(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*fleet.CertificateTemplateResponseFull, error)
+
+type ListCertificateTemplatesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
+
+type GetDeviceCertificateTemplateFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateDeviceResponseFull, error)
+
+type GetCertificateTemplateFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error)
+
+type DeleteCertificateTemplateFunc func(ctx context.Context, id uint) error
+
+type ApplyCertificateTemplateSpecsFunc func(ctx context.Context, specs []*fleet.CertificateRequestSpec) error
+
+type DeleteCertificateTemplateSpecsFunc func(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
+
+type UpdateCertificateStatusFunc func(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error
+
 type GlobalScheduleQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
 
 type GetGlobalScheduledQueriesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
@@ -456,7 +474,7 @@ type GetAppStoreAppsFunc func(ctx context.Context, teamID *uint) ([]*fleet.VPPAp
 
 type AddAppStoreAppFunc func(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (uint, error)
 
-type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string, displayName string) (*fleet.VPPAppStoreApp, error)
+type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, error)
 
 type GetInHouseAppManifestFunc func(ctx context.Context, titleID uint, teamID *uint) ([]byte, error)
 
@@ -1136,6 +1154,9 @@ type Service struct {
 	AuthenticateDeviceByCertificateFunc        AuthenticateDeviceByCertificateFunc
 	AuthenticateDeviceByCertificateFuncInvoked bool
 
+	AuthenticateIDeviceByURLFunc        AuthenticateIDeviceByURLFunc
+	AuthenticateIDeviceByURLFuncInvoked bool
+
 	ListHostsFunc        ListHostsFunc
 	ListHostsFuncInvoked bool
 
@@ -1405,6 +1426,30 @@ type Service struct {
 
 	ApplyUserRolesSpecsFunc        ApplyUserRolesSpecsFunc
 	ApplyUserRolesSpecsFuncInvoked bool
+
+	CreateCertificateTemplateFunc        CreateCertificateTemplateFunc
+	CreateCertificateTemplateFuncInvoked bool
+
+	ListCertificateTemplatesFunc        ListCertificateTemplatesFunc
+	ListCertificateTemplatesFuncInvoked bool
+
+	GetDeviceCertificateTemplateFunc        GetDeviceCertificateTemplateFunc
+	GetDeviceCertificateTemplateFuncInvoked bool
+
+	GetCertificateTemplateFunc        GetCertificateTemplateFunc
+	GetCertificateTemplateFuncInvoked bool
+
+	DeleteCertificateTemplateFunc        DeleteCertificateTemplateFunc
+	DeleteCertificateTemplateFuncInvoked bool
+
+	ApplyCertificateTemplateSpecsFunc        ApplyCertificateTemplateSpecsFunc
+	ApplyCertificateTemplateSpecsFuncInvoked bool
+
+	DeleteCertificateTemplateSpecsFunc        DeleteCertificateTemplateSpecsFunc
+	DeleteCertificateTemplateSpecsFuncInvoked bool
+
+	UpdateCertificateStatusFunc        UpdateCertificateStatusFunc
+	UpdateCertificateStatusFuncInvoked bool
 
 	GlobalScheduleQueryFunc        GlobalScheduleQueryFunc
 	GlobalScheduleQueryFuncInvoked bool
@@ -2767,6 +2812,13 @@ func (s *Service) AuthenticateDeviceByCertificate(ctx context.Context, certSeria
 	return s.AuthenticateDeviceByCertificateFunc(ctx, certSerial, hostUUID)
 }
 
+func (s *Service) AuthenticateIDeviceByURL(ctx context.Context, urlUUID string) (host *fleet.Host, debug bool, err error) {
+	s.mu.Lock()
+	s.AuthenticateIDeviceByURLFuncInvoked = true
+	s.mu.Unlock()
+	return s.AuthenticateIDeviceByURLFunc(ctx, urlUUID)
+}
+
 func (s *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error) {
 	s.mu.Lock()
 	s.ListHostsFuncInvoked = true
@@ -3397,6 +3449,62 @@ func (s *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRole
 	return s.ApplyUserRolesSpecsFunc(ctx, specs)
 }
 
+func (s *Service) CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*fleet.CertificateTemplateResponseFull, error) {
+	s.mu.Lock()
+	s.CreateCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateCertificateTemplateFunc(ctx, name, teamID, certificateAuthorityID, subjectName)
+}
+
+func (s *Service) ListCertificateTemplates(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListCertificateTemplatesFunc(ctx, teamID, opts)
+}
+
+func (s *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateDeviceResponseFull, error) {
+	s.mu.Lock()
+	s.GetDeviceCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetDeviceCertificateTemplateFunc(ctx, id)
+}
+
+func (s *Service) GetCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
+	s.mu.Lock()
+	s.GetCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCertificateTemplateFunc(ctx, id)
+}
+
+func (s *Service) DeleteCertificateTemplate(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteCertificateTemplateFunc(ctx, id)
+}
+
+func (s *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*fleet.CertificateRequestSpec) error {
+	s.mu.Lock()
+	s.ApplyCertificateTemplateSpecsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ApplyCertificateTemplateSpecsFunc(ctx, specs)
+}
+
+func (s *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error {
+	s.mu.Lock()
+	s.DeleteCertificateTemplateSpecsFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteCertificateTemplateSpecsFunc(ctx, certificateTemplateIDs, teamID)
+}
+
+func (s *Service) UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error {
+	s.mu.Lock()
+	s.UpdateCertificateStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateCertificateStatusFunc(ctx, certificateTemplateID, status, detail)
+}
+
 func (s *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	s.mu.Lock()
 	s.GlobalScheduleQueryFuncInvoked = true
@@ -3635,11 +3743,11 @@ func (s *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appTeam flee
 	return s.AddAppStoreAppFunc(ctx, teamID, appTeam)
 }
 
-func (s *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string, displayName string) (*fleet.VPPAppStoreApp, error) {
+func (s *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, error) {
 	s.mu.Lock()
 	s.UpdateAppStoreAppFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateAppStoreAppFunc(ctx, titleID, teamID, selfService, labelsIncludeAny, labelsExcludeAny, categories, displayName)
+	return s.UpdateAppStoreAppFunc(ctx, titleID, teamID, payload)
 }
 
 func (s *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {

@@ -8,7 +8,6 @@ import { stringToClipboard } from "utilities/copy_text";
 import { internationalTimeFormat } from "utilities/helpers";
 import { addedFromNow } from "utilities/date_format";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 
 import Graphic from "components/Graphic";
@@ -17,10 +16,9 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import CustomLink from "components/CustomLink";
+import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 
 const baseClass = "installer-details-widget";
-
-const ANDROID_PLAY_STORE_URL = "https://play.google.com/store/apps/details";
 
 interface IInstallerNameProps {
   name: string;
@@ -48,12 +46,12 @@ const InstallerName = ({ name }: IInstallerNameProps) => {
 const renderInstallerDisplayText = (
   installerType: string,
   isFma: boolean,
-  androidPlayStoreLink?: string
+  androidPlayStoreId?: string
 ) => {
   if (installerType === "package") {
     return isFma ? "Fleet-maintained" : "Custom package";
   }
-  if (androidPlayStoreLink) {
+  if (androidPlayStoreId) {
     return "Google Play Store";
   }
   return "App Store (VPP)";
@@ -68,7 +66,7 @@ interface IInstallerDetailsWidgetProps {
   sha256?: string | null;
   isFma: boolean;
   isScriptPackage: boolean;
-  androidPlayStoreLink?: string;
+  androidPlayStoreId?: string;
 }
 
 const InstallerDetailsWidget = ({
@@ -80,7 +78,7 @@ const InstallerDetailsWidget = ({
   version,
   isFma,
   isScriptPackage,
-  androidPlayStoreLink: androidPlayStoreId,
+  androidPlayStoreId,
 }: IInstallerDetailsWidgetProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -152,22 +150,9 @@ const InstallerDetailsWidget = ({
 
       if (androidPlayStoreId) {
         versionInfo = (
-          <TooltipWrapper
-            tipContent={
-              <span>
-                See latest version on the{" "}
-                <CustomLink
-                  text="Play Store"
-                  url={getPathWithQueryParams(ANDROID_PLAY_STORE_URL, {
-                    id: androidPlayStoreId,
-                  })}
-                  newTab
-                />
-              </span>
-            }
-          >
-            <span>Latest</span>
-          </TooltipWrapper>
+          <AndroidLatestVersionWithTooltip
+            androidPlayStoreId={androidPlayStoreId}
+          />
         );
       }
 

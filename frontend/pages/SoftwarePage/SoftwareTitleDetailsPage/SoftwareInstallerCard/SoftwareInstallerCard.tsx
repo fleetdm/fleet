@@ -155,6 +155,7 @@ export const SoftwareActionButtons = ({
 
 interface ISoftwareInstallerCardProps {
   softwareTitleName: string;
+  softwareDisplayName: string;
   isScriptPackage?: boolean;
   isIosOrIpadosApp?: boolean;
   name: string;
@@ -168,6 +169,7 @@ interface ISoftwareInstallerCardProps {
   isSelfService: boolean;
   softwareId: number;
   iconUrl?: string | null;
+  displayName?: string;
   teamId: number;
   teamIdForApi?: number;
   softwareInstaller: ISoftwarePackage | IAppStoreApp;
@@ -183,6 +185,7 @@ interface ISoftwareInstallerCardProps {
 // of packages we should consider refactoring this to be more dynamic.
 const SoftwareInstallerCard = ({
   softwareTitleName,
+  softwareDisplayName,
   isScriptPackage = false,
   isIosOrIpadosApp = false,
   name,
@@ -193,6 +196,7 @@ const SoftwareInstallerCard = ({
   softwareInstaller,
   softwareId,
   iconUrl,
+  displayName,
   teamId,
   teamIdForApi,
   onDelete,
@@ -292,6 +296,11 @@ const SoftwareInstallerCard = ({
               sha256={sha256}
               isFma={isFleetMaintainedApp}
               isScriptPackage={isScriptPackage}
+              androidPlayStoreId={
+                isAndroidPlayStoreApp
+                  ? softwareInstaller?.app_store_id
+                  : undefined
+              }
             />
             <div className={`${baseClass}__tags-wrapper`}>
               {Array.isArray(automaticInstallPolicies) &&
@@ -383,7 +392,8 @@ const SoftwareInstallerCard = ({
         <DeleteSoftwareModal
           gitOpsModeEnabled={gitOpsModeEnabled}
           softwareId={softwareId}
-          softwareInstallerName={softwareInstaller?.name}
+          softwareDisplayName={softwareDisplayName}
+          softwareTitleName={softwareTitleName}
           teamId={teamId}
           onExit={() => setShowDeleteModal(false)}
           onSuccess={onDeleteSuccess}
@@ -395,6 +405,7 @@ const SoftwareInstallerCard = ({
           softwareTitleId={softwareId}
           teamId={teamId}
           iconUrl={iconUrl}
+          displayName={displayName}
           softwarePackage={softwareInstaller as ISoftwarePackage}
           onExit={onToggleViewYaml}
           isScriptPackage={isScriptPackage}

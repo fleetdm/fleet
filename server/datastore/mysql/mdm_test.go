@@ -29,6 +29,7 @@ import (
 
 func TestMDMShared(t *testing.T) {
 	ds := CreateMySQLDS(t)
+	TruncateTables(t, ds)
 
 	cases := []struct {
 		name string
@@ -98,7 +99,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
-	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(
+	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(
 		ctx,
 		windowsEnrollment.HostUUID,
 		windowsEnrollment.MDMDeviceID,
@@ -150,7 +151,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Len(t, cmds, 1)
 	require.Equal(t, winCmd.CommandUUID, cmds[0].CommandUUID)
 	require.Equal(t, winCmd.TargetLocURI, cmds[0].RequestType)
-	require.Equal(t, "Pending", cmds[0].Status)
+	require.Equal(t, "101", cmds[0].Status)
 
 	appleCmdUUID := uuid.New().String()
 	appleCmd := createRawAppleCmd("ProfileList", appleCmdUUID)
@@ -172,7 +173,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Pending", cmds[0].Status)
 	require.Equal(t, winCmd.CommandUUID, cmds[1].CommandUUID)
 	require.Equal(t, winCmd.TargetLocURI, cmds[1].RequestType)
-	require.Equal(t, "Pending", cmds[1].Status)
+	require.Equal(t, "101", cmds[1].Status)
 
 	// store results for both commands
 	err = appleCommanderStorage.StoreCommandReport(&mdm.Request{
@@ -7916,6 +7917,7 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 }
 
 func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
 	ctx := context.Background()
 
 	// create some "exclude" labels
@@ -8497,6 +8499,7 @@ func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {
 }
 
 func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
 	ctx := t.Context()
 
 	// create a team
