@@ -85,6 +85,9 @@ universal_binaries:
     hooks:
       post:
         - sh -c "FLEETCTL_BINARY_PATH={{ .Path }} ./tools/sign-fleetctl/main.sh"
+        # Create .pkg installer after signing (only on macOS)
+        # Note: The binary path {{ .Path }} is the signed universal binary location
+        - sh -c "if [[ \"$(uname)\" == \"Darwin\" ]]; then chmod +x tools/build-fleetctl-pkg/main.sh && ./tools/build-fleetctl-pkg/main.sh \"{{ .Path }}\"; else echo 'Skipping .pkg creation (not on macOS)'; fi"
 
 archives:
   - id: fleet

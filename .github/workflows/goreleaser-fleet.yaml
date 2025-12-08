@@ -156,3 +156,89 @@ jobs:
             docker tag fleetdm/fleet:${TAG} quay.io/fleetdm/fleet:${TAG}
             docker push quay.io/fleetdm/fleet:${TAG}
           done
+
+      - name: Check if signed binary exists
+        id: check_binary
+        continue-on-error: true
+        run: |
+          if [[ -f "dist/fleetctl_darwin_all/fleetctl" ]]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload signed fleetctl binary for .pkg creation
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        if: steps.check_binary.outputs.exists == 'true'
+        with:
+          name: fleetctl-signed-macos
+          path: dist/fleetctl_darwin_all/fleetctl
+          retention-days: 1
+
+  build-fleetctl-pkg:
+    runs-on: macos-latest
+    needs: goreleaser
+    timeout-minutes: 120
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          fetch-depth: 0
+
+      - name: Download signed fleetctl binary
+        uses: actions/download-artifact@5e317d1137c093c30a278992a91e9db4e3c1f039 # v4.1.8
+        with:
+          name: fleetctl-signed-macos
+          path: dist/fleetctl_darwin_all
+
+      - name: Verify binary exists
+        run: |
+          if [[ ! -f "dist/fleetctl_darwin_all/fleetctl" ]]; then
+            echo "Error: Signed fleetctl binary not found"
+            exit 1
+          fi
+          echo "Binary found, verifying signature..."
+          codesign --verify --verbose dist/fleetctl_darwin_all/fleetctl || exit 1
+          ./dist/fleetctl_darwin_all/fleetctl --version
+
+      - name: Install GitHub CLI
+        run: |
+          if ! command -v gh &> /dev/null; then
+            brew install gh
+          fi
+
+      - name: Authenticate GitHub CLI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GITHUB_TOKEN" | gh auth login --with-token
+
+      - name: Build and upload macOS .pkg
+        env:
+          APPLE_INSTALLER_CERTIFICATE: ${{ secrets.APPLE_INSTALLER_CERTIFICATE }}
+          APPLE_INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_INSTALLER_CERTIFICATE_PASSWORD }}
+          APPLE_USERNAME: ${{ secrets.APPLE_USERNAME }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF: ${{ github.ref }}
+        run: |
+          chmod +x tools/build-fleetctl-pkg/main.sh
+          ./tools/build-fleetctl-pkg/main.sh dist/fleetctl_darwin_all/fleetctl
+
+      - name: Attest package
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: dist/fleetctl_v*_mac.pkg
