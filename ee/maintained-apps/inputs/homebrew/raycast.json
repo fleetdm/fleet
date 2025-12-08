@@ -1,0 +1,8 @@
+{
+  "name": "Raycast",
+  "unique_identifier": "com.raycast.macos",
+  "token": "raycast",
+  "installer_format": "dmg",
+  "slug": "raycast/darwin",
+  "default_categories": ["Productivity"]
+}

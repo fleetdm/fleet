@@ -779,6 +779,13 @@
       "description": "Rancher Desktop is an app for kubernetes and container management on the desktop."
     },
     {
+      "name": "Raycast",
+      "slug": "raycast/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.raycast.macos",
+      "description": "Raycast is an app that allows you to control your tools with a few keystrokes."
+    },
+    {
       "name": "Rectangle",
       "slug": "rectangle/darwin",
       "platform": "darwin",
