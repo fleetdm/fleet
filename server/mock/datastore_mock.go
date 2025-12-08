@@ -1549,6 +1549,8 @@ type GetAndroidAppConfigurationFunc func(ctx context.Context, adamID string, glo
 
 type GetAndroidAppConfigurationByAppTeamIDFunc func(ctx context.Context, vppAppTeamID uint) (*fleet.AndroidAppConfiguration, error)
 
+type HasAndroidAppConfigurationChangedFunc func(ctx context.Context, adamID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error)
+
 type BulkGetAndroidAppConfigurationsFunc func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error)
 
 type InsertAndroidAppConfigurationFunc func(ctx context.Context, config *fleet.AndroidAppConfiguration) error
@@ -3954,6 +3956,9 @@ type DataStore struct {
 
 	GetAndroidAppConfigurationByAppTeamIDFunc        GetAndroidAppConfigurationByAppTeamIDFunc
 	GetAndroidAppConfigurationByAppTeamIDFuncInvoked bool
+
+	HasAndroidAppConfigurationChangedFunc        HasAndroidAppConfigurationChangedFunc
+	HasAndroidAppConfigurationChangedFuncInvoked bool
 
 	BulkGetAndroidAppConfigurationsFunc        BulkGetAndroidAppConfigurationsFunc
 	BulkGetAndroidAppConfigurationsFuncInvoked bool
@@ -9471,6 +9476,13 @@ func (s *DataStore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, v
 	s.GetAndroidAppConfigurationByAppTeamIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAndroidAppConfigurationByAppTeamIDFunc(ctx, vppAppTeamID)
+}
+
+func (s *DataStore) HasAndroidAppConfigurationChanged(ctx context.Context, adamID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error) {
+	s.mu.Lock()
+	s.HasAndroidAppConfigurationChangedFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasAndroidAppConfigurationChangedFunc(ctx, adamID, globalOrTeamID, newConfig)
 }
 
 func (s *DataStore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error) {

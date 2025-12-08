@@ -1601,11 +1601,11 @@ FROM (
 
 	SELECT host_id
 	FROM host_vpp_software_installs hvsi
-	WHERE 
+	WHERE
 		hvsi.adam_id = ? AND
 		hvsi.platform = ? AND
-		hvsi.platform = 'android' AND 
-		hvsi.verification_at IS NULL AND 
+		hvsi.platform = 'android' AND
+		hvsi.verification_at IS NULL AND
 		hvsi.verification_failed_at IS NULL
 	) combined_pending
 ) hss ON hss.host_id = h.id`
@@ -3033,7 +3033,7 @@ func (ds *Datastore) getIncludedHostUUIDMapForSoftware(ctx context.Context, tx s
 	filter := fmt.Sprintf(labelScopedFilter, swType)
 	stmt := fmt.Sprintf(`SELECT
 		h.uuid AS uuid,
-		ad.applied_policy_id AS applied_policy_id
+		COALESCE(ad.applied_policy_id, '') AS applied_policy_id
 FROM
 		hosts h
 		JOIN android_devices ad ON ad.enterprise_specific_id = h.uuid

@@ -1,10 +1,8 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -743,16 +741,9 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	var androidConfigChanged bool
 	if !labelsChanged && meta.Platform == fleet.AndroidPlatform {
 		// check if configuration has changed
-		config, err := svc.ds.GetAndroidAppConfiguration(ctx, meta.AdamID, ptr.ValOrZero(teamID))
-		if err != nil && !fleet.IsNotFound(err) {
-			return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting android app configuration")
-		}
-		var oldConfig json.RawMessage
-		if config != nil {
-			oldConfig = config.Configuration
-		}
-		if !bytes.Equal(oldConfig, payload.Configuration) {
-			androidConfigChanged = true
+		androidConfigChanged, err = svc.ds.HasAndroidAppConfigurationChanged(ctx, meta.AdamID, ptr.ValOrZero(teamID), payload.Configuration)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: checking if android app configuration changed")
 		}
 	}
 
