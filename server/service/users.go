@@ -433,11 +433,12 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		if err := svc.authz.Authorize(ctx, user, fleet.ActionWriteRole); err != nil {
 			return nil, err
 		}
-		license, _ := license.FromContext(ctx)
-		if license == nil {
+		licChecker, _ := license.FromContext(ctx)
+		lic, _ := licChecker.(*fleet.LicenseInfo)
+		if lic == nil {
 			return nil, ctxerr.New(ctx, "license not found")
 		}
-		if err := fleet.ValidateUserRoles(false, p, *license); err != nil {
+		if err := fleet.ValidateUserRoles(false, p, *lic); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validate role")
 		}
 	}

@@ -8,12 +8,15 @@ import (
 	"testing"
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 )
+
+// testHandlerFunc is a handler function type used for testing.
+type testHandlerFunc func(ctx context.Context, request any) (platform_http.Errorer, error)
 
 func TestCustomMiddlewareAfterAuth(t *testing.T) {
 	var (
@@ -31,7 +34,7 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 		}
 	}
 
-	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
+	authMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			i++
 			authIndex = i
@@ -58,7 +61,7 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 	}
 
 	r := mux.NewRouter()
-	ce := &CommonEndpointer[HandlerFunc]{
+	ce := &CommonEndpointer[testHandlerFunc]{
 		EP: nopEP{},
 		MakeDecoderFn: func(iface interface{}) kithttp.DecodeRequestFunc {
 			return func(ctx context.Context, r *http.Request) (request interface{}, err error) {
@@ -69,7 +72,7 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			return nil
 		},
-		AuthFunc: authFunc,
+		AuthMiddleware: authMiddleware,
 		CustomMiddleware: []endpoint.Middleware{
 			beforeAuthMiddleware,
 		},
@@ -79,7 +82,7 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 		},
 		Router: r,
 	}
-	ce.handleEndpoint("/", func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	ce.handleEndpoint("/", func(ctx context.Context, request any) (platform_http.Errorer, error) {
 		fmt.Printf("handler\n")
 		return nopResponse{}, nil
 	}, nil, "GET")
@@ -113,8 +116,8 @@ func (n nopResponse) Error() error {
 
 type nopEP struct{}
 
-func (n nopEP) CallHandlerFunc(f HandlerFunc, ctx context.Context, request interface{}, svc interface{}) (fleet.Errorer, error) {
-	return nopResponse{}, nil
+func (n nopEP) CallHandlerFunc(f testHandlerFunc, ctx context.Context, request interface{}, svc interface{}) (platform_http.Errorer, error) {
+	return f(ctx, request)
 }
 
 func (n nopEP) Service() interface{} {
