@@ -377,22 +377,11 @@ describe("getUiStatus", () => {
 });
 
 describe("getSoftwareSubheader", () => {
-  test("undefined for fleet free", () => {
-    const result = getSoftwareSubheader({
-      platform: "windows",
-      hostMdmEnrollmentStatus: "Off",
-      isMyDevicePage: true,
-      isPremiumTier: false,
-    });
-    expect(result).toBe(undefined);
-  });
-
   test("iOS device, MDM status 'On (personal)', my device page", () => {
     const result = getSoftwareSubheader({
       platform: "ios",
       hostMdmEnrollmentStatus: "On (personal)",
       isMyDevicePage: true,
-      isPremiumTier: true,
     });
     expect(result).toBe(
       "Software installed on your work profile (Managed Apple Account)."
@@ -404,7 +393,6 @@ describe("getSoftwareSubheader", () => {
       platform: "ios",
       hostMdmEnrollmentStatus: "On (personal)",
       isMyDevicePage: false,
-      isPremiumTier: true,
     });
     expect(result).toBe(
       "Software installed on work profile (Managed Apple Account)."
@@ -416,7 +404,6 @@ describe("getSoftwareSubheader", () => {
       platform: "ios",
       hostMdmEnrollmentStatus: "On (manual)",
       isMyDevicePage: true,
-      isPremiumTier: true,
     });
     expect(result).toBe(
       "Software installed on your device. Built-in apps (e.g. Calculator) aren't included."
@@ -428,7 +415,6 @@ describe("getSoftwareSubheader", () => {
       platform: "ios",
       hostMdmEnrollmentStatus: "On (manual)",
       isMyDevicePage: false,
-      isPremiumTier: true,
     });
     expect(result).toBe(
       "Software installed on this host. Built-in apps (e.g. Calculator) aren't included."
@@ -440,7 +426,6 @@ describe("getSoftwareSubheader", () => {
       platform: "ios",
       hostMdmEnrollmentStatus: "Off",
       isMyDevicePage: true,
-      isPremiumTier: true,
     });
     expect(result).toBe("Software installed on your device.");
   });
@@ -450,7 +435,6 @@ describe("getSoftwareSubheader", () => {
       platform: "ios",
       hostMdmEnrollmentStatus: "Off",
       isMyDevicePage: false,
-      isPremiumTier: true,
     });
     expect(result).toBe("Software installed on this host.");
   });
@@ -460,7 +444,6 @@ describe("getSoftwareSubheader", () => {
       platform: "windows",
       hostMdmEnrollmentStatus: "Off",
       isMyDevicePage: true,
-      isPremiumTier: true,
     });
     expect(result).toBe("Software installed on your device.");
   });
@@ -470,7 +453,6 @@ describe("getSoftwareSubheader", () => {
       platform: "windows",
       hostMdmEnrollmentStatus: "Off",
       isMyDevicePage: false,
-      isPremiumTier: true,
     });
     expect(result).toBe("Software installed on this host.");
   });
