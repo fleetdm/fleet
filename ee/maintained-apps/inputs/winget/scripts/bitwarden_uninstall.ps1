@@ -48,9 +48,11 @@ try {
             Write-Host "Checking entry: DisplayName='$($key.DisplayName)', Publisher='$($key.Publisher)'"
             if ($publisherMatches -or $publisher -eq "") {
                 $foundUninstaller = $true
-            Write-Host "Found Bitwarden installation: $($key.DisplayName)"
-            Write-Host "UninstallString: $($key.UninstallString)"
-            Write-Host "QuietUninstallString: $($key.QuietUninstallString)"
+                $registryKeyPath = $key.PSPath
+                Write-Host "Found Bitwarden installation: $($key.DisplayName)"
+                Write-Host "Registry key: $registryKeyPath"
+                Write-Host "UninstallString: $($key.UninstallString)"
+                Write-Host "QuietUninstallString: $($key.QuietUninstallString)"
             
             # Prefer QuietUninstallString if available - it's designed for silent uninstalls
             # If QuietUninstallString exists, use it directly without modification
@@ -114,15 +116,45 @@ try {
                     -ErrorAction SilentlyContinue |
                         ForEach-Object { Get-ItemProperty $_.PSPath }
                 
-                foreach ($verifyKey in $verifyKeys) {
-                    if ($verifyKey.DisplayName -and ($verifyKey.DisplayName -eq $displayName -or $verifyKey.DisplayName -like "$displayName*") -and ($publisher -eq "" -or $verifyKey.Publisher -eq $publisher)) {
-                        $stillInstalled = $true
-                        Write-Host "WARNING: Bitwarden still found in registry after uninstall: $($verifyKey.DisplayName)"
-                        break
+                # Check if Bitwarden is still in registry
+                $stillInstalled = $false
+                $registryKeyToRemove = $null
+                
+                # Use the stored registry key path if available, otherwise search again
+                if ($registryKeyPath -and (Test-Path $registryKeyPath -ErrorAction SilentlyContinue)) {
+                    $stillInstalled = $true
+                    $registryKeyToRemove = $registryKeyPath
+                    Write-Host "WARNING: Bitwarden registry entry still exists at: $registryKeyToRemove"
+                } else {
+                    # Fallback: search again
+                    foreach ($verifyKey in $verifyKeys) {
+                        if ($verifyKey.DisplayName -and ($verifyKey.DisplayName -eq $displayName -or $verifyKey.DisplayName -like "$displayName*") -and ($publisher -eq "" -or $verifyKey.Publisher -eq $publisher -or $verifyKey.Publisher -like "*$publisher*")) {
+                            $stillInstalled = $true
+                            $registryKeyToRemove = $verifyKey.PSPath
+                            Write-Host "WARNING: Bitwarden still found in registry after uninstall: $($verifyKey.DisplayName)"
+                            break
+                        }
                     }
                 }
                 
-                if (-not $stillInstalled) {
+                if ($stillInstalled -and $registryKeyToRemove) {
+                    Write-Host "Attempting to manually remove registry entry: $registryKeyToRemove"
+                    try {
+                        Remove-Item -Path $registryKeyToRemove -Force -Recurse -ErrorAction Stop
+                        Write-Host "Successfully removed registry entry manually"
+                        Start-Sleep -Seconds 2
+                        
+                        # Verify removal
+                        $finalCheck = Get-ItemProperty $registryKeyToRemove -ErrorAction SilentlyContinue
+                        if (-not $finalCheck) {
+                            Write-Host "Verified: Registry entry successfully removed"
+                        } else {
+                            Write-Host "WARNING: Registry entry still exists after manual removal attempt"
+                        }
+                    } catch {
+                        Write-Host "Failed to manually remove registry entry: $_"
+                    }
+                } elseif (-not $stillInstalled) {
                     Write-Host "Verified: Bitwarden successfully removed from registry"
                 }
             }
