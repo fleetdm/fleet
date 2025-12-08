@@ -93,6 +93,13 @@
       "description": "Asana is an app to manage team projects and tasks."
     },
     {
+      "name": "Asana",
+      "slug": "asana/windows",
+      "platform": "windows",
+      "unique_identifier": "Asana",
+      "description": "Asana is an app to manage team projects and tasks."
+    },
+    {
       "name": "BBEdit",
       "slug": "bbedit/darwin",
       "platform": "darwin",
