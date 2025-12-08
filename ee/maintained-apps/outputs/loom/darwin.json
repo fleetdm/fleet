@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "0.324.0",
+      "version": "0.325.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.loom.desktop';"
       },
-      "installer_url": "https://packages.loom.com/desktop-packages/Loom-0.324.0-arm64.dmg",
+      "installer_url": "https://packages.loom.com/desktop-packages/Loom-0.325.2-arm64.dmg",
       "install_script_ref": "a84ce4ca",
       "uninstall_script_ref": "393b959f",
-      "sha256": "5545e845dc3fe63cba95eb272ea3ed9bf825c6d3c5822a6acae291d9a55f8ca7",
+      "sha256": "ecd9698a7b31cbdfaf02a44ac0ae6351d4cefad43b857a669cbe13422e9a7879",
       "default_categories": [
         "Productivity"
       ]

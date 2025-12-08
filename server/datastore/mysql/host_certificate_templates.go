@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -163,24 +165,29 @@ func (ds *Datastore) DeleteHostCertificateTemplates(ctx context.Context, hostCer
 	return nil
 }
 
-func (ds *Datastore) UpdateCertificateStatus(
+func (ds *Datastore) UpsertCertificateStatus(
 	ctx context.Context,
 	hostUUID string,
 	certificateTemplateID uint,
 	status fleet.MDMDeliveryStatus,
 	detail *string,
 ) error {
+	updateStmt := `
+    UPDATE host_certificate_templates
+    SET status = ?, detail = ?
+    WHERE host_uuid = ? AND certificate_template_id = ?`
+
+	insertStmt := `
+		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge)
+		VALUES (?, ?, ?, ?, ?)`
+
 	// Validate the status.
 	if !status.IsValid() {
 		return ctxerr.Wrap(ctx, fmt.Errorf("Invalid status '%s'", string(status)))
 	}
 
 	// Attempt to update the certificate status for the given host and template.
-	result, err := ds.writer(ctx).ExecContext(ctx, `
-    UPDATE host_certificate_templates
-    SET status = ?, detail = ?
-    WHERE host_uuid = ? AND certificate_template_id = ?
-`, status, detail, hostUUID, certificateTemplateID)
+	result, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, detail, hostUUID, certificateTemplateID)
 	if err != nil {
 		return err
 	}
@@ -190,8 +197,24 @@ func (ds *Datastore) UpdateCertificateStatus(
 		return err
 	}
 
+	// If no records were updated, then insert a new status.
 	if rowsAffected == 0 {
-		return ctxerr.Wrap(ctx, notFound("Label").WithMessage(fmt.Sprintf("No certificate found for host UUID '%s' and template ID '%d'", hostUUID, certificateTemplateID)))
+		// We need to check whether the certificate template exists ... we do this way because
+		// there are no FK constraints between host_certificate_templates and certificate_templates.
+		var result uint
+		err := ds.writer(ctx).GetContext(ctx, &result, `SELECT id FROM certificate_templates WHERE id = ?`, certificateTemplateID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("CertificateTemplate").WithMessage(fmt.Sprintf("No certificate template found for template ID '%d'",
+					certificateTemplateID)))
+			}
+			return ctxerr.Wrap(ctx, err, "could not read certificate template for inserting new record")
+		}
+
+		params := []any{hostUUID, certificateTemplateID, status, detail, ""}
+		if _, err := ds.writer(ctx).ExecContext(ctx, insertStmt, params...); err != nil {
+			return ctxerr.Wrap(ctx, err, "could not insert new host certificate template")
+		}
 	}
 
 	return nil

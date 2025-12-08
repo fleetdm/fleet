@@ -867,7 +867,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "required end user authentication for macOS hosts that automatically enroll to",
+        "required end user authentication for macOS, iOS, iPadOS, and Android hosts that automatically enroll to",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -884,7 +884,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "required end user authentication for macOS hosts that automatically enroll to no team.",
+        "required end user authentication for macOS, iOS, iPadOS, and Android hosts that automatically enroll to no team.",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -899,7 +899,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed end user authentication requirement for macOS hosts that automatically enroll to",
+        "removed end user authentication requirement for macOS, iOS, iPadOS, and Android hosts that automatically enroll to",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -916,7 +916,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed end user authentication requirement for macOS hosts that automatically enroll to no team.",
+        "removed end user authentication requirement for macOS, iOS, iPadOS, and Android hosts that automatically enroll to no team.",
         { exact: false }
       )
     ).toBeInTheDocument();

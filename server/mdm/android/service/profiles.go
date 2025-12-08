@@ -390,7 +390,7 @@ func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyNam
 		return nil, false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 	}
 
-	applied, apiErr := r.Client.EnterprisesPoliciesPatch(ctx, policyName, policy)
+	applied, apiErr := r.Client.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{ExcludeApps: true})
 	if skip, err = recordAndroidRequestResult(ctx, r.DS, policyRequest, applied, nil, apiErr); err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "record android request")
 	}
@@ -417,9 +417,6 @@ func (r *profileReconciler) reconcileCertificateTemplates(ctx context.Context) e
 	const batchSize = 1000 // Process 1000 hosts at a time
 	offset := 0
 
-	// Cache enroll secrets by team ID
-	enrollSecretsCache := make(map[uint][]*fleet.EnrollSecret)
-
 	for {
 		// Get a batch of host UUIDs that have certificate templates
 		hostUUIDs, err := r.DS.ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx, offset, batchSize)
@@ -438,7 +435,7 @@ func (r *profileReconciler) reconcileCertificateTemplates(ctx context.Context) e
 		}
 
 		// Process this batch of hosts with all their certificates
-		if err := r.processCertificateTemplateBatch(ctx, allTemplates, enrollSecretsCache); err != nil {
+		if err := r.processCertificateTemplateBatch(ctx, allTemplates); err != nil {
 			return err
 		}
 
@@ -453,7 +450,7 @@ func (r *profileReconciler) reconcileCertificateTemplates(ctx context.Context) e
 	return nil
 }
 
-func (r *profileReconciler) processCertificateTemplateBatch(ctx context.Context, allTemplates []fleet.CertificateTemplateForHost, _ map[uint][]*fleet.EnrollSecret) error {
+func (r *profileReconciler) processCertificateTemplateBatch(ctx context.Context, allTemplates []fleet.CertificateTemplateForHost) error {
 	// Collect unique host UUIDs that need certificate template updates
 	hostsWithNewCerts := make(map[string]struct{})
 	for i := range allTemplates {
@@ -475,6 +472,7 @@ func (r *profileReconciler) processCertificateTemplateBatch(ctx context.Context,
 	}
 
 	svc := &Service{
+		logger:           kitlog.NewNopLogger(),
 		ds:               r.DS,
 		fleetDS:          r.DS,
 		androidAPIClient: r.Client,

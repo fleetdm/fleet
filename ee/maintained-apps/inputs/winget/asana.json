@@ -1,0 +1,13 @@
+{
+  "name": "Asana",
+  "slug": "asana/windows",
+  "package_identifier": "Asana.Asana",
+  "unique_identifier": "Asana",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/asana_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/asana_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Productivity"]
+}
+
