@@ -61,7 +61,7 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(delegatedScopes.contains(DevicePolicyManager.DELEGATION_CERT_INSTALL))
             }
             val androidID by remember { mutableStateOf(Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)) }
-            val enrollmentSpecificID by remember { mutableStateOf(appRestrictions.getString("host_uuids")) }
+            val enrollmentSpecificID by remember { mutableStateOf(appRestrictions.getString("host_uuid")) }
             val certRequestList by remember {
                 mutableStateOf(appRestrictions.getParcelableArray("certificates", Bundle::class.java)?.toList())
             }

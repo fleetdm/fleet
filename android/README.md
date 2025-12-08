@@ -106,7 +106,7 @@ keytool -list -v -keystore keystore.jks -alias fleet-android
 echo <SHA256> | xxd -r -p | base64
 ```
 
-Copy the fingerprint for use in `FLEET_DEV_ANDROID_AGENT_SHA256`
+Copy the fingerprint for use in `FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256`
 
 ## Deploying via Android MDM (development)
 
@@ -116,7 +116,7 @@ This feature is behind the feature flag `FLEET_DEV_ANDROID_AGENT_PACKAGE`. Requi
 
 ```bash
 export FLEET_DEV_ANDROID_AGENT_PACKAGE=com.fleetdm.agent.private.<yourname>
-export FLEET_DEV_ANDROID_AGENT_SHA256=<SHA256 fingerprint>
+export FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256=<SHA256 fingerprint>
 ```
 
 2. **Change the `applicationId` in `app/build.gradle.kts`:**

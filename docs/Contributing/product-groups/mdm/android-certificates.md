@@ -42,7 +42,7 @@ flowchart TD
     subgraph cert["For each certificate"]
         certGet --> certServer["Server validates FLEET_VAR_*"]
         certServer --> certStatus{"Cert status?"}
-        certStatus --> certStatusYes(("Pending")) & certStatusNo(("!Pending")) & certStatusNull(("null<br>(not ready)"))
+        certStatus --> certStatusYes(("delivered")) & certStatusNo(("failed or<br/>verified")) & certStatusNull(("otherwise<br/>(try again later)"))
         certStatusNull --> certDone1
         certStatusNo --> certSave["Save cert as processed"]
         certSave --> certDone1(["Continue"])

@@ -390,7 +390,7 @@ func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyNam
 		return nil, false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 	}
 
-	applied, apiErr := r.Client.EnterprisesPoliciesPatch(ctx, policyName, policy)
+	applied, apiErr := r.Client.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{ExcludeApps: true})
 	if skip, err = recordAndroidRequestResult(ctx, r.DS, policyRequest, applied, nil, apiErr); err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "record android request")
 	}
@@ -472,6 +472,7 @@ func (r *profileReconciler) processCertificateTemplateBatch(ctx context.Context,
 	}
 
 	svc := &Service{
+		logger:           kitlog.NewNopLogger(),
 		ds:               r.DS,
 		fleetDS:          r.DS,
 		androidAPIClient: r.Client,

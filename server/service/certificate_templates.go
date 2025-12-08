@@ -43,8 +43,14 @@ func (svc *Service) replaceCertificateVariables(ctx context.Context, subjectName
 	for _, fleetVar := range fleetVars {
 		switch fleetVar {
 		case string(fleet.FleetVarHostUUID):
+			if host.UUID == "" {
+				return "", ctxerr.Errorf(ctx, "host does not have a UUID for variable %s", fleetVar)
+			}
 			result = fleet.FleetVarHostUUIDRegexp.ReplaceAllString(result, host.UUID)
 		case string(fleet.FleetVarHostHardwareSerial):
+			if host.HardwareSerial == "" {
+				return "", ctxerr.Errorf(ctx, "host %s does not have a hardware serial for variable %s", host.UUID, fleetVar)
+			}
 			result = fleet.FleetVarHostHardwareSerialRegexp.ReplaceAllString(result, host.HardwareSerial)
 		case string(fleet.FleetVarHostEndUserIDPUsername):
 			users, err := fleet.GetEndUsers(ctx, svc.ds, host.ID)
@@ -55,6 +61,8 @@ func (svc *Service) replaceCertificateVariables(ctx context.Context, subjectName
 				return "", ctxerr.Errorf(ctx, "host %s does not have an IDP username for variable %s", host.UUID, fleetVar)
 			}
 			result = fleet.FleetVarHostEndUserIDPUsernameRegexp.ReplaceAllString(result, users[0].IdpUserName)
+		default:
+			return "", ctxerr.Errorf(ctx, "unsupported Fleet variable %s in certificate template", fleetVar)
 		}
 	}
 

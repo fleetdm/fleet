@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"time"
 
 	"github.com/manifoldco/promptui"
 	// Force promptui to use our newer x/sys package,
@@ -17,8 +19,12 @@ import (
 // Each snapshot folder contains a db.sql.gz file.
 type Snapshot struct {
 	Name string
-	Date string
+	Date time.Time
 	Path string // The directory containing the snapshot.
+}
+
+func (s Snapshot) DateStr() string {
+	return s.Date.Format("Jan 02, 2006 03:04:05 PM")
 }
 
 // Which command to run.
@@ -94,57 +100,50 @@ func restore(homedir string) error {
 	// Walk the ~/.fleet/snapshots directory if it exists.
 	dirEntries, err := os.ReadDir(snapshotsDir)
 	var snapshots []Snapshot
-	var lastSnapshotName []byte
+	// var lastSnapshotName []byte
 	for _, entry := range dirEntries {
 		if entry.IsDir() {
 			// Ensure there's a db backup file.
-			dbBackupFile := filepath.Join(snapshotsDir, entry.Name(), "db.sql.gz")
-			dbBackupFileInfo, err := os.Lstat(dbBackupFile)
+			subdirEntries, err := os.ReadDir(filepath.Join(snapshotsDir, entry.Name()))
 			if err != nil {
 				continue
 			}
-			snapshot := Snapshot{
-				Name: entry.Name(),
-				Date: dbBackupFileInfo.ModTime().Format("Jan 02, 2006 03:04:05 PM"),
-				Path: dbBackupFile,
+			for _, subentry := range subdirEntries {
+				dbBackupFile := filepath.Join(snapshotsDir, entry.Name(), subentry.Name())
+				snapshotName := subentry.Name()
+				if snapshotName == "db.sql.gz" {
+					snapshotName = entry.Name()
+				}
+				dbBackupFileInfo, err := os.Lstat(dbBackupFile)
+				if err != nil {
+					continue
+				}
+				snapshot := Snapshot{
+					Name: snapshotName,
+					Date: dbBackupFileInfo.ModTime(),
+					Path: dbBackupFile,
+				}
+				snapshots = append(snapshots, snapshot)
 			}
-			snapshots = append(snapshots, snapshot)
-		} else if entry.Name() == "last_snapshot" {
-			// If the entry is the "last_snapshot" file, read its contents
-			lastSnapshotPath := filepath.Join(snapshotsDir, entry.Name())
-			lastSnapshotName, err = os.ReadFile(lastSnapshotPath)
-			if err != nil {
-				fmt.Printf("Error reading last snapshot file (%s): %v\n", lastSnapshotPath, err)
-				return err
-			}
-			fmt.Println("Last snapshot: " + string(lastSnapshotName))
 		}
 	}
 
-	// If lastSnapshotName is not empty, find its index in the snapshots list.
-	var lastSnapshotIndex int
-	if len(lastSnapshotName) > 0 {
-		for i, snapshot := range snapshots {
-			if snapshot.Name == string(lastSnapshotName) {
-				lastSnapshotIndex = i
-				break
-			}
-		}
-	}
+	slices.SortFunc(snapshots, func(a, b Snapshot) int {
+		return b.Date.Compare(a.Date)
+	})
 
 	// Set up and run the "Select snapshot" UI.
 	templates := &promptui.SelectTemplates{
 		Label:    "  {{ .Name }}",
-		Active:   "• {{ .Name }} ({{ .Date }})",
-		Inactive: "  {{ .Name }} ({{ .Date }})",
-		Selected: "  {{ .Name }} ({{ .Date }})",
+		Active:   "• {{ .Name }} ({{ .DateStr }})",
+		Inactive: "  {{ .Name }} ({{ .DateStr }})",
+		Selected: "  {{ .Name }} ({{ .DateStr }})",
 	}
 	prompt := promptui.Select{
 		Label:     "Select snapshot to restore",
 		Items:     snapshots,
 		Templates: templates,
 		Size:      10,
-		CursorPos: lastSnapshotIndex,
 	}
 	index, _, err := prompt.Run()
 	if err != nil {

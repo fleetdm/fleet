@@ -52,7 +52,7 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 > The [Slack channel](https://fleetdm.slack.com/archives/C08C7ML9QKX), [kanban release board](https://github.com/orgs/fleetdm/projects/65), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-buy-online) for this GTM group is `#g-buy-online`.
 
 
-## Customer support service level agreements (SLAs)
+## Customer support service level objectives (SLOs)
 
 **Fleet Free:**
 
