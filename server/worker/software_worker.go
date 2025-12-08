@@ -317,6 +317,31 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 	return nil
 }
 
+func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context, hostUUID, policyID string, applicationIDs []string, enterpriseName string) error {
+	host, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "getting android host lite by uuid %s", hostUUID)
+	}
+
+	configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, applicationIDs, ptr.ValOrZero(host.Host.TeamID))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
+	}
+
+	appPolicies, err := buildApplicationPolicyWithConfig(ctx, applicationIDs, configsByAppID, "AVAILABLE")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building application policies with config")
+	}
+
+	// Update Android MDM policy to include the apps in self service
+	err = v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: policyID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "make android apps available")
+	}
+
+	return nil
+}
+
 func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
 	configsByAppID map[string]json.RawMessage, installType string) ([]*androidmanagement.ApplicationPolicy, error) {
 
@@ -379,16 +404,6 @@ func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, lo
 	}
 
 	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
-	return nil
-}
-
-func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context, hostUUID, policyID string, applicationIDs []string, enterpriseName string) error {
-	// Update Android MDM policy to include the apps in self service
-	err := v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, applicationIDs, map[string]string{hostUUID: policyID}, "AVAILABLE")
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "make android apps available")
-	}
-
 	return nil
 }
 
