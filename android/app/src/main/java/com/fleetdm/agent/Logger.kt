@@ -13,6 +13,6 @@ interface Logger {
  * No-op logger for testing.
  */
 class NoOpLogger : Logger {
-    override fun w(tag: String, message: String, throwable: Throwable?) {}
-    override fun e(tag: String, message: String, throwable: Throwable?) {}
+    override fun w(tag: String, message: String, throwable: Throwable?) = Unit
+    override fun e(tag: String, message: String, throwable: Throwable?) = Unit
 }
