@@ -2513,7 +2513,7 @@ type Datastore interface {
 	// processed together as upserts using INSERT...ON DUPLICATE KEY UPDATE.
 	BatchApplyCertificateAuthorities(ctx context.Context, ops CertificateAuthoritiesBatchOperations) error
 	// UpdateCertificateStatus allows a host to update the installation status of a certificate given its template.
-	UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status MDMDeliveryStatus, detail *string) error
+	UpsertCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status MDMDeliveryStatus, detail *string) error
 
 	// BatchUpsertCertificateTemplates upserts a batch of certificates.
 	BatchUpsertCertificateTemplates(ctx context.Context, certificates []*CertificateTemplate) error

@@ -23,7 +23,7 @@ type Client interface {
 	// EnterprisesPoliciesPatch updates or creates a policy.
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.policies/patch
 	// On success it returns the applied policy, with its version number set.
-	EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error)
+	EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts PoliciesPatchOpts) (*androidmanagement.Policy, error)
 
 	// EnterprisesDevicesPatch updates a device.
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/patch
