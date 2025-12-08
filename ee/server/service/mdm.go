@@ -627,6 +627,8 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 	}
 
 	validateIncomingSetupAssistant := true
+	// If name and contents are the same, skip validation with Apple. Name is included to match
+	// the logic we use below for determining whether or not to post the activity
 	if prevAsst != nil && asst.Name == prevAsst.Name {
 		var m2 map[string]any
 		if err := json.Unmarshal(prevAsst.Profile, &m2); err != nil {
