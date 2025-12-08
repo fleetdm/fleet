@@ -107,6 +107,7 @@ import PyCharm from "./PyCharm";
 import PyCharmCe from "./PyCharmCe";
 import Quip from "./Quip";
 import RancherDesktop from "./RancherDesktop";
+import Raycast from "./Raycast";
 import Rectangle from "./Rectangle";
 import Rider from "./Rider";
 import RubyMine from "./RubyMine";
@@ -257,6 +258,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   pycharm: PyCharm,
   quip: Quip,
   "rancher desktop": RancherDesktop,
+  raycast: Raycast,
   rectangle: Rectangle,
   rider: Rider,
   rubymine: RubyMine,
