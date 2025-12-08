@@ -297,7 +297,7 @@ const SoftwareInstallerCard = ({
               sha256={sha256}
               isFma={isFleetMaintainedApp}
               isScriptPackage={isScriptPackage}
-              androidPlayStoreLink={
+              androidPlayStoreId={
                 isAndroidPlayStoreApp
                   ? softwareInstaller?.app_store_id
                   : undefined
