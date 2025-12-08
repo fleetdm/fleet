@@ -9,7 +9,6 @@ on:
     - cron: '20 0 * * 1'
   push:
     branches: [ "main" ]
-  pull_request: # TODO: Remove before merging
 
 # Declare default permissions as read only.
 permissions: read-all
@@ -30,6 +29,7 @@ jobs:
           persist-credentials: false
 
       - name: Validate Gradle wrapper
+        # Needed for OSSF Scorecard to OK our gradle-wrapper.jar binary.
         uses: gradle/actions/wrapper-validation@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v5.0.0
 
   analysis:
