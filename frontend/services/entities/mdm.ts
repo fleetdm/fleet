@@ -15,12 +15,6 @@ import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
-import {
-  createMockSetupExperienceSoftware,
-  createMockSoftwarePackage,
-  createMockSoftwareTitle,
-} from "__mocks__/softwareMock";
-
 import { ISoftwareTitlesResponse } from "./software";
 import { PaginationParams } from "./common";
 
