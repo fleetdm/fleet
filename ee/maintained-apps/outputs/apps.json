@@ -261,6 +261,13 @@
       "description": "Cyberduck is a server and cloud storage browser."
     },
     {
+      "name": "Cyberduck",
+      "slug": "cyberduck/windows",
+      "platform": "windows",
+      "unique_identifier": "Cyberduck",
+      "description": "Cyberduck is a server and cloud storage browser."
+    },
+    {
       "name": "DataGrip",
       "slug": "datagrip/darwin",
       "platform": "darwin",
