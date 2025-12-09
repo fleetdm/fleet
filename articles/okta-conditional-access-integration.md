@@ -43,7 +43,11 @@ Once you've created the identity provider in Okta, you'll need to copy its value
 
 ## Step 5: Configure conditional access policies
 
-> TODO
+Once Okta is configured in settings, head to **Policies**. Select the team that you want to enable conditional access for.
+
+1. Go to **Manage automations** > **Conditional access** and enable conditional acccess.
+2. Select the policies you want to block login via Okta.
+3. Save.
 
 ## Disabling Okta conditional access
 
