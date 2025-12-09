@@ -387,7 +387,7 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 			if c.wantStatus != nil {
 				require.NotNil(t, hostDetail.MDM.Profiles)
 				profs := *hostDetail.MDM.Profiles
-				require.Equal(t, c.wantStatus, profs[0].Status)
+				require.EqualValues(t, *c.wantStatus, *profs[0].Status)
 				require.Equal(t, c.fvProf.Detail, profs[0].Detail)
 			} else {
 				require.Nil(t, *hostDetail.MDM.Profiles)
