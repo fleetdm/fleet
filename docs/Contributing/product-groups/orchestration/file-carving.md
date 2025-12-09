@@ -25,7 +25,7 @@ The `carver_block_size` flag should be configured in osquery.
 For the (default) MySQL Backend, the configured value must be less than the value of
 `max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for [MySQL 8](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet) it is 64MB.
 
-For the S3/Minio backend, this value must be set to at least 5MiB (`5242880`) due to the
+For the S3-compatible backend, this value must be set to at least 5MiB (`5242880`) due to the
 [constraints of S3's multipart
 uploads](https://docs.aws.amazon.com/AmazonS3/latest/dev/qfacts.html).
 
@@ -77,17 +77,17 @@ The same is not true if S3 is used as the storage backend. In that scenario, it 
 
 ### Alternative carving backends
 
-#### MinIO
+#### RustFS
 
 Configure the following:
-- `FLEET_S3_ENDPOINT_URL=minio_host:port`
-- `FLEET_S3_BUCKET=minio_bucket_name`
+- `FLEET_S3_ENDPOINT_URL=rustfs_host:port`
+- `FLEET_S3_BUCKET=bucket_name`
 - `FLEET_S3_SECRET_ACCESS_KEY=your_secret_access_key`
 - `FLEET_S3_ACCESS_KEY_ID=access_key_id`
 - `FLEET_S3_FORCE_S3_PATH_STYLE=true`
-- `FLEET_S3_REGION=minio` or any non-empty string otherwise Fleet will attempt to derive the region.
+- `FLEET_S3_REGION=localhost` or any non-empty string otherwise Fleet will attempt to derive the region.
 
-If you're testing file carving locally with the docker-compose environment, the `--dev` flag on Fleet server will automatically point carves to the local MinIO container and write to the `carves-dev` bucket (created automatically) without needing to set additional configuration.
+If you're testing file carving locally with the docker-compose environment, the `--dev` flag on Fleet server will automatically point carves to the local RustFS container and write to the `carves-dev` bucket (created automatically) without needing to set additional configuration.
 
 ### Troubleshooting
 
@@ -118,6 +118,6 @@ parts to 10,000.
 
 The value must be small enough that HTTP requests do not time out.
 
-Start with a default of 2MiB for MySQL (2097152 bytes), and 5MiB for S3/Minio (5242880 bytes).
+Start with a default of 2MiB for MySQL (2097152 bytes), and 5MiB for S3 (5242880 bytes).
 
 <meta name="pageOrderInSection" value="2100">

@@ -256,7 +256,7 @@ jobs:
           REDIS_TEST=1 \
           MYSQL_TEST=1 \
           MYSQL_REPLICA_TEST=1 \
-          MINIO_STORAGE_TEST=1 \
+          S3_STORAGE_TEST=1 \
           SAML_IDP_TEST=1 \
           MAIL_TEST=1 \
           AWS_ENDPOINT_URL="http://localhost:4566" \

@@ -262,11 +262,11 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	var softwareInstallerStore fleet.SoftwareInstallerStore
 	var bootstrapPackageStore fleet.MDMBootstrapPackageStore
-	_, minioEnabled := os.LookupEnv("MINIO_STORAGE_TEST")
-	if wantStore := os.Getenv("FLEET_INTEGRATION_TESTS_SOFTWARE_INSTALLER_STORE"); minioEnabled &&
+	_, localS3Enabled := os.LookupEnv("S3_STORAGE_TEST")
+	if wantStore := os.Getenv("FLEET_INTEGRATION_TESTS_SOFTWARE_INSTALLER_STORE"); localS3Enabled &&
 		(wantStore == "s3" || (wantStore == "" && time.Now().UnixNano()%2 == 0)) {
 
-		s.T().Log(">>> using S3/minio software installer store")
+		s.T().Log(">>> using S3-compatible software installer store")
 		softwareInstallerStore = s3.SetupTestSoftwareInstallerStore(s.T(), "integration-tests", "")
 		bootstrapPackageStore = s3.SetupTestBootstrapPackageStore(s.T(), "integration-tests", "")
 	}
