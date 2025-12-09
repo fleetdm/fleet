@@ -51,7 +51,7 @@ Once Okta is configured in settings, head to **Policies**. Select the team that 
 
 ## Disabling Okta conditional access
 
-You can delete Conditional access configuration on Fleet's side from **Settings** > **Integrations** > **Conditional access** > **Okta** and clicking the delete button.
+You can delete conditional access configuration on Fleet's side from **Settings** > **Integrations** > **Conditional access** > **Okta** and clicking the delete button.
 
 To fully disable conditional access, you will also need to disable it on the Okta side. 
 
