@@ -5407,31 +5407,43 @@ Returns a list of labels in Fleet, including basic information on each label.
       "id": 6,
       "name": "All Hosts",
       "description": "All hosts which have enrolled in Fleet",
-      "label_type": "builtin"
+      "label_type": "builtin",
+      "team_id": null
     },
     {
       "id": 7,
       "name": "macOS",
       "description": "All macOS hosts",
-      "label_type": "builtin"
+      "label_type": "builtin",
+      "team_id": null
     },
     {
       "id": 8,
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
-      "label_type": "builtin"
+      "label_type": "builtin",
+      "team_id": null
     },
     {
       "id": 9,
       "name": "CentOS Linux",
       "description": "All CentOS hosts",
-      "label_type": "builtin"
+      "label_type": "builtin",
+      "team_id": null
     },
     {
       "id": 10,
       "name": "MS Windows",
       "description": "All Windows hosts",
-      "label_type": "builtin"
+      "label_type": "builtin",
+      "team_id": null
+    },
+    {
+      "id": 11,
+      "name": "My team-specific label",
+      "description": "This one goes to eleven, but only on one team",
+      "label_type": "regular",
+      "team_id": 1
     }
   ]
 }
