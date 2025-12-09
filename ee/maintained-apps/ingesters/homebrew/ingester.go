@@ -148,7 +148,13 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	out.Name = input.Name
 	out.Version = strings.Split(cask.Version, ",")[0]
-	out.InstallerURL = cask.URL
+
+	// For Warp macOS FMA, append Warp.dmg to the end of the installer URL
+	if input.Token == "warp" {
+		out.InstallerURL = cask.URL + "/Warp.dmg"
+	} else {
+		out.InstallerURL = cask.URL
+	}
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.SHA256 = cask.SHA256
 	out.Queries = maintained_apps.FMAQueries{Exists: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
