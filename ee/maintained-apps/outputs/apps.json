@@ -1101,6 +1101,13 @@
       "description": "Wireshark is a network protocol analyzer."
     },
     {
+      "name": "Wireshark",
+      "slug": "wireshark/windows",
+      "platform": "windows",
+      "unique_identifier": "Wireshark",
+      "description": "Wireshark is a network protocol analyzer."
+    },
+    {
       "name": "Wrike",
       "slug": "wrike/darwin",
       "platform": "darwin",
