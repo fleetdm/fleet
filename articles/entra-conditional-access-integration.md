@@ -10,13 +10,6 @@ Entra conditional access is supported even if you're not using MDM features in F
 
 [Microsoft](https://learn.microsoft.com/en-us/intune/intune-service/protect/device-compliance-partners) requires that this feature is only supported if you're using Fleet's managed cloud.
 
-- [Step 1: Create a "Fleet conditional access" group in Entra](#step-1-create-a-fleet-conditional-access-group-in-entra)
-- [Step 2: Configure Fleet in Intune](#step-2-configure-fleet-in-intune)
-- [Step 3: Connect Fleet to Entra](#step-3-connect-fleet-to-entra)
-- [Step 4: Deploy Company Portal and the Platform SSO configuration profile](#step-4-deploy-company-portal-and-the-platform-sso-configuration-profile)
-- [Step 5: Add Fleet policies](#step-5-add-fleet-policies)
-- [Step 6: Add Entra policies](#step-6-add-entra-policies)
-
 ## Step 1: Create a "Fleet conditional access" group in Entra
 
 To enforce conditional access, end users must be a member of a group called "Fleet conditional access" in Entra. First create this group in Entra and then assign users to it.
