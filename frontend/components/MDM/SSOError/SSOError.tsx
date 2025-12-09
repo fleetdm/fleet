@@ -15,7 +15,7 @@ const SSOError = ({ className }: ISSOErrorProps) => {
   return (
     <DataError className={classNames}>
       <p>
-        Select <strong>Cancel</strong> and try again. If this keeps happening,
+        Please try again. If this keeps happening,
         please contact IT support.
       </p>
     </DataError>
