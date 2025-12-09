@@ -2157,7 +2157,8 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 | Name  | Type | In   | Description                                                                                                   |
 | ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| specs | list | path | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties |
+| team_name | string | query | The name of the team to set labels to |
+| specs | object[] | body | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties |
 
 #### Example
 
@@ -2190,6 +2191,8 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 ### Get labels
 
+Gets all labels visible to the currently logged-in users.
+
 `GET /api/v1/fleet/spec/labels`
 
 #### Parameters
@@ -2213,7 +2216,9 @@ None.
       "description": "All hosts which have enrolled in Fleet",
       "query": "SELECT 1;",
       "label_type": "builtin",
-      "label_membership_type": "dynamic"
+      "label_membership_type": "dynamic",
+      "team_id": null,
+      "team_name": null
     },
     {
       "id": 7,
@@ -2222,7 +2227,9 @@ None.
       "query": "SELECT 1 FROM os_version WHERE platform = 'darwin';",
       "platform": "darwin",
       "label_type": "builtin",
-      "label_membership_type": "dynamic"
+      "label_membership_type": "dynamic",
+      "team_id": null,
+      "team_name": null
     },
     {
       "id": 8,
@@ -2231,7 +2238,9 @@ None.
       "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
       "platform": "ubuntu",
       "label_type": "builtin",
-      "label_membership_type": "dynamic"
+      "label_membership_type": "dynamic",
+      "team_id": null,
+      "team_name": null
     },
     {
       "id": 9,
@@ -2239,7 +2248,9 @@ None.
       "description": "All CentOS hosts",
       "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
       "label_type": "builtin",
-      "label_membership_type": "dynamic"
+      "label_membership_type": "dynamic",
+      "team_id": null,
+      "team_name": null
     },
     {
       "id": 10,
@@ -2248,14 +2259,31 @@ None.
       "query": "SELECT 1 FROM os_version WHERE platform = 'windows';",
       "platform": "windows",
       "label_type": "builtin",
-      "label_membership_type": "dynamic"
+      "label_membership_type": "dynamic",
+      "team_id": null,
+      "team_name": null
     },
     {
       "id": 11,
       "name": "Ubuntu",
       "description": "Filters Ubuntu hosts",
       "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
-      "label_membership_type": "dynamic"
+      "label_type": "builtin",
+      "label_membership_type": "dynamic",,
+      "team_id": null,
+      "team_name": null
+    },
+    {
+      "id": 4663,
+      "name": "Team: g-software",
+      "description": "Workstations used by team g-software",
+      "query": "",
+      "platform": "",
+      "label_type": "regular",
+      "label_membership_type": "manual",
+      "display_text": "Team: g-software",
+      "team_id": 1,
+      "team_name": "Workstations"
     }
   ]
 }
@@ -2263,7 +2291,7 @@ None.
 
 ### Get label
 
-Returns the label specified by name.
+Returns the label specified by name if it exists and its team (if any) is accessible by the current user.
 
 `GET /api/v1/fleet/spec/labels/{name}`
 

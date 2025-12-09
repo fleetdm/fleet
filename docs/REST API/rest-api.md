@@ -5382,9 +5382,15 @@ Returns the specified label.
 
 ### Get labels summary
 
-Returns a list of all the labels in Fleet.
+Returns a list of labels in Fleet, including basic information on each label.
 
 `GET /api/v1/fleet/labels/summary`
+
+#### Parameters
+
+| Name            | Type    | In    | Description   |
+| --------------- | ------- | ----- |------------------------------------- |
+| team_id         | integer | query | _Available in Fleet Premium._  Filters to labels belonging to the specified team. Specify `global` to show only globally-available labels. To show labels from multiple teams, or a combination of teams and global labels, pass a comma-separated list of team IDs. If omitted, Fleet returns all global labels, plus all labels for teams to which the requestor has access. |
 
 #### Example
 
@@ -5433,7 +5439,7 @@ Returns a list of all the labels in Fleet.
 
 ### List labels
 
-Returns a list of all the labels in Fleet.
+Returns a list of labels.
 
 `GET /api/v1/fleet/labels`
 
@@ -5441,9 +5447,10 @@ Returns a list of all the labels in Fleet.
 
 | Name            | Type    | In    | Description   |
 | --------------- | ------- | ----- |------------------------------------- |
-| include_host_counts | boolean | query | Whether or not to calculate host counts for each label. Default is `true`. See "additional notes" for more information.
+| include_host_counts | boolean | query | Whether or not to calculate host counts for each label. Default is `true`. See "additional notes" for more information. |
 | order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                  |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| team_id         | integer | query | _Available in Fleet Premium._  Filters to labels belonging to the specified team. Specify `global` to show only globally-available labels. To show labels from multiple teams, or a combination of teams and global labels, pass a comma-separated list of team IDs. If omitted, Fleet returns all global labels, plus all labels for teams to which the requestor has access. |
 
 When `include_host_counts` is `true` (or omitted), `host_count` will only be included for `labels` that are in use by one or more hosts, but `count` will always be included, even if it is `0`. When `include_host_counts` is `false`, `host_count` will always be omitted, and `count` will be returned as `0` for each label. Setting `include_host_counts=false` will improve API performance, especially on deployments with large numbers of hosts and labels.
 
@@ -5471,7 +5478,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "display_text": "All Hosts",
       "count": 7,
       "host_ids": null,
-      "author_id": 1
+      "author_id": 1,
+      "team_id": null
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5487,7 +5495,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "display_text": "macOS",
       "count": 1,
       "host_ids": null,
-      "author_id": 1
+      "author_id": 1,
+      "team_id": null
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5503,7 +5512,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "display_text": "Ubuntu Linux",
       "count": 3,
       "host_ids": null,
-      "author_id": 1
+      "author_id": 1,
+      "team_id": null
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5518,7 +5528,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "display_text": "CentOS Linux",
       "count": 3,
       "host_ids": null,
-      "author_id": 1
+      "author_id": 1,
+      "team_id": null
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5533,7 +5544,24 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "display_text": "MS Windows",
       "count": 0,
       "host_ids": null,
-      "author_id": 1
+      "author_id": 1,
+      "team_id": null
+    },
+    {
+      "created_at": "2025-11-13T06:14:20Z",
+      "updated_at": "2025-11-13T06:14:20Z",
+      "id": 4663,
+      "name": "Team: g-software",
+      "description": "Workstations used by team g-software",
+      "query": "",
+      "platform": "",
+      "label_type": "regular",
+      "label_membership_type": "manual",
+      "display_text": "Team: g-software",
+      "count": 0,
+      "host_ids": null,
+      "author_id": 1,
+      "team_id": 2
     }
   ]
 }
