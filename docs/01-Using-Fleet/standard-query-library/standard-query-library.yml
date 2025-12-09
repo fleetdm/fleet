@@ -2160,6 +2160,5 @@ spec:
   contributors: spalmesano0
   script: |
     #!/bin/sh
-
-    ## command to enable gatekeeper
+    
     /Applications/Falcon.app/Contents/Resources/falconctl load
