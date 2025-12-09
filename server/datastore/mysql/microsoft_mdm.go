@@ -2344,7 +2344,8 @@ SELECT
 	-- aggregation functions.
 	COALESCE(status, '%s') AS status,
 	COALESCE(operation_type, '') AS operation_type,
-	COALESCE(detail, '') AS detail
+	COALESCE(detail, '') AS detail,
+	command_uuid
 FROM
 	host_mdm_windows_profiles
 WHERE
@@ -2499,7 +2500,7 @@ func (ds *Datastore) ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId st
 			UPDATE host_mdm_windows_profiles
 			SET command_uuid = ?,
 			status = '%s',
-			retries = CASE WHEN retries > 0 THEN retries - 1 ELSE 0 END,
+			retries = retries, -- Keep retries the same to avoid endlessly resending.
 			detail = ''
 			WHERE host_uuid = (SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_device_id = ?) AND command_uuid = ?`, fleet.MDMDeliveryPending)
 		// Keep the profile in pending while we resend with Replace.
