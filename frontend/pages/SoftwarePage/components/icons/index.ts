@@ -107,6 +107,7 @@ import PyCharm from "./PyCharm";
 import PyCharmCe from "./PyCharmCe";
 import Quip from "./Quip";
 import RancherDesktop from "./RancherDesktop";
+import Raycast from "./Raycast";
 import Rectangle from "./Rectangle";
 import Rider from "./Rider";
 import RubyMine from "./RubyMine";
@@ -120,6 +121,7 @@ import Snagit from "./Snagit";
 import Sourcetree from "./Sourcetree";
 import Spotify from "./Spotify";
 import SublimeText from "./SublimeText";
+import TableauDesktop from "./TableauDesktop";
 import TablePlus from "./TablePlus";
 import Tailscale from "./Tailscale";
 import TeamViewer from "./TeamViewer";
@@ -130,6 +132,7 @@ import Terminal from "./Terminal";
 import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
 import Tower from "./Tower";
+import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
 import VisualStudioCode from "./VisualStudioCode";
@@ -257,6 +260,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   pycharm: PyCharm,
   quip: Quip,
   "rancher desktop": RancherDesktop,
+  raycast: Raycast,
   rectangle: Rectangle,
   rider: Rider,
   rubymine: RubyMine,
@@ -270,6 +274,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   sourcetree: Sourcetree,
   spotify: Spotify,
   "sublime text": SublimeText,
+  tableau: TableauDesktop,
   tableplus: TablePlus,
   tailscale: Tailscale,
   telegram: Telegram,
@@ -281,6 +286,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   thunderbird: Thunderbird,
   todoist: Todoist,
   tower: Tower,
+  transmit: Transmit,
   tunnelblick: Tunnelblick,
   twingate: Twingate,
   "vnc viewer": VncViewer,
@@ -376,8 +382,6 @@ const matchStrictNameSourceToIcon = ({
     case name === "zoom.us.app" && source === "apps":
       return Zoom;
     case name === "zoom":
-      return Zoom;
-    case name === "zoom.us":
       return Zoom;
     case name.startsWith("zoom workplace"):
       return Zoom;

@@ -15,8 +15,8 @@ At Fleet, we believe that trust is built through transparency, which is why we w
 With Fleet, you can:
 
 - **Own your data:** We make it easy to get data in and out.
-- **Community driven:** We build alongside a community of engineers who use the product every day.
 - **Audit the code:** You don't have to take our word for it. You can see exactly what the agent is doing.
+- **Help shape the product:** Fleet is community driven. We build alongside a community of engineers who use the product every day.
 
 This open model isn't just a philosophy. It's how we ship faster, respond to our users’ needs, and help keep IT and security teams aligned.
 
