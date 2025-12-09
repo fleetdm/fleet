@@ -3111,13 +3111,8 @@ WHERE
 		UUID            string  `db:"uuid"`
 		AppliedPolicyID *string `db:"applied_policy_id"`
 	}
-<<<<<<< Updated upstream
-	if err := sqlx.SelectContext(ctx, tx, &queryResults, stmt, softwareID, softwareID, softwareID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing host uuids included in software scope")
-=======
 	if err := sqlx.SelectContext(ctx, tx, &queryResults, stmt, softwareID, softwareID, softwareID, softwareID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
->>>>>>> Stashed changes
 	}
 
 	res := make(map[string]string, len(queryResults))
