@@ -1341,6 +1341,8 @@ func (ds *Datastore) HostMemberOfAllLabels(ctx context.Context, hostID uint, lab
 }
 
 func (ds *Datastore) AddLabelsToHost(ctx context.Context, hostID uint, labelIDs []uint) error {
+	// TODO kick back if team labels specified and host doesn't match label team
+
 	if len(labelIDs) == 0 {
 		return nil
 	}
@@ -1359,6 +1361,7 @@ func (ds *Datastore) AddLabelsToHost(ctx context.Context, hostID uint, labelIDs 
 }
 
 func (ds *Datastore) RemoveLabelsFromHost(ctx context.Context, hostID uint, labelIDs []uint) error {
+	// We *don't* check label team here because a wrong-team label won't be on the host in the first place
 	if len(labelIDs) == 0 {
 		return nil
 	}

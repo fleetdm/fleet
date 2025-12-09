@@ -2997,6 +2997,7 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 		return nil, nil
 	}
 
+	// TODO filter labels based on who is asking for it
 	labels, err := svc.ds.LabelIDsByName(ctx, labelNames)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
