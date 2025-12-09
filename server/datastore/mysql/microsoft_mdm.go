@@ -2464,8 +2464,10 @@ func (ds *Datastore) GetWindowsMDMCommandsForResending(ctx context.Context, fail
 	stmt := `SELECT command_uuid, raw_command, target_loc_uri, created_at, updated_at 
 		FROM windows_mdm_commands WHERE`
 
+	args := []any{}
 	for idx, commandId := range failedCommandIds {
-		stmt += fmt.Sprintf(" raw_command LIKE '%%%s%%' OR ", commandId)
+		stmt += " raw_command LIKE ? OR "
+		args = append(args, "%"+commandId+"%")
 		if idx == len(failedCommandIds)-1 {
 			stmt = strings.TrimSuffix(stmt, " OR ")
 		}
@@ -2474,7 +2476,7 @@ func (ds *Datastore) GetWindowsMDMCommandsForResending(ctx context.Context, fail
 	stmt += fmt.Sprintf(" ORDER BY created_at DESC LIMIT %d", len(failedCommandIds))
 
 	var commands []*fleet.MDMWindowsCommand
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, stmt); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting windows mdm commands for resending")
 	}
 
