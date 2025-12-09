@@ -191,6 +191,13 @@
       "description": "Cisco Jabber is a collaboration and communication app."
     },
     {
+      "name": "Cisco Jabber",
+      "slug": "cisco-jabber/windows",
+      "platform": "windows",
+      "unique_identifier": "Cisco Jabber",
+      "description": "Cisco Jabber is a collaboration and communication app."
+    },
+    {
       "name": "Citrix Workspace",
       "slug": "citrix-workspace/darwin",
       "platform": "darwin",
@@ -890,7 +897,7 @@
       "unique_identifier": "com.sublimetext.4",
       "description": "Sublime Text is a text editor for code, markup, and prose."
     },
-    {  
+    {
       "name": "Sublime Text",
       "slug": "sublime-text/windows",
       "platform": "windows",
@@ -898,18 +905,18 @@
       "description": "Sublime Text is a text editor for code, markup, and prose."
     },
     {
-      "name": "TablePlus",
-      "slug": "tableplus/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.tinyapp.TablePlus",
-      "description": "TablePlus is a native GUI tool for relational databases."
-    },
-    {
       "name": "Tableau Desktop",
       "slug": "tableau/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tableausoftware.Desktop.app",
       "description": "Tableau Desktop is a powerful data visualization and business intelligence platform for analyzing and presenting data insights."
+    },
+    {
+      "name": "TablePlus",
+      "slug": "tableplus/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.tinyapp.TablePlus",
+      "description": "TablePlus is a native GUI tool for relational databases."
     },
     {
       "name": "Tailscale",
