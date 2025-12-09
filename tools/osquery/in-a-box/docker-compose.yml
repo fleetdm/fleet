@@ -137,6 +137,7 @@ services:
 
   s3:
     image: rustfs/rustfs:latest
+    command: mkdir -p /data/software-installers-preview && rustfs
     environment:
       - RUSTFS_ADDRESS=0.0.0.0:9000
       - RUSTFS_EXTERNAL_ADDRESS=:9000
