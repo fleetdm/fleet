@@ -140,6 +140,7 @@ import Twingate from "./Twingate";
 import VisualStudioCode from "./VisualStudioCode";
 import Vlc from "./Vlc";
 import VncViewer from "./VncViewer";
+import Warp from "./Warp";
 import WebStorm from "./WebStorm";
 import Webex from "./Webex";
 import WhatsApp from "./WhatsApp";
@@ -296,6 +297,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "vnc viewer": VncViewer,
   "visual studio code": VisualStudioCode,
   vlc: Vlc,
+  warp: Warp,
   webstorm: WebStorm,
   webex: Webex,
   whatsapp: WhatsApp,

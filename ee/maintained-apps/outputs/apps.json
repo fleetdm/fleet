@@ -1080,6 +1080,13 @@
       "description": "VNC Viewer is a remote desktop application focusing on security."
     },
     {
+      "name": "Warp",
+      "slug": "warp/darwin",
+      "platform": "darwin",
+      "unique_identifier": "dev.warp.Warp-Stable",
+      "description": "Warp is a rust-based terminal app."
+    },
+    {
       "name": "Webex",
       "slug": "webex/darwin",
       "platform": "darwin",
