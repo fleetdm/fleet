@@ -212,6 +212,13 @@
       "description": "ClickUp is a productivity platform for tasks, docs, goals, and chat."
     },
     {
+      "name": "ClickUp",
+      "slug": "clickup/windows",
+      "platform": "windows",
+      "unique_identifier": "ClickUp",
+      "description": "ClickUp is a productivity platform for tasks, docs, goals, and chat."
+    },
+    {
       "name": "CLion",
       "slug": "clion/darwin",
       "platform": "darwin",
