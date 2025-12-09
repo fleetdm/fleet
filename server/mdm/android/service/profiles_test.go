@@ -934,7 +934,7 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	for _, hct := range host1CertTemplates {
 		require.Equal(t, host1.Host.UUID, hct.HostUUID)
 		require.NotEmpty(t, hct.FleetChallenge)
-		require.Equal(t, "pending", hct.Status)
+		require.EqualValues(t, fleet.CertificateTemplateDelivered, hct.Status)
 	}
 
 	client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = false
