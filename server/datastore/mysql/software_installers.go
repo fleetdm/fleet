@@ -1947,11 +1947,11 @@ WHERE (unique_identifier, source, extension_for) IN (%s)
 `
 
 	const getSoftwareTitle = `
-SELECT 
-	id 
-FROM 
-	software_titles 
-WHERE 
+SELECT
+	id
+FROM
+	software_titles
+WHERE
 	unique_identifier = ? AND source = ? AND extension_for = ''
 `
 
@@ -2167,7 +2167,7 @@ INSERT INTO software_installers (
 	install_during_setup,
 	fleet_maintained_app_id
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?
 )
 ON DUPLICATE KEY UPDATE

@@ -2376,6 +2376,12 @@ type Datastore interface {
 	// GetAndroidAppConfiguration retrieves the configuration for an Android app
 	// identified by adam_id and global_or_team_id.
 	GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*AndroidAppConfiguration, error)
+	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*AndroidAppConfiguration, error)
+	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error)
+
+	// BulkGetAndroidAppConfigurations retrieves Android app configurations for
+	// all provided apps and returns them indexed by the app id.
+	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error)
 
 	// InsertAndroidAppConfiguration creates a new Android app configuration entry.
 	InsertAndroidAppConfiguration(ctx context.Context, config *AndroidAppConfiguration) error
