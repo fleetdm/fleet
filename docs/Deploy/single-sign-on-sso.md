@@ -142,9 +142,9 @@ After supplying the above information, your IdP will generate an issuer URI and 
 
 ## Fleet configuration
 
-To configure SSO in Fleet head to **Settings > Integrations > Single sign-on (SSO)**.
+To configure SSO in Fleet head to **Settings > Integrations > Single sign-on (SSO) > Fleet users**.
 
-If you're configuring end user authentication head to **Settings > Integrations > Automatic enrollment > End user authentication**.
+If you're configuring end user authentication head to **Settings > Integrations > Single sign-on (SSO) > End users**.
 
 - **Identity provider name** - A human-readable name of the IdP. This is rendered on the login page.
 
@@ -169,7 +169,7 @@ When JIT user provisioning is turned on, Fleet will automatically create an acco
 By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions).
 To assign different roles for accounts created via JIT provisioning, see [Customization of user roles](#customization-of-user-roles) below.
 
-To enable this option, go to **Settings > Integrations > Single sign-on (SSO)** and check "_Create user and sync permissions on login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
+To enable this option, go to **Settings > Integrations > Single sign-on (SSO) > Fleet users** and check "_Create user and sync permissions on login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
 
 For this to work correctly make sure that:
 
