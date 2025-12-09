@@ -1549,7 +1549,7 @@ type GetAndroidAppConfigurationFunc func(ctx context.Context, adamID string, glo
 
 type GetAndroidAppConfigurationByAppTeamIDFunc func(ctx context.Context, vppAppTeamID uint) (*fleet.AndroidAppConfiguration, error)
 
-type HasAndroidAppConfigurationChangedFunc func(ctx context.Context, adamID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error)
+type HasAndroidAppConfigurationChangedFunc func(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error)
 
 type BulkGetAndroidAppConfigurationsFunc func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error)
 
@@ -9488,11 +9488,11 @@ func (s *DataStore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, v
 	return s.GetAndroidAppConfigurationByAppTeamIDFunc(ctx, vppAppTeamID)
 }
 
-func (s *DataStore) HasAndroidAppConfigurationChanged(ctx context.Context, adamID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error) {
+func (s *DataStore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error) {
 	s.mu.Lock()
 	s.HasAndroidAppConfigurationChangedFuncInvoked = true
 	s.mu.Unlock()
-	return s.HasAndroidAppConfigurationChangedFunc(ctx, adamID, globalOrTeamID, newConfig)
+	return s.HasAndroidAppConfigurationChangedFunc(ctx, applicationID, globalOrTeamID, newConfig)
 }
 
 func (s *DataStore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error) {

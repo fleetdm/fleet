@@ -1635,14 +1635,14 @@ WHERE
 // HasAndroidAppConfigurationChanged checks if the new configuration for an Android app
 // identified by adam_id and global_or_team_id is different from the existing one. This
 // is a datastore method so that we rely on mysql's canonicalisation of JSON for comparison.
-func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, adamID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error) {
+func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error) {
 	const stmt = `
-SELECT 
+SELECT
 	CAST(? AS JSON) != configuration AS has_changed
-FROM 
+FROM
 	android_app_configurations
-WHERE 
-	application_id = ? AND 
+WHERE
+	application_id = ? AND
 	global_or_team_id = ?
 `
 
@@ -1652,7 +1652,7 @@ WHERE
 	}
 
 	var hasChanged bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfigStr, adamID, globalOrTeamID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfigStr, applicationID, globalOrTeamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// old config does not exist, so old one is changed if not empty
