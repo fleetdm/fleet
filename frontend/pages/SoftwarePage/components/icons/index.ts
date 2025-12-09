@@ -76,6 +76,7 @@ import Logioptionsplus from "./Logioptionsplus";
 import Loom from "./Loom";
 import LuLu from "./LuLu";
 import MacOS from "./MacOS";
+import ManagedSoftwareCenter from "./ManagedSoftwareCenter";
 import Messenger from "./Messenger";
 import MicrosoftAutoUpdate from "./MicrosoftAutoUpdate";
 import MicrosoftOneNote from "./MicrosoftOneNote";
@@ -204,6 +205,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "gpg keychain": GpgKeychain,
   keepassxc: KeePassXc,
   libreoffice: LibreOffice,
+  "managed software center": ManagedSoftwareCenter,
   "microsoft autoupdate": MicrosoftAutoUpdate,
   "mozilla firefox": Firefox,
   "github desktop": GitHubDesktop,
