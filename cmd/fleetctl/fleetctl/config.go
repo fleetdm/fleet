@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	configFilePerms = 0600
+	configFilePerms = 0o600
 )
 
 type configFile struct {
@@ -56,7 +56,7 @@ func contextFlag() cli.Flag {
 
 func makeConfigIfNotExists(fp string) error {
 	if _, err := os.Stat(filepath.Dir(fp)); errors.Is(err, os.ErrNotExist) {
-		if err := secure.MkdirAll(filepath.Dir(fp), 0700); err != nil {
+		if err := secure.MkdirAll(filepath.Dir(fp), 0o700); err != nil {
 			return err
 		}
 	}
@@ -300,7 +300,8 @@ func configSetCommand() *cli.Command {
 				if err := setConfigValue(configPath, context, "token", flToken); err != nil {
 					return fmt.Errorf("error setting token: %w", err)
 				}
-				fmt.Printf("[+] Set the token config key to %q in the %q context\n", flToken, c.String("context"))
+				// Redact the token from the output as this may be run in contexts where it is logged.
+				fmt.Printf("[+] Set the token config key to \"<redacted>\" in the %q context\n", c.String("context"))
 			}
 
 			if flTLSSkipVerify {

@@ -292,12 +292,14 @@ cd "$REPO_ROOT" || {
 # Defaults
 SLUG=""
 APP_PATH=""
+PNG_PATH=""
 
 # Parse required arguments
-while getopts ":s:a:" opt; do
+while getopts ":s:a:i:" opt; do
   case "$opt" in
     s) SLUG=$(echo "$OPTARG" | cut -d'/' -f1) ;;
     a) APP_PATH="$OPTARG" ;;
+    i) PNG_PATH="$OPTARG" ;;
     \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
     :) echo "Option -$OPTARG requires an argument." >&2; exit 1 ;;
   esac
@@ -309,35 +311,98 @@ if ! command -v svgr &> /dev/null; then
 fi
 
 # Validate
-if [[ -z "$SLUG" || -z "$APP_PATH" ]]; then
-  echo "Usage: $0 -s slug-name -a /path/to/App.app"
+if [[ -z "$SLUG" ]]; then
+  echo "Usage: $0 -s slug-name [-a /path/to/App.app | -i /path/to/icon.png]"
+  echo "  -s: Slug name (required)"
+  echo "  -a: Path to .app bundle (required if -i not provided)"
+  echo "  -i: Path to PNG icon file (required if -a not provided)"
   exit 1
 fi
 
-# Read Info.plist to get the icon file name
-INFO_PLIST="$APP_PATH/Contents/Info.plist"
-if [[ ! -f "$INFO_PLIST" ]]; then
-  echo "Error: Info.plist not found at $INFO_PLIST"
+if [[ -z "$APP_PATH" && -z "$PNG_PATH" ]]; then
+  echo "Error: Either -a (app path) or -i (PNG path) must be provided"
+  echo "Usage: $0 -s slug-name [-a /path/to/App.app | -i /path/to/icon.png]"
   exit 1
 fi
 
-# Extract CFBundleIconFile from Info.plist
-ICON_FILE=$(defaults read "$INFO_PLIST" CFBundleIconFile 2>/dev/null || plutil -extract CFBundleIconFile raw "$INFO_PLIST" 2>/dev/null || echo "")
+if [[ -n "$APP_PATH" && -n "$PNG_PATH" ]]; then
+  echo "Error: Cannot specify both -a and -i options"
+  exit 1
+fi
 
-# If CFBundleIconFile not found, try modern approach with CFBundleIconName (Asset Catalog)
-if [[ -z "$ICON_FILE" ]]; then
-  ICON_NAME=$(defaults read "$INFO_PLIST" CFBundleIconName 2>/dev/null || plutil -extract CFBundleIconName raw "$INFO_PLIST" 2>/dev/null || echo "")
+TMP_DIR=$(mktemp -d)
 
-  if [[ -n "$ICON_NAME" ]]; then
-    echo "CFBundleIconFile not found, but CFBundleIconName found: $ICON_NAME"
-    echo "Extracting icon from Asset Catalog using macOS Workspace API..."
+# Handle PNG file input directly
+if [[ -n "$PNG_PATH" ]]; then
+  if [[ ! -f "$PNG_PATH" ]]; then
+    echo "Error: PNG file not found at $PNG_PATH"
+    exit 1
+  fi
+  
+  # Verify it's a PNG file
+  if ! file "$PNG_PATH" | grep -q "PNG"; then
+    echo "Error: File does not appear to be a PNG image: $PNG_PATH"
+    exit 1
+  fi
+  
+  echo "Using PNG file directly: $PNG_PATH"
+  ICON_128="$PNG_PATH"
+  
+  # Derive component name from slug
+  # Convert slug to PascalCase (e.g., "company-portal" -> "CompanyPortal")
+  # Split by hyphens/underscores, capitalize first letter of each word, join
+  COMPONENT_NAME=$(echo "$SLUG" | awk -F'[_-]' '{
+    result = ""
+    for (i=1; i<=NF; i++) {
+      word = $i
+      if (length(word) > 0) {
+        first = toupper(substr(word, 1, 1))
+        rest = substr(word, 2)
+        result = result first rest
+      }
+    }
+    print result
+  }')
+  
+  # Derive app display name from slug (convert hyphens/underscores to spaces and capitalize)
+  APP_DISPLAY_NAME=$(echo "$SLUG" | awk -F'[_-]' '{
+    result = ""
+    for (i=1; i<=NF; i++) {
+      if (i > 1) result = result " "
+      word = $i
+      if (length(word) > 0) {
+        first = toupper(substr(word, 1, 1))
+        rest = substr(word, 2)
+        result = result first rest
+      }
+    }
+    print result
+  }')
+else
+  # Read Info.plist to get the icon file name
+  INFO_PLIST="$APP_PATH/Contents/Info.plist"
+  if [[ ! -f "$INFO_PLIST" ]]; then
+    echo "Error: Info.plist not found at $INFO_PLIST"
+    exit 1
+  fi
 
-    # Create temporary directory for extraction
-    TMP_EXTRACT_DIR=$(mktemp -d)
-    EXTRACTED_ICON="$TMP_EXTRACT_DIR/app-icon.png"
+  # Extract CFBundleIconFile from Info.plist
+  ICON_FILE=$(defaults read "$INFO_PLIST" CFBundleIconFile 2>/dev/null || plutil -extract CFBundleIconFile raw "$INFO_PLIST" 2>/dev/null || echo "")
 
-    # Use osascript to extract icon via NSWorkspace
-    osascript <<EOF
+  # If CFBundleIconFile not found, try modern approach with CFBundleIconName (Asset Catalog)
+  if [[ -z "$ICON_FILE" ]]; then
+    ICON_NAME=$(defaults read "$INFO_PLIST" CFBundleIconName 2>/dev/null || plutil -extract CFBundleIconName raw "$INFO_PLIST" 2>/dev/null || echo "")
+
+    if [[ -n "$ICON_NAME" ]]; then
+      echo "CFBundleIconFile not found, but CFBundleIconName found: $ICON_NAME"
+      echo "Extracting icon from Asset Catalog using macOS Workspace API..."
+
+      # Create temporary directory for extraction
+      TMP_EXTRACT_DIR=$(mktemp -d)
+      EXTRACTED_ICON="$TMP_EXTRACT_DIR/app-icon.png"
+
+      # Use osascript to extract icon via NSWorkspace
+      osascript <<EOF
 use framework "Foundation"
 use framework "AppKit"
 
@@ -354,92 +419,103 @@ set pngData to (imageRep's representationUsingType:(current application's NSPNGF
 pngData's writeToFile:outputPath atomically:true
 EOF
 
-    if [[ ! -f "$EXTRACTED_ICON" ]]; then
-      echo "Error: Failed to extract icon from Asset Catalog"
+      if [[ ! -f "$EXTRACTED_ICON" ]]; then
+        echo "Error: Failed to extract icon from Asset Catalog"
+        exit 1
+      fi
+
+      # Create a temporary icns file from the extracted PNG for compatibility with rest of script
+      TMP_ICNS="$TMP_EXTRACT_DIR/app-icon.icns"
+
+      # Create iconset directory
+      ICONSET_DIR="$TMP_EXTRACT_DIR/AppIcon.iconset"
+      mkdir -p "$ICONSET_DIR"
+
+      # Generate multiple sizes for iconset
+      sips -z 16 16 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_16x16.png" > /dev/null 2>&1
+      sips -z 32 32 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_16x16@2x.png" > /dev/null 2>&1
+      sips -z 32 32 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_32x32.png" > /dev/null 2>&1
+      sips -z 64 64 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_32x32@2x.png" > /dev/null 2>&1
+      sips -z 128 128 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_128x128.png" > /dev/null 2>&1
+      sips -z 256 256 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_128x128@2x.png" > /dev/null 2>&1
+      sips -z 256 256 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_256x256.png" > /dev/null 2>&1
+      sips -z 512 512 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_256x256@2x.png" > /dev/null 2>&1
+      sips -z 512 512 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_512x512.png" > /dev/null 2>&1
+      sips -z 1024 1024 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_512x512@2x.png" > /dev/null 2>&1
+
+      # Create icns from iconset
+      iconutil -c icns "$ICONSET_DIR" -o "$TMP_ICNS"
+
+      if [[ ! -f "$TMP_ICNS" ]]; then
+        echo "Error: Failed to create icns file from extracted icon"
+        exit 1
+      fi
+
+      ICNS_PATH="$TMP_ICNS"
+      echo "Successfully extracted icon from Asset Catalog"
+    else
+      echo "Error: Neither CFBundleIconFile nor CFBundleIconName found in Info.plist"
       exit 1
     fi
-
-    # Create a temporary icns file from the extracted PNG for compatibility with rest of script
-    TMP_ICNS="$TMP_EXTRACT_DIR/app-icon.icns"
-
-    # Create iconset directory
-    ICONSET_DIR="$TMP_EXTRACT_DIR/AppIcon.iconset"
-    mkdir -p "$ICONSET_DIR"
-
-    # Generate multiple sizes for iconset
-    sips -z 16 16 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_16x16.png" > /dev/null 2>&1
-    sips -z 32 32 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_16x16@2x.png" > /dev/null 2>&1
-    sips -z 32 32 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_32x32.png" > /dev/null 2>&1
-    sips -z 64 64 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_32x32@2x.png" > /dev/null 2>&1
-    sips -z 128 128 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_128x128.png" > /dev/null 2>&1
-    sips -z 256 256 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_128x128@2x.png" > /dev/null 2>&1
-    sips -z 256 256 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_256x256.png" > /dev/null 2>&1
-    sips -z 512 512 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_256x256@2x.png" > /dev/null 2>&1
-    sips -z 512 512 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_512x512.png" > /dev/null 2>&1
-    sips -z 1024 1024 "$EXTRACTED_ICON" --out "$ICONSET_DIR/icon_512x512@2x.png" > /dev/null 2>&1
-
-    # Create icns from iconset
-    iconutil -c icns "$ICONSET_DIR" -o "$TMP_ICNS"
-
-    if [[ ! -f "$TMP_ICNS" ]]; then
-      echo "Error: Failed to create icns file from extracted icon"
-      exit 1
-    fi
-
-    ICNS_PATH="$TMP_ICNS"
-    echo "Successfully extracted icon from Asset Catalog"
   else
-    echo "Error: Neither CFBundleIconFile nor CFBundleIconName found in Info.plist"
+    # Handle case where extension might or might not be included
+    if [[ "$ICON_FILE" != *.icns ]]; then
+      ICON_FILE="${ICON_FILE}.icns"
+    fi
+
+    # Find the exact icon file in Resources folder
+    ICNS_PATH="$APP_PATH/Contents/Resources/$ICON_FILE"
+    if [[ ! -f "$ICNS_PATH" ]]; then
+      echo "Error: Icon file '$ICON_FILE' not found in $APP_PATH/Contents/Resources"
+      exit 1
+    fi
+
+    echo "Using icon file: $ICON_FILE"
+  fi
+
+  # Extract iconset
+  ICON_DIR="$TMP_DIR/icons.iconset"
+  mkdir -p "$ICON_DIR"
+  iconutil -c iconset "$ICNS_PATH" -o "$ICON_DIR"
+
+  # Debug: list all PNG files in iconset
+  echo "Available icon files in iconset:"
+  find "$ICON_DIR" -name "*.png" | sort || true
+
+  # Find the 128x128 PNG (prefer exact 128x128, not @2x)
+  ICON_128=$(find "$ICON_DIR" -name "*128x128.png" ! -name "*@2x*" | head -n 1)
+  if [[ -z "$ICON_128" ]]; then
+    # Fallback: try 128x128@2x (which is 256x256)
+    ICON_128=$(find "$ICON_DIR" -name "*128x128@2x.png" | head -n 1)
+  fi
+  if [[ -z "$ICON_128" ]]; then
+    # Fallback: try any icon with 128 in the name
+    ICON_128=$(find "$ICON_DIR" -name "*128*.png" | head -n 1)
+  fi
+  if [[ -z "$ICON_128" ]]; then
+    # Last resort: find the largest PNG (prefer larger sizes)
+    ICON_128=$(find "$ICON_DIR" -name "*.png" | sort -V | tail -n 1)
+  fi
+
+  if [[ -z "$ICON_128" ]]; then
+    echo "Error: No icon PNG files found in extracted iconset."
+    echo "ICON_DIR: $ICON_DIR"
     exit 1
   fi
-else
-  # Handle case where extension might or might not be included
-  if [[ "$ICON_FILE" != *.icns ]]; then
-    ICON_FILE="${ICON_FILE}.icns"
-  fi
 
-  # Find the exact icon file in Resources folder
-  ICNS_PATH="$APP_PATH/Contents/Resources/$ICON_FILE"
-  if [[ ! -f "$ICNS_PATH" ]]; then
-    echo "Error: Icon file '$ICON_FILE' not found in $APP_PATH/Contents/Resources"
-    exit 1
-  fi
-
-  echo "Using icon file: $ICON_FILE"
+  echo "Using icon for SVG and PNG: $ICON_128"
+  
+  # Determine component and file names from app bundle
+  APP_NAME=$(basename "$APP_PATH" .app)
+  COMPONENT_NAME="${APP_NAME//[^a-zA-Z0-9]/}"
+  
+  # Extract app name from Info.plist for map key
+  APP_DISPLAY_NAME=$(defaults read "$INFO_PLIST" CFBundleName 2>/dev/null || \
+                     plutil -extract CFBundleName raw "$INFO_PLIST" 2>/dev/null || \
+                     defaults read "$INFO_PLIST" CFBundleDisplayName 2>/dev/null || \
+                     plutil -extract CFBundleDisplayName raw "$INFO_PLIST" 2>/dev/null || \
+                     echo "$APP_NAME")
 fi
-
-# Extract iconset
-TMP_DIR=$(mktemp -d)
-ICON_DIR="$TMP_DIR/icons.iconset"
-mkdir -p "$ICON_DIR"
-iconutil -c iconset "$ICNS_PATH" -o "$ICON_DIR"
-
-# Debug: list all PNG files in iconset
-echo "Available icon files in iconset:"
-find "$ICON_DIR" -name "*.png" | sort || true
-
-# Find the 128x128 PNG (prefer exact 128x128, not @2x)
-ICON_128=$(find "$ICON_DIR" -name "*128x128.png" ! -name "*@2x*" | head -n 1)
-if [[ -z "$ICON_128" ]]; then
-  # Fallback: try 128x128@2x (which is 256x256)
-  ICON_128=$(find "$ICON_DIR" -name "*128x128@2x.png" | head -n 1)
-fi
-if [[ -z "$ICON_128" ]]; then
-  # Fallback: try any icon with 128 in the name
-  ICON_128=$(find "$ICON_DIR" -name "*128*.png" | head -n 1)
-fi
-if [[ -z "$ICON_128" ]]; then
-  # Last resort: find the largest PNG (prefer larger sizes)
-  ICON_128=$(find "$ICON_DIR" -name "*.png" | sort -V | tail -n 1)
-fi
-
-if [[ -z "$ICON_128" ]]; then
-  echo "Error: No icon PNG files found in extracted iconset."
-  echo "ICON_DIR: $ICON_DIR"
-  exit 1
-fi
-
-echo "Using icon for SVG and PNG: $ICON_128"
 
 # Check dimensions and resize to 128x128 if larger
 ICON_WIDTH=$(sips -g pixelWidth "$ICON_128" | grep pixelWidth | awk '{print $2}')
@@ -462,7 +538,14 @@ fi
 WIDTH=32
 HEIGHT=32
 BASE64_DATA=$(base64 -i "$ICON_128" | tr -d '\n')
-OUTPUT_SVG="$TMP_DIR/$(basename "$APP_PATH" .app).svg"
+
+# Determine SVG filename based on input method
+if [[ -n "$PNG_PATH" ]]; then
+  SVG_BASENAME="$SLUG"
+else
+  SVG_BASENAME=$(basename "$APP_PATH" .app)
+fi
+OUTPUT_SVG="$TMP_DIR/${SVG_BASENAME}.svg"
 
 cat > "$OUTPUT_SVG" <<EOF
 <svg xmlns="http://www.w3.org/2000/svg" width="$WIDTH" height="$HEIGHT" viewBox="0 0 $WIDTH $HEIGHT" version="1.1">
@@ -478,9 +561,6 @@ echo "SVG saved to: $OUTPUT_SVG"
 # svgr tool to make the result pass linting.
 svgr "$OUTPUT_SVG" --typescript --ext tsx --out-dir frontend/pages/SoftwarePage/components/icons/
 
-# Determine component and file names
-APP_NAME=$(basename "$APP_PATH" .app)
-COMPONENT_NAME="${APP_NAME//[^a-zA-Z0-9]/}"
 TSX_FILE="frontend/pages/SoftwarePage/components/icons/${COMPONENT_NAME}.tsx"
 
 echo "Component name: $COMPONENT_NAME"
@@ -497,13 +577,6 @@ fi
 
 NEW_COMPONENT_NAME="${SVG_COMPONENT_NAME#Svg}"
 sed -i '' "s/$SVG_COMPONENT_NAME/$NEW_COMPONENT_NAME/g" "$TSX_FILE"
-
-# Extract app name from Info.plist for map key
-APP_DISPLAY_NAME=$(defaults read "$INFO_PLIST" CFBundleName 2>/dev/null || \
-                   plutil -extract CFBundleName raw "$INFO_PLIST" 2>/dev/null || \
-                   defaults read "$INFO_PLIST" CFBundleDisplayName 2>/dev/null || \
-                   plutil -extract CFBundleDisplayName raw "$INFO_PLIST" 2>/dev/null || \
-                   echo "$APP_NAME")
 
 # Update index.ts with import and map entry
 echo "Updating index.ts with new icon..."

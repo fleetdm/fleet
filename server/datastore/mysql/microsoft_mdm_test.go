@@ -1415,6 +1415,25 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	_, err = insertDB(t, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code) VALUES (?, ?, ?, ?, ?)`, enrollmentID, cmdUUID, rawResult, responseID, statusCode)
 	require.NoError(t, err)
 
+	// Create multiple command queue entries to ensure no duplicated rows.
+	dev2 := createEnrolledDevice(t, ds)
+	dev3 := createEnrolledDevice(t, ds)
+	var enrollmentID2 uint
+	var enrollmentID3 uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &enrollmentID2,
+		`SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, dev2.MDMDeviceID))
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &enrollmentID3,
+		`SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, dev3.MDMDeviceID))
+
+	// Insert queue entry for BOTH enrollments
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid)
+         VALUES (?, ?), (?, ?)`,
+		enrollmentID2, cmdUUID,
+		enrollmentID3, cmdUUID,
+	)
+	require.NoError(t, err)
+
 	p, err := ds.GetMDMCommandPlatform(ctx, cmdUUID)
 	require.NoError(t, err)
 	require.Equal(t, "windows", p)

@@ -1363,7 +1363,7 @@ type GetAssignedVPPAppsFunc func(ctx context.Context, teamID *uint) (map[fleet.V
 
 type GetVPPAppsFunc func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error)
 
-type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.VPPAppTeam) error
+type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.VPPAppTeam, appStoreAppIDsToTitleIDs map[string]uint) error
 
 type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
 
@@ -1547,6 +1547,12 @@ type InsertAndroidSetupExperienceSoftwareInstallFunc func(ctx context.Context, p
 
 type GetAndroidAppConfigurationFunc func(ctx context.Context, adamID string, globalOrTeamID uint) (*fleet.AndroidAppConfiguration, error)
 
+type GetAndroidAppConfigurationByAppTeamIDFunc func(ctx context.Context, vppAppTeamID uint) (*fleet.AndroidAppConfiguration, error)
+
+type HasAndroidAppConfigurationChangedFunc func(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error)
+
+type BulkGetAndroidAppConfigurationsFunc func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error)
+
 type InsertAndroidAppConfigurationFunc func(ctx context.Context, config *fleet.AndroidAppConfiguration) error
 
 type UpdateAndroidAppConfigurationFunc func(ctx context.Context, config *fleet.AndroidAppConfiguration) error
@@ -1637,7 +1643,7 @@ type UpdateCertificateAuthorityByIDFunc func(ctx context.Context, id uint, certi
 
 type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error
 
-type UpdateCertificateStatusFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error
+type UpsertCertificateStatusFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error
 
 type BatchUpsertCertificateTemplatesFunc func(ctx context.Context, certificates []*fleet.CertificateTemplate) error
 
@@ -3956,6 +3962,15 @@ type DataStore struct {
 	GetAndroidAppConfigurationFunc        GetAndroidAppConfigurationFunc
 	GetAndroidAppConfigurationFuncInvoked bool
 
+	GetAndroidAppConfigurationByAppTeamIDFunc        GetAndroidAppConfigurationByAppTeamIDFunc
+	GetAndroidAppConfigurationByAppTeamIDFuncInvoked bool
+
+	HasAndroidAppConfigurationChangedFunc        HasAndroidAppConfigurationChangedFunc
+	HasAndroidAppConfigurationChangedFuncInvoked bool
+
+	BulkGetAndroidAppConfigurationsFunc        BulkGetAndroidAppConfigurationsFunc
+	BulkGetAndroidAppConfigurationsFuncInvoked bool
+
 	InsertAndroidAppConfigurationFunc        InsertAndroidAppConfigurationFunc
 	InsertAndroidAppConfigurationFuncInvoked bool
 
@@ -4091,8 +4106,8 @@ type DataStore struct {
 	BatchApplyCertificateAuthoritiesFunc        BatchApplyCertificateAuthoritiesFunc
 	BatchApplyCertificateAuthoritiesFuncInvoked bool
 
-	UpdateCertificateStatusFunc        UpdateCertificateStatusFunc
-	UpdateCertificateStatusFuncInvoked bool
+	UpsertCertificateStatusFunc        UpsertCertificateStatusFunc
+	UpsertCertificateStatusFuncInvoked bool
 
 	BatchUpsertCertificateTemplatesFunc        BatchUpsertCertificateTemplatesFunc
 	BatchUpsertCertificateTemplatesFuncInvoked bool
@@ -8832,11 +8847,11 @@ func (s *DataStore) GetVPPApps(ctx context.Context, teamID *uint) ([]fleet.VPPAp
 	return s.GetVPPAppsFunc(ctx, teamID)
 }
 
-func (s *DataStore) SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []fleet.VPPAppTeam) error {
+func (s *DataStore) SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []fleet.VPPAppTeam, appStoreAppIDsToTitleIDs map[string]uint) error {
 	s.mu.Lock()
 	s.SetTeamVPPAppsFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetTeamVPPAppsFunc(ctx, teamID, appIDs)
+	return s.SetTeamVPPAppsFunc(ctx, teamID, appIDs, appStoreAppIDsToTitleIDs)
 }
 
 func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
@@ -9476,6 +9491,27 @@ func (s *DataStore) GetAndroidAppConfiguration(ctx context.Context, adamID strin
 	return s.GetAndroidAppConfigurationFunc(ctx, adamID, globalOrTeamID)
 }
 
+func (s *DataStore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*fleet.AndroidAppConfiguration, error) {
+	s.mu.Lock()
+	s.GetAndroidAppConfigurationByAppTeamIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAndroidAppConfigurationByAppTeamIDFunc(ctx, vppAppTeamID)
+}
+
+func (s *DataStore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error) {
+	s.mu.Lock()
+	s.HasAndroidAppConfigurationChangedFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasAndroidAppConfigurationChangedFunc(ctx, applicationID, globalOrTeamID, newConfig)
+}
+
+func (s *DataStore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error) {
+	s.mu.Lock()
+	s.BulkGetAndroidAppConfigurationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkGetAndroidAppConfigurationsFunc(ctx, appIDs, globalOrTeamID)
+}
+
 func (s *DataStore) InsertAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
 	s.mu.Lock()
 	s.InsertAndroidAppConfigurationFuncInvoked = true
@@ -9791,11 +9827,11 @@ func (s *DataStore) BatchApplyCertificateAuthorities(ctx context.Context, ops fl
 	return s.BatchApplyCertificateAuthoritiesFunc(ctx, ops)
 }
 
-func (s *DataStore) UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error {
+func (s *DataStore) UpsertCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error {
 	s.mu.Lock()
-	s.UpdateCertificateStatusFuncInvoked = true
+	s.UpsertCertificateStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateCertificateStatusFunc(ctx, hostUUID, certificateTemplateID, status, detail)
+	return s.UpsertCertificateStatusFunc(ctx, hostUUID, certificateTemplateID, status, detail)
 }
 
 func (s *DataStore) BatchUpsertCertificateTemplates(ctx context.Context, certificates []*fleet.CertificateTemplate) error {

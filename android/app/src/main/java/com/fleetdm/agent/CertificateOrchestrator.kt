@@ -4,12 +4,19 @@ import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.os.Bundle
 import android.util.Log
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.fleetdm.agent.scep.ScepClient
 import com.fleetdm.agent.scep.ScepClientImpl
 import java.security.PrivateKey
 import java.security.cert.Certificate
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 /**
  * Orchestrates certificate enrollment operations by coordinating API calls,
@@ -41,6 +48,18 @@ import kotlinx.coroutines.coroutineScope
 object CertificateOrchestrator {
     private const val TAG = "CertificateOrchestrator"
 
+    // DataStore key for storing installed certificates map as JSON
+    private val INSTALLED_CERTIFICATES_KEY = stringPreferencesKey("installed_certificates")
+
+    // JSON serializer instance
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
+
+    // Mutex to protect concurrent access to certificate storage
+    private val certificateStorageMutex = Mutex()
+
     /**
      * Reads certificate IDs from Android Managed Configuration.
      *
@@ -53,6 +72,132 @@ object CertificateOrchestrator {
 
         val certRequestList = appRestrictions.getParcelableArray("certificates", Bundle::class.java)?.toList()
         return certRequestList?.map { bundle -> bundle.getInt("certificate_id") }
+    }
+
+    /**
+     * Reads the installed certificates map from DataStore.
+     *
+     * @param context Android context
+     * @return Map of certificate ID to alias, or empty map if none stored
+     */
+    internal suspend fun getInstalledCertificates(context: Context): Map<Int, String> {
+        certificateStorageMutex.withLock {
+            return try {
+                val prefs = context.prefDataStore.data.first()
+                val jsonString = prefs[INSTALLED_CERTIFICATES_KEY]
+
+                if (jsonString == null) {
+                    Log.d(TAG, "No installed certificates found in DataStore")
+                    return emptyMap()
+                }
+
+                val map = json.decodeFromString<Map<Int, String>>(jsonString)
+                Log.d(TAG, "Loaded ${map.size} installed certificate(s) from DataStore")
+                map
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to read installed certificates from DataStore: ${e.message}", e)
+                emptyMap()
+            }
+        }
+    }
+
+    /**
+     * Stores a certificate ID→alias mapping in DataStore after successful installation.
+     * This performs a read-modify-write operation to update the map.
+     *
+     * @param context Android context
+     * @param certificateId Certificate template ID
+     * @param alias Certificate alias used during installation
+     */
+    internal suspend fun storeCertificateInstallation(context: Context, certificateId: Int, alias: String) {
+        certificateStorageMutex.withLock {
+            try {
+                context.prefDataStore.edit { preferences ->
+                    // Read existing map
+                    val existingJsonString = preferences[INSTALLED_CERTIFICATES_KEY]
+                    val existingMap = if (existingJsonString != null) {
+                        try {
+                            json.decodeFromString<Map<Int, String>>(existingJsonString)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to parse existing certificates JSON, starting fresh: ${e.message}")
+                            emptyMap()
+                        }
+                    } else {
+                        emptyMap()
+                    }
+
+                    // Add new mapping
+                    val updatedMap = existingMap.toMutableMap().apply {
+                        put(certificateId, alias)
+                    }
+
+                    // Serialize and store
+                    val updatedJsonString = json.encodeToString(updatedMap)
+                    preferences[INSTALLED_CERTIFICATES_KEY] = updatedJsonString
+
+                    Log.d(TAG, "Stored certificate mapping: $certificateId → $alias (total: ${updatedMap.size})")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to store certificate installation: ${e.message}", e)
+                // Non-fatal error - enrollment was successful, just tracking failed
+            }
+        }
+    }
+
+    /**
+     * Retrieves the certificate alias for a given certificate ID from DataStore.
+     *
+     * @param context Android context
+     * @param certificateId Certificate template ID
+     * @return Certificate alias if previously installed, null otherwise
+     */
+    internal suspend fun getCertificateAlias(context: Context, certificateId: Int): String? {
+        val installedCerts = getInstalledCertificates(context)
+        val alias = installedCerts[certificateId]
+        Log.d(TAG, "Certificate $certificateId alias lookup: ${alias ?: "not found"}")
+        return alias
+    }
+
+    /**
+     * Checks if a certificate is installed in the Android keystore.
+     *
+     * @param context Android context
+     * @param alias Certificate alias
+     * @return True if certificate exists in keystore
+     */
+    private fun isCertificateInstalled(context: Context, alias: String): Boolean = try {
+        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        val hasKeyPair = dpm.hasKeyPair(alias)
+        Log.d(TAG, "Certificate '$alias' installation check: $hasKeyPair")
+        hasKeyPair
+    } catch (e: Exception) {
+        Log.e(TAG, "Error checking if certificate '$alias' is installed: ${e.message}", e)
+        false
+    }
+
+    /**
+     * Checks if a certificate ID has been successfully installed and still exists in keystore.
+     * This is a fast check that doesn't require fetching the template from the API.
+     *
+     * @param context Android context
+     * @param certificateId Certificate template ID
+     * @return True if certificate is tracked in DataStore AND exists in keystore
+     */
+    internal suspend fun isCertificateIdInstalled(context: Context, certificateId: Int): Boolean {
+        // Check DataStore for this certificate ID
+        val storedAlias = getCertificateAlias(context, certificateId)
+        if (storedAlias == null) {
+            Log.d(TAG, "Certificate ID $certificateId not found in DataStore")
+            return false
+        }
+
+        // Verify certificate still exists in keystore
+        val existsInKeystore = isCertificateInstalled(context, storedAlias)
+        if (!existsInKeystore) {
+            Log.w(TAG, "Certificate ID $certificateId tracked in DataStore but missing from keystore - will re-enroll")
+        }
+
+        return existsInKeystore
     }
 
     /**
@@ -73,7 +218,14 @@ object CertificateOrchestrator {
     ): CertificateEnrollmentHandler.EnrollmentResult {
         Log.d(TAG, "Starting certificate enrollment for certificate ID: $certificateId")
 
-        // Step 1: Fetch certificate template from API
+        // Step 1: Check if certificate is already installed (BEFORE API call)
+        if (isCertificateIdInstalled(context, certificateId)) {
+            val alias = getCertificateAlias(context, certificateId)!!
+            Log.i(TAG, "Certificate ID $certificateId (alias: '$alias') is already installed, skipping enrollment")
+            return CertificateEnrollmentHandler.EnrollmentResult.Success(alias)
+        }
+
+        // Step 2: Fetch certificate template from API (only if not already installed)
         val templateResult = ApiClient.getCertificateTemplate(certificateId)
         val template = templateResult.getOrElse { error ->
             Log.e(TAG, "Failed to fetch certificate template for ID $certificateId: ${error.message}", error)
@@ -85,25 +237,41 @@ object CertificateOrchestrator {
 
         Log.d(TAG, "Successfully fetched certificate template: ${template.name}")
 
-        // Step 2: Create certificate installer (use provided or create default)
+        // Step 3: Create certificate installer (use provided or create default)
         val installer = certificateInstaller ?: AndroidCertificateInstaller(context)
 
-        // Step 3: Create enrollment handler
+        // Step 4: Create enrollment handler
         val handler = CertificateEnrollmentHandler(
             scepClient = scepClient,
             certificateInstaller = installer,
         )
 
-        // Step 4: Perform enrollment
+        // Step 5: Perform enrollment
         Log.d(TAG, "Starting SCEP enrollment for certificate: ${template.name}")
         val result = handler.handleEnrollment(template)
 
         when (result) {
             is CertificateEnrollmentHandler.EnrollmentResult.Success -> {
                 Log.i(TAG, "Certificate enrollment successful for ID $certificateId with alias: ${result.alias}")
+                ApiClient.updateCertificateStatus(
+                    certificateId = certificateId,
+                    status = "verified",
+                ).onFailure { error ->
+                    Log.e(TAG, "Failed to update certificate status to verified for ID $certificateId: ${error.message}", error)
+                }
+
+                // Store certificate installation in DataStore
+                storeCertificateInstallation(context, certificateId, result.alias)
             }
             is CertificateEnrollmentHandler.EnrollmentResult.Failure -> {
                 Log.e(TAG, "Certificate enrollment failed for ID $certificateId: ${result.reason}", result.exception)
+                ApiClient.updateCertificateStatus(
+                    certificateId = certificateId,
+                    status = "failed",
+                    detail = result.reason,
+                ).onFailure { error ->
+                    Log.e(TAG, "Failed to update certificate status to failed for ID $certificateId: ${error.message}", error)
+                }
             }
         }
 

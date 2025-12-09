@@ -7493,7 +7493,7 @@
   },
   {
     "name": "dns_resolvers",
-    "description": "Resolvers used by this host.",
+    "description": "Resolvers used by this host. Note: On Windows this data is available in the interface_details table.",
     "url": "https://fleetdm.com/tables/dns_resolvers",
     "platforms": [
       "darwin",
@@ -17866,7 +17866,7 @@
       },
       {
         "name": "blocks_free",
-        "description": "Mounted device free blocks",
+        "description": "Mounted device blocks available to root users, a superset of blocks_available",
         "type": "bigint",
         "notes": "",
         "hidden": false,
@@ -17875,7 +17875,7 @@
       },
       {
         "name": "blocks_available",
-        "description": "Mounted device available blocks",
+        "description": "Mounted device blocks available to non-root users",
         "type": "bigint",
         "notes": "",
         "hidden": false,

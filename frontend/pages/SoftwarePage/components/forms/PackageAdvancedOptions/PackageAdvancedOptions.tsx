@@ -101,8 +101,7 @@ const getUninstallHelpText = (pkgType: PackageType) => {
       <>
         For Windows, Fleet only creates uninstall scripts for .msi packages.
         $PACKAGE_ID will be populated with the software name from the .exe file
-        after it&apos;s added.
-        {getSupportedScriptTypeText(pkgType)}{" "}
+        after it&apos;s added. {getSupportedScriptTypeText(pkgType)}{" "}
         <CustomLink
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/exe-install-scripts`}
           text="Learn more"

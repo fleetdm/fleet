@@ -193,6 +193,13 @@ This works because every Fleetie grants edit access to everyone else at Fleet as
 Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
 Looking to add, change, or remove a shared calendar? [Create an issue](https://fleetdm.com/handbook/it-and-enablement#contact-us) and the appropriate DRI will reply with feedback.
 
+### 1:1 meetings 
+
+All managers at Fleet have [1:1 meetings](https://handbook.gitlab.com/handbook/leadership/1-1/) with their direct reports at least once a month. These are dedicated spaces for coaching, two-way feedback, and alignment on priorities. To schedule a 1:1:
+1. Create a copy of the [1:1 agenda template](https://docs.google.com/document/d/1dxN1Q0GMawFrgKB_KxJ77N2pS-vXmopB358r-Q8Gxis/edit?tab=t.0) and rename the document "🧑‍🚀 YOUR_GITHUB_USER_NAME : SUPERVISOR_GITHUB_USER_NAME".
+2. [Schedule a meeting](https://fleetdm.com/handbook/company/communications#internal-meeting-scheduling) with your manager and title the calendar event by copying your 1:1 agenda title and appending "[no shadows]" to the end (this tells other team members that this is a private conversation).
+3. Link the agenda in the calendar event description before saving.
+
 
 ### Skip-level 1:1 meetings 
 
@@ -243,6 +250,7 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 - We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
+- To save everyone time, please [don't ask to ask: just ask](https://dontasktoask.com/).
 
 > **Need an app that you don't see in Fleet Slack?** [Create a IT & Enablement issue](https://fleetdm.com/handbook/it-and-enablement#contact-us) to request an app be added to the Fleet Slack workspace.
 
@@ -1586,7 +1594,7 @@ The following stubs are included only to make links backward compatible.
 Please see 📖[handbook/company/communications#competition](https://fleetdm.com/handbook/company/communications#new-fleeties).
 
 ##### Customer support service level agreements (SLAs)
-Please see 📖[handbook/company/go-to-market-groups#customer-support-service-level-agreements-slas](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-agreements-slas).
+Please see 📖[handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos).
 
 For below, please see 📖[handbook/company/communications#scheduling-a-meeting](https://fleetdm.com/handbook/company/communications#scheduling-a-meeting).
 ##### Internal meetings
