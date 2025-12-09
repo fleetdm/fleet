@@ -1017,6 +1017,13 @@
       "description": "Twingate is a zero trust network access platform."
     },
     {
+      "name": "Twingate",
+      "slug": "twingate/windows",
+      "platform": "windows",
+      "unique_identifier": "Twingate",
+      "description": "Twingate is a zero trust network access platform."
+    },
+    {
       "name": "Microsoft Visual Studio Code",
       "slug": "visual-studio-code/darwin",
       "platform": "darwin",
