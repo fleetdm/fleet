@@ -1018,7 +1018,7 @@ WHERE
 
 var (
 	errDeleteInstallerWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
-	errDeleteInstallerInstalledDuringSetup = &fleet.ConflictError{Message: "Couldn't delete. This software is installed when new Macs boot. Please remove software in Controls > Setup experience and try again."}
+	errDeleteInstallerInstalledDuringSetup = &fleet.ConflictError{Message: "Couldn't delete. This software is installed during new host setup. Please remove software in Controls > Setup experience and try again."}
 )
 
 func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
