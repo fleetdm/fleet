@@ -1186,6 +1186,7 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 				CertificateTemplateID: template.CertificateTemplateID,
 				FleetChallenge:        challenge,
 				Status:                fleet.MDMDeliveryPending,
+				OperationType:         fleet.MDMOperationTypeInstall,
 			})
 		}
 

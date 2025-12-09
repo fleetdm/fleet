@@ -19,6 +19,7 @@ import Asana from "./Asana";
 import BBEdit from "./BBEdit";
 import BeyondCompare from "./BeyondCompare";
 import Bitwarden from "./Bitwarden";
+import Blender from "./Blender";
 import Box from "./Box";
 import Brave from "./Brave";
 import CLion from "./CLion";
@@ -175,6 +176,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   bbedit: BBEdit,
   "beyond compare": BeyondCompare,
   bitwarden: Bitwarden,
+  blender: Blender,
   box: Box,
   brave: Brave,
   camtasia: Camtasia,
@@ -336,7 +338,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   apps: AppleApp,
   ios_apps: AppleApp,
   ipados_apps: AppleApp,
-  programs: WindowsApp,
+  programs: WindowsOS,
   android_apps: AndroidApp,
   chrome_extensions: Extension,
   safari_extensions: Extension,

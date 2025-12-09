@@ -90,6 +90,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				LabelsExcludeAny:   payload.LabelsExcludeAny,
 				LabelsIncludeAny:   payload.LabelsIncludeAny,
 				Categories:         payload.Categories,
+				DisplayName:        payload.DisplayName,
 			}, {
 				AppStoreID:         payload.AppStoreID,
 				SelfService:        payload.SelfService,
@@ -98,6 +99,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				LabelsExcludeAny:   payload.LabelsExcludeAny,
 				LabelsIncludeAny:   payload.LabelsIncludeAny,
 				Categories:         payload.Categories,
+				DisplayName:        payload.DisplayName,
 			}, {
 				AppStoreID:         payload.AppStoreID,
 				SelfService:        payload.SelfService,
@@ -106,6 +108,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				LabelsExcludeAny:   payload.LabelsExcludeAny,
 				LabelsIncludeAny:   payload.LabelsIncludeAny,
 				Categories:         payload.Categories,
+				DisplayName:        payload.DisplayName,
 			}}...)
 		} else {
 			payloadsWithPlatform = append(payloadsWithPlatform, fleet.VPPBatchPayloadWithPlatform{
@@ -116,6 +119,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				LabelsExcludeAny:   payload.LabelsExcludeAny,
 				LabelsIncludeAny:   payload.LabelsIncludeAny,
 				Categories:         payload.Categories,
+				DisplayName:        payload.DisplayName,
 			})
 		}
 
@@ -169,6 +173,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				InstallDuringSetup: payload.InstallDuringSetup,
 				ValidatedLabels:    validatedLabels,
 				CategoryIDs:        catIDs,
+				DisplayName:        ptr.String(payload.DisplayName),
 			}
 			switch payload.Platform {
 			case fleet.AndroidPlatform:
@@ -268,6 +273,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			return nil, ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
 		}
 	}
+
+	appStoreIDToTitleID := make(map[string]uint, len(appStoreApps))
+	for _, a := range appStoreApps {
+		appStoreIDToTitleID[a.AdamID] = a.TitleID
+	}
+
 	// Filter out the apps with invalid platforms
 	if len(appStoreApps) != len(allPlatformApps) {
 		allPlatformApps = make([]fleet.VPPAppTeam, 0, len(appStoreApps))
@@ -276,7 +287,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
-	if err := svc.ds.SetTeamVPPApps(ctx, teamID, allPlatformApps); err != nil {
+	if err := svc.ds.SetTeamVPPApps(ctx, teamID, allPlatformApps, appStoreIDToTitleID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "no vpp token to set team vpp assets"), http.StatusUnprocessableEntity)
 		}
@@ -672,6 +683,7 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 				AppTeamID:          id.AppTeamID,
 				Categories:         id.Categories,
 				CategoryIDs:        id.CategoryIDs,
+				DisplayName:        id.DisplayName,
 			}
 		} else {
 			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{
@@ -681,6 +693,7 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 				AppTeamID:          id.AppTeamID,
 				Categories:         id.Categories,
 				CategoryIDs:        id.CategoryIDs,
+				DisplayName:        id.DisplayName,
 			}
 		}
 	}
@@ -710,6 +723,7 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 						AppTeamID:          props.AppTeamID,
 						Categories:         props.Categories,
 						CategoryIDs:        props.CategoryIDs,
+						DisplayName:        props.DisplayName,
 					},
 					BundleIdentifier: metadata.BundleID,
 					IconURL:          metadata.ArtworkURL,

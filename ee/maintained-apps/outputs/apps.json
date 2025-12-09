@@ -121,6 +121,20 @@
       "description": "Bitwarden is a desktop password and login vault."
     },
     {
+      "name": "Blender",
+      "slug": "blender/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.blenderfoundation.blender",
+      "description": "Blender is a 3D creation suite."
+    },
+    {
+      "name": "Blender",
+      "slug": "blender/windows",
+      "platform": "windows",
+      "unique_identifier": "Blender",
+      "description": "Blender is a 3D creation suite."
+    },
+    {
       "name": "Box Drive",
       "slug": "box-drive/darwin",
       "platform": "darwin",
