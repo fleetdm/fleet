@@ -851,6 +851,7 @@ Authorization: Node key 24dd9ebf-02cd-4d4c-888a-5caa441ee5d5
       "name": "wifi-certificate",
       "certificate_authority_id": "1",
       "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
+      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
       "created_at": "2025-11-04T00:00:00Z",
     },
     {
@@ -858,6 +859,7 @@ Authorization: Node key 24dd9ebf-02cd-4d4c-888a-5caa441ee5d5
       "name": "vpn-certificate",
       "certificate_authority_id": "1",
       "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
+      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
       "created_at": "2025-11-04T00:00:00Z",
     }  
   ],
