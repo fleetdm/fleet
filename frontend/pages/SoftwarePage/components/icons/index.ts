@@ -336,7 +336,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   apps: AppleApp,
   ios_apps: AppleApp,
   ipados_apps: AppleApp,
-  programs: WindowsApp,
+  programs: WindowsOS,
   android_apps: AndroidApp,
   chrome_extensions: Extension,
   safari_extensions: Extension,
