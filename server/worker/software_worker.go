@@ -137,6 +137,10 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 	}
 
+	// TODO(mna): if this is called from an UPDATE (config changed), mark existing installs
+	// as "pending" (NULL the verification_ fields) and with the correct policy version to verify (stored as a string in associated_event_id).
+	// The verification logic should work as-is I think.
+
 	return nil
 }
 
