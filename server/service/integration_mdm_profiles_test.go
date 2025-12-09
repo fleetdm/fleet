@@ -4098,7 +4098,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		for _, p := range *gotHostResp.Host.MDM.Profiles {
 			gotProfs = append(gotProfs, strings.Replace(p.Name, "name-", "", 1))
 			require.NotNil(t, p.Status)
-			require.Equal(t, wantStatus, *p.Status, "profile", p.Name)
+			require.EqualValues(t, wantStatus, *p.Status, "profile", p.Name)
 			require.Equal(t, "windows", p.Platform)
 			// Fleet reserved profiles (e.g., OS updates) should be screened from the host details response
 			require.NotContains(t, servermdm.ListFleetReservedWindowsProfileNames(), p.Name)
@@ -7907,7 +7907,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 	require.NotNil(t, hostRespTeam.Host.MDM.Profiles)
 	require.Len(t, *hostRespTeam.Host.MDM.Profiles, 1)
 	require.Equal(t, "TeamProfileWithVar", (*hostRespTeam.Host.MDM.Profiles)[0].Name)
-	require.Equal(t, fleet.MDMDeliveryVerified, *(*hostRespTeam.Host.MDM.Profiles)[0].Status,
+	require.EqualValues(t, fleet.MDMDeliveryVerified, *(*hostRespTeam.Host.MDM.Profiles)[0].Status,
 		"Profile should be verified in host details API for team host")
 
 	// Verify no-vars host
@@ -7916,7 +7916,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 	require.NotNil(t, hostRespNoVars.Host.MDM.Profiles)
 	require.Len(t, *hostRespNoVars.Host.MDM.Profiles, 1)
 	require.Equal(t, "ProfileNoVars", (*hostRespNoVars.Host.MDM.Profiles)[0].Name)
-	require.Equal(t, fleet.MDMDeliveryVerified, *(*hostRespNoVars.Host.MDM.Profiles)[0].Status,
+	require.EqualValues(t, fleet.MDMDeliveryVerified, *(*hostRespNoVars.Host.MDM.Profiles)[0].Status,
 		"Profile should be verified in host details API for no-vars host")
 }
 
@@ -8009,7 +8009,7 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 		if p.Name == "WindowsSCEPProfile" {
 			foundProfile = true
 			require.NotNil(t, p.Status)
-			assert.Equal(t, fleet.MDMDeliveryPending, *p.Status)
+			assert.EqualValues(t, fleet.MDMDeliveryPending, *p.Status)
 		}
 	}
 	require.True(t, foundProfile, "WindowsSCEPProfile not found for host")
@@ -8024,7 +8024,7 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 		if p.Name == "WindowsSCEPProfile" {
 			foundProfile = true
 			require.NotNil(t, p.Status)
-			assert.Equal(t, fleet.MDMDeliveryVerified, *p.Status)
+			assert.EqualValues(t, fleet.MDMDeliveryVerified, *p.Status)
 		}
 	}
 	require.True(t, foundProfile, "WindowsSCEPProfile not found for host")
@@ -8044,7 +8044,7 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 			foundProfile = true
 			profileUUID = p.ProfileUUID
 			require.NotNil(t, p.Status)
-			require.Equal(t, fleet.MDMDeliveryVerified, *p.Status)
+			require.EqualValues(t, fleet.MDMDeliveryVerified, *p.Status)
 		}
 	}
 	require.True(t, foundProfile, "WindowsSCEPProfile not found for host")
@@ -8137,7 +8137,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 		}
 	}
 	require.NotNil(t, testProfile)
-	require.Equal(t, fleet.MDMDeliveryPending, *testProfile.Status)
+	require.EqualValues(t, fleet.MDMDeliveryPending, *testProfile.Status)
 
 	// Now simulate the race condition:
 	// we trigger a resend before the acknowledgement comes back
@@ -8158,7 +8158,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 		}
 	}
 	require.NotNil(t, testProfile)
-	require.Equal(t, fleet.MDMDeliveryPending, *testProfile.Status) // Should be NULL (pending for the user)
+	require.EqualValues(t, fleet.MDMDeliveryPending, *testProfile.Status) // Should be NULL (pending for the user)
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var status *fleet.MDMDeliveryStatus
 		err := sqlx.GetContext(t.Context(), q, &status, `SELECT status FROM host_mdm_apple_profiles WHERE profile_identifier = ?`, testProfile.Identifier)
@@ -8207,7 +8207,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 		}
 	}
 	require.NotNil(t, testProfile)
-	require.Equal(t, fleet.MDMDeliveryPending, *testProfile.Status)
+	require.EqualValues(t, fleet.MDMDeliveryPending, *testProfile.Status)
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var status *fleet.MDMDeliveryStatus
 		err := sqlx.GetContext(t.Context(), q, &status, `SELECT status FROM host_mdm_apple_profiles WHERE profile_identifier = ?`, testProfile.Identifier)
@@ -8253,5 +8253,5 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 		}
 	}
 	require.NotNil(t, testProfile)
-	require.Equal(t, fleet.MDMDeliveryVerifying, *testProfile.Status)
+	require.EqualValues(t, fleet.MDMDeliveryVerifying, *testProfile.Status)
 }
