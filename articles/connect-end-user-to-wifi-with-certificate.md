@@ -486,9 +486,9 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
 <details>
 <summary>Windows configuration profile</summary>
 
-To get the CAThumbprint of your SCEP server, see the [advanced section](#how-to-get-the-cathumbprint-for-windows-scep-profiles) below.
+All options in the example profile are required. To get the [CAThumbprint of your SCEP server] follow [these steps](#how-to-get-the-cathumbprint-for-windows-scep-profiles).
 
-Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp), can be configured with the SCEP profile.
+You can add any other options listed under Device/SCEP in the [Microsoft documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp).
 
 ```xml
 <Replace>
@@ -586,7 +586,7 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         <Meta>
             <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
-        <Data>2133EC6A3CFB8418837BB395188D1A62CA2B96A6</Data>
+        <Data><CA_THUMBPRINT></Data>
     </Item>
 </Replace>
 <Exec>
@@ -807,11 +807,13 @@ Custom SCEP proxy:
 
 ### How to get the CAThumbprint for Windows SCEP profiles
 
+An example CAThumprint looks like this: `2133EC6A3CFB8418837BB395188D1A62CA2B96A6`
+
 Steps to get CAThumbrint from your SCEP server:
 
-1. Use GetCACert operation to download certificate. For example, open in browser: https://scep-server-url/scep?operation=GetCACert
-2. Run the following command to get the SHA1 Thumbprint
-    1. **Terminal (MacOS)** -> `openssl x509 -inform DER -in /path/to/downloaded-cert.cer -noout -fingerprint -sha1 | sed 's/sha1 Fingerprint=//; s/://g`
+1. In your browser, open the following URL to download a certificate: https://<your-scep-server-url>/scep?operation=GetCACert
+2. Run the following command to get the SHA1 Thumbprint:
+    1. **Terminal (macOS)** -> `openssl x509 -inform DER -in /path/to/downloaded-cert.cer -noout -fingerprint -sha1 | sed 's/sha1 Fingerprint=//; s/://g`
     2. **PowerShell (Windows)** -> `$cert = Get-PfxCertificate -FilePath "Z:\scep (1).cer";$cert.Thumbprint`
 3. It will return the SHA1 Thumbprint without colons and text. Copy this.
 4. Use the copied value for `./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/CAThumbprint` option.
