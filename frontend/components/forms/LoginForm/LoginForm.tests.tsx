@@ -140,4 +140,29 @@ describe("LoginForm - component", () => {
       password,
     });
   });
+  it("tabs in the expected order", async () => {
+    const { user } = renderWithSetup(
+      <LoginForm
+        handleSubmit={submitSpy}
+        isSubmitting={false}
+        pendingEmail={false}
+        ssoSettings={{
+          sso_enabled: true,
+          idp_name: "Test IdP",
+        }}
+      />
+    );
+
+    expect(screen.getByPlaceholderText("Email")).toHaveFocus();
+    await user.tab();
+    expect(screen.getByPlaceholderText("Password")).toHaveFocus();
+    await user.tab();
+    expect(screen.getByText("Log in").parentElement).toHaveFocus();
+    await user.tab();
+    expect(
+      screen.getByText("Sign in with Test IdP").parentElement
+    ).toHaveFocus();
+    await user.tab();
+    expect(screen.getByText("Forgot password?")).toHaveFocus();
+  });
 });
