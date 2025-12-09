@@ -116,6 +116,7 @@ const LoginForm = ({
         title="Single sign-on"
         variant="inverse"
         onClick={handleSSOSignOn}
+        tabIndex={0}
       >
         <div>{legend}</div>
       </Button>
@@ -183,6 +184,7 @@ const LoginForm = ({
             className={`${baseClass}__login-btn`}
             isLoading={isSubmitting}
             type="submit"
+            tabIndex={0}
           >
             Log in
           </Button>
