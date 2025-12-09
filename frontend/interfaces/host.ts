@@ -97,11 +97,20 @@ export interface IMunkiData {
 
 export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
 
+export type CertificateStatus = "pending" | "delivering" | "delivered";
+export interface ICertificate {
+  name: string;
+  status: CertificateStatus;
+  operation_type: "install" | "remove";
+  detail: string;
+}
+
 export interface IOSSettings {
   disk_encryption: {
     status: DiskEncryptionStatus | null;
     detail: string;
   };
+  certificates: ICertificate[];
 }
 
 interface IMdmMacOsSettings {
