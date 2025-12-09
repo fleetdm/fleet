@@ -153,7 +153,7 @@ services:
     environment:
       - SERVICES=firehose,kinesis,s3,iam,sts,secretsmanager
 
-  # s3 compatible object storage (file carving backend)
+  # s3 compatible object storage (file carving/software installers)
   s3:
     image: rustfs/rustfs:latest
     ports:
