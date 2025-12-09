@@ -889,14 +889,14 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 
 	// Set the installation status on the certificate templates
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
-		h2.UUID, ct1.ID, "test-challenge", fleet.OSSettingsVerified,
+		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type) VALUES (?, ?, ?, ?, ?)",
+		h2.UUID, ct1.ID, "test-challenge", fleet.OSSettingsVerified, fleet.MDMOperationTypeInstall,
 	)
 
 	require.NoError(t, err)
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, detail) VALUES (?, ?, ?, ?, ?)",
-		h2.UUID, ct2.ID, "test-challenge", fleet.OSSettingsFailed, "some error yooo",
+		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, detail, operation_type) VALUES (?, ?, ?, ?, ?, ?)",
+		h2.UUID, ct2.ID, "test-challenge", fleet.OSSettingsFailed, "some error yooo", fleet.MDMOperationTypeInstall,
 	)
 	require.NoError(t, err)
 
@@ -932,10 +932,12 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 
 				require.Equal(t, ct1.Name, templates[0].Name)
 				require.Equal(t, fleet.MDMDeliveryVerified, templates[0].Status)
+				require.Equal(t, fleet.MDMOperationTypeInstall, templates[0].OperationType)
 
 				require.Equal(t, ct2.Name, templates[1].Name)
 				require.Equal(t, fleet.MDMDeliveryFailed, templates[1].Status)
 				require.Equal(t, "some error yooo", *templates[1].Detail)
+				require.Equal(t, fleet.MDMOperationTypeInstall, templates[1].OperationType)
 			},
 		},
 	}
