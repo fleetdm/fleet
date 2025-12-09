@@ -12,10 +12,13 @@ import java.security.PrivateKey
 import java.security.cert.Certificate
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.encodeToString
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /**
@@ -60,6 +63,17 @@ object CertificateOrchestrator {
     // Mutex to protect concurrent access to certificate storage
     private val certificateStorageMutex = Mutex()
 
+    fun installedCertsFlow(context: Context): Flow<CertStatusMap> = context.prefDataStore.data.map { preferences ->
+        try {
+            val jsonStr = preferences[INSTALLED_CERTIFICATES_KEY]
+            Log.d("installedCertsFlow", "json: $jsonStr")
+            json.decodeFromString(jsonStr!!)
+        } catch (e: Exception) {
+            Log.d("installedCertsFlow", e.toString())
+            emptyMap()
+        }
+    }
+
     /**
      * Reads certificate IDs from Android Managed Configuration.
      *
@@ -80,7 +94,7 @@ object CertificateOrchestrator {
      * @param context Android context
      * @return Map of certificate ID to alias, or empty map if none stored
      */
-    internal suspend fun getInstalledCertificates(context: Context): Map<Int, String> {
+    internal suspend fun getInstalledCertificates(context: Context): CertStatusMap {
         certificateStorageMutex.withLock {
             return try {
                 val prefs = context.prefDataStore.data.first()
@@ -91,7 +105,7 @@ object CertificateOrchestrator {
                     return emptyMap()
                 }
 
-                val map = json.decodeFromString<Map<Int, String>>(jsonString)
+                val map = json.decodeFromString<CertStatusMap>(jsonString)
                 Log.d(TAG, "Loaded ${map.size} installed certificate(s) from DataStore")
                 map
             } catch (e: Exception) {
@@ -109,7 +123,12 @@ object CertificateOrchestrator {
      * @param certificateId Certificate template ID
      * @param alias Certificate alias used during installation
      */
-    internal suspend fun storeCertificateInstallation(context: Context, certificateId: Int, alias: String) {
+    internal suspend fun storeCertificateInstallation(
+        context: Context,
+        certificateId: Int,
+        alias: String,
+        installStatus: CertificateInstallStatus,
+    ) {
         certificateStorageMutex.withLock {
             try {
                 context.prefDataStore.edit { preferences ->
@@ -117,7 +136,7 @@ object CertificateOrchestrator {
                     val existingJsonString = preferences[INSTALLED_CERTIFICATES_KEY]
                     val existingMap = if (existingJsonString != null) {
                         try {
-                            json.decodeFromString<Map<Int, String>>(existingJsonString)
+                            json.decodeFromString<CertStatusMap>(existingJsonString)
                         } catch (e: Exception) {
                             Log.w(TAG, "Failed to parse existing certificates JSON, starting fresh: ${e.message}")
                             emptyMap()
@@ -128,7 +147,7 @@ object CertificateOrchestrator {
 
                     // Add new mapping
                     val updatedMap = existingMap.toMutableMap().apply {
-                        put(certificateId, alias)
+                        put(certificateId, CertStatus(alias = alias, status = installStatus))
                     }
 
                     // Serialize and store
@@ -153,9 +172,9 @@ object CertificateOrchestrator {
      */
     internal suspend fun getCertificateAlias(context: Context, certificateId: Int): String? {
         val installedCerts = getInstalledCertificates(context)
-        val alias = installedCerts[certificateId]
-        Log.d(TAG, "Certificate $certificateId alias lookup: ${alias ?: "not found"}")
-        return alias
+        val status = installedCerts[certificateId]
+        Log.d(TAG, "Certificate $certificateId alias lookup: ${status?.alias ?: "not found"}")
+        return status?.alias
     }
 
     /**
@@ -261,7 +280,7 @@ object CertificateOrchestrator {
                 }
 
                 // Store certificate installation in DataStore
-                storeCertificateInstallation(context, certificateId, result.alias)
+                storeCertificateInstallation(context, certificateId, result.alias, CertificateInstallStatus.INSTALLED)
             }
             is CertificateEnrollmentHandler.EnrollmentResult.Failure -> {
                 Log.e(TAG, "Certificate enrollment failed for ID $certificateId: ${result.reason}", result.exception)
@@ -269,7 +288,9 @@ object CertificateOrchestrator {
                     certificateId = certificateId,
                     status = "failed",
                     detail = result.reason,
-                ).onFailure { error ->
+                ).onSuccess {
+                    storeCertificateInstallation(context, certificateId, template.name, CertificateInstallStatus.FAILED)
+                }.onFailure { error ->
                     Log.e(TAG, "Failed to update certificate status to failed for ID $certificateId: ${error.message}", error)
                 }
             }
@@ -334,3 +355,24 @@ object CertificateOrchestrator {
         }
     }
 }
+
+typealias CertStatusMap = Map<Int, CertStatus>
+
+@Serializable
+enum class CertificateInstallStatus {
+    @SerialName("installed")
+    INSTALLED,
+
+    @SerialName("failed")
+    FAILED,
+}
+
+@Serializable
+data class CertStatus(
+    @SerialName("alias")
+    val alias: String?,
+    @SerialName("status")
+    val status: CertificateInstallStatus?,
+    @SerialName("retries")
+    val retries: Int?,
+)

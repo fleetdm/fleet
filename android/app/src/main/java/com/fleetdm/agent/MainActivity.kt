@@ -36,11 +36,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.fleetdm.agent.ui.theme.MyApplicationTheme
 import java.security.KeyStore
 import java.security.cert.X509Certificate
 import java.util.Date
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -85,6 +87,7 @@ class MainActivity : ComponentActivity() {
             var installedCertificates: List<CertificateInfo> by remember { mutableStateOf(listOf()) }
             val apiKey by ApiClient.apiKeyFlow.collectAsState(initial = null)
             val baseUrl by ApiClient.baseUrlFlow.collectAsState(initial = null)
+            val allegedInstalledCerts by CertificateOrchestrator.installedCertsFlow(this).collectAsState(initial = "")
 
             LaunchedEffect(Unit) {
                 installedCertificates = listKeystoreCertificates()
@@ -110,6 +113,7 @@ class MainActivity : ComponentActivity() {
                             KeyValue("orbit_node_key (datastore)", apiKey)
                             KeyValue("base_url (datastore)", baseUrl)
                             KeyValue("certificate_templates->id", certIds.toString())
+                            KeyValue("alleged_installed", allegedInstalledCerts.toString())
                             PermissionList(
                                 permissionsList = permissionsList,
                             )
