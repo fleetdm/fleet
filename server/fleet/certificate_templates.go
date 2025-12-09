@@ -28,24 +28,13 @@ type CertificateTemplateResponseSummary struct {
 
 type CertificateTemplateResponseFull struct {
 	CertificateTemplateResponseSummary
-	SubjectName              string             `json:"subject_name" db:"subject_name"`
-	CertificateAuthorityType string             `json:"certificate_authority_type" db:"certificate_authority_type"`
-	Status                   *MDMDeliveryStatus `json:"status" db:"status"`
-	SCEPChallenge            *string            `json:"scep_challenge" db:"scep_challenge"`
-	FleetChallenge           *string            `json:"fleet_challenge" db:"fleet_challenge"`
-	SCEPChallengeEncrypted   []byte             `json:"-" db:"scep_challenge_encrypted"`
-	TeamID                   uint               `json:"-" db:"team_id"`
-}
-
-// CertificateTemplateDeviceResponseFull should merge with CertificateTemplateResponseFull
-// as part of https://github.com/fleetdm/fleet/issues/36684 work.
-type CertificateTemplateDeviceResponseFull struct {
-	CertificateTemplateResponseSummary
-	SubjectName              string                     `json:"subject_name"`
-	CertificateAuthorityType string                     `json:"certificate_authority_type"`
-	Status                   *CertificateTemplateStatus `json:"status"`
-	SCEPChallenge            *string                    `json:"scep_challenge"`
-	FleetChallenge           *string                    `json:"fleet_challenge"`
+	SubjectName              string                     `json:"subject_name" db:"subject_name"`
+	CertificateAuthorityType string                     `json:"certificate_authority_type" db:"certificate_authority_type"`
+	Status                   *CertificateTemplateStatus `json:"status" db:"status"`
+	SCEPChallenge            *string                    `json:"scep_challenge" db:"scep_challenge"`
+	FleetChallenge           *string                    `json:"fleet_challenge" db:"fleet_challenge"`
+	SCEPChallengeEncrypted   []byte                     `json:"-" db:"scep_challenge_encrypted"`
+	TeamID                   uint                       `json:"-" db:"team_id"`
 }
 
 type CertificateTemplateStatus string
@@ -56,31 +45,16 @@ var (
 	CertificateTemplateVerified  CertificateTemplateStatus = "verified"
 )
 
-// ToDeviceResponse converts a CertificateTemplateResponseFull to CertificateTemplateDeviceResponseFull.
-// It maps the MDMDeliveryStatus to CertificateTemplateStatus.
-func (c *CertificateTemplateResponseFull) ToDeviceResponse() *CertificateTemplateDeviceResponseFull {
-	var status *CertificateTemplateStatus
-	if c.Status != nil {
-		var s CertificateTemplateStatus
-		switch *c.Status {
-		case MDMDeliveryVerified:
-			s = CertificateTemplateVerified
-		case MDMDeliveryFailed:
-			s = CertificateTemplateFailed
-		default:
-			// The only other expected status is MDMDeliveryPending.
-			// If it's anything else, we assume it's delivered so that Android agent will fetch the certificate.
-			s = CertificateTemplateDelivered
-		}
-		status = &s
-	}
-
-	return &CertificateTemplateDeviceResponseFull{
-		CertificateTemplateResponseSummary: c.CertificateTemplateResponseSummary,
-		SubjectName:                        c.SubjectName,
-		CertificateAuthorityType:           c.CertificateAuthorityType,
-		Status:                             status,
-		SCEPChallenge:                      c.SCEPChallenge,
-		FleetChallenge:                     c.FleetChallenge,
+// CertificateTemplateStatusToMDMDeliveryStatus converts a CertificateTemplateStatus to MDMDeliveryStatus.
+// This is used when converting HostCertificateTemplate to HostMDMProfile for the GetHost endpoint.
+func CertificateTemplateStatusToMDMDeliveryStatus(s CertificateTemplateStatus) MDMDeliveryStatus {
+	switch s {
+	case CertificateTemplateVerified:
+		return MDMDeliveryVerified
+	case CertificateTemplateFailed:
+		return MDMDeliveryFailed
+	default:
+		// All other states (delivered, etc.) map to pending as in-progress states
+		return MDMDeliveryPending
 	}
 }

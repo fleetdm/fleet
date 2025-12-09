@@ -1193,7 +1193,7 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 				HostUUID:              template.HostUUID,
 				CertificateTemplateID: template.CertificateTemplateID,
 				FleetChallenge:        challenge,
-				Status:                fleet.MDMDeliveryPending,
+				Status:                fleet.CertificateTemplateDelivered,
 				OperationType:         fleet.MDMOperationTypeInstall,
 			})
 		}

@@ -1,16 +1,16 @@
 package fleet
 
 type HostCertificateTemplate struct {
-	ID                    uint              `db:"id"`
-	Name                  string            `db:"name"`
-	HostUUID              string            `db:"host_uuid"`
-	CertificateTemplateID uint              `db:"certificate_template_id"`
-	FleetChallenge        string            `db:"fleet_challenge"`
-	Status                MDMDeliveryStatus `db:"status"`
-	OperationType         MDMOperationType  `db:"operation_type"`
-	Detail                *string           `db:"detail" json:"-"`
-	CreatedAt             string            `db:"created_at"`
-	UpdatedAt             string            `db:"updated_at"`
+	ID                    uint                      `db:"id"`
+	Name                  string                    `db:"name"`
+	HostUUID              string                    `db:"host_uuid"`
+	CertificateTemplateID uint                      `db:"certificate_template_id"`
+	FleetChallenge        string                    `db:"fleet_challenge"`
+	Status                CertificateTemplateStatus `db:"status"`
+	OperationType         MDMOperationType          `db:"operation_type"`
+	Detail                *string                   `db:"detail" json:"-"`
+	CreatedAt             string                    `db:"created_at"`
+	UpdatedAt             string                    `db:"updated_at"`
 }
 
 // ToHostMDMProfile maps a HostCertificateTemplate to a HostMDMProfile, suitable for use in the MDM API
@@ -19,11 +19,12 @@ func (p *HostCertificateTemplate) ToHostMDMProfile() HostMDMProfile {
 		return HostMDMProfile{}
 	}
 
+	status := string(p.Status)
 	profile := HostMDMProfile{
 		HostUUID:      p.HostUUID,
 		Name:          p.Name,
 		Platform:      "android",
-		Status:        &p.Status,
+		Status:        &status,
 		OperationType: p.OperationType,
 	}
 	if p.Detail != nil {
@@ -33,10 +34,10 @@ func (p *HostCertificateTemplate) ToHostMDMProfile() HostMDMProfile {
 }
 
 type CertificateTemplateForHost struct {
-	HostUUID              string             `db:"host_uuid"`
-	CertificateTemplateID uint               `db:"certificate_template_id"`
-	FleetChallenge        *string            `db:"fleet_challenge"`
-	Status                *MDMDeliveryStatus `db:"status"`
-	CAType                CAConfigAssetType  `db:"ca_type"`
-	CAName                string             `db:"ca_name"`
+	HostUUID              string                     `db:"host_uuid"`
+	CertificateTemplateID uint                       `db:"certificate_template_id"`
+	FleetChallenge        *string                    `db:"fleet_challenge"`
+	Status                *CertificateTemplateStatus `db:"status"`
+	CAType                CAConfigAssetType          `db:"ca_type"`
+	CAName                string                     `db:"ca_name"`
 }

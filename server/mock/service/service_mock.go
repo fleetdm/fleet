@@ -394,7 +394,7 @@ type CreateCertificateTemplateFunc func(ctx context.Context, name string, teamID
 
 type ListCertificateTemplatesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
 
-type GetDeviceCertificateTemplateFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateDeviceResponseFull, error)
+type GetDeviceCertificateTemplateFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error)
 
 type GetCertificateTemplateFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error)
 
@@ -3463,7 +3463,7 @@ func (s *Service) ListCertificateTemplates(ctx context.Context, teamID uint, opt
 	return s.ListCertificateTemplatesFunc(ctx, teamID, opts)
 }
 
-func (s *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateDeviceResponseFull, error) {
+func (s *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
 	s.mu.Lock()
 	s.GetDeviceCertificateTemplateFuncInvoked = true
 	s.mu.Unlock()

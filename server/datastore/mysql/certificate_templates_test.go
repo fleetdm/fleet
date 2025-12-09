@@ -257,7 +257,7 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 					host.UUID,
 					certificateTemplateID,
 					"fleet-challenge",
-					fleet.MDMDeliveryPending,
+					fleet.CertificateTemplateDelivered,
 				)
 				require.NoError(t, err)
 			},
@@ -265,7 +265,7 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				template, err := ds.GetCertificateTemplateById(ctx, certificateTemplateID)
 				require.NoError(t, err)
 				require.Equal(t, certificateTemplateID, template.ID)
-				require.Equal(t, fleet.MDMDeliveryPending, *template.Status)
+				require.Equal(t, fleet.CertificateTemplateDelivered, *template.Status)
 				require.Equal(t, "fleet-challenge", *template.FleetChallenge)
 				require.Equal(t, "test-challenge", *template.SCEPChallenge)
 			},
@@ -321,7 +321,7 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 					host.UUID,
 					certificateTemplateID,
 					"challenge",
-					fleet.MDMDeliveryVerifying,
+					fleet.CertificateTemplateVerified,
 				)
 				require.NoError(t, err)
 			},
@@ -329,7 +329,7 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				template, err := ds.GetCertificateTemplateById(ctx, certificateTemplateID)
 				require.NoError(t, err)
 				require.Equal(t, certificateTemplateID, template.ID)
-				require.Equal(t, fleet.MDMDeliveryVerifying, *template.Status)
+				require.Equal(t, fleet.CertificateTemplateVerified, *template.Status)
 				require.Nil(t, template.FleetChallenge)
 				require.Nil(t, template.SCEPChallenge)
 			},
@@ -931,11 +931,11 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 				sort.Slice(templates, func(i, j int) bool { return templates[i].Name < templates[j].Name })
 
 				require.Equal(t, ct1.Name, templates[0].Name)
-				require.Equal(t, fleet.MDMDeliveryVerified, templates[0].Status)
+				require.Equal(t, fleet.CertificateTemplateVerified, templates[0].Status)
 				require.Equal(t, fleet.MDMOperationTypeInstall, templates[0].OperationType)
 
 				require.Equal(t, ct2.Name, templates[1].Name)
-				require.Equal(t, fleet.MDMDeliveryFailed, templates[1].Status)
+				require.Equal(t, fleet.CertificateTemplateFailed, templates[1].Status)
 				require.Equal(t, "some error yooo", *templates[1].Detail)
 				require.Equal(t, fleet.MDMOperationTypeInstall, templates[1].OperationType)
 			},
@@ -1153,7 +1153,7 @@ func testGetCertificateTemplateForHost(t *testing.T, ds *Datastore) {
 			HostUUID:              h1.UUID,
 			CertificateTemplateID: ct1.ID,
 			FleetChallenge:        "challenge-123",
-			Status:                fleet.MDMDeliveryPending,
+			Status:                fleet.CertificateTemplateDelivered,
 			OperationType:         fleet.MDMOperationTypeInstall,
 		},
 	})
@@ -1175,7 +1175,7 @@ func testGetCertificateTemplateForHost(t *testing.T, ds *Datastore) {
 				require.NotNil(t, result.FleetChallenge)
 				require.Equal(t, "challenge-123", *result.FleetChallenge)
 				require.NotNil(t, result.Status)
-				require.Equal(t, fleet.MDMDeliveryPending, *result.Status)
+				require.Equal(t, fleet.CertificateTemplateDelivered, *result.Status)
 				require.Equal(t, fleet.CAConfigAssetType(fleet.CATypeCustomSCEPProxy), result.CAType)
 				require.Equal(t, "Test SCEP CA", result.CAName)
 			},

@@ -36,7 +36,8 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id")
 	}
 
-	if template.Status != nil && *template.Status == fleet.MDMDeliveryPending {
+	// Only include challenges if status is "delivered"
+	if template.Status != nil && *template.Status == fleet.CertificateTemplateDelivered {
 		if template.SCEPChallengeEncrypted != nil {
 			decryptedChallenge, err := decrypt(template.SCEPChallengeEncrypted, ds.serverPrivateKey)
 			if err != nil {
@@ -45,7 +46,7 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 			template.SCEPChallenge = ptr.String(string(decryptedChallenge))
 		}
 	} else {
-		// Ensure challenges are nil if not in pending status
+		// Ensure challenges are nil if not in delivered status
 		template.SCEPChallenge = nil
 		template.FleetChallenge = nil
 	}

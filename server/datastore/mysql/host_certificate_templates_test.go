@@ -392,7 +392,7 @@ func testListCertificateTemplatesForHosts(t *testing.T, ds *Datastore) {
 							host.UUID,
 							lastID,
 							"challenge",
-							fleet.MDMDeliveryPending,
+							fleet.CertificateTemplateDelivered,
 						)
 						require.NoError(t, err)
 					}
@@ -409,7 +409,7 @@ func testListCertificateTemplatesForHosts(t *testing.T, ds *Datastore) {
 					require.NotEmpty(t, res.CertificateTemplateID)
 					if res.CertificateTemplateID == templateWithHostRecordId {
 						require.Equal(t, ptr.String("challenge"), res.FleetChallenge)
-						require.Equal(t, &fleet.MDMDeliveryPending, res.Status)
+						require.Equal(t, &fleet.CertificateTemplateDelivered, res.Status)
 					} else {
 						require.Nil(t, res.FleetChallenge)
 						require.Nil(t, res.Status)
@@ -480,9 +480,9 @@ func testBulkInsertAndDeleteHostCertificateTemplates(t *testing.T, ds *Datastore
 			func(t *testing.T, ds *Datastore) {
 				// Insert host certificate templates
 				hostCerts := []fleet.HostCertificateTemplate{
-					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-1", Status: fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
-					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateIDTwo, FleetChallenge: "challenge-2", Status: fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
-					{HostUUID: "host-2", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-3", Status: fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-1", Status: fleet.CertificateTemplateDelivered, OperationType: fleet.MDMOperationTypeInstall},
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateIDTwo, FleetChallenge: "challenge-2", Status: fleet.CertificateTemplateDelivered, OperationType: fleet.MDMOperationTypeInstall},
+					{HostUUID: "host-2", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-3", Status: fleet.CertificateTemplateVerified, OperationType: fleet.MDMOperationTypeInstall},
 				}
 				err := ds.BulkInsertHostCertificateTemplates(ctx, hostCerts)
 				require.NoError(t, err)
@@ -557,8 +557,8 @@ func testBulkInsertAndDeleteHostCertificateTemplates(t *testing.T, ds *Datastore
 
 				// Insert host certificate templates
 				hostCerts := []fleet.HostCertificateTemplate{
-					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-1", Status: fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
-					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateIDTwo, FleetChallenge: "challenge-2", Status: fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-1", Status: fleet.CertificateTemplateDelivered, OperationType: fleet.MDMOperationTypeInstall},
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateIDTwo, FleetChallenge: "challenge-2", Status: fleet.CertificateTemplateDelivered, OperationType: fleet.MDMOperationTypeInstall},
 				}
 				err = ds.BulkInsertHostCertificateTemplates(ctx, hostCerts)
 				require.NoError(t, err)
