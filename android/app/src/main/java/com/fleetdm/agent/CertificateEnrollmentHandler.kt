@@ -34,47 +34,25 @@ class CertificateEnrollmentHandler(private val scepClient: ScepClient, private v
     /**
      * Main enrollment flow: parse config, enroll via SCEP, install certificate.
      */
-    suspend fun handleEnrollment(config: GetCertificateTemplateResponse): EnrollmentResult {
-        return try {
-            // Step 2: Perform SCEP enrollment
-            val result = performEnrollment(config) ?: return EnrollmentResult.Failure(
-                reason = "SCEP enrollment failed or returned null",
-                exception = null,
-            )
+    suspend fun handleEnrollment(config: GetCertificateTemplateResponse): EnrollmentResult = try {
+        // Step 2: Perform SCEP enrollment
+        val result = scepClient.enroll(config)
 
-            // Step 3: Install certificate
-            val installed = certificateInstaller.installCertificate(
-                config.name,
-                result.privateKey,
-                result.certificateChain.toTypedArray(),
-            )
+        // Step 3: Install certificate
+        val installed = certificateInstaller.installCertificate(
+            config.name,
+            result.privateKey,
+            result.certificateChain.toTypedArray(),
+        )
 
-            if (installed) {
-                EnrollmentResult.Success(config.name)
-            } else {
-                EnrollmentResult.Failure("Certificate installation failed")
-            }
-        } catch (e: IllegalArgumentException) {
-            EnrollmentResult.Failure("Invalid configuration: ${e.message}", e)
-        } catch (e: Exception) {
-            EnrollmentResult.Failure("Unexpected error: ${e.message}", e)
+        if (installed) {
+            EnrollmentResult.Success(config.name)
+        } else {
+            EnrollmentResult.Failure("Certificate installation failed")
         }
-    }
-
-    /**
-     * Performs SCEP enrollment, returning result or null on failure.
-     */
-    @Suppress("SwallowedException")
-    suspend fun performEnrollment(config: GetCertificateTemplateResponse): ScepResult? = try {
-        scepClient.enroll(config)
-    } catch (e: ScepEnrollmentException) {
-        // Enrollment failure is expected in some scenarios (pending approval, invalid challenge)
-        null
-    } catch (e: ScepException) {
-        // SCEP protocol errors are expected in some scenarios
-        null
+    } catch (e: IllegalArgumentException) {
+        EnrollmentResult.Failure("Invalid configuration: ${e.message}", e)
     } catch (e: Exception) {
-        // Unexpected errors are logged by the SCEP client
-        null
+        EnrollmentResult.Failure("Unexpected error: ${e.message}", e)
     }
 }
