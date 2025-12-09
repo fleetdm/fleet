@@ -23,6 +23,7 @@ import Bitwarden from "./Bitwarden";
 import Blender from "./Blender";
 import Box from "./Box";
 import Brave from "./Brave";
+import Bruno from "./Bruno";
 import CLion from "./CLion";
 import Camtasia from "./Camtasia";
 import Canva from "./Canva";
@@ -181,6 +182,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   blender: Blender,
   box: Box,
   brave: Brave,
+  bruno: Bruno,
   camtasia: Camtasia,
   canva: Canva,
   "chatgpt atlas": ChatGptAtlas,
