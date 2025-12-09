@@ -90,7 +90,7 @@ Improved performance of `/api/latest/fleet/software/versions` API endpoint.
 - added vulnerability seeding and performance testing tools
 - removed the premium check for host OS settings in host summary
 * Reduced android device reconciler frequency to 1 hour
-- Improved handling of softawre install statuses in the UI, fixing a bug where "installed" software
+- Improved handling of software install statuses in the UI, fixing a bug where "installed" software
   sometimes showed up as "uninstalled" when certain other pieces of data were not also present
 - add InstallAnywhere as a self-extracting archive for PE metadata extraction
 * Updated built-in SVG icons to avoid rendering issues when certain combinations of icons are on the same page
