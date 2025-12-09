@@ -604,7 +604,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 		}
 	}
 
-	if vppToken != nil {
+	if vppToken != nil && app.Platform != fleet.AndroidPlatform {
 		vppTokenID = &vppToken.ID
 	}
 

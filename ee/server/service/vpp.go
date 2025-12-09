@@ -495,6 +495,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	isAndroidAppID := androidApplicationID.MatchString(appID.AdamID)
 
 	var app *fleet.VPPApp
+	var enterpriseName string
 
 	// Different flows based on platform
 	switch appID.Platform {
@@ -510,7 +511,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			return 0, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
 
-		androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterprise.Name(), appID.AdamID)
+		enterpriseName = enterprise.Name()
+
+		androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterpriseName, appID.AdamID)
 		if err != nil {
 			if fleet.IsNotFound(err) {
 				return 0, fleet.NewInvalidArgumentError("app_store_id", "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
@@ -524,11 +527,6 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			IconURL:          androidApp.IconUrl,
 			Name:             androidApp.Title,
 			TeamID:           teamID,
-		}
-
-		err = worker.QueueMakeAndroidAppAvailableJob(context.Background(), svc.ds, svc.logger, appID.AdamID, app.AppTeamID, enterprise.Name())
-		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
 		}
 
 	default:
@@ -649,6 +647,13 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			level.Warn(svc.logger).Log("msg", "failed to create activity for create automatic install policy for app store app", "err", err)
 		}
 
+	}
+
+	if app.Platform == fleet.AndroidPlatform {
+		err = worker.QueueMakeAndroidAppAvailableJob(context.Background(), svc.ds, svc.logger, appID.AdamID, addedApp.AppTeamID, enterpriseName)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
+		}
 	}
 
 	return addedApp.TitleID, nil
