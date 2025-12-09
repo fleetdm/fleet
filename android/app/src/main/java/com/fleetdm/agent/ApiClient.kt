@@ -147,7 +147,7 @@ object ApiClient {
                     ?: "HTTP $responseCode"
             }
 
-            // Log.d("ApiClient", "server response from $method $endpoint ($responseCode): $response")
+            Log.d("ApiClient", "server response from $method $endpoint ($responseCode): $response")
 
             if (responseCode in 200..299) {
                 val parsed = json.decodeFromString(string = response, deserializer = responseSerializer)
