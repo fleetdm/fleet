@@ -121,6 +121,7 @@ import Snagit from "./Snagit";
 import Sourcetree from "./Sourcetree";
 import Spotify from "./Spotify";
 import SublimeText from "./SublimeText";
+import TableauDesktop from "./TableauDesktop";
 import TablePlus from "./TablePlus";
 import Tailscale from "./Tailscale";
 import TeamViewer from "./TeamViewer";
@@ -273,6 +274,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   sourcetree: Sourcetree,
   spotify: Spotify,
   "sublime text": SublimeText,
+  tableau: TableauDesktop,
   tableplus: TablePlus,
   tailscale: Tailscale,
   telegram: Telegram,
@@ -380,8 +382,6 @@ const matchStrictNameSourceToIcon = ({
     case name === "zoom.us.app" && source === "apps":
       return Zoom;
     case name === "zoom":
-      return Zoom;
-    case name === "zoom.us":
       return Zoom;
     case name.startsWith("zoom workplace"):
       return Zoom;
