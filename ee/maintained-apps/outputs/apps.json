@@ -1010,6 +1010,13 @@
       "description": "VLC media player is a free and open-source media player software."
     },
     {
+      "name": "VLC",
+      "slug": "vlc/windows",
+      "platform": "windows",
+      "unique_identifier": "VLC media player",
+      "description": "VLC media player is a free and open-source media player software."
+    },
+    {
       "name": "VNC Viewer",
       "slug": "vnc-viewer/darwin",
       "platform": "darwin",
