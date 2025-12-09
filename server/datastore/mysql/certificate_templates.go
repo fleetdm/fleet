@@ -214,12 +214,13 @@ func (ds *Datastore) GetHostCertificateTemplates(ctx context.Context, hostUUID s
 	}
 
 	stmt := `
-SELECT 
-	ct.name, 
+SELECT
+	ct.name,
 	hct.status,
-	hct.detail
+	hct.detail,
+	hct.operation_type
 FROM host_certificate_templates hct
-	INNER JOIN certificate_templates ct ON ct.id = hct.certificate_template_id 
+	INNER JOIN certificate_templates ct ON ct.id = hct.certificate_template_id
 WHERE hct.host_uuid = ?`
 
 	var hTemplates []fleet.HostCertificateTemplate
