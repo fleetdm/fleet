@@ -86,6 +86,13 @@
       "description": "AnyDesk is an app that allows connection to a computer remotely."
     },
     {
+      "name": "Arc",
+      "slug": "arc/darwin",
+      "platform": "darwin",
+      "unique_identifier": "company.thebrowser.Browser",
+      "description": "Arc is a productivity-focused browser."
+    },
+    {
       "name": "Asana",
       "slug": "asana/darwin",
       "platform": "darwin",

@@ -15,6 +15,7 @@ import AndroidStudio from "./AndroidStudio";
 import AnyDesk from "./AnyDesk";
 import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
+import Arc from "./Arc";
 import Asana from "./Asana";
 import BBEdit from "./BBEdit";
 import BeyondCompare from "./BeyondCompare";
@@ -171,6 +172,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "android studio": AndroidStudio,
   anydesk: AnyDesk,
   appleAppStore: AppleAppStore,
+  arc: Arc,
   asana: Asana,
   bbedit: BBEdit,
   "beyond compare": BeyondCompare,
