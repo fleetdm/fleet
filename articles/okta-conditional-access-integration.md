@@ -1,16 +1,12 @@
 # Conditional access: Okta
 
-_Available in Fleet Premium._
-
 With Fleet, you can integrate with Okta to enforce conditional access on macOS hosts.
 
 When a host fails a policy in Fleet, IT and Security teams can block access to third-party apps until the issue is resolved.
 
-1. [Deploy user scope profile](#step-1-deploy-user-scope-profile.)
-2. [Download certificate for Okta](#step-2-download-certificate-for-okta)
-3. [Create IDP in Okta](#step-2-create-idp-in-okta)
-4. [Configure Okta settings in Fleet](#step-3-configure-okta-settings-in-fleet)
-5. [Configure conditional access policies](#step-4-configure-conditional-access-policies)
+## Infrastructure requirements
+
+> TODO
 
 ## Step 1: Deploy user scope profile
 
