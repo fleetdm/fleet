@@ -9,7 +9,6 @@ on:
     - cron: '20 0 * * 1'
   push:
     branches: [ "main" ]
-  pull_request:  # TODO: Remove after testing
 
 # Declare default permissions as read only.
 permissions: read-all
