@@ -4169,15 +4169,15 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostsProfilesMatch(host, globalProfiles)
 	checkHostDetails(t, host, globalProfiles, fleet.MDMDeliveryVerifying)
 
-	// can not resend windows configuration profiles as admin or from device endpoint
-	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, globalProfiles[0]), nil, http.StatusBadRequest)
+	// can't resend windows configuration profiles as admin or from device endpoint while verifying
+	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, globalProfiles[0]), nil, http.StatusConflict)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.CantResendWindowsProfilesMessage)
+	require.Contains(t, errMsg, "Configuration profiles with “pending” or “verifying” status can’t be resent")
 	deviceToken := "windows-device-token"
 	createDeviceTokenForHost(t, s.ds, host.ID, deviceToken)
-	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/configuration_profiles/%s/resend", deviceToken, globalProfiles[0]), nil, http.StatusBadRequest)
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/configuration_profiles/%s/resend", deviceToken, globalProfiles[0]), nil, http.StatusConflict)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.CantResendWindowsProfilesMessage)
+	require.Contains(t, errMsg, "Configuration profiles with “pending” or “verifying” status can’t be resent")
 
 	// create new label that includes host
 	label := &fleet.Label{
@@ -4335,6 +4335,43 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		Failed:    1,
 		Verifying: 0,
 	}, nil)
+
+	// Resend the failed profile. Should succeed
+	s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, teamProfiles[0]), nil, http.StatusAccepted)
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
+		Pending: 1,
+	}, nil)
+	// Try resending, should fail since it's pending
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, teamProfiles[0]), nil, http.StatusConflict)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Configuration profiles with “pending” or “verifying” status can’t be resent")
+
+	// Trigger a profile sync, device gets the resent profile
+	verifyProfiles(mdmDevice, 1, false)
+
+	// update to verifying - should not allow resending
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_windows_profiles SET status = 'verifying' WHERE profile_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, teamProfiles[0])
+		return err
+	})
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, teamProfiles[0]), nil, http.StatusConflict)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Configuration profiles with “pending” or “verifying” status can’t be resent")
+
+	// trigger a profile sync, device doesn't get the profile since resend was not allowed
+	verifyProfiles(mdmDevice, 0, false)
+
+	// Update to verified, resending allowed again
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_windows_profiles SET status = 'verified' WHERE profile_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, teamProfiles[0])
+		return err
+	})
+	s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, teamProfiles[0]), nil, http.StatusAccepted)
+
+	// Trigger a profile sync, device gets the resent profile
+	verifyProfiles(mdmDevice, 1, false)
 
 	// add a macOS profile to the team
 	mcUUID := "a" + uuid.NewString()
