@@ -163,6 +163,13 @@
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
+      "name": "Bruno",
+      "slug": "bruno/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.usebruno.app",
+      "description": "Bruno is an open source IDE for exploring and testing APIs."
+    },
+    {
       "name": "Camtasia",
       "slug": "camtasia/darwin",
       "platform": "darwin",
