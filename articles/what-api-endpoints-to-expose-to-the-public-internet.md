@@ -61,12 +61,13 @@ If you would like to use Fleet's Windows MDM features, the following endpoints n
 
 If you would like to use Fleet's iOS/iPadOS MDM features, the following endpoints need to be exposed:
 
-- `/enroll`: Allows end users to access the enrollment page on which they download an enrollment profile to enroll their iOS/iPadOS host.
+- `/api/*/fleet/enroll`: Allows end users to access the enrollment page on which they download an enrollment profile to enroll their iOS/iPadOS host.
 - `/api/*/fleet/enrollment_profiles/ota`:  Allows hosts to download an enrollment profile.
 
 ### Android
 
-- `/enroll`: Allows end users to access the enrollment page where they select a link to enroll their Android host.
+- `/api/*/fleet/enroll`: Allows end users to access the enrollment page where they select a link to enroll their Android host.
+- `/api/*/fleet/android_enterprise/enrollment_token`: Allows Fleet to receive the [Android Management API enrollment token](https://developers.google.com/android/management/reference/rest/v1/enterprises.enrollmentTokens/get).
 - `/api/*/fleet/android_enterprise/pubsub`: Allows Fleet to receive enrollment and status report [notifications from the Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises).
 
 ## SCEP proxy
