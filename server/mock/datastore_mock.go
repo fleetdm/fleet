@@ -1533,6 +1533,8 @@ type GetMDMProfileSummaryFromHostCertificateTemplatesFunc func(ctx context.Conte
 
 type GetHostCertificateTemplatesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error)
 
+type CreatePendingCertificateTemplatesForHostsFunc func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error)
+
 type GetHostMDMAndroidProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAndroidProfile, error)
 
 type NewAndroidPolicyRequestFunc func(ctx context.Context, req *android.MDMAndroidPolicyRequest) error
@@ -1660,6 +1662,14 @@ type GetCertificateTemplateForHostFunc func(ctx context.Context, hostUUID string
 type BulkInsertHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
 
 type DeleteHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
+
+type ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
+
+type TransitionCertificateTemplatesToDeliveringFunc func(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error)
+
+type TransitionCertificateTemplatesToDeliveredFunc func(ctx context.Context, hostUUID string, challenges map[uint]string) error
+
+type RevertCertificateTemplatesToPendingFunc func(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error
 
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
@@ -3931,6 +3941,9 @@ type DataStore struct {
 	GetHostCertificateTemplatesFunc        GetHostCertificateTemplatesFunc
 	GetHostCertificateTemplatesFuncInvoked bool
 
+	CreatePendingCertificateTemplatesForHostsFunc        CreatePendingCertificateTemplatesForHostsFunc
+	CreatePendingCertificateTemplatesForHostsFuncInvoked bool
+
 	GetHostMDMAndroidProfilesFunc        GetHostMDMAndroidProfilesFunc
 	GetHostMDMAndroidProfilesFuncInvoked bool
 
@@ -4122,6 +4135,18 @@ type DataStore struct {
 
 	DeleteHostCertificateTemplatesFunc        DeleteHostCertificateTemplatesFunc
 	DeleteHostCertificateTemplatesFuncInvoked bool
+
+	ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc        ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc
+	ListAndroidHostUUIDsWithPendingCertificateTemplatesFuncInvoked bool
+
+	TransitionCertificateTemplatesToDeliveringFunc        TransitionCertificateTemplatesToDeliveringFunc
+	TransitionCertificateTemplatesToDeliveringFuncInvoked bool
+
+	TransitionCertificateTemplatesToDeliveredFunc        TransitionCertificateTemplatesToDeliveredFunc
+	TransitionCertificateTemplatesToDeliveredFuncInvoked bool
+
+	RevertCertificateTemplatesToPendingFunc        RevertCertificateTemplatesToPendingFunc
+	RevertCertificateTemplatesToPendingFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -9417,6 +9442,13 @@ func (s *DataStore) GetHostCertificateTemplates(ctx context.Context, hostUUID st
 	return s.GetHostCertificateTemplatesFunc(ctx, hostUUID)
 }
 
+func (s *DataStore) CreatePendingCertificateTemplatesForHosts(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
+	s.mu.Lock()
+	s.CreatePendingCertificateTemplatesForHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreatePendingCertificateTemplatesForHostsFunc(ctx, certificateTemplateID, teamID)
+}
+
 func (s *DataStore) GetHostMDMAndroidProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAndroidProfile, error) {
 	s.mu.Lock()
 	s.GetHostMDMAndroidProfilesFuncInvoked = true
@@ -9863,6 +9895,34 @@ func (s *DataStore) DeleteHostCertificateTemplates(ctx context.Context, hostCert
 	s.DeleteHostCertificateTemplatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostCertificateTemplatesFunc(ctx, hostCertTemplates)
+}
+
+func (s *DataStore) ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {
+	s.mu.Lock()
+	s.ListAndroidHostUUIDsWithPendingCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc(ctx, offset, limit)
+}
+
+func (s *DataStore) TransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error) {
+	s.mu.Lock()
+	s.TransitionCertificateTemplatesToDeliveringFuncInvoked = true
+	s.mu.Unlock()
+	return s.TransitionCertificateTemplatesToDeliveringFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) TransitionCertificateTemplatesToDelivered(ctx context.Context, hostUUID string, challenges map[uint]string) error {
+	s.mu.Lock()
+	s.TransitionCertificateTemplatesToDeliveredFuncInvoked = true
+	s.mu.Unlock()
+	return s.TransitionCertificateTemplatesToDeliveredFunc(ctx, hostUUID, challenges)
+}
+
+func (s *DataStore) RevertCertificateTemplatesToPending(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error {
+	s.mu.Lock()
+	s.RevertCertificateTemplatesToPendingFuncInvoked = true
+	s.mu.Unlock()
+	return s.RevertCertificateTemplatesToPendingFunc(ctx, hostUUID, certificateTemplateIDs)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {

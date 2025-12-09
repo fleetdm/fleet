@@ -40,9 +40,11 @@ type CertificateTemplateResponseFull struct {
 type CertificateTemplateStatus string
 
 var (
-	CertificateTemplateDelivered CertificateTemplateStatus = "delivered"
-	CertificateTemplateFailed    CertificateTemplateStatus = "failed"
-	CertificateTemplateVerified  CertificateTemplateStatus = "verified"
+	CertificateTemplatePending    CertificateTemplateStatus = "pending"
+	CertificateTemplateDelivering CertificateTemplateStatus = "delivering"
+	CertificateTemplateDelivered  CertificateTemplateStatus = "delivered"
+	CertificateTemplateFailed     CertificateTemplateStatus = "failed"
+	CertificateTemplateVerified   CertificateTemplateStatus = "verified"
 )
 
 // CertificateTemplateStatusToMDMDeliveryStatus converts a CertificateTemplateStatus to MDMDeliveryStatus.
@@ -54,7 +56,7 @@ func CertificateTemplateStatusToMDMDeliveryStatus(s CertificateTemplateStatus) M
 	case CertificateTemplateFailed:
 		return MDMDeliveryFailed
 	default:
-		// All other states (delivered, etc.) map to pending as in-progress states
+		// All in-progress states (pending, delivering, delivered) map to MDMDeliveryPending
 		return MDMDeliveryPending
 	}
 }

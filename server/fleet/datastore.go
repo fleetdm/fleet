@@ -2346,6 +2346,10 @@ type Datastore interface {
 	// GetHostCertificateTemplates returns what certificate templates are currently associated with the specified host.
 	GetHostCertificateTemplates(ctx context.Context, hostUUID string) ([]HostCertificateTemplate, error)
 
+	// CreatePendingCertificateTemplatesForHosts creates pending certificate template records
+	// for all enrolled Android hosts in the team when a new certificate template is added.
+	CreatePendingCertificateTemplatesForHosts(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error)
+
 	// GetHostMDMAndroidProfiles retrieves the Android MDM profiles for a specific host.
 	GetHostMDMAndroidProfiles(ctx context.Context, hostUUID string) ([]HostMDMAndroidProfile, error)
 
@@ -2538,6 +2542,21 @@ type Datastore interface {
 	// DeleteHostCertificateTemplates deletes specific host_certificate_templates records
 	// identified by (host_uuid, certificate_template_id) pairs.
 	DeleteHostCertificateTemplates(ctx context.Context, hostCertTemplates []HostCertificateTemplate) error
+
+	// ListAndroidHostUUIDsWithPendingCertificateTemplates returns hosts that have
+	// certificate templates in 'pending' status ready for delivery.
+	ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error)
+
+	// TransitionCertificateTemplatesToDelivering atomically transitions certificate templates
+	// from 'pending' to 'delivering' status.
+	TransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) ([]HostCertificateTemplate, error)
+
+	// TransitionCertificateTemplatesToDelivered transitions templates from 'delivering' to 'delivered'
+	// and sets the fleet_challenge for each template.
+	TransitionCertificateTemplatesToDelivered(ctx context.Context, hostUUID string, challenges map[uint]string) error
+
+	// RevertCertificateTemplatesToPending reverts specific templates from 'delivering' back to 'pending'.
+	RevertCertificateTemplatesToPending(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)

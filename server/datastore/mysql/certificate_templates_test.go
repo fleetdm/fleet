@@ -1152,7 +1152,7 @@ func testGetCertificateTemplateForHost(t *testing.T, ds *Datastore) {
 		{
 			HostUUID:              h1.UUID,
 			CertificateTemplateID: ct1.ID,
-			FleetChallenge:        "challenge-123",
+			FleetChallenge:        ptr.String("challenge-123"),
 			Status:                fleet.CertificateTemplateDelivered,
 			OperationType:         fleet.MDMOperationTypeInstall,
 		},

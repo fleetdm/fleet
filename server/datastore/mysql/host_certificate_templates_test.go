@@ -23,6 +23,9 @@ func TestHostCertificateTemplates(t *testing.T) {
 		{"ListCertificateTemplatesForHosts", testListCertificateTemplatesForHosts},
 		{"BulkInsertAndDeleteHostCertificateTemplates", testBulkInsertAndDeleteHostCertificateTemplates},
 		{"UpsertHostCertificateTemplateStatus", testUpsertHostCertificateTemplateStatus},
+		{"CreatePendingCertificateTemplatesForHosts", testCreatePendingCertificateTemplatesForHosts},
+		{"ListAndroidHostUUIDsWithPendingCertificateTemplates", testListAndroidHostUUIDsWithPendingCertificateTemplates},
+		{"CertificateTemplateStatusTransitions", testCertificateTemplateStatusTransitions},
 	}
 
 	for _, c := range cases {
@@ -480,9 +483,9 @@ func testBulkInsertAndDeleteHostCertificateTemplates(t *testing.T, ds *Datastore
 			func(t *testing.T, ds *Datastore) {
 				// Insert host certificate templates
 				hostCerts := []fleet.HostCertificateTemplate{
-					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-1", Status: fleet.CertificateTemplateDelivered, OperationType: fleet.MDMOperationTypeInstall},
-					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateIDTwo, FleetChallenge: "challenge-2", Status: fleet.CertificateTemplateDelivered, OperationType: fleet.MDMOperationTypeInstall},
-					{HostUUID: "host-2", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-3", Status: fleet.CertificateTemplateVerified, OperationType: fleet.MDMOperationTypeInstall},
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateID, FleetChallenge: ptr.String("challenge-1"), Status: fleet.CertificateTemplateDelivered, OperationType: fleet.MDMOperationTypeInstall},
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateIDTwo, FleetChallenge: ptr.String("challenge-2"), Status: fleet.CertificateTemplateDelivered, OperationType: fleet.MDMOperationTypeInstall},
+					{HostUUID: "host-2", CertificateTemplateID: certificateTemplateID, FleetChallenge: ptr.String("challenge-3"), Status: fleet.CertificateTemplateVerified, OperationType: fleet.MDMOperationTypeInstall},
 				}
 				err := ds.BulkInsertHostCertificateTemplates(ctx, hostCerts)
 				require.NoError(t, err)
@@ -557,8 +560,8 @@ func testBulkInsertAndDeleteHostCertificateTemplates(t *testing.T, ds *Datastore
 
 				// Insert host certificate templates
 				hostCerts := []fleet.HostCertificateTemplate{
-					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-1", Status: fleet.CertificateTemplateDelivered, OperationType: fleet.MDMOperationTypeInstall},
-					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateIDTwo, FleetChallenge: "challenge-2", Status: fleet.CertificateTemplateDelivered, OperationType: fleet.MDMOperationTypeInstall},
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateID, FleetChallenge: ptr.String("challenge-1"), Status: fleet.CertificateTemplateDelivered, OperationType: fleet.MDMOperationTypeInstall},
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateIDTwo, FleetChallenge: ptr.String("challenge-2"), Status: fleet.CertificateTemplateDelivered, OperationType: fleet.MDMOperationTypeInstall},
 				}
 				err = ds.BulkInsertHostCertificateTemplates(ctx, hostCerts)
 				require.NoError(t, err)
@@ -732,4 +735,589 @@ WHERE host_uuid = ? AND certificate_template_id = ?;
 			}
 		})
 	}
+}
+
+func testCreatePendingCertificateTemplatesForHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	testCases := []struct {
+		name     string
+		before   func(ds *Datastore) (teamID uint, templateID uint)
+		testFunc func(*testing.T, *Datastore, uint, uint)
+	}{
+		{
+			name: "creates pending records for all enrolled android hosts in team",
+			before: func(ds *Datastore) (uint, uint) {
+				team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team Pending 1"})
+				require.NoError(t, err)
+
+				// Create 3 enrolled Android hosts
+				for i := range 3 {
+					host := &fleet.Host{
+						UUID:     fmt.Sprintf("android-host-%d", i),
+						TeamID:   &team.ID,
+						Platform: "android",
+					}
+					h, err := ds.NewHost(ctx, host)
+					require.NoError(t, err)
+					_, err = ds.writer(ctx).ExecContext(ctx,
+						"INSERT INTO host_mdm (host_id, enrolled) VALUES (?, ?)",
+						h.ID, true,
+					)
+					require.NoError(t, err)
+				}
+
+				// Create a certificate authority and template
+				ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+					Type:      string(fleet.CATypeCustomSCEPProxy),
+					Name:      ptr.String("Test SCEP CA Pending 1"),
+					URL:       ptr.String("http://localhost:8080/scep"),
+					Challenge: ptr.String("test-challenge"),
+				})
+				require.NoError(t, err)
+
+				template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+					Name:                   "Test Cert Pending 1",
+					TeamID:                 team.ID,
+					CertificateAuthorityID: ca.ID,
+					SubjectName:            "CN=Test",
+				})
+				require.NoError(t, err)
+
+				return team.ID, template.ID
+			},
+			testFunc: func(t *testing.T, ds *Datastore, teamID uint, templateID uint) {
+				rowsAffected, err := ds.CreatePendingCertificateTemplatesForHosts(ctx, templateID, teamID)
+				require.NoError(t, err)
+				require.Equal(t, int64(3), rowsAffected)
+
+				// Verify records were created with pending status using ListCertificateTemplatesForHosts
+				hostUUIDs := []string{"android-host-0", "android-host-1", "android-host-2"}
+				records, err := ds.ListCertificateTemplatesForHosts(ctx, hostUUIDs)
+				require.NoError(t, err)
+				require.Len(t, records, 3)
+
+				for _, r := range records {
+					require.NotNil(t, r.Status)
+					require.EqualValues(t, fleet.CertificateTemplatePending, *r.Status)
+					require.Nil(t, r.FleetChallenge)
+				}
+			},
+		},
+		{
+			name: "does not create records for non-android hosts",
+			before: func(ds *Datastore) (uint, uint) {
+				team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team Pending 2"})
+				require.NoError(t, err)
+
+				// Create a macOS host
+				host := &fleet.Host{
+					UUID:     "macos-host",
+					TeamID:   &team.ID,
+					Platform: "darwin",
+				}
+				_, err = ds.NewHost(ctx, host)
+				require.NoError(t, err)
+
+				ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+					Type:      string(fleet.CATypeCustomSCEPProxy),
+					Name:      ptr.String("Test SCEP CA Pending 2"),
+					URL:       ptr.String("http://localhost:8080/scep"),
+					Challenge: ptr.String("test-challenge"),
+				})
+				require.NoError(t, err)
+
+				template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+					Name:                   "Test Cert Pending 2",
+					TeamID:                 team.ID,
+					CertificateAuthorityID: ca.ID,
+					SubjectName:            "CN=Test",
+				})
+				require.NoError(t, err)
+
+				return team.ID, template.ID
+			},
+			testFunc: func(t *testing.T, ds *Datastore, teamID uint, templateID uint) {
+				rowsAffected, err := ds.CreatePendingCertificateTemplatesForHosts(ctx, templateID, teamID)
+				require.NoError(t, err)
+				require.Equal(t, int64(0), rowsAffected)
+			},
+		},
+		{
+			name: "does not create records for unenrolled hosts",
+			before: func(ds *Datastore) (uint, uint) {
+				team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team Pending 3"})
+				require.NoError(t, err)
+
+				// Create an unenrolled Android host
+				host := &fleet.Host{
+					UUID:     "unenrolled-android",
+					TeamID:   &team.ID,
+					Platform: "android",
+				}
+				h, err := ds.NewHost(ctx, host)
+				require.NoError(t, err)
+				_, err = ds.writer(ctx).ExecContext(ctx,
+					"INSERT INTO host_mdm (host_id, enrolled) VALUES (?, ?)",
+					h.ID, false,
+				)
+				require.NoError(t, err)
+
+				ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+					Type:      string(fleet.CATypeCustomSCEPProxy),
+					Name:      ptr.String("Test SCEP CA Pending 3"),
+					URL:       ptr.String("http://localhost:8080/scep"),
+					Challenge: ptr.String("test-challenge"),
+				})
+				require.NoError(t, err)
+
+				template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+					Name:                   "Test Cert Pending 3",
+					TeamID:                 team.ID,
+					CertificateAuthorityID: ca.ID,
+					SubjectName:            "CN=Test",
+				})
+				require.NoError(t, err)
+
+				return team.ID, template.ID
+			},
+			testFunc: func(t *testing.T, ds *Datastore, teamID uint, templateID uint) {
+				rowsAffected, err := ds.CreatePendingCertificateTemplatesForHosts(ctx, templateID, teamID)
+				require.NoError(t, err)
+				require.Equal(t, int64(0), rowsAffected)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+			teamID, templateID := tc.before(ds)
+			tc.testFunc(t, ds, teamID, templateID)
+		})
+	}
+}
+
+func testListAndroidHostUUIDsWithPendingCertificateTemplates(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	testCases := []struct {
+		name     string
+		before   func(ds *Datastore)
+		testFunc func(*testing.T, *Datastore)
+	}{
+		{
+			name: "returns hosts with pending install certificates",
+			before: func(ds *Datastore) {
+				team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team List Pending 1"})
+				require.NoError(t, err)
+
+				// Create enrolled Android hosts
+				for _, hostUUID := range []string{"host-1", "host-2"} {
+					host := &fleet.Host{
+						UUID:     hostUUID,
+						TeamID:   &team.ID,
+						Platform: "android",
+					}
+					h, err := ds.NewHost(ctx, host)
+					require.NoError(t, err)
+					_, err = ds.writer(ctx).ExecContext(ctx,
+						"INSERT INTO host_mdm (host_id, enrolled) VALUES (?, ?)",
+						h.ID, true,
+					)
+					require.NoError(t, err)
+				}
+
+				ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+					Type:      string(fleet.CATypeCustomSCEPProxy),
+					Name:      ptr.String("Test SCEP CA"),
+					URL:       ptr.String("http://localhost:8080/scep"),
+					Challenge: ptr.String("test-challenge"),
+				})
+				require.NoError(t, err)
+
+				template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+					Name:                   "Test Cert",
+					TeamID:                 team.ID,
+					CertificateAuthorityID: ca.ID,
+					SubjectName:            "CN=Test",
+				})
+				require.NoError(t, err)
+
+				// Create pending records using the datastore function
+				_, err = ds.CreatePendingCertificateTemplatesForHosts(ctx, template.ID, team.ID)
+				require.NoError(t, err)
+			},
+			testFunc: func(t *testing.T, ds *Datastore) {
+				results, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 10)
+				require.NoError(t, err)
+				require.Len(t, results, 2)
+				require.Contains(t, results, "host-1")
+				require.Contains(t, results, "host-2")
+			},
+		},
+		{
+			name: "does not return hosts with non-pending status",
+			before: func(ds *Datastore) {
+				team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team List Pending 2"})
+				require.NoError(t, err)
+
+				ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+					Type:      string(fleet.CATypeCustomSCEPProxy),
+					Name:      ptr.String("Test SCEP CA 2"),
+					URL:       ptr.String("http://localhost:8080/scep"),
+					Challenge: ptr.String("test-challenge"),
+				})
+				require.NoError(t, err)
+
+				template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+					Name:                   "Test Cert 2",
+					TeamID:                 team.ID,
+					CertificateAuthorityID: ca.ID,
+					SubjectName:            "CN=Test",
+				})
+				require.NoError(t, err)
+
+				// Insert records with various non-pending statuses
+				_, err = ds.writer(ctx).ExecContext(ctx,
+					"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge) VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)",
+					"host-delivering", template.ID, "delivering", "install", nil,
+					"host-delivered", template.ID, "delivered", "install", "challenge1",
+					"host-verified", template.ID, "verified", "install", "challenge2",
+				)
+				require.NoError(t, err)
+			},
+			testFunc: func(t *testing.T, ds *Datastore) {
+				results, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 10)
+				require.NoError(t, err)
+				require.Len(t, results, 0)
+			},
+		},
+		{
+			name: "respects pagination",
+			before: func(ds *Datastore) {
+				team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team List Pending 3"})
+				require.NoError(t, err)
+
+				ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+					Type:      string(fleet.CATypeCustomSCEPProxy),
+					Name:      ptr.String("Test SCEP CA 3"),
+					URL:       ptr.String("http://localhost:8080/scep"),
+					Challenge: ptr.String("test-challenge"),
+				})
+				require.NoError(t, err)
+
+				template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+					Name:                   "Test Cert 3",
+					TeamID:                 team.ID,
+					CertificateAuthorityID: ca.ID,
+					SubjectName:            "CN=Test",
+				})
+				require.NoError(t, err)
+
+				// Insert pending records for 5 hosts
+				for i := range 5 {
+					_, err = ds.writer(ctx).ExecContext(ctx,
+						"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type) VALUES (?, ?, ?, ?)",
+						fmt.Sprintf("host-%d", i), template.ID, "pending", "install",
+					)
+					require.NoError(t, err)
+				}
+			},
+			testFunc: func(t *testing.T, ds *Datastore) {
+				// First page
+				results, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 2)
+				require.NoError(t, err)
+				require.Len(t, results, 2)
+
+				// Second page
+				results, err = ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 2, 2)
+				require.NoError(t, err)
+				require.Len(t, results, 2)
+
+				// Third page
+				results, err = ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 4, 2)
+				require.NoError(t, err)
+				require.Len(t, results, 1)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+			tc.before(ds)
+			tc.testFunc(t, ds)
+		})
+	}
+}
+
+func testCertificateTemplateStatusTransitions(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("TransitionCertificateTemplatesToDelivering", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team Transition 1"})
+		require.NoError(t, err)
+
+		// Create enrolled Android host
+		host := &fleet.Host{
+			UUID:     "host-1",
+			TeamID:   &team.ID,
+			Platform: "android",
+		}
+		h, err := ds.NewHost(ctx, host)
+		require.NoError(t, err)
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "", false, "", "", false)
+		require.NoError(t, err)
+
+		ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+			Type:      string(fleet.CATypeCustomSCEPProxy),
+			Name:      ptr.String("Test SCEP CA"),
+			URL:       ptr.String("http://localhost:8080/scep"),
+			Challenge: ptr.String("test-challenge"),
+		})
+		require.NoError(t, err)
+
+		template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Test Cert",
+			TeamID:                 team.ID,
+			CertificateAuthorityID: ca.ID,
+			SubjectName:            "CN=Test",
+		})
+		require.NoError(t, err)
+
+		templateTwo, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Test Cert 2",
+			TeamID:                 team.ID,
+			CertificateAuthorityID: ca.ID,
+			SubjectName:            "CN=Test2",
+		})
+		require.NoError(t, err)
+
+		// Create pending records for both templates
+		_, err = ds.CreatePendingCertificateTemplatesForHosts(ctx, template.ID, team.ID)
+		require.NoError(t, err)
+		_, err = ds.CreatePendingCertificateTemplatesForHosts(ctx, templateTwo.ID, team.ID)
+		require.NoError(t, err)
+
+		// Transition to delivering
+		templates, err := ds.TransitionCertificateTemplatesToDelivering(ctx, "host-1")
+		require.NoError(t, err)
+		require.Len(t, templates, 2)
+
+		for _, tmpl := range templates {
+			require.Equal(t, fleet.CertificateTemplateDelivering, tmpl.Status)
+		}
+
+		// Verify database state using ListCertificateTemplatesForHosts
+		records, err := ds.ListCertificateTemplatesForHosts(ctx, []string{"host-1"})
+		require.NoError(t, err)
+		require.Len(t, records, 2)
+		for _, r := range records {
+			require.NotNil(t, r.Status)
+			require.EqualValues(t, fleet.CertificateTemplateDelivering, *r.Status)
+		}
+
+		// Second call should return empty (no pending templates)
+		templates, err = ds.TransitionCertificateTemplatesToDelivering(ctx, "host-1")
+		require.NoError(t, err)
+		require.Len(t, templates, 0)
+	})
+
+	t.Run("TransitionCertificateTemplatesToDelivered", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team Transition 2"})
+		require.NoError(t, err)
+
+		// Create enrolled Android host
+		host := &fleet.Host{
+			UUID:     "host-1",
+			TeamID:   &team.ID,
+			Platform: "android",
+		}
+		h, err := ds.NewHost(ctx, host)
+		require.NoError(t, err)
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "", false, "", "", false)
+		require.NoError(t, err)
+
+		ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+			Type:      string(fleet.CATypeCustomSCEPProxy),
+			Name:      ptr.String("Test SCEP CA"),
+			URL:       ptr.String("http://localhost:8080/scep"),
+			Challenge: ptr.String("test-challenge"),
+		})
+		require.NoError(t, err)
+
+		template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Test Cert",
+			TeamID:                 team.ID,
+			CertificateAuthorityID: ca.ID,
+			SubjectName:            "CN=Test",
+		})
+		require.NoError(t, err)
+
+		templateTwo, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Test Cert 2",
+			TeamID:                 team.ID,
+			CertificateAuthorityID: ca.ID,
+			SubjectName:            "CN=Test2",
+		})
+		require.NoError(t, err)
+
+		// Create pending records and transition to delivering
+		_, err = ds.CreatePendingCertificateTemplatesForHosts(ctx, template.ID, team.ID)
+		require.NoError(t, err)
+		_, err = ds.CreatePendingCertificateTemplatesForHosts(ctx, templateTwo.ID, team.ID)
+		require.NoError(t, err)
+		_, err = ds.TransitionCertificateTemplatesToDelivering(ctx, "host-1")
+		require.NoError(t, err)
+
+		// Transition to delivered with challenges
+		challenges := map[uint]string{
+			template.ID:    "challenge-abc",
+			templateTwo.ID: "challenge-xyz",
+		}
+		err = ds.TransitionCertificateTemplatesToDelivered(ctx, "host-1", challenges)
+		require.NoError(t, err)
+
+		// Verify database state using ListCertificateTemplatesForHosts
+		records, err := ds.ListCertificateTemplatesForHosts(ctx, []string{"host-1"})
+		require.NoError(t, err)
+		require.Len(t, records, 2)
+
+		// Sort by template ID for consistent assertions
+		for _, r := range records {
+			require.NotNil(t, r.Status)
+			require.EqualValues(t, fleet.CertificateTemplateDelivered, *r.Status)
+			require.NotNil(t, r.FleetChallenge)
+			if r.CertificateTemplateID == template.ID {
+				require.Equal(t, "challenge-abc", *r.FleetChallenge)
+			} else {
+				require.Equal(t, "challenge-xyz", *r.FleetChallenge)
+			}
+		}
+	})
+
+	t.Run("RevertCertificateTemplatesToPending", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team Transition 3"})
+		require.NoError(t, err)
+
+		// Create enrolled Android host
+		host := &fleet.Host{
+			UUID:     "host-1",
+			TeamID:   &team.ID,
+			Platform: "android",
+		}
+		h, err := ds.NewHost(ctx, host)
+		require.NoError(t, err)
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "", false, "", "", false)
+		require.NoError(t, err)
+
+		ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+			Type:      string(fleet.CATypeCustomSCEPProxy),
+			Name:      ptr.String("Test SCEP CA"),
+			URL:       ptr.String("http://localhost:8080/scep"),
+			Challenge: ptr.String("test-challenge"),
+		})
+		require.NoError(t, err)
+
+		template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Test Cert",
+			TeamID:                 team.ID,
+			CertificateAuthorityID: ca.ID,
+			SubjectName:            "CN=Test",
+		})
+		require.NoError(t, err)
+
+		// Create pending record and transition to delivering
+		_, err = ds.CreatePendingCertificateTemplatesForHosts(ctx, template.ID, team.ID)
+		require.NoError(t, err)
+		_, err = ds.TransitionCertificateTemplatesToDelivering(ctx, "host-1")
+		require.NoError(t, err)
+
+		// Revert to pending
+		err = ds.RevertCertificateTemplatesToPending(ctx, "host-1", []uint{template.ID})
+		require.NoError(t, err)
+
+		// Verify database state using ListCertificateTemplatesForHosts
+		records, err := ds.ListCertificateTemplatesForHosts(ctx, []string{"host-1"})
+		require.NoError(t, err)
+		require.Len(t, records, 1)
+		require.NotNil(t, records[0].Status)
+		require.EqualValues(t, fleet.CertificateTemplatePending, *records[0].Status)
+	})
+
+	t.Run("full state machine flow", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team Transition 4"})
+		require.NoError(t, err)
+
+		// Create enrolled Android host
+		host := &fleet.Host{
+			UUID:     "android-host",
+			TeamID:   &team.ID,
+			Platform: "android",
+		}
+		h, err := ds.NewHost(ctx, host)
+		require.NoError(t, err)
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "", false, "", "", false)
+		require.NoError(t, err)
+
+		ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+			Type:      string(fleet.CATypeCustomSCEPProxy),
+			Name:      ptr.String("Test SCEP CA"),
+			URL:       ptr.String("http://localhost:8080/scep"),
+			Challenge: ptr.String("test-challenge"),
+		})
+		require.NoError(t, err)
+
+		template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Test Cert",
+			TeamID:                 team.ID,
+			CertificateAuthorityID: ca.ID,
+			SubjectName:            "CN=Test",
+		})
+		require.NoError(t, err)
+
+		// Step 1: Create pending record
+		rowsAffected, err := ds.CreatePendingCertificateTemplatesForHosts(ctx, template.ID, team.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(1), rowsAffected)
+
+		// Step 2: List hosts with pending templates
+		hostUUIDs, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 10)
+		require.NoError(t, err)
+		require.Len(t, hostUUIDs, 1)
+		require.Equal(t, "android-host", hostUUIDs[0])
+
+		// Step 3: Transition to delivering
+		templates, err := ds.TransitionCertificateTemplatesToDelivering(ctx, "android-host")
+		require.NoError(t, err)
+		require.Len(t, templates, 1)
+
+		// Verify host is no longer in pending list
+		hostUUIDs, err = ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 10)
+		require.NoError(t, err)
+		require.Len(t, hostUUIDs, 0)
+
+		// Step 4: Transition to delivered
+		challenges := map[uint]string{template.ID: "my-challenge-123"}
+		err = ds.TransitionCertificateTemplatesToDelivered(ctx, "android-host", challenges)
+		require.NoError(t, err)
+
+		// Verify final state using ListCertificateTemplatesForHosts
+		records, err := ds.ListCertificateTemplatesForHosts(ctx, []string{"android-host"})
+		require.NoError(t, err)
+		require.Len(t, records, 1)
+		require.NotNil(t, records[0].Status)
+		require.EqualValues(t, fleet.CertificateTemplateDelivered, *records[0].Status)
+		require.NotNil(t, records[0].FleetChallenge)
+		require.Equal(t, "my-challenge-123", *records[0].FleetChallenge)
+	})
 }

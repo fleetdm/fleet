@@ -221,3 +221,151 @@ func (ds *Datastore) UpsertCertificateStatus(
 
 	return nil
 }
+
+// ListAndroidHostUUIDsWithPendingCertificateTemplates returns hosts that have
+// certificate templates in 'pending' status ready for delivery.
+func (ds *Datastore) ListAndroidHostUUIDsWithPendingCertificateTemplates(
+	ctx context.Context,
+	offset int,
+	limit int,
+) ([]string, error) {
+	const stmt = `
+		SELECT DISTINCT host_uuid
+		FROM host_certificate_templates
+		WHERE
+			status = 'pending' AND
+			operation_type = 'install'
+		ORDER BY host_uuid
+		LIMIT ? OFFSET ?
+	`
+	var hostUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt, limit, offset); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list host uuids with pending certificate templates")
+	}
+	return hostUUIDs, nil
+}
+
+// TransitionCertificateTemplatesToDelivering atomically transitions certificate templates
+// from 'pending' to 'delivering' status. Returns templates that were successfully transitioned.
+// This prevents concurrent cron runs from processing the same templates.
+func (ds *Datastore) TransitionCertificateTemplatesToDelivering(
+	ctx context.Context,
+	hostUUID string,
+) ([]fleet.HostCertificateTemplate, error) {
+	var templates []fleet.HostCertificateTemplate
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Select templates that are pending
+		const selectStmt = `
+			SELECT
+				id, host_uuid, certificate_template_id, fleet_challenge, status, operation_type
+			FROM host_certificate_templates
+			WHERE
+				host_uuid = ? AND
+				status = 'pending' AND
+				operation_type = 'install'
+			FOR UPDATE
+		`
+		if err := sqlx.SelectContext(ctx, tx, &templates, selectStmt, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "select pending templates")
+		}
+
+		if len(templates) == 0 {
+			return nil // Another process already picked them up
+		}
+
+		// Transition to delivering
+		const updateStmt = `
+			UPDATE host_certificate_templates
+			SET status = 'delivering', updated_at = NOW()
+			WHERE host_uuid = ? AND status = 'pending' AND operation_type = 'install'
+		`
+		if _, err := tx.ExecContext(ctx, updateStmt, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "update to delivering")
+		}
+
+		// Update returned templates with new status
+		for i := range templates {
+			templates[i].Status = fleet.CertificateTemplateDelivering
+		}
+
+		return nil
+	})
+	return templates, err
+}
+
+// TransitionCertificateTemplatesToDelivered transitions templates from 'delivering' to 'delivered'
+// and sets the fleet_challenge for each template.
+func (ds *Datastore) TransitionCertificateTemplatesToDelivered(
+	ctx context.Context,
+	hostUUID string,
+	challenges map[uint]string, // certificateTemplateID -> challenge
+) error {
+	if len(challenges) == 0 {
+		return nil
+	}
+
+	// Build UPDATE with CASE for each template's challenge
+	var caseStmt strings.Builder
+	var templateIDs []any
+	caseStmt.WriteString("CASE certificate_template_id ")
+	for templateID, challenge := range challenges {
+		caseStmt.WriteString("WHEN ? THEN ? ")
+		templateIDs = append(templateIDs, templateID, challenge)
+	}
+	caseStmt.WriteString("END")
+
+	// Build IN clause for template IDs
+	inPlaceholders := make([]string, 0, len(challenges))
+	for templateID := range challenges {
+		inPlaceholders = append(inPlaceholders, "?")
+		templateIDs = append(templateIDs, templateID)
+	}
+
+	query := fmt.Sprintf(`
+		UPDATE host_certificate_templates
+		SET
+			status = 'delivered',
+			fleet_challenge = %s,
+			updated_at = NOW()
+		WHERE
+			host_uuid = ? AND
+			status = 'delivering' AND
+			certificate_template_id IN (%s)
+	`, caseStmt.String(), strings.Join(inPlaceholders, ","))
+
+	args := templateIDs
+	// Insert hostUUID before the IN clause placeholders
+	args = append(args[:len(challenges)*2], append([]any{hostUUID}, args[len(challenges)*2:]...)...)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "transition to delivered")
+	}
+
+	return nil
+}
+
+// RevertCertificateTemplatesToPending reverts specific templates from 'delivering' back to 'pending'.
+func (ds *Datastore) RevertCertificateTemplatesToPending(
+	ctx context.Context,
+	hostUUID string,
+	certificateTemplateIDs []uint,
+) error {
+	if len(certificateTemplateIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(`
+		UPDATE host_certificate_templates
+		SET status = 'pending', updated_at = NOW()
+		WHERE host_uuid = ? AND status = 'delivering' AND operation_type = 'install'
+		AND certificate_template_id IN (?)
+	`, hostUUID, certificateTemplateIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build revert to pending query")
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "revert to pending")
+	}
+	return nil
+}

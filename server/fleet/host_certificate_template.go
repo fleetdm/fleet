@@ -5,7 +5,7 @@ type HostCertificateTemplate struct {
 	Name                  string                    `db:"name"`
 	HostUUID              string                    `db:"host_uuid"`
 	CertificateTemplateID uint                      `db:"certificate_template_id"`
-	FleetChallenge        string                    `db:"fleet_challenge"`
+	FleetChallenge        *string                   `db:"fleet_challenge"`
 	Status                CertificateTemplateStatus `db:"status"`
 	OperationType         MDMOperationType          `db:"operation_type"`
 	Detail                *string                   `db:"detail" json:"-"`

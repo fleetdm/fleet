@@ -231,6 +231,42 @@ WHERE hct.host_uuid = ?`
 	return hTemplates, nil
 }
 
+// CreatePendingCertificateTemplatesForHosts creates pending certificate template records
+// for all enrolled Android hosts in the team when a new certificate template is added.
+func (ds *Datastore) CreatePendingCertificateTemplatesForHosts(
+	ctx context.Context,
+	certificateTemplateID uint,
+	teamID uint,
+) (int64, error) {
+	const stmt = `
+		INSERT INTO host_certificate_templates (
+			host_uuid,
+			certificate_template_id,
+			fleet_challenge,
+			status,
+			operation_type
+		)
+		SELECT
+			hosts.uuid,
+			?,
+			NULL,
+			'pending',
+			'install'
+		FROM hosts
+		INNER JOIN host_mdm ON host_mdm.host_id = hosts.id
+		WHERE
+			hosts.team_id = ? AND
+			hosts.platform = 'android' AND
+			host_mdm.enrolled = 1
+		ON DUPLICATE KEY UPDATE host_uuid = host_uuid
+	`
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, certificateTemplateID, teamID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "create pending certificate templates for hosts")
+	}
+	return result.RowsAffected()
+}
+
 func (ds *Datastore) GetMDMProfileSummaryFromHostCertificateTemplates(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
 	var stmt string
 	var args []interface{}
@@ -273,14 +309,13 @@ GROUP BY hct.status`
 
 	var res fleet.MDMProfilesSummary
 	for s, c := range byStatus {
-		switch fleet.MDMDeliveryStatus(s) {
-		case fleet.MDMDeliveryFailed:
+		switch fleet.CertificateTemplateStatus(s) {
+		case fleet.CertificateTemplateFailed:
 			res.Failed = c
-		case fleet.MDMDeliveryPending:
-			res.Pending = c
-		case fleet.MDMDeliveryVerifying:
-			res.Verifying = c
-		case fleet.MDMDeliveryVerified:
+		case fleet.CertificateTemplatePending, fleet.CertificateTemplateDelivering, fleet.CertificateTemplateDelivered:
+			// All in-progress states count as pending
+			res.Pending += c
+		case fleet.CertificateTemplateVerified:
 			res.Verified = c
 		default:
 			return nil, fmt.Errorf("unknown status %s", s)
