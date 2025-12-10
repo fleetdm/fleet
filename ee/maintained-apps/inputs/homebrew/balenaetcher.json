@@ -4,5 +4,5 @@
   "token": "balenaetcher",
   "installer_format": "dmg",
   "slug": "balenaetcher/darwin",
-  "default_categories": ["Developer tool"]
+  "default_categories": ["Developer tools"]
 }
