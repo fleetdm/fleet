@@ -34,7 +34,7 @@ func TestHostCertificateTemplate(t *testing.T) {
 				},
 				expectation: func(t *testing.T, profile HostMDMProfile) {
 					require.Equal(t, "1234", profile.HostUUID)
-					require.Equal(t, "HostCertificate", profile.Name)
+					require.Equal(t, "Certificate Template:HostCertificate", profile.Name)
 					require.Equal(t, "android", profile.Platform)
 					require.Equal(t, MDMDeliveryVerified, *profile.Status)
 					require.Equal(t, MDMOperationTypeInstall, profile.OperationType)
