@@ -80,7 +80,7 @@ class CertificateOrchestratorTest {
         certificateId: Int,
         alias: String,
         status: CertificateInstallStatus = CertificateInstallStatus.INSTALLED,
-        retries: Int = 0
+        retries: Int = 0,
     ) {
         context.prefDataStore.edit { preferences ->
             val existing = preferences[stringPreferencesKey("installed_certificates")]?.let {

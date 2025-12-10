@@ -157,11 +157,7 @@ object CertificateOrchestrator {
      * @param certificateId Certificate template ID
      * @param alias Certificate alias used during installation
      */
-    internal suspend fun storeCertificateInstallationInfo(
-        context: Context,
-        certificateId: Int,
-        certInstallInfo: CertificateInstallInfo
-    ) {
+    internal suspend fun storeCertificateInstallationInfo(context: Context, certificateId: Int, certInstallInfo: CertificateInstallInfo) {
         certificateStorageMutex.withLock {
             try {
                 context.prefDataStore.edit { preferences ->
@@ -421,7 +417,5 @@ data class CertificateInstallInfo(
     @SerialName("retries")
     val retries: Int = 0,
 ) {
-    fun shouldRetry(): Boolean {
-        return status == CertificateInstallStatus.RETRY && retries < (MAX_CERT_INSTALL_RETRIES)
-    }
+    fun shouldRetry(): Boolean = status == CertificateInstallStatus.RETRY && retries < (MAX_CERT_INSTALL_RETRIES)
 }
