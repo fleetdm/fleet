@@ -67,13 +67,21 @@ import Drawio from "./DrawIo";
 import Dropbox from "./Dropbox";
 import Eclipse from "./Eclipse";
 import Edge from "./Edge";
+import Egnyte from "./Egnyte";
 import EightXEightWork from "./8X8Work";
+import ElgatoControlCenter from "./ElgatoControlCenter";
+import ElgatoStreamDeck from "./ElgatoStreamDeck";
 import Evernote from "./Evernote";
 import Excel from "./Excel";
+import ExpressVpn from "./ExpressVpn";
 import Extension from "./Extension";
 import Falcon from "./Falcon";
 import Figma from "./Figma";
 import Firefox from "./Firefox";
+import Fork from "./Fork";
+import Front from "./Front";
+import Ghostty from "./Ghostty";
+import Gimp from "./Gimp";
 import GitHubDesktop from "./GitHubDesktop";
 import GitKraken from "./GitKraken";
 import GoLand from "./GoLand";
@@ -81,6 +89,8 @@ import GoogleDrive from "./GoogleDrive";
 import GpgKeychain from "./GpgKeychain";
 import GrammarlyDesktop from "./GrammarlyDesktop";
 import Granola from "./Granola";
+import HandBrake from "./HandBrake";
+import Hyper from "./Hyper";
 import IMazingProfileEditor from "./IMazingProfileEditor";
 import ITerm from "./ITerm";
 import Insomnia from "./Insomnia";
@@ -244,11 +254,20 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "draw.io": Drawio,
   dropbox: Dropbox,
   eclipse: Eclipse,
+  egnyte: Egnyte,
+  "elgato control center": ElgatoControlCenter,
   evernote: Evernote,
+  expressvpn: ExpressVpn,
   falcon: Falcon,
   figma: Figma,
   firefox: Firefox,
+  fork: Fork,
+  front: Front,
+  ghostty: Ghostty,
+  gimp: Gimp,
   "gpg keychain": GpgKeychain,
+  handbrake: HandBrake,
+  hyper: Hyper,
   keepassxc: KeePassXc,
   libreoffice: LibreOffice,
   "microsoft autoupdate": MicrosoftAutoUpdate,
@@ -319,6 +338,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   snagit: Snagit,
   sourcetree: Sourcetree,
   spotify: Spotify,
+  "stream deck": ElgatoStreamDeck,
   "sublime text": SublimeText,
   tableau: TableauDesktop,
   tableplus: TablePlus,

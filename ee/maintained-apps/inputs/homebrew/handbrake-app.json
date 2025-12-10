@@ -1,0 +1,8 @@
+{
+  "name": "HandBrake",
+  "unique_identifier": "fr.handbrake.HandBrake",
+  "token": "handbrake-app",
+  "installer_format": "dmg",
+  "slug": "handbrake-app/darwin",
+  "default_categories": ["Productivity"]
+}
