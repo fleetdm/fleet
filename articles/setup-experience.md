@@ -8,6 +8,8 @@ This guide covers macOS, iOS, iPadOS, and Android. Learn more about Windows and 
 
 macOS setup features require [connecting Fleet to Apple Business Manager (ABM)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
 
+> Fleet will consider that hosts with a deadline assigned in Apple Business Manager (ABM) are migrating. Therefore, the setup experience for software installation, scripts, and bootstrap packages will not run. If you have hosts ready for new users, ensure you [remove the deadline](https://support.apple.com/en-bh/guide/apple-business-manager/axm3a49a769d/web#axmf524b36d9) in ABM.
+
 ## End user authentication
 
 You can enforce end user authentication during automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts and manual enrollment for personal (BYOD) iOS, iPadOS, and Android hosts. End user authentication is also supported on [Windows and Linux](https://fleetdm.com/guides/windows-linux-setup-experience).
