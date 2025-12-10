@@ -405,7 +405,7 @@
       "slug": "db-browser-for-sqlite/darwin",
       "platform": "darwin",
       "unique_identifier": "com.sqlitebrowser.sqlitebrowser",
-      "description": ""
+      "description": "DB Browser for SQLite is a high quality, visual, open source tool designed for people who want to create, search, and edit SQLite or SQLCipher databases."
     },
     {
       "name": "DBeaver",
