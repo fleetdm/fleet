@@ -2375,7 +2375,7 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
 	logger := log.NewNopLogger()
-	host := &fleet.Host{ID: 1, UUID: "host-uuid"}
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
 
 	row1 := map[string]string{
 		"ca":                "0",
