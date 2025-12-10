@@ -167,9 +167,13 @@ import Tower from "./Tower";
 import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
+import Utm from "./Utm";
+import VirtualBox from "./VirtualBox";
+import Viscosity from "./Viscosity";
 import VisualStudioCode from "./VisualStudioCode";
 import Vlc from "./Vlc";
 import VncViewer from "./VncViewer";
+import WacomCenter from "./WacomCenter";
 import WebStorm from "./WebStorm";
 import Webex from "./Webex";
 import WhatsApp from "./WhatsApp";
@@ -177,12 +181,14 @@ import WindowsApp from "./WindowsApp";
 import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
+import Windsurf from "./Windsurf";
 import Wireshark from "./Wireshark";
 import Word from "./Word";
 import WrikeForMac from "./WrikeForMac";
 import YubicoAuthenticator from "./YubicoAuthenticator";
 import YubikeyManager from "./YubikeyManager";
 import Zed from "./Zed";
+import Zeplin from "./Zeplin";
 import ZeroOneZeroEditor from "./010Editor";
 import Zoom from "./Zoom";
 
@@ -353,21 +359,27 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   transmit: Transmit,
   tunnelblick: Tunnelblick,
   twingate: Twingate,
+  utm: Utm,
+  virtualbox: VirtualBox,
+  viscosity: Viscosity,
   "vnc viewer": VncViewer,
   "visual studio code": VisualStudioCode,
   vlc: Vlc,
+  "wacom center": WacomCenter,
   webstorm: WebStorm,
   webex: Webex,
   whatsapp: WhatsApp,
   "windows app": WindowsApp,
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
+  windsurf: Windsurf,
   wireshark: Wireshark,
   "wrike for mac": WrikeForMac,
   wrike: WrikeForMac,
   "yubico authenticator": YubicoAuthenticator,
   "yubikey manager": YubikeyManager,
   zed: Zed,
+  zeplin: Zeplin,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
