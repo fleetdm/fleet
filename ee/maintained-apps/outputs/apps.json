@@ -681,13 +681,6 @@
       "description": "Granola is an AI-powered notepad for meetings."
     },
     {
-      "name": "HandBrake",
-      "slug": "handbrake-app/darwin",
-      "platform": "darwin",
-      "unique_identifier": "fr.handbrake.HandBrake",
-      "description": "HandBrake is an open-source video transcoder."
-    },
-    {
       "name": "Hyper",
       "slug": "hyper/darwin",
       "platform": "darwin",
