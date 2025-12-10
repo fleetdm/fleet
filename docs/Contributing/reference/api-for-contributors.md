@@ -2191,7 +2191,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 ### Get labels
 
-Gets all labels visible to the currently logged-in users.
+Gets all labels visible to the currently logged-in user.
 
 `GET /api/v1/fleet/spec/labels`
 
