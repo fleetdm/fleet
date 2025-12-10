@@ -48,7 +48,7 @@ const OSSettingStatusCell = ({
   // Android certificate templates.
   else if (
     hostPlatform === "android" &&
-    profileUUID ===  FLEET_ANDROID_CERTIFICATE_PROFILE_ID
+    profileUUID === FLEET_ANDROID_CERTIFICATE_PROFILE_ID
   ) {
     switch (status) {
       case "pending":
