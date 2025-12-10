@@ -1,8 +1,8 @@
 import React from "react";
-import {Column} from "react-table";
+import { Column } from "react-table";
 
-import {IStringCellProps} from "interfaces/datatable_config";
-import {IHostMdmData} from "interfaces/host";
+import { IStringCellProps } from "interfaces/datatable_config";
+import { IHostMdmData } from "interfaces/host";
 import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PREFIX,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
@@ -12,13 +12,16 @@ import {
   MdmDDMProfileStatus,
   MdmProfileStatus,
 } from "interfaces/mdm";
-import {isDDMProfile} from "services/entities/mdm";
+import { isDDMProfile } from "services/entities/mdm";
 
 import OSSettingsNameCell from "./OSSettingsNameCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
 import OSSettingsErrorCell from "./OSSettingsErrorCell";
 
-import {generateLinuxDiskEncryptionSetting, generateWinDiskEncryptionSetting,} from "../../helpers";
+import {
+  generateLinuxDiskEncryptionSetting,
+  generateWinDiskEncryptionSetting,
+} from "../../helpers";
 
 export interface IHostMdmProfileWithAddedStatus
   extends Omit<IHostMdmProfile, "status"> {
