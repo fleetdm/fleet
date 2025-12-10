@@ -207,6 +207,11 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 			Message: "Couldn't update configuration. Invalid JSON.",
 		}
 	}
+	// TODO(mna): we should validate here that WorkProfileWidgets is set to one of the
+	// valid strings if provided, otherwise it fails on the AMAPI call in the worker,
+	// which is a silent failure from the user's point of view. But maybe that means
+	// we need a new error message (the two existing ones above don't really cover this case).
+	// See https://github.com/fleetdm/fleet/issues/35515#issuecomment-3637571625
 
 	return nil
 }
