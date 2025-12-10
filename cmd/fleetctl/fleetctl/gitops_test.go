@@ -3794,6 +3794,11 @@ func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.Ce
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 
+	// Mock CreatePendingCertificateTemplatesForExistingHosts (called when creating certificate templates)
+	ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
+		return 0, nil
+	}
+
 	return certAuthorities
 }
 
