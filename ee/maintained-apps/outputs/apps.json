@@ -1255,6 +1255,27 @@
       "description": "Twingate is a zero trust network access platform."
     },
     {
+      "name": "UTM",
+      "slug": "utm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.utmapp.UTM",
+      "description": ""
+    },
+    {
+      "name": "VirtualBox",
+      "slug": "virtualbox/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.virtualbox.app.VirtualBox",
+      "description": "VirtualBox is a virtualiser for arm64 hardware."
+    },
+    {
+      "name": "Viscosity",
+      "slug": "viscosity/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.viscosityvpn.Viscosity",
+      "description": "Viscosity is an OpenVPN client with AppleScript support."
+    },
+    {
       "name": "Microsoft Visual Studio Code",
       "slug": "visual-studio-code/darwin",
       "platform": "darwin",
@@ -1290,6 +1311,13 @@
       "description": "VNC Viewer is a remote desktop application focusing on security."
     },
     {
+      "name": "Wacom Tablet",
+      "slug": "wacom-tablet/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.wacom.WacomCenter",
+      "description": "Wacom Tablet is a collection of resources for configuring Wacom tablets."
+    },
+    {
       "name": "Webex",
       "slug": "webex/darwin",
       "platform": "darwin",
@@ -1323,6 +1351,13 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.rdc.macos",
       "description": "Windows App helps you connect to Windows from your Mac."
+    },
+    {
+      "name": "Windsurf",
+      "slug": "windsurf/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.exafunction.windsurf",
+      "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
     },
     {
       "name": "Wireshark",
@@ -1365,6 +1400,13 @@
       "platform": "darwin",
       "unique_identifier": "dev.zed.Zed",
       "description": "Zed is a multiplayer code editor."
+    },
+    {
+      "name": "Zeplin",
+      "slug": "zeplin/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.zeplin.osx",
+      "description": "Zeplin is an app to share, organize, and collaborate on designs."
     },
     {
       "name": "Zoom",
