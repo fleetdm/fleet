@@ -1,0 +1,8 @@
+{
+  "name": "DBeaverUltimate",
+  "unique_identifier": "com.dbeaver.product.ultimate",
+  "token": "dbeaverultimate",
+  "installer_format": "dmg",
+  "slug": "dbeaverultimate/darwin",
+  "default_categories": ["Developer tools"]
+}

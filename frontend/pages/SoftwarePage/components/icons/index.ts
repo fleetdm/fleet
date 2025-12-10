@@ -25,6 +25,7 @@ import Asana from "./Asana";
 import Audacity from "./Audacity";
 import AvastSecureBrowser from "./AvastSecureBrowser";
 import AwsVpnClient from "./AwsVpnClient";
+import BalenaEtcher from "./BalenaEtcher";
 import BBEdit from "./BBEdit";
 import BeyondCompare from "./BeyondCompare";
 import Bitwarden from "./Bitwarden";
@@ -32,6 +33,8 @@ import Blender from "./Blender";
 import Box from "./Box";
 import Brave from "./Brave";
 import Bruno from "./Bruno";
+import CleanMyMac from "./CleanMyMac";
+import CleanShotX from "./CleanShotX";
 import CLion from "./CLion";
 import Camtasia from "./Camtasia";
 import Canva from "./Canva";
@@ -43,11 +46,19 @@ import CiscoJabber from "./CiscoJabber";
 import CitrixWorkspace from "./CitrixWorkspace";
 import Claude from "./Claude";
 import ClickUp from "./ClickUp";
+import ClockifyDesktop from "./ClockifyDesktop";
 import Cloudflare from "./Cloudflare";
+import CotEditor from "./CotEditor";
 import CreativeCloud from "./AdobeCreativeCloud";
 import Cursor from "./Cursor";
 import Cyberduck from "./Cyberduck";
 import DataGrip from "./DataGrip";
+import DBeaver from "./DBeaver";
+import DBeaverEe from "./DBeaverEe";
+import DBeaverLite from "./DBeaverLite";
+import DBeaverUltimate from "./DBeaverUltimate";
+import DeepL from "./DeepL";
+import Dialpad from "./Dialpad";
 import Discord from "./Discord";
 import DisplayLinkManager from "./DisplayLinkManager";
 import Docker from "./Docker";
@@ -192,6 +203,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   audacity: Audacity,
   avast: AvastSecureBrowser,
   "aws vpn client": AwsVpnClient,
+  balenaetcher: BalenaEtcher,
   bbedit: BBEdit,
   "beyond compare": BeyondCompare,
   bitwarden: Bitwarden,
@@ -206,14 +218,24 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "cisco jabber": CiscoJabber,
   "citrix workspace": CitrixWorkspace,
   claude: Claude,
+  cleanmymac_5: CleanMyMac,
+  "cleanshot x": CleanShotX,
   clion: CLion,
   clickup: ClickUp,
+  "clockify desktop": ClockifyDesktop,
   cloudflare: Cloudflare,
   code: VisualStudioCode,
   "company portal": IntuneCompanyPortal,
+  coteditor: CotEditor,
   cursor: Cursor,
   cyberduck: Cyberduck,
   datagrip: DataGrip,
+  "dbeaver community": DBeaver,
+  "dbeaver enterprise edition": DBeaverEe,
+  "dbeaver lite edition": DBeaverLite,
+  "dbeaver ultimate edition": DBeaverUltimate,
+  deepl: DeepL,
+  dialpad: Dialpad,
   discord: Discord,
   "DisplayLink USB Graphics Software": DisplayLinkManager,
   docker: Docker,

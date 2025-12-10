@@ -1,0 +1,8 @@
+{
+  "name": "DBeaverEE",
+  "unique_identifier": "com.dbeaver.product.enterprise",
+  "token": "dbeaver-enterprise",
+  "installer_format": "dmg",
+  "slug": "dbeaver-enterprise/darwin",
+  "default_categories": ["Developer tools"]
+}

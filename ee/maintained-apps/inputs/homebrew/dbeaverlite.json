@@ -1,0 +1,8 @@
+{
+  "name": "DBeaverLite",
+  "unique_identifier": "com.dbeaver.product.lite",
+  "token": "dbeaverlite",
+  "installer_format": "dmg",
+  "slug": "dbeaverlite/darwin",
+  "default_categories": ["Developer tools"]
+}

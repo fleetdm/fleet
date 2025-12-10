@@ -1,0 +1,8 @@
+{
+  "name": "CleanMyMac",
+  "unique_identifier": "com.macpaw.CleanMyMac5",
+  "token": "cleanmymac",
+  "installer_format": "zip",
+  "slug": "cleanmymac/darwin",
+  "default_categories": ["Productivity"]
+}
