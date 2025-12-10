@@ -117,11 +117,6 @@ export interface ISoftwarePackage {
   hash_sha256?: string | null;
 }
 
-export const isSoftwarePackage = (
-  data: ISoftwarePackage | IAppStoreApp
-): data is ISoftwarePackage =>
-  (data as ISoftwarePackage).install_script !== undefined;
-
 export interface IAppStoreApp {
   name: string;
   /** Not included in SoftwareTitle software.app_store_app response, hoisted up one level
@@ -147,7 +142,19 @@ export interface IAppStoreApp {
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[];
+  configuration?: string;
 }
+
+/**
+ * package: includes FMA, custom packages, and are defined under software_package
+ * app-store: includes VPP, Google Play Store apps and are defined under app_store_app
+ */
+export type InstallerType = "package" | "app-store";
+
+export const isSoftwarePackage = (
+  data: ISoftwarePackage | IAppStoreApp
+): data is ISoftwarePackage =>
+  (data as ISoftwarePackage).install_script !== undefined;
 
 export interface ISoftwareTitle {
   id: number;
