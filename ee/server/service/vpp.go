@@ -623,7 +623,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 
 	var androidConfigChanged bool
-	if appID.Platform == fleet.AndroidPlatform {
+	// note that if appID.Configuration is nil, InsertVPPAppWithTeam will ignore it (it will not
+	// update or remove it), so here we ignore it too if it is nil.
+	if appID.Configuration != nil && appID.Platform == fleet.AndroidPlatform {
 		changed, err := svc.ds.HasAndroidAppConfigurationChanged(ctx, appID.AdamID, ptr.ValOrZero(teamID), appID.Configuration)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "checking android app configuration change")
@@ -867,7 +869,9 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	}
 
 	var androidConfigChanged bool
-	if meta.Platform == fleet.AndroidPlatform {
+	// note that if appID.Configuration is nil, InsertVPPAppWithTeam will ignore it (it will not
+	// update or remove it), so here we ignore it too if it is nil.
+	if payload.Configuration != nil && meta.Platform == fleet.AndroidPlatform {
 		// check if configuration has changed
 		androidConfigChanged, err = svc.ds.HasAndroidAppConfigurationChanged(ctx, meta.AdamID, ptr.ValOrZero(teamID), payload.Configuration)
 		if err != nil {
