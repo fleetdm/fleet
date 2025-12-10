@@ -12,6 +12,7 @@ export default {
   CONTROLS_OS_UPDATES: `${URL_PREFIX}/controls/os-updates`,
   CONTROLS_OS_SETTINGS: `${URL_PREFIX}/controls/os-settings`,
   CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/os-settings/custom-settings`,
+  CONTROLS_CERTIFICATES: `${URL_PREFIX}/controls/os-settings/certificates`,
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
   CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/setup-experience/end-user-auth`,
