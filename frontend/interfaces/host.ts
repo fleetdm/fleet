@@ -97,7 +97,13 @@ export interface IMunkiData {
 
 export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
 
-export type CertificateStatus = "pending" | "delivering" | "delivered";
+export type CertificateStatus =
+  | "verified"
+  | "failed"
+  //  all below display "pending" in UI
+  | "pending"
+  | "delivering"
+  | "delivered";
 export interface ICertificate {
   name: string;
   status: CertificateStatus;
