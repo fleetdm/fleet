@@ -1816,7 +1816,6 @@ func testScimLastRequest(t *testing.T, ds *Datastore) {
 		"Updated request timestamp should be after the original timestamp")
 }
 
-// TODO(MHJ): Clean up this test by either doing a loop or using a sub method that passes 3 hosts and 3 profiles plus some identifier
 func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
