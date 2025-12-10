@@ -2097,7 +2097,7 @@ notation, such as `log.name` and `log.decorations.hostname`.
 }
 ```
 
-**Example Subject Templates**
+#### Example subject templates
 | Description         | Template                                          | Result                       |
 |---------------------|---------------------------------------------------|------------------------------|
 | Route by hostname   | `results.{log.decorations.hostname}`              | `results.webserver`          |
