@@ -544,6 +544,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			}
 
 			if toAdd.DisplayName != nil {
+				fmt.Println("Updating display name for title: ", appStoreAppIDsToTitleIDs[toAdd.AdamID], "name: ", *toAdd.DisplayName)
 				if err := updateSoftwareTitleDisplayName(ctx, tx, teamID, appStoreAppIDsToTitleIDs[toAdd.AdamID], *toAdd.DisplayName); err != nil {
 					return ctxerr.Wrap(ctx, err, "setting software title display name for vpp app")
 				}

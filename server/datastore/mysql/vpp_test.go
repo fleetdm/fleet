@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -41,7 +42,7 @@ func TestVPP(t *testing.T) {
 		{"TestGetUnverifiedVPPInstallsForHost", testGetUnverifiedVPPInstallsForHost},
 		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayNameVPP},
 		{"AndroidVPPAppStatus", testAndroidVPPAppStatus},
-		// TODO(JK): testAndroidAppConfigurations, including bulk
+		{"AndroidAppConfigs", testAndroidAppConfigs},
 	}
 
 	for _, c := range cases {
@@ -2424,4 +2425,59 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, host3.Host.ID, hosts[0].ID)
+}
+func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "androids"})
+	require.NoError(t, err)
+
+	// Insert some VPP apps for no team
+	app1 := &fleet.VPPApp{Name: "android_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.AndroidPlatform}}, BundleIdentifier: "b1"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, nil)
+	require.NoError(t, err)
+	app2 := &fleet.VPPApp{Name: "android_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.AndroidPlatform}}, BundleIdentifier: "b2"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, nil)
+	require.NoError(t, err)
+	app3 := &fleet.VPPApp{Name: "android_app_3", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.AndroidPlatform}}, BundleIdentifier: "b3"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app3, nil)
+	require.NoError(t, err)
+	app4 := &fleet.VPPApp{Name: "android_app_4", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "4", Platform: fleet.AndroidPlatform}}, BundleIdentifier: "b4"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app4, nil)
+	require.NoError(t, err)
+
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+		{VPPAppID: app1.VPPAppID, SelfService: true, DisplayName: ptr.String("app 1")},
+		{VPPAppID: app2.VPPAppID, SelfService: true, DisplayName: ptr.String("app 2"), Configuration: json.RawMessage(nil)},
+		{VPPAppID: app3.VPPAppID, SelfService: true, DisplayName: ptr.String("app 3"), Configuration: json.RawMessage(`{}`)},
+		{VPPAppID: app4.VPPAppID, SelfService: true, DisplayName: ptr.String("app 4"), Configuration: json.RawMessage(`{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED"}`)},
+	}, map[string]uint{"1": 1, "2": 2, "3": 3, "4": 4})
+	require.NoError(t, err)
+
+	assigned, err := ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 4)
+
+	for _, a := range assigned {
+		config, err := ds.GetAndroidAppConfiguration(ctx, a.AdamID, team.ID)
+		require.True(t, err == nil || fleet.IsNotFound(err))
+		if config != nil {
+			a.Configuration = config.Configuration
+			assigned[a.VPPAppID] = a
+		}
+		// fmt.Printf("App: %+v\n", a)
+	}
+
+	require.Equal(t, json.RawMessage(nil), assigned[app1.VPPAppID].Configuration)
+	require.Equal(t, json.RawMessage(nil), assigned[app2.VPPAppID].Configuration)
+	require.Equal(t, json.RawMessage(`{}`), assigned[app3.VPPAppID].Configuration)
+	require.Equal(t, json.RawMessage(`{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED"}`), assigned[app4.VPPAppID].Configuration)
+
+	// ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+	// 	DumpTable(t, tx, "software_titles")
+	// 	DumpTable(t, tx, "software_title_display_names")
+	// 	DumpTable(t, tx, "android_app_configurations")
+	// 	return nil
+	// })
 }
