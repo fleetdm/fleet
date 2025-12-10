@@ -401,6 +401,13 @@
       "description": "DataGrip is a powerful cross-platform IDE for relational and NoSQL databases."
     },
     {
+      "name": "DB Browser for SQLite",
+      "slug": "db-browser-for-sqlite/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sqlitebrowser.sqlitebrowser",
+      "description": "DB Browser for SQLite is a high quality, visual, open source tool designed for people who want to create, search, and edit SQLite or SQLCipher databases."
+    },
+    {
       "name": "DBeaver",
       "slug": "dbeaver-community/darwin",
       "platform": "darwin",
@@ -506,11 +513,39 @@
       "description": "Eclipse IDE is an Eclipse integrated development environment for Java."
     },
     {
+      "name": "Egnyte",
+      "slug": "egnyte/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.egnyte.DesktopApp",
+      "description": "Egnyte is a client for the Egnyte cloud storage service."
+    },
+    {
+      "name": "Elgato Control Center",
+      "slug": "elgato-control-center/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.corsair.ControlCenter",
+      "description": "Elgate Control Center is an app to control your Elgato key lights."
+    },
+    {
+      "name": "Elgato Stream Deck",
+      "slug": "elgato-stream-deck/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.elgato.StreamDeck",
+      "description": "Elgateo Stream Deck is an app to assign keys, and then decorate and label them, on a Stream Deck."
+    },
+    {
       "name": "Evernote",
       "slug": "evernote/darwin",
       "platform": "darwin",
       "unique_identifier": "com.evernote.Evernote",
       "description": "Evernote is an app for note taking, organising, task lists, and archiving."
+    },
+    {
+      "name": "ExpressVPN",
+      "slug": "expressvpn/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.expressvpn.ExpressVPN",
+      "description": "ExpressVPN is a VPN client for secure internet access and private browsing."
     },
     {
       "name": "Figma",
@@ -539,6 +574,34 @@
       "platform": "windows",
       "unique_identifier": "Mozilla Firefox (x64 en-US)",
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
+    },
+    {
+      "name": "Fork",
+      "slug": "fork/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.DanPristupov.Fork",
+      "description": "Fork is a git client."
+    },
+    {
+      "name": "Front",
+      "slug": "front/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.frontapp.Front",
+      "description": "Front is a customer communication platform."
+    },
+    {
+      "name": "Ghostty",
+      "slug": "ghostty/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mitchellh.ghostty",
+      "description": "Ghostty is a terminal emulator that uses platform-native UI and GPU acceleration."
+    },
+    {
+      "name": "GIMP",
+      "slug": "gimp/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.gimp.gimp-3.0",
+      "description": "GIMP is a free and open-source image editor."
     },
     {
       "name": "GitHub Desktop",
@@ -616,6 +679,13 @@
       "platform": "darwin",
       "unique_identifier": "com.granola.app",
       "description": "Granola is an AI-powered notepad for meetings."
+    },
+    {
+      "name": "Hyper",
+      "slug": "hyper/darwin",
+      "platform": "darwin",
+      "unique_identifier": "co.zeit.hyper",
+      "description": "Hyper is a terminal built on web technologies."
     },
     {
       "name": "iMazing Profile Editor",
@@ -1185,6 +1255,27 @@
       "description": "Twingate is a zero trust network access platform."
     },
     {
+      "name": "UTM",
+      "slug": "utm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.utmapp.UTM",
+      "description": "UTM is a virtual machines UI using QEMU."
+    },
+    {
+      "name": "VirtualBox",
+      "slug": "virtualbox/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.virtualbox.app.VirtualBox",
+      "description": "VirtualBox is a virtualiser for arm64 hardware."
+    },
+    {
+      "name": "Viscosity",
+      "slug": "viscosity/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.viscosityvpn.Viscosity",
+      "description": "Viscosity is an OpenVPN client with AppleScript support."
+    },
+    {
       "name": "Microsoft Visual Studio Code",
       "slug": "visual-studio-code/darwin",
       "platform": "darwin",
@@ -1220,6 +1311,13 @@
       "description": "VNC Viewer is a remote desktop application focusing on security."
     },
     {
+      "name": "Wacom Tablet",
+      "slug": "wacom-tablet/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.wacom.WacomCenter",
+      "description": "Wacom Tablet is a collection of resources for configuring Wacom tablets."
+    },
+    {
       "name": "Webex",
       "slug": "webex/darwin",
       "platform": "darwin",
@@ -1253,6 +1351,13 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.rdc.macos",
       "description": "Windows App helps you connect to Windows from your Mac."
+    },
+    {
+      "name": "Windsurf",
+      "slug": "windsurf/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.exafunction.windsurf",
+      "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
     },
     {
       "name": "Wireshark",
@@ -1295,6 +1400,13 @@
       "platform": "darwin",
       "unique_identifier": "dev.zed.Zed",
       "description": "Zed is a multiplayer code editor."
+    },
+    {
+      "name": "Zeplin",
+      "slug": "zeplin/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.zeplin.osx",
+      "description": "Zeplin is an app to share, organize, and collaborate on designs."
     },
     {
       "name": "Zoom",
