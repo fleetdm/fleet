@@ -75,8 +75,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	payloadsWithPlatform := make([]fleet.VPPBatchPayloadWithPlatform, 0, len(payloads))
 	for _, payload := range payloads {
-		// Currently only macOS is supported for self-service. Don't
-		// import vpp apps as self-service for ios or ipados
 		if payload.Platform == "" {
 			payload.Platform = fleet.MacOSPlatform
 		}
@@ -120,6 +118,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				LabelsIncludeAny:   payload.LabelsIncludeAny,
 				Categories:         payload.Categories,
 				DisplayName:        payload.DisplayName,
+				Configuration:      payload.Configuration,
 			})
 		}
 
@@ -178,6 +177,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			switch payload.Platform {
 			case fleet.AndroidPlatform:
 				appStoreApp.SelfService = true
+				appStoreApp.Configuration = payload.Configuration
 				incomingAndroidApps = append(incomingAndroidApps, appStoreApp)
 			case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform:
 				incomingAppleApps = append(incomingAppleApps, appStoreApp)
