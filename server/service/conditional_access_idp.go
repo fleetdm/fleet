@@ -242,12 +242,12 @@ func conditionalAccessGetIdPSigningCertEndpoint(ctx context.Context, request int
 }
 
 func (svc *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error) {
-	// This endpoint is unauthenticated since the signing certificate is just a public
-	// certificate that needs to be downloaded and uploaded to Okta. The certificate
-	// is also exposed via the public IdP metadata endpoint.
-	svc.authz.SkipAuthorization(ctx)
+	// Check user is authorized to read conditional access Okta IdP certificate
+	if err := svc.authz.Authorize(ctx, &fleet.ConditionalAccessIDPAssets{}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to authorize")
+	}
 
-	// Check that server private key is configured (needed for conditional access to work)
+	// Check that server private key is configured
 	if len(svc.config.Server.PrivateKey) == 0 {
 		return nil, &fleet.BadRequestError{Message: "Fleet server private key is not configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key"}
 	}
