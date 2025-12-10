@@ -153,7 +153,7 @@ You can unenroll a macOS, Windows, or Linux host from Fleet (iOS, iPadOS, and An
 ## Advanced
 
 - [Supported osquery versions](#supported-osquery-versions)
-- [Best practice for dual-boot workstations](#best-partice-for-dual-boot-workstations)
+- [Best practice for dual-boot workstations](#best-practice-for-dual-boot-workstations)
 - [Fleet agent (fleetd) components](#fleetd-components)
 - [Signing fleetd](#signing-fleetd)
 - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 
