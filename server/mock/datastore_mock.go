@@ -1533,7 +1533,11 @@ type GetMDMProfileSummaryFromHostCertificateTemplatesFunc func(ctx context.Conte
 
 type GetHostCertificateTemplatesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error)
 
-type CreatePendingCertificateTemplatesForHostsFunc func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error)
+type CreatePendingCertificateTemplatesForExistingHostsFunc func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error)
+
+type CreatePendingCertificateTemplatesForNewHostFunc func(ctx context.Context, hostUUID string, teamID uint) (int64, error)
+
+type RevertStaleCertificateTemplatesFunc func(ctx context.Context, staleDuration time.Duration) (int64, error)
 
 type GetHostMDMAndroidProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAndroidProfile, error)
 
@@ -3941,8 +3945,14 @@ type DataStore struct {
 	GetHostCertificateTemplatesFunc        GetHostCertificateTemplatesFunc
 	GetHostCertificateTemplatesFuncInvoked bool
 
-	CreatePendingCertificateTemplatesForHostsFunc        CreatePendingCertificateTemplatesForHostsFunc
-	CreatePendingCertificateTemplatesForHostsFuncInvoked bool
+	CreatePendingCertificateTemplatesForExistingHostsFunc        CreatePendingCertificateTemplatesForExistingHostsFunc
+	CreatePendingCertificateTemplatesForExistingHostsFuncInvoked bool
+
+	CreatePendingCertificateTemplatesForNewHostFunc        CreatePendingCertificateTemplatesForNewHostFunc
+	CreatePendingCertificateTemplatesForNewHostFuncInvoked bool
+
+	RevertStaleCertificateTemplatesFunc        RevertStaleCertificateTemplatesFunc
+	RevertStaleCertificateTemplatesFuncInvoked bool
 
 	GetHostMDMAndroidProfilesFunc        GetHostMDMAndroidProfilesFunc
 	GetHostMDMAndroidProfilesFuncInvoked bool
@@ -9442,11 +9452,25 @@ func (s *DataStore) GetHostCertificateTemplates(ctx context.Context, hostUUID st
 	return s.GetHostCertificateTemplatesFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) CreatePendingCertificateTemplatesForHosts(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
+func (s *DataStore) CreatePendingCertificateTemplatesForExistingHosts(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
 	s.mu.Lock()
-	s.CreatePendingCertificateTemplatesForHostsFuncInvoked = true
+	s.CreatePendingCertificateTemplatesForExistingHostsFuncInvoked = true
 	s.mu.Unlock()
-	return s.CreatePendingCertificateTemplatesForHostsFunc(ctx, certificateTemplateID, teamID)
+	return s.CreatePendingCertificateTemplatesForExistingHostsFunc(ctx, certificateTemplateID, teamID)
+}
+
+func (s *DataStore) CreatePendingCertificateTemplatesForNewHost(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
+	s.mu.Lock()
+	s.CreatePendingCertificateTemplatesForNewHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreatePendingCertificateTemplatesForNewHostFunc(ctx, hostUUID, teamID)
+}
+
+func (s *DataStore) RevertStaleCertificateTemplates(ctx context.Context, staleDuration time.Duration) (int64, error) {
+	s.mu.Lock()
+	s.RevertStaleCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.RevertStaleCertificateTemplatesFunc(ctx, staleDuration)
 }
 
 func (s *DataStore) GetHostMDMAndroidProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAndroidProfile, error) {

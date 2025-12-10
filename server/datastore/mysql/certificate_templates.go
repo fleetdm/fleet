@@ -231,9 +231,9 @@ WHERE hct.host_uuid = ?`
 	return hTemplates, nil
 }
 
-// CreatePendingCertificateTemplatesForHosts creates pending certificate template records
+// CreatePendingCertificateTemplatesForExistingHosts creates pending certificate template records
 // for all enrolled Android hosts in the team when a new certificate template is added.
-func (ds *Datastore) CreatePendingCertificateTemplatesForHosts(
+func (ds *Datastore) CreatePendingCertificateTemplatesForExistingHosts(
 	ctx context.Context,
 	certificateTemplateID uint,
 	teamID uint,
@@ -263,6 +263,37 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForHosts(
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, certificateTemplateID, teamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "create pending certificate templates for hosts")
+	}
+	return result.RowsAffected()
+}
+
+// CreatePendingCertificateTemplatesForNewHost creates pending certificate template records
+// for a newly enrolled Android host based on their team's certificate templates.
+// This is called during Android enrollment when the host is assigned to a team.
+func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
+	ctx context.Context,
+	hostUUID string,
+	teamID uint,
+) (int64, error) {
+	const stmt = `
+		INSERT INTO host_certificate_templates (
+			host_uuid,
+			certificate_template_id,
+			status,
+			operation_type
+		)
+		SELECT
+			?,
+			id,
+			'pending',
+			'install'
+		FROM certificate_templates
+		WHERE team_id = ?
+		ON DUPLICATE KEY UPDATE host_uuid = host_uuid
+	`
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, teamID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "create pending certificate templates for new host")
 	}
 	return result.RowsAffected()
 }

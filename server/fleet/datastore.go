@@ -2346,9 +2346,17 @@ type Datastore interface {
 	// GetHostCertificateTemplates returns what certificate templates are currently associated with the specified host.
 	GetHostCertificateTemplates(ctx context.Context, hostUUID string) ([]HostCertificateTemplate, error)
 
-	// CreatePendingCertificateTemplatesForHosts creates pending certificate template records
+	// CreatePendingCertificateTemplatesForExistingHosts creates pending certificate template records
 	// for all enrolled Android hosts in the team when a new certificate template is added.
-	CreatePendingCertificateTemplatesForHosts(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error)
+	CreatePendingCertificateTemplatesForExistingHosts(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error)
+
+	// CreatePendingCertificateTemplatesForNewHost creates pending certificate template records
+	// for a newly enrolled Android host based on their team's certificate templates.
+	CreatePendingCertificateTemplatesForNewHost(ctx context.Context, hostUUID string, teamID uint) (int64, error)
+
+	// RevertStaleCertificateTemplates reverts certificate templates stuck in 'delivering' status
+	// for longer than the specified duration back to 'pending'.
+	RevertStaleCertificateTemplates(ctx context.Context, staleDuration time.Duration) (int64, error)
 
 	// GetHostMDMAndroidProfiles retrieves the Android MDM profiles for a specific host.
 	GetHostMDMAndroidProfiles(ctx context.Context, hostUUID string) ([]HostMDMAndroidProfile, error)

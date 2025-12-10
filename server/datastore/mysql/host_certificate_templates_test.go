@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -23,9 +24,11 @@ func TestHostCertificateTemplates(t *testing.T) {
 		{"ListCertificateTemplatesForHosts", testListCertificateTemplatesForHosts},
 		{"BulkInsertAndDeleteHostCertificateTemplates", testBulkInsertAndDeleteHostCertificateTemplates},
 		{"UpsertHostCertificateTemplateStatus", testUpsertHostCertificateTemplateStatus},
-		{"CreatePendingCertificateTemplatesForHosts", testCreatePendingCertificateTemplatesForHosts},
+		{"CreatePendingCertificateTemplatesForExistingHosts", testCreatePendingCertificateTemplatesForExistingHosts},
+		{"CreatePendingCertificateTemplatesForNewHost", testCreatePendingCertificateTemplatesForNewHost},
 		{"ListAndroidHostUUIDsWithPendingCertificateTemplates", testListAndroidHostUUIDsWithPendingCertificateTemplates},
 		{"CertificateTemplateStatusTransitions", testCertificateTemplateStatusTransitions},
+		{"RevertStaleCertificateTemplates", testRevertStaleCertificateTemplates},
 	}
 
 	for _, c := range cases {
@@ -737,7 +740,7 @@ WHERE host_uuid = ? AND certificate_template_id = ?;
 	}
 }
 
-func testCreatePendingCertificateTemplatesForHosts(t *testing.T, ds *Datastore) {
+func testCreatePendingCertificateTemplatesForExistingHosts(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	testCases := []struct {
@@ -787,7 +790,7 @@ func testCreatePendingCertificateTemplatesForHosts(t *testing.T, ds *Datastore) 
 				return team.ID, template.ID
 			},
 			testFunc: func(t *testing.T, ds *Datastore, teamID uint, templateID uint) {
-				rowsAffected, err := ds.CreatePendingCertificateTemplatesForHosts(ctx, templateID, teamID)
+				rowsAffected, err := ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, templateID, teamID)
 				require.NoError(t, err)
 				require.Equal(t, int64(3), rowsAffected)
 
@@ -838,7 +841,7 @@ func testCreatePendingCertificateTemplatesForHosts(t *testing.T, ds *Datastore) 
 				return team.ID, template.ID
 			},
 			testFunc: func(t *testing.T, ds *Datastore, teamID uint, templateID uint) {
-				rowsAffected, err := ds.CreatePendingCertificateTemplatesForHosts(ctx, templateID, teamID)
+				rowsAffected, err := ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, templateID, teamID)
 				require.NoError(t, err)
 				require.Equal(t, int64(0), rowsAffected)
 			},
@@ -882,7 +885,7 @@ func testCreatePendingCertificateTemplatesForHosts(t *testing.T, ds *Datastore) 
 				return team.ID, template.ID
 			},
 			testFunc: func(t *testing.T, ds *Datastore, teamID uint, templateID uint) {
-				rowsAffected, err := ds.CreatePendingCertificateTemplatesForHosts(ctx, templateID, teamID)
+				rowsAffected, err := ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, templateID, teamID)
 				require.NoError(t, err)
 				require.Equal(t, int64(0), rowsAffected)
 			},
@@ -945,7 +948,7 @@ func testListAndroidHostUUIDsWithPendingCertificateTemplates(t *testing.T, ds *D
 				require.NoError(t, err)
 
 				// Create pending records using the datastore function
-				_, err = ds.CreatePendingCertificateTemplatesForHosts(ctx, template.ID, team.ID)
+				_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, template.ID, team.ID)
 				require.NoError(t, err)
 			},
 			testFunc: func(t *testing.T, ds *Datastore) {
@@ -1097,9 +1100,9 @@ func testCertificateTemplateStatusTransitions(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// Create pending records for both templates
-		_, err = ds.CreatePendingCertificateTemplatesForHosts(ctx, template.ID, team.ID)
+		_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, template.ID, team.ID)
 		require.NoError(t, err)
-		_, err = ds.CreatePendingCertificateTemplatesForHosts(ctx, templateTwo.ID, team.ID)
+		_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, templateTwo.ID, team.ID)
 		require.NoError(t, err)
 
 		// Transition to delivering
@@ -1168,9 +1171,9 @@ func testCertificateTemplateStatusTransitions(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// Create pending records and transition to delivering
-		_, err = ds.CreatePendingCertificateTemplatesForHosts(ctx, template.ID, team.ID)
+		_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, template.ID, team.ID)
 		require.NoError(t, err)
-		_, err = ds.CreatePendingCertificateTemplatesForHosts(ctx, templateTwo.ID, team.ID)
+		_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, templateTwo.ID, team.ID)
 		require.NoError(t, err)
 		_, err = ds.TransitionCertificateTemplatesToDelivering(ctx, "host-1")
 		require.NoError(t, err)
@@ -1235,7 +1238,7 @@ func testCertificateTemplateStatusTransitions(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// Create pending record and transition to delivering
-		_, err = ds.CreatePendingCertificateTemplatesForHosts(ctx, template.ID, team.ID)
+		_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, template.ID, team.ID)
 		require.NoError(t, err)
 		_, err = ds.TransitionCertificateTemplatesToDelivering(ctx, "host-1")
 		require.NoError(t, err)
@@ -1286,7 +1289,7 @@ func testCertificateTemplateStatusTransitions(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// Step 1: Create pending record
-		rowsAffected, err := ds.CreatePendingCertificateTemplatesForHosts(ctx, template.ID, team.ID)
+		rowsAffected, err := ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, template.ID, team.ID)
 		require.NoError(t, err)
 		require.Equal(t, int64(1), rowsAffected)
 
@@ -1319,5 +1322,212 @@ func testCertificateTemplateStatusTransitions(t *testing.T, ds *Datastore) {
 		require.EqualValues(t, fleet.CertificateTemplateDelivered, *records[0].Status)
 		require.NotNil(t, records[0].FleetChallenge)
 		require.Equal(t, "my-challenge-123", *records[0].FleetChallenge)
+	})
+}
+
+func testCreatePendingCertificateTemplatesForNewHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	truncateTables := func(t *testing.T) {
+		TruncateTables(t, ds,
+			"hosts",
+			"host_seen_times",
+			"host_display_names",
+			"host_mdm",
+			"teams",
+			"certificate_authorities",
+			"certificate_templates",
+			"host_certificate_templates",
+		)
+	}
+	truncateTables(t)
+
+	t.Run("creates pending records for newly enrolled host", func(t *testing.T) {
+		defer truncateTables(t)
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team New Host"})
+		require.NoError(t, err)
+
+		// Create host first (simulating a newly enrolled host)
+		hostUUID := "new-android-host"
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			UUID:     hostUUID,
+			TeamID:   &team.ID,
+			Platform: "android",
+		})
+		require.NoError(t, err)
+		err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "", false, "", "", false)
+		require.NoError(t, err)
+
+		// Create multiple certificate templates for the team
+		ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+			Type:      string(fleet.CATypeCustomSCEPProxy),
+			Name:      ptr.String("Test SCEP CA New Host"),
+			URL:       ptr.String("http://localhost:8080/scep"),
+			Challenge: ptr.String("test-challenge"),
+		})
+		require.NoError(t, err)
+
+		_, err = ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Cert1 New Host",
+			TeamID:                 team.ID,
+			CertificateAuthorityID: ca.ID,
+			SubjectName:            "CN=Test1",
+		})
+		require.NoError(t, err)
+
+		_, err = ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Cert2 New Host",
+			TeamID:                 team.ID,
+			CertificateAuthorityID: ca.ID,
+			SubjectName:            "CN=Test2",
+		})
+		require.NoError(t, err)
+
+		// Create pending templates for this new host
+		rowsAffected, err := ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, team.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(2), rowsAffected)
+
+		// Verify the records were created
+		records, err := ds.ListCertificateTemplatesForHosts(ctx, []string{hostUUID})
+		require.NoError(t, err)
+		require.Len(t, records, 2)
+
+		for _, r := range records {
+			require.Equal(t, hostUUID, r.HostUUID)
+			require.NotNil(t, r.Status)
+			require.EqualValues(t, fleet.CertificateTemplatePending, *r.Status)
+		}
+	})
+
+	t.Run("no-op when team has no certificate templates", func(t *testing.T) {
+		defer truncateTables(t)
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team No Templates"})
+		require.NoError(t, err)
+
+		hostUUID := "host-no-templates"
+
+		rowsAffected, err := ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, team.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), rowsAffected)
+	})
+}
+
+func testRevertStaleCertificateTemplates(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	truncateTables := func(t *testing.T) {
+		TruncateTables(t, ds,
+			"teams",
+			"certificate_authorities",
+			"certificate_templates",
+			"host_certificate_templates",
+		)
+	}
+	truncateTables(t)
+
+	t.Run("reverts stale delivering templates", func(t *testing.T) {
+		defer truncateTables(t)
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team Stale"})
+		require.NoError(t, err)
+
+		ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+			Type:      string(fleet.CATypeCustomSCEPProxy),
+			Name:      ptr.String("Test SCEP CA Stale"),
+			URL:       ptr.String("http://localhost:8080/scep"),
+			Challenge: ptr.String("test-challenge"),
+		})
+		require.NoError(t, err)
+
+		template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Cert Stale",
+			TeamID:                 team.ID,
+			CertificateAuthorityID: ca.ID,
+			SubjectName:            "CN=Test",
+		})
+		require.NoError(t, err)
+
+		// Insert a record in 'delivering' status with updated_at set to 7 hours ago
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, updated_at) VALUES (?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL 7 HOUR))",
+			"stale-host", template.ID, fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeInstall,
+		)
+		require.NoError(t, err)
+
+		// Insert a record in 'delivering' status that is recent (1 hour ago)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, updated_at) VALUES (?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL 1 HOUR))",
+			"recent-host", template.ID, fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeInstall,
+		)
+		require.NoError(t, err)
+
+		// Revert with 6-hour threshold
+		affected, err := ds.RevertStaleCertificateTemplates(ctx, 6*time.Hour)
+		require.NoError(t, err)
+		require.Equal(t, int64(1), affected)
+
+		// Verify only the stale one was reverted
+		var statuses []struct {
+			HostUUID string                          `db:"host_uuid"`
+			Status   fleet.CertificateTemplateStatus `db:"status"`
+		}
+		err = ds.writer(ctx).SelectContext(ctx, &statuses,
+			"SELECT host_uuid, status FROM host_certificate_templates ORDER BY host_uuid")
+		require.NoError(t, err)
+		require.Len(t, statuses, 2)
+
+		for _, s := range statuses {
+			if s.HostUUID == "stale-host" {
+				require.EqualValues(t, fleet.CertificateTemplatePending, s.Status)
+			} else {
+				require.EqualValues(t, fleet.CertificateTemplateDelivering, s.Status)
+			}
+		}
+	})
+
+	t.Run("does not revert non-delivering statuses", func(t *testing.T) {
+		defer truncateTables(t)
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team Non Delivering"})
+		require.NoError(t, err)
+
+		ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+			Type:      string(fleet.CATypeCustomSCEPProxy),
+			Name:      ptr.String("Test SCEP CA Non Delivering"),
+			URL:       ptr.String("http://localhost:8080/scep"),
+			Challenge: ptr.String("test-challenge"),
+		})
+		require.NoError(t, err)
+
+		template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Cert Non Delivering",
+			TeamID:                 team.ID,
+			CertificateAuthorityID: ca.ID,
+			SubjectName:            "CN=Test",
+		})
+		require.NoError(t, err)
+
+		// Insert records with various non-delivering statuses, all old
+		for _, status := range []fleet.CertificateTemplateStatus{
+			fleet.CertificateTemplatePending,
+			fleet.CertificateTemplateDelivered,
+			fleet.CertificateTemplateVerified,
+			fleet.CertificateTemplateFailed,
+		} {
+			_, err = ds.writer(ctx).ExecContext(ctx,
+				"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, updated_at) VALUES (?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL 7 HOUR))",
+				fmt.Sprintf("host-%s", status), template.ID, status, fleet.MDMOperationTypeInstall,
+			)
+			require.NoError(t, err)
+		}
+
+		// Revert should not affect any of them
+		affected, err := ds.RevertStaleCertificateTemplates(ctx, 6*time.Hour)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), affected)
+	})
+
+	t.Run("returns zero when no stale templates", func(t *testing.T) {
+		defer truncateTables(t)
+		affected, err := ds.RevertStaleCertificateTemplates(ctx, 6*time.Hour)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), affected)
 	})
 }

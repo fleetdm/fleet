@@ -158,6 +158,21 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 			return err
 		}
 
+		// Get android host info to access team ID for certificate templates
+		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
+		}
+
+		// Create pending certificate templates for this newly enrolled host
+		// so they can be picked up by BuildAndSendFleetAgentConfig
+		if androidHost.Host.TeamID != nil {
+			if _, err := v.Datastore.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, *androidHost.Host.TeamID); err != nil {
+				// Log error but don't fail - cron will pick up any missed templates
+				level.Error(v.Log).Log("msg", "failed to create pending certificate templates for new host", "host_uuid", hostUUID, "err", err)
+			}
+		}
+
 		err = v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "build and send fleet agent config for host %s", hostUUID)
@@ -175,10 +190,6 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 			// we probably don't want to re-enable it by accident. Those are the only
 			// 2 valid states when patching a device.
 			State: "ACTIVE",
-		}
-		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
 		}
 		deviceName := fmt.Sprintf("%s/devices/%s", enterpriseName, androidHost.DeviceID)
 		_, err = v.AndroidModule.PatchDevice(ctx, hostUUID, deviceName, device)

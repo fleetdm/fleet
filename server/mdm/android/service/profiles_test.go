@@ -877,7 +877,7 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 
 	// Create pending certificate templates for host1 (this is what triggers processing)
 	for _, certTemplateID := range certificateTemplateIDs {
-		_, err = ds.CreatePendingCertificateTemplatesForHosts(ctx, certTemplateID, team.ID)
+		_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, certTemplateID, team.ID)
 		require.NoError(t, err)
 	}
 

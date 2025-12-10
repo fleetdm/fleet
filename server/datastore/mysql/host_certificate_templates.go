@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -368,4 +369,25 @@ func (ds *Datastore) RevertCertificateTemplatesToPending(
 		return ctxerr.Wrap(ctx, err, "revert to pending")
 	}
 	return nil
+}
+
+// RevertStaleCertificateTemplates reverts certificate templates stuck in 'delivering' status
+// for longer than the specified duration back to 'pending'. This is a safety net for
+// server crashes during AMAPI calls.
+func (ds *Datastore) RevertStaleCertificateTemplates(
+	ctx context.Context,
+	staleDuration time.Duration,
+) (int64, error) {
+	const stmt = `
+		UPDATE host_certificate_templates
+		SET status = 'pending', updated_at = NOW()
+		WHERE
+			status = 'delivering' AND
+			updated_at < DATE_SUB(NOW(), INTERVAL ? SECOND)
+	`
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, int(staleDuration.Seconds()))
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "revert stale certificate templates")
+	}
+	return result.RowsAffected()
 }
