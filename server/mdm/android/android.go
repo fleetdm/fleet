@@ -77,4 +77,4 @@ type MDMAndroidPolicyRequest struct {
 	PolicyVersion        sql.Null[int64]  `db:"policy_version"`
 }
 
-const APP_STATUS_AVAILABLE = "AVAILABLE"
+const AppStatusAvailable = "AVAILABLE"

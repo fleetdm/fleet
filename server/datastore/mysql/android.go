@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -1787,13 +1786,10 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "list mdm android uuids to host ids")
 	}
 
-	results := maps.Collect(func(yield func(uuid string, id uint) bool) {
-		for _, r := range rows {
-			if !yield(r.UUID, r.ID) {
-				return
-			}
-		}
-	})
+	results := make(map[string]uint, len(rows))
+	for _, r := range rows {
+		results[r.UUID] = r.ID
+	}
 
 	return results, nil
 }

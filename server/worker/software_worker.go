@@ -356,7 +356,7 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 			return ctxerr.WrapWithData(ctx, err, "get android apps in scope for host", map[string]any{"host_id": hostID})
 		}
 
-		err = v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{uuid: uuid}, android.APP_STATUS_AVAILABLE)
+		err = v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{uuid: uuid}, android.AppStatusAvailable)
 
 		if err != nil {
 			return ctxerr.WrapWithData(ctx, err, "set apps for android policy", map[string]any{"host_id": hostID})
