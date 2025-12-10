@@ -72,6 +72,20 @@
       "description": "Adobe Digital Editions is an E-book reader."
     },
     {
+      "name": "Aircall",
+      "slug": "aircall/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.aircall.phone",
+      "description": "Aircall is cloud-based call center and phone system software."
+    },
+    {
+      "name": "Amazon Chime",
+      "slug": "amazon-chime/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.runningwithcrayons.Alfred",
+      "description": "Amazon Chime is a communications service that lets you meet, chat, and place business calls inside and outside your organization."
+    },
+    {
       "name": "Android Studio",
       "slug": "android-studio/darwin",
       "platform": "darwin",
@@ -79,11 +93,39 @@
       "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
     },
     {
+      "name": "Anka",
+      "slug": "anka-virtualization/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.veertu.ankaview",
+      "description": "Anka is a tool for managing and creating virtual machines."
+    },
+    {
       "name": "AnyDesk",
       "slug": "anydesk/darwin",
       "platform": "darwin",
       "unique_identifier": "com.philandro.anydesk",
       "description": "AnyDesk is an app that allows connection to a computer remotely."
+    },
+    {
+      "name": "Apparency",
+      "slug": "apparency/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mothersruin.Apparency",
+      "description": "Apparency is an app to inspect application bundles."
+    },
+    {
+      "name": "Arc",
+      "slug": "arc/darwin",
+      "platform": "darwin",
+      "unique_identifier": "company.thebrowser.Browser",
+      "description": "Arc is a productivity-focused browser."
+    },
+    {
+      "name": "Archaeology",
+      "slug": "archaeology/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mothersruin.Archaeology",
+      "description": "Archaeology is a tool for digging into binary files."
     },
     {
       "name": "Asana",
@@ -98,6 +140,34 @@
       "platform": "windows",
       "unique_identifier": "Asana",
       "description": "Asana is an app to manage team projects and tasks."
+    },
+    {
+      "name": "Audacity",
+      "slug": "audacity/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.audacityteam.audacity",
+      "description": "Audacity is a multi-track audio editor and recorder."
+    },
+    {
+      "name": "Avast Secure Browser",
+      "slug": "avast-secure-browser/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.avast.AvastSecureBrowser",
+      "description": "Avast Secure Browser is a web browser focusing on privacy."
+    },
+    {
+      "name": "AWS Client VPN",
+      "slug": "aws-vpn-client/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.amazonaws.acvc.osx",
+      "description": "AWS Client VPN is a managed client-based VPN service to securely access AWS resources."
+    },
+    {
+      "name": "balenaEtcher",
+      "slug": "balenaetcher/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.balena.etcher",
+      "description": "balenaEtcher is a tool to flash OS images to SD cards & USB drives."
     },
     {
       "name": "BBEdit",
@@ -119,6 +189,20 @@
       "platform": "darwin",
       "unique_identifier": "com.bitwarden.desktop",
       "description": "Bitwarden is a desktop password and login vault."
+    },
+    {
+      "name": "Blender",
+      "slug": "blender/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.blenderfoundation.blender",
+      "description": "Blender is a 3D creation suite."
+    },
+    {
+      "name": "Blender",
+      "slug": "blender/windows",
+      "platform": "windows",
+      "unique_identifier": "Blender",
+      "description": "Blender is a 3D creation suite."
     },
     {
       "name": "Box Drive",
@@ -147,6 +231,13 @@
       "platform": "windows",
       "unique_identifier": "Brave",
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
+    },
+    {
+      "name": "Bruno",
+      "slug": "bruno/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.usebruno.app",
+      "description": "Bruno is an open source IDE for exploring and testing APIs."
     },
     {
       "name": "Camtasia",
@@ -191,6 +282,13 @@
       "description": "Cisco Jabber is a collaboration and communication app."
     },
     {
+      "name": "Cisco Jabber",
+      "slug": "cisco-jabber/windows",
+      "platform": "windows",
+      "unique_identifier": "Cisco Jabber",
+      "description": "Cisco Jabber is a collaboration and communication app."
+    },
+    {
       "name": "Citrix Workspace",
       "slug": "citrix-workspace/darwin",
       "platform": "darwin",
@@ -205,10 +303,31 @@
       "description": "Claude is Anthropic's official Claude AI desktop app."
     },
     {
+      "name": "CleanMyMac",
+      "slug": "cleanmymac/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.macpaw.CleanMyMac5",
+      "description": "CleanMyMac is a tool to remove unnecessary files and folders from disk."
+    },
+    {
+      "name": "CleanShot X",
+      "slug": "cleanshot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.getcleanshot.app",
+      "description": "CleanShot X is a screen capturing tool."
+    },
+    {
       "name": "ClickUp",
       "slug": "clickup/darwin",
       "platform": "darwin",
       "unique_identifier": "com.clickup.desktop-app",
+      "description": "ClickUp is a productivity platform for tasks, docs, goals, and chat."
+    },
+    {
+      "name": "ClickUp",
+      "slug": "clickup/windows",
+      "platform": "windows",
+      "unique_identifier": "ClickUp",
       "description": "ClickUp is a productivity platform for tasks, docs, goals, and chat."
     },
     {
@@ -217,6 +336,13 @@
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.CLion",
       "description": "CLion is a JetBrains IDE for C and C++."
+    },
+    {
+      "name": "Clockify Desktop",
+      "slug": "clockify/darwin",
+      "platform": "darwin",
+      "unique_identifier": "coing.ClockifyDesktop",
+      "description": "Clockify Desktop is a time tracking tool for agencies and freelancers."
     },
     {
       "name": "Cloudflare WARP",
@@ -231,6 +357,13 @@
       "platform": "windows",
       "unique_identifier": "Cloudflare WARP",
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+    },
+    {
+      "name": "CotEditor",
+      "slug": "coteditor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.coteditor.CotEditor",
+      "description": "CotEditor is a plain-text editor for web pages, program source codes, and more."
     },
     {
       "name": "Cursor",
@@ -254,6 +387,13 @@
       "description": "Cyberduck is a server and cloud storage browser."
     },
     {
+      "name": "Cyberduck",
+      "slug": "cyberduck/windows",
+      "platform": "windows",
+      "unique_identifier": "Cyberduck",
+      "description": "Cyberduck is a server and cloud storage browser."
+    },
+    {
       "name": "DataGrip",
       "slug": "datagrip/darwin",
       "platform": "darwin",
@@ -261,11 +401,53 @@
       "description": "DataGrip is a powerful cross-platform IDE for relational and NoSQL databases."
     },
     {
+      "name": "DBeaver",
+      "slug": "dbeaver-community/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.jkiss.dbeaver.core.product",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
+      "name": "DBeaverEE",
+      "slug": "dbeaver-enterprise/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.dbeaver.product.enterprise",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
+      "name": "DBeaverLite",
+      "slug": "dbeaverlite/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.dbeaver.product.lite",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
+      "name": "DBeaverUltimate",
+      "slug": "dbeaverultimate/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.dbeaver.product.ultimate",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
       "name": "Amazon DCV",
       "slug": "dcv-viewer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.nicesoftware.dcvviewer",
       "description": "DCV Viewer is used for connecting to the NICE DCV remote display protocol."
+    },
+    {
+      "name": "DeepL",
+      "slug": "deepl/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.linguee.DeepLCopyTranslator",
+      "description": "DeepL is an AI-powered translator."
+    },
+    {
+      "name": "Dialpad",
+      "slug": "dialpad/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.dialpad",
+      "description": "Dialpad is a cloud communication platform."
     },
     {
       "name": "Discord",
@@ -779,6 +961,13 @@
       "description": "Rancher Desktop is an app for kubernetes and container management on the desktop."
     },
     {
+      "name": "Raycast",
+      "slug": "raycast/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.raycast.macos",
+      "description": "Raycast is an app that allows you to control your tools with a few keystrokes."
+    },
+    {
       "name": "Rectangle",
       "slug": "rectangle/darwin",
       "platform": "darwin",
@@ -877,6 +1066,13 @@
       "description": "Sublime Text is a text editor for code, markup, and prose."
     },
     {
+      "name": "Tableau Desktop",
+      "slug": "tableau/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.tableausoftware.Desktop.app",
+      "description": "Tableau Desktop is a powerful data visualization and business intelligence platform for analyzing and presenting data insights."
+    },
+    {
       "name": "TablePlus",
       "slug": "tableplus/darwin",
       "platform": "darwin",
@@ -961,6 +1157,13 @@
       "description": "Tower is a git client focusing on power and productivity."
     },
     {
+      "name": "Transmit",
+      "slug": "transmit/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.panic.Transmit",
+      "description": "Transmit is a file transfer application."
+    },
+    {
       "name": "Tunnelblick",
       "slug": "tunnelblick/darwin",
       "platform": "darwin",
@@ -972,6 +1175,13 @@
       "slug": "twingate/darwin",
       "platform": "darwin",
       "unique_identifier": "com.twingate.macos",
+      "description": "Twingate is a zero trust network access platform."
+    },
+    {
+      "name": "Twingate",
+      "slug": "twingate/windows",
+      "platform": "windows",
+      "unique_identifier": "Twingate",
       "description": "Twingate is a zero trust network access platform."
     },
     {
@@ -993,6 +1203,13 @@
       "slug": "vlc/darwin",
       "platform": "darwin",
       "unique_identifier": "org.videolan.vlc",
+      "description": "VLC media player is a free and open-source media player software."
+    },
+    {
+      "name": "VLC media player",
+      "slug": "vlc/windows",
+      "platform": "windows",
+      "unique_identifier": "VLC media player",
       "description": "VLC media player is a free and open-source media player software."
     },
     {
@@ -1042,6 +1259,13 @@
       "slug": "wireshark-app/darwin",
       "platform": "darwin",
       "unique_identifier": "org.wireshark.Wireshark",
+      "description": "Wireshark is a network protocol analyzer."
+    },
+    {
+      "name": "Wireshark",
+      "slug": "wireshark/windows",
+      "platform": "windows",
+      "unique_identifier": "Wireshark",
       "description": "Wireshark is a network protocol analyzer."
     },
     {

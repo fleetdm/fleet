@@ -8,19 +8,33 @@ import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
 import AdobeAcrobat from "./AdobeAcrobat";
 import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
+import Aircall from "./Aircall";
+import AmazonChime from "./AmazonChime";
 import AmazonDCV from "./AmazonDCV";
 import AndroidApp from "./AndroidApp";
 import AndroidPlayStore from "./AndroidPlayStore";
 import AndroidStudio from "./AndroidStudio";
+import Anka from "./Anka";
 import AnyDesk from "./AnyDesk";
+import Apparency from "./Apparency";
 import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
+import Arc from "./Arc";
+import Archaeology from "./Archaeology";
 import Asana from "./Asana";
+import Audacity from "./Audacity";
+import AvastSecureBrowser from "./AvastSecureBrowser";
+import AwsVpnClient from "./AwsVpnClient";
+import BalenaEtcher from "./BalenaEtcher";
 import BBEdit from "./BBEdit";
 import BeyondCompare from "./BeyondCompare";
 import Bitwarden from "./Bitwarden";
+import Blender from "./Blender";
 import Box from "./Box";
 import Brave from "./Brave";
+import Bruno from "./Bruno";
+import CleanMyMac from "./CleanMyMac";
+import CleanShotX from "./CleanShotX";
 import CLion from "./CLion";
 import Camtasia from "./Camtasia";
 import Canva from "./Canva";
@@ -32,11 +46,19 @@ import CiscoJabber from "./CiscoJabber";
 import CitrixWorkspace from "./CitrixWorkspace";
 import Claude from "./Claude";
 import ClickUp from "./ClickUp";
+import ClockifyDesktop from "./ClockifyDesktop";
 import Cloudflare from "./Cloudflare";
+import CotEditor from "./CotEditor";
 import CreativeCloud from "./AdobeCreativeCloud";
 import Cursor from "./Cursor";
 import Cyberduck from "./Cyberduck";
 import DataGrip from "./DataGrip";
+import DBeaver from "./DBeaver";
+import DBeaverEe from "./DBeaverEe";
+import DBeaverLite from "./DBeaverLite";
+import DBeaverUltimate from "./DBeaverUltimate";
+import DeepL from "./DeepL";
+import Dialpad from "./Dialpad";
 import Discord from "./Discord";
 import DisplayLinkManager from "./DisplayLinkManager";
 import Docker from "./Docker";
@@ -107,6 +129,7 @@ import PyCharm from "./PyCharm";
 import PyCharmCe from "./PyCharmCe";
 import Quip from "./Quip";
 import RancherDesktop from "./RancherDesktop";
+import Raycast from "./Raycast";
 import Rectangle from "./Rectangle";
 import Rider from "./Rider";
 import RubyMine from "./RubyMine";
@@ -120,6 +143,7 @@ import Snagit from "./Snagit";
 import Sourcetree from "./Sourcetree";
 import Spotify from "./Spotify";
 import SublimeText from "./SublimeText";
+import TableauDesktop from "./TableauDesktop";
 import TablePlus from "./TablePlus";
 import Tailscale from "./Tailscale";
 import TeamViewer from "./TeamViewer";
@@ -130,6 +154,7 @@ import Terminal from "./Terminal";
 import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
 import Tower from "./Tower";
+import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
 import VisualStudioCode from "./VisualStudioCode";
@@ -163,17 +188,29 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe acrobat reader": AcrobatReader,
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
+  aircall: Aircall,
+  "amazon chime": AmazonChime,
   "amazon dcv": AmazonDCV,
   androidPlayStore: AndroidPlayStore,
   "android studio": AndroidStudio,
+  anka: Anka,
   anydesk: AnyDesk,
+  apparency: Apparency,
   appleAppStore: AppleAppStore,
+  arc: Arc,
+  archaeology: Archaeology,
   asana: Asana,
+  audacity: Audacity,
+  avast: AvastSecureBrowser,
+  "aws vpn client": AwsVpnClient,
+  balenaetcher: BalenaEtcher,
   bbedit: BBEdit,
   "beyond compare": BeyondCompare,
   bitwarden: Bitwarden,
+  blender: Blender,
   box: Box,
   brave: Brave,
+  bruno: Bruno,
   camtasia: Camtasia,
   canva: Canva,
   "chatgpt atlas": ChatGptAtlas,
@@ -181,14 +218,24 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "cisco jabber": CiscoJabber,
   "citrix workspace": CitrixWorkspace,
   claude: Claude,
+  cleanmymac_5: CleanMyMac,
+  "cleanshot x": CleanShotX,
   clion: CLion,
   clickup: ClickUp,
+  "clockify desktop": ClockifyDesktop,
   cloudflare: Cloudflare,
   code: VisualStudioCode,
   "company portal": IntuneCompanyPortal,
+  coteditor: CotEditor,
   cursor: Cursor,
   cyberduck: Cyberduck,
   datagrip: DataGrip,
+  "dbeaver community": DBeaver,
+  "dbeaver enterprise edition": DBeaverEe,
+  "dbeaver lite edition": DBeaverLite,
+  "dbeaver ultimate edition": DBeaverUltimate,
+  deepl: DeepL,
+  dialpad: Dialpad,
   discord: Discord,
   "DisplayLink USB Graphics Software": DisplayLinkManager,
   docker: Docker,
@@ -257,6 +304,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   pycharm: PyCharm,
   quip: Quip,
   "rancher desktop": RancherDesktop,
+  raycast: Raycast,
   rectangle: Rectangle,
   rider: Rider,
   rubymine: RubyMine,
@@ -270,6 +318,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   sourcetree: Sourcetree,
   spotify: Spotify,
   "sublime text": SublimeText,
+  tableau: TableauDesktop,
   tableplus: TablePlus,
   tailscale: Tailscale,
   telegram: Telegram,
@@ -281,6 +330,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   thunderbird: Thunderbird,
   todoist: Todoist,
   tower: Tower,
+  transmit: Transmit,
   tunnelblick: Tunnelblick,
   twingate: Twingate,
   "vnc viewer": VncViewer,
@@ -330,7 +380,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   apps: AppleApp,
   ios_apps: AppleApp,
   ipados_apps: AppleApp,
-  programs: WindowsApp,
+  programs: WindowsOS,
   android_apps: AndroidApp,
   chrome_extensions: Extension,
   safari_extensions: Extension,
@@ -376,8 +426,6 @@ const matchStrictNameSourceToIcon = ({
     case name === "zoom.us.app" && source === "apps":
       return Zoom;
     case name === "zoom":
-      return Zoom;
-    case name === "zoom.us":
       return Zoom;
     case name.startsWith("zoom workplace"):
       return Zoom;
