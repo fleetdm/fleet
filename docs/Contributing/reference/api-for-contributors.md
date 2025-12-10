@@ -2157,7 +2157,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 | Name  | Type | In   | Description                                                                                                   |
 | ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| team_name | string | query | The name of the team to set labels to |
+| team_name | string | query | The name of the team to set labels to; omit to set global labels |
 | specs | object[] | body | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties |
 
 #### Example
