@@ -96,7 +96,10 @@ const createAppleOSUpdatesData = (
       [APPLE_PLATFORMS_TO_CONFIG_FIELDS[applePlatform]]: {
         minimum_version: minOsVersion,
         deadline,
-        update_new_hosts: updateNewHosts,
+        // Add update_new_hosts only for macOS right now.
+        ...(applePlatform === "darwin"
+          ? { update_new_hosts: updateNewHosts }
+          : {}),
       },
     },
   };
@@ -219,6 +222,9 @@ const AppleOSTargetForm = ({
           onChange={setUpdateNewHosts}
           value={updateNewHosts}
           className={`${baseClass}__checkbox`}
+          labelTooltipContent={
+            "Hosts that automatically enroll (ADE) are updated to Apple's latest version during macOS Setup Assistant."
+          }
         >
           Update new hosts to latest
         </Checkbox>
