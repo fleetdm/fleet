@@ -8,15 +8,23 @@ import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
 import AdobeAcrobat from "./AdobeAcrobat";
 import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
+import Aircall from "./Aircall";
+import AmazonChime from "./AmazonChime";
 import AmazonDCV from "./AmazonDCV";
 import AndroidApp from "./AndroidApp";
 import AndroidPlayStore from "./AndroidPlayStore";
 import AndroidStudio from "./AndroidStudio";
+import Anka from "./Anka";
 import AnyDesk from "./AnyDesk";
+import Apparency from "./Apparency";
 import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
 import Arc from "./Arc";
+import Archaeology from "./Archaeology";
 import Asana from "./Asana";
+import Audacity from "./Audacity";
+import AvastSecureBrowser from "./AvastSecureBrowser";
+import AwsVpnClient from "./AwsVpnClient";
 import BBEdit from "./BBEdit";
 import BeyondCompare from "./BeyondCompare";
 import Bitwarden from "./Bitwarden";
@@ -169,13 +177,21 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe acrobat reader": AcrobatReader,
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
+  aircall: Aircall,
+  "amazon chime": AmazonChime,
   "amazon dcv": AmazonDCV,
   androidPlayStore: AndroidPlayStore,
   "android studio": AndroidStudio,
+  anka: Anka,
   anydesk: AnyDesk,
+  apparency: Apparency,
   appleAppStore: AppleAppStore,
   arc: Arc,
+  archaeology: Archaeology,
   asana: Asana,
+  audacity: Audacity,
+  avast: AvastSecureBrowser,
+  "aws vpn client": AwsVpnClient,
   bbedit: BBEdit,
   "beyond compare": BeyondCompare,
   bitwarden: Bitwarden,
