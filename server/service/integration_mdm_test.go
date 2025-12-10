@@ -4702,6 +4702,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	// Associate the token with the team
 	s.enableABM(t.Name())
 	// start a server that will mock the Apple DEP API
+	profileCalls := 0
 	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		encoder := json.NewEncoder(w)
 		switch r.URL.Path {
@@ -4712,6 +4713,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		case "/profile":
 			body, err := io.ReadAll(r.Body)
 			require.NoError(t, err)
+			profileCalls++
 			var prof godep.Profile
 			require.NoError(t, json.Unmarshal(body, &prof))
 			switch {
@@ -4879,6 +4881,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	time.Sleep(time.Second)
 
 	// no change to no-team
+	priorProfileCalls := profileCalls
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            nil,
 		Name:              "no-team2",
@@ -4887,6 +4890,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	// the last activity is that of the team (i.e. no new activity was created for no-team)
 	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
 		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), lastChangedActID)
+	// No new requests to DEP were made since nothing changed
+	require.Equal(t, priorProfileCalls, profileCalls)
 
 	// no change to team
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
@@ -4896,6 +4901,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	}, http.StatusOK, &createResp)
 	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
 		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), lastChangedActID)
+	// No new requests to DEP were made since nothing changed
+	require.Equal(t, priorProfileCalls, profileCalls)
 
 	// update team with only a setup assistant JSON change, should detect it
 	// and create a new activity (name is the same)
@@ -4908,6 +4915,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	latestChangedActID := s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
 		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), 0)
 	require.Greater(t, latestChangedActID, lastChangedActID)
+	// Should revalidate with Apple now since there was a change
+	require.Greater(t, profileCalls, priorProfileCalls)
 
 	// get no team
 	s.DoJSON("GET", "/api/latest/fleet/enrollment_profiles/automatic", nil, http.StatusOK, &getResp)
