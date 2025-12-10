@@ -160,7 +160,7 @@
       "slug": "aws-vpn-client/darwin",
       "platform": "darwin",
       "unique_identifier": "com.amazonaws.acvc.osx",
-      "description": ""
+      "description": "AWS Client VPN is a managed client-based VPN service to securely access AWS resources."
     },
     {
       "name": "BBEdit",
