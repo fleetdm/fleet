@@ -94,17 +94,12 @@ SCIM lets you automatically provision users and groups from Okta to Fleet. This 
 1. In your Fleet Okta app, go to the **Provisioning** tab
 2. Click **Configure API Integration**
 3. Check **Enable API integration**
-4. Configure the connection:
-   - **SCIM connector base URL**: `https://<your_fleet_server_url>/api/v1/fleet/scim`
-   - **Unique identifier field for users**: `userName`
-   - **Supported provisioning actions**: Select **Push New Users**, **Push Profile Updates**, and **Push Groups**
-   - **Authentication Mode**: `HTTP Header`
-5. Generate your Fleet API token:
+4. Generate your Fleet API token:
    - [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions
    - Copy the API token and paste it in Okta's **Authorization** field
-6. Click **Test API Credentials** - you should see a success message
-7. In Fleet, go to **Settings > Integrations > Identity provider (IdP)** and verify Fleet received the test request
-8. Back in Okta, click **Save**
+5. Click **Test API Credentials** - you should see a success message
+6. In Fleet, go to **Settings > Integrations > Identity provider (IdP)** and verify Fleet received the test request
+7. Back in Okta, click **Save**
 
 **Step 2: Enable provisioning**
 
