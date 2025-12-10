@@ -908,7 +908,7 @@ Deletes the certificate template added to Fleet. When a certificate template is 
 
 | Name            | Type    | In   | Description                                                 |
 |---------------- |-------- |------|-------------------------------------------------------------|
-| id   | integer  | path    | **Required.** The certificate ID in Fleet. You can see your certificate IDs using the [List certificates temaplates endpoint](#list-certificate-templates). |
+| id   | integer  | path    | **Required.** The certificate ID in Fleet. You can see your certificate IDs using the [List certificate templates endpoint](#list-certificate-templates). |
 
 #### Example
 
