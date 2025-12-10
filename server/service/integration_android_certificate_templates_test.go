@@ -22,6 +22,18 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
+// setupAMAPIEnvVars sets up the required environment variables for AMAPI calls and returns a cleanup function.
+func setupAMAPIEnvVars(t *testing.T) {
+	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
+	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
+	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
+	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
+	t.Cleanup(func() {
+		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
+		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
+	})
+}
+
 // verifyCertificateStatus is a helper function that verifies the certificate template status
 // via both the host API and the fleetd certificate API.
 func (s *integrationMDMTestSuite) verifyCertificateStatus(
@@ -102,16 +114,7 @@ func (s *integrationMDMTestSuite) verifyCertificateStatusWithSubject(
 func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	t := s.T()
 	ctx := t.Context()
-
-	// Set up environment variables required for AMAPI calls
-	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
-	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
-	t.Cleanup(func() {
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
-	})
+	setupAMAPIEnvVars(t)
 
 	enterpriseID := s.enableAndroidMDM(t)
 
@@ -249,16 +252,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFailure() {
 	t := s.T()
 	ctx := t.Context()
-
-	// Set up environment variables required for AMAPI calls
-	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
-	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
-	t.Cleanup(func() {
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
-	})
+	setupAMAPIEnvVars(t)
 
 	enterpriseID := s.enableAndroidMDM(t)
 
