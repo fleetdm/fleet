@@ -53,6 +53,7 @@ import CreativeCloud from "./AdobeCreativeCloud";
 import Cursor from "./Cursor";
 import Cyberduck from "./Cyberduck";
 import DataGrip from "./DataGrip";
+import DbBrowserForSqLite from "./DbBrowserForSqLite";
 import DBeaver from "./DBeaver";
 import DBeaverEe from "./DBeaverEe";
 import DBeaverLite from "./DBeaverLite";
@@ -230,6 +231,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cursor: Cursor,
   cyberduck: Cyberduck,
   datagrip: DataGrip,
+  "db browser for sqlite": DbBrowserForSqLite,
   "dbeaver community": DBeaver,
   "dbeaver enterprise edition": DBeaverEe,
   "dbeaver lite edition": DBeaverLite,
