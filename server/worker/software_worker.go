@@ -360,6 +360,11 @@ func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
 				// should never happen, as it is stored as json in the db and is pre-validated
 				return nil, ctxerr.Wrap(ctx, err, "unmarshal android app configuration")
 			}
+		} else {
+			// if there is no config for this app, we must make sure we clear any previously-applied
+			// config.
+			androidAppConfig.ManagedConfiguration = json.RawMessage{}
+			androidAppConfig.WorkProfileWidgets = "WORK_PROFILE_WIDGETS_UNSPECIFIED"
 		}
 		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
 			PackageName:          appID,

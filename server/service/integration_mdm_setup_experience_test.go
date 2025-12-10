@@ -3912,10 +3912,10 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	s.runWorkerUntilDone()
 
 	// worker should have:
-	// 1. made the apps available to the host (for self-service)
+	// 1. made the apps available to the host (for self-service), without any config provided
 	require.Len(t, patchAppsPolicies, 1)
 	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE"},
+		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage{}, WorkProfileWidgets: "WORK_PROFILE_WIDGETS_UNSPECIFIED"},
 	}, patchAppsPolicies[0])
 
 	patchAppsPolicies = nil
@@ -3946,6 +3946,36 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	s.runWorkerUntilDone()
 
 	require.Len(t, patchAppsPolicies, 0)
+
+	// patch with a different config just to trigger the worker
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
+		TeamID:        nil,
+		Configuration: json.RawMessage(`{}`),
+	}, http.StatusOK, &patchAppResp)
+
+	// delete directly the config from the DB (it seems like to clear the config from
+	// the API, an empty object needs to be passed, but that won't clear the config,
+	// it just won't change any managedConfig/widgets - to really clear the config
+	// from the API, the user would have to send something like:
+	// {
+	//   "managedConfiguration": null,
+	//   "workProfileWidgets": "WORK_PROFILE_WIDGETS_UNSPECIFIED"
+	// }
+	//
+	// Is that how we want it to work?
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(t.Context(), `DELETE FROM android_app_configurations WHERE application_id = ?`, app3.VPPAppID.AdamID)
+		return err
+	})
+
+	s.runWorkerUntilDone()
+
+	// worker should have:
+	// 1. made the app available with its config cleared
+	require.Len(t, patchAppsPolicies, 1)
+	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
+		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage{}, WorkProfileWidgets: "WORK_PROFILE_WIDGETS_UNSPECIFIED"},
+	}, patchAppsPolicies[0])
 }
 
 func (s *integrationMDMTestSuite) createAndEnrollAndroidDevice(t *testing.T, name string, teamID *uint) (host *fleet.Host, deviceInfo androidmanagement.Device, pubSubToken fleet.MDMConfigAsset) {
