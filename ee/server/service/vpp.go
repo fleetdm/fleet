@@ -627,7 +627,8 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return 0, ctxerr.Wrap(ctx, err, "writing VPP app to db")
 	}
 	if appID.Platform == fleet.AndroidPlatform {
-		// TODO(mna): ideally should indicate to the job if the config changed (they can "change" even on add app)
+		// TODO(mna): should indicate to the job if the config changed (it can "change" even on add app)
+		// because that indicates it must update existing installs to "pending"
 		err := worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appID.AdamID, addedApp.AppTeamID, androidEnterpriseName)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
@@ -880,7 +881,8 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
-		// TODO(mna): ideally should indicate to the job if the config changed
+		// TODO(mna): should indicate to the job if the config changed because that indicates
+		// it must update existing installs to "pending"
 		err = worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appToWrite.AdamID, insertedApp.AppTeamID, enterprise.Name())
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")

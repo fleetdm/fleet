@@ -2379,6 +2379,8 @@ type Datastore interface {
 	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*AndroidAppConfiguration, error)
 	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error)
 
+	SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error
+
 	// BulkGetAndroidAppConfigurations retrieves Android app configurations for
 	// all provided apps and returns them indexed by the app id.
 	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error)

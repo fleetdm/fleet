@@ -132,14 +132,26 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 	}
 
 	// Update Android MDM policy to include the app in self service
-	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, hosts)
+	policyRequestsByHost, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, hosts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 	}
 
-	// TODO(mna): if this is called from an UPDATE (config changed), mark existing installs
-	// as "pending" (NULL the verification_ fields) and with the correct policy version to verify (stored as a string in associated_event_id).
-	// The verification logic should work as-is I think.
+	// TODO(mna): if this is called from an UPDATE (config changed), mark existing
+	// (successful, not failed, but what about currently pending?) installs
+	// as "pending" (NULL the verification_* fields) and with the correct policy version to verify
+	// (currently temporarily stored as a string in associated_event_id).
+	// The verification logic should work as-is I think, unless there's some special place to check
+	// that the config was applied successfully or not (it would probably send a non-compliance report
+	// if it failed to apply the config? to test...).
+	if true /* TODO(mna): if config changed */ {
+		for hostUUID, policyRequest := range policyRequestsByHost {
+			err := v.Datastore.SetAndroidAppInstallPendingApplyConfig(ctx, hostUUID, applicationID, policyRequest.PolicyVersion.V)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "set android app install pending apply config for host %s and app %s", hostUUID, applicationID)
+			}
+		}
+	}
 
 	return nil
 }
