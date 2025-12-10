@@ -111,7 +111,7 @@
       "slug": "apparency/darwin",
       "platform": "darwin",
       "unique_identifier": "com.mothersruin.Apparency",
-      "description": ""
+      "description": "Apparency is an app to inspect application bundles."
     },
     {
       "name": "Arc",
