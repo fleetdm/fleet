@@ -1,3 +1,7 @@
+import {
+  buildQueryStringFromParams,
+  convertParamsToSnakeCase,
+} from "utilities/url";
 import endpoints from "utilities/endpoints";
 import sendRequest from "services";
 import {
@@ -10,6 +14,7 @@ import {
   ICertificatesSmallstep,
   ICertificatesCustomEST,
 } from "interfaces/certificates";
+import { ListEntitiesResponsePaginationCommon } from "./common";
 
 type IGetCertAuthoritiesListResponse = {
   certificate_authorities: ICertificateAuthorityPartial[];
@@ -38,6 +43,32 @@ export type IEditCertAuthorityBody =
   | { hydrant: Partial<ICertificatesHydrant> }
   | { smallstep: Partial<ICertificatesSmallstep> }
   | { custom_est_proxy: Partial<ICertificatesCustomEST> };
+
+interface IGetCertTemplatesParams {
+  // not supported: after, order key, order direction, match query, meta (always included)
+  teamId?: number;
+  page?: number;
+  perPage?: number;
+}
+
+export interface IQueryKeyGetCerts extends IGetCertTemplatesParams {
+  scope: "certificates";
+}
+export interface IGetCertTemplatesResponse
+  extends ListEntitiesResponsePaginationCommon {
+  id: number;
+  name: string;
+  certificate_authority_id: number;
+  certificate_authority_name: string;
+  created_at: string;
+}
+
+export interface ICreateCertTemplate {
+  name: string;
+  certAuthorityId: number;
+  subjectName: string;
+  teamId?: number;
+}
 
 export default {
   getCertificateAuthoritiesList: (): Promise<IGetCertAuthoritiesListResponse> => {
@@ -73,5 +104,45 @@ export default {
   requestCertificate: (id: number): Promise<IRequestCertAuthorityResponse> => {
     const { CERTIFICATE_AUTHORITY_REQUEST_CERT } = endpoints;
     return sendRequest("GET", CERTIFICATE_AUTHORITY_REQUEST_CERT(id));
+  },
+  getCertTemplates: ({
+    teamId,
+    page,
+    perPage,
+  }: IGetCertTemplatesParams): Promise<IGetCertTemplatesResponse> => {
+    const { CERT_TEMPLATES } = endpoints;
+    const snakeCaseParams = convertParamsToSnakeCase({
+      teamId,
+      page,
+      perPage,
+    });
+
+    const queryString = buildQueryStringFromParams(snakeCaseParams);
+
+    return sendRequest(
+      "GET",
+      queryString ? CERT_TEMPLATES.concat(`?${queryString}`) : CERT_TEMPLATES
+    );
+  },
+  createCertTemplate: ({
+    name,
+    certAuthorityId,
+    subjectName,
+    teamId,
+  }: ICreateCertTemplate) => {
+    const { CERT_TEMPLATES } = endpoints;
+    const requestBody = {
+      name,
+      certificate_authority_id: certAuthorityId,
+      subject_name: subjectName,
+    };
+    return sendRequest(
+      "POST",
+      teamId ? CERT_TEMPLATES.concat(`?team_id=${teamId}`) : CERT_TEMPLATES,
+      requestBody
+    );
+  },
+  deleteCertTemplate: (id: number) => {
+    return sendRequest("DELETE", endpoints.CERT_TEMPLATES.concat(`/${id}`));
   },
 };
