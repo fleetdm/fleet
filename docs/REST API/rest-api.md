@@ -5375,7 +5375,8 @@ Returns the specified label.
     "display_text": "Ubuntu",
     "count": 0,
     "host_ids": null,
-    "author_id": 1
+    "author_id": 1,
+    "team_id": null
   }
 }
 ```
