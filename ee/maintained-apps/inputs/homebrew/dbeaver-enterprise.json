@@ -4,5 +4,6 @@
   "token": "dbeaver-enterprise",
   "installer_format": "dmg",
   "slug": "dbeaver-enterprise/darwin",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/dbeaver-enterprise-install.sh",
   "default_categories": ["Developer tools"]
 }
