@@ -43,6 +43,8 @@ export enum ActivityType {
   EditedMacosMinVersion = "edited_macos_min_version",
   EditedIosMinVersion = "edited_ios_min_version",
   EditedIpadosMinVersion = "edited_ipados_min_version",
+  EnabledMacosUpdateNewHosts = "enabled_macos_update_new_hosts",
+  DisabledMacosUpdateNewHosts = "disabled_macos_update_new_hosts",
   ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
   /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
   CreatedAppleOSProfile = "created_macos_profile",
