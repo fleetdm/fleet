@@ -35,7 +35,7 @@ You may also wish to create specialized API-Only users which may modify configur
 
 ## labels
 
-Labels can be specified in your `default.yml` and `teams/team-name.yml` files using inline configuration or references to separate files in your `lib/` folder. Teams cannot be specified in `teams/no-team.yml`.
+Labels can be specified in your `default.yml` and `teams/team-name.yml` files using inline configuration or references to separate files in your `lib/` folder. Labels cannot be specified in `teams/no-team.yml`.
 
 - `name` specifies the label's name. Must be unique across all global and team labels.
 - `description` specifies the label's description.
