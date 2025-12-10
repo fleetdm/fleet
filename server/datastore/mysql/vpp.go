@@ -842,7 +842,7 @@ func removeVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPA
 		return ctxerr.Wrap(ctx, err, "deleting vpp app from team")
 	}
 
-	_, err = tx.ExecContext(ctx, `DELETE FROM android_app_configurations WHERE adam_id = ? AND global_or_team_id = ?`, appID.AdamID, tmID)
+	_, err = tx.ExecContext(ctx, `DELETE FROM android_app_configurations WHERE application_id = ? AND global_or_team_id = ?`, appID.AdamID, tmID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting android app configuration")
 	}
