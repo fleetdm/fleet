@@ -79,7 +79,10 @@ func mtlsHandler(w http.ResponseWriter, r *http.Request) {
 	)
 
 	w.Header().Set("Content-Type", "text/html")
-	io.WriteString(w, resp)
+	_, err := io.WriteString(w, resp)
+	if err != nil {
+		log.Printf("Error writing response: %v", err)
+	}
 }
 
 func generateSelfSignedCert(hosts []string) (tls.Certificate, error) {
