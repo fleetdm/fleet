@@ -2052,7 +2052,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotEmpty(t, profB.ProfileUUID)
 	// create an Apple profile for no-team
-	profC, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("c", "c", 0), nil)
+	profC, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("c", "c", 0), nil)
 	require.NoError(t, err)
 	require.NotZero(t, profC.ProfileID)
 	require.NotEmpty(t, profC.ProfileUUID)
@@ -2064,7 +2064,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.NotNil(t, profATm.TeamID)
 	require.Equal(t, uint(1), *profATm.TeamID)
 	// create the same B profile for team 1 as Apple profile
-	profBTm, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", 1), nil)
+	profBTm, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("b", "b", 1), nil)
 	require.NoError(t, err)
 	require.NotZero(t, profBTm.ProfileID)
 	require.NotEmpty(t, profBTm.ProfileUUID)
@@ -2087,11 +2087,11 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 	// create a duplicate name with an Apple profile for no-team
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 0), nil)
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("a", "a", 0), nil)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 	// create a duplicate name with an Apple profile for team
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 1), nil)
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("a", "a", 1), nil)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 
@@ -2322,7 +2322,7 @@ func testSetOrReplaceMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	profNoTmN1 := getProfileByTeamAndName(nil, "N1")
 
 	// creating the same profile for Apple / no-team fails
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("N1", "I1", 0), nil)
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("N1", "I1", 0), nil)
 	require.Error(t, err)
 
 	cp1.UploadedAt = profNoTmN1.UploadedAt
@@ -2354,7 +2354,7 @@ func testSetOrReplaceMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	expectWindowsProfiles(t, ds, nil, []*fleet.MDMWindowsConfigProfile{&cp2})
 
 	// create a profile for Apple and team 1 with that name works
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("N1", "I1", 1), nil)
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("N1", "I1", 1), nil)
 	require.NoError(t, err)
 
 	// try to create that profile for Windows and team 1 fails
