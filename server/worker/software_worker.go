@@ -56,6 +56,10 @@ type softwareWorkerArgs struct {
 	// PolicyID is the Android Management API Policy ID associated with the host, *not*
 	// a Fleet policy ID.
 	PolicyID string `json:"policy_id,omitempty"`
+
+	// AppConfigChanged indicates if the android app configuration changed as part
+	// of the action that triggered this task.
+	AppConfigChanged bool `json:"app_config_changed,omitempty"`
 }
 
 func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) error {
@@ -78,7 +82,7 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 	case makeAndroidAppAvailableTask:
 		return ctxerr.Wrapf(
 			ctx,
-			v.makeAndroidAppAvailable(ctx, args.ApplicationID, args.AppTeamID, args.EnterpriseName),
+			v.makeAndroidAppAvailable(ctx, args.ApplicationID, args.AppTeamID, args.EnterpriseName, args.AppConfigChanged),
 			"running %s task",
 			makeAndroidAppAvailableTask,
 		)
@@ -109,7 +113,7 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 // this is called when a new app is added to Fleet and when an existing app is updated
 // (either its scope of affected hosts changed due to labels conditions, or its
 // configuration changed).
-func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicationID string, appTeamID uint, enterpriseName string) error {
+func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicationID string, appTeamID uint, enterpriseName string, appConfigChanged bool) error {
 	hosts, err := v.Datastore.GetIncludedHostUUIDMapForAppStoreApp(ctx, appTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: getting android hosts in scope")
@@ -137,17 +141,11 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 	}
 
-	// TODO(mna): if this is called from an UPDATE (config changed), mark existing
-	// (successful, not failed, but also currently pending) installs
-	// as "pending" (NULL the verification_* fields) and with the correct policy version to verify
-	// (currently temporarily stored as a string in associated_event_id, to revisit when we implement full Android apps support).
-	//
-	// The verification logic should work as-is I think, unless there's some special place to check
-	// that the config was applied successfully or not (it would probably send a non-compliance report
-	// if it failed to apply the config? to test...).
-	// See https://github.com/fleetdm/fleet/issues/35515#issuecomment-3637603740 and
-	// https://github.com/fleetdm/fleet/issues/35515#issuecomment-3637727754
-	if true /* TODO(mna): if config changed */ {
+	// if this is called from an UPDATE (config changed), mark existing installs
+	// as "pending" (unless already "failed") and with the correct policy version to verify
+	// (currently temporarily stored as a string in associated_event_id, to revisit
+	// when we implement full Android apps support).
+	if appConfigChanged {
 		for hostUUID, policyRequest := range policyRequestsByHost {
 			err := v.Datastore.SetAndroidAppInstallPendingApplyConfig(ctx, hostUUID, applicationID, policyRequest.PolicyVersion.V)
 			if err != nil {
@@ -414,12 +412,13 @@ func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, log
 	return nil
 }
 
-func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, applicationID string, appTeamID uint, enterpriseName string) error {
+func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, applicationID string, appTeamID uint, enterpriseName string, appConfigChanged bool) error {
 	args := &softwareWorkerArgs{
-		Task:           makeAndroidAppAvailableTask,
-		ApplicationID:  applicationID,
-		AppTeamID:      appTeamID,
-		EnterpriseName: enterpriseName,
+		Task:             makeAndroidAppAvailableTask,
+		ApplicationID:    applicationID,
+		AppTeamID:        appTeamID,
+		EnterpriseName:   enterpriseName,
+		AppConfigChanged: appConfigChanged,
 	}
 
 	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)

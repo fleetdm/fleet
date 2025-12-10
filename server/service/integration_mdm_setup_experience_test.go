@@ -4302,6 +4302,28 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
 	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
 	require.Nil(t, getHostSw.Software[1].Status)
+
+	// update app1 again, but configuration stays the same
+	patchAppResp = updateAppStoreAppResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app1TitleID), &updateAppStoreAppRequest{
+		TeamID:        nil,
+		Configuration: json.RawMessage(`{"managedConfiguration": 2}`),
+	}, http.StatusOK, &patchAppResp)
+
+	s.runWorkerUntilDoneWithChecks(true)
+
+	// status stays installed
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"order_key", "name")
+	require.Len(t, getHostSw.Software, 2)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstalled, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+	require.Nil(t, getHostSw.Software[1].Status)
 }
 
 func (s *integrationMDMTestSuite) createAndEnrollAndroidDevice(t *testing.T, name string, teamID *uint) (host *fleet.Host, deviceInfo androidmanagement.Device, pubSubToken fleet.MDMConfigAsset) {
