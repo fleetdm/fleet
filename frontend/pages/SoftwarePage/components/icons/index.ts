@@ -91,6 +91,7 @@ import GrammarlyDesktop from "./GrammarlyDesktop";
 import Granola from "./Granola";
 import Hyper from "./Hyper";
 import IMazingProfileEditor from "./IMazingProfileEditor";
+import Inkscape from "./Inkscape";
 import ITerm from "./ITerm";
 import Insomnia from "./Insomnia";
 import IntelliJIdea from "./IntelliJIdea";
@@ -98,8 +99,12 @@ import IntelliJIdeaCe from "./IntelliJIdeaCe";
 import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
+import JabraDirect from "./JabraDirect";
 import JetBrainsToolbox from "./JetBrainsToolbox";
 import KeePassXc from "./KeePassXc";
+import KeeperPasswordManager from "./KeeperPasswordManager";
+import Keka from "./Keka";
+import Lens from "./Lens";
 import LibreOffice from "./LibreOffice";
 import Linear from "./Linear";
 import LinuxOS from "./LinuxOS";
@@ -107,13 +112,16 @@ import LittleSnitch from "./LittleSnitch";
 import Logioptionsplus from "./Logioptionsplus";
 import Loom from "./Loom";
 import LuLu from "./LuLu";
+import Maccy from "./Maccy";
 import MacOS from "./MacOS";
+import Mattermost from "./Mattermost";
 import Messenger from "./Messenger";
 import MicrosoftAutoUpdate from "./MicrosoftAutoUpdate";
 import MicrosoftOneNote from "./MicrosoftOneNote";
 import MicrosoftOutlook from "./MicrosoftOutlook";
 import MicrosoftPowerPoint from "./MicrosoftPowerPoint";
 import Miro from "./Miro";
+import MongoDbCompass from "./MongoDbCompass";
 import MySqlWorkbench from "./MySqlWorkbench";
 import NordVpn from "./NordVpn";
 import Notion from "./Notion";
@@ -266,9 +274,17 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gimp: Gimp,
   "gpg keychain": GpgKeychain,
   hyper: Hyper,
+  inkscape: Inkscape,
+  "jabra direct": JabraDirect,
   keepassxc: KeePassXc,
+  "keeper password manager": KeeperPasswordManager,
+  keka: Keka,
+  lens: Lens,
   libreoffice: LibreOffice,
+  maccy: Maccy,
+  mattermost: Mattermost,
   "microsoft autoupdate": MicrosoftAutoUpdate,
+  "mongodb compass": MongoDbCompass,
   "mozilla firefox": Firefox,
   "github desktop": GitHubDesktop,
   gitkraken: GitKraken,
