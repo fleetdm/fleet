@@ -965,8 +965,6 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		}
 	}
 
-	// }
-
 	return svc.createTransferredHostsActivity(ctx, teamID, hostIDs, nil)
 }
 
