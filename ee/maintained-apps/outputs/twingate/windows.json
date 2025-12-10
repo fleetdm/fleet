@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "20.25.322.1319",
+      "version": "20.25.330.1627",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Twingate' AND publisher = 'Twingate Inc.';"
       },
-      "installer_url": "https://binaries.twingate.com/client/windows/versions/2025.322.1319/TwingateWindowsInstaller.msi",
+      "installer_url": "https://binaries.twingate.com/client/windows/versions/2025.330.1627/TwingateWindowsInstaller.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "0684eac9",
-      "sha256": "104d5868868ab63c90777c992a93e74bab7498c64a61cebba76d9d6a84f56374",
+      "sha256": "26b9cac96735ea324c634b175d958f1d72197d782911c744e73981de5d678976",
       "default_categories": [
         "Productivity"
       ],
