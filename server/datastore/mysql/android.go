@@ -1756,3 +1756,40 @@ func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sql
 	}
 	return nil
 }
+
+func (ds *Datastore) ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+
+	stmt := `
+SELECT
+	h.id AS id, h.uuid AS uuid
+FROM
+	hosts h
+	JOIN android_devices ad ON ad.host_id = h.id
+WHERE
+	h.id IN (?) AND
+	h.platform = 'android'
+`
+
+	stmt, args, err := sqlx.In(stmt, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare statement arguments")
+	}
+
+	var rows []struct {
+		ID   uint   `db:"id"`
+		UUID string `db:"uuid"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list mdm android uuids to host ids")
+	}
+
+	results := make(map[string]uint, len(rows))
+	for _, r := range rows {
+		results[r.UUID] = r.ID
+	}
+
+	return results, nil
+}

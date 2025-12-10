@@ -845,6 +845,9 @@ func TestHostAuth(t *testing.T) {
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
 	}
+	ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
 
 	testCases := []struct {
 		name                  string
