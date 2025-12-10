@@ -566,7 +566,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.DELETE("/api/_version_/fleet/conditional-access/microsoft", conditionalAccessMicrosoftDeleteEndpoint, conditionalAccessMicrosoftDeleteRequest{})
 
 	// Okta Conditional Access
-	ue.GET("/api/_version_/fleet/conditional_access/idp/signing_cert", conditionalAccessGetIdPSigningCertEndpoint, conditionalAccessGetIdPSigningCertRequest{})
 	ue.GET("/api/_version_/fleet/conditional_access/idp/apple/profile", conditionalAccessGetIdPAppleProfileEndpoint, nil)
 
 	// Deprecated: PATCH /mdm/apple/setup is now deprecated, replaced by the
@@ -1031,6 +1030,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.POST("/api/v1/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
 	ne.POST("/api/v1/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
 	ne.GET("/api/v1/fleet/sso", settingsSSOEndpoint, nil)
+
+	// Okta Conditional Access: signing cert is unauthenticated since it's a public certificate
+	ne.GET("/api/_version_/fleet/conditional_access/idp/signing_cert", conditionalAccessGetIdPSigningCertEndpoint, conditionalAccessGetIdPSigningCertRequest{})
 
 	// the websocket distributed query results endpoint is a bit different - the
 	// provided path is a prefix, not an exact match, and it is not a go-kit

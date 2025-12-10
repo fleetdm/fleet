@@ -289,8 +289,8 @@ const OktaConditionalAccessModal = ({
             </TooltipWrapper>
             <br />
             <a
-              href={endpoints.CONDITIONAL_ACCESS_IDP_SIGNING_CERT}
-              download="fleet-idp-signing-certificate.pem"
+              href={`/api${endpoints.CONDITIONAL_ACCESS_IDP_SIGNING_CERT}`}
+              download="fleet-idp-signing-cert.pem"
               className="button button--inverse"
             >
               <div className="children-wrapper">

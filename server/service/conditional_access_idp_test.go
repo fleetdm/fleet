@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestConditionalAccessGetIdPSigningCertAuth(t *testing.T) {
+func TestConditionalAccessGetIdPSigningCertUnauthenticated(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
@@ -37,40 +37,10 @@ func TestConditionalAccessGetIdPSigningCertAuth(t *testing.T) {
 		}, nil
 	}
 
-	testCases := []struct {
-		name       string
-		user       *fleet.User
-		shouldFail bool
-	}{
-		{"global admin", test.UserAdmin, false},
-		{"global maintainer", test.UserMaintainer, false},
-		{"global observer", test.UserObserver, false},
-		{"global observer+", test.UserObserverPlus, false},
-		{"global gitops", test.UserGitOps, false},
-		{"team admin", test.UserTeamAdminTeam1, true},
-		{"team maintainer", test.UserTeamMaintainerTeam1, true},
-		{"team observer", test.UserTeamObserverTeam1, true},
-		{"team observer+", test.UserTeamObserverPlusTeam1, true},
-		{"team gitops", test.UserTeamGitOpsTeam1, true},
-		{"user no roles", test.UserNoRoles, true},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := test.UserContext(ctx, tt.user)
-
-			certPEM, err := svc.ConditionalAccessGetIdPSigningCert(ctx)
-			if tt.shouldFail {
-				require.Error(t, err)
-				var forbiddenError *authz.Forbidden
-				require.ErrorAs(t, err, &forbiddenError)
-				require.Nil(t, certPEM)
-			} else {
-				require.NoError(t, err)
-				require.NotNil(t, certPEM)
-			}
-		})
-	}
+	certPEM, err := svc.ConditionalAccessGetIdPSigningCert(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, certPEM)
+	require.Contains(t, string(certPEM), "-----BEGIN CERTIFICATE-----")
 }
 
 func TestConditionalAccessGetIdPSigningCert(t *testing.T) {
