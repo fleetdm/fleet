@@ -18,7 +18,7 @@ Install fleetctl with npm (included in Node.js).
 npm install -g fleetctl
 ```
 
-If you see an error such as `Please try running this command again as root/Administrator` or `Permission denied`, install using `sudo`.
+If you see an error such as `Please try running this command again as root/Administrator` or `Permission denied`, run this command instead: `sudo npm install -g fleetctl`.
 
 ```sh
 sudo npm install -g fleetctl
