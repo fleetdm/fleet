@@ -11722,8 +11722,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 	// Remove an app
 	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
-		{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID},
-		{AppStoreID: driveAppID, Platform: fleet.AndroidPlatform},
+		{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, DisplayName: "VPPAppUpdatedName"},
+		{AppStoreID: driveAppID, Platform: fleet.AndroidPlatform, DisplayName: "DriveUpdatedName"},
 	}}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
 	require.Len(t, batchAssociateResponse.Apps, 2)
 
@@ -11742,6 +11742,60 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	s.runWorker()
 	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
 	checkJobs([]string{driveAppID})
+
+	var listSwTitles listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSwTitles, "team_id", fmt.Sprint(tmGood.ID))
+
+	s.Assert().Len(listSwTitles.SoftwareTitles, 2)
+	for _, sw := range listSwTitles.SoftwareTitles {
+		switch sw.AppStoreApp.AppStoreID {
+		case driveAppID:
+			s.Assert().Equal("DriveUpdatedName", sw.DisplayName)
+		case s.appleVPPConfigSrvConfig.Assets[0].AdamID:
+			s.Assert().Equal("VPPAppUpdatedName", sw.DisplayName)
+		}
+	}
+
+	// change display names
+	setDisplayNames := func(androidAppName, vppAppName string) {
+		s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+			{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, DisplayName: vppAppName},
+			{AppStoreID: driveAppID, Platform: fleet.AndroidPlatform, DisplayName: androidAppName},
+		}}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
+		require.Len(t, batchAssociateResponse.Apps, 2)
+
+		assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+		require.NoError(t, err)
+		require.Len(t, assoc, 2)
+
+		for _, a := range []fleet.VPPAppID{
+			{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform},
+			{AdamID: driveAppID, Platform: fleet.AndroidPlatform},
+		} {
+			assert.Contains(t, assoc, a)
+		}
+
+		time.Sleep(time.Second)
+		s.runWorker()
+		s.Assert().True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+		checkJobs([]string{driveAppID})
+
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSwTitles, "team_id", fmt.Sprint(tmGood.ID))
+
+		s.Assert().Len(listSwTitles.SoftwareTitles, 2)
+		for _, sw := range listSwTitles.SoftwareTitles {
+			switch sw.AppStoreApp.AppStoreID {
+			case driveAppID:
+				s.Assert().Equal(androidAppName, sw.DisplayName)
+			case s.appleVPPConfigSrvConfig.Assets[0].AdamID:
+				s.Assert().Equal(vppAppName, sw.DisplayName)
+			}
+		}
+	}
+
+	setDisplayNames("VPPAppUpdatedName2", "DriveUpdatedName2")
+	setDisplayNames("", "")
+
 }
 
 func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {
