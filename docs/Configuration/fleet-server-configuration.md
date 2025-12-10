@@ -2082,7 +2082,7 @@ Template expressions are evaluated using [expr](https://expr-lang.org/) and have
 access to the log data via the `log` variable. Fields can be accessed using dot
 notation, such as `log.name` and `log.decorations.hostname`.
 
-**Example Log**
+#### Example log
 ```json
 {
   "action": "snapshot",
