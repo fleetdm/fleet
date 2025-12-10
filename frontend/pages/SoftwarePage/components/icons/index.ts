@@ -265,7 +265,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   ghostty: Ghostty,
   gimp: Gimp,
   "gpg keychain": GpgKeychain,
-  handbrake: HandBrake,
   hyper: Hyper,
   keepassxc: KeePassXc,
   libreoffice: LibreOffice,
