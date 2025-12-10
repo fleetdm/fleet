@@ -7170,9 +7170,11 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | per_page                  | integer | query | Results per page.                                                         |
 | order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| host_identifier           | string  | body | The host's `hostname`, `uuid`, or `hardware_serial`. |
-| request_type              | string  | body | The request type to filter commands by. |
-| command_status            | string | body | Valid options are 'ran', 'pending', or 'failed'. Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Windows commands have a '200' and 'Pending' `status` respectively. Apple commands that 'failed' have a 'Failed' `status`. Windows commands that 'failed' have any `status` other than 'Pending' or '200' ('ran').|
+| host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. |
+| request_type              | string  | query | The request type to filter commands by. |
+| command_status            | string | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Apple commands that 'failed' have a 'Failed' `status`.|
+
+> Currently, `⁠command_status` is only available when ⁠`host_identifier` is provided and the host is macOS, iOS, or iPadOS. Additionally, ⁠`count` is returned only when ⁠`command_status` is `⁠pending`; for any other values, ⁠`count` will be `⁠null`.
 
 #### Example
 
@@ -7184,7 +7186,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 ```json
 {
-  "count": 2,
+  "count": null,
   "results": [
     {
       "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
