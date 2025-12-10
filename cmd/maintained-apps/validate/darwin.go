@@ -175,9 +175,7 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 				suffixes := []string{"-latest", "-beta", "-alpha", "-rc", "-pre"}
 				normalized := v
 				for _, suffix := range suffixes {
-					if strings.HasSuffix(normalized, suffix) {
-						normalized = strings.TrimSuffix(normalized, suffix)
-					}
+					normalized = strings.TrimSuffix(normalized, suffix)
 				}
 				return normalized
 			}
