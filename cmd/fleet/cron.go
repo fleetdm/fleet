@@ -1071,9 +1071,9 @@ func newCleanupsAndAggregationSchedule(
 			return androidSvc.VerifyExistingEnterpriseIfAny(ctx)
 		}),
 		schedule.WithJob("revert_stale_android_certificate_templates", func(ctx context.Context) error {
-			// Revert certificate templates stuck in 'delivering' status for more than 6 hours
+			// Revert certificate templates stuck in 'delivering' status for too long
 			// back to 'pending'. This is a safety net for server crashes during AMAPI calls.
-			const staleThreshold = 6 * time.Hour
+			const staleThreshold = 12 * time.Hour
 			affected, err := ds.RevertStaleCertificateTemplates(ctx, staleThreshold)
 			if err != nil {
 				return err

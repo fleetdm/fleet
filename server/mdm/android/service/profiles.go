@@ -19,6 +19,12 @@ import (
 )
 
 func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string) error {
+	return ReconcileProfilesWithClient(ctx, ds, logger, licenseKey, nil)
+}
+
+// ReconcileProfilesWithClient is like ReconcileProfiles but allows injecting a custom client for testing.
+// If client is nil, a new AMAPI client will be created.
+func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string, client androidmgmt.Client) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app config")
@@ -35,14 +41,16 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 		return ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
 
-	client := newAMAPIClient(ctx, logger, licenseKey)
-	authSecret, err := getClientAuthenticationSecret(ctx, ds)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting Android client authentication secret for profile reconciler")
-	}
-	err = client.SetAuthenticationSecret(authSecret)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "setting Android client authentication secret for profile reconciler")
+	if client == nil {
+		client = newAMAPIClient(ctx, logger, licenseKey)
+		authSecret, err := getClientAuthenticationSecret(ctx, ds)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting Android client authentication secret for profile reconciler")
+		}
+		err = client.SetAuthenticationSecret(authSecret)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "setting Android client authentication secret for profile reconciler")
+		}
 	}
 
 	reconciler := &profileReconciler{

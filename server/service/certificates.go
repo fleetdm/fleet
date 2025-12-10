@@ -71,6 +71,11 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 		return nil, ctxerr.Wrap(ctx, err, "creating certificate template")
 	}
 
+	// Create pending certificate template records for all enrolled Android hosts in the team
+	if _, err := svc.ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, savedTemplate.ID, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating pending certificate templates for existing hosts")
+	}
+
 	return savedTemplate, nil
 }
 
@@ -356,7 +361,32 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 		certificates = append(certificates, cert)
 	}
 
-	return svc.ds.BatchUpsertCertificateTemplates(ctx, certificates)
+	if err := svc.ds.BatchUpsertCertificateTemplates(ctx, certificates); err != nil {
+		return err
+	}
+
+	// Create pending certificate template records for all enrolled Android hosts in each team.
+	// Note: BatchUpsertCertificateTemplates doesn't return IDs of created templates, so we need
+	// to query for them after the upsert and create pending records for each template/team combo.
+	// The CreatePendingCertificateTemplatesForExistingHosts uses ON DUPLICATE KEY UPDATE so it's
+	// safe to call even for existing templates (it will be a no-op for hosts that already have records).
+	for _, cert := range certificates {
+		// Get the template ID by querying for it (BatchUpsert doesn't return IDs)
+		templates, _, err := svc.ds.GetCertificateTemplatesByTeamID(ctx, cert.TeamID, fleet.ListOptions{PerPage: 1000})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting certificate templates by team ID")
+		}
+		for _, tmpl := range templates {
+			if tmpl.Name == cert.Name {
+				if _, err := svc.ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, tmpl.ID, cert.TeamID); err != nil {
+					return ctxerr.Wrap(ctx, err, "creating pending certificate templates for existing hosts")
+				}
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
 type deleteCertificateTemplateSpecsRequest struct {
