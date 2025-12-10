@@ -372,3 +372,115 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 	require.Equal(t, 2, amapiCallCount, "AMAPI should have been called twice")
 	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateDelivered, "", expectedSubjectName)
 }
+
+// TestCertificateTemplateNoTeamWithIDPVariable tests:
+// 1. Creating a certificate template for "no team" (team_id = 0)
+// 2. Using $FLEET_VAR_HOST_END_USER_IDP_USERNAME which fails when host has no IDP user
+// 3. Verifying status becomes 'failed' when fetching the certificate via fleetd API
+func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable() {
+	t := s.T()
+	ctx := t.Context()
+	setupAMAPIEnvVars(t)
+
+	enterpriseID := s.enableAndroidMDM(t)
+
+	// Step: Create a test certificate authority
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String(t.Name() + "-CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID := ca.ID
+
+	// Step: Create certificate template for "no team" (team_id = 0) with IDP_USERNAME variable
+	certTemplateName := t.Name() + "-CertTemplate"
+	var createResp createCertificateTemplateResponse
+	subjectName := "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		Name:                   certTemplateName,
+		TeamID:                 0, // No team
+		CertificateAuthorityId: caID,
+		SubjectName:            subjectName,
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.ID)
+	certificateTemplateID := createResp.ID
+
+	// Step: Create an enrolled Android host with NO team (team_id = NULL)
+	hostUUID := uuid.NewString()
+	androidHostInput := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			Hostname:       t.Name() + "-host",
+			ComputerName:   t.Name() + "-device",
+			Platform:       "android",
+			OSVersion:      "Android 14",
+			Build:          "build1",
+			Memory:         1024,
+			TeamID:         nil, // No team - this maps to team_id = 0 in certificate_templates
+			HardwareSerial: uuid.NewString(),
+			UUID:           hostUUID,
+		},
+		Device: &android.Device{
+			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
+			EnterpriseSpecificID: ptr.String(enterpriseID),
+			AppliedPolicyID:      ptr.String("1"),
+		},
+	}
+	androidHostInput.SetNodeKey(enterpriseID)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	require.NoError(t, err)
+
+	host := createdAndroidHost.Host
+
+	// Set OrbitNodeKey for API authentication
+	orbitNodeKey := *host.NodeKey
+	host.OrbitNodeKey = &orbitNodeKey
+	require.NoError(t, s.ds.UpdateHost(ctx, host))
+
+	// Mark host as enrolled in host_mdm
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_mdm (host_id, enrolled, server_url, installed_from_dep, is_server)
+			VALUES (?, 1, 'https://example.com', 0, 0)
+			ON DUPLICATE KEY UPDATE enrolled = 1
+		`, host.ID)
+		return err
+	})
+
+	// Step: Set up AMAPI mock to succeed
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(_ context.Context, _ string, _ []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{}, nil
+	}
+
+	// Step: Queue and run the Android setup experience worker job
+	// This creates pending certificate templates for the "no team" host and delivers them
+	enterpriseName := "enterprises/" + enterpriseID
+	err = worker.QueueRunAndroidSetupExperience(ctx, s.ds, log.NewNopLogger(), host.UUID, nil, enterpriseName)
+	require.NoError(t, err)
+	s.runWorker()
+
+	// Step: Verify status is 'delivered' via host API (after worker runs)
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	require.Len(t, *getHostResp.Host.MDM.Profiles, 1)
+	require.Equal(t, string(fleet.CertificateTemplateDelivered), *(*getHostResp.Host.MDM.Profiles)[0].Status)
+
+	// Step: Fetch certificate via fleetd API - this should trigger failure due to missing IDP username
+	// The host has no IDP user associated, so $FLEET_VAR_HOST_END_USER_IDP_USERNAME cannot be replaced
+	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certificateTemplateID), nil, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+	})
+	var getCertResp getDeviceCertificateTemplateResponse
+	err = json.NewDecoder(resp.Body).Decode(&getCertResp)
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+
+	// Step: Verify the response shows 'failed' status due to missing IDP username
+	require.NotNil(t, getCertResp.Certificate)
+	require.NotNil(t, getCertResp.Certificate.Status)
+	require.Equal(t, fleet.CertificateTemplateFailed, *getCertResp.Certificate.Status)
+
+	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateFailed, "", subjectName)
+}

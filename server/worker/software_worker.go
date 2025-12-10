@@ -165,12 +165,15 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		}
 
 		// Create pending certificate templates for this newly enrolled host
-		// so they can be picked up by BuildAndSendFleetAgentConfig
+		// so they can be picked up by BuildAndSendFleetAgentConfig.
+		// Use teamID = 0 for hosts with no team (certificate_templates uses team_id = 0 for "no team").
+		teamID := uint(0)
 		if androidHost.Host.TeamID != nil {
-			if _, err := v.Datastore.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, *androidHost.Host.TeamID); err != nil {
-				// Log error but don't fail - cron will pick up any missed templates
-				level.Error(v.Log).Log("msg", "failed to create pending certificate templates for new host", "host_uuid", hostUUID, "err", err)
-			}
+			teamID = *androidHost.Host.TeamID
+		}
+		if _, err := v.Datastore.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, teamID); err != nil {
+			// Log error but don't fail - cron will pick up any missed templates
+			level.Error(v.Log).Log("msg", "failed to create pending certificate templates for new host", "host_uuid", hostUUID, "err", err)
 		}
 
 		err = v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false)

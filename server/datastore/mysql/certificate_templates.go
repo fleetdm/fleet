@@ -233,6 +233,7 @@ WHERE hct.host_uuid = ?`
 
 // CreatePendingCertificateTemplatesForExistingHosts creates pending certificate template records
 // for all enrolled Android hosts in the team when a new certificate template is added.
+// Note: teamID = 0 means "no team", which corresponds to hosts.team_id IS NULL.
 func (ds *Datastore) CreatePendingCertificateTemplatesForExistingHosts(
 	ctx context.Context,
 	certificateTemplateID uint,
@@ -255,12 +256,12 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForExistingHosts(
 		FROM hosts
 		INNER JOIN host_mdm ON host_mdm.host_id = hosts.id
 		WHERE
-			hosts.team_id = ? AND
+			(hosts.team_id = ? OR (? = 0 AND hosts.team_id IS NULL)) AND
 			hosts.platform = 'android' AND
 			host_mdm.enrolled = 1
 		ON DUPLICATE KEY UPDATE host_uuid = host_uuid
 	`
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, certificateTemplateID, teamID)
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, certificateTemplateID, teamID, teamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "create pending certificate templates for hosts")
 	}
