@@ -89,7 +89,6 @@ import GoogleDrive from "./GoogleDrive";
 import GpgKeychain from "./GpgKeychain";
 import GrammarlyDesktop from "./GrammarlyDesktop";
 import Granola from "./Granola";
-import HandBrake from "./HandBrake";
 import Hyper from "./Hyper";
 import IMazingProfileEditor from "./IMazingProfileEditor";
 import ITerm from "./ITerm";
