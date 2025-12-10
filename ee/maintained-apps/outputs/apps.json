@@ -1259,7 +1259,7 @@
       "slug": "utm/darwin",
       "platform": "darwin",
       "unique_identifier": "com.utmapp.UTM",
-      "description": ""
+      "description": "UTM is a virtual machines UI using QEMU."
     },
     {
       "name": "VirtualBox",
