@@ -83,9 +83,14 @@ const generateTableConfig = (
 
         const isMacOSMobileConfigProfile =
           platform === "darwin" && !isDDMProfile(cellProps.row.original);
+        const isWindowsProfile = platform === "windows";
+
         return (
           <OSSettingsErrorCell
-            canResendProfiles={canResendProfiles && isMacOSMobileConfigProfile}
+            canResendProfiles={
+              canResendProfiles &&
+              (isWindowsProfile || isMacOSMobileConfigProfile)
+            }
             profile={cellProps.row.original}
             resendRequest={resendRequest}
             onProfileResent={onProfileResent}
