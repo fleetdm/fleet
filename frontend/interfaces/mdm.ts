@@ -233,8 +233,7 @@ export const isLinuxDiskEncryptionStatus = (
   ["verified", "failed", "action_required"].includes(status);
 
 export const FLEET_FILEVAULT_PROFILE_DISPLAY_NAME = "Disk encryption";
-export const FLEET_ANDROID_CERTIFICATE_TEMPLATE_PREFIX =
-  "Certificate Template:";
+export const FLEET_ANDROID_CERTIFICATE_PROFILE_ID = "certificate-template";
 
 export interface IMdmSSOReponse {
   url: string;

@@ -1,9 +1,7 @@
 package fleet
 
-import "fmt"
-
-// AndroidCertificateTemplatePrefix Used by the front-end for determining the displaying logic.
-const AndroidCertificateTemplatePrefix = "Certificate Template:"
+// AndroidCertificateTemplateProfileID Used by the front-end for determining the displaying logic.
+const AndroidCertificateTemplateProfileID = "certificate-template"
 
 type HostCertificateTemplate struct {
 	ID                    uint              `db:"id"`
@@ -26,10 +24,11 @@ func (p *HostCertificateTemplate) ToHostMDMProfile() HostMDMProfile {
 
 	profile := HostMDMProfile{
 		HostUUID:      p.HostUUID,
-		Name:          fmt.Sprintf("%s%s", AndroidCertificateTemplatePrefix, p.Name),
+		Name:          p.Name,
 		Platform:      "android",
 		Status:        &p.Status,
 		OperationType: p.OperationType,
+		ProfileUUID:   AndroidCertificateTemplateProfileID,
 	}
 	if p.Detail != nil {
 		profile.Detail = *p.Detail

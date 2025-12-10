@@ -5,7 +5,7 @@ import { uniqueId } from "lodash";
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import {
-  FLEET_ANDROID_CERTIFICATE_TEMPLATE_PREFIX,
+  FLEET_ANDROID_CERTIFICATE_PROFILE_ID,
   LinuxDiskEncryptionStatus,
   ProfileOperationType,
   ProfilePlatform,
@@ -29,6 +29,7 @@ interface IOSSettingStatusCellProps {
   operationType: ProfileOperationType | null;
   profileName: string;
   hostPlatform?: ProfilePlatform;
+  profileUUID?: string;
 }
 
 const OSSettingStatusCell = ({
@@ -36,6 +37,7 @@ const OSSettingStatusCell = ({
   operationType,
   profileName = "",
   hostPlatform,
+  profileUUID,
 }: IOSSettingStatusCellProps) => {
   let displayOption: ProfileDisplayOption = null;
   if (hostPlatform === "linux") {
@@ -46,7 +48,7 @@ const OSSettingStatusCell = ({
   // Android certificate templates.
   else if (
     hostPlatform === "android" &&
-    profileName.startsWith(FLEET_ANDROID_CERTIFICATE_TEMPLATE_PREFIX)
+    profileUUID ===  FLEET_ANDROID_CERTIFICATE_PROFILE_ID
   ) {
     switch (status) {
       case "pending":
