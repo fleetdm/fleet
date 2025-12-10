@@ -1,6 +1,8 @@
 import React from "react";
 
-import { ProfileScope } from "interfaces/mdm";
+import {
+  ProfileScope,
+} from "interfaces/mdm";
 
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import Icon from "components/Icon";

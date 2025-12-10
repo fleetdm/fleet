@@ -5,6 +5,7 @@ import { uniqueId } from "lodash";
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import {
+  FLEET_ANDROID_CERTIFICATE_TEMPLATE_PREFIX,
   LinuxDiskEncryptionStatus,
   ProfileOperationType,
   ProfilePlatform,
@@ -37,10 +38,47 @@ const OSSettingStatusCell = ({
   hostPlatform,
 }: IOSSettingStatusCellProps) => {
   let displayOption: ProfileDisplayOption = null;
-
   if (hostPlatform === "linux") {
     displayOption =
       LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG[status as LinuxDiskEncryptionStatus];
+  }
+
+  // Android certificate templates.
+  else if (
+    hostPlatform === "android" &&
+    profileName.startsWith(FLEET_ANDROID_CERTIFICATE_TEMPLATE_PREFIX)
+  ) {
+    switch (status) {
+      case "pending":
+        displayOption = {
+          statusText:
+            operationType === "install"
+              ? "Enforcing (pending)"
+              : "Removing (pending)",
+          iconName: "pending-outline",
+          tooltip: () =>
+            `Waiting for confirmation from Fleet's Android agent that the certificate is ${
+              operationType === "install" ? "installed" : "removed"
+            }`,
+        };
+        break;
+      case "verified":
+        displayOption = {
+          statusText: "Verified",
+          iconName: "success",
+          tooltip: () => "Certificate is installed",
+        };
+        break;
+      case "failed":
+        displayOption = {
+          statusText: "Failed",
+          iconName: "error",
+          tooltip: () => "Fleet's Android agent returned an error",
+        };
+        break;
+      default:
+        displayOption = null;
+    }
   }
 
   // windows hosts do not have an operation type at the moment and their display options are
