@@ -88,13 +88,15 @@ interface IAppleUpdatesMdmConfigData {
 const createAppleOSUpdatesData = (
   applePlatform: ApplePlatform,
   minOsVersion: string,
-  deadline: string
+  deadline: string,
+  updateNewHosts?: boolean
 ): IAppleUpdatesMdmConfigData => {
   return {
     mdm: {
       [APPLE_PLATFORMS_TO_CONFIG_FIELDS[applePlatform]]: {
         minimum_version: minOsVersion,
         deadline,
+        update_new_hosts: updateNewHosts,
       },
     },
   };
@@ -105,6 +107,7 @@ interface IAppleOSTargetFormProps {
   applePlatform: ApplePlatform;
   defaultMinOsVersion: string;
   defaultDeadline: string;
+  defaultUpdateNewHosts?: boolean;
   refetchAppConfig: () => void;
   refetchTeamConfig: () => void;
 }
@@ -128,6 +131,9 @@ const AppleOSTargetForm = ({
   const [minOsVersionError, setMinOsVersionError] = useState<
     string | undefined
   >();
+  const [updateNewHosts, setUpdateNewHosts] = useState<boolean>(
+    defaultUpdateNewHosts || false
+  );
   const [deadlineError, setDeadlineError] = useState<string | undefined>();
 
   // FIXME: This behaves unexpectedly when a user switches tabs or changes the teams dropdown while the form is
@@ -147,13 +153,14 @@ const AppleOSTargetForm = ({
       const updateData = createAppleOSUpdatesData(
         applePlatform,
         minOsVersion,
-        deadline
+        deadline,
+        updateNewHosts
       );
       try {
         currentTeamId === APP_CONTEXT_NO_TEAM_ID
           ? await configAPI.update(updateData)
           : await teamsAPI.update(updateData, currentTeamId);
-        renderFlash("success", "Successfully updated minimum version!");
+        renderFlash("success", "Successfully updated.");
       } catch {
         renderFlash("error", "Couldn’t update. Please try again.");
       } finally {
@@ -174,17 +181,7 @@ const AppleOSTargetForm = ({
   };
 
   const getMinimumVersionTooltip = () => {
-    return (
-      <>
-        If an already enrolled host is below the minimum version,
-        <br /> the host is updated to exactly the minimum version if it&apos;s
-        <br /> available from Apple.
-        <br />
-        <br /> If a new or wiped host is below the minimum version and
-        <br /> automatically enrolls (ADE), the host is updated to Apple&apos;s
-        <br /> latest version during Setup Assistant.
-      </>
-    );
+    return <>Enrolled hosts are updated to exactly this version.</>;
   };
 
   return (
@@ -195,11 +192,11 @@ const AppleOSTargetForm = ({
         tooltip={getMinimumVersionTooltip()}
         helpText={
           <>
-            Use only versions available from Apple.{" "}
+            Use only versions{" "}
             <CustomLink
-              text="Learn more"
+              text="available from Apple."
               newTab
-              url="https://fleetdm.com/learn-more-about/available-os-update-versions"
+              url="https://fleetdm.com/learn-more-about/apple-available-os-updates"
             />
           </>
         }
@@ -216,14 +213,16 @@ const AppleOSTargetForm = ({
         error={deadlineError}
         onChange={handleDeadlineChange}
       />
-      <Checkbox
-        disabled={gitOpsModeEnabled}
-        onChange={() => {}}
-        value={false}
-        className={`${baseClass}__checkbox`}
-      >
-        Update new hosts to latest
-      </Checkbox>
+      {applePlatform === "darwin" && (
+        <Checkbox
+          disabled={gitOpsModeEnabled}
+          onChange={setUpdateNewHosts}
+          value={updateNewHosts}
+          className={`${baseClass}__checkbox`}
+        >
+          Update new hosts to latest
+        </Checkbox>
+      )}
       <div className="button-wrap">
         <GitOpsModeTooltipWrapper
           position="right"

@@ -30,13 +30,13 @@ const getDefaultUpdateNewHosts = ({
 
   switch (osType) {
     case "darwin":
-      return mdmData?.macos_updates.update_new_hosts ?? "";
+      return !!mdmData?.macos_updates.update_new_hosts;
     case "ios":
-      return mdmData?.ios_updates.update_new_hosts ?? "";
+      return !!mdmData?.ios_updates.update_new_hosts;
     case "ipados":
-      return mdmData?.ipados_updates.update_new_hosts ?? "";
+      return !!mdmData?.ipados_updates.update_new_hosts;
     default:
-      return "";
+      return false;
   }
 };
 
