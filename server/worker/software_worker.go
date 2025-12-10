@@ -138,12 +138,15 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 	}
 
 	// TODO(mna): if this is called from an UPDATE (config changed), mark existing
-	// (successful, not failed, but what about currently pending?) installs
+	// (successful, not failed, but also currently pending) installs
 	// as "pending" (NULL the verification_* fields) and with the correct policy version to verify
-	// (currently temporarily stored as a string in associated_event_id).
+	// (currently temporarily stored as a string in associated_event_id, to revisit when we implement full Android apps support).
+	//
 	// The verification logic should work as-is I think, unless there's some special place to check
 	// that the config was applied successfully or not (it would probably send a non-compliance report
 	// if it failed to apply the config? to test...).
+	// See https://github.com/fleetdm/fleet/issues/35515#issuecomment-3637603740 and
+	// https://github.com/fleetdm/fleet/issues/35515#issuecomment-3637727754
 	if true /* TODO(mna): if config changed */ {
 		for hostUUID, policyRequest := range policyRequestsByHost {
 			err := v.Datastore.SetAndroidAppInstallPendingApplyConfig(ctx, hostUUID, applicationID, policyRequest.PolicyVersion.V)
