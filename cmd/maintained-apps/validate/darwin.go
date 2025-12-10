@@ -169,18 +169,82 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 				return true, nil
 			}
 
-			// Check exact match first
+			// Normalize versions by removing common suffixes like "-latest", "-beta", etc.
+			normalizeVersion := func(v string) string {
+				// Remove common suffixes
+				suffixes := []string{"-latest", "-beta", "-alpha", "-rc", "-pre"}
+				normalized := v
+				for _, suffix := range suffixes {
+					if strings.HasSuffix(normalized, suffix) {
+						normalized = strings.TrimSuffix(normalized, suffix)
+					}
+				}
+				return normalized
+			}
+
+			normalizedAppVersion := normalizeVersion(appVersion)
+			normalizedResultVersion := normalizeVersion(result.Version)
+			normalizedBundledVersion := normalizeVersion(result.BundledVersion)
+
+			// Check exact match first (with and without normalization)
 			if result.Version == appVersion || result.BundledVersion == appVersion {
 				return true, nil
 			}
+			if normalizedResultVersion == normalizedAppVersion || normalizedBundledVersion == normalizedAppVersion {
+				return true, nil
+			}
+
+			// Check if expected version is a concatenation of short version + bundled version
+			// This handles cases like "1.4.230579" = "1.4.2" + "30579" or "1.4.2.30579" = "1.4.2" + "." + "30579"
+			// Only check concatenation if the expected version is longer than the short version alone,
+			// which indicates it might be a concatenation (avoids false positives)
+			if result.Version != "" && result.BundledVersion != "" && len(appVersion) > len(result.Version) {
+				// Try direct concatenation (no separator)
+				concatenatedVersion := result.Version + result.BundledVersion
+				if concatenatedVersion == appVersion || concatenatedVersion == normalizedAppVersion {
+					return true, nil
+				}
+				// Try concatenation with dot separator
+				concatenatedWithDot := result.Version + "." + result.BundledVersion
+				if concatenatedWithDot == appVersion || concatenatedWithDot == normalizedAppVersion {
+					return true, nil
+				}
+				// Also try with normalized versions (only if normalization changed something)
+				if normalizedResultVersion != "" && normalizedBundledVersion != "" &&
+					(normalizedResultVersion != result.Version || normalizedBundledVersion != result.BundledVersion) {
+					normalizedConcatenated := normalizedResultVersion + normalizedBundledVersion
+					if normalizedConcatenated == appVersion || normalizedConcatenated == normalizedAppVersion {
+						return true, nil
+					}
+					normalizedConcatenatedWithDot := normalizedResultVersion + "." + normalizedBundledVersion
+					if normalizedConcatenatedWithDot == appVersion || normalizedConcatenatedWithDot == normalizedAppVersion {
+						return true, nil
+					}
+				}
+			}
+
 			// Check if found version starts with expected version (handles suffixes like ".CE")
 			// This handles cases where the app version is "8.0.44.CE" but expected is "8.0.44"
 			if strings.HasPrefix(result.Version, appVersion+".") || strings.HasPrefix(result.BundledVersion, appVersion+".") {
 				return true, nil
 			}
+			if strings.HasPrefix(normalizedResultVersion, normalizedAppVersion+".") || strings.HasPrefix(normalizedBundledVersion, normalizedAppVersion+".") {
+				return true, nil
+			}
+
 			// Check if expected version starts with found version (handles cases where osquery reports shorter version)
 			// This handles cases where expected is "2025.2.1.8" but osquery reports "2025.2"
 			if strings.HasPrefix(appVersion, result.Version+".") {
+				return true, nil
+			}
+			if strings.HasPrefix(normalizedAppVersion, normalizedResultVersion+".") {
+				return true, nil
+			}
+			// Also check bundled version for prefix matches
+			if strings.HasPrefix(appVersion, result.BundledVersion+".") {
+				return true, nil
+			}
+			if strings.HasPrefix(normalizedAppVersion, normalizedBundledVersion+".") {
 				return true, nil
 			}
 		}
