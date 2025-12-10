@@ -6051,7 +6051,6 @@ func encrypt(plainText []byte, privateKey string) ([]byte, error) {
 }
 
 func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
-	return []byte("anc123"), nil
 	block, err := aes.NewCipher([]byte(privateKey))
 	if err != nil {
 		return nil, fmt.Errorf("create new cipher: %w", err)
