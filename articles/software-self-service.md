@@ -47,7 +47,7 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 - **URL:** `<your_server_url>/device/$FLEET_VAR_HOST_UUID/self-service`
 - **Removable:** Uncheck it.
 - **Icon:** Upload a square icon that will be displayed as the app icon on the home screen.
-- **Full Screen:** Check this field, and **Ignore Web Clip manifest scope**.
+- **Full Screen:** Check this field.
 - **Target Application Bundle Identifier:** Select **Choose...**, type "safari" in the search box, and select **Safari - com.apple.mobilesafari**.
 
 ## IT admin experience
@@ -66,6 +66,7 @@ Tips:
 - Use the **Software > Library** table to quickly identify and action pending updates.
 - When a software install or uninstall fails, select **Failed** to see error details that can help with troubleshooting.
 - To automatically install software, you can use Fleet's policy automations. [Learn how](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+- You can download an example Web Clip profile from [our repository](https://github.com/fleetdm/fleet/tree/main/docs/solutions/ios-ipados/Fleet-self-service.mobileconfig).
 
 ## End user experience
 
