@@ -21,7 +21,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-val MAX_CERT_INSTALL_RETRIES = 3
+const val MAX_CERT_INSTALL_RETRIES = 3
 
 /**
  * Orchestrates certificate enrollment operations by coordinating API calls,
