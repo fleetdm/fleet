@@ -7126,6 +7126,7 @@ The possible `status` values for Windows hosts are listed in [Microsoft's OMA DM
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
 | command_uuid              | string | query | The unique identifier of the command.                                     |
+| host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. Returns only results for the specified host. |
 
 #### Example
 
@@ -7170,7 +7171,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | per_page                  | integer | query | Results per page.                                                         |
 | order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. |
+| host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. |
 | request_type              | string  | query | The request type to filter commands by. |
 | command_status            | string | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Apple commands that 'failed' have a 'Failed' `status`.|
 
