@@ -794,12 +794,35 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 		}
 	}
 
-	// add the hostnames to the results
+	// add the hostnames & platform to the results
+	hasInstallApp := false
 	for _, res := range results {
 		if h := hostsByUUID[res.HostUUID]; h != nil {
 			res.Hostname = hostsByUUID[res.HostUUID].Hostname
 		}
+
+		res.Platform = p
+
+		if res.RequestType == "InstallApplication" {
+			hasInstallApp = true
+		}
 	}
+
+	if hasInstallApp {
+		// Get install status for the VPP app
+		installed, err := svc.ds.GetVPPAppInstallStatusByCommandUUID(ctx, commandUUID)
+		if err != nil {
+			level.Debug(svc.logger).Log("msg", "failed to check if VPP app is installed", "err", err, "command_uuid", commandUUID)
+		} else {
+			// Populate install status for all InstallApplication results
+			for _, res := range results {
+				if res.RequestType == "InstallApplication" {
+					res.SoftwareInstalled = &installed
+				}
+			}
+		}
+	}
+
 	return results, nil
 }
 

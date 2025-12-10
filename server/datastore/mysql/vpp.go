@@ -1260,6 +1260,29 @@ WHERE
 	return user, act, nil
 }
 
+// GetVPPAppInstallStatusByCommandUUID returns whether the VPP app from the given install command
+// is currently installed (not at the time the command was issued).
+// Because of the UNIQUE constraint on command_uuid in host_vpp_software_installs,
+// each command UUID maps to exactly one host. Returns false if the command doesn't exist.
+func (ds *Datastore) GetVPPAppInstallStatusByCommandUUID(ctx context.Context, commandUUID string) (bool, error) {
+	stmt := `
+SELECT EXISTS(
+	SELECT 1
+	FROM host_vpp_software_installs hvsi
+	JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
+	JOIN software_titles st ON st.id = vpa.title_id
+	JOIN software s ON s.title_id = st.id
+	JOIN host_software hs ON hs.software_id = s.id AND hs.host_id = hvsi.host_id
+	WHERE hvsi.command_uuid = ?
+) AS is_installed
+`
+	var isInstalled bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &isInstalled, stmt, commandUUID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get VPP app install status by command UUID")
+	}
+	return isInstalled, nil
+}
+
 func (ds *Datastore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fleet.VPPTokenDB, error) {
 	stmt := `SELECT id FROM vpp_tokens WHERE location = ?`
 	var tokenID uint
