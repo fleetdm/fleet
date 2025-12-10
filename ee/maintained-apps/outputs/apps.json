@@ -412,7 +412,7 @@
       "slug": "dbeaver-enterprise/darwin",
       "platform": "darwin",
       "unique_identifier": "com.dbeaver.product.enterprise",
-      "description": ""
+      "description": "DBeaver is a universal database tool and SQL client."
     },
     {
       "name": "DBeaverLite",
