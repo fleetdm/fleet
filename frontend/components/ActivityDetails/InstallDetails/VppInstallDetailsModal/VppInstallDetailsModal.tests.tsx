@@ -78,11 +78,11 @@ describe("getStatusMessage helper function", () => {
         platform: "darwin",
       })
     );
-    expect(
-      screen.getByText(/The MDM command to install/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/The MDM command to install/i)).toBeInTheDocument();
     expect(screen.getByText(/Logic Pro/i)).toBeInTheDocument();
-    expect(screen.getByText(/failed\. Please try again\./i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/failed\. Please try again\./i)
+    ).toBeInTheDocument();
     expect(
       screen.queryByText(/Please re-attempt this installation/i)
     ).not.toBeInTheDocument();
@@ -100,11 +100,11 @@ describe("getStatusMessage helper function", () => {
         platform: "ios",
       })
     );
-    expect(
-      screen.getByText(/The MDM command to install/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/The MDM command to install/i)).toBeInTheDocument();
     expect(screen.getByText(/Slack/i)).toBeInTheDocument();
-    expect(screen.getByText(/failed\. Please try again\./i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/failed\. Please try again\./i)
+    ).toBeInTheDocument();
     expect(
       screen.queryByText(/Please re-attempt this installation/i)
     ).not.toBeInTheDocument();
@@ -122,11 +122,11 @@ describe("getStatusMessage helper function", () => {
         platform: "ipados",
       })
     );
-    expect(
-      screen.getByText(/The MDM command to install/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/The MDM command to install/i)).toBeInTheDocument();
     expect(screen.getByText(/Pages/i)).toBeInTheDocument();
-    expect(screen.getByText(/failed\. Please try again\./i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/failed\. Please try again\./i)
+    ).toBeInTheDocument();
     expect(
       screen.queryByText(/Please re-attempt this installation/i)
     ).not.toBeInTheDocument();
@@ -164,9 +164,7 @@ describe("getStatusMessage helper function", () => {
       })
     );
     expect(
-      screen.getByText(
-        /The host acknowledged the MDM command to install/i
-      )
+      screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
       screen.getByText(/but the app failed to install/i)
@@ -192,9 +190,7 @@ describe("getStatusMessage helper function", () => {
       })
     );
     expect(
-      screen.getByText(
-        /The host acknowledged the MDM command to install/i
-      )
+      screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
       screen.getByText(/but the app failed to install/i)
@@ -217,9 +213,7 @@ describe("getStatusMessage helper function", () => {
       })
     );
     expect(
-      screen.getByText(
-        /The host acknowledged the MDM command to install/i
-      )
+      screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
       screen.getByText(/but the app failed to install/i)
@@ -248,9 +242,12 @@ describe("getStatusMessage helper function", () => {
     expect(
       screen.getByText(/but the app failed to install/i)
     ).toBeInTheDocument();
+    // Text is split by TooltipWrapper, so check for the parts separately
     expect(
-      screen.getByText(/If you're updating the app and the app is open, close it and try again/i)
+      screen.getByText(/If you're updating the app and the app is open,/i)
     ).toBeInTheDocument();
+    expect(screen.getByText(/close it/i)).toBeInTheDocument();
+    expect(screen.getByText(/and try again\./i)).toBeInTheDocument();
   });
 
   it("doesn't show update tip when app is already installed on iOS", () => {
@@ -267,9 +264,7 @@ describe("getStatusMessage helper function", () => {
       })
     );
     expect(
-      screen.getByText(
-        /The host acknowledged the MDM command to install/i
-      )
+      screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
       screen.getByText(/but the app failed to install/i)
@@ -293,9 +288,7 @@ describe("getStatusMessage helper function", () => {
       })
     );
     expect(
-      screen.getByText(
-        /The host acknowledged the MDM command to install/i
-      )
+      screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
       screen.getByText(/but the app failed to install/i)

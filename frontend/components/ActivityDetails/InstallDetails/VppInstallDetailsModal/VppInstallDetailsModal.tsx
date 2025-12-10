@@ -64,11 +64,11 @@ export const getStatusMessage = ({
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
   const displayTimeStamp =
     ["failed_install", "installed"].includes(displayStatus || "") &&
-      commandUpdatedAt
+    commandUpdatedAt
       ? ` (${formatDistanceToNow(new Date(commandUpdatedAt), {
-        includeSeconds: true,
-        addSuffix: true,
-      })})`
+          includeSeconds: true,
+          addSuffix: true,
+        })})`
       : null;
 
   // Handles "pending" value prior to 4.57
@@ -118,7 +118,9 @@ export const getStatusMessage = ({
   // Verification failed (timeout)
   if (displayStatus === "failed_install" && isMDMStatusAcknowledged) {
     const isMacOS = platform === "darwin";
-    const isApplePlatform = ["darwin", "ios", "ipados"].includes(platform || "");
+    const isApplePlatform = ["darwin", "ios", "ipados"].includes(
+      platform || ""
+    );
 
     return (
       <>
@@ -126,7 +128,8 @@ export const getStatusMessage = ({
           <>
             <div>
               The host acknowledged the MDM command to install <b>{appName}</b>
-              {!isMyDevicePage && <> on {formattedHost}</>}, but the app failed to install.
+              {!isMyDevicePage && <> on {formattedHost}</>}, but the app failed
+              to install.
             </div>
             {isMacOS && hasInstalledVersions && (
               <div className="vpp-install-details-modal__update-tip">
@@ -144,8 +147,9 @@ export const getStatusMessage = ({
         ) : (
           <>
             The MDM command (request) to install <b>{appName}</b>
-            {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but the
-            installation has not been verified. Please re-attempt this installation.
+            {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but
+            the installation has not been verified. Please re-attempt this
+            installation.
           </>
         )}
       </>
@@ -154,21 +158,24 @@ export const getStatusMessage = ({
 
   // Install command failed
   if (displayStatus === "failed_install") {
-    const isApplePlatform = ["darwin", "ios", "ipados"].includes(platform || "");
+    const isApplePlatform = ["darwin", "ios", "ipados"].includes(
+      platform || ""
+    );
 
     return (
       <>
         {isApplePlatform ? (
           <>
             The MDM command to install <b>{appName}</b>
-            {!isMyDevicePage && <> on {formattedHost}</>} failed. Please try again.
+            {!isMyDevicePage && <> on {formattedHost}</>} failed. Please try
+            again.
           </>
         ) : (
           <>
             The MDM command (request) to install <b>{appName}</b>
             {!isMyDevicePage && <> on {formattedHost}</>} failed
-            {displayTimeStamp && <> {displayTimeStamp}</>}. Please re-attempt this
-            installation.
+            {displayTimeStamp && <> {displayTimeStamp}</>}. Please re-attempt
+            this installation.
           </>
         )}
       </>
@@ -311,8 +318,8 @@ export const VppInstallDetailsModal = ({
     async () => {
       return deviceAuthToken
         ? deviceUserAPI
-          .getVppCommandResult(deviceAuthToken, commandUuid)
-          .then(responseHandler)
+            .getVppCommandResult(deviceAuthToken, commandUuid)
+            .then(responseHandler)
         : mdmApi.getCommandResults(commandUuid).then(responseHandler);
     },
     {
@@ -357,8 +364,13 @@ export const VppInstallDetailsModal = ({
     appName,
     hostDisplayName,
     commandUpdatedAt: vppCommandResult?.updated_at || "",
-    platform: vppCommandResult?.platform || hostSoftware?.app_store_app?.platform || detailsPlatform,
-    hasInstalledVersions: vppCommandResult?.software_installed ?? !!hostSoftware?.installed_versions?.length,
+    platform:
+      vppCommandResult?.platform ||
+      hostSoftware?.app_store_app?.platform ||
+      detailsPlatform,
+    hasInstalledVersions:
+      vppCommandResult?.software_installed ??
+      !!hostSoftware?.installed_versions?.length,
   });
 
   const renderInventoryVersionsSection = () => {
