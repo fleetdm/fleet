@@ -1754,7 +1754,7 @@ func (ds *Datastore) SetAndroidAppInstallPendingApplyConfig(ctx context.Context,
 	const stmt = `
 UPDATE
 	host_vpp_software_installs
-	JOIN hosts h ON 
+	JOIN hosts h ON
 		h.id = host_vpp_software_installs.host_id
 SET
 	verification_at = NULL,
@@ -1764,8 +1764,11 @@ WHERE
 	h.uuid = ? AND
 	host_vpp_software_installs.adam_id = ? AND
 	host_vpp_software_installs.platform = ? AND
+	-- not removed or canceled
 	host_vpp_software_installs.removed = 0 AND
-	host_vpp_software_installs.canceled = 0 
+	host_vpp_software_installs.canceled = 0 AND
+	-- only if successfull or pending install
+	host_vpp_software_installs.verification_failed_at IS NULL
 `
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, fmt.Sprint(policyVersion), hostUUID, applicationID, fleet.AndroidPlatform)
 	if err != nil {
