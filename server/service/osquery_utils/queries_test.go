@@ -398,13 +398,14 @@ func TestGetDetailQueries(t *testing.T) {
 		"disk_encryption_windows",
 		"chromeos_profile_user_info",
 		"certificates_darwin",
+		"certificates_windows",
 	}
 
 	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil, Integrations{}, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 26)
+	require.Len(t, queriesWithoutWinOSVuln, 27)
 
 	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries
