@@ -163,6 +163,13 @@
       "description": "AWS Client VPN is a managed client-based VPN service to securely access AWS resources."
     },
     {
+      "name": "balenaEtcher",
+      "slug": "balenaetcher/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.balena.etcher",
+      "description": "balenaEtcher is a tool to flash OS images to SD cards & USB drives."
+    },
+    {
       "name": "BBEdit",
       "slug": "bbedit/darwin",
       "platform": "darwin",
@@ -296,6 +303,20 @@
       "description": "Claude is Anthropic's official Claude AI desktop app."
     },
     {
+      "name": "CleanMyMac",
+      "slug": "cleanmymac/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.macpaw.CleanMyMac5",
+      "description": "CleanMyMac is a tool to remove unnecessary files and folders from disk."
+    },
+    {
+      "name": "CleanShot X",
+      "slug": "cleanshot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.getcleanshot.app",
+      "description": "CleanShot X is a screen capturing tool."
+    },
+    {
       "name": "ClickUp",
       "slug": "clickup/darwin",
       "platform": "darwin",
@@ -317,6 +338,13 @@
       "description": "CLion is a JetBrains IDE for C and C++."
     },
     {
+      "name": "Clockify Desktop",
+      "slug": "clockify/darwin",
+      "platform": "darwin",
+      "unique_identifier": "coing.ClockifyDesktop",
+      "description": "Clockify Desktop is a time tracking tool for agencies and freelancers."
+    },
+    {
       "name": "Cloudflare WARP",
       "slug": "cloudflare-warp/darwin",
       "platform": "darwin",
@@ -329,6 +357,13 @@
       "platform": "windows",
       "unique_identifier": "Cloudflare WARP",
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+    },
+    {
+      "name": "CotEditor",
+      "slug": "coteditor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.coteditor.CotEditor",
+      "description": "CotEditor is a plain-text editor for web pages, program source codes, and more."
     },
     {
       "name": "Cursor",
@@ -366,11 +401,53 @@
       "description": "DataGrip is a powerful cross-platform IDE for relational and NoSQL databases."
     },
     {
+      "name": "DBeaver",
+      "slug": "dbeaver-community/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.jkiss.dbeaver.core.product",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
+      "name": "DBeaverEE",
+      "slug": "dbeaver-enterprise/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.dbeaver.product.enterprise",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
+      "name": "DBeaverLite",
+      "slug": "dbeaverlite/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.dbeaver.product.lite",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
+      "name": "DBeaverUltimate",
+      "slug": "dbeaverultimate/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.dbeaver.product.ultimate",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
       "name": "Amazon DCV",
       "slug": "dcv-viewer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.nicesoftware.dcvviewer",
       "description": "DCV Viewer is used for connecting to the NICE DCV remote display protocol."
+    },
+    {
+      "name": "DeepL",
+      "slug": "deepl/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.linguee.DeepLCopyTranslator",
+      "description": "DeepL is an AI-powered translator."
+    },
+    {
+      "name": "Dialpad",
+      "slug": "dialpad/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.dialpad",
+      "description": "Dialpad is a cloud communication platform."
     },
     {
       "name": "Discord",
