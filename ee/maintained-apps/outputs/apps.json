@@ -401,6 +401,13 @@
       "description": "DataGrip is a powerful cross-platform IDE for relational and NoSQL databases."
     },
     {
+      "name": "DB Browser for SQLite",
+      "slug": "db-browser-for-sqlite/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sqlitebrowser.sqlitebrowser",
+      "description": "DB Browser for SQLite is a high quality, visual, open source tool designed for people who want to create, search, and edit SQLite or SQLCipher databases."
+    },
+    {
       "name": "DBeaver",
       "slug": "dbeaver-community/darwin",
       "platform": "darwin",
