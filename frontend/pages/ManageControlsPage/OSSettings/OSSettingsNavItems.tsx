@@ -5,6 +5,7 @@ import { ISideNavItem } from "pages/admin/components/SideNav/SideNav";
 
 import DiskEncryption from "./cards/DiskEncryption";
 import CustomSettings from "./cards/CustomSettings";
+import Certificates from "./cards/Certificates";
 import { ICustomSettingsProps } from "./cards/CustomSettings/CustomSettings";
 import { IDiskEncryptionProps } from "./cards/DiskEncryption/DiskEncryption";
 
@@ -30,6 +31,12 @@ const OS_SETTINGS_NAV_ITEMS: ISideNavItem<IOSSettingsCardProps>[] = [
     urlSection: "custom-settings",
     path: PATHS.CONTROLS_CUSTOM_SETTINGS,
     Card: CustomSettings,
+  },
+  {
+    title: "Certificates",
+    Card: Certificates,
+    urlSection: "certificates",
+    path: PATHS.CONTROLS_CERTIFICATES,
   },
 ];
 
