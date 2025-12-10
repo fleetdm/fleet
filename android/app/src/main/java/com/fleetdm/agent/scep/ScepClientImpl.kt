@@ -52,11 +52,9 @@ class ScepClientImpl : ScepClient {
             // Log calls removed to avoid test failures on JVM (use logcat in Android Studio)
 
             // Step 1: Generate key pair
-            Log.d(TAG, "generating scep keypair for ${config.name}")
             val keyPair = generateKeyPair(config.keyLength)
 
             // Step 2: Parse subject name
-            Log.d(TAG, "parsing subject for ${config.name}")
             val entity = try {
                 X500Name(config.subjectName)
             } catch (e: Exception) {
@@ -64,7 +62,6 @@ class ScepClientImpl : ScepClient {
             }
 
             // Step 3: Create self-signed certificate for signing the PKCS7 envelope
-            Log.d(TAG, "creating self-signed certificate for ${config.name}")
             val selfSignedCert = createSelfSignedCertificate(
                 entity,
                 keyPair,
@@ -72,7 +69,6 @@ class ScepClientImpl : ScepClient {
             )
 
             // Step 4: Create SCEP client
-            Log.d(TAG, "parsing scep url for ${config.name}")
             val server = try {
                 URL(config.url)
             } catch (e: Exception) {
@@ -84,16 +80,13 @@ class ScepClientImpl : ScepClient {
             // 2. Challenge password authenticates the enrollment request
             // 3. Enterprise SCEP servers often use internal CAs not in system trust stores
             // 4. The enrolled certificate itself is validated when used
-            Log.d(TAG, "creating client for ${config.name}")
             val verifier = OptimisticCertificateVerifier()
             val client = Client(server, verifier)
 
             // Step 5: Build Certificate Signing Request (CSR)
-            Log.d(TAG, "building CSR for ${config.name}")
             val csr = buildCsr(entity, keyPair, config.scepChallenge ?: "", config.signatureAlgorithm)
 
             // Step 6: Send enrollment request
-            Log.d(TAG, "trying to enroll ${config.name}")
             val response = try {
                 client.enrol(selfSignedCert, keyPair.private, csr, SCEP_PROFILE)
             } catch (e: Exception) {
