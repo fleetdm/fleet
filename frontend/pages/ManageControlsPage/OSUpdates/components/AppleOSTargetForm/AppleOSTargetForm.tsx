@@ -10,6 +10,7 @@ import { ApplePlatform } from "interfaces/platform";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
+import Checkbox from "components/forms/fields/Checkbox";
 import validatePresence from "components/forms/validators/validate_presence";
 import CustomLink from "components/CustomLink";
 import { AppContext } from "context/app";
@@ -113,6 +114,7 @@ const AppleOSTargetForm = ({
   applePlatform,
   defaultMinOsVersion,
   defaultDeadline,
+  defaultUpdateNewHosts,
   refetchAppConfig,
   refetchTeamConfig,
 }: IAppleOSTargetFormProps) => {
@@ -214,6 +216,14 @@ const AppleOSTargetForm = ({
         error={deadlineError}
         onChange={handleDeadlineChange}
       />
+      <Checkbox
+        disabled={gitOpsModeEnabled}
+        onChange={() => {}}
+        value={false}
+        className={`${baseClass}__checkbox`}
+      >
+        Update new hosts to latest
+      </Checkbox>
       <div className="button-wrap">
         <GitOpsModeTooltipWrapper
           position="right"
