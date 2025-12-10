@@ -3437,7 +3437,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	}, http.StatusOK, &putResp)
 
 	// Run worker to flush out no-op "make_android_app_available" tasks from adding the apps above
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	// list the available setup experience software and verify that only app 1 is installed at setup
 	var getResp getSetupExperienceSoftwareResponse
@@ -3460,7 +3460,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	// Google AMAPI hasn't been hit yet
 	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 	// run worker, should run the job that assigns the app to the host's MDM policy
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 	// should have hit the android API endpoint
 	require.True(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 
@@ -3572,7 +3572,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 
 		return &androidmanagement.Policy{Version: int64(patchAppsCallCount)}, nil
 	}
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	// the pending installs should show up in the host software
 	getHostSw = getHostSoftwareResponse{}
@@ -3670,7 +3670,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	host3, _, _ := s.createAndEnrollAndroidDevice(t, "test-3", nil)
 
 	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 	require.True(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 
 	// app install is pending
@@ -3849,7 +3849,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 
 	require.NotEqual(t, app1TitleID, app2TitleID)
 
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	// worker should have done nothing (no host to add apps to yet)
 	require.Len(t, patchAppsPolicies, 0)
@@ -3876,7 +3876,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 
 	s.createAndEnrollAndroidDevice(t, "test-android", nil)
 
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	// worker should have:
 	// 1. made each app available to the included hosts (for self-service), so 2 entries for that (from the PATCH apps to set the config)
@@ -3909,7 +3909,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	}, http.StatusOK, &addAppResp)
 	app3TitleID := addAppResp.TitleID
 
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	// worker should have:
 	// 1. made the apps available to the host (for self-service), without any config provided
@@ -3926,7 +3926,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 		Configuration: json.RawMessage(`{"managedConfiguration": 3}`),
 	}, http.StatusOK, &patchAppResp)
 
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	// worker should have:
 	// 1. made the app available with its config
@@ -3943,7 +3943,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 		Configuration: json.RawMessage(`{"managedConfiguration": 3}`),
 	}, http.StatusOK, &patchAppResp)
 
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	require.Len(t, patchAppsPolicies, 0)
 
@@ -3968,7 +3968,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 		return err
 	})
 
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	// worker should have:
 	// 1. made the app available with its config cleared
@@ -4051,7 +4051,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 		TitleIDs: []uint{app1TitleID},
 	}, http.StatusOK, &putResp)
 
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test team", Secrets: []*fleet.EnrollSecret{{Secret: uuid.NewString()}}})
 	require.NoError(t, err)
@@ -4061,7 +4061,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	host2, deviceInfo2, _ := s.createAndEnrollAndroidDevice(t, "test-android2", nil)
 	host3, _, _ := s.createAndEnrollAndroidDevice(t, "test-android3", &tm.ID)
 
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	// hosts 1 and 2 have app1 pending install
 	getHostSw := getHostSoftwareResponse{}
@@ -4168,7 +4168,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 		Configuration: json.RawMessage(`{"managedConfiguration": 1}`),
 	}, http.StatusOK, &patchAppResp)
 
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	// the verified install should now be back to pending for host1
 	getHostSw = getHostSoftwareResponse{}
@@ -4220,7 +4220,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 		Configuration: json.RawMessage(`{"managedConfiguration": 2}`),
 	}, http.StatusOK, &patchAppResp)
 
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	// install for host1 will still be pending, but will now be verified only when that
 	// latest policy version will get reported
