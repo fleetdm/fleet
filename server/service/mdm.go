@@ -801,9 +801,9 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 			res.Hostname = hostsByUUID[res.HostUUID].Hostname
 		}
 
-		res.Platform = p
-
+		// Only populate platform for InstallApplication (VPP) commands
 		if res.RequestType == "InstallApplication" {
+			res.Platform = p
 			hasInstallApp = true
 		}
 	}
