@@ -72,11 +72,32 @@
       "description": "Adobe Digital Editions is an E-book reader."
     },
     {
+      "name": "Aircall",
+      "slug": "aircall/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.aircall.phone",
+      "description": "Aircall is cloud-based call center and phone system software."
+    },
+    {
+      "name": "Amazon Chime",
+      "slug": "amazon-chime/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.runningwithcrayons.Alfred",
+      "description": "Amazon Chime is a communications service that lets you meet, chat, and place business calls inside and outside your organization."
+    },
+    {
       "name": "Android Studio",
       "slug": "android-studio/darwin",
       "platform": "darwin",
       "unique_identifier": "com.google.android.studio",
       "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
+    },
+    {
+      "name": "Anka",
+      "slug": "anka-virtualization/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.veertu.ankaview",
+      "description": "Anka is a tool for managing and creating virtual machines."
     },
     {
       "name": "AnyDesk",
@@ -86,11 +107,25 @@
       "description": "AnyDesk is an app that allows connection to a computer remotely."
     },
     {
+      "name": "Apparency",
+      "slug": "apparency/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mothersruin.Apparency",
+      "description": ""
+    },
+    {
       "name": "Arc",
       "slug": "arc/darwin",
       "platform": "darwin",
       "unique_identifier": "company.thebrowser.Browser",
       "description": "Arc is a productivity-focused browser."
+    },
+    {
+      "name": "Archaeology",
+      "slug": "archaeology/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mothersruin.Archaeology",
+      "description": "Archaeology is a tool for digging into binary files."
     },
     {
       "name": "Asana",
@@ -105,6 +140,27 @@
       "platform": "windows",
       "unique_identifier": "Asana",
       "description": "Asana is an app to manage team projects and tasks."
+    },
+    {
+      "name": "Audacity",
+      "slug": "audacity/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.audacityteam.audacity",
+      "description": "Audacity is a multi-track audio editor and recorder."
+    },
+    {
+      "name": "Avast Secure Browser",
+      "slug": "avast-secure-browser/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.avast.AvastSecureBrowser",
+      "description": "Avast Secure Browser is a web browser focusing on privacy."
+    },
+    {
+      "name": "AWS Client VPN",
+      "slug": "aws-vpn-client/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.amazonaws.acvc.osx",
+      "description": ""
     },
     {
       "name": "BBEdit",
