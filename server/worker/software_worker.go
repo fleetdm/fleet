@@ -54,7 +54,7 @@ type softwareWorkerArgs struct {
 	// a Fleet policy ID.
 	PolicyID string `json:"policy_id,omitempty"`
 
-	HostIDs []uint `json:"host_ids,omitempty"`
+	UUIDsToIDs map[string]uint `json:"uuids_to_ids,omitempty"`
 }
 
 func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) error {
@@ -103,7 +103,7 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 	case bulkSetAndroidAppsAvailableForHostsTask:
 		return ctxerr.Wrapf(ctx, v.bulkSetAndroidAppsAvailableForHosts(
 			ctx,
-			args.HostIDs,
+			args.UUIDsToIDs,
 			args.EnterpriseName,
 		), "running %s task", bulkSetAndroidAppsAvailableForHostsTask)
 
@@ -347,16 +347,16 @@ func QueueBulkSetAndroidAppsAvailableForHost(
 	return nil
 }
 
-func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context, hostIDs []uint, enterpriseName string) error {
+func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context, uuidsToIDs map[string]uint, enterpriseName string) error {
 	// for each host
 	// get the set of self-service apps that are in scope for it
-	for _, hostID := range hostIDs {
+	for uuid, hostID := range uuidsToIDs {
 		appIDs, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
 		if err != nil {
 			return ctxerr.WrapWithData(ctx, err, "get android apps in scope for host", map[string]any{"host_id": hostID})
 		}
 
-		err = v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{"FIYH-AX4V-P3XW-ULIQZ-5AOI-TZZ2-E": "FIYH-AX4V-P3XW-ULIQZ-5AOI-TZZ2-E"}, android.APP_STATUS_AVAILABLE)
+		err = v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{uuid: uuid}, android.APP_STATUS_AVAILABLE)
 
 		if err != nil {
 			return ctxerr.WrapWithData(ctx, err, "set apps for android policy", map[string]any{"host_id": hostID})
@@ -372,12 +372,12 @@ func QueueBulkSetAndroidAppsAvailableForHosts(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	hostIDs []uint,
+	uuidsToIDs map[string]uint,
 	enterpriseName string) error {
 
 	args := &softwareWorkerArgs{
 		Task:           bulkSetAndroidAppsAvailableForHostsTask,
-		HostIDs:        hostIDs,
+		UUIDsToIDs:     uuidsToIDs,
 		EnterpriseName: enterpriseName,
 	}
 

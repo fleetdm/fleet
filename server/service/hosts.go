@@ -948,16 +948,23 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		}
 	}
 
-	// for all Android hosts, update their self-service app state to apps in scope on the new team
-	// for _, hostID := range hostIDs {
-	// TODO: write a DS function like the apple one above that gets all the UUIDs for android hosts
-	enterprise, err := svc.ds.GetEnterprise(ctx)
+	// If there are any Android hosts, update their available apps.
+	androidUUIDs, err := svc.ds.ListMDMAndroidUUIDsToHostIDs(ctx, hostIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get android enterprise")
+		return err
 	}
-	if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, hostIDs, enterprise.Name()); err != nil {
-		return ctxerr.Wrap(ctx, err, "queue bulk set available android apps for hosts job")
+
+	if len(androidUUIDs) > 0 {
+		enterprise, err := svc.ds.GetEnterprise(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get android enterprise")
+		}
+
+		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name()); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue bulk set available android apps for hosts job")
+		}
 	}
+
 	// }
 
 	return svc.createTransferredHostsActivity(ctx, teamID, hostIDs, nil)
