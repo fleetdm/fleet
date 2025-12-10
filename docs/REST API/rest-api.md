@@ -5390,7 +5390,7 @@ Returns a list of labels in Fleet, including basic information on each label.
 
 | Name            | Type    | In    | Description   |
 | --------------- | ------- | ----- |------------------------------------- |
-| team_id         | integer | query | _Available in Fleet Premium._  Filters to labels belonging to the specified team. Specify `global` to show only globally-available labels. To show labels from multiple teams, or a combination of teams and global labels, pass a comma-separated list of team IDs. If omitted, Fleet returns all global labels, plus all labels for teams to which the requestor has access. |
+| team_id         | string | query | _Available in Fleet Premium._  Filters to labels belonging to the specified team. Specify `"global"` to show only globally-available labels. To show labels from multiple teams, or a combination of teams and global labels, pass a comma-separated list of team IDs (e.g. `"global,123"`). If omitted, Fleet returns all global labels, plus all labels for teams to which the requestor has access. |
 
 #### Example
 
