@@ -35,6 +35,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
@@ -811,6 +812,11 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_apps;")
+		return err
+	})
+
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM android_app_configurations;")
 		return err
 	})
 
@@ -9663,6 +9669,13 @@ func (s *integrationMDMTestSuite) runWorkerUntilDone() {
 		err = s.worker.ProcessJobs(s.T().Context())
 		return err == nil && len(pending) == 0
 	}, 5*time.Second, 100*time.Millisecond, "jobs still pending after processing")
+
+	var failedJobs []*fleet.Job
+	t := s.T()
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(t.Context(), q, &failedJobs, "SELECT name, args, state, error FROM jobs WHERE state != 'success'")
+	})
+	require.Empty(s.T(), failedJobs, "some jobs have failed: %s", spew.Sdump(failedJobs))
 }
 
 func (s *integrationMDMTestSuite) runDEPSchedule() {
