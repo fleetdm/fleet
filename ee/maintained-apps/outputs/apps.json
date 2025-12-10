@@ -695,6 +695,13 @@
       "description": "iMazing Profile Editor is an app for creating and editing Apple configuration profiles."
     },
     {
+      "name": "Inkscape",
+      "slug": "inkscape/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.inkscape.Inkscape",
+      "description": "Inkscape is a vector graphics editor."
+    },
+    {
       "name": "Insomnia",
       "slug": "insomnia/darwin",
       "platform": "darwin",
@@ -730,6 +737,13 @@
       "description": "iTerm2 is a terminal emulator alternative to Apple's Terminal app."
     },
     {
+      "name": "Jabra Direct",
+      "slug": "jabra-direct/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jabra.directonline",
+      "description": "Jabra Direct is an app to optimise and personalise your Jabra headset."
+    },
+    {
       "name": "JetBrains Toolbox",
       "slug": "jetbrains-toolbox/darwin",
       "platform": "darwin",
@@ -749,6 +763,27 @@
       "platform": "windows",
       "unique_identifier": "KeePassXC",
       "description": "KeePassXC is a cross-platform password manager for securely storing passwords and other sensitive data."
+    },
+    {
+      "name": "Keeper Password Manager",
+      "slug": "keeper-password-manager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.keepersecurity.passwordmanager",
+      "description": "Keeper Password Manager is a password manager application and digital vault."
+    },
+    {
+      "name": "Keka",
+      "slug": "keka/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.aone.keka",
+      "description": "Keka is a file archiver."
+    },
+    {
+      "name": "Lens",
+      "slug": "lens/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.kontena-lens",
+      "description": "Lens is a Kubernetes IDE."
     },
     {
       "name": "LibreOffice",
@@ -791,6 +826,20 @@
       "platform": "darwin",
       "unique_identifier": "com.objective-see.lulu.app",
       "description": "Open-source firewall to block unknown outgoing connections."
+    },
+    {
+      "name": "Maccy",
+      "slug": "maccy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.p0deje.Maccy",
+      "description": "Maccy is a clipboard manager."
+    },
+    {
+      "name": "Mattermost",
+      "slug": "mattermost/darwin",
+      "platform": "darwin",
+      "unique_identifier": "Mattermost.Desktop",
+      "description": "Mattermost is an open-source, self-hosted Slack-alternative."
     },
     {
       "name": "Messenger",
@@ -868,6 +917,13 @@
       "platform": "darwin",
       "unique_identifier": "com.electron.realtimeboard",
       "description": "Miro is an online collaborative whiteboard platform."
+    },
+    {
+      "name": "MongoDB Compass",
+      "slug": "mongodb-compass/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mongodb.compass",
+      "description": "MongoDB Compass is an interactive tool for analyzing MongoDB data."
     },
     {
       "name": "MySQL Workbench",
