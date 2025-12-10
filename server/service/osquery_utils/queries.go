@@ -802,7 +802,7 @@ var extraDetailQueries = map[string]DetailQuery{
 	WHERE
 		path LIKE '/Users/%/Library/Keychains/login.keychain-db';`,
 		Platforms:        []string{"darwin"},
-		DirectIngestFunc: directIngestHostCertificates,
+		DirectIngestFunc: directIngestHostCertificatesDarwin,
 	},
 	"certificates_windows": {
 		Query: `
@@ -3201,7 +3201,7 @@ func directIngestWindowsProfiles(
 
 var rxExtractUsernameFromHostCertPath = regexp.MustCompile(`^/Users/([^/]+)/Library/Keychains/login\.keychain\-db$`)
 
-func directIngestHostCertificates(
+func directIngestHostCertificatesDarwin(
 	ctx context.Context,
 	logger log.Logger,
 	host *fleet.Host,
@@ -3221,7 +3221,6 @@ func directIngestHostCertificates(
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "decoding sha1", "err", err)
 			continue
 		}
-		// TODO: verify whether we can safely assume the platform is populated on host
 		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject"])
 		if err != nil {
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting subject details", "err", err)
@@ -3292,7 +3291,7 @@ func directIngestHostCertificatesWindows(
 	rows []map[string]string,
 ) error {
 	if len(rows) == 0 {
-		// if there are no results, it probably may indicate a problem so we log it
+		// if there are no results, it indicates we may have a problem so we log it
 		level.Debug(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "no rows returned", "host_id", host.ID)
 		return nil
 	}
@@ -3309,7 +3308,6 @@ func directIngestHostCertificatesWindows(
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "decoding sha1", "err", err)
 			continue
 		}
-		// TODO: verify whether we can safely assume the platform is populated on host
 		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject"])
 		if err != nil {
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting subject details", "err", err)
@@ -3321,7 +3319,7 @@ func directIngestHostCertificatesWindows(
 			continue
 		}
 
-		username := row["username"] // TODO: do we need to worry about empty usernames here? do we need to worry about trimming or normalizing?
+		username := row["username"]
 		source := fleet.UserHostCertificate
 		if username == "SYSTEM" {
 			source = fleet.SystemHostCertificate
@@ -3351,7 +3349,7 @@ func directIngestHostCertificatesWindows(
 			Username:                  username,
 		}
 
-		// Deduplicate by SHA1 + Username
+		// deduplicate by SHA1 + Username
 		sha1UserKey := fmt.Sprintf("%x|%s", csum, username)
 		if exists := existsSha1User[sha1UserKey]; exists {
 			level.Debug(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg",

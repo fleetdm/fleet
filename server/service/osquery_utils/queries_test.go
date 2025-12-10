@@ -2460,7 +2460,7 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		return nil
 	}
 
-	err := directIngestHostCertificates(ctx, logger, host, ds, []map[string]string{row1, row2})
+	err := directIngestHostCertificatesDarwin(ctx, logger, host, ds, []map[string]string{row1, row2})
 	require.NoError(t, err)
 	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
 }
@@ -2547,7 +2547,7 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 			require.True(t, ok, "unexpected cert SHA1+username combination: %s + %s", s, cert.Username)
 			seenSha1Users[s+cert.Username] = true
 
-			// validate fields that differ between the cert examples
+			// Validate fields that differ between the cert examples
 			switch s {
 			case "1A395245953C61AE12657704FF45F31A1E7BC1E8":
 				require.Equal(t, "CERT_KEY_ENCIPHERMENT_KEY_USAGE,CERT_DIGITAL_SIGNATURE_KEY_USAGE", cert.KeyUsage)
@@ -2575,7 +2575,7 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 				t.Fatalf("unexpected cert SHA1: %s", s)
 			}
 
-			// validate fields common across all Windows certs in this test
+			// Validate fields common across all Windows certs in this test
 			require.Equal(t, "RSA", cert.KeyAlgorithm)
 			require.Equal(t, "sha256RSA", cert.SigningAlgorithm)
 			require.False(t, cert.CertificateAuthority)
@@ -2585,7 +2585,7 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 				require.Equal(t, fleet.UserHostCertificate, cert.Source)
 			}
 
-			// osquery squeezes all distinguished name fields for Windows certs into
+			// For Windows certs, osquery squeezes all distinguished name fields into
 			// the comma-separated list that we store as Issuer/SubjectCommonName and
 			// we leave all other fields empty for now (see fleet.ExtractDetailsFromOsqueryDistinguishedName)
 			require.Empty(t, cert.SubjectOrganization)

@@ -214,22 +214,26 @@ type MDMAppleErrorChainItem struct {
 //
 // See https://osquery.io/schema/5.15.0/#certificates
 func ExtractDetailsFromOsqueryDistinguishedName(hostPlatform string, dn string) (*HostCertificateNameDetails, error) {
-	if strings.EqualFold(hostPlatform, "windows") {
+	switch {
+	case strings.EqualFold(hostPlatform, "windows"):
 		return parseWindowsDN(dn)
+	case strings.EqualFold(hostPlatform, "darwin"), strings.EqualFold(hostPlatform, "macos"):
+		return parseDarwinDN(dn)
+	default:
+		// usage error for unsupported host platforms to alert callers and ensure that
+		// platform-specific considerations are handled explicitly
+		return nil, fmt.Errorf("host platform not supported for osquery distinguished name parsing: %s %s", hostPlatform, dn)
 	}
-	return parseNonWindowsDN(dn)
 }
 
-// TODO: verify osquery output for linux certs is similar to macOS?
-
-// parseNonWindowsDN takes a distinguished name string and returns the country,
+// parseDarwinDN takes a distinguished name string and returns the country,
 // organization, and organizational unit. It assumes provided string follows the formatting used by
 // osquery `certificates` table[1] for macOS hosts, which appears to follow the style used by openSSL for `-subj`
 // values). Key-value pairs are assumed to be separated by forward slashes, for example:
 // "/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM".
 //
 // See https://osquery.io/schema/5.15.0/#certificates
-func parseNonWindowsDN(dn string) (*HostCertificateNameDetails, error) {
+func parseDarwinDN(dn string) (*HostCertificateNameDetails, error) {
 	dn = strings.TrimSpace(dn)
 	dn = strings.Trim(dn, "/")
 
