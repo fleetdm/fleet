@@ -5376,7 +5376,8 @@ Returns the specified label.
     "count": 0,
     "host_ids": null,
     "author_id": 1,
-    "team_id": null
+    "team_id": null,
+    "team_name": null
   }
 }
 ```
