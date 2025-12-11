@@ -11620,7 +11620,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	}
 	resp = s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
 		{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}, {AppStoreID: "com.app.not.found", Platform: fleet.AndroidPlatform},
-	}}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
+	}}, http.StatusNotFound, "team_name", tmGood.Name)
 
 	s.Assert().Contains(extractServerErrorText(resp.Body), "Validation Failed: Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
 

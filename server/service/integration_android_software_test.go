@@ -88,7 +88,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		"POST",
 		"/api/latest/fleet/software/app_store_apps",
 		&addAppStoreAppRequest{AppStoreID: "com.app.id.not.found", Platform: fleet.AndroidPlatform},
-		http.StatusUnprocessableEntity,
+		http.StatusNotFound,
 	)
 	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
 

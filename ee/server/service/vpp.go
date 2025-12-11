@@ -253,8 +253,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterprise.Name(), a.AdamID)
 			if err != nil {
 				if fleet.IsNotFound(err) {
-					return nil, fleet.NewInvalidArgumentError("app_store_id", "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
+					return nil, fleet.NewInvalidArgumentError(
+						"app_store_id",
+						"Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.",
+					).WithStatus(http.StatusNotFound)
 				}
+
 				return nil, ctxerr.Wrap(ctx, err, "bulk add app store apps: check if android app exists")
 			}
 
@@ -527,7 +531,10 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterpriseName, appID.AdamID)
 		if err != nil {
 			if fleet.IsNotFound(err) {
-				return 0, fleet.NewInvalidArgumentError("app_store_id", "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
+				return 0, fleet.NewInvalidArgumentError(
+					"app_store_id",
+					"Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.",
+				).WithStatus(http.StatusNotFound)
 			}
 			return 0, ctxerr.Wrap(ctx, err, "add app store app: check if android app exists")
 		}
