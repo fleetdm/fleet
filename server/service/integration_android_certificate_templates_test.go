@@ -93,8 +93,7 @@ func (s *integrationMDMTestSuite) verifyCertificateStatusWithSubject(
 	// SubjectName has Fleet variables replaced with host-specific values
 	require.Equal(t, expectedSubjectName, getCertResp.Certificate.SubjectName)
 	require.Equal(t, string(fleet.CATypeCustomSCEPProxy), getCertResp.Certificate.CertificateAuthorityType)
-	require.NotNil(t, getCertResp.Certificate.Status)
-	require.Equal(t, expectedStatus, *getCertResp.Certificate.Status)
+	require.Equal(t, expectedStatus, getCertResp.Certificate.Status)
 
 	// Verify challenges based on status
 	if expectedStatus == fleet.CertificateTemplateDelivered {
@@ -479,8 +478,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 
 	// Step: Verify the response shows 'failed' status due to missing IDP username
 	require.NotNil(t, getCertResp.Certificate)
-	require.NotNil(t, getCertResp.Certificate.Status)
-	require.Equal(t, fleet.CertificateTemplateFailed, *getCertResp.Certificate.Status)
+	require.Equal(t, fleet.CertificateTemplateFailed, getCertResp.Certificate.Status)
 
 	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateFailed, "", subjectName)
 }

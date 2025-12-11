@@ -8054,7 +8054,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	})
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
 	require.NoError(t, resp.Body.Close())
-	require.Equal(t, *getCertResp.Certificate.Status, fleet.CertificateTemplateFailed)
+	require.Equal(t, getCertResp.Certificate.Status, fleet.CertificateTemplateFailed)
 
 	// Add an IDP user for the host
 	err = s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{

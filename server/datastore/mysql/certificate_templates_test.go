@@ -272,7 +272,7 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				templateForHost, err := ds.GetCertificateTemplateByIdForHost(ctx, certificateTemplateID, hostUUID)
 				require.NoError(t, err)
 				require.Equal(t, certificateTemplateID, templateForHost.ID)
-				require.Equal(t, fleet.CertificateTemplateDelivered, *templateForHost.Status)
+				require.Equal(t, fleet.CertificateTemplateDelivered, templateForHost.Status)
 				require.Equal(t, "fleet-challenge", *templateForHost.FleetChallenge)
 				require.Equal(t, "test-challenge", *templateForHost.SCEPChallenge)
 			},
@@ -344,7 +344,7 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				templateForHost, err := ds.GetCertificateTemplateByIdForHost(ctx, certificateTemplateID, hostUUID)
 				require.NoError(t, err)
 				require.Equal(t, certificateTemplateID, templateForHost.ID)
-				require.Equal(t, fleet.CertificateTemplateVerified, *templateForHost.Status)
+				require.Equal(t, fleet.CertificateTemplateVerified, templateForHost.Status)
 				require.Nil(t, templateForHost.FleetChallenge)
 				require.Nil(t, templateForHost.SCEPChallenge)
 			},

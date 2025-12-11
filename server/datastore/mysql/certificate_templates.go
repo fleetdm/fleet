@@ -53,16 +53,17 @@ func (ds *Datastore) GetCertificateTemplateByIdForHost(ctx context.Context, id u
 			host_certificate_templates.fleet_challenge AS fleet_challenge
 		FROM certificate_templates
 		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
-		LEFT JOIN host_certificate_templates
+		INNER JOIN host_certificate_templates
 			ON host_certificate_templates.certificate_template_id = certificate_templates.id
 			AND host_certificate_templates.host_uuid = ?
+			AND host_certificate_templates.operation_type = 'install'
 		WHERE certificate_templates.id = ?
 	`, hostUUID, id); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id for host")
 	}
 
 	// Only include challenges if status is "delivered"
-	if template.Status != nil && *template.Status == fleet.CertificateTemplateDelivered {
+	if template.Status == fleet.CertificateTemplateDelivered {
 		if template.SCEPChallengeEncrypted != nil {
 			decryptedChallenge, err := decrypt(template.SCEPChallengeEncrypted, ds.serverPrivateKey)
 			if err != nil {

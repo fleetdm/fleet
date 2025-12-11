@@ -39,10 +39,10 @@ type CertificateTemplateResponse struct {
 // Used when a host (fleetd/Android agent) requests its certificate.
 type CertificateTemplateResponseForHost struct {
 	CertificateTemplateResponse
-	Status                 *CertificateTemplateStatus `json:"status" db:"status"`
-	SCEPChallenge          *string                    `json:"scep_challenge" db:"scep_challenge"`
-	FleetChallenge         *string                    `json:"fleet_challenge" db:"fleet_challenge"`
-	SCEPChallengeEncrypted []byte                     `json:"-" db:"scep_challenge_encrypted"`
+	Status                 CertificateTemplateStatus `json:"status" db:"status"`
+	SCEPChallenge          *string                   `json:"scep_challenge" db:"scep_challenge"`
+	FleetChallenge         *string                   `json:"fleet_challenge" db:"fleet_challenge"`
+	SCEPChallengeEncrypted []byte                    `json:"-" db:"scep_challenge_encrypted"`
 }
 
 type CertificateTemplateStatus string

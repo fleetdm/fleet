@@ -185,7 +185,7 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 		); err != nil {
 			return nil, err
 		}
-		certificate.Status = &fleet.CertificateTemplateFailed
+		certificate.Status = fleet.CertificateTemplateFailed
 		return certificate, nil
 	}
 	certificate.SubjectName = subjectName
