@@ -1192,7 +1192,7 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		templates, err := svc.fleetDS.TransitionCertificateTemplatesToDelivering(ctx, hostUUID)
 		if err != nil {
 			level.Error(svc.logger).Log("msg", "failed to transition to delivering", "host_uuid", hostUUID, "err", err)
-			continue
+			return ctxerr.Wrapf(ctx, err, "transition certificate templates to delivering for host %s", hostUUID)
 		}
 
 		if len(templates) == 0 {
@@ -1204,11 +1204,12 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			config, err := buildHostConfig(hostUUID, nil)
 			if err != nil {
 				level.Error(svc.logger).Log("msg", "failed to build host config without certs", "host_uuid", hostUUID, "err", err)
-				continue
+				return ctxerr.Wrapf(ctx, err, "build host config without certs for host %s", hostUUID)
 			}
 			hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
 			if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
 				level.Error(svc.logger).Log("msg", "failed to send AMAPI config without certs", "host_uuid", hostUUID, "err", err)
+				// Not a critical failure. We will retry installing Fleet Agent when certificates are added to the host's team
 			}
 			continue
 		}
@@ -1232,6 +1233,7 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			level.Error(svc.logger).Log("msg", "failed to send to AMAPI", "host_uuid", hostUUID, "err", err)
 			if revertErr := svc.fleetDS.RevertCertificateTemplatesToPending(ctx, hostUUID, templateIDs); revertErr != nil {
 				level.Error(svc.logger).Log("msg", "failed to revert to pending after AMAPI failure", "host_uuid", hostUUID, "err", revertErr)
+				return ctxerr.Wrapf(ctx, revertErr, "revert certificate templates to pending after AMAPI failure for host %s", hostUUID)
 			}
 			continue
 		}

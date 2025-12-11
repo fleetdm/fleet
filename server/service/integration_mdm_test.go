@@ -12197,7 +12197,41 @@ func checkInstallFleetdCommandSent(t *testing.T, mdmDevice *mdmtest.TestAppleMDM
 
 func (s *integrationMDMTestSuite) TestVPPApps() {
 	t := s.T()
+	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
+
+	// DEBUG: Log existing VPP tokens and team associations at test start
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var debugInfo []struct {
+			TokenID      uint    `db:"token_id"`
+			TokenOrgName string  `db:"organization_name"`
+			TeamID       *uint   `db:"team_id"`
+			TeamName     *string `db:"team_name"`
+		}
+		err := sqlx.SelectContext(ctx, q, &debugInfo, `
+			SELECT vt.id as token_id, vt.organization_name, vtt.team_id, t.name as team_name
+			FROM vpp_tokens vt
+			LEFT JOIN vpp_token_teams vtt ON vt.id = vtt.vpp_token_id
+			LEFT JOIN teams t ON vtt.team_id = t.id
+		`)
+		if err != nil {
+			t.Logf("DEBUG: Error querying VPP state: %v", err)
+		} else {
+			t.Logf("DEBUG: VPP tokens and associations at test start: %+v", debugInfo)
+		}
+
+		var teams []struct {
+			ID   uint   `db:"id"`
+			Name string `db:"name"`
+		}
+		err = sqlx.SelectContext(ctx, q, &teams, `SELECT id, name FROM teams`)
+		if err != nil {
+			t.Logf("DEBUG: Error querying teams: %v", err)
+		} else {
+			t.Logf("DEBUG: Teams at test start: %+v", teams)
+		}
+		return nil
+	})
 
 	// Invalid token
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?invalidToken")
@@ -12911,6 +12945,28 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.appleVPPConfigSrvConfig.Location = "Spooky Haunted House"
 	var vppRes uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSONBad))), http.StatusAccepted, "", &vppRes)
+
+	// DEBUG: Log VPP state before the failing PATCH
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var debugInfo []struct {
+			TokenID      uint    `db:"token_id"`
+			TokenOrgName string  `db:"organization_name"`
+			TeamID       *uint   `db:"team_id"`
+			TeamName     *string `db:"team_name"`
+		}
+		err := sqlx.SelectContext(ctx, q, &debugInfo, `
+			SELECT vt.id as token_id, vt.organization_name, vtt.team_id, t.name as team_name
+			FROM vpp_tokens vt
+			LEFT JOIN vpp_token_teams vtt ON vt.id = vtt.vpp_token_id
+			LEFT JOIN teams t ON vtt.team_id = t.id
+		`)
+		if err != nil {
+			t.Logf("DEBUG: Error querying VPP state before PATCH: %v", err)
+		} else {
+			t.Logf("DEBUG: VPP tokens and associations before PATCH to assign team %d: %+v", team.ID, debugInfo)
+		}
+		return nil
+	})
 
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, 99}}, http.StatusUnprocessableEntity, &resPatchVPP)
 
