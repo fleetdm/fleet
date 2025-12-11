@@ -99,7 +99,8 @@ controls:
       - path: ../lib/macos/configuration-profiles/disable-internet-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-media-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-safari-safefiles.mobileconfig
-      - path: ../lib/macos/configuration-profiles/enable-doh.mobileconfig
+      # - path: ../lib/macos/configuration-profiles/enable-doh.mobileconfig
+      # Commenting out until I understand why we have this and if there's a better multi-platform solution
       - path: ../lib/macos/configuration-profiles/enable-firewall-logging.mobileconfig
       - path: ../lib/macos/configuration-profiles/enable-gatekeeper.mobileconfig
       - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig

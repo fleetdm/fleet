@@ -1632,6 +1632,37 @@ WHERE
 	})
 }
 
+// HasAndroidAppConfigurationChanged checks if the new configuration for an Android app
+// identified by adam_id and global_or_team_id is different from the existing one. This
+// is a datastore method so that we rely on mysql's canonicalisation of JSON for comparison.
+func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error) {
+	const stmt = `
+SELECT
+	CAST(? AS JSON) != configuration AS has_changed
+FROM
+	android_app_configurations
+WHERE
+	application_id = ? AND
+	global_or_team_id = ?
+`
+
+	newConfigStr := string(newConfig)
+	if len(newConfigStr) == 0 {
+		newConfigStr = "{}" // consider an empty config as an empty JSON for comparison's sake
+	}
+
+	var hasChanged bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfigStr, applicationID, globalOrTeamID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// old config does not exist, so old one is changed if not empty
+			return len(newConfig) > 0, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "compare android app configuration")
+	}
+	return hasChanged, nil
+}
+
 // GetAndroidAppConfiguration retrieves the configuration for an Android app
 // identified by adam_id and global_or_team_id.
 func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*fleet.AndroidAppConfiguration, error) {
@@ -1658,6 +1689,65 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID stri
 	}
 
 	return &config, nil
+}
+
+func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*fleet.AndroidAppConfiguration, error) {
+	stmt := `
+	SELECT
+		aac.id,
+		aac.application_id,
+		aac.team_id,
+		aac.global_or_team_id,
+		aac.configuration,
+		aac.created_at,
+		aac.updated_at
+	FROM android_app_configurations aac
+	JOIN vpp_apps_teams vat
+		ON vat.adam_id = aac.application_id AND vat.global_or_team_id = aac.global_or_team_id
+	WHERE vat.id = ?
+`
+
+	var config fleet.AndroidAppConfiguration
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, vppAppTeamID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get android app configuration")
+	}
+
+	return &config, nil
+}
+
+func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error) {
+	const bulkGetStmt = `
+	SELECT
+		application_id,
+		configuration
+	FROM android_app_configurations
+	WHERE application_id IN (?) AND global_or_team_id = ?
+	`
+
+	if len(appIDs) == 0 {
+		return nil, nil
+	}
+
+	stmt, args, err := sqlx.In(bulkGetStmt, appIDs, globalOrTeamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building bulk get android app configurations query")
+	}
+
+	var configs []*fleet.AndroidAppConfiguration
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &configs, stmt, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk get android app configurations")
+	}
+
+	m := make(map[string]json.RawMessage, len(configs))
+	for _, c := range configs {
+		m[c.ApplicationID] = c.Configuration
+	}
+	return m, nil
 }
 
 // InsertAndroidAppConfiguration creates a new Android app configuration entry.

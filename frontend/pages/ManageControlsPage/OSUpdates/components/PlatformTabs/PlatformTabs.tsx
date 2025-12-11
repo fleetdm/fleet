@@ -3,6 +3,7 @@ import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import CustomLink from "components/CustomLink";
+import { SUPPORT_LINK } from "utilities/constants";
 
 import EndUserOSRequirementPreview from "../EndUserOSRequirementPreview";
 import WindowsTargetForm from "../WindowsTargetForm";
@@ -161,12 +162,11 @@ const PlatformTabs = ({
             <TabPanel className={`${baseClass}__tab-panel`}>
               <div className={`${baseClass}__coming-soon`}>
                 <p>
-                  Add a{" "}
-                  <CustomLink
-                    url={`/controls/os-settings/custom-settings?team_id=${currentTeamId}`}
-                    text="custom setting"
-                  />{" "}
-                  (configuration profile) to enforce Android OS updates.
+                  <b>Android updates are coming soon.</b>
+                </p>
+                <p>
+                  Need to encourage installation of Android updates?{" "}
+                  <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
                 </p>
               </div>
             </TabPanel>

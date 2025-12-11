@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/md5" // nolint:gosec // used only for tests
 	"crypto/x509"
+	"database/sql"
 	_ "embed"
 	"encoding/json"
 	"encoding/xml"
@@ -4169,15 +4170,15 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostsProfilesMatch(host, globalProfiles)
 	checkHostDetails(t, host, globalProfiles, fleet.MDMDeliveryVerifying)
 
-	// can not resend windows configuration profiles as admin or from device endpoint
-	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, globalProfiles[0]), nil, http.StatusBadRequest)
+	// can't resend windows configuration profiles as admin or from device endpoint while verifying
+	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, globalProfiles[0]), nil, http.StatusConflict)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.CantResendWindowsProfilesMessage)
+	require.Contains(t, errMsg, "Configuration profiles with “pending” or “verifying” status can’t be resent")
 	deviceToken := "windows-device-token"
 	createDeviceTokenForHost(t, s.ds, host.ID, deviceToken)
-	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/configuration_profiles/%s/resend", deviceToken, globalProfiles[0]), nil, http.StatusBadRequest)
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/configuration_profiles/%s/resend", deviceToken, globalProfiles[0]), nil, http.StatusConflict)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.CantResendWindowsProfilesMessage)
+	require.Contains(t, errMsg, "Configuration profiles with “pending” or “verifying” status can’t be resent")
 
 	// create new label that includes host
 	label := &fleet.Label{
@@ -4335,6 +4336,43 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		Failed:    1,
 		Verifying: 0,
 	}, nil)
+
+	// Resend the failed profile. Should succeed
+	s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, teamProfiles[0]), nil, http.StatusAccepted)
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
+		Pending: 1,
+	}, nil)
+	// Try resending, should fail since it's pending
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, teamProfiles[0]), nil, http.StatusConflict)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Configuration profiles with “pending” or “verifying” status can’t be resent")
+
+	// Trigger a profile sync, device gets the resent profile
+	verifyProfiles(mdmDevice, 1, false)
+
+	// update to verifying - should not allow resending
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_windows_profiles SET status = 'verifying' WHERE profile_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, teamProfiles[0])
+		return err
+	})
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, teamProfiles[0]), nil, http.StatusConflict)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Configuration profiles with “pending” or “verifying” status can’t be resent")
+
+	// trigger a profile sync, device doesn't get the profile since resend was not allowed
+	verifyProfiles(mdmDevice, 0, false)
+
+	// Update to verified, resending allowed again
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_windows_profiles SET status = 'verified' WHERE profile_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, teamProfiles[0])
+		return err
+	})
+	s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, teamProfiles[0]), nil, http.StatusAccepted)
+
+	// Trigger a profile sync, device gets the resent profile
+	verifyProfiles(mdmDevice, 1, false)
 
 	// add a macOS profile to the team
 	mcUUID := "a" + uuid.NewString()
@@ -8254,4 +8292,307 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 	}
 	require.NotNil(t, testProfile)
 	require.Equal(t, fleet.MDMDeliveryVerifying, *testProfile.Status)
+}
+
+func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Create a host and enroll it in MDM
+	host, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	t.Run("Command gets retried with Replace after 418", func(t *testing.T) {
+		profilePayload := syncml.ForTestWithData([]syncml.TestCommand{
+			{Verb: "Add", LocURI: "./Device/Vendor/MSFT/Policy/Config/System/AllowLocation", Data: "1"},
+		})
+
+		profileName := "RetryProfile"
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Name: profileName, Contents: profilePayload},
+			}},
+			http.StatusNoContent)
+
+		expectRetry := func(profileName string, expectedRetries int) {
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				var retryCount int
+				err := sqlx.GetContext(t.Context(), q, &retryCount,
+					`SELECT retries FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_name = ?`,
+					host.UUID, profileName)
+				require.NoError(t, err)
+				require.Equal(t, expectedRetries, retryCount, "Unexpected retry count for profile %s", profileName)
+				return nil
+			})
+		}
+
+		// Trigger profile schedule
+		s.awaitTriggerProfileSchedule(t)
+
+		// Get initial host profile
+		profiles, err := s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+		require.NoError(t, err)
+		var initialProfile fleet.HostMDMWindowsProfile
+		for _, p := range profiles {
+			if p.Name == profileName {
+				initialProfile = p
+				break
+			}
+		}
+		require.NotNil(t, initialProfile)
+
+		require.Equal(t, fleet.MDMDeliveryPending, *initialProfile.Status)
+
+		cmds, err := mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+		msgID, err := mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, cmd := range cmds {
+			if cmd.Verb == "Status" {
+				continue
+			}
+			syncCmd := fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmd.Cmd.CmdID.Value,
+				Cmd:     ptr.String(cmd.Verb),
+				Data:    ptr.String(syncml.CmdStatusAtomicFailed),
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			}
+			mdmDevice.AppendResponse(syncCmd)
+
+			for _, addCmd := range cmd.Cmd.AddCommands {
+				for range addCmd.Items {
+					itemCmd := fleet.SyncMLCmd{
+						XMLName: xml.Name{Local: fleet.CmdStatus},
+						MsgRef:  &msgID,
+						CmdRef:  &addCmd.CmdID.Value,
+						Cmd:     ptr.String(fleet.CmdStatus),
+						// 418 triggers Replace resend logic
+						Data:  ptr.String(syncml.CmdStatusAlreadyExists),
+						CmdID: fleet.CmdID{Value: uuid.NewString()},
+					}
+					mdmDevice.AppendResponse(itemCmd)
+				}
+			}
+		}
+		cmds, err = mdmDevice.SendResponse() // we have atomic replace (resend after 418 attempt in this cmd list here)
+		require.NoError(t, err)
+		require.Len(t, cmds, 2) // stsatus + atomic replace
+
+		// After initial 418 resend: pending, empty detail, retries = 0.
+		profiles, err = s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+		require.NoError(t, err)
+		var updatedProfile fleet.HostMDMWindowsProfile
+		for _, p := range profiles {
+			if p.Name == profileName {
+				updatedProfile = p
+				break
+			}
+		}
+		require.NotNil(t, updatedProfile)
+		require.Equal(t, fleet.MDMDeliveryPending, *updatedProfile.Status)
+		require.Empty(t, updatedProfile.Detail)
+		expectRetry(profileName, 0)
+
+		// Second session: fail Atomic to trigger normal retry (status NULL, retries++ -> 1).
+		cmds, err = mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+		msgID, err = mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, cmd := range cmds {
+			if cmd.Verb == "Status" {
+				continue
+			}
+			syncCmd := fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmd.Cmd.CmdID.Value,
+				Cmd:     ptr.String(cmd.Verb),
+				Data:    ptr.String(syncml.CmdStatusAtomicFailed),
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			}
+			mdmDevice.AppendResponse(syncCmd)
+		}
+		_, err = mdmDevice.SendResponse()
+		require.NoError(t, err)
+
+		// Verify raw DB status is NULL and retries = 1.
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var status sql.NullString
+			var retries int
+			err := sqlx.GetContext(t.Context(), q, &status,
+				`SELECT status FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_name = ?`,
+				host.UUID, profileName)
+			require.NoError(t, err)
+			require.False(t, status.Valid, "status should be NULL")
+			err = sqlx.GetContext(t.Context(), q, &retries,
+				`SELECT retries FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_name = ?`,
+				host.UUID, profileName)
+			require.NoError(t, err)
+			require.Equal(t, 1, retries)
+			return nil
+		})
+
+		// Third session: Add 418 again to requeue Replace; retries decremented back to 0.
+		s.awaitTriggerProfileSchedule(t)
+
+		cmds, err = mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+		msgID, err = mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, cmd := range cmds {
+			if cmd.Verb == "Status" {
+				continue
+			}
+			syncCmd := fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmd.Cmd.CmdID.Value,
+				Cmd:     ptr.String(cmd.Verb),
+				Data:    ptr.String(syncml.CmdStatusAtomicFailed),
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			}
+			mdmDevice.AppendResponse(syncCmd)
+			for _, addCmd := range cmd.Cmd.AddCommands {
+				for range addCmd.Items {
+					mdmDevice.AppendResponse(fleet.SyncMLCmd{
+						XMLName: xml.Name{Local: fleet.CmdStatus},
+						MsgRef:  &msgID,
+						CmdRef:  &addCmd.CmdID.Value,
+						Cmd:     ptr.String(fleet.CmdStatus),
+						Data:    ptr.String(syncml.CmdStatusAlreadyExists), // 418
+						CmdID:   fleet.CmdID{Value: uuid.NewString()},
+					})
+				}
+			}
+		}
+		newCmds, err := mdmDevice.SendResponse()
+		require.NoError(t, err)
+		require.Len(t, newCmds, 2) // status + atomic replace
+
+		// Pending and retries back to 0.
+		profiles, err = s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+		require.NoError(t, err)
+		for _, p := range profiles {
+			if p.Name == profileName {
+				updatedProfile = p
+				break
+			}
+		}
+		require.NotNil(t, updatedProfile)
+		require.Equal(t, fleet.MDMDeliveryPending, *updatedProfile.Status)
+		require.Empty(t, updatedProfile.Detail)
+		expectRetry(profileName, 1)
+
+		// Fourth session: Replace succeeds (Atomic OK + item 200) → verifying.
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err = mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+		msgID, err = mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, cmd := range cmds {
+			syncCmd := fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmd.Cmd.CmdID.Value,
+				Cmd:     ptr.String(cmd.Verb),
+				Data:    ptr.String(syncml.CmdStatusOK),
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			}
+			mdmDevice.AppendResponse(syncCmd)
+			for _, repCmd := range cmd.Cmd.ReplaceCommands {
+				for _, item := range repCmd.Items {
+					itemCmdRef := microsoft_mdm.HashLocURI(profileName, *item.Target)
+					mdmDevice.AppendResponse(fleet.SyncMLCmd{
+						XMLName: xml.Name{Local: fleet.CmdStatus},
+						MsgRef:  &msgID,
+						CmdRef:  &itemCmdRef,
+						Cmd:     ptr.String(fleet.CmdStatus),
+						Data:    ptr.String(syncml.CmdStatusOK), // 200
+						CmdID:   fleet.CmdID{Value: uuid.NewString()},
+					})
+				}
+			}
+		}
+		_, err = mdmDevice.SendResponse()
+		require.NoError(t, err)
+
+		profiles, err = s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+		require.NoError(t, err)
+		for _, p := range profiles {
+			if p.Name == profileName {
+				updatedProfile = p
+				break
+			}
+		}
+		require.NotNil(t, updatedProfile)
+		require.Equal(t, fleet.MDMDeliveryVerifying, *updatedProfile.Status)
+		require.Empty(t, updatedProfile.Detail)
+		expectRetry(profileName, 1)
+	})
+
+	t.Run("No resend on non-retryable error", func(t *testing.T) {
+		profilePayload2 := syncml.ForTestWithData([]syncml.TestCommand{
+			{Verb: "Add", LocURI: "./Device/Vendor/MSFT/Policy/Config/System/AllowCamera", Data: "1"},
+		})
+
+		profileName2 := "NonRetryProfile"
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Name: profileName2, Contents: profilePayload2},
+			}},
+			http.StatusNoContent)
+
+		// Trigger profile schedule
+		s.awaitTriggerProfileSchedule(t)
+
+		// Get initial host profile
+		profiles, err := s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+		require.NoError(t, err)
+		var initialProfile2 fleet.HostMDMWindowsProfile
+		for _, p := range profiles {
+			if p.Name == profileName2 {
+				initialProfile2 = p
+				break
+			}
+		}
+		require.NotNil(t, initialProfile2)
+		require.Equal(t, fleet.MDMDeliveryPending, *initialProfile2.Status)
+		cmds, err := mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+		msgID, err := mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, cmd := range cmds {
+			if cmd.Verb == "Status" {
+				continue
+			}
+			syncCmd := fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmd.Cmd.CmdID.Value,
+				Cmd:     ptr.String(cmd.Verb),
+				Data:    ptr.String(syncml.CmdStatusAtomicFailed), // Generic failure, should not retry
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			}
+			mdmDevice.AppendResponse(syncCmd)
+			for _, addCmd := range cmd.Cmd.AddCommands {
+				for range addCmd.Items {
+					itemCmd := fleet.SyncMLCmd{
+						XMLName: xml.Name{Local: fleet.CmdStatus},
+						MsgRef:  &msgID,
+						CmdRef:  &addCmd.CmdID.Value,
+						Cmd:     ptr.String(fleet.CmdStatus),
+						// 500 generic failure
+						Data:  ptr.String(syncml.CmdStatusBadRequest),
+						CmdID: fleet.CmdID{Value: uuid.NewString()},
+					}
+					mdmDevice.AppendResponse(itemCmd)
+				}
+			}
+		}
+
+		cmds, err = mdmDevice.SendResponse()
+		require.NoError(t, err)
+		require.Len(t, cmds, 1) // only ack returned
+	})
 }

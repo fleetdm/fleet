@@ -46,12 +46,12 @@ const InstallerName = ({ name }: IInstallerNameProps) => {
 const renderInstallerDisplayText = (
   installerType: string,
   isFma: boolean,
-  androidPlayStoreLink?: string
+  androidPlayStoreId?: string
 ) => {
   if (installerType === "package") {
     return isFma ? "Fleet-maintained" : "Custom package";
   }
-  if (androidPlayStoreLink) {
+  if (androidPlayStoreId) {
     return "Google Play Store";
   }
   return "App Store (VPP)";
@@ -66,7 +66,7 @@ interface IInstallerDetailsWidgetProps {
   sha256?: string | null;
   isFma: boolean;
   isScriptPackage: boolean;
-  androidPlayStoreLink?: string;
+  androidPlayStoreId?: string;
 }
 
 const InstallerDetailsWidget = ({
@@ -78,7 +78,7 @@ const InstallerDetailsWidget = ({
   version,
   isFma,
   isScriptPackage,
-  androidPlayStoreLink: androidPlayStoreId,
+  androidPlayStoreId,
 }: IInstallerDetailsWidgetProps) => {
   const classNames = classnames(baseClass, className);
 

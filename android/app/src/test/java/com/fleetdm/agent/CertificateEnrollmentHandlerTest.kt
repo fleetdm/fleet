@@ -181,7 +181,7 @@ class CertificateEnrollmentHandlerTest {
     ): GetCertificateTemplateResponse = GetCertificateTemplateResponse(
         id = id,
         name = name,
-        certificateAuthorityId = "ca-123",
+        certificateAuthorityId = 123,
         certificateAuthorityName = "Test CA",
         createdAt = "2024-01-01T00:00:00Z",
         subjectName = subjectName,
