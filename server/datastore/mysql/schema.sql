@@ -2539,9 +2539,9 @@ CREATE TABLE `software_categories` (
   `name` varchar(63) COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_software_categories_name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `software_categories` VALUES (2,'Browsers'),(3,'Communication'),(4,'Developer tools'),(1,'Productivity');
+INSERT INTO `software_categories` VALUES (2,'Browsers'),(3,'Communication'),(4,'Developer tools'),(1,'Productivity'),(5,'Security'),(6,'Utilities');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `software_cpe` (

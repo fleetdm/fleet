@@ -207,5 +207,7 @@ describe("SelfServiceCard", () => {
     expect(screen.getAllByText(/Communication/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Productivity/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Developer tools/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Security/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Utilities/i).length).toBeGreaterThan(0);
   });
 });

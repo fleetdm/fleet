@@ -19356,6 +19356,14 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 			categories: []string{"Communication", "Productivity"},
 		},
 		{
+			desc:       "valid categories 3 - Security and Utilities",
+			categories: []string{"Security", "Utilities"},
+		},
+		{
+			desc:       "valid categories 4 - mixed with new categories",
+			categories: []string{"Security", "Developer tools", "Utilities"},
+		},
+		{
 			desc:                 "empty categories",
 			fmaDefaultCategories: []string{"Productivity"},
 		},

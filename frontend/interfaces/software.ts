@@ -74,7 +74,9 @@ export type SoftwareCategory =
   | "Browsers"
   | "Communication"
   | "Developer tools"
-  | "Productivity";
+  | "Productivity"
+  | "Security"
+  | "Utilities";
 
 export interface ISoftwarePackageStatus {
   installed: number;
