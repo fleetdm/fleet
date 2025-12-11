@@ -1,7 +1,7 @@
 {
   "name": "7-Zip",
   "slug": "7-zip/windows",
-  "package_identifier": "7zip.7zr",
+  "package_identifier": "7zip.7zip",
   "unique_identifier": "7-Zip",
   "installer_arch": "x86",
   "installer_type": "exe",

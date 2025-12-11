@@ -23,6 +23,13 @@
       "description": "1Password is a password manager that keeps all passwords secure behind one password."
     },
     {
+      "name": "7-Zip",
+      "slug": "7-zip/windows",
+      "platform": "windows",
+      "unique_identifier": "7-Zip",
+      "description": "7-Zip is a file archiver with a high compression ratio."
+    },
+    {
       "name": "8x8 Work",
       "slug": "8x8-work/darwin",
       "platform": "darwin",
