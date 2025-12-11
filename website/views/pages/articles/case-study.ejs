@@ -3,16 +3,16 @@
     <div purpose="page-content">
     <div purpose="article-title-and-quote">
       <div purpose="article-title">
-        <div purpose="case-study-logo" v-if="thisPage.meta.companyLogoFilename"><img src="/images/<%=thisPage.meta.companyLogoFilename %>"></div>
+        <div purpose="case-study-logo" v-if="thisPage.meta.companyLogoFilename"><img alt="Logo" src="/images/<%=thisPage.meta.companyLogoFilename %>"></div>
         <h1><%=thisPage.meta.articleTitle %></h1>
       </div>
       <div purpose="case-study-quote" v-if="thisPage.meta.quoteContent">
         <div purpose="quote-author-image">
-          <img src="/images/<%= thisPage.meta.quoteAuthorImageFilename %>">
+          <img alt="<%= thisPage.meta.quoteAuthorName %>" src="/images/<%= thisPage.meta.quoteAuthorImageFilename %>">
         </div>
         <div purpose="quote" >
           <p purpose="quote-text"><%= thisPage.meta.quoteContent %></p>
-          <p purpose="quote-author-name"><%= thisPage.meta.quoteAuthorName %></p>
+          <p purpose="quote-author-name">v</p>
           <p purpose="quote-author-job-title"><%= thisPage.meta.quoteAuthorJobTitle %></p>
         </div>
       </div>

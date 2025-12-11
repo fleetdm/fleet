@@ -168,7 +168,7 @@ module.exports.routes = {
     locals: {
       currentSection: 'customers',
     }
-  },// handles /success-stores/foo
+  },// handles /case-study/foo
 
   'GET /securing': {
     skipAssets: false,
