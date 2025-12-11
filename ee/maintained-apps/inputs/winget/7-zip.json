@@ -1,0 +1,12 @@
+{
+  "name": "7-Zip",
+  "slug": "7-zip/windows",
+  "package_identifier": "7zip.7zr",
+  "unique_identifier": "7-Zip",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/7zip_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/7zip_uninstall.ps1",
+  "installer_scope": "user",
+  "default_categories": ["Productivity"]
+}
