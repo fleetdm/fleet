@@ -87,15 +87,18 @@
       "windows_require_bitlocker_pin": null,
       "macos_updates": {
         "minimum_version": null,
-        "deadline": null
+        "deadline": null,
+        "update_new_hosts": null
       },
       "ios_updates": {
         "minimum_version": null,
-        "deadline": null
+        "deadline": null,
+        "update_new_hosts": null
       },
       "ipados_updates": {
         "minimum_version": null,
-        "deadline": null
+        "deadline": null,
+        "update_new_hosts": null
       },
       "windows_updates": {
         "deadline_days": 7,
