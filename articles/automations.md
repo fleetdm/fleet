@@ -13,11 +13,21 @@ You can automatically send activites to a webhook URL or a [log destination](htt
 
 ## Policy automations
 
-Policy automations are triggered if a policy is newly failing on at least one host.
+Policy automations are triggered if a policy fails on a host.
 
-> Note that a policy is "newly failing" if a host updated its response from "no response" to "failing" or from "passing" to "failing."
+### Calendar
 
-Fleet checks whether to trigger policy automations once per day by default.
+TODO
+
+### Software and scripts
+
+Automations for [software](https://fleetdm.com/guides/automatic-software-install-in-fleet) and [scripts](https://fleetdm.com/guides/policy-automation-run-script) retry up to 3 times by default. Each time the policy runs and fails, Fleet triggers the software install or script again, up to a total of 3 attempts. If the host passes the policy, the retry count resets.
+
+### Webhooks and tickets
+
+For webhooks and tickets, automations are only triggered when a policy is newly failing. A policy is "newly failing" if a host updated its response from no response to "fail" or from "pass" to "fail."
+
+Fleet checks whether to trigger webhooks or tickets once per day by default.
 
 For webhooks, if a policy is newly failing on more than one host during the same period, a separate webhook request is triggered for each host by default.
 
