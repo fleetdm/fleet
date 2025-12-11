@@ -191,6 +191,7 @@ const AppleOSTargetForm = ({
     <form className={baseClass} onSubmit={handleSubmit}>
       <InputField
         label="Minimum version"
+        name="minimum_version"
         disabled={gitOpsModeEnabled}
         tooltip={getMinimumVersionTooltip()}
         helpText={
@@ -209,6 +210,7 @@ const AppleOSTargetForm = ({
       />
       <InputField
         disabled={gitOpsModeEnabled}
+        name="deadline"
         label="Deadline"
         tooltip="The end user can't dismiss the OS update once they reach this deadline. Deadline is 12:00 (Noon), the host's local time."
         helpText="YYYY-MM-DD format only (e.g., “2024-07-01”)."
@@ -218,6 +220,7 @@ const AppleOSTargetForm = ({
       />
       {applePlatform === "darwin" && (
         <Checkbox
+          name="update_new_hosts"
           disabled={gitOpsModeEnabled}
           onChange={setUpdateNewHosts}
           value={updateNewHosts}
