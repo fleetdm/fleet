@@ -75,6 +75,11 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
 	}
+
+	if err := verifyLabelsToAssociate(ctx, svc.ds, nil, append(p.LabelsIncludeAny, p.LabelsExcludeAny...)); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
+	}
+
 	policy, err := svc.ds.NewGlobalPolicy(ctx, ptr.Uint(vc.UserID()), p)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "storing policy")

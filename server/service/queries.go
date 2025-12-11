@@ -281,6 +281,10 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		})
 	}
 
+	if err := verifyLabelsToAssociate(ctx, svc.ds, p.TeamID, p.LabelsIncludeAny); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
+	}
+
 	query := &fleet.Query{
 		Saved: true,
 
@@ -415,6 +419,10 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("query payload verification: %s", err),
 		})
+	}
+
+	if err := verifyLabelsToAssociate(ctx, svc.ds, p.TeamID, p.LabelsIncludeAny); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
 	shouldDiscardQueryResults, shouldDeleteStats := false, false
