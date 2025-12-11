@@ -219,9 +219,10 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		if scope == "" {
 			scope = installer.Scope
 			if scope == "" {
-				if installerType == installerTypeMSI {
+				switch installerType {
+				case installerTypeMSI:
 					scope = machineScope
-				} else if installerType == installerTypeMSIX || installerType == "zip" {
+				case installerTypeMSIX, "zip":
 					// AppX/MSIX packages and zip files containing AppX are typically user-scoped
 					scope = userScope
 				}
