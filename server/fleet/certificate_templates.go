@@ -28,7 +28,6 @@ type CertificateTemplateResponseSummary struct {
 }
 
 // CertificateTemplateResponse contains certificate template details without host-specific data.
-// Used when fetching a template by ID for admin/API purposes.
 type CertificateTemplateResponse struct {
 	CertificateTemplateResponseSummary
 	CertificateAuthorityType string `json:"certificate_authority_type" db:"certificate_authority_type"`
@@ -36,7 +35,7 @@ type CertificateTemplateResponse struct {
 }
 
 // CertificateTemplateResponseForHost contains certificate template details with host-specific data.
-// Used when a host (fleetd/Android agent) requests its certificate.
+// Used when a host (Android agent) requests its certificate.
 type CertificateTemplateResponseForHost struct {
 	CertificateTemplateResponse
 	Status                 CertificateTemplateStatus `json:"status" db:"status"`

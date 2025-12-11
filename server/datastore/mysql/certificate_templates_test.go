@@ -202,7 +202,6 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				template, err := ds.GetCertificateTemplateById(ctx, certificateTemplateID)
 				require.NoError(t, err)
 				require.Equal(t, certificateTemplateID, template.ID)
-				// CertificateTemplateResponse does not have Status, FleetChallenge, or SCEPChallenge fields
 			},
 		},
 		{
@@ -266,7 +265,6 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				template, err := ds.GetCertificateTemplateById(ctx, certificateTemplateID)
 				require.NoError(t, err)
 				require.Equal(t, certificateTemplateID, template.ID)
-				// CertificateTemplateResponse does not have Status, FleetChallenge, or SCEPChallenge fields
 
 				// GetCertificateTemplateByIdForHost should return host-specific data
 				templateForHost, err := ds.GetCertificateTemplateByIdForHost(ctx, certificateTemplateID, hostUUID)
@@ -338,7 +336,6 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				template, err := ds.GetCertificateTemplateById(ctx, certificateTemplateID)
 				require.NoError(t, err)
 				require.Equal(t, certificateTemplateID, template.ID)
-				// CertificateTemplateResponse does not have Status, FleetChallenge, or SCEPChallenge fields
 
 				// GetCertificateTemplateByIdForHost should return host-specific data (challenges nil for verified status)
 				templateForHost, err := ds.GetCertificateTemplateByIdForHost(ctx, certificateTemplateID, hostUUID)
