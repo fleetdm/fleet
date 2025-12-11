@@ -372,6 +372,9 @@ type MDMCommand struct {
 	// to authorize the user to see the command, it is not returned as part of
 	// the response payload.
 	TeamID *uint `json:"-" db:"team_id"`
+	// CommandStatus is the fleet computed field representing the status of the command
+	// based on the MDM protocol status
+	CommandStatus MDMCommandStatusFilter `json:"command_status" db:"command_status"`
 }
 
 // MDMCommandListOptions defines the options to control the list of MDM
@@ -384,9 +387,24 @@ type MDMCommandListOptions struct {
 	Filters MDMCommandFilters
 }
 
+type MDMCommandStatusFilter string
+
+const (
+	MDMCommandStatusFilterPending MDMCommandStatusFilter = "pending"
+	MDMCommandStatusFilterRan     MDMCommandStatusFilter = "ran"
+	MDMCommandStatusFilterFailed  MDMCommandStatusFilter = "failed"
+)
+
+var AllMDMCommandStatusFilters = []MDMCommandStatusFilter{
+	MDMCommandStatusFilterPending,
+	MDMCommandStatusFilterRan,
+	MDMCommandStatusFilterFailed,
+}
+
 type MDMCommandFilters struct {
-	HostIdentifier string
-	RequestType    string
+	HostIdentifier  string
+	RequestType     string
+	CommandStatuses []MDMCommandStatusFilter
 }
 
 type MDMPlatformsCounts struct {
@@ -438,7 +456,6 @@ func (mdmPS *MDMProfilesSummary) Add(other *MDMProfilesSummary) *MDMProfilesSumm
 		Pending:   s1.Pending + s2.Pending,
 		Failed:    s1.Failed + s2.Failed,
 	}
-
 }
 
 // HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either

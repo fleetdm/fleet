@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -830,52 +832,96 @@ type listMDMCommandsRequest struct {
 	ListOptions    fleet.ListOptions `url:"list_options"`
 	HostIdentifier string            `query:"host_identifier,optional"`
 	RequestType    string            `query:"request_type,optional"`
+	CommandStatus  string            `query:"command_status,optional"`
 }
 
 type listMDMCommandsResponse struct {
+	Count   *int64              `json:"count"`
 	Results []*fleet.MDMCommand `json:"results"`
 	Err     error               `json:"error,omitempty"`
 }
 
 func (r listMDMCommandsResponse) Error() error { return r.Err }
 
+// We the DecodeBody method to perform custom validation before hitting the service layer.
+func (req listMDMCommandsRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
+	if req.CommandStatus != "" && req.HostIdentifier == "" {
+		return errors.New(`"host_identifier" must be specified when filtering by "command_status".`)
+	}
+
+	if req.CommandStatus != "" {
+		statuses := strings.Split(req.CommandStatus, ",")
+		failed := false
+		for _, status := range statuses {
+			status = strings.TrimSpace(status)
+			if !slices.Contains(fleet.AllMDMCommandStatusFilters, fleet.MDMCommandStatusFilter(status)) {
+				failed = true
+				break
+			}
+		}
+
+		if failed {
+			allowed := make([]string, len(fleet.AllMDMCommandStatusFilters))
+			for i, v := range fleet.AllMDMCommandStatusFilters {
+				allowed[i] = string(v)
+			}
+			return fleet.NewInvalidArgumentError("command_status", fmt.Sprintf("command_status only accepts the following values: %s", strings.Join(allowed, ", ")))
+		}
+	}
+
+	return nil
+}
+
 func listMDMCommandsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listMDMCommandsRequest)
-	results, err := svc.ListMDMCommands(ctx, &fleet.MDMCommandListOptions{
+
+	// Convert comma-separated command statuses into a list of typed values
+	commandStatuses := []fleet.MDMCommandStatusFilter{}
+	if req.CommandStatus != "" {
+		for val := range strings.SplitSeq(req.CommandStatus, ",") {
+			commandStatuses = append(commandStatuses, fleet.MDMCommandStatusFilter(strings.TrimSpace(val)))
+		}
+	}
+
+	results, total, err := svc.ListMDMCommands(ctx, &fleet.MDMCommandListOptions{
 		ListOptions: req.ListOptions,
-		Filters:     fleet.MDMCommandFilters{HostIdentifier: req.HostIdentifier, RequestType: req.RequestType},
+		Filters:     fleet.MDMCommandFilters{HostIdentifier: req.HostIdentifier, RequestType: req.RequestType, CommandStatuses: commandStatuses},
 	})
-	if err != nil {
+	bre := &fleet.BadRequestError{}
+	if err != nil && !errors.As(err, &bre) {
 		return listMDMCommandsResponse{
 			Err: err,
 		}, nil
+	} else if errors.As(err, &bre) {
+		return nil, err
 	}
 
 	return listMDMCommandsResponse{
 		Results: results,
+		Count:   total,
 	}, nil
 }
 
-func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
+func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, error) {
 	// first, authorize that the user has the right to list hosts
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, nil, ctxerr.Wrap(ctx, err)
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, fleet.ErrNoContext
+		return nil, nil, fleet.ErrNoContext
 	}
 
 	// get the list of commands so we know what hosts (and therefore what teams)
 	// we're dealing with. Including the observers as they are allowed to view
 	// MDM Apple commands.
-	results, err := svc.ds.ListMDMCommands(ctx, fleet.TeamFilter{
+	results, total, err := svc.ds.ListMDMCommands(ctx, fleet.TeamFilter{
 		User:            vc.User,
 		IncludeObserver: true,
 	}, opts)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// collect the different team IDs and verify that the user has access to view
@@ -933,11 +979,11 @@ func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandL
 		_, err := svc.ds.HostLiteByIdentifier(ctx, opts.Filters.HostIdentifier)
 		var nve fleet.NotFoundError
 		if errors.As(err, &nve) {
-			return nil, fleet.NewInvalidArgumentError("Invalid Host", fleet.HostIdentiferNotFound).WithStatus(http.StatusNotFound)
+			return nil, nil, fleet.NewInvalidArgumentError("Invalid Host", fleet.HostIdentiferNotFound).WithStatus(http.StatusNotFound)
 		}
 	}
 
-	return results, nil
+	return results, total, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
