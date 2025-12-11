@@ -90,48 +90,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			DisplayName:        payload.DisplayName,
 		})
 
-		// if payload.Platform.IsApplePlatform() {
-		// 	payloadsWithPlatform = append(payloadsWithPlatform, []fleet.VPPBatchPayloadWithPlatform{{
-		// 		AppStoreID:         payload.AppStoreID,
-		// 		SelfService:        payload.SelfService,
-		// 		InstallDuringSetup: payload.InstallDuringSetup,
-		// 		Platform:           fleet.IOSPlatform,
-		// 		LabelsExcludeAny:   payload.LabelsExcludeAny,
-		// 		LabelsIncludeAny:   payload.LabelsIncludeAny,
-		// 		Categories:         payload.Categories,
-		// 		DisplayName:        payload.DisplayName,
-		// 	}, {
-		// 		AppStoreID:         payload.AppStoreID,
-		// 		SelfService:        payload.SelfService,
-		// 		InstallDuringSetup: payload.InstallDuringSetup,
-		// 		Platform:           fleet.IPadOSPlatform,
-		// 		LabelsExcludeAny:   payload.LabelsExcludeAny,
-		// 		LabelsIncludeAny:   payload.LabelsIncludeAny,
-		// 		Categories:         payload.Categories,
-		// 		DisplayName:        payload.DisplayName,
-		// 	}, {
-		// 		AppStoreID:         payload.AppStoreID,
-		// 		SelfService:        payload.SelfService,
-		// 		Platform:           fleet.MacOSPlatform,
-		// 		InstallDuringSetup: payload.InstallDuringSetup,
-		// 		LabelsExcludeAny:   payload.LabelsExcludeAny,
-		// 		LabelsIncludeAny:   payload.LabelsIncludeAny,
-		// 		Categories:         payload.Categories,
-		// 		DisplayName:        payload.DisplayName,
-		// 	}}...)
-		// } else {
-		// 	payloadsWithPlatform = append(payloadsWithPlatform, fleet.VPPBatchPayloadWithPlatform{
-		// 		AppStoreID:         payload.AppStoreID,
-		// 		SelfService:        payload.SelfService,
-		// 		InstallDuringSetup: payload.InstallDuringSetup,
-		// 		Platform:           payload.Platform,
-		// 		LabelsExcludeAny:   payload.LabelsExcludeAny,
-		// 		LabelsIncludeAny:   payload.LabelsIncludeAny,
-		// 		Categories:         payload.Categories,
-		// 		DisplayName:        payload.DisplayName,
-		// 	})
-		// }
-
 	}
 
 	var incomingAppleApps, incomingAndroidApps []fleet.VPPAppTeam
