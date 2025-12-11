@@ -13,6 +13,27 @@ const baseUrl = (path: string) => {
 };
 
 describe("AppleOSTargetForm", () => {
+  let requestBody: any;
+  const renderWithBackend = createCustomRenderer({
+    withBackendMock: true,
+  });
+  const updateTeamConfigHandler = http.patch(
+    baseUrl("/teams/1"),
+    async ({ request }) => {
+      requestBody = await request.json();
+      return HttpResponse.json({});
+    }
+  );
+
+  beforeEach(() => {
+    requestBody = undefined;
+    mockServer.use(updateTeamConfigHandler);
+  });
+
+  afterEach(() => {
+    mockServer.resetHandlers();
+  });
+
   it("renders the correct form for MacOS", () => {
     render(
       <AppleOSTargetForm
@@ -42,18 +63,6 @@ describe("AppleOSTargetForm", () => {
   });
 
   it("saves 'update new hosts' checkbox state correctly for macOS", async () => {
-    let requestBody: any;
-    const renderWithBackend = createCustomRenderer({
-      withBackendMock: true,
-    });
-    const updateTeamConfigHandler = http.patch(
-      baseUrl("/teams/1"),
-      async ({ request }) => {
-        requestBody = await request.json();
-        return HttpResponse.json({});
-      }
-    );
-    mockServer.use(updateTeamConfigHandler);
     const { user } = renderWithBackend(
       <AppleOSTargetForm
         currentTeamId={1}
@@ -89,8 +98,6 @@ describe("AppleOSTargetForm", () => {
       expect(requestBody?.mdm?.macos_updates?.minimum_version).toBe("11.0");
       expect(requestBody?.mdm?.macos_updates?.deadline).toBe("2024-12-31");
     });
-
-    mockServer.resetHandlers();
   });
 
   it("renders the correct form for iOS", () => {
@@ -120,6 +127,29 @@ describe("AppleOSTargetForm", () => {
     expect(updateNewHostsCheckbox).not.toBeInTheDocument();
   });
 
+  it("saves 'update new hosts' checkbox state correctly for iOS", async () => {
+    const { user } = renderWithBackend(
+      <AppleOSTargetForm
+        currentTeamId={1}
+        applePlatform="ios"
+        defaultMinOsVersion="12.0"
+        defaultDeadline="2025-12-31"
+        defaultUpdateNewHosts
+        refetchAppConfig={jest.fn()}
+        refetchTeamConfig={jest.fn()}
+      />
+    );
+    const saveButton = screen.getByRole("button", { name: /Save/i });
+    expect(saveButton).toBeInTheDocument();
+    await user.click(saveButton);
+    await waitFor(() => {
+      expect(requestBody).toBeDefined();
+      expect(requestBody?.mdm?.ios_updates?.update_new_hosts).not.toBeDefined();
+      expect(requestBody?.mdm?.ios_updates?.minimum_version).toBe("12.0");
+      expect(requestBody?.mdm?.ios_updates?.deadline).toBe("2025-12-31");
+    });
+  });
+
   it("renders the correct form for iPadOS", () => {
     render(
       <AppleOSTargetForm
@@ -145,5 +175,30 @@ describe("AppleOSTargetForm", () => {
       /Update new hosts to latest/i
     );
     expect(updateNewHostsCheckbox).not.toBeInTheDocument();
+  });
+
+  it("saves 'update new hosts' checkbox state correctly for iPadOS", async () => {
+    const { user } = renderWithBackend(
+      <AppleOSTargetForm
+        currentTeamId={1}
+        applePlatform="ipados"
+        defaultMinOsVersion="13.0"
+        defaultDeadline="2026-12-31"
+        defaultUpdateNewHosts
+        refetchAppConfig={jest.fn()}
+        refetchTeamConfig={jest.fn()}
+      />
+    );
+    const saveButton = screen.getByRole("button", { name: /Save/i });
+    expect(saveButton).toBeInTheDocument();
+    await user.click(saveButton);
+    await waitFor(() => {
+      expect(requestBody).toBeDefined();
+      expect(
+        requestBody?.mdm?.ipados_updates?.update_new_hosts
+      ).not.toBeDefined();
+      expect(requestBody?.mdm?.ipados_updates?.minimum_version).toBe("13.0");
+      expect(requestBody?.mdm?.ipados_updates?.deadline).toBe("2026-12-31");
+    });
   });
 });
