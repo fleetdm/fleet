@@ -1,7 +1,16 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+
+import { createCustomRenderer } from "test/test-utils";
+
+import { http, HttpResponse } from "msw";
+import mockServer from "test/mock-server";
 
 import AppleOSTargetForm from "./AppleOSTargetForm";
+
+const baseUrl = (path: string) => {
+  return `/api/latest/fleet${path}`;
+};
 
 describe("AppleOSTargetForm", () => {
   it("renders the correct form for MacOS", () => {
@@ -30,6 +39,58 @@ describe("AppleOSTargetForm", () => {
     );
     expect(updateNewHostsCheckbox).toBeInTheDocument();
     expect((updateNewHostsCheckbox as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("saves 'update new hosts' checkbox state correctly for macOS", async () => {
+    let requestBody: any;
+    const renderWithBackend = createCustomRenderer({
+      withBackendMock: true,
+    });
+    const updateTeamConfigHandler = http.patch(
+      baseUrl("/teams/1"),
+      async ({ request }) => {
+        requestBody = await request.json();
+        return HttpResponse.json({});
+      }
+    );
+    mockServer.use(updateTeamConfigHandler);
+    const { user } = renderWithBackend(
+      <AppleOSTargetForm
+        currentTeamId={1}
+        applePlatform="darwin"
+        defaultMinOsVersion="11.0"
+        defaultDeadline="2024-12-31"
+        defaultUpdateNewHosts
+        refetchAppConfig={jest.fn()}
+        refetchTeamConfig={jest.fn()}
+      />
+    );
+    const saveButton = screen.getByRole("button", { name: /Save/i });
+    expect(saveButton).toBeInTheDocument();
+    await user.click(saveButton);
+    await waitFor(() => {
+      expect(requestBody).toBeDefined();
+      expect(requestBody?.mdm?.macos_updates?.update_new_hosts).toBe(true);
+      expect(requestBody?.mdm?.macos_updates?.minimum_version).toBe("11.0");
+      expect(requestBody?.mdm?.macos_updates?.deadline).toBe("2024-12-31");
+    });
+
+    const updateNewHostsCheckbox = screen.getByRole("checkbox", {
+      name: /update_new_hosts/i,
+    });
+    await user.click(updateNewHostsCheckbox);
+    await waitFor(() => {
+      expect(updateNewHostsCheckbox).not.toBeChecked();
+    });
+    await user.click(saveButton);
+    await waitFor(() => {
+      expect(requestBody).toBeDefined();
+      expect(requestBody?.mdm?.macos_updates?.update_new_hosts).toBe(false);
+      expect(requestBody?.mdm?.macos_updates?.minimum_version).toBe("11.0");
+      expect(requestBody?.mdm?.macos_updates?.deadline).toBe("2024-12-31");
+    });
+
+    mockServer.resetHandlers();
   });
 
   it("renders the correct form for iOS", () => {
