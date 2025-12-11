@@ -27,7 +27,7 @@ import deviceUserAPI from "services/entities/device_user";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import IconStatusMessage from "components/IconStatusMessage";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import DeviceUserError from "components/DeviceUserError";
@@ -128,15 +128,14 @@ export const StatusMessage = ({
   };
 
   return (
-    <div className={`${baseClass}__status-message`}>
-      <Icon
-        name={
-          SCRIPT_DETAILS_STATUS_ICONS[status || "pending_install"] ??
-          "pending-outline"
-        }
-      />
-      {renderStatusCopy()}
-    </div>
+    <IconStatusMessage
+      className={`${baseClass}__status-message`}
+      iconName={
+        SCRIPT_DETAILS_STATUS_ICONS[status || "pending_install"] ??
+        "pending-outline"
+      }
+      message={renderStatusCopy()}
+    />
   );
 };
 
@@ -194,7 +193,7 @@ interface ISoftwareInstallDetailsProps {
   contactUrl?: string; // My Device Page only
 }
 
-export const SoftwareInstallDetailsModal = ({
+export const SoftwareScriptDetailsModal = ({
   details: detailsFromProps,
   onCancel,
   hostSoftware,
@@ -229,9 +228,13 @@ export const SoftwareInstallDetailsModal = ({
   );
 
   const renderScriptDetailsSection = () => {
-    if (swInstallResult?.status !== "pending_install") {
-      return (
-        <>
+    // Only show details button if there's details to display
+    const showDetailsButton =
+      swInstallResult?.status !== "pending_install" && swInstallResult?.output;
+
+    return (
+      <>
+        {showDetailsButton && (
           <RevealButton
             isShowing={showInstallDetails}
             showText="Details"
@@ -239,14 +242,14 @@ export const SoftwareInstallDetailsModal = ({
             caretPosition="after"
             onClick={toggleInstallDetails}
           />
-          {showInstallDetails && swInstallResult?.output && (
-            <Textarea label="Script output:" variant="code">
-              {swInstallResult.output}
-            </Textarea>
-          )}
-        </>
-      );
-    }
+        )}
+        {showInstallDetails && swInstallResult?.output && (
+          <Textarea label="Script output:" variant="code">
+            {swInstallResult.output}
+          </Textarea>
+        )}
+      </>
+    );
   };
 
   const hostDisplayname =
@@ -338,4 +341,4 @@ export const SoftwareInstallDetailsModal = ({
   );
 };
 
-export default SoftwareInstallDetailsModal;
+export default SoftwareScriptDetailsModal;

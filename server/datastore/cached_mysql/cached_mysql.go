@@ -429,9 +429,10 @@ func (ds *cachedMysql) ResultCountForQuery(ctx context.Context, queryID uint) (i
 func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,
 	queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 	// always reach the database to get the latest hashes
-	latestHashes, err := ds.Datastore.GetAllMDMConfigAssetsHashes(ctx, assetNames)
-	if err != nil {
-		return nil, err
+	latestHashes, hashErr := ds.Datastore.GetAllMDMConfigAssetsHashes(ctx, assetNames)
+	// Continue even with partial results - we'll return the error at the end
+	if hashErr != nil && len(latestHashes) == 0 {
+		return nil, hashErr
 	}
 
 	cachedAssets := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset)
@@ -452,14 +453,13 @@ func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNam
 	}
 
 	if len(missingAssets) == 0 {
-		return cachedAssets, nil
+		// All requested assets that exist are cached
+		// Return hashErr if we had partial hashes (some assets don't exist)
+		return cachedAssets, hashErr
 	}
 
 	// fetch missing assets from the database
 	assetMap, err := ds.Datastore.GetAllMDMConfigAssetsByName(ctx, missingAssets, queryerContext)
-	if err != nil {
-		return nil, err
-	}
 
 	// update the cache with the fetched assets and their hashes
 	for name, asset := range assetMap {
@@ -468,7 +468,12 @@ func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNam
 		cachedAssets[name] = asset
 	}
 
-	return cachedAssets, nil
+	// Return the combined results (cached + fetched), preserving any error (e.g., ErrPartialResult)
+	// If we had partial hashes, prioritize that error over the fetch error
+	if hashErr != nil {
+		return cachedAssets, hashErr
+	}
+	return cachedAssets, err
 }
 
 func (ds *cachedMysql) DefaultTeamConfig(ctx context.Context) (*fleet.TeamConfig, error) {

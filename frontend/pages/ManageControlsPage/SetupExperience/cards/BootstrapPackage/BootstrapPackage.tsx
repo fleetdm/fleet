@@ -2,6 +2,7 @@ import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError, AxiosResponse } from "axios";
 
+import PATHS from "router/paths";
 import { IApiError } from "interfaces/errors";
 import { IConfig } from "interfaces/config";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
@@ -14,13 +15,16 @@ import mdmAPI, {
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { NotificationContext } from "context/notification";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 
 import Spinner from "components/Spinner";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import SectionHeader from "components/SectionHeader";
+import CustomLink from "components/CustomLink";
 
-import BootstrapPackagePreview from "./components/BootstrapPackagePreview";
 import PackageUploader from "./components/BootstrapPackageUploader";
 import UploadedPackageView from "./components/UploadedPackageView";
 import DeleteBootstrapPackageModal from "./components/DeleteBootstrapPackageModal";
@@ -190,9 +194,6 @@ const BootstrapPackage = ({
             }}
           />
         </div>
-        <div className={`${baseClass}__preview-container`}>
-          <BootstrapPackagePreview />
-        </div>
       </SetupExperienceContentContainer>
     );
   };
@@ -215,10 +216,11 @@ const BootstrapPackage = ({
       )
     ) {
       return (
-        <TurnOnMdmMessage
+        <GenericMsgWithNavButton
           header="Additional configuration required"
           info="Supported on macOS. To customize, first turn on automatic enrollment."
           buttonText="Turn on"
+          path={PATHS.ADMIN_INTEGRATIONS_MDM}
           router={router}
         />
       );
@@ -228,7 +230,16 @@ const BootstrapPackage = ({
 
   return (
     <section className={baseClass}>
-      <SectionHeader title="Bootstrap package" />
+      <SectionHeader
+        title="Bootstrap package"
+        details={
+          <CustomLink
+            newTab
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-experience/bootstrap-package`}
+            text="Preview end user experience"
+          />
+        }
+      />
       {renderContent()}
       {showDeleteBootstrapPackageModal && (
         <DeleteBootstrapPackageModal

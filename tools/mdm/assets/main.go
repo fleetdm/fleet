@@ -38,15 +38,16 @@ var (
 	flagExportName  string
 
 	validNames = map[fleet.MDMAssetName]struct{}{
-		fleet.MDMAssetABMCert:            {},
-		fleet.MDMAssetABMTokenDeprecated: {},
-		fleet.MDMAssetABMKey:             {},
-		fleet.MDMAssetAPNSCert:           {},
-		fleet.MDMAssetAPNSKey:            {},
-		fleet.MDMAssetCACert:             {},
-		fleet.MDMAssetCAKey:              {},
-		fleet.MDMAssetSCEPChallenge:      {},
-		fleet.MDMAssetVPPTokenDeprecated: {},
+		fleet.MDMAssetABMCert:                  {},
+		fleet.MDMAssetABMTokenDeprecated:       {},
+		fleet.MDMAssetABMKey:                   {},
+		fleet.MDMAssetAPNSCert:                 {},
+		fleet.MDMAssetAPNSKey:                  {},
+		fleet.MDMAssetCACert:                   {},
+		fleet.MDMAssetCAKey:                    {},
+		fleet.MDMAssetSCEPChallenge:            {},
+		fleet.MDMAssetVPPTokenDeprecated:       {},
+		fleet.MDMAssetAndroidFleetServerSecret: {},
 	}
 )
 

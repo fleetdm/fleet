@@ -69,6 +69,8 @@ export const SUPPORT_LINK = `${FLEET_WEBSITE_URL}/support`;
 export const CONTACT_FLEET_LINK = `${FLEET_WEBSITE_URL}/contact`;
 export const LEARN_MORE_ABOUT_BASE_LINK = `${FLEET_WEBSITE_URL}/learn-more-about`;
 export const FLEET_GUIDES_BASE_LINK = `${FLEET_WEBSITE_URL}/guides`;
+export const ANDROID_PLAY_STORE_URL =
+  "https://play.google.com/store/apps/details";
 
 /**  July 28, 2016 is the date of the initial commit to fleet/fleet. */
 export const INITIAL_FLEET_DATE = "2016-07-28T00:00:00Z";
@@ -86,6 +88,7 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.20.0 +", value: "5.20.0" },
   { label: "5.19.0 +", value: "5.19.0" },
   { label: "5.18.1 +", value: "5.18.1" },
   { label: "5.18.0 +", value: "5.18.0" },
@@ -345,22 +348,17 @@ export const MDM_STATUS_TOOLTIP: Record<
 > = {
   "On (automatic)": (
     <span>
-      MDM was turned on automatically using Apple Automated Device Enrollment
-      (DEP), Windows Autopilot, or Windows Azure AD Join. Administrators can
-      block end users from turning MDM off.
+      MDM was turned on automatically. IT admins can block end users from
+      turning MDM off.
     </span>
   ),
   "On (manual)": (
-    <span>
-      MDM was turned on manually, by installing fleetd on macOS and Windows, or
-      by installing enrollment profile on macOS. End user can turn MDM off.
-    </span>
+    <span>MDM was turned on manually. End users can turn MDM off.</span>
   ),
   "On (personal)": (
     <span>
-      End user turned on MDM on personal (BYOD) host, by signing in with Managed
-      Apple Account on iPhone/iPad, or by enrolling Android via enrollment link
-      or by signing in with Google account. End user can turn MDM off.
+      MDM was turned on by signing in with Managed Apple Account on iPhone/iPad,
+      or by creating a work profile on Android. End users can turn MDM off.
     </span>
   ),
   "On (company-owned)": null,

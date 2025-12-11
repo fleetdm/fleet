@@ -128,6 +128,14 @@ Use the following steps to schedule an interview between a candidate and the CEO
 7. Create a reminder meeting on your calendar to join the second half of the final interview call with the CEO and candidate.
 
 
+### Schedule Journalist prep
+
+The Executive Assistant (EA) will use the following steps when a call is booked between the CEO and a journalist:
+1. The EA will schedule a 30-minute “📰 Journalist prep” call right before the journalist meeting, with the CEO as the only attendee. 
+2. Before the journalist call, The EA will meet with the Manager of Training and Enablement to build an agenda with 3 vertebrae listed and bring it to the Manager of Training and Enablement to collect the answers along with suggestions for the other two primary talking points.
+3. The CEO will review the agenda during the “📰 Journalist prep” time.
+
+
 ### Confirm CEO shadow dates
 
 Every Monday, the Executive Assistant will use the following steps to confirm CEO shadow dates:

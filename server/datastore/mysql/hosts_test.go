@@ -70,6 +70,7 @@ var enrollTests = []struct {
 
 func TestHosts(t *testing.T) {
 	ds := CreateMySQLDS(t)
+	TruncateTables(t, ds)
 
 	cases := []struct {
 		name string
@@ -127,6 +128,7 @@ func TestHosts(t *testing.T) {
 		{"HostsExpiration", testHostsExpiration},
 		{"IOSHostExpiration", testIOSHostsExpiration},
 		{"DEPHostExpiration", testDEPHostsExpiration},
+		{"AppleMDMHostWithoutOrbitExpiration", testAppleMDMHostsWithoutOrbitExpiration},
 		{"TeamHostsExpiration", testTeamHostsExpiration},
 		{"HostsIncludesScheduledQueriesInPackStats", testHostsIncludesScheduledQueriesInPackStats},
 		{"HostsAllPackStats", testHostsAllPackStats},
@@ -174,7 +176,6 @@ func TestHosts(t *testing.T) {
 		{"GetMatchingHostSerials", testGetMatchingHostSerials},
 		{"ListHostsLiteByIDs", testHostsListHostsLiteByIDs},
 		{"ListHostsWithPagination", testListHostsWithPagination},
-		{"LastRestarted", testLastRestarted},
 		{"HostHealth", testHostHealth},
 		{"GetHostOrbitInfo", testGetHostOrbitInfo},
 		{"HostnamesByIdentifiers", testHostnamesByIdentifiers},
@@ -813,6 +814,8 @@ func listHostsCheckCount(t *testing.T, ds *Datastore, filter fleet.TeamFilter, o
 }
 
 func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
 	var teamIDFilterNil *uint                // "All teams" option should include all hosts regardless of team assignment
 	var teamIDFilterZero *uint = ptr.Uint(0) // "No team" option should include only hosts that are not assigned to any team
 	teamIDFilterBad := ptr.Uint(9999)
@@ -1005,6 +1008,8 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 }
 
 func testHostListAndroidHostsOSSettings(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
 	// Add a couple of Android hosts. One we will create profiles on, another as a control
 	hosts := []*fleet.Host{}
 	for i := 0; i < 2; i++ {
@@ -3584,7 +3589,7 @@ func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 }
 
 func testHostsListBySoftware(t *testing.T, ds *Datastore) {
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -4220,7 +4225,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	}
 
 	// set up data
-	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault-1", "com.fleetdm.fleet.mdm.filevault", 0), nil)
+	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("filevault-1", "com.fleetdm.fleet.mdm.filevault", 0), nil)
 	require.NoError(t, err)
 
 	// verifying status
@@ -4392,7 +4397,7 @@ func testListHostsProfileUUIDAndStatus(t *testing.T, ds *Datastore) {
 	// no team Apple config profile //
 	/////////////////////////////
 
-	noTeamProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("test-profile", "com.fleetdm.fleet.mdm.test", 0), nil)
+	noTeamProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("test-profile", "com.fleetdm.fleet.mdm.test", 0), nil)
 	require.NoError(t, err)
 
 	verified := fleet.OSSettingsVerified
@@ -5115,17 +5120,24 @@ func testHostsExpiration(t *testing.T, ds *Datastore) {
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
-	deleted, err := ds.CleanupExpiredHosts(context.Background())
+	hostDetails, err := ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
-	require.Len(t, deleted, 5)
+	require.Len(t, hostDetails, 5)
+	// Verify the host details are correctly populated
+	for _, detail := range hostDetails {
+		require.NotZero(t, detail.ID)
+		require.NotEmpty(t, detail.DisplayName)
+		require.Equal(t, hostExpiryWindow, detail.HostExpiryWindow)
+		// Serial may be empty for some hosts
+	}
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 	require.Len(t, hosts, 5)
 
 	// And it doesn't remove more than it should
-	deleted, err = ds.CleanupExpiredHosts(context.Background())
+	hostDetails, err = ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
-	require.Len(t, deleted, 0)
+	require.Len(t, hostDetails, 0)
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 	require.Len(t, hosts, 5)
@@ -5201,15 +5213,100 @@ func testIOSHostsExpiration(t *testing.T, ds *Datastore) {
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
-	deleted, err := ds.CleanupExpiredHosts(context.Background())
+	hostDetails, err := ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+	require.Len(t, hostDetails, 5)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
+	require.Len(t, hosts, 5)
+
+	// And it doesn't remove more than it should
+	hostDetails, err = ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+	require.Len(t, hostDetails, 0)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
+	require.Len(t, hosts, 5)
+}
+
+func testAppleMDMHostsWithoutOrbitExpiration(t *testing.T, ds *Datastore) {
+	// Apple MDM enrolled hosts(macOS devices specifically) which never get orbit
+	// installed and also don't have our usual REFETCH commands run(which only run
+	// on iOS/iPadOS devices)
+	ctx := context.Background()
+	hostExpiryWindow := 70
+
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+
+	ac.HostExpirySettings.HostExpiryEnabled = false
+	ac.HostExpirySettings.HostExpiryWindow = hostExpiryWindow
+
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+
+	never, err := time.Parse("2006-01-02 15:04:05", server.NeverTimestamp)
+	require.NoError(t, err)
+
+	for i := 0; i < 10; i++ {
+		platform := "darwin"
+		nanoLastSeen := time.Now()
+		if i >= 5 {
+			nanoLastSeen = nanoLastSeen.Add(time.Duration(-1*(hostExpiryWindow+1)*24) * time.Hour)
+		}
+
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			DetailUpdatedAt: never, // Hosts will get this timestamp when enrolling only via MDM
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+
+		nanoEnroll(t, ds, host, platform == "darwin")
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			// Hosts that only enroll via MDM get no host_seen_times
+			_, err := q.ExecContext(ctx, `DELETE FROM host_seen_times WHERE host_id = ?`, host.ID)
+			require.NoError(t, err)
+			r, err := q.ExecContext(ctx,
+				`UPDATE nano_enrollments SET last_seen_at = ? WHERE device_id = ?`,
+				nanoLastSeen, host.UUID)
+			require.NoError(t, err)
+			rowsAffected, _ := r.RowsAffected()
+			require.GreaterOrEqual(t, rowsAffected, int64(1))
+			return err
+		})
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+	require.Len(t, hosts, 10)
+
+	deleted, err := ds.CleanupExpiredHosts(ctx)
+	require.NoError(t, err)
+
+	// host expiration is still disabled so nothing should have been deleted
+	require.Len(t, deleted, 0)
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+
+	// once enabled, it works
+	ac.HostExpirySettings.HostExpiryEnabled = true
+	err = ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
+	deleted, err = ds.CleanupExpiredHosts(ctx)
 	require.NoError(t, err)
 	require.Len(t, deleted, 5)
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 	require.Len(t, hosts, 5)
 
-	// And it doesn't remove more than it should
-	deleted, err = ds.CleanupExpiredHosts(context.Background())
+	// Calling it again deletes nothing
+	deleted, err = ds.CleanupExpiredHosts(ctx)
 	require.NoError(t, err)
 	require.Len(t, deleted, 0)
 
@@ -5262,9 +5359,9 @@ func testDEPHostsExpiration(t *testing.T, ds *Datastore) {
 		require.Equal(t, server.NeverTimestamp, host.DetailUpdatedAt.Format("2006-01-02 15:04:05"))
 	}
 
-	deletedIDs, err := ds.CleanupExpiredHosts(context.Background())
+	hostDetails, err := ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
-	require.Len(t, deletedIDs, 0) // no hosts should be deleted
+	require.Len(t, hostDetails, 0) // no hosts should be deleted
 
 	// soft delete one of the host_dep_assignments
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -5277,10 +5374,11 @@ func testDEPHostsExpiration(t *testing.T, ds *Datastore) {
 		return nil
 	})
 
-	deletedIDs, err = ds.CleanupExpiredHosts(ctx)
+	hostDetails, err = ds.CleanupExpiredHosts(ctx)
 	require.NoError(t, err)
-	require.Len(t, deletedIDs, 1)
-	require.Equal(t, hosts[0].ID, deletedIDs[0])
+	require.Len(t, hostDetails, 1)
+	require.Equal(t, hosts[0].ID, hostDetails[0].ID)
+	require.NotEmpty(t, hostDetails[0].DisplayName)
 
 	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 1) // only one host should remain
 }
@@ -5376,9 +5474,14 @@ func testTeamHostsExpiration(t *testing.T, ds *Datastore) {
 	assert.Equal(t, team2HostExpiryWindow, team2.Config.HostExpirySettings.HostExpiryWindow)
 	require.NoError(t, err)
 
-	deleted, err := ds.CleanupExpiredHosts(context.Background())
+	hostDetails, err := ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
-	assert.Len(t, deleted, 6)
+	assert.Len(t, hostDetails, 6)
+	// Extract IDs from hostDetails for validation
+	deleted := make([]uint, len(hostDetails))
+	for i, detail := range hostDetails {
+		deleted[i] = detail.ID
+	}
 	assert.ElementsMatch(t, []uint{1, 2, 6, 8, 9, 11}, deleted)
 	_ = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 	count = nil
@@ -5393,9 +5496,9 @@ func testTeamHostsExpiration(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 5, count[0])
 
 	// And it doesn't remove more than it should
-	deleted, err = ds.CleanupExpiredHosts(context.Background())
+	hostDetails, err = ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
-	assert.Len(t, deleted, 0)
+	assert.Len(t, hostDetails, 0)
 
 	_ = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 }
@@ -6841,6 +6944,56 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	require.True(t, foundNewIdp, "Should find new IDP mapping")
 	require.False(t, foundOldMdmIdp, "Should NOT find old MDM IDP mapping (replacement behavior)")
 	require.False(t, foundEmptyEmail, "Should NOT find empty email mapping (replaced)")
+
+	// delete the host's IDP device mapping (email), custom mapping should remain
+	err = ds.DeleteHostIDP(ctx, h1.ID)
+	require.NoError(t, err)
+
+	// verify that IdP mapping is gone, custom mapping remains
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	foundIdP := false
+	foundCustom := false
+	for _, mapping := range mappings {
+		if mapping.Email == "new.user@example.com" && mapping.Source == fleet.DeviceMappingIDP {
+			foundIdP = true
+		}
+		if mapping.Email == "custom@example.com" && mapping.Source == fleet.DeviceMappingCustomReplacement {
+			foundCustom = true
+		}
+	}
+	require.False(t, foundIdP, "IdP mapping should be deleted")
+	require.True(t, foundCustom, "Custom mapping should remain")
+
+	// verify delete also removes mdm-sourced idp mappings
+	// Manually add mdm_idp_accounts entry to simulate MDM enrollment
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
+		"mdm.user2@example.com", h1.ID, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+
+	// Verify the mdm_idp_accounts entry exists
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Len(t, mappings, 2)
+	foundMdmIdp = false
+	for _, mapping := range mappings {
+		if mapping.Email == "mdm.user2@example.com" && mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
+			foundMdmIdp = true
+			break
+		}
+	}
+	require.True(t, foundMdmIdp, "Should find MDM IDP mapping")
+
+	// delete the remaining IDP device mapping (email), custom mapping should remain
+	err = ds.DeleteHostIDP(ctx, h1.ID)
+	require.NoError(t, err)
+
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+
+	require.Len(t, mappings, 1)
+	require.Equal(t, mappings[0].Source, fleet.DeviceMappingCustomReplacement)
 }
 
 func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
@@ -8361,6 +8514,31 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		INSERT INTO host_identity_scep_certificates (serial, host_id, name, not_valid_before, not_valid_after, certificate_pem, public_key_raw)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`, certSerial, host.ID, "test-host", time.Now().Add(-1*time.Hour), time.Now().Add(24*time.Hour), "-----BEGIN CERTIFICATE-----", []byte{0x04})
+	require.NoError(t, err)
+
+	_, _, err = ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
+		Filename:        "test.ipa",
+		StorageID:       uuid.NewString(),
+		Platform:        string(fleet.MacOSPlatform),
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	var inHouseID uint
+	err = ds.writer(ctx).Get(&inHouseID, "SELECT id FROM in_house_apps WHERE filename = ?", "test.ipa")
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).Exec("INSERT INTO host_in_house_software_installs (host_id, in_house_app_id, command_uuid, platform) VALUES (?, ?, ?, ?)",
+		host.ID, inHouseID, uuid.NewString(), fleet.MacOSPlatform)
+	require.NoError(t, err)
+
+	// Insert into conditional_access_scep_certificates table
+	result, err = ds.writer(context.Background()).Exec(`INSERT INTO conditional_access_scep_serials () VALUES ()`)
+	require.NoError(t, err)
+	caCertSerial, err := result.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.writer(context.Background()).Exec(`
+		INSERT INTO conditional_access_scep_certificates (serial, host_id, name, not_valid_before, not_valid_after, certificate_pem, revoked)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, caCertSerial, host.ID, "test-ca-host", time.Now().Add(-1*time.Hour), time.Now().Add(24*time.Hour), "-----BEGIN CERTIFICATE-----", false)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
@@ -10027,16 +10205,16 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 
 	// Scenario C:
 	//	- Fleet with MDM enabled.
-	// 	- Two linux|darwin|windows hosts with the same hardware identifiers (e.g. two cloned VMs).
+	// 	- Two linux|darwin|windows|android hosts with the same hardware identifiers (e.g. two cloned VMs).
 	//	- fleetd running with host identifier set to instance.
 	//	- orbit and osquery of the two hosts enroll in mixed order.
 	//
 	// For Linux and Windows this scenario behaves as expected. The two hosts are enrolled separately.
 	//
-	// For macOS:
+	// For macOS, iOS, iPadOS, and Android:
 	// Somewhat unexpected output of this scenario is that two hosts are enrolled as one
 	// because MDM makes the effort to match by hardware serial.
-	// Using fleetd's `--host-identifier=instance` with Fleet's MDM enabled is not compatible on macOS.
+	// Using fleetd's `--host-identifier=instance` with Fleet's MDM enabled is not compatible on these platforms.
 	scenarioC := func(platform string) {
 		dupUUID := uuid.New().String()
 		dupHWSerial := uuid.New().String()
@@ -10086,15 +10264,15 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
 
-		if platform == "darwin" {
+		if platform == "darwin" || platform == "ios" || platform == "ipados" || platform == "android" {
 			// This is a expected output of this scenario because MDM makes
-			// the effort to match by hardware serial.
+			// the effort to match by hardware serial for these platforms.
 			require.Equal(t, h1Orbit.ID, h2Orbit.ID)
 		} else {
 			require.NotEqual(t, h1Orbit.ID, h2Orbit.ID)
 		}
 	}
-	for _, platform := range []string{"ubuntu", "windows", "darwin"} {
+	for _, platform := range []string{"ubuntu", "windows", "darwin", "ios", "ipados", "android"} {
 		platform := platform
 		t.Run("scenarioC_"+platform, func(t *testing.T) {
 			scenarioC(platform)
@@ -10831,75 +11009,6 @@ func testListHostsWithPagination(t *testing.T, ds *Datastore) {
 	count, err := ds.CountHosts(ctx, filter, fleet.HostListOptions{})
 	require.NoError(t, err)
 	require.Equal(t, hostCount, count)
-}
-
-func testLastRestarted(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	// Arbitrary value
-	const uptimeVal = 16691000000000
-	now := time.Now()
-	newHostFunc := func(name string, uptimeZero bool) (*fleet.Host, time.Time) {
-		newHost := &fleet.Host{
-			DetailUpdatedAt: now,
-			LabelUpdatedAt:  now,
-			PolicyUpdatedAt: now,
-			SeenTime:        now,
-			NodeKey:         ptr.String(name),
-			UUID:            name,
-			Hostname:        "foo.local." + name,
-		}
-
-		var expectedLastRestartedAt time.Time
-
-		if uptimeZero {
-			newHost.Uptime = 0
-		} else {
-			newHost.Uptime = uptimeVal
-			// Rounding to nearest second because the SQL query does integer division.
-			expectedLastRestartedAt = newHost.DetailUpdatedAt.Add(-newHost.Uptime).Round(time.Second).UTC()
-		}
-
-		host, err := ds.NewHost(ctx, newHost)
-		require.NoError(t, err)
-		require.NotNil(t, host)
-		return host, expectedLastRestartedAt
-	}
-
-	hostCount := 10
-	hosts := make([]*fleet.Host, 0, hostCount)
-	hostsToVals := make(map[uint]time.Time, 0)
-	for i := 0; i < hostCount; i++ {
-		nh, expectedVal := newHostFunc(fmt.Sprintf("h%d", i), i%2 == 0)
-		hosts = append(hosts, nh)
-		hostsToVals[nh.ID] = expectedVal
-	}
-
-	opts := fleet.HostListOptions{}
-
-	userFilter := fleet.TeamFilter{User: test.UserAdmin}
-
-	returnedHosts := listHostsCheckCount(t, ds, userFilter, opts, len(hosts))
-
-	for i, h := range returnedHosts {
-		require.Equal(t, hosts[i].Uptime, h.Uptime)
-		require.Equal(t, hostsToVals[h.ID], h.LastRestartedAt)
-	}
-
-	h1 := hosts[0] // has Uptime == 0
-	h2 := hosts[1] // has Uptime == uptimeVal
-
-	host, err := ds.Host(ctx, h1.ID)
-	require.NoError(t, err)
-	require.Equal(t, h1.ID, host.ID)
-	require.Equal(t, time.Duration(0), host.Uptime)
-	require.Equal(t, hostsToVals[host.ID], host.LastRestartedAt)
-
-	host, err = ds.Host(ctx, h2.ID)
-	require.NoError(t, err)
-	require.Equal(t, h2.ID, host.ID)
-	require.Equal(t, time.Duration(uptimeVal), host.Uptime)
-	require.Equal(t, hostsToVals[host.ID], host.LastRestartedAt)
 }
 
 func testHostHealth(t *testing.T, ds *Datastore) {

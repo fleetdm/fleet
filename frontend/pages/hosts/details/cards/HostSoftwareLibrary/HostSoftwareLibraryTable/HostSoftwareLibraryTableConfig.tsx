@@ -18,8 +18,9 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 
 import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
-
+import TextCell from "components/TableContainer/DataTable/TextCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
+import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 import HostInstallerActionCell from "../HostInstallerActionCell";
 import InstallStatusCell from "../../Software/InstallStatusCell";
 import { installStatusSortType } from "../../Software/helpers";
@@ -50,6 +51,7 @@ interface IHostSWLibraryTableHeaders {
   onShowInventoryVersions?: (software?: IHostSoftware) => void;
   onShowUpdateDetails: (software?: IHostSoftware) => void;
   onSetSelectedHostSWInstallDetails: (details?: IHostSoftware) => void;
+  onSetSelectedHostSWIpaInstallDetails: (details?: IHostSoftware) => void;
   onSetSelectedHostSWScriptDetails: (details?: IHostSoftware) => void;
   onSetSelectedHostSWUninstallDetails: (
     details?: ISWUninstallDetailsParentState
@@ -73,6 +75,7 @@ export const generateHostSWLibraryTableHeaders = ({
   onShowInventoryVersions,
   onShowUpdateDetails,
   onSetSelectedHostSWInstallDetails,
+  onSetSelectedHostSWIpaInstallDetails,
   onSetSelectedHostSWScriptDetails,
   onSetSelectedHostSWUninstallDetails,
   onSetSelectedVPPInstallDetails,
@@ -91,6 +94,7 @@ export const generateHostSWLibraryTableHeaders = ({
         const {
           id,
           name,
+          display_name,
           source,
           icon_url,
           app_store_app,
@@ -108,10 +112,13 @@ export const generateHostSWLibraryTableHeaders = ({
         const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
           cellProps.row.original
         );
+        const isAndroidPlayStoreApp =
+          !!app_store_app && source === "android_apps";
 
         return (
           <SoftwareNameCell
             name={name}
+            display_name={display_name}
             source={source}
             iconUrl={icon_url}
             path={softwareTitleDetailsPath}
@@ -120,6 +127,7 @@ export const generateHostSWLibraryTableHeaders = ({
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetailsLibrary"
+            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );
       },
@@ -136,6 +144,7 @@ export const generateHostSWLibraryTableHeaders = ({
             onShowInventoryVersions={onShowInventoryVersions}
             onShowUpdateDetails={onShowUpdateDetails}
             onShowInstallDetails={onSetSelectedHostSWInstallDetails}
+            onShowIpaInstallDetails={onSetSelectedHostSWIpaInstallDetails}
             onShowScriptDetails={onSetSelectedHostSWScriptDetails}
             onShowVPPInstallDetails={onSetSelectedVPPInstallDetails}
             onShowUninstallDetails={onSetSelectedHostSWUninstallDetails}
@@ -170,6 +179,26 @@ export const generateHostSWLibraryTableHeaders = ({
         const installerData = softwareTitle.software_package
           ? softwareTitle.software_package
           : (softwareTitle.app_store_app as IHostAppStoreApp);
+        const isAndroidPlayStoreApp =
+          !!softwareTitle.app_store_app &&
+          softwareTitle.source === "android_apps";
+
+        // For Android Play Store apps, we show "Latest" in the UI
+        if (isAndroidPlayStoreApp) {
+          const androidPlayStoreId =
+            cellProps.row.original.app_store_app?.app_store_id;
+
+          return (
+            <TextCell
+              value={
+                <AndroidLatestVersionWithTooltip
+                  androidPlayStoreId={androidPlayStoreId || ""}
+                />
+              }
+            />
+          );
+        }
+
         return (
           <VersionCell versions={[{ version: installerData?.version || "" }]} />
         );

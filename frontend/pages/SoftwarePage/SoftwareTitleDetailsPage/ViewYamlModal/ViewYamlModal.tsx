@@ -6,7 +6,7 @@ import { NotificationContext } from "context/notification";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
 import FileSaver from "file-saver";
-import { ISoftwarePackage } from "interfaces/software";
+import { ISoftwarePackage, SCRIPT_PACKAGE_SOURCES } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
 import Modal from "components/Modal";
@@ -27,8 +27,11 @@ interface IViewYamlModalProps {
   softwareTitleId: number;
   teamId: number;
   iconUrl?: string | null;
+  displayName?: string;
   softwarePackage: ISoftwarePackage;
   onExit: () => void;
+  isScriptPackage?: boolean;
+  isIosOrIpadosApp?: boolean;
 }
 
 interface HandleDownloadParams {
@@ -45,22 +48,31 @@ const ViewYamlModal = ({
   softwareTitleId: softwareId,
   teamId,
   iconUrl,
+  displayName,
   softwarePackage,
   onExit,
+  isScriptPackage = false,
+  isIosOrIpadosApp = false,
 }: IViewYamlModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
   const repositoryUrl = config?.gitops?.repository_url;
-  const {
-    name,
-    version,
-    url,
-    hash_sha256: sha256,
-    pre_install_query: preInstallQuery,
-    install_script: installScript,
-    post_install_script: postInstallScript,
-    uninstall_script: uninstallScript,
-  } = softwarePackage;
+  const { name, version, url, hash_sha256: sha256 } = softwarePackage;
+
+  // Script packages (.sh and .ps1) should not expose install_script,
+  // post_install_script, uninstall_script, or pre_install_query fields
+  const preInstallQuery = !isScriptPackage
+    ? softwarePackage.pre_install_query
+    : undefined;
+  const installScript = !isScriptPackage
+    ? softwarePackage.install_script
+    : undefined;
+  const postInstallScript = !isScriptPackage
+    ? softwarePackage.post_install_script
+    : undefined;
+  const uninstallScript = !isScriptPackage
+    ? softwarePackage.uninstall_script
+    : undefined;
 
   const packageYaml = createPackageYaml({
     softwareTitle: softwareTitleName,
@@ -73,6 +85,8 @@ const ViewYamlModal = ({
     postInstallScript,
     uninstallScript,
     iconUrl: iconUrl || null,
+    displayName,
+    isScriptPackage,
   });
 
   // Generic download handler
@@ -227,6 +241,8 @@ const ViewYamlModal = ({
               ? onDownloadUninstallScript
               : undefined,
             onClickIcon: iconUrl ? onDownloadIcon : undefined,
+            hasAdvancedOptionsAvailable: !isScriptPackage && !isIosOrIpadosApp,
+            isScriptPackage,
           })}
         </p>
         <div className="modal-cta-wrap">

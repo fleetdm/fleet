@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"maps"
 	"net/http"
@@ -17,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	kitlog "github.com/go-kit/log"
 	"google.golang.org/api/androidmanagement/v1"
-	"google.golang.org/api/googleapi"
 )
 
 func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string) error {
@@ -75,6 +73,10 @@ func getClientAuthenticationSecret(ctx context.Context, ds fleet.Datastore) (str
 }
 
 func (r *profileReconciler) ReconcileProfiles(ctx context.Context) error {
+	if err := r.reconcileCertificateTemplates(ctx); err != nil {
+		return ctxerr.Wrap(ctx, err, "reconcile certificate templates")
+	}
+
 	// get the list of hosts that need to have their profiles applied
 	hostsApplicableProfiles, hostsProfsToRemove, err := r.DS.ListMDMAndroidProfilesToSend(ctx)
 	if err != nil {
@@ -382,118 +384,102 @@ func buildPolicyFieldsOverriddenErrorMessage(overriddenFields []string) string {
 
 func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyName string,
 	policy *androidmanagement.Policy, metadata map[string]string,
-) (req *fleet.MDMAndroidPolicyRequest, skip bool, err error) {
+) (req *android.MDMAndroidPolicyRequest, skip bool, err error) {
 	policyRequest, err := newAndroidPolicyRequest(policyID, policyName, policy, metadata)
 	if err != nil {
 		return nil, false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 	}
 
-	applied, apiErr := r.Client.EnterprisesPoliciesPatch(ctx, policyName, policy)
-	if apiErr != nil {
-		var gerr *googleapi.Error
-		if errors.As(apiErr, &gerr) {
-			policyRequest.StatusCode = gerr.Code
-		}
-		policyRequest.ErrorDetails.V = apiErr.Error()
-		policyRequest.ErrorDetails.Valid = true
-
-		// Note that from my tests, the "not modified" error is not reliable, the
-		// AMAPI happily returned 200 even if the policy was the same (as
-		// confirmed by the same version number being returned), so we do check
-		// for this error, but do not build critical logic on top of it.
-		//
-		// Tests do show that the version number is properly incremented when the
-		// policy changes, though.
-		if skip = androidmgmt.IsNotModifiedError(apiErr); skip {
-			apiErr = nil
-		}
-	} else {
-		policyRequest.StatusCode = http.StatusOK
-		policyRequest.PolicyVersion.V = applied.Version
-		policyRequest.PolicyVersion.Valid = true
-	}
-
-	if err := r.DS.NewAndroidPolicyRequest(ctx, policyRequest); err != nil {
-		return nil, false, ctxerr.Wrap(ctx, err, "save android policy request")
+	applied, apiErr := r.Client.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{ExcludeApps: true})
+	if skip, err = recordAndroidRequestResult(ctx, r.DS, policyRequest, applied, nil, apiErr); err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "record android request")
 	}
 	return policyRequest, skip, nil
 }
 
-func newAndroidPolicyRequest(policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (*fleet.MDMAndroidPolicyRequest, error) {
-	// save the payload with metadata about what setting comes from what profile
-	m := fleet.AndroidPolicyRequestPayload{
-		Policy: policy,
-		Metadata: fleet.AndroidPolicyRequestPayloadMetadata{
-			SettingsOrigin: metadata,
-		},
-	}
-	b, err := json.Marshal(m)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal policy to json: %w", err)
-	}
-	return &fleet.MDMAndroidPolicyRequest{
-		RequestName: policyName,
-		PolicyID:    policyID,
-		Payload:     b,
-	}, nil
-}
-
 func (r *profileReconciler) patchDevice(ctx context.Context, policyID, deviceName string,
 	device *androidmanagement.Device,
-) (req *fleet.MDMAndroidPolicyRequest, skip bool, apiErr error) {
+) (req *android.MDMAndroidPolicyRequest, skip bool, apiErr error) {
 	deviceRequest, err := newAndroidDeviceRequest(policyID, deviceName, device)
 	if err != nil {
 		return nil, false, ctxerr.Wrapf(ctx, err, "prepare device request %s", deviceName)
 	}
 
 	applied, apiErr := r.Client.EnterprisesDevicesPatch(ctx, deviceName, device)
-	if apiErr != nil {
-		var gerr *googleapi.Error
-		if errors.As(apiErr, &gerr) {
-			deviceRequest.StatusCode = gerr.Code
-		}
-		deviceRequest.ErrorDetails.V = apiErr.Error()
-		deviceRequest.ErrorDetails.Valid = true
-
-		if skip = androidmgmt.IsNotModifiedError(apiErr); skip {
-			apiErr = nil
-		}
-	} else {
-		deviceRequest.StatusCode = http.StatusOK
-		deviceRequest.AppliedPolicyVersion.V = applied.AppliedPolicyVersion
-		deviceRequest.AppliedPolicyVersion.Valid = true
-	}
-
-	if err := r.DS.NewAndroidPolicyRequest(ctx, deviceRequest); err != nil {
-		return nil, false, ctxerr.Wrap(ctx, err, "save android device request")
+	if skip, err = recordAndroidRequestResult(ctx, r.DS, deviceRequest, nil, applied, apiErr); err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "record android request")
 	}
 	return deviceRequest, skip, nil
 }
 
-func newAndroidDeviceRequest(policyID, deviceName string, device *androidmanagement.Device) (*fleet.MDMAndroidPolicyRequest, error) {
-	b, err := json.Marshal(device)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal device to json: %w", err)
+// reconcileCertificateTemplates processes certificate templates for Android in host batches.
+func (r *profileReconciler) reconcileCertificateTemplates(ctx context.Context) error {
+	const batchSize = 1000 // Process 1000 hosts at a time
+	offset := 0
+
+	for {
+		// Get a batch of host UUIDs that have certificate templates
+		hostUUIDs, err := r.DS.ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx, offset, batchSize)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list android host uuids with certificate templates")
+		}
+
+		if len(hostUUIDs) == 0 {
+			break
+		}
+
+		// Get ALL certificate templates for this batch of hosts
+		allTemplates, err := r.DS.ListCertificateTemplatesForHosts(ctx, hostUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list certificate templates for hosts")
+		}
+
+		// Process this batch of hosts with all their certificates
+		if err := r.processCertificateTemplateBatch(ctx, allTemplates); err != nil {
+			return err
+		}
+
+		if len(hostUUIDs) < batchSize {
+			break
+		}
+
+		// next batch
+		offset += batchSize
 	}
-	return &fleet.MDMAndroidPolicyRequest{
-		RequestName: deviceName,
-		PolicyID:    policyID,
-		Payload:     b,
-	}, nil
+
+	return nil
 }
 
-func applyFleetEnforcedSettings(policy *androidmanagement.Policy) {
-	policy.StatusReportingSettings = &androidmanagement.StatusReportingSettings{
-		DeviceSettingsEnabled:        true,
-		MemoryInfoEnabled:            true,
-		NetworkInfoEnabled:           true,
-		DisplayInfoEnabled:           true,
-		PowerManagementEventsEnabled: true,
-		HardwareStatusEnabled:        true,
-		SystemPropertiesEnabled:      true,
-		SoftwareInfoEnabled:          true,
-		CommonCriteriaModeEnabled:    true,
-		ApplicationReportsEnabled:    true,
-		ApplicationReportingSettings: nil, // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
+func (r *profileReconciler) processCertificateTemplateBatch(ctx context.Context, allTemplates []fleet.CertificateTemplateForHost) error {
+	// Collect unique host UUIDs that need certificate template updates
+	hostsWithNewCerts := make(map[string]struct{})
+	for i := range allTemplates {
+		// Check if this is a new certificate (no existing record)
+		if allTemplates[i].FleetChallenge == nil {
+			hostsWithNewCerts[allTemplates[i].HostUUID] = struct{}{}
+		}
 	}
+
+	// no new certificates to send, we're done
+	if len(hostsWithNewCerts) == 0 {
+		return nil
+	}
+
+	// Get the list of host UUIDs that need updates
+	hostUUIDs := make([]string, 0, len(hostsWithNewCerts))
+	for hostUUID := range hostsWithNewCerts {
+		hostUUIDs = append(hostUUIDs, hostUUID)
+	}
+
+	svc := &Service{
+		logger:           kitlog.NewNopLogger(),
+		ds:               r.DS,
+		fleetDS:          r.DS,
+		androidAPIClient: r.Client,
+	}
+	if err := svc.BuildAndSendFleetAgentConfig(ctx, r.Enterprise.Name(), hostUUIDs, true); err != nil {
+		return ctxerr.Wrap(ctx, err, "build and send fleet agent config with certificates")
+	}
+
+	return nil
 }

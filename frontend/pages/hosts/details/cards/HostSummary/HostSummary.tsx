@@ -12,6 +12,7 @@ import { IAppleDeviceUpdates } from "interfaces/config";
 import {
   DiskEncryptionSupportedPlatform,
   isAndroid,
+  isIPadOrIPhone,
   isDiskEncryptionSupportedLinuxPlatform,
   isOsSettingsDisplayPlatform,
   platformSupportsDiskEncryption,
@@ -145,7 +146,7 @@ const HostSummary = ({
 
   const isAndroidHost = isAndroid(platform);
   const isChromeHost = platform === "chrome";
-  const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
+  const isIosOrIpadosHost = isIPadOrIPhone(platform);
 
   const renderIssues = () => (
     <DataSet
@@ -445,7 +446,6 @@ const HostSummary = ({
       {isPremiumTier && renderHostTeam()}
       {/* Rendering of OS Settings data */}
       {isOsSettingsDisplayPlatform(platform, os_version) &&
-        isPremiumTier &&
         hostSettings &&
         hostSettings.length > 0 && (
           <DataSet

@@ -30,7 +30,7 @@ func RequiresEnrollOTAAuthentication(ctx context.Context, ds fleet.AndroidDatast
 		return noTeamIdPEnabled, nil
 	}
 
-	tm, err := ds.Team(ctx, *secret.TeamID)
+	tm, err := ds.TeamLite(ctx, *secret.TeamID)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "get team for settings")
 	}

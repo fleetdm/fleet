@@ -744,6 +744,8 @@ AWS region to use for Identity and Access Management (IAM) authentication. This 
 
 Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the server private key.
 
+Only one of `server_private_key_arn` or `server_private_key` can be set.
+
 If set, Fleet reads the private key from AWS Secrets Manager instead of directly from `server_private_key`.
 
 - Default value: `""`
@@ -2286,7 +2288,7 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 
 *Available in Fleet Premium.*
 
-AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
+AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as RustFS),
 or running S3 locally with localstack. Leave this blank to use the default S3 service endpoint.
 
 - Default value: none
@@ -2320,7 +2322,7 @@ will use [virtual hosted bucket addressing](http://docs.aws.amazon.com/AmazonS3/
 
 AWS S3 Region. Leave blank to enable region discovery.
 
-Minio users must set this to any nonempty value (eg. `minio`), as Minio does not support region discovery.
+You'll likely need to set this if using a non-AWS S3-compatible object store.
 
 - Default value:
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_REGION`
@@ -2860,7 +2862,7 @@ conjunction with an STS role ARN to ensure that only the intended AWS account ca
 
 ##### packaging_s3_endpoint_url
 
-This is the AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio)
+This is the AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as RustFS)
 or running S3 locally with LocalStack. Leave this blank to use the default AWS S3 service endpoint.
 
 - Default value: ""
@@ -2907,7 +2909,7 @@ See the [Virtual hosting of buckets doc](http://docs.aws.amazon.com/AmazonS3/lat
 
 This is the AWS S3 Region. Leave it blank to enable region discovery.
 
-Minio users must set this to any non-empty value (e.g., `minio`), as Minio does not support region discovery.
+You'll likely need to set this if using a non-AWS S3-compatible object store.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_REGION`
@@ -2988,6 +2990,21 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       -----BEGIN RSA PRIVATE KEY-----
       ... PEM-encoded content ...
       -----END RSA PRIVATE KEY-----
+  ```
+
+### mdm.sso_rate_limit_per_minute
+
+The number of requests per minute allowed to [Initiate SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#initiate-sso-during-dep-enrollment) and
+[Complete SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#complete-sso-during-dep-enrollment) endpoints, combined.
+
+The best practice is to set this to 3x the number of new employees (end users) that onboard at the same time (ex. `300` if 100 end users set up their Macs simultaneously).
+
+- Default value: 10 (same rate limit for [Log in endpoint](https://fleetdm.com/docs/rest-api/rest-api#log-in))
+- Environment variable: `FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE`
+- Config file format:
+  ```yaml
+  mdm:
+    sso_rate_limit_per_minute: 200
   ```
 
 ## Partnerships

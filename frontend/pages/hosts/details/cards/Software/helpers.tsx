@@ -171,7 +171,8 @@ const getNewerDate = (dateStr1: string, dateStr2: string) => {
 export const getUiStatus = (
   software: IHostSoftware,
   isHostOnline: boolean,
-  hostSoftwareUpdatedAt?: string | null
+  hostSoftwareUpdatedAt?: string | null,
+  recentlyUpdatedIds?: Set<number>
 ): IHostSoftwareUiStatus => {
   const { status, installed_versions, source } = software;
 
@@ -179,6 +180,9 @@ export const getUiStatus = (
   const lastUninstallDate = getLastUninstall(software)?.uninstalled_at;
   const installerVersion = getInstallerVersion(software);
   const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(source);
+  /** True if a recent user-initiated action (install/uninstall) was detected for this software */
+  const recentUserActionDetected =
+    recentlyUpdatedIds && recentlyUpdatedIds.has(software.id);
 
   // 0. Script Packages states
   if (isScriptPackage) {
@@ -245,9 +249,9 @@ export const getUiStatus = (
   }
 
   // **Recently_uninstalled check comes BEFORE update_available**
-  if (software.status === null && lastUninstallDate && hostSoftwareUpdatedAt) {
+  if (status === null && lastUninstallDate && hostSoftwareUpdatedAt) {
     const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastUninstallDate);
-    if (newerDate === lastUninstallDate) {
+    if (newerDate === lastUninstallDate || recentUserActionDetected) {
       return "recently_uninstalled";
     }
   }
@@ -266,25 +270,24 @@ export const getUiStatus = (
     const newerDate = hostSoftwareUpdatedAt
       ? getNewerDate(hostSoftwareUpdatedAt, lastInstallDate)
       : lastInstallDate;
-    return newerDate === lastInstallDate
+    return newerDate === lastInstallDate || recentUserActionDetected
       ? "recently_updated"
       : "update_available";
   }
 
   // 6. Recently installed (not an update)
-  if (
-    software.status === "installed" &&
-    lastInstallDate &&
-    hostSoftwareUpdatedAt
-  ) {
-    const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastInstallDate);
-    if (newerDate === lastInstallDate) {
-      return "recently_installed";
+  if (status === "installed") {
+    if (lastInstallDate && hostSoftwareUpdatedAt) {
+      const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastInstallDate);
+      if (newerDate === lastInstallDate || recentUserActionDetected) {
+        return "recently_installed";
+      }
     }
+    return "installed";
   }
 
   // 7. Tarballs edge case
-  if (software.source === "tgz_packages" && software.status === "installed") {
+  if (source === "tgz_packages" && status === "installed") {
     return "installed";
   }
 
@@ -338,6 +341,8 @@ export const getInstallerActionButtonConfig = (
       case "pending_uninstall":
       case "uninstalling":
       case "failed_uninstall":
+      case "recently_installed":
+      case "recently_updated":
         return { text: "Reinstall", icon: "refresh" };
       case "pending_update":
       case "updating":

@@ -42,7 +42,7 @@
   hiringManagerName: Luke Heath
   hiringManagerGithubUsername: LukeHeath
   hiringManagerLinkedInUrl: https://www.linkedin.com/in/lukeheath/
-  onTargetEarnings: '$90,000 - $225,000+'
+  onTargetEarnings: '$80,000 - $225,000+'
   responsibilities: |
       - 🧑‍🔬 Design, develop, test, and maintain a state-of-the-art Golang application that includes robust APIs to support mobile and desktop clients.
       - 🛠 Write code and tests, build prototypes, resolve issues, and profile and analyze bottlenecks.
@@ -162,70 +162,13 @@
      # - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
 
 
-- jobTitle: 🦢 Product Designer
-  department: Product Design
-  hiringManagerName: Noah Talerman
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/noah-talerman/
-  hiringManagerGithubUsername: noahtalerman
-  onTargetEarnings: '$125,000 - $160,000'
-  responsibilities: |
-      - 📣 Design consistent interactions across the Fleet user experience, including API, CLI, and YAML.
-      - 🧭 Prioritize work across competing customer needs, business goals, and technical constraints.
-      - 🎯 Own the full product development lifecycle for your product group—from identifying problems to defining scope, designing solutions, and writing specs.
-      - 🔎 Break down large ideas into shippable iterations and clearly communicate tradeoffs.
-      - 👥 Collaborate with engineers and stakeholders to unblock work and ensure delivery.
-  experience: |
-      - 💭 3 - 5 years of experience as a Product Designer, Product Manager, or Software Engineer.
-      - 🧑‍🔬 Understand developer-first automation workflows, including API, CLI, and Git experiences.
-      - ✍️ Experience designing API/CLI experiences for developers or willingness to learn.
-      - 🧠 Strong product sense—you’re comfortable saying no, scoping down, and sequencing work for impact.
-      - 🦉 Comfortable owning both the "why" and the "how"—from defining the problem to scoping and designing the solution.
-      - 💖 Proficient in visual design and wireframing tools (we use Figma).
-      - ✍️ Experienced in writing clear, concise product specs for engineering teams.
-      - 📖 Maintain a design system that enables speed for designers and engineers.
-      - 🤝 Collaboration: You work best in a participatory, team-based environment.
-      - 🚀 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high-fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
-      - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
-      - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-      - ➕ Bonus: YB2B SaaS background
-
-- jobTitle: 🐋 VP of Sales
-  department: Sales
-  hiringManagerName: Alex Mitchell
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/alexandercmitchell/
-  hiringManagerGithubUsername: alexmitchelliii
-  onTargetEarnings: '$250,000 - $370,000'
-  responsibilities: |
-      - 🤝 Manage a geographically-diverse team of enterprise sellers to attain new and expansion revenue targets.
-      - 🎯 Direct and oversee prospecting across key strategic companies, guiding the team to identify key influencers and decision makers, match their pains to Fleet capabilities, and help create win-win commercial agreements.
-      - ⏫ Develop and maintain executive-level relationships with current and future customers, working with Customer Success to expand Fleet’s footprint in existing accounts.
-      - 🛩️ Build a culture of proactive, collaborative, relationship-based selling, encouraging face-to-face meetings whenever possible.
-      - ❔ Ensure the team follows MEDDPPICC to qualify and progress opportunities that best solve prospect problems.
-      - 🕴️ Use Salesforce and other tools to analyze pipeline data and keep all information accurate for leadership reporting.
-      - 📈 Use data to identify opportunities and trends across the pipeline, coaching the team to focus on the highest-impact activities.
-      - 🧑‍🔬 Lead and improve processes described in the Sales, Go-To-Market groups, and other handbook pages.
-      - 📣 Represent Fleet’s products and services at in-person events, meetups, and on social media.
-      - 🧠 Partner with Solutions Consultants to ensure the Account Executives understand where prospects are technically and remove blockers to providing value.
-      - 🦢 Bring order forms and proposals with customer requests to Product Design and Customer Success to advocate for prioritizing features based on market and customer feedback.
-      - 🤝 Collaborate with Marketing to achieve quarterly pipeline and revenue targets.
-  experience: |
-      - 🦉 You’ve taken revenue from $10M to $20M+. 
-      - 📣 Excellent communication and interpersonal skills, with a track record of motivating and developing teams.
-      - 🚀 Detail-oriented, highly organized, and able to solve complex problems with simple, scalable solutions.
-      - 🧑‍💻 Love technology and can explain how things work in detail.
-      - 🧪 Experience with Slack, Salesforce, Google Suite, GitHub, and other tools in an all-remote setting.
-      - ⏩ Thrive in a complex, fast-paced, results-driven environment and pivot easily to organizational changes.
-      - 📈 Shift gears between strategic planning and hands-on execution to partner with teams and stakeholders.
-      - 💭 Strong understanding of enterprise procurement and the ability to influence stakeholders from senior executives to engineering contacts on the ROI of using Fleet.
-      - 🧬 Care about delivering an outstanding customer experience and creating a customer-first culture.
-      - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
-
 
 - jobTitle: 🚀 Quality Assurance Engineer
   department: Engineering
   hiringManagerName: Sharon Katz
   hiringManagerGithubUsername: sharon-fdm
   hiringManagerLinkedInUrl: https://www.linkedin.com/in/sharon-katz-45b1b3a/
+  onTargetEarnings: '$80,000 - $180,000'
   responsibilities: |
       - ⏫ Work closely with engineering to continually improve overall quality assurance efficiency and effectiveness throughout the product design and engineering process.
       - 🤝 Collaborate with the engineering managers and quality assurance engineers in the [product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups), actively participating in some engineering scrum meetings, sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
@@ -249,25 +192,58 @@
       - ➕ Bonus: Cybersecurity or IT background.
 
 
-- jobTitle: 🧩 Software Specialist
+- jobTitle: 🔎 Quality Analyst
   department: Engineering
   hiringManagerName: George Karr
   hiringManagerGithubUsername: georgekarrv
   hiringManagerLinkedInUrl: https://www.linkedin.com/in/george-karr-4977b441/
+  onTargetEarnings: '$60,000 - $100,000'
   responsibilities: |
-      - 🧰 Package, install, and validate Fleet-maintained applications across supported platforms (macOS, Windows, Linux) to ensure correct functionality and compatibility.
-      - 🔍 Smoke test Fleet releases before and after deployment to confirm key workflows, software installations, and device management features work as intended.
-      - 🤝 Collaborate closely with QA Engineers and developers to reproduce, verify, and document issues discovered during packaging and testing.
-      - 🧪 Create, maintain, and improve app testing scripts or procedures to streamline verification of Fleet-maintained software.
-      - 📦 Maintain a library of packaged apps, keeping metadata, versioning, and test results up to date.
-      - 🧭 Assist with end-to-end validation of new MDM and software management features, ensuring a seamless experience for end users and IT admins.
-      - 🚀 Support QA Engineers during release testing cycles, providing deep expertise in app packaging, configuration, and validation.
+      - 🧪 Manually test Fleet releases across all supported platforms (macOS, Windows, Linux, iOS, Android) to confirm key workflows and device management features work as expected.
+      - 🚀 Perform smoke tests and regression tests before and after releases to validate functionality, stability, and performance.
+      - 🐞 Reproduce new bug reports to confirm behavior, gather logs, and assist engineers in isolating root causes.
+      - 🔍 Identify, reproduce, and document issues found during testing and work closely with QA Engineers and Software Engineers to verify fixes.
+      - 📋 Create, maintain, and improve detailed test plans, checklists, and test cases to ensure consistent coverage across product areas and devices.
+      - 🤝 Collaborate with QA Engineers, Software Engineers, and Product Designers to ensure new features meet quality standards and user expectations.
+      - 📱 Validate user experiences and device enrollment flows on multiple operating systems, ensuring reliability and consistency for IT admins and end users.
+      - 🧭 Support end-to-end validation of new MDM and device management capabilities as they are developed.
   experience: |
-      - 💼 1-3 years’ experience packaging, testing, and deploying applications in an enterprise or managed-device environment.
-      - 🧩 Hands-on experience creating, modifying, and troubleshooting app packages (PKG, MSI, DMG, etc.).
-      - 🧠 Familiarity with device management tools and workflows (e.g., MDM, Munki, Jamf, Intune, or Fleet).
-      - 🧪 Skilled at smoke testing, regression testing, and identifying root causes of packaging or installation failures.
-      - 🧾 Comfortable documenting detailed test results, bug reports, and packaging notes.
-      - 💬 Excellent collaboration and communication skills for working with engineers and QA teammates.
-      - 🔄 Strong attention to detail and commitment to consistent, reliable testing processes.
-      - ➕ Bonus: Experience with automation or scripting tools (e.g., Bash, Python, PowerShell) for testing or packaging.
+      - 💼 1–3 years’ experience in software testing or quality assurance, ideally in a SaaS or device management environment.
+      - 🧠 Familiarity with device management concepts and tools (e.g., MDM, Intune, Jamf, or Fleet).
+      - 🧾 Strong attention to detail with the ability to write clear, reproducible bug reports and test documentation.
+      - 💬 Excellent collaboration and communication skills for cross-functional teamwork with engineers and QA teammates.
+      - 🔄 Comfortable regularly repeating structured manual testing processes, regression testing, and feature validation.
+      - ➕ Bonus: Hands-on experience testing across multiple operating systems and devices (macOS, Windows, Android, iOS, iPadOS).
+
+
+#- jobTitle: 💻 IT Support Administrator
+ # department: IT & Enablement
+ # hiringManagerName: Allen Houchins
+ # hiringManagerGithubUsername: allenhouchins
+ # hiringManagerLinkedInUrl: https://www.linkedin.com/in/allenhouchins/
+ # onTargetEarnings: '$80,000 - $130,000'
+ # responsibilities: |
+  #    - 🖥️ Provide technical support to Fleet team members, troubleshooting hardware, software, and account access issues in a timely and professional manner.
+  #    - 📦 Manage hardware procurement, inventory, and distribution for company-issued equipment including laptops, YubiKeys, and other IT assets.
+  #    - 🔐 Provision and manage user accounts across various SaaS platforms (Google Workspace, Slack, Zoom, etc.) for new hires and role changes.
+  #    - 🛠️ Maintain and optimize IT infrastructure, tools, and systems to ensure smooth operations for a fully remote team.
+  #    - 📋 Process incoming and outgoing equipment, ensuring devices are properly configured, enrolled in device management, and securely shipped to team members.
+  #    - 🔄 Manage software licenses and subscriptions, including generating reports and performing audits to optimize costs.
+  #    - 🚀 Support onboarding new team members by provisioning necessary tools and ensuring they have all required equipment on day one.
+  #    - 📊 Track and manage IT assets in Fleet's device management system, maintaining accurate inventory records.
+  #    - 💡 Document IT processes and procedures in the handbook, ensuring knowledge is shared and processes are repeatable.
+  #    - 🤝 Collaborate with the IT & Enablement team to improve internal tooling, automation, and workflows.
+  #    - 🧹 Handle offboarding processes, including account deprovisioning, equipment recovery, and access revocation.
+  #    - 🌐 Assist with domain registrations, SaaS tool evaluations, and vendor management as requested.
+ # experience: |
+  #    - 💼 3-5 years of experience in IT administration, help desk support, or similar technical support role.
+  #    - 🖥️ Strong technical skills with macOS, Windows, and Linux operating systems.
+  #    - 🍎 Experience with Apple Business Manager (ABM) and Apple Device Enrollment (ADE) for device procurement and management.
+  #    - 🔐 Experience with identity and access management, including provisioning accounts in Google Workspace, Slack, and other SaaS platforms.
+  #    - 📦 Familiarity with hardware procurement, inventory management, and asset tracking systems.
+  #    - 💬 Excellent communication and customer service skills, with the ability to explain technical concepts to non-technical users.
+  #    - 🎯 Strong attention to detail and organizational skills, with the ability to manage multiple tasks and priorities effectively.
+  #    - 📖 Experience documenting processes and procedures in a clear, concise manner.
+  #    - 🚀 Self-motivated and proactive, able to work independently in a fully remote environment.
+  #    - ➕ Bonus: Experience with Fleet, osquery, or other open-source IT tools. Familiarity with automation tools and scripting (Bash, PowerShell). Experience working in GitHub, with git, or in a code repository.
+

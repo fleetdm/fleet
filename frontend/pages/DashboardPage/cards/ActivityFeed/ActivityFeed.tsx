@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { isEmpty } from "lodash";
 import { InjectedRouter } from "react-router";
@@ -9,6 +9,7 @@ import activitiesAPI, {
   IActivitiesResponse,
 } from "services/entities/activities";
 
+import { isAndroid } from "interfaces/platform";
 import {
   resolveUninstallStatus,
   SoftwareInstallUninstallStatus,
@@ -22,10 +23,12 @@ import ShowQueryModal from "components/modals/ShowQueryModal";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
+import EmptyTable from "components/EmptyTable";
 
 import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
 import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
+import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
 import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
@@ -35,7 +38,8 @@ import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
 import SoftwareDetailsModal from "./components/LibrarySoftwareDetailsModal";
-import VppDetailsModal from "./components/VPPDetailsModal";
+import AppStoreDetailsModal from "./components/AppStoreDetailsModal/AppStoreDetailsModal";
+import ActivityFeedFilters from "./components/ActivityFeedFilters";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
@@ -46,6 +50,48 @@ interface IActvityCardProps {
 }
 
 const DEFAULT_PAGE_SIZE = 8;
+
+const generateDateFilter = (dateFilter: string) => {
+  const startDate = new Date();
+  const endDate = new Date();
+
+  switch (dateFilter) {
+    case "all":
+      return {
+        startDate: "",
+        endDate: "",
+      };
+    case "today":
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      break;
+    case "yesterday":
+      startDate.setDate(startDate.getDate() - 1);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setDate(endDate.getDate() - 1);
+      endDate.setHours(23, 59, 59, 999);
+      break;
+    case "7d":
+      startDate.setDate(startDate.getDate() - 7);
+      break;
+    case "30d":
+      startDate.setDate(startDate.getDate() - 30);
+      break;
+    case "3m":
+      startDate.setMonth(startDate.getMonth() - 3);
+      break;
+    case "12m":
+      startDate.setMonth(startDate.getMonth() - 12);
+      break;
+    default:
+      break;
+  }
+
+  return {
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+  }; // We convert to seconds since epoch as that is what the backend expects
+};
 
 const ActivityFeed = ({
   setShowActivityFeedTitle,
@@ -59,10 +105,14 @@ const ActivityFeed = ({
   const [
     packageInstallDetails,
     setPackageInstallDetails,
-  ] = useState<IActivityDetails | null>(null);
+  ] = useState<IActivityDetails | null>(null); // Also includes Android Play Store installs
   const [
     scriptPackageDetails,
     setScriptPackageDetails,
+  ] = useState<IActivityDetails | null>(null);
+  const [
+    ipaPackageInstallDetails,
+    setIpaPackageInstallDetails,
   ] = useState<IActivityDetails | null>(null);
   const [
     packageUninstallDetails,
@@ -80,11 +130,23 @@ const ActivityFeed = ({
     softwareDetails,
     setSoftwareDetails,
   ] = useState<IActivityDetails | null>(null);
-  const [vppDetails, setVppDetails] = useState<IActivityDetails | null>(null);
+  const [
+    appStoreDetails,
+    setAppStoreDetails,
+  ] = useState<IActivityDetails | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [createdAtDirection, setCreatedAtDirection] = useState("desc");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState<string[]>([""]);
 
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
   const scriptExecutionId = useRef("");
+
+  const { startDate, endDate } = useMemo(() => generateDateFilter(dateFilter), [
+    dateFilter,
+  ]);
 
   const {
     data: activitiesData,
@@ -99,11 +161,47 @@ const ActivityFeed = ({
       scope: string;
       pageIndex: number;
       perPage: number;
+      query?: string;
+      orderDirection?: string;
+      startDate?: string;
+      endDate?: string;
+      typeFilter?: string[];
     }>
   >(
-    [{ scope: "activities", pageIndex, perPage: DEFAULT_PAGE_SIZE }],
-    ({ queryKey: [{ pageIndex: page, perPage }] }) => {
-      return activitiesAPI.loadNext(page, perPage);
+    [
+      {
+        scope: "activities",
+        pageIndex,
+        perPage: DEFAULT_PAGE_SIZE,
+        query: searchQuery,
+        orderDirection: createdAtDirection,
+        startDate,
+        endDate,
+        typeFilter,
+      },
+    ],
+    ({
+      queryKey: [
+        {
+          pageIndex: page,
+          perPage,
+          query,
+          orderDirection,
+          startDate: queryStartDate,
+          endDate: queryEndDate,
+          typeFilter: queryTypeFilter,
+        },
+      ],
+    }) => {
+      return activitiesAPI.loadNext(
+        page,
+        perPage,
+        query,
+        orderDirection,
+        queryStartDate,
+        queryEndDate,
+        queryTypeFilter
+      );
     },
     {
       keepPreviousData: true,
@@ -144,20 +242,25 @@ const ActivityFeed = ({
         if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
           setScriptPackageDetails({ ...details });
         } else {
-          setPackageInstallDetails({ ...details });
+          details?.command_uuid
+            ? setIpaPackageInstallDetails({ ...details })
+            : setPackageInstallDetails({ ...details });
         }
         break;
       case ActivityType.UninstalledSoftware:
         setPackageUninstallDetails({
           ...details,
-          softwareName: details?.software_title || "",
+          softwareName:
+            details?.software_display_name || details?.software_title || "",
           uninstallStatus: resolveUninstallStatus(details?.status),
           scriptExecutionId: details?.script_execution_id || "",
           hostDisplayName: details?.host_display_name,
         });
         break;
       case ActivityType.InstalledAppStoreApp:
-        setVppInstallDetails({ ...details });
+        isAndroid(details?.platform || "")
+          ? setPackageInstallDetails({ ...details }) // Android Play Store installs
+          : setVppInstallDetails({ ...details }); // Apple VPP installs
         break;
       case ActivityType.EnabledActivityAutomations:
       case ActivityType.EditedActivityAutomations:
@@ -171,7 +274,7 @@ const ActivityFeed = ({
       case ActivityType.AddedAppStoreApp:
       case ActivityType.EditedAppStoreApp:
       case ActivityType.DeletedAppStoreApp:
-        setVppDetails({ ...details });
+        setAppStoreDetails({ ...details });
         break;
       case ActivityType.RanScriptBatch:
       case ActivityType.CanceledScriptBatch:
@@ -192,14 +295,10 @@ const ActivityFeed = ({
 
   const renderNoActivities = () => {
     return (
-      <div className={`${baseClass}__no-activities`}>
-        <p>
-          <b>Fleet has not recorded any activity.</b>
-        </p>
-        <p>
-          Try editing a query, updating your policies, or running a live query.
-        </p>
-      </div>
+      <EmptyTable
+        header="No activities match the current criteria"
+        info="Try editing a query, updating your policies, or running a live query."
+      />
     );
   };
 
@@ -211,6 +310,17 @@ const ActivityFeed = ({
 
   return (
     <div className={baseClass}>
+      <ActivityFeedFilters
+        searchQuery={searchQuery}
+        typeFilter={typeFilter}
+        dateFilter={dateFilter}
+        createdAtDirection={createdAtDirection}
+        setSearchQuery={setSearchQuery}
+        setTypeFilter={setTypeFilter}
+        setDateFilter={setDateFilter}
+        setCreatedAtDirection={setCreatedAtDirection}
+        setPageIndex={setPageIndex}
+      />
       {errorActivities && renderError()}
       {!errorActivities && !isFetchingActivities && isEmpty(activities) ? (
         renderNoActivities()
@@ -272,6 +382,21 @@ const ActivityFeed = ({
           onCancel={() => setScriptPackageDetails(null)}
         />
       )}
+      {ipaPackageInstallDetails && (
+        <SoftwareIpaInstallDetailsModal
+          details={{
+            appName:
+              ipaPackageInstallDetails.software_display_name ||
+              ipaPackageInstallDetails.software_title ||
+              "",
+            fleetInstallStatus: (ipaPackageInstallDetails.status ||
+              "pending_install") as SoftwareInstallUninstallStatus,
+            hostDisplayName: ipaPackageInstallDetails.host_display_name || "",
+            commandUuid: ipaPackageInstallDetails.command_uuid || "",
+          }}
+          onCancel={() => setIpaPackageInstallDetails(null)}
+        />
+      )}
       {packageUninstallDetails && (
         <SoftwareUninstallDetailsModal
           {...packageUninstallDetails}
@@ -282,7 +407,10 @@ const ActivityFeed = ({
       {vppInstallDetails && (
         <VppInstallDetailsModal
           details={{
-            appName: vppInstallDetails.software_title || "",
+            appName:
+              vppInstallDetails.software_display_name ||
+              vppInstallDetails.software_title ||
+              "",
             fleetInstallStatus: (vppInstallDetails.status ||
               "pending_install") as SoftwareInstallUninstallStatus,
             hostDisplayName: vppInstallDetails.host_display_name || "",
@@ -303,10 +431,10 @@ const ActivityFeed = ({
           onCancel={() => setSoftwareDetails(null)}
         />
       )}
-      {vppDetails && (
-        <VppDetailsModal
-          details={vppDetails}
-          onCancel={() => setVppDetails(null)}
+      {appStoreDetails && (
+        <AppStoreDetailsModal
+          details={appStoreDetails}
+          onCancel={() => setAppStoreDetails(null)}
         />
       )}
     </div>

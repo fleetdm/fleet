@@ -26,12 +26,12 @@ var ProfileDataVariableRegex = regexp.MustCompile(`(\$FLEET_VAR_DIGICERT_DATA_(?
 //
 // For example, if the content contains "$FLEET_VAR_HOST_UUID" and "${FLEET_VAR_HOST_EMAIL}",
 // this function will return map[string]struct{}{"HOST_UUID": {}, "HOST_EMAIL": {}}.
-func Find(contents string) map[string]struct{} {
+func Find(contents string) []string {
 	resultSlice := FindKeepDuplicates(contents)
 	if len(resultSlice) == 0 {
 		return nil
 	}
-	return dedupe(resultSlice)
+	return Dedupe(resultSlice)
 }
 
 // FindKeepDuplicates finds all Fleet variables in the given content and returns them
@@ -70,11 +70,19 @@ func FindKeepDuplicates(contents string) []string {
 	return sortedResults
 }
 
-// dedupe removes duplicates from the slice and returns a map for O(1) lookups.
-func dedupe(varsWithDupes []string) map[string]struct{} {
-	result := make(map[string]struct{}, len(varsWithDupes))
+// Dedupe removes duplicates from the slice and returns a slice to keep order of variables
+func Dedupe(varsWithDupes []string) []string {
+	if len(varsWithDupes) == 0 {
+		return []string{}
+	}
+
+	seenMap := make(map[string]bool, len(varsWithDupes))
+	var result []string
 	for _, v := range varsWithDupes {
-		result[v] = struct{}{}
+		if !seenMap[v] {
+			result = append(result, v)
+			seenMap[v] = true
+		}
 	}
 	return result
 }

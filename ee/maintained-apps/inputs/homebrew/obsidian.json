@@ -1,0 +1,8 @@
+{
+  "name": "Obsidian",
+  "unique_identifier": "md.obsidian",
+  "token": "obsidian",
+  "installer_format": "dmg",
+  "slug": "obsidian/darwin",
+  "default_categories": ["Productivity"]
+}

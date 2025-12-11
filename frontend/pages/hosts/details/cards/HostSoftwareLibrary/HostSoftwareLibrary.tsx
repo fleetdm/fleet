@@ -34,6 +34,7 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
+import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
 import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
 import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
 import SoftwareUninstallDetailsModal, {
@@ -44,7 +45,7 @@ import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/Ho
 import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
 import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
 import { getUiStatus } from "../Software/helpers";
-import SoftwareUpdateModal from "../Software/SoftwareUpdateModal";
+import SoftwareUpdateModal from "../Software/SelfService/components/SoftwareUpdateModal";
 
 const baseClass = "host-software-library-card";
 
@@ -134,6 +135,7 @@ const HostSoftwareLibrary = ({
   const isUnsupported = isAndroid(platform); // no Android software
   const isWindowsHost = platform === "windows";
   const isIPadOrIPhoneHost = isIPadOrIPhone(platform);
+  const isAndroidHost = isAndroid(platform);
   const isMacOSHost = platform === "darwin";
 
   const [hostSoftwareLibraryRes, setHostSoftwareLibraryRes] = useState<
@@ -143,13 +145,17 @@ const HostSoftwareLibrary = ({
     selectedSoftwareUpdates,
     setSelectedSoftwareUpdates,
   ] = useState<IHostSoftware | null>(null);
-  // these states and modal logic exist at this level intead of the page level to match the similar
+  // these states and modal logic exist at this level instead of the page level to match the similar
   // pattern on
   // the device user page, which facilitates manipulating relevant UI states e.g.
   // "updating..." when the user clicks "Retry" in the SoftwareInstallDetailsModal
   const [
     selectedHostSWInstallDetails,
     setSelectedHostSWInstallDetails,
+  ] = useState<IHostSoftware | null>(null);
+  const [
+    selectedHostSWIpaInstallDetails,
+    setSelectedHostSWIpaInstallDetails,
   ] = useState<IHostSoftware | null>(null);
   const [
     selectedHostSWScriptDetails,
@@ -168,9 +174,9 @@ const HostSoftwareLibrary = ({
     if (!hostSoftwareLibraryRes) return [];
     return hostSoftwareLibraryRes.software.map((software) => ({
       ...software,
-      ui_status: getUiStatus(software, isHostOnline),
+      ui_status: getUiStatus(software, isHostOnline, softwareUpdatedAt),
     }));
-  }, [hostSoftwareLibraryRes, isHostOnline]);
+  }, [hostSoftwareLibraryRes, isHostOnline, softwareUpdatedAt]);
 
   const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
   const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
@@ -348,8 +354,10 @@ const HostSoftwareLibrary = ({
   const onAddSoftware = useCallback(() => {
     // "Add Software" path dependent on host's platform
     const addSoftwarePathForHostPlatform = () => {
-      if (isIPadOrIPhoneHost) {
-        return PATHS.SOFTWARE_ADD_APP_STORE;
+      if (isIPadOrIPhoneHost || isAndroidHost) {
+        return getPathWithQueryParams(PATHS.SOFTWARE_ADD_APP_STORE, {
+          platform: isAndroidHost ? "android" : "apple",
+        });
       }
       if (isMacOSHost || isWindowsHost) {
         return PATHS.SOFTWARE_ADD_FLEET_MAINTAINED;
@@ -362,7 +370,14 @@ const HostSoftwareLibrary = ({
         team_id: hostTeamId,
       })
     );
-  }, [hostTeamId, isIPadOrIPhoneHost, isMacOSHost, isWindowsHost, router]);
+  }, [
+    hostTeamId,
+    isIPadOrIPhoneHost,
+    isAndroidHost,
+    isMacOSHost,
+    isWindowsHost,
+    router,
+  ]);
 
   const onShowUpdateDetails = useCallback(
     (software?: IHostSoftware) => {
@@ -380,6 +395,15 @@ const HostSoftwareLibrary = ({
       }
     },
     [setSelectedHostSWInstallDetails]
+  );
+
+  const onSetSelectedHostSWIpaInstallDetails = useCallback(
+    (hostSW?: IHostSoftware) => {
+      if (hostSW) {
+        setSelectedHostSWIpaInstallDetails(hostSW);
+      }
+    },
+    [setSelectedHostSWIpaInstallDetails]
   );
 
   const onSetSelectedHostSWScriptDetails = useCallback(
@@ -421,9 +445,12 @@ const HostSoftwareLibrary = ({
     isHostOnline,
   ]);
 
-  const userHasSWWritePermission = Boolean(
+  const hasSWWriteRole = Boolean(
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
   );
+
+  // 4.77 Currently Android apps can only be installed via self-service by end user
+  const userHasSWWritePermission = hasSWWriteRole && !isAndroidHost;
 
   const isMountedRef = useRef(false);
   useEffect(() => {
@@ -503,6 +530,7 @@ const HostSoftwareLibrary = ({
       onShowInventoryVersions,
       onShowUpdateDetails,
       onSetSelectedHostSWInstallDetails,
+      onSetSelectedHostSWIpaInstallDetails,
       onSetSelectedHostSWScriptDetails,
       onSetSelectedHostSWUninstallDetails,
       onSetSelectedVPPInstallDetails,
@@ -520,6 +548,7 @@ const HostSoftwareLibrary = ({
     onShowInventoryVersions,
     onShowUpdateDetails,
     onSetSelectedHostSWInstallDetails,
+    onSetSelectedHostSWIpaInstallDetails,
     onSetSelectedHostSWScriptDetails,
     onSetSelectedHostSWUninstallDetails,
     onSetSelectedVPPInstallDetails,
@@ -592,6 +621,22 @@ const HostSoftwareLibrary = ({
           onCancel={() => setSelectedHostSWInstallDetails(null)}
         />
       )}
+      {selectedHostSWIpaInstallDetails && (
+        <SoftwareIpaInstallDetailsModal
+          details={{
+            hostDisplayName,
+            fleetInstallStatus: selectedHostSWIpaInstallDetails.status,
+            appName:
+              selectedHostSWIpaInstallDetails.display_name ||
+              selectedHostSWIpaInstallDetails.name,
+            commandUuid:
+              selectedHostSWIpaInstallDetails.software_package?.last_install
+                ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
+          }}
+          hostSoftware={selectedHostSWIpaInstallDetails}
+          onCancel={() => setSelectedHostSWIpaInstallDetails(null)}
+        />
+      )}
       {selectedHostSWScriptDetails && (
         <SoftwareScriptDetailsModal
           details={{
@@ -616,7 +661,9 @@ const HostSoftwareLibrary = ({
           details={{
             fleetInstallStatus: selectedVPPInstallDetails.status,
             hostDisplayName,
-            appName: selectedVPPInstallDetails.name,
+            appName:
+              selectedVPPInstallDetails.display_name ||
+              selectedVPPInstallDetails.name,
             commandUuid: selectedVPPInstallDetails.commandUuid,
           }}
           hostSoftware={selectedVPPInstallDetails}

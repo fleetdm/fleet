@@ -739,7 +739,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hst.seen_time, h.created_at) as seen_time,
       COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
-      (CASE WHEN uptime = 0 THEN DATE('0001-01-01') ELSE DATE_SUB(h.detail_updated_at, INTERVAL uptime/1000 MICROSECOND) END) as last_restarted_at,
+      h.last_restarted_at,
       (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
       %s
       %s
@@ -816,31 +816,41 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	// 	// TODO: Do we currently support filtering by software version ID and label?
 	// }
 	if opt.SoftwareTitleIDFilter != nil && opt.SoftwareStatusFilter != nil {
-		// check for software installer metadata
-		_, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
+		installerID, vppID, inHouseID, err := ds.installerAvailableForInstallForTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
 		switch {
-		case fleet.IsNotFound(err):
-			vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
-			if err != nil {
-				return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
-			}
-			vppAppJoin, vppAppParams, err := ds.vppAppJoin(vppApp.VPPAppID, *opt.SoftwareStatusFilter)
-			if err != nil {
-				return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
-			}
-			softwareStatusJoin = vppAppJoin
-			joinParams = append(joinParams, vppAppParams...)
-
 		case err != nil:
-			return "", nil, ctxerr.Wrap(ctx, err, "get software installer metadata by team and title id")
+			// it does not return an error for not found, only for actual db error
+			return "", nil, ctxerr.Wrap(ctx, err, "get available installer by team and title id")
 
-		default:
+		case installerID > 0:
+			// found a software installer package
 			installerJoin, installerParams, err := ds.softwareInstallerJoin(*opt.SoftwareTitleIDFilter, *opt.SoftwareStatusFilter)
 			if err != nil {
 				return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
 			}
 			softwareStatusJoin = installerJoin
 			joinParams = append(joinParams, installerParams...)
+
+		case vppID != nil:
+			// found a VPP app
+			vppAppJoin, vppAppParams, err := ds.vppAppJoin(*vppID, *opt.SoftwareStatusFilter)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
+			}
+			softwareStatusJoin = vppAppJoin
+			joinParams = append(joinParams, vppAppParams...)
+
+		case inHouseID > 0:
+			inHouseJoin, inHouseParams, err := ds.inHouseAppJoin(inHouseID, *opt.SoftwareStatusFilter)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "in-house app join")
+			}
+			softwareStatusJoin = inHouseJoin
+			joinParams = append(joinParams, inHouseParams...)
+
+		default:
+			// no installer found, return as was done before (which was a not-found error, here, unlike in applyHostsFilter)
+			return "", nil, ctxerr.Wrap(ctx, notFound("installerAvailableForInstall"), "get available software installer by team and title id")
 		}
 	}
 	if softwareStatusJoin != "" {
@@ -1296,7 +1306,7 @@ func amountLabelsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 
 func (ds *Datastore) LabelsSummary(ctx context.Context) ([]*fleet.LabelSummary, error) {
 	labelsSummary := []*fleet.LabelSummary{}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labelsSummary, "SELECT id, name, description, label_type FROM labels"); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labelsSummary, "SELECT id, name, description, label_type, team_id FROM labels"); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "labels summary")
 	}
 	return labelsSummary, nil

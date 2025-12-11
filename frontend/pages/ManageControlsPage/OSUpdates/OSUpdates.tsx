@@ -17,7 +17,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 
-import TurnOnMdmMessage from "../../../components/TurnOnMdmMessage/TurnOnMdmMessage";
+import GenericMsgWithNavButton from "../../../components/GenericMsgWithNavButton/GenericMsgWithNavButton";
 import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";
 import { parseOSUpdatesCurrentVersionsQueryParams } from "./components/CurrentVersionSection/CurrentVersionSection";
@@ -117,7 +117,15 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
     !config?.mdm.enabled_and_configured &&
     !config?.mdm.windows_enabled_and_configured
   ) {
-    return <TurnOnMdmMessage router={router} />;
+    return (
+      <GenericMsgWithNavButton
+        header="Manage your hosts"
+        info="MDM must be turned on to change settings on your hosts."
+        path={PATHS.ADMIN_INTEGRATIONS_MDM}
+        buttonText="Turn on"
+        router={router}
+      />
+    );
   }
 
   // If the user has not selected a platform yet, we default to the platform that
@@ -128,8 +136,7 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
-        Remotely encourage the installation of software updates on hosts
-        assigned to this team.
+        Remotely enforce software updates.
       </p>
       <>
         <div className={`${baseClass}__current-version-container`}>

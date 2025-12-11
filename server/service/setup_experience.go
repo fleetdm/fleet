@@ -7,7 +7,9 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/docker/go-units"
@@ -244,7 +246,7 @@ func isAllSetupExperienceSoftwareRequired(ctx context.Context, ds fleet.Datastor
 		}
 		requireAllSoftware = ac.MDM.MacOSSetup.RequireAllSoftware
 	} else {
-		team, err := ds.Team(ctx, *teamID)
+		team, err := ds.TeamLite(ctx, *teamID)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "load team")
 		}
@@ -373,9 +375,20 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 	return updated, err
 }
 
+var setupExperienceSupportedPlatforms = []string{
+	"macos",
+	"ios",
+	"ipados",
+	"windows",
+	"linux",
+	"android",
+}
+
 func validateSetupExperiencePlatform(platform string) error {
-	if platform != "" && platform != "macos" && platform != "ios" && platform != "ipados" && platform != "windows" && platform != "linux" {
-		return badRequestf("platform %q unsupported, platform must be \"macos\", \"ios\", \"ipados\", \"windows\", or \"linux\"", platform)
+	if platform != "" && !slices.Contains(setupExperienceSupportedPlatforms, platform) {
+		quotedPlatforms := strings.Join(setupExperienceSupportedPlatforms, "\", \"")
+		quotedPlatforms = fmt.Sprintf("\"%s\"", quotedPlatforms)
+		return badRequestf("platform %q unsupported, platform must be one of %s", platform, quotedPlatforms)
 	}
 	return nil
 }

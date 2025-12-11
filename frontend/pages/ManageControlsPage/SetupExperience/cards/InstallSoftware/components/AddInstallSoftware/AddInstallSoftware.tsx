@@ -3,18 +3,16 @@ import { capitalize } from "lodash";
 
 import PATHS from "router/paths";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-
 import { SetupExperiencePlatform } from "interfaces/platform";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import mdmAPI from "services/entities/mdm";
 import Button from "components/buttons/Button";
-import CustomLink from "components/CustomLink";
 import { ISoftwareTitle } from "interfaces/software";
 import Checkbox from "components/forms/fields/Checkbox";
-import LinkWithContext from "components/LinkWithContext";
+import CustomLink from "components/CustomLink";
+
 import RevealButton from "components/buttons/RevealButton";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -85,24 +83,26 @@ const AddInstallSoftware = ({
         platformText = "iPadOS";
         break;
       default:
-        platformText = capitalize(platform);
+        platformText = capitalize(platform); // e.g. Windows, Android
     }
 
     if (noSoftwareUploaded) {
       return (
         <>
           No {platformText} software available. You can add software on the{" "}
-          <LinkWithContext
-            to={PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}
-            currentQueryParams={{ team_id: currentTeamId }}
-            withParams={{ type: "query", names: ["team_id"] }}
-          >
-            Software page
-          </LinkWithContext>
+          <CustomLink
+            url={`${PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}?team_id=${currentTeamId}`}
+            text="Software page"
+          />
           .
         </>
       );
     }
+
+    const orderTooltip =
+      platform === "android"
+        ? "Software order will vary."
+        : "Installation order will depend on software name, starting with 0-9 then A-Z.";
 
     return installSoftwareDuringSetupCount === 0 ? (
       "No software selected."
@@ -110,9 +110,10 @@ const AddInstallSoftware = ({
       <>
         {installSoftwareDuringSetupCount} software item
         {installSoftwareDuringSetupCount > 1 && "s"} will be{" "}
-        <TooltipWrapper tipContent="Software order will vary.">
-          installed during setup.
+        <TooltipWrapper tipContent={orderTooltip}>
+          installed during setup
         </TooltipWrapper>
+        .
       </>
     );
   };
@@ -132,11 +133,6 @@ const AddInstallSoftware = ({
         <p className={`${baseClass}__description`}>
           Install software on hosts that automatically enroll to Fleet.
         </p>
-        <CustomLink
-          newTab
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-experience/install-software`}
-          text="Learn how"
-        />
       </div>
       <span className={`${baseClass}__added-text`}>{addedText}</span>
       {!noSoftwareUploaded && (

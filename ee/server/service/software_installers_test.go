@@ -215,6 +215,11 @@ func TestInstallSoftwareTitle(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
+
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+		return nil, nil
+	}
+
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 	host := &fleet.Host{
@@ -335,6 +340,77 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	assert.Empty(t, payload.InstallScript)
 	assert.Empty(t, payload.UninstallScript)
 	assert.False(t, payload.FleetMaintained)
+}
+
+func TestGetInHouseAppManifest(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	ctx := context.Background()
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://example.com"}}, nil
+	}
+
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+		if titleID == 1 {
+			return &fleet.SoftwareInstaller{
+				BundleIdentifier: "com.foo.bar",
+				Version:          "1.2.3",
+				SoftwareTitle:    "test in-house app",
+			}, nil
+		}
+
+		return nil, notFoundError{}
+	}
+
+	expected := `
+<plist version="1.0">
+  <dict>
+    <key>items</key>
+    <array>
+      <dict>
+        <key>assets</key>
+        <array>
+          <dict>
+            <key>kind</key>
+            <string>software-package</string>
+            <key>url</key>
+            <string>https://example.com/api/latest/fleet/software/titles/1/in_house_app?team_id=0</string>
+          </dict>
+          <dict>
+            <key>kind</key>
+            <string>display-image</string>
+            <key>needs-shine</key>
+            <true/>
+            <key>url</key>
+            <string/>
+          </dict>
+        </array>
+        <key>metadata</key>
+        <dict>
+          <key>bundle-identifier</key>
+          <string>com.foo.bar</string>
+          <key>bundle-version</key>
+          <string>1.2.3</string>
+          <key>kind</key>
+          <string>software</string>
+          <key>title</key>
+          <string>test in-house app</string>
+        </dict>
+      </dict>
+    </array>
+  </dict>
+</plist>`
+
+	manifest, err := svc.GetInHouseAppManifest(ctx, 1, nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, expected, string(manifest))
+
+	_, err = svc.GetInHouseAppManifest(ctx, 2, nil)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {

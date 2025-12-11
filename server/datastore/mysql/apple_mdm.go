@@ -800,7 +800,7 @@ WHERE
 	return profiles, nil
 }
 
-func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID string,
+func (ds *Datastore) GetAppleHostMDMCertificateProfile(ctx context.Context, hostUUID string,
 	profileUUID string, caName string,
 ) (*fleet.HostMDMCertificateProfile, error) {
 	stmt := `
@@ -828,17 +828,6 @@ func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID 
 		return nil, err
 	}
 	return &profile, nil
-}
-
-func (ds *Datastore) CleanUpMDMManagedCertificates(ctx context.Context) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `
-	DELETE hmmc FROM host_mdm_managed_certificates hmmc
-		LEFT JOIN host_mdm_apple_profiles hmap ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
-		WHERE hmap.host_uuid IS NULL`)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "clean up mdm certificate profiles")
-	}
-	return nil
 }
 
 // RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
@@ -912,17 +901,17 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 	return err
 }
 
-// ResendHostCustomSCEPProfile marks a custom SCEP profile to be resent to the host with the given UUID. It
-// also deactivates prior nano commands for the profile UUID and host UUID.
+// ResendHostCertificateProfile marks the given profile UUID to be resent to the host with the given UUID. It
+// also deactivates prior nano commands and resets the retry counter for the profile UUID and host UUID.
 //
-// FIXME: We really should have a more generic function to handle this, but our existing methods
-// for "resending" profiles don't reevaluate the profile variables so they aren't useful for
-// custom SCEP profiles where we need to regenerate the SCEP challenge. The main difference between
-// the existing flow and the implementation below is that we need to blank the command uuid in order
-// get the reconcile cron to reevaluate the command template to generate the challenge. Otherwise,
-// it just sends the old bytes again. It feels like we have some leaky abstrations somewhere that we need
-// to clean up.
-func (ds *Datastore) ResendHostCustomSCEPProfile(ctx context.Context, hostUUID string, profUUID string) error {
+// FIXME: We really should have a more generic function to handle this. Something seems off with our
+// existing methods for "resending" profiles. Scenarios have been observed where the old command
+// bytes are sent again without reevaluating the profile variables, which is particularly problematic
+// for certificate profiles where we need to regenerate the dynamic challenges. The main difference between
+// the existing flow and the implementation below is that it zeroes out prior retries and blanks the
+// command uuid to force the reconcile cron to reevaluate the command template to generate
+// the challenge. It feels like we have some leaky abstractions somewhere that we need to clean up.
+func (ds *Datastore) ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error {
 	deactivateNanoStmt := `
 UPDATE
 	nano_enrollment_queue
@@ -937,6 +926,7 @@ WHERE
 	hmap.profile_uuid = ? AND
 	hmap.host_uuid = ?`
 
+	// TODO: figure out variables_updated_at timing skew with jordan
 	updateStmt := `
 UPDATE
 	host_mdm_apple_profiles
@@ -1097,26 +1087,25 @@ func (ds *Datastore) GetVPPCommandResults(ctx context.Context, commandUUID strin
 		&results,
 		`
 SELECT
-    ncr.id as host_uuid,
-    ncr.command_uuid,
-    ncr.status,
-    ncr.result,
-    ncr.updated_at,
-    nc.request_type,
-    nc.command as payload
+	ncr.id as host_uuid,
+	ncr.command_uuid,
+	ncr.status,
+	ncr.result,
+	ncr.updated_at,
+	nc.request_type,
+	nc.command as payload
 FROM
-    nano_command_results ncr
+	nano_command_results ncr
 INNER JOIN
-    nano_commands nc
-ON
-    ncr.command_uuid = nc.command_uuid AND ncr.id = ? AND ncr.command_uuid = ?
-LEFT JOIN host_vpp_software_installs hvsi ON ncr.command_uuid = hvsi.command_uuid
-LEFT JOIN upcoming_activities ua ON ncr.command_uuid = ua.execution_id AND ua.activity_type = 'software_install'
-WHERE ua.id IS NOT NULL OR hvsi.id IS NOT NULL
-`,
-		hostUUID,
-		commandUUID,
-	)
+	nano_commands nc ON ncr.command_uuid = nc.command_uuid AND ncr.id = ? AND ncr.command_uuid = ?
+LEFT JOIN
+	host_vpp_software_installs hvsi ON ncr.command_uuid = hvsi.command_uuid
+LEFT JOIN
+	upcoming_activities ua ON ncr.command_uuid = ua.execution_id AND ua.activity_type = 'software_install'
+WHERE
+	ua.id IS NOT NULL OR
+	hvsi.id IS NOT NULL
+`, hostUUID, commandUUID)
 
 	if err == sql.ErrNoRows || len(results) == 0 {
 		var validCommandExists bool
@@ -2045,7 +2034,7 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 
 		// we may need to create corresponding "past" activities for "canceled" VPP
 		// app installs, so we return those to the MDM lifecycle to handle.
-		users, activities, err = ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID)
+		users, activities, err = ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID, host.Platform)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "marking pending vpp installs as failed for host")
 		}
@@ -3125,8 +3114,13 @@ func generateDesiredStateQuery(entityType string) string {
 		COUNT(mel.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels,
 		-- this helps avoid the case where the host is not a member of a label
-		-- just because it hasn't reported results for that label yet.
-		SUM(CASE WHEN lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
+		-- just because it hasn't reported results for that label yet. But we
+		-- only need consider this for dynamic labels - manual(type=1) can be
+		-- considered at any time
+		SUM(
+			CASE WHEN lbl.label_membership_type <> 1 AND lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at THEN 1
+			WHEN lbl.label_membership_type = 1 AND lbl.created_at IS NOT NULL THEN 1
+			ELSE 0 END) as count_host_updated_after_labels
 	FROM
 		${mdmAppleEntityTable} mae
 			JOIN hosts h
@@ -3767,12 +3761,12 @@ func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDM
       INSERT INTO mdm_idp_accounts
         (uuid, username, fullname, email)
       VALUES
-        (UUID(), ?, ?, ?)
+        (COALESCE(NULLIF(TRIM(?), ''), UUID()), ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         username   = VALUES(username),
         fullname   = VALUES(fullname)`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, account.Username, account.Fullname, account.Email)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, account.UUID, account.Username, account.Fullname, account.Email)
 	return ctxerr.Wrap(ctx, err, "creating new MDM IdP account")
 }
 
@@ -5001,7 +4995,7 @@ SET hma.unlock_ref = NULL,
     hma.lock_ref = NULL,
     hma.unlock_pin = NULL
 WHERE h.uuid = ? AND (
-	(hma.unlock_ref IS NOT NULL AND hma.unlock_pin IS NOT NULL AND h.platform = 'darwin') 
+	(hma.unlock_ref IS NOT NULL AND hma.unlock_pin IS NOT NULL AND h.platform = 'darwin')
 	OR (hma.unlock_ref IS NOT NULL AND (h.platform = 'ios' OR h.platform = 'ipados'))
 )`
 
@@ -6280,10 +6274,12 @@ func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval tim
 	hostsStmt := `
 SELECT h.id as host_id, h.uuid as uuid, JSON_ARRAYAGG(hmc.command_type) as commands_already_sent FROM hosts h
 INNER JOIN host_mdm hmdm ON hmdm.host_id = h.id
+INNER JOIN nano_enrollments ne ON ne.id = h.uuid
 LEFT JOIN host_mdm_commands hmc ON hmc.host_id = h.id AND hmc.command_type IN (?)
 WHERE (h.platform = 'ios' OR h.platform = 'ipados')
 AND TRIM(h.uuid) != ''
 AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
+AND ne.enabled = 1
 GROUP BY h.id`
 	args := []any{fleet.ListAppleRefetchCommandPrefixes(), interval.Seconds()}
 	hostsStmt, args, err = sqlx.In(hostsStmt, args...)
@@ -6757,13 +6753,23 @@ func (ds *Datastore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
 	// This could also occur due to errors (i.e., large server/DB load) or server being stopped while processing the profiles.
 	// After the entry is deleted, the mdm_apple_profile_manager job will try to requeue the profile.
 	stmt := fmt.Sprintf(`
-		DELETE hmap FROM host_mdm_apple_profiles AS hmap
-        -- ANTIJOIN: Delete rows that don't have a corresponding entry in nano_enrollment_queue
-		-- Note that a given host may have multiple nano_enrollments(device and user) and thus we
-		-- need to account for the use of either of them in the join
-		LEFT JOIN (nano_enrollment_queue neq INNER JOIN nano_enrollments ne ON neq.id = ne.id AND ne.enabled = 1)
-		ON ne.device_id = hmap.host_uuid AND hmap.command_uuid = neq.command_uuid AND neq.active = 1
-		WHERE neq.id IS NULL AND (hmap.status IS NULL OR hmap.status = '%s') AND hmap.updated_at < NOW() - INTERVAL 1 HOUR`,
+	DELETE hmap FROM host_mdm_apple_profiles AS hmap
+WHERE (
+        hmap.status IS NULL
+        OR hmap.status = '%s'
+    )
+    AND hmap.updated_at < NOW() - INTERVAL 1 HOUR
+    AND NOT EXISTS (
+        SELECT 1
+        FROM
+            nano_enrollments ne
+            STRAIGHT_JOIN nano_enrollment_queue neq ON neq.id = ne.id
+            AND neq.command_uuid = hmap.command_uuid
+            AND neq.active = 1
+        WHERE
+            ne.device_id = hmap.host_uuid
+            AND ne.enabled = 1
+    );`,
 		fleet.MDMDeliveryPending)
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete from host_mdm_apple_profiles")
@@ -6810,7 +6816,7 @@ LIMIT 1`
 		}
 	} else {
 		// use the team settings
-		tm, err := ds.TeamWithoutExtras(ctx, *dest.TeamID)
+		tm, err := ds.TeamLite(ctx, *dest.TeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting team os update settings")
 		}
@@ -6827,67 +6833,6 @@ LIMIT 1`
 	}
 
 	return &settings, nil
-}
-
-func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
-	if len(payload) == 0 {
-		return nil
-	}
-
-	executeUpsertBatch := func(valuePart string, args []any) error {
-		stmt := fmt.Sprintf(`
-	    INSERT INTO host_mdm_managed_certificates (
-              host_uuid,
-              profile_uuid,
-              challenge_retrieved_at,
-			  not_valid_before,
-	          not_valid_after,
-			  type,
-			  ca_name,
-			  serial
-            )
-            VALUES %s
-            ON DUPLICATE KEY UPDATE
-              challenge_retrieved_at = VALUES(challenge_retrieved_at),
-			  not_valid_before = VALUES(not_valid_before),
-			  not_valid_after = VALUES(not_valid_after),
-			  type = VALUES(type),
-			  ca_name = VALUES(ca_name),
-			  serial = VALUES(serial)`,
-			strings.TrimSuffix(valuePart, ","),
-		)
-
-		_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
-		return err
-	}
-
-	generateValueArgs := func(p *fleet.MDMManagedCertificate) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?),"
-		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidBefore, p.NotValidAfter, p.Type, p.CAName, p.Serial}
-		return valuePart, args
-	}
-
-	const defaultBatchSize = 1000
-	batchSize := defaultBatchSize
-	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
-		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
-	}
-
-	if err := batchProcessDB(payload, batchSize, generateValueArgs, executeUpsertBatch); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (ds *Datastore) ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*fleet.MDMManagedCertificate, error) {
-	hostCertsToRenew := []*fleet.MDMManagedCertificate{}
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
-	SELECT profile_uuid, host_uuid, challenge_retrieved_at, not_valid_before, not_valid_after, type, ca_name, serial
-	FROM host_mdm_managed_certificates
-	WHERE host_uuid = ?
-	`, hostUUID)
-	return hostCertsToRenew, ctxerr.Wrap(ctx, err, "get mdm managed certificates for host")
 }
 
 // ClearMDMUpcomingActivitiesDB clears the upcoming activities of the host that
@@ -7058,7 +7003,11 @@ func (ds *Datastore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef s
 	return result, err
 }
 
-func associateHostMDMIdPAccountDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, acctUUID string) error {
+func (ds *Datastore) AssociateHostMDMIdPAccountDB(ctx context.Context, hostUUID string, acctUUID string) error {
+	return associateHostMDMIdPAccountDB(ctx, ds.writer(ctx), hostUUID, acctUUID)
+}
+
+func associateHostMDMIdPAccountDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, acctUUID string) error {
 	const stmt = `
 INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid)
 VALUES (?, ?)
