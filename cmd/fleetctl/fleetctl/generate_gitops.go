@@ -1610,7 +1610,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				cmd.FilesToWrite[fileName] = icon
 			}
 
-			if softwareTitle.AppStoreApp.Configuration != nil {
+			config := softwareTitle.AppStoreApp.Configuration
+			if config != nil && !slices.Equal(config, json.RawMessage("{}")) {
 				fileName := fmt.Sprintf("lib/%s/configs/%s", teamFilename, filenamePrefix+"-config.json")
 				path := fmt.Sprintf("../%s", fileName)
 				softwareSpec["configuration"] = map[string]any{
