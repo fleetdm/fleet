@@ -458,6 +458,10 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "getting existing configuration for android app")
 				}
+				// Set configuration to empty if it exists and is provided as null
+				if configurationChanged && len(incomingApp.Configuration) == 0 {
+					incomingApp.Configuration = json.RawMessage("{}")
+				}
 			}
 
 		}
