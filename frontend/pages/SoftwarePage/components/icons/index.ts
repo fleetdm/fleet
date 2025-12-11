@@ -4,7 +4,7 @@
 import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 
-import 7Zip from "./7Zip";
+import SevenZip from "./7Zip";
 import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
 import AdobeAcrobat from "./AdobeAcrobat";
@@ -221,7 +221,7 @@ import Zoom from "./Zoom";
 // matched in the application logic.
 export const SOFTWARE_NAME_TO_ICON_MAP = {
   "010 editor": ZeroOneZeroEditor,
-  "7 zip": 7Zip,
+  "7 zip": SevenZip,
   "8x8 work": EightXEightWork,
   "1password": OnePassword,
   abstract: Abstract,
