@@ -64,14 +64,8 @@ Payload-free packages are useful for:
 - Running maintenance tasks on demand
 - Deploying configuration changes that don't require a traditional installer
 
-**Limitations:**
 
-Script packages do not support the following options:
-- `install_script` — the file contents are the install script
-- `uninstall_script`
-- `post_install_script`
-- `pre_install_query`
-- Automatic install
+Script packages do not support `install_script` (the file contents are the install script), `uninstall_script`, `post_install_script`, `pre_install_query`, and automatic install.
 
 If these parameters are provided when uploading a script package, they will be ignored.
 
