@@ -343,6 +343,10 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 		return err
 	})
 
+	// Create pending certificate templates for this host (simulating what pubsub handlers do during enrollment)
+	_, err = s.ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, teamID)
+	require.NoError(t, err)
+
 	// SubjectName should use HOST_UUID
 	expectedSubjectName := fmt.Sprintf("CN=%s", host.UUID)
 
@@ -361,7 +365,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 	}
 
 	// Step: Queue and run the Android setup experience worker job
-	// This creates pending certificate templates and tries to deliver them (which will fail due to mock)
+	// Note: Pending certificate templates were created above (simulating pubsub). The worker will deliver them.
 	enterpriseName := "enterprises/" + enterpriseID
 	err = worker.QueueRunAndroidSetupExperience(ctx, s.ds, log.NewNopLogger(), host.UUID, &teamID, enterpriseName)
 	require.NoError(t, err)
@@ -454,13 +458,18 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 		return err
 	})
 
+	// Create pending certificate templates for this host (simulating what pubsub handlers do during enrollment)
+	// Use teamID = 0 for "no team" hosts
+	_, err = s.ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, 0)
+	require.NoError(t, err)
+
 	// Step: Set up AMAPI mock to succeed
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(_ context.Context, _ string, _ []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
 		return &androidmanagement.Policy{}, nil
 	}
 
 	// Step: Queue and run the Android setup experience worker job
-	// This creates pending certificate templates for the "no team" host and delivers them
+	// Note: Pending certificate templates were created above (simulating pubsub). The worker will deliver them.
 	enterpriseName := "enterprises/" + enterpriseID
 	err = worker.QueueRunAndroidSetupExperience(ctx, s.ds, log.NewNopLogger(), host.UUID, nil, enterpriseName)
 	require.NoError(t, err)
