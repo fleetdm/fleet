@@ -18984,6 +18984,34 @@ func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
 	}
 	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
+	// Create a policy in t1 that references l1t1.
+	_, err = s.ds.NewTeamPolicy(t.Context(), t1.ID, nil, fleet.PolicyPayload{
+		Name:             "p1t1",
+		Query:            "SELECT 1;",
+		Platform:         "darwin",
+		LabelsIncludeAny: []string{l1t1.Name},
+	})
+	require.NoError(t, err)
+
+	// Create a query in t1 that references l1t1.
+	_, err = s.ds.NewQuery(
+		t.Context(),
+		&fleet.Query{
+			Name:    "TestQueryTeamPolicy",
+			Query:   "SELECT 2;",
+			Saved:   true,
+			Logging: fleet.LoggingSnapshot,
+			TeamID:  &t1.ID,
+			LabelsIncludeAny: []fleet.LabelIdent{
+				{
+					LabelID:   l1t1.ID,
+					LabelName: l1t1.Name,
+				},
+			},
+		},
+	)
+	require.NoError(t, err)
+
 	// Delete team t1.
 	delResp := deleteTeamResponse{}
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), nil, http.StatusOK, &delResp)
