@@ -12200,35 +12200,38 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
 
-	// DEBUG: Log existing VPP tokens and team associations at test start
+	// Debug: Log VPP tokens and teams at test start
+	t.Log("=== DEBUG: TestVPPApps starting ===")
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		var debugInfo []struct {
-			TokenID      uint    `db:"token_id"`
-			TokenOrgName string  `db:"organization_name"`
-			TeamID       *uint   `db:"team_id"`
-			TeamName     *string `db:"team_name"`
+		var tokens []struct {
+			ID               uint   `db:"id"`
+			OrganizationName string `db:"organization_name"`
+			Location         string `db:"location"`
 		}
-		err := sqlx.SelectContext(ctx, q, &debugInfo, `
-			SELECT vt.id as token_id, vt.organization_name, vtt.team_id, t.name as team_name
-			FROM vpp_tokens vt
-			LEFT JOIN vpp_token_teams vtt ON vt.id = vtt.vpp_token_id
-			LEFT JOIN teams t ON vtt.team_id = t.id
-		`)
-		if err != nil {
-			t.Logf("DEBUG: Error querying VPP state: %v", err)
+		if err := sqlx.SelectContext(ctx, q, &tokens, `SELECT id, organization_name, location FROM vpp_tokens`); err != nil {
+			t.Logf("DEBUG: Error getting vpp_tokens: %v", err)
 		} else {
-			t.Logf("DEBUG: VPP tokens and associations at test start: %+v", debugInfo)
+			t.Logf("DEBUG: VPP tokens at test start: %+v", tokens)
 		}
 
 		var teams []struct {
 			ID   uint   `db:"id"`
 			Name string `db:"name"`
 		}
-		err = sqlx.SelectContext(ctx, q, &teams, `SELECT id, name FROM teams`)
-		if err != nil {
-			t.Logf("DEBUG: Error querying teams: %v", err)
+		if err := sqlx.SelectContext(ctx, q, &teams, `SELECT id, name FROM teams`); err != nil {
+			t.Logf("DEBUG: Error getting teams: %v", err)
 		} else {
 			t.Logf("DEBUG: Teams at test start: %+v", teams)
+		}
+
+		var vppTokenTeams []struct {
+			VPPTokenID uint  `db:"vpp_token_id"`
+			TeamID     *uint `db:"team_id"`
+		}
+		if err := sqlx.SelectContext(ctx, q, &vppTokenTeams, `SELECT vpp_token_id, team_id FROM vpp_token_teams`); err != nil {
+			t.Logf("DEBUG: Error getting vpp_token_teams: %v", err)
+		} else {
+			t.Logf("DEBUG: VPP token teams at test start: %+v", vppTokenTeams)
 		}
 		return nil
 	})
@@ -12570,10 +12573,46 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		}
 	})
 
-	// Create a team
+	// Create a team with unique name to avoid conflicts with other tests
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("VPPApps Test Team " + t.Name())}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
+
+	// Debug: Log state before PATCH that assigns team to VPP token
+	t.Logf("=== DEBUG: Before PATCH to assign team %d (%s) to VPP token %d ===", team.ID, team.Name, resp.Tokens[0].ID)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var tokens []struct {
+			ID               uint   `db:"id"`
+			OrganizationName string `db:"organization_name"`
+			Location         string `db:"location"`
+		}
+		if err := sqlx.SelectContext(ctx, q, &tokens, `SELECT id, organization_name, location FROM vpp_tokens`); err != nil {
+			t.Logf("DEBUG: Error getting vpp_tokens: %v", err)
+		} else {
+			t.Logf("DEBUG: VPP tokens before PATCH: %+v", tokens)
+		}
+
+		var teams []struct {
+			ID   uint   `db:"id"`
+			Name string `db:"name"`
+		}
+		if err := sqlx.SelectContext(ctx, q, &teams, `SELECT id, name FROM teams`); err != nil {
+			t.Logf("DEBUG: Error getting teams: %v", err)
+		} else {
+			t.Logf("DEBUG: Teams before PATCH: %+v", teams)
+		}
+
+		var vppTokenTeams []struct {
+			VPPTokenID uint  `db:"vpp_token_id"`
+			TeamID     *uint `db:"team_id"`
+		}
+		if err := sqlx.SelectContext(ctx, q, &vppTokenTeams, `SELECT vpp_token_id, team_id FROM vpp_token_teams`); err != nil {
+			t.Logf("DEBUG: Error getting vpp_token_teams: %v", err)
+		} else {
+			t.Logf("DEBUG: VPP token teams before PATCH: %+v", vppTokenTeams)
+		}
+		return nil
+	})
 
 	// Associate team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
@@ -12946,24 +12985,17 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	var vppRes uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSONBad))), http.StatusAccepted, "", &vppRes)
 
-	// DEBUG: Log VPP state before the failing PATCH
+	// Debug: Log state before PATCH that assigns team to second VPP token
+	t.Logf("=== DEBUG: Before PATCH to assign team %d to second VPP token %d ===", team.ID, vppRes.Token.ID)
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		var debugInfo []struct {
-			TokenID      uint    `db:"token_id"`
-			TokenOrgName string  `db:"organization_name"`
-			TeamID       *uint   `db:"team_id"`
-			TeamName     *string `db:"team_name"`
+		var vppTokenTeams []struct {
+			VPPTokenID uint  `db:"vpp_token_id"`
+			TeamID     *uint `db:"team_id"`
 		}
-		err := sqlx.SelectContext(ctx, q, &debugInfo, `
-			SELECT vt.id as token_id, vt.organization_name, vtt.team_id, t.name as team_name
-			FROM vpp_tokens vt
-			LEFT JOIN vpp_token_teams vtt ON vt.id = vtt.vpp_token_id
-			LEFT JOIN teams t ON vtt.team_id = t.id
-		`)
-		if err != nil {
-			t.Logf("DEBUG: Error querying VPP state before PATCH: %v", err)
+		if err := sqlx.SelectContext(ctx, q, &vppTokenTeams, `SELECT vpp_token_id, team_id FROM vpp_token_teams`); err != nil {
+			t.Logf("DEBUG: Error getting vpp_token_teams: %v", err)
 		} else {
-			t.Logf("DEBUG: VPP tokens and associations before PATCH to assign team %d: %+v", team.ID, debugInfo)
+			t.Logf("DEBUG: VPP token teams before second PATCH: %+v", vppTokenTeams)
 		}
 		return nil
 	})
