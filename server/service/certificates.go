@@ -366,23 +366,15 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 	}
 
 	// Create pending certificate template records for all enrolled Android hosts in each team.
-	// Note: BatchUpsertCertificateTemplates doesn't return IDs of created templates, so we need
-	// to query for them after the upsert and create pending records for each template/team combo.
-	// The CreatePendingCertificateTemplatesForExistingHosts uses ON DUPLICATE KEY UPDATE so it's
-	// safe to call even for existing templates (it will be a no-op for hosts that already have records).
 	for _, cert := range certificates {
 		// Get the template ID by querying for it (BatchUpsert doesn't return IDs)
-		templates, _, err := svc.ds.GetCertificateTemplatesByTeamID(ctx, cert.TeamID, fleet.ListOptions{PerPage: 1000})
+		tmpl, err := svc.ds.GetCertificateTemplateByTeamIDAndName(ctx, cert.TeamID, cert.Name)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting certificate templates by team ID")
+			return ctxerr.Wrap(ctx, err, "getting certificate template by team ID and name")
 		}
-		for _, tmpl := range templates {
-			if tmpl.Name == cert.Name {
-				if _, err := svc.ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, tmpl.ID, cert.TeamID); err != nil {
-					return ctxerr.Wrap(ctx, err, "creating pending certificate templates for existing hosts")
-				}
-				break
-			}
+		// Safe to call even for existing templates (it will be a no-op for hosts that already have records)
+		if _, err := svc.ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, tmpl.ID, cert.TeamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "creating pending certificate templates for existing hosts")
 		}
 	}
 

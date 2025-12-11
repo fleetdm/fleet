@@ -34,6 +34,28 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 	return &template, nil
 }
 
+func (ds *Datastore) GetCertificateTemplateByTeamIDAndName(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error) {
+	var template fleet.CertificateTemplateResponse
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, `
+		SELECT
+			certificate_templates.id,
+			certificate_templates.name,
+			certificate_templates.team_id,
+			certificate_templates.subject_name,
+			certificate_templates.created_at,
+			certificate_authorities.id AS certificate_authority_id,
+			certificate_authorities.name AS certificate_authority_name,
+			certificate_authorities.type AS certificate_authority_type
+		FROM certificate_templates
+		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+		WHERE certificate_templates.team_id = ? AND certificate_templates.name = ?
+	`, teamID, name); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by team id and name")
+	}
+
+	return &template, nil
+}
+
 // GetCertificateTemplateByIdForHost gets a certificate template by ID with host-specific status and challenge.
 // This is used when a host (fleetd/Android agent) requests its certificate.
 func (ds *Datastore) GetCertificateTemplateByIdForHost(ctx context.Context, id uint, hostUUID string) (*fleet.CertificateTemplateResponseForHost, error) {
