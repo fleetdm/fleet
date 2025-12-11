@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -16,7 +17,8 @@ func Up_20251209221730(tx *sql.Tx) error {
 	// Update global config
 	if err := updateAppConfigJSON(tx, func(config *fleet.AppConfig) error {
 		if config != nil {
-			config.MDM.MacOSUpdates.UpdateNewHosts = config.MDM.MacOSUpdates.Configured()
+			config.MDM.MacOSUpdates.UpdateNewHosts = optjson.SetBool(config.MDM.MacOSUpdates.Configured())
+			fmt.Printf("Updating global config: %+v\n", config.MDM.MacOSUpdates.UpdateNewHosts)
 		}
 		return nil
 	}); err != nil {
@@ -54,10 +56,7 @@ func Up_20251209221730(tx *sql.Tx) error {
 		if err := json.Unmarshal(t.raw, &config); err != nil {
 			return fmt.Errorf("unmarshalling team config: %w", err)
 		}
-		config.MDM.MacOSUpdates.UpdateNewHosts = config.MDM.MacOSUpdates.Configured()
-		if !config.MDM.MacOSUpdates.UpdateNewHosts {
-			continue
-		}
+		config.MDM.MacOSUpdates.UpdateNewHosts = optjson.SetBool(config.MDM.MacOSUpdates.Configured())
 
 		b, err := json.Marshal(config)
 		if err != nil {

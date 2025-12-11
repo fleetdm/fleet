@@ -321,7 +321,7 @@ var versionStringRegex = regexp.MustCompile(`^\d+(\.\d+)?(\.\d+)?$`)
 // for OS updates on Apple devices.
 type AppleOSUpdateSettings struct {
 	// UpdateNewHosts if true, only enforce the latest macOS version for new hosts (during enrollment)
-	UpdateNewHosts bool `json:"update_new_hosts"`
+	UpdateNewHosts optjson.Bool `json:"update_new_hosts"`
 	// MinimumVersion is the required minimum operating system version.
 	MinimumVersion optjson.String `json:"minimum_version"`
 	// Deadline the required installation date for Nudge to enforce the required

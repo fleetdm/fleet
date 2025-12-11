@@ -57,7 +57,7 @@ func TestUp_20251209221730(t *testing.T) {
 	teamConfig4 := fleet.TeamConfig{}
 	teamConfig4.MDM.MacOSUpdates.Deadline = optjson.SetString("2025-01-01")
 	teamConfig4.MDM.MacOSUpdates.MinimumVersion = optjson.SetString("14.0.0")
-	teamConfig4.MDM.MacOSUpdates.UpdateNewHosts = false
+	teamConfig4.MDM.MacOSUpdates.UpdateNewHosts = optjson.Bool{Value: false}
 	bT4, err := json.Marshal(teamConfig4)
 	require.NoError(t, err)
 	_, err = db.Exec(`INSERT INTO teams (id, name, config) VALUES (4, 'team4', ?)`, bT4)
@@ -73,7 +73,8 @@ func TestUp_20251209221730(t *testing.T) {
 	var finalAppConfig fleet.AppConfig
 	err = json.Unmarshal(rawAppConfig, &finalAppConfig)
 	require.NoError(t, err)
-	require.True(t, finalAppConfig.MDM.MacOSUpdates.UpdateNewHosts)
+	require.True(t, finalAppConfig.MDM.MacOSUpdates.UpdateNewHosts.Set)
+	require.True(t, finalAppConfig.MDM.MacOSUpdates.UpdateNewHosts.Value)
 
 	// Verify Teams
 	// Team 1: Configured -> True
@@ -83,7 +84,7 @@ func TestUp_20251209221730(t *testing.T) {
 	var finalTeamConfig1 fleet.TeamConfig
 	err = json.Unmarshal(rawTeamConfig1, &finalTeamConfig1)
 	require.NoError(t, err)
-	require.True(t, finalTeamConfig1.MDM.MacOSUpdates.UpdateNewHosts)
+	require.True(t, finalTeamConfig1.MDM.MacOSUpdates.UpdateNewHosts.Value)
 
 	// Team 2: Missing deadline -> False
 	var rawTeamConfig2 []byte
@@ -92,7 +93,7 @@ func TestUp_20251209221730(t *testing.T) {
 	var finalTeamConfig2 fleet.TeamConfig
 	err = json.Unmarshal(rawTeamConfig2, &finalTeamConfig2)
 	require.NoError(t, err)
-	require.False(t, finalTeamConfig2.MDM.MacOSUpdates.UpdateNewHosts)
+	require.False(t, finalTeamConfig2.MDM.MacOSUpdates.UpdateNewHosts.Value)
 
 	// Team 3: Missing minimum version -> False
 	var rawTeamConfig3 []byte
@@ -101,7 +102,7 @@ func TestUp_20251209221730(t *testing.T) {
 	var finalTeamConfig3 fleet.TeamConfig
 	err = json.Unmarshal(rawTeamConfig3, &finalTeamConfig3)
 	require.NoError(t, err)
-	require.False(t, finalTeamConfig3.MDM.MacOSUpdates.UpdateNewHosts)
+	require.False(t, finalTeamConfig3.MDM.MacOSUpdates.UpdateNewHosts.Value)
 
 	// Team 4: Was false, but configured -> True
 	var rawTeamConfig4 []byte
@@ -110,5 +111,5 @@ func TestUp_20251209221730(t *testing.T) {
 	var finalTeamConfig4 fleet.TeamConfig
 	err = json.Unmarshal(rawTeamConfig4, &finalTeamConfig4)
 	require.NoError(t, err)
-	require.True(t, finalTeamConfig4.MDM.MacOSUpdates.UpdateNewHosts)
+	require.True(t, finalTeamConfig4.MDM.MacOSUpdates.UpdateNewHosts.Value)
 }

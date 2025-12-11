@@ -18,15 +18,12 @@ android_settings:
 macos_updates:
   minimum_version: "15.1"
   deadline: "2024-12-31"
-  update_new_hosts: false
 ios_updates:
   minimum_version: "18.1"
   deadline: "2025-12-31"
-  update_new_hosts: false
 ipados_updates:
   minimum_version: "18.2"
   deadline: "2026-12-31"
-  update_new_hosts: false
 windows_updates:
   deadline_days: 5
   grace_period_days: 2
