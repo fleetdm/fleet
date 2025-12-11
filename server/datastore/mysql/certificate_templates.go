@@ -95,6 +95,7 @@ func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID
 		SELECT
 			certificate_templates.id,
 			certificate_templates.name,
+			certificate_templates.subject_name,
 			certificate_templates.certificate_authority_id,
 			certificate_authorities.name AS certificate_authority_name,
 			certificate_templates.created_at
@@ -146,10 +147,10 @@ func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateT
 		CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
 			ID:                     uint(id), //nolint:gosec
 			Name:                   certificateTemplate.Name,
+			SubjectName:            certificateTemplate.SubjectName,
 			CertificateAuthorityId: certificateTemplate.CertificateAuthorityID,
 		},
-		SubjectName: certificateTemplate.SubjectName,
-		TeamID:      certificateTemplate.TeamID,
+		TeamID: certificateTemplate.TeamID,
 	}, nil
 }
 

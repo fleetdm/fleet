@@ -870,15 +870,7 @@ func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName,
 
 // Adds the specified apps to the host-specific Android policy of the provided hosts, and
 // returns a map of host UUID to the policy request object of their updated policy on success.
-func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string, installType string) (map[string]*android.MDMAndroidPolicyRequest, error) {
-	var appPolicies []*androidmanagement.ApplicationPolicy
-	for _, a := range applicationIDs {
-		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
-			PackageName: a,
-			InstallType: installType,
-		})
-	}
-
+func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
 	var errs []error
 	hostToPolicyRequest := make(map[string]*android.MDMAndroidPolicyRequest, len(hostUUIDs))
 	for uuid, policyID := range hostUUIDs {
@@ -1289,20 +1281,28 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 	return nil
 }
 
-func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string, installType string) error {
-	var appPolicies []*androidmanagement.ApplicationPolicy
-	for _, a := range applicationIDs {
-		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{PackageName: a, InstallType: "AVAILABLE"})
-	}
-	for _, policyID := range hostUUIDs {
-
-		policy := &androidmanagement.Policy{Applications: appPolicies}
+// SetAppsForAndroidPolicy sets the available apps for the given hosts' Android MDM policy to the given list of apps.
+// Note that unlike AddAppsToAndroidPolicy, this method replaces the existing app list with the given one, it is
+// not additive/PATCH semantics.
+func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
+	var errs []error
+	for uuid, policyID := range hostUUIDs {
 		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, policyID)
-
-		_, err := svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{OnlyUpdateApps: true})
+		policyRequest, err := newAndroidPolicyApplicationsRequest(policyID, policyName, appPolicies)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "setting apps list for android policy")
+			return ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
+		}
+
+		var apiErr error
+		policy := &androidmanagement.Policy{Applications: appPolicies}
+		policy, apiErr = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{OnlyUpdateApps: true})
+		if _, err := recordAndroidRequestResult(ctx, svc.fleetDS, policyRequest, policy, nil, apiErr); err != nil {
+			return ctxerr.Wrapf(ctx, err, "save android policy request for host %s", uuid)
+		}
+
+		if apiErr != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, apiErr, "google api: modify policy applications for host %s", uuid))
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }

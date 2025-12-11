@@ -592,22 +592,8 @@ func (MockClient) GetCertificateTemplates(teamID string) ([]*fleet.CertificateTe
 				ID:                       1,
 				CertificateAuthorityName: "DIGIDOO",
 				Name:                     "my_certypoo",
+				SubjectName:              "CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
 			},
-		}
-	}
-	return res, nil
-}
-
-func (MockClient) GetCertificateTemplate(certificateID uint, hostUUID *string) (*fleet.CertificateTemplateResponse, error) {
-	var res *fleet.CertificateTemplateResponse
-	if certificateID == 1 {
-		res = &fleet.CertificateTemplateResponse{
-			CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
-				ID:                       1,
-				CertificateAuthorityName: "DIGIDOO",
-				Name:                     "my_certypoo",
-			},
-			SubjectName: "CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
 		}
 	}
 	return res, nil

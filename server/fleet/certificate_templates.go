@@ -21,6 +21,7 @@ func (c *CertificateTemplate) AuthzType() string {
 type CertificateTemplateResponseSummary struct {
 	ID                       uint   `json:"id" db:"id"`
 	Name                     string `json:"name" db:"name"`
+	SubjectName              string `json:"subject_name" db:"subject_name"`
 	CertificateAuthorityId   uint   `json:"certificate_authority_id" db:"certificate_authority_id"`
 	CertificateAuthorityName string `json:"certificate_authority_name" db:"certificate_authority_name"`
 	CreatedAt                string `json:"created_at" db:"created_at"`
@@ -30,7 +31,6 @@ type CertificateTemplateResponseSummary struct {
 // Used when fetching a template by ID for admin/API purposes.
 type CertificateTemplateResponse struct {
 	CertificateTemplateResponseSummary
-	SubjectName              string `json:"subject_name" db:"subject_name"`
 	CertificateAuthorityType string `json:"certificate_authority_type" db:"certificate_authority_type"`
 	TeamID                   uint   `json:"-" db:"team_id"`
 }

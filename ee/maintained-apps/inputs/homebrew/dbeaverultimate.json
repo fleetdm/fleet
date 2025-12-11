@@ -1,0 +1,9 @@
+{
+  "name": "DBeaverUltimate",
+  "unique_identifier": "com.dbeaver.product.ultimate",
+  "token": "dbeaverultimate",
+  "installer_format": "dmg",
+  "slug": "dbeaverultimate/darwin",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/dbeaverultimate-install.sh",
+  "default_categories": ["Developer tools"]
+}

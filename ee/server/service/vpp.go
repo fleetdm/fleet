@@ -506,6 +506,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	isAndroidAppID := androidApplicationID.MatchString(appID.AdamID)
 
 	var app *fleet.VPPApp
+	var androidEnterpriseName string
 
 	// Different flows based on platform
 	switch appID.Platform {
@@ -520,8 +521,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		if err != nil {
 			return 0, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
+		androidEnterpriseName = enterprise.Name()
 
-		androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterprise.Name(), appID.AdamID)
+		androidApp, err := svc.androidModule.EnterprisesApplications(ctx, androidEnterpriseName, appID.AdamID)
 		if err != nil {
 			if fleet.IsNotFound(err) {
 				return 0, fleet.NewInvalidArgumentError("app_store_id", "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
@@ -535,11 +537,6 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			IconURL:          androidApp.IconUrl,
 			Name:             androidApp.Title,
 			TeamID:           teamID,
-		}
-
-		err = worker.QueueMakeAndroidAppAvailableJob(context.Background(), svc.ds, svc.logger, appID.AdamID, app.AppTeamID, enterprise.Name())
-		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
 		}
 
 	default:
@@ -623,12 +620,17 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			Name:             assetMD.TrackName,
 			LatestVersion:    assetMD.Version,
 		}
-
 	}
 
 	addedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "writing VPP app to db")
+	}
+	if appID.Platform == fleet.AndroidPlatform {
+		err := worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appID.AdamID, addedApp.AppTeamID, androidEnterpriseName)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
+		}
 	}
 
 	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(addedApp.ValidatedLabels)
@@ -663,7 +665,6 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 
 	return addedApp.TitleID, nil
-
 }
 
 func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.VPPApp, error) {
@@ -784,6 +785,9 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if payload.SelfService != nil && meta.Platform != fleet.AndroidPlatform {
 		selfServiceVal = *payload.SelfService
 	}
+	if payload.Configuration != nil && meta.Platform != fleet.AndroidPlatform {
+		payload.Configuration = nil
+	}
 
 	appToWrite := &fleet.VPPApp{
 		VPPAppTeam: fleet.VPPAppTeam{
@@ -822,10 +826,6 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		appToWrite.CategoryIDs = catIDs
 	}
 
-	if payload.Configuration != nil {
-		appToWrite.Configuration = payload.Configuration
-	}
-
 	// check if labels have changed
 	var existingLabels fleet.LabelIdentsWithScope
 	switch {
@@ -857,10 +857,32 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 	}
 
+	var androidConfigChanged bool
+	if !labelsChanged && meta.Platform == fleet.AndroidPlatform {
+		// check if configuration has changed
+		androidConfigChanged, err = svc.ds.HasAndroidAppConfigurationChanged(ctx, meta.AdamID, ptr.ValOrZero(teamID), payload.Configuration)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: checking if android app configuration changed")
+		}
+	}
+
 	// Update the app
-	_, err = svc.ds.InsertVPPAppWithTeam(ctx, appToWrite, teamID)
+	insertedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, appToWrite, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: write app to db")
+	}
+
+	// if labelsChanged, new hosts may require having the app made available, and if config
+	// changed, the app policy must be updated.
+	if meta.Platform == fleet.AndroidPlatform && (labelsChanged || androidConfigChanged) {
+		enterprise, err := svc.ds.GetEnterprise(ctx)
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
+		}
+		err = worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appToWrite.AdamID, insertedApp.AppTeamID, enterprise.Name())
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
+		}
 	}
 
 	if labelsChanged {
