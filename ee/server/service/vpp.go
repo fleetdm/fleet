@@ -75,53 +75,62 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	payloadsWithPlatform := make([]fleet.VPPBatchPayloadWithPlatform, 0, len(payloads))
 	for _, payload := range payloads {
-		// Currently only macOS is supported for self-service. Don't
-		// import vpp apps as self-service for ios or ipados
 		if payload.Platform == "" {
 			payload.Platform = fleet.MacOSPlatform
 		}
 
-		if payload.Platform.IsApplePlatform() {
-			payloadsWithPlatform = append(payloadsWithPlatform, []fleet.VPPBatchPayloadWithPlatform{{
-				AppStoreID:         payload.AppStoreID,
-				SelfService:        payload.SelfService,
-				InstallDuringSetup: payload.InstallDuringSetup,
-				Platform:           fleet.IOSPlatform,
-				LabelsExcludeAny:   payload.LabelsExcludeAny,
-				LabelsIncludeAny:   payload.LabelsIncludeAny,
-				Categories:         payload.Categories,
-				DisplayName:        payload.DisplayName,
-			}, {
-				AppStoreID:         payload.AppStoreID,
-				SelfService:        payload.SelfService,
-				InstallDuringSetup: payload.InstallDuringSetup,
-				Platform:           fleet.IPadOSPlatform,
-				LabelsExcludeAny:   payload.LabelsExcludeAny,
-				LabelsIncludeAny:   payload.LabelsIncludeAny,
-				Categories:         payload.Categories,
-				DisplayName:        payload.DisplayName,
-			}, {
-				AppStoreID:         payload.AppStoreID,
-				SelfService:        payload.SelfService,
-				Platform:           fleet.MacOSPlatform,
-				InstallDuringSetup: payload.InstallDuringSetup,
-				LabelsExcludeAny:   payload.LabelsExcludeAny,
-				LabelsIncludeAny:   payload.LabelsIncludeAny,
-				Categories:         payload.Categories,
-				DisplayName:        payload.DisplayName,
-			}}...)
-		} else {
-			payloadsWithPlatform = append(payloadsWithPlatform, fleet.VPPBatchPayloadWithPlatform{
-				AppStoreID:         payload.AppStoreID,
-				SelfService:        payload.SelfService,
-				InstallDuringSetup: payload.InstallDuringSetup,
-				Platform:           payload.Platform,
-				LabelsExcludeAny:   payload.LabelsExcludeAny,
-				LabelsIncludeAny:   payload.LabelsIncludeAny,
-				Categories:         payload.Categories,
-				DisplayName:        payload.DisplayName,
-			})
-		}
+		payloadsWithPlatform = append(payloadsWithPlatform, fleet.VPPBatchPayloadWithPlatform{
+			AppStoreID:         payload.AppStoreID,
+			SelfService:        payload.SelfService,
+			InstallDuringSetup: payload.InstallDuringSetup,
+			Platform:           payload.Platform,
+			LabelsExcludeAny:   payload.LabelsExcludeAny,
+			LabelsIncludeAny:   payload.LabelsIncludeAny,
+			Categories:         payload.Categories,
+			DisplayName:        payload.DisplayName,
+		})
+
+		// if payload.Platform.IsApplePlatform() {
+		// 	payloadsWithPlatform = append(payloadsWithPlatform, []fleet.VPPBatchPayloadWithPlatform{{
+		// 		AppStoreID:         payload.AppStoreID,
+		// 		SelfService:        payload.SelfService,
+		// 		InstallDuringSetup: payload.InstallDuringSetup,
+		// 		Platform:           fleet.IOSPlatform,
+		// 		LabelsExcludeAny:   payload.LabelsExcludeAny,
+		// 		LabelsIncludeAny:   payload.LabelsIncludeAny,
+		// 		Categories:         payload.Categories,
+		// 		DisplayName:        payload.DisplayName,
+		// 	}, {
+		// 		AppStoreID:         payload.AppStoreID,
+		// 		SelfService:        payload.SelfService,
+		// 		InstallDuringSetup: payload.InstallDuringSetup,
+		// 		Platform:           fleet.IPadOSPlatform,
+		// 		LabelsExcludeAny:   payload.LabelsExcludeAny,
+		// 		LabelsIncludeAny:   payload.LabelsIncludeAny,
+		// 		Categories:         payload.Categories,
+		// 		DisplayName:        payload.DisplayName,
+		// 	}, {
+		// 		AppStoreID:         payload.AppStoreID,
+		// 		SelfService:        payload.SelfService,
+		// 		Platform:           fleet.MacOSPlatform,
+		// 		InstallDuringSetup: payload.InstallDuringSetup,
+		// 		LabelsExcludeAny:   payload.LabelsExcludeAny,
+		// 		LabelsIncludeAny:   payload.LabelsIncludeAny,
+		// 		Categories:         payload.Categories,
+		// 		DisplayName:        payload.DisplayName,
+		// 	}}...)
+		// } else {
+		// 	payloadsWithPlatform = append(payloadsWithPlatform, fleet.VPPBatchPayloadWithPlatform{
+		// 		AppStoreID:         payload.AppStoreID,
+		// 		SelfService:        payload.SelfService,
+		// 		InstallDuringSetup: payload.InstallDuringSetup,
+		// 		Platform:           payload.Platform,
+		// 		LabelsExcludeAny:   payload.LabelsExcludeAny,
+		// 		LabelsIncludeAny:   payload.LabelsIncludeAny,
+		// 		Categories:         payload.Categories,
+		// 		DisplayName:        payload.DisplayName,
+		// 	})
+		// }
 
 	}
 
@@ -276,7 +285,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	appStoreIDToTitleID := make(map[string]uint, len(appStoreApps))
 	for _, a := range appStoreApps {
-		appStoreIDToTitleID[a.AdamID] = a.TitleID
+		appStoreIDToTitleID[a.AdamID+"_"+string(a.Platform)] = a.TitleID
 	}
 
 	// Filter out the apps with invalid platforms

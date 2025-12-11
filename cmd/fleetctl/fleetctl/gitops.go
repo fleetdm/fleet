@@ -760,7 +760,8 @@ func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 										// normalize for Unicode support
 										normalizedTeam := norm.NFC.String(teamStr)
 										vppTeams = append(vppTeams, normalizedTeam)
-										if _, ok := teamNames[normalizedTeam]; !ok {
+										// ListTeams doesn't return "No team", so account for it here
+										if _, ok := teamNames[normalizedTeam]; !ok && normalizedTeam != fleet.TeamNameNoTeam {
 											missingTeams = append(missingTeams, normalizedTeam)
 										}
 									}
