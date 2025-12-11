@@ -31,6 +31,10 @@ export const getErrorMessage = (e: unknown): string | ReactElement => {
     }
   }
 
+  if (reason.includes("googleapi: Error 500")) {
+    return `${ADD_SOFTWARE_ERROR_PREFIX} Please try again.`;
+  }
+
   if (reason) {
     return `${ADD_SOFTWARE_ERROR_PREFIX} ${ensurePeriod(reason)}`;
   }
