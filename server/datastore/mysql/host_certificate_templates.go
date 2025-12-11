@@ -274,13 +274,22 @@ func (ds *Datastore) TransitionCertificateTemplatesToDelivering(
 			return nil // Another process already picked them up
 		}
 
-		// Transition to delivering
-		updateStmt := fmt.Sprintf(`
+		// Collect IDs from locked rows to ensure we only update those specific rows
+		ids := make([]uint, len(templates))
+		for i, t := range templates {
+			ids[i] = t.ID
+		}
+
+		// Transition to delivering - only update the rows we locked
+		updateStmt, args, err := sqlx.In(fmt.Sprintf(`
 			UPDATE host_certificate_templates
 			SET status = '%s', updated_at = NOW()
-			WHERE host_uuid = ? AND status = '%s' AND operation_type = '%s'
-		`, fleet.CertificateTemplateDelivering, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
-		if _, err := tx.ExecContext(ctx, updateStmt, hostUUID); err != nil {
+			WHERE id IN (?)
+		`, fleet.CertificateTemplateDelivering), ids)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build update to delivering query")
+		}
+		if _, err := tx.ExecContext(ctx, updateStmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "update to delivering")
 		}
 
@@ -305,41 +314,24 @@ func (ds *Datastore) TransitionCertificateTemplatesToDelivered(
 		return nil
 	}
 
-	// Build UPDATE with CASE for each template's challenge
-	var caseStmt strings.Builder
-	var templateIDs []any
-	caseStmt.WriteString("CASE certificate_template_id ")
-	for templateID, challenge := range challenges {
-		caseStmt.WriteString("WHEN ? THEN ? ")
-		templateIDs = append(templateIDs, templateID, challenge)
-	}
-	caseStmt.WriteString("END")
-
-	// Build IN clause for template IDs
-	inPlaceholders := make([]string, 0, len(challenges))
-	for templateID := range challenges {
-		inPlaceholders = append(inPlaceholders, "?")
-		templateIDs = append(templateIDs, templateID)
-	}
-
-	query := fmt.Sprintf(`
+	// Update each template individually. The number of certificate templates per host
+	// is expected to be small (typically 1-10), so individual updates are simpler.
+	stmt := fmt.Sprintf(`
 		UPDATE host_certificate_templates
 		SET
 			status = '%s',
-			fleet_challenge = %s,
+			fleet_challenge = ?,
 			updated_at = NOW()
 		WHERE
 			host_uuid = ? AND
 			status = '%s' AND
-			certificate_template_id IN (%s)
-	`, fleet.CertificateTemplateDelivered, caseStmt.String(), fleet.CertificateTemplateDelivering, strings.Join(inPlaceholders, ","))
+			certificate_template_id = ?
+	`, fleet.CertificateTemplateDelivered, fleet.CertificateTemplateDelivering)
 
-	args := templateIDs
-	// Insert hostUUID before the IN clause placeholders
-	args = append(args[:len(challenges)*2], append([]any{hostUUID}, args[len(challenges)*2:]...)...)
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "transition to delivered")
+	for templateID, challenge := range challenges {
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, challenge, hostUUID, templateID); err != nil {
+			return ctxerr.Wrap(ctx, err, "transition to delivered")
+		}
 	}
 
 	return nil
