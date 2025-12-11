@@ -69,7 +69,7 @@ Stripe also plans to evaluate the capabilities offered by Fleet’s open-source 
 
 *Fleet’s Customer Success Manager for Stripe is the best!*
 
-Wes Whetstone
+**Wes Whetstone**
 
 Staff Client Platform Engineer
 </div>

@@ -1,16 +1,5 @@
 # Foursquare cut costs and gained 114% ROI with Fleet
 
-
-<div purpose="attribution-quote">
-
-*My team is loving managing devices via GitOps with Fleet.*
-
-**Jeremy Baker**
-
-Engineering Manager
-
-</div>
-
 ## Why Foursquare needed a change
 
 Foursquare supports more than 200 Macs and around 15 Windows devices in a hybrid environment, where developers are able to work on the platforms of their choice. That flexibility means the IT team must support macOS and Windows with the same level of consistency and security.
