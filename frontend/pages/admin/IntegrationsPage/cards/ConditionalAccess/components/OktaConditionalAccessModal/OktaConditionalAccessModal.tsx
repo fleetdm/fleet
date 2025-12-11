@@ -40,10 +40,10 @@ interface IFormData {
 }
 
 interface IFormErrors {
-  [OKTA_IDP_ID]?: string | null;
-  [OKTA_ACS_URL]?: string | null;
-  [OKTA_AUDIENCE_URI]?: string | null;
-  [OKTA_CERTIFICATE]?: string | null;
+  [OKTA_IDP_ID]?: string;
+  [OKTA_ACS_URL]?: string;
+  [OKTA_AUDIENCE_URI]?: string;
+  [OKTA_CERTIFICATE]?: string;
 }
 
 const validate = (formData: IFormData) => {
@@ -342,35 +342,23 @@ const OktaConditionalAccessModal = ({
             onBlur={onInputBlur}
             error={formErrors[OKTA_AUDIENCE_URI]}
           />
-
-          {/* Certificate file uploader with inline validation error display.
-              Note: This is a custom pattern - FileUploader doesn't have built-in error prop like InputField.
-              Other FileUploader usages in the codebase use flash notifications instead of inline errors,
-              but this form requires field-level validation consistency with the InputFields above. */}
-          <div className={`${baseClass}__file-uploader-wrapper`}>
-            {formErrors[OKTA_CERTIFICATE] && (
-              <span className={`${baseClass}__file-uploader-error`}>
-                {formErrors[OKTA_CERTIFICATE]}
-              </span>
-            )}
-            <FileUploader
-              graphicName="file-pem"
-              title="Okta certificate"
-              message={
-                <>
-                  Upload the certificate provided by Okta during the{" "}
-                  <strong>Set Up Authenticator</strong> workflow
-                </>
-              }
-              onFileUpload={onSelectFile}
-              buttonType="brand-inverse-icon"
-              buttonMessage="Upload"
-              accept=".pem,.crt,.cer,.cert"
-              fileDetails={certFile ? { name: certFile.name } : undefined}
-              onDeleteFile={onDeleteFile}
-            />
-          </div>
-
+          <FileUploader
+            graphicName="file-pem"
+            title="Okta certificate"
+            message={
+              <>
+                Upload the certificate provided by Okta during the{" "}
+                <strong>Set Up Authenticator</strong> workflow
+              </>
+            }
+            internalError={formErrors[OKTA_CERTIFICATE]}
+            onFileUpload={onSelectFile}
+            buttonType="brand-inverse-icon"
+            buttonMessage="Upload"
+            accept=".pem,.crt,.cer,.cert"
+            fileDetails={certFile ? { name: certFile.name } : undefined}
+            onDeleteFile={onDeleteFile}
+          />
           <div className="modal-cta-wrap">
             <Button
               type="submit"

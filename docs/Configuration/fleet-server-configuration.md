@@ -2288,7 +2288,7 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 
 *Available in Fleet Premium.*
 
-AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
+AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as RustFS),
 or running S3 locally with localstack. Leave this blank to use the default S3 service endpoint.
 
 - Default value: none
@@ -2322,7 +2322,7 @@ will use [virtual hosted bucket addressing](http://docs.aws.amazon.com/AmazonS3/
 
 AWS S3 Region. Leave blank to enable region discovery.
 
-Minio users must set this to any nonempty value (eg. `minio`), as Minio does not support region discovery.
+You'll likely need to set this if using a non-AWS S3-compatible object store.
 
 - Default value:
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_REGION`
@@ -2862,7 +2862,7 @@ conjunction with an STS role ARN to ensure that only the intended AWS account ca
 
 ##### packaging_s3_endpoint_url
 
-This is the AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio)
+This is the AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as RustFS)
 or running S3 locally with LocalStack. Leave this blank to use the default AWS S3 service endpoint.
 
 - Default value: ""
@@ -2909,7 +2909,7 @@ See the [Virtual hosting of buckets doc](http://docs.aws.amazon.com/AmazonS3/lat
 
 This is the AWS S3 Region. Leave it blank to enable region discovery.
 
-Minio users must set this to any non-empty value (e.g., `minio`), as Minio does not support region discovery.
+You'll likely need to set this if using a non-AWS S3-compatible object store.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_REGION`

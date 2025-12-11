@@ -1709,7 +1709,7 @@ type Datastore interface {
 	MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*MDMWindowsCommand, error)
 
 	// MDMWindowsSaveResponse saves a full response
-	MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML EnrichedSyncML) error
+	MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML EnrichedSyncML, commandIDsBeingResent []string) error
 
 	// GetMDMWindowsCommands returns the results of command
 	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
@@ -2127,7 +2127,7 @@ type Datastore interface {
 	BatchInsertVPPApps(ctx context.Context, apps []*VPPApp) error
 	GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[VPPAppID]VPPAppTeam, error)
 	GetVPPApps(ctx context.Context, teamID *uint) ([]VPPAppResponse, error)
-	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppTeam) error
+	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppTeam, appStoreAppIDsToTitleIDs map[string]uint) error
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
 	GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]string, error)
 
@@ -2376,6 +2376,12 @@ type Datastore interface {
 	// GetAndroidAppConfiguration retrieves the configuration for an Android app
 	// identified by adam_id and global_or_team_id.
 	GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*AndroidAppConfiguration, error)
+	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*AndroidAppConfiguration, error)
+	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error)
+
+	// BulkGetAndroidAppConfigurations retrieves Android app configurations for
+	// all provided apps and returns them indexed by the app id.
+	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error)
 
 	// InsertAndroidAppConfiguration creates a new Android app configuration entry.
 	InsertAndroidAppConfiguration(ctx context.Context, config *AndroidAppConfiguration) error
@@ -2513,7 +2519,7 @@ type Datastore interface {
 	// processed together as upserts using INSERT...ON DUPLICATE KEY UPDATE.
 	BatchApplyCertificateAuthorities(ctx context.Context, ops CertificateAuthoritiesBatchOperations) error
 	// UpdateCertificateStatus allows a host to update the installation status of a certificate given its template.
-	UpdateCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status MDMDeliveryStatus, detail *string) error
+	UpsertCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status MDMDeliveryStatus, detail *string) error
 
 	// BatchUpsertCertificateTemplates upserts a batch of certificates.
 	BatchUpsertCertificateTemplates(ctx context.Context, certificates []*CertificateTemplate) error
@@ -2535,11 +2541,24 @@ type Datastore interface {
 	GetCertificateTemplateForHost(ctx context.Context, hostUUID string, certificateTemplateID uint) (*CertificateTemplateForHost, error)
 	// BulkInsertHostCertificateTemplates inserts multiple host_certificate_templates records.
 	BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []HostCertificateTemplate) error
+	// DeleteHostCertificateTemplates deletes specific host_certificate_templates records
+	// identified by (host_uuid, certificate_template_id) pairs.
+	DeleteHostCertificateTemplates(ctx context.Context, hostCertTemplates []HostCertificateTemplate) error
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
 
 	UpdateOrDeleteHostMDMWindowsProfile(ctx context.Context, profile *HostMDMWindowsProfile) error
+
+	// GetWindowsMDMCommandsForResending retrieves Windows MDM commands that failed to be delivered
+	// and need to be resent based on their command IDs.
+	//
+	// Returns a slice of MDMWindowsCommand pointers containing the commands to be resent.
+	GetWindowsMDMCommandsForResending(ctx context.Context, failedCommandIds []string) ([]*MDMWindowsCommand, error)
+
+	// ResendWindowsMDMCommand marks the specified Windows MDM command for resend
+	// by inserting a new command entry, command queue, but also updates the host profile reference.
+	ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId string, newCmd *MDMWindowsCommand, oldCmd *MDMWindowsCommand) error
 }
 
 type AndroidDatastore interface {

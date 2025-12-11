@@ -54,6 +54,7 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 }
 
 func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+	// for no team pass 0 as teamID
 	args := []any{teamID}
 
 	fromClause := `
@@ -67,6 +68,7 @@ func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID
 		SELECT
 			certificate_templates.id,
 			certificate_templates.name,
+			certificate_templates.subject_name,
 			certificate_templates.certificate_authority_id,
 			certificate_authorities.name AS certificate_authority_name,
 			certificate_templates.created_at
@@ -118,10 +120,10 @@ func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateT
 		CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
 			ID:                     uint(id), //nolint:gosec
 			Name:                   certificateTemplate.Name,
+			SubjectName:            certificateTemplate.SubjectName,
 			CertificateAuthorityId: certificateTemplate.CertificateAuthorityID,
 		},
-		SubjectName: certificateTemplate.SubjectName,
-		TeamID:      certificateTemplate.TeamID,
+		TeamID: certificateTemplate.TeamID,
 	}, nil
 }
 
@@ -161,9 +163,7 @@ func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certif
 		) VALUES %s
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
-			team_id = VALUES(team_id),
-			certificate_authority_id = VALUES(certificate_authority_id),
-			subject_name = VALUES(subject_name)
+			team_id = VALUES(team_id)
 	`
 
 	var placeholders strings.Builder
@@ -215,12 +215,13 @@ func (ds *Datastore) GetHostCertificateTemplates(ctx context.Context, hostUUID s
 	}
 
 	stmt := `
-SELECT 
-	ct.name, 
+SELECT
+	ct.name,
 	hct.status,
-	hct.detail
+	hct.detail,
+	hct.operation_type
 FROM host_certificate_templates hct
-	INNER JOIN certificate_templates ct ON ct.id = hct.certificate_template_id 
+	INNER JOIN certificate_templates ct ON ct.id = hct.certificate_template_id
 WHERE hct.host_uuid = ?`
 
 	var hTemplates []fleet.HostCertificateTemplate
@@ -234,7 +235,7 @@ func (ds *Datastore) GetMDMProfileSummaryFromHostCertificateTemplates(ctx contex
 	var stmt string
 	var args []interface{}
 
-	if teamID != nil && *teamID > 0 {
+	if teamID != nil {
 		stmt = `
 SELECT
 	hct.status AS status,

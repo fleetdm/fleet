@@ -84,7 +84,6 @@ type generateGitopsClient interface {
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
-	GetCertificateTemplate(certificateID uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -1086,15 +1085,10 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		certType := reflect.TypeOf(fleet.CertificateTemplateResponseFull{})
 		fullCerts := make([]map[string]interface{}, 0, len(certSummaries))
 		for _, certSummary := range certSummaries {
-			certFull, err := cmd.Client.GetCertificateTemplate(certSummary.ID, nil)
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting certificate template details for ID %d: %s\n", certSummary.ID, err)
-				return nil, err
-			}
 			fullCerts = append(fullCerts, map[string]interface{}{
-				jsonFieldName(certType, "Name"):                     certFull.Name,
-				jsonFieldName(certType, "CertificateAuthorityName"): certFull.CertificateAuthorityName,
-				jsonFieldName(certType, "SubjectName"):              certFull.SubjectName,
+				jsonFieldName(certType, "Name"):                     certSummary.Name,
+				jsonFieldName(certType, "CertificateAuthorityName"): certSummary.CertificateAuthorityName,
+				jsonFieldName(certType, "SubjectName"):              certSummary.SubjectName,
 			})
 		}
 		androidSettings, ok := result[jsonFieldName(mdmT, "AndroidSettings")].(map[string]interface{})
@@ -1481,10 +1475,6 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				}
 			}
 		case sw.AppStoreApp != nil:
-			// ignore Android VPP apps for now
-			if sw.AppStoreApp.Platform == "android" {
-				continue
-			}
 			softwareSpec["app_store_id"] = sw.AppStoreApp.AppStoreID
 		default:
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error: software %s has no software package or app store app\n", sw.Name)
@@ -1590,6 +1580,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 		if softwareTitle.AppStoreApp != nil {
 			filenamePrefix := generateFilename(sw.Name) + "-" + sw.AppStoreApp.Platform
+			softwareSpec["platform"] = softwareTitle.AppStoreApp.Platform
 			if softwareTitle.AppStoreApp.SelfService {
 				softwareSpec["self_service"] = softwareTitle.AppStoreApp.SelfService
 			}

@@ -1,9 +1,14 @@
 import React from "react";
 
+import { uniqueId } from "lodash";
+
 const TotalHosts = () => {
+  const clipPathId = uniqueId("clip-path-");
+  const maskId = uniqueId("mask-");
+
   return (
     <svg width="33" height="33" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <g clipPath="url(#clip0_5717_5247)">
+      <g clipPath={`url(#${clipPathId})`}>
         <path
           d="m2.921 10.73 8.412-4.59 8.413 4.59-8.413 4.59-8.412-4.59Z"
           stroke="#515774"
@@ -15,7 +20,7 @@ const TotalHosts = () => {
           d="m7.249 13.374-6.416 3.5 10.5 5.73 10.5-5.73-6.415-3.5-4.085 2.23-4.084-2.23Z"
           fill="#515774"
         />
-        <mask id="path-3-inside-1_5717_5247" fill="#fff">
+        <mask id={maskId} fill="#fff">
           <path
             fillRule="evenodd"
             clipRule="evenodd"
@@ -25,7 +30,7 @@ const TotalHosts = () => {
         <path
           d="m.833 22.729-.958-1.756-3.217 1.756 3.217 1.756.958-1.756Zm8.422-4.595 1.033-1.713-.983-.593-1.008.55.958 1.756Zm2.078 10.324-.958 1.756.958.523.958-.523-.958-1.756Zm10.5-5.729.958 1.756 3.218-1.756-3.218-1.756-.958 1.756Zm-9.821-5.359.958-1.756-1.008-.55-.983.594 1.033 1.712ZM10 18.583l-1.033 1.713 1.033.623 1.033-.623L10 18.583Zm-8.209 5.902 8.422-4.595-1.916-3.512-8.422 4.595 1.916 3.512Zm10.5 2.218-10.5-5.73-1.916 3.512 10.5 5.729 1.916-3.511Zm8.584-5.73-10.5 5.73 1.916 3.51 10.5-5.728-1.916-3.512Zm-9.821-1.847 9.821 5.359 1.916-3.512-9.821-5.358-1.916 3.51Zm-.075-3.469-2.012 1.214 2.066 3.425 2.012-1.213-2.066-3.425Zm.054 1.214-.745-.45-2.066 3.426.745.449 2.066-3.425Z"
           fill="#515774"
-          mask="url(#path-3-inside-1_5717_5247)"
+          mask={`url(#${maskId})`}
         />
         <path
           d="M24.833 27.357a6.857 6.857 0 1 0 0-13.714 6.857 6.857 0 0 0 0 13.714Z"
@@ -45,7 +50,7 @@ const TotalHosts = () => {
         />
       </g>
       <defs>
-        <clipPath id="clip0_5717_5247">
+        <clipPath id={clipPathId}>
           <path fill="#fff" transform="translate(.833 .5)" d="M0 0h32v32H0z" />
         </clipPath>
       </defs>

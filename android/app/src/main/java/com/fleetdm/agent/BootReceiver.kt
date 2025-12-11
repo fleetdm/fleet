@@ -4,6 +4,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 
 class BootReceiver : BroadcastReceiver() {
     companion object {
@@ -12,27 +17,26 @@ class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context?, intent: Intent?) {
         if (intent?.action == Intent.ACTION_BOOT_COMPLETED) {
-            Log.i(TAG, "Device boot completed. Initializing Fleet Agent.")
+            Log.i(TAG, "Device boot completed. Triggering certificate enrollment.")
 
             context?.let {
-                // Check for any pending certificate operations or managed configurations
-                // that may need to be processed after boot
-                val restrictionsManager = context.getSystemService(Context.RESTRICTIONS_SERVICE) as android.content.RestrictionsManager
-                val appRestrictions = restrictionsManager.applicationRestrictions
+                // Trigger immediate certificate enrollment on boot
+                val workRequest = OneTimeWorkRequestBuilder<CertificateEnrollmentWorker>()
+                    .setConstraints(
+                        Constraints.Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build(),
+                    )
+                    .build()
 
-                val certData = appRestrictions.getString("certificate_data")
+                WorkManager.getInstance(it)
+                    .enqueueUniqueWork(
+                        "${CertificateEnrollmentWorker.WORK_NAME}_boot",
+                        ExistingWorkPolicy.REPLACE, // Run fresh enrollment on boot
+                        workRequest,
+                    )
 
-                if (!certData.isNullOrEmpty()) {
-                    Log.d(TAG, "Found certificate data after boot. Processing installation.")
-
-                    // Start the service to handle the installation
-                    val serviceIntent = Intent(it, CertificateService::class.java).apply {
-                        putExtra("CERT_DATA", certData)
-                    }
-                    it.startService(serviceIntent)
-                } else {
-                    Log.d(TAG, "No pending certificate operations after boot.")
-                }
+                Log.d(TAG, "Scheduled certificate enrollment after boot")
             }
         }
     }

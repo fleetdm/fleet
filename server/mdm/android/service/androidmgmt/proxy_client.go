@@ -158,8 +158,23 @@ func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCrea
 	}, nil
 }
 
-func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
-	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).UpdateMask(policyFieldMask)
+type PoliciesPatchOpts struct {
+	// OnlyUpdateApps tells the client to only update the policy's application list.
+	OnlyUpdateApps bool
+	// ExcludeApps tells the client to not update the policy's application list.
+	ExcludeApps bool
+}
+
+func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx)
+
+	switch {
+	case opts.ExcludeApps:
+		call = call.UpdateMask(policyFieldMask)
+	case opts.OnlyUpdateApps:
+		call = call.UpdateMask("applications")
+	}
+
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 	ret, err := call.Do()
 	switch {

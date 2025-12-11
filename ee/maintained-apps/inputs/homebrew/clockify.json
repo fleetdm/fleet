@@ -1,0 +1,8 @@
+{
+  "name": "Clockify Desktop",
+  "unique_identifier": "coing.ClockifyDesktop",
+  "token": "clockify",
+  "installer_format": "zip",
+  "slug": "clockify/darwin",
+  "default_categories": ["Productivity"]
+}

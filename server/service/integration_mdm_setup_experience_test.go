@@ -30,6 +30,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 )
 
 func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
@@ -3435,6 +3436,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 		TitleIDs: []uint{app1TitleID},
 	}, http.StatusOK, &putResp)
 
+	// Run worker to flush out no-op "make_android_app_available" tasks from adding the apps above
+	s.runWorkerUntilDone()
+
 	// list the available setup experience software and verify that only app 1 is installed at setup
 	var getResp getSetupExperienceSoftwareResponse
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", nil, http.StatusOK, &getResp,
@@ -3761,6 +3765,187 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	})
 	require.Equal(t, 2, countFailed)
 	require.Equal(t, 0, countOther)
+}
+
+func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	s.enableAndroidMDM(t)
+
+	// add some android apps
+	app1 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.test1",
+				Platform: fleet.AndroidPlatform,
+			},
+		},
+		Name:             "Test1",
+		BundleIdentifier: "com.test1",
+		IconURL:          "https://example.com/1",
+	}
+	app2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.test2",
+				Platform: fleet.AndroidPlatform,
+			},
+		},
+		Name:             "Test2",
+		BundleIdentifier: "com.test2",
+		IconURL:          "https://example.com/2",
+	}
+	app3 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.test3",
+				Platform: fleet.AndroidPlatform,
+			},
+		},
+		Name:             "Test3",
+		BundleIdentifier: "com.test3",
+		IconURL:          "https://example.com/3",
+	}
+
+	androidApps := []*fleet.VPPApp{app1, app2, app3}
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		for _, app := range androidApps {
+			if app.AdamID == packageName {
+				return &androidmanagement.Application{IconUrl: app.IconURL, Title: app.Name}, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
+
+	// vars have no need for a mutex, protected via runWorkerUntilDone
+	var (
+		// records the appPolicies received in the ModifyPolicyApplications calls
+		patchAppsPolicies  [][]*androidmanagement.ApplicationPolicy
+		patchAppsCallCount int
+	)
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		patchAppsCallCount++
+		patchAppsPolicies = append(patchAppsPolicies, appPolicies)
+
+		return &androidmanagement.Policy{Version: int64(patchAppsCallCount)}, nil
+	}
+
+	// add Android app 1
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: app1.AdamID,
+		Platform:   fleet.AndroidPlatform,
+	}, http.StatusOK, &addAppResp)
+	app1TitleID := addAppResp.TitleID
+
+	// add Android app 2
+	addAppResp = addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: app2.AdamID,
+		Platform:   fleet.AndroidPlatform,
+	}, http.StatusOK, &addAppResp)
+	app2TitleID := addAppResp.TitleID
+
+	require.NotEqual(t, app1TitleID, app2TitleID)
+
+	s.runWorkerUntilDone()
+
+	// worker should have done nothing (no host to add apps to yet)
+	require.Len(t, patchAppsPolicies, 0)
+	patchAppsPolicies = nil
+
+	var patchAppResp updateAppStoreAppResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app1TitleID), &updateAppStoreAppRequest{
+		TeamID:        nil,
+		Configuration: json.RawMessage(`{"managedConfiguration": 1}`),
+	}, http.StatusOK, &patchAppResp)
+
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app2TitleID), &updateAppStoreAppRequest{
+		TeamID:        nil,
+		Configuration: json.RawMessage(`{"managedConfiguration": 2}`),
+	}, http.StatusOK, &patchAppResp)
+
+	// add app 1 and 2 to Android setup experience
+	var putResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+		Platform: string(fleet.AndroidPlatform),
+		TeamID:   0,
+		TitleIDs: []uint{app1TitleID, app2TitleID},
+	}, http.StatusOK, &putResp)
+
+	s.createAndEnrollAndroidDevice(t, "test-android", nil)
+
+	s.runWorkerUntilDone()
+
+	// worker should have:
+	// 1. made each app available to the included hosts (for self-service), so 2 entries for that (from the PATCH apps to set the config)
+	// (this is because I made the worker run after host enrollment, if there were no host, the task would have nothing to do)
+	// 2. made all apps available to the enrolled host (for self-service), from the host enrollment
+	// 3. installed the apps, from the host enrollment
+	require.Len(t, patchAppsPolicies, 4)
+	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
+		{PackageName: app1.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`1`)},
+	}, patchAppsPolicies[0])
+	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
+		{PackageName: app2.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`2`)},
+	}, patchAppsPolicies[1])
+	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
+		{PackageName: app1.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`1`)},
+		{PackageName: app2.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`2`)},
+	}, patchAppsPolicies[2])
+	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
+		{PackageName: app1.VPPAppID.AdamID, InstallType: "PREINSTALLED", ManagedConfiguration: googleapi.RawMessage(`1`)},
+		{PackageName: app2.VPPAppID.AdamID, InstallType: "PREINSTALLED", ManagedConfiguration: googleapi.RawMessage(`2`)},
+	}, patchAppsPolicies[3])
+
+	patchAppsPolicies = nil
+
+	// add app3 to Fleet
+	addAppResp = addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: app3.AdamID,
+		Platform:   fleet.AndroidPlatform,
+	}, http.StatusOK, &addAppResp)
+	app3TitleID := addAppResp.TitleID
+
+	s.runWorkerUntilDone()
+
+	// worker should have:
+	// 1. made the apps available to the host (for self-service)
+	require.Len(t, patchAppsPolicies, 1)
+	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
+		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE"},
+	}, patchAppsPolicies[0])
+
+	patchAppsPolicies = nil
+
+	// set a configuration for the app3
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
+		TeamID:        nil,
+		Configuration: json.RawMessage(`{"managedConfiguration": 3}`),
+	}, http.StatusOK, &patchAppResp)
+
+	s.runWorkerUntilDone()
+
+	// worker should have:
+	// 1. made the app available with its config
+	require.Len(t, patchAppsPolicies, 1)
+	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
+		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`3`)},
+	}, patchAppsPolicies[0])
+
+	patchAppsPolicies = nil
+
+	// patch but no change to the configuration for the app3
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
+		TeamID:        nil,
+		Configuration: json.RawMessage(`{"managedConfiguration": 3}`),
+	}, http.StatusOK, &patchAppResp)
+
+	s.runWorkerUntilDone()
+
+	require.Len(t, patchAppsPolicies, 0)
 }
 
 func (s *integrationMDMTestSuite) createAndEnrollAndroidDevice(t *testing.T, name string, teamID *uint) (host *fleet.Host, deviceInfo androidmanagement.Device, pubSubToken fleet.MDMConfigAsset) {

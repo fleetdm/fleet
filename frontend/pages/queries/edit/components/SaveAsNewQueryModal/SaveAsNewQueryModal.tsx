@@ -213,6 +213,7 @@ const SaveAsNewQueryModal = ({
             type="submit"
             className="save-as-new-query"
             isLoading={isSaving}
+            // empty SQL error handled by parent
             disabled={Object.keys(formErrors).length > 0 || isSaving}
           >
             Save
