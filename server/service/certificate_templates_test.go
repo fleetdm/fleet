@@ -154,6 +154,16 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 		return 0, nil
 	}
 
+	ds.GetCertificateTemplateByTeamIDAndNameFunc = func(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error) {
+		return &fleet.CertificateTemplateResponse{
+			CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+				ID:   nextTemplateID,
+				Name: name,
+			},
+			TeamID: teamID,
+		}, nil
+	}
+
 	t.Run("Valid CA types", func(t *testing.T) {
 		err := svc.ApplyCertificateTemplateSpecs(ctx, []*fleet.CertificateRequestSpec{
 			{

@@ -3797,6 +3797,19 @@ func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.Ce
 		return 0, nil
 	}
 
+	// Mock for looking up certificate template by team ID and name
+	var templateIDCounter uint
+	ds.GetCertificateTemplateByTeamIDAndNameFunc = func(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error) {
+		templateIDCounter++
+		return &fleet.CertificateTemplateResponse{
+			CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+				ID:   templateIDCounter,
+				Name: name,
+			},
+			TeamID: teamID,
+		}, nil
+	}
+
 	return certAuthorities
 }
 
