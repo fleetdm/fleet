@@ -2496,13 +2496,12 @@ func openBrowserWindow(browserURL string) error {
 			return errors.New("no user logged in")
 		}
 
-		browserBin := "open"
+		browserBin := "/usr/bin/open"
+		var cmd *exec.Cmd
+		arg := []string{"-u", *loggedInUser, "/usr/bin/open", browserURL}
+		cmd = exec.Command("sudo", arg...)
 
-		var opts []execuser.Option
-		opts = append(opts, execuser.WithUser(*loggedInUser))
-		opts = append(opts, execuser.WithArg(browserURL, ""))
-		log.Debug().Str("browser", browserBin).Str("url", browserURL).Str("user", *loggedInUser).Msg("opening macos browser")
-		if _, err := execuser.Run(browserBin, opts...); err != nil {
+		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("opening browser with %s: %w", browserBin, err)
 		}
 	}
