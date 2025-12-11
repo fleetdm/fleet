@@ -3,6 +3,7 @@
 
 $displayNamePattern = "7-Zip*"
 $publisher = "Igor Pavlov"
+$upgradeCode = "{23170F69-40C1-2702-0000-000004000000}"
 
 # Close any running 7-Zip processes before uninstalling
 Write-Host "Closing any running 7-Zip processes..."
@@ -10,16 +11,24 @@ Get-Process -Name "7z*" -ErrorAction SilentlyContinue | Stop-Process -Force -Err
 Get-Process -Name "7zFM" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 
-# First, try using $PACKAGE_ID if it's available and is a valid product code (GUID)
-$productCode = $null
-if ($PACKAGE_ID -and $PACKAGE_ID -match '^{[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}}$') {
-  Write-Host "Using product code from PACKAGE_ID: $PACKAGE_ID"
-  $productCode = $PACKAGE_ID
+$productCodes = @()
+$timeoutSeconds = 300  # 5 minute timeout per product
+
+# Method 1: Use upgrade code to find all related products (most reliable for MSI)
+Write-Host "Searching for 7-Zip using upgrade code: $upgradeCode"
+try {
+  $installer = New-Object -ComObject WindowsInstaller.Installer
+  $relatedProducts = $installer.RelatedProducts($upgradeCode)
+  foreach ($productCode in $relatedProducts) {
+    $productCodes += $productCode
+    Write-Host "Found product code via upgrade code: $productCode"
+  }
+} catch {
+  Write-Host "Upgrade code method failed: $_"
 }
 
-# If PACKAGE_ID didn't work or wasn't available, search registry for any 7-Zip installation
-# This matches any version like "7-Zip 25.01 (x64)" or "7-Zip 24.07 (x64)"
-if (-not $productCode) {
+# Method 2: Search registry for any 7-Zip installation
+if ($productCodes.Count -eq 0) {
   Write-Host "Searching registry for 7-Zip installation..."
   
   $paths = @(
@@ -36,27 +45,32 @@ if (-not $productCode) {
       $_.DisplayName -and $_.DisplayName -like $displayNamePattern -and ($publisher -eq "" -or $_.Publisher -eq $publisher) -and $_.PSChildName -match '^{[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}}$'
     }
     if ($items) {
-      $productCode = ($items | Select-Object -First 1).PSChildName
-      Write-Host "Found product code in registry: $productCode"
-      break
+      $foundCode = ($items | Select-Object -First 1).PSChildName
+      if ($foundCode -notin $productCodes) {
+        $productCodes += $foundCode
+        Write-Host "Found product code in registry: $foundCode"
+      }
     }
   }
 }
 
-# Also try using WindowsInstaller COM object to find by name (more reliable for MSI)
-if (-not $productCode) {
+# Method 3: Use WindowsInstaller COM object to find by name
+if ($productCodes.Count -eq 0) {
   Write-Host "Trying WindowsInstaller COM object method..."
   try {
-    $installer = New-Object -ComObject WindowsInstaller.Installer
+    if (-not $installer) {
+      $installer = New-Object -ComObject WindowsInstaller.Installer
+    }
     $products = $installer.Products
     
     foreach ($product in $products) {
       try {
         $productName = $installer.ProductInfo($product, "ProductName")
         if ($productName -like $displayNamePattern) {
-          $productCode = $product
-          Write-Host "Found product code via WindowsInstaller: $productCode (Product: $productName)"
-          break
+          if ($product -notin $productCodes) {
+            $productCodes += $product
+            Write-Host "Found product code via WindowsInstaller: $product (Product: $productName)"
+          }
         }
       } catch {
         # Continue searching
@@ -67,40 +81,49 @@ if (-not $productCode) {
   }
 }
 
-if (-not $productCode) {
+if ($productCodes.Count -eq 0) {
   Write-Host "Product code not found for 7-Zip"
   Exit 0  # Not found = success for Fleet
 }
 
-Write-Host "Found product code: $productCode"
-Write-Host "Attempting to uninstall using msiexec..."
-
-$timeoutSeconds = 300  # 5 minute timeout
-
-try {
-  # Use /qn (quiet no UI) instead of /quiet for better compatibility
-  # REBOOT=ReallySuppress prevents any reboot prompts
-  $process = Start-Process msiexec -ArgumentList @("/x", $productCode, "/qn", "/norestart", "REBOOT=ReallySuppress") -PassThru -NoNewWindow
+# Uninstall all found product codes
+$allSucceeded = $true
+foreach ($productCode in $productCodes) {
+  Write-Host "Attempting to uninstall product code: $productCode"
   
-  # Wait for process with timeout
-  $completed = $process.WaitForExit($timeoutSeconds * 1000)
-  if (-not $completed) {
-    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-    Write-Host "Uninstall timed out after $timeoutSeconds seconds"
-    Exit 1603  # ERROR_UNINSTALL_FAILURE
+  try {
+    # Use /qn (quiet no UI) for better compatibility
+    # REBOOT=ReallySuppress prevents any reboot prompts
+    $process = Start-Process msiexec -ArgumentList @("/x", $productCode, "/qn", "/norestart", "REBOOT=ReallySuppress") -PassThru -NoNewWindow
+    
+    # Wait for process with timeout
+    $completed = $process.WaitForExit($timeoutSeconds * 1000)
+    if (-not $completed) {
+      Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+      Write-Host "Uninstall timed out after $timeoutSeconds seconds for product code: $productCode"
+      $allSucceeded = $false
+      continue
+    }
+    
+    # Check exit code
+    if ($process.ExitCode -eq 0) {
+      Write-Host "Uninstall successful for product code: $productCode (exit code: 0)"
+    } else {
+      Write-Host "Uninstall failed for product code: $productCode with exit code: $($process.ExitCode)"
+      $allSucceeded = $false
+    }
+  } catch {
+    Write-Host "Error running uninstaller for product code $productCode : $_"
+    $allSucceeded = $false
   }
-  
-  # Check exit code and output result
-  if ($process.ExitCode -eq 0) {
-    Write-Host "Uninstall successful (exit code: 0)"
-    # Add a delay to ensure filesystem and registry are updated
-    Start-Sleep -Seconds 3
-    Exit 0
-  } else {
-    Write-Host "Uninstall failed with exit code: $($process.ExitCode)"
-    Exit $process.ExitCode
-  }
-} catch {
-  Write-Host "Error running uninstaller: $_"
-  Exit 1
+}
+
+# Add a delay to ensure filesystem and registry are updated
+if ($allSucceeded) {
+  Write-Host "All uninstalls completed successfully"
+  Start-Sleep -Seconds 5
+  Exit 0
+} else {
+  Write-Host "One or more uninstalls failed"
+  Exit 1603  # ERROR_UNINSTALL_FAILURE
 }
