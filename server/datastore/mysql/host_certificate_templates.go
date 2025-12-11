@@ -314,24 +314,42 @@ func (ds *Datastore) TransitionCertificateTemplatesToDelivered(
 		return nil
 	}
 
-	// Update each template individually. The number of certificate templates per host
-	// is expected to be small (typically 1-10), so individual updates are simpler.
-	stmt := fmt.Sprintf(`
+	// Build UPDATE with CASE for each template's challenge.
+	// This is called once per host, so the CASE size is bounded by templates per host (small).
+	// Using a single UPDATE per host is more efficient than individual updates when processing many hosts.
+	var caseStmt strings.Builder
+	args := make([]any, 0, len(challenges)*3+1) // CASE args + hostUUID + IN args
+	caseStmt.WriteString("CASE certificate_template_id ")
+	for templateID, challenge := range challenges {
+		caseStmt.WriteString("WHEN ? THEN ? ")
+		args = append(args, templateID, challenge)
+	}
+	caseStmt.WriteString("END")
+
+	// Add hostUUID for WHERE clause
+	args = append(args, hostUUID)
+
+	// Build IN clause for template IDs
+	inPlaceholders := make([]string, 0, len(challenges))
+	for templateID := range challenges {
+		inPlaceholders = append(inPlaceholders, "?")
+		args = append(args, templateID)
+	}
+
+	query := fmt.Sprintf(`
 		UPDATE host_certificate_templates
 		SET
 			status = '%s',
-			fleet_challenge = ?,
+			fleet_challenge = %s,
 			updated_at = NOW()
 		WHERE
 			host_uuid = ? AND
 			status = '%s' AND
-			certificate_template_id = ?
-	`, fleet.CertificateTemplateDelivered, fleet.CertificateTemplateDelivering)
+			certificate_template_id IN (%s)
+	`, fleet.CertificateTemplateDelivered, caseStmt.String(), fleet.CertificateTemplateDelivering, strings.Join(inPlaceholders, ","))
 
-	for templateID, challenge := range challenges {
-		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, challenge, hostUUID, templateID); err != nil {
-			return ctxerr.Wrap(ctx, err, "transition to delivered")
-		}
+	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "transition to delivered")
 	}
 
 	return nil
