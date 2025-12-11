@@ -1,97 +1,152 @@
+import React, { useState, useCallback, useContext } from "react";
+import { AxiosError } from "axios";
+import { useQuery } from "react-query";
+
+import { AppContext } from "context/app";
+import PATHS from "router/paths";
+
+import UploadList from "pages/ManageControlsPage/components/UploadList";
+
+import Pagination from "components/Pagination";
 import CustomLink from "components/CustomLink";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionHeader from "components/SectionHeader";
-import { AppContext } from "context/app";
-import React, { useContext } from "react";
-import { useQuery } from "react-query";
-import { DEFAULT_USE_QUERY_OPTIONS, LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import mdmAPI, { IMdmCertsResponse } from "services/entities/mdm";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
+
+import certAPI, {
+  IGetCertTemplatesResponse,
+  IQueryKeyGetCerts,
+} from "services/entities/certificates";
+
+import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
+import ProfileListHeading from "../CustomSettings/components/ProfileListHeading";
 
 const baseClass = "certificates";
 
-interface ICertificates {}
+export type ICertificatesProps = IOSSettingsCommonProps & {
+  currentPage?: number;
+};
 
-const Certificates = ({}: ICertificates) => {
+const Certificates = ({
+  currentTeamId,
+  router,
+  currentPage = 0,
+  onMutation,
+}: ICertificatesProps) => {
+  const [showAddCertModal, setShowAddCertModal] = useState(false);
   const { config, isPremiumTier } = useContext(AppContext);
 
+  const androidMdmEnabled = !!config?.mdm.android_enabled_and_configured;
+
   const {
-    data: certs,
+    data: certsResp,
     isLoading: isLoadingCerts,
     isError: isErrorCerts,
     refetch: refetchCerts,
-  } = useQuery<IMdmCertsResponse, unknown>(
+  } = useQuery<
+    IGetCertTemplatesResponse,
+    AxiosError,
+    IGetCertTemplatesResponse,
+    IQueryKeyGetCerts[]
+  >(
     [
       {
         scope: "certificates",
         team_id: currentTeamId,
         page: currentPage,
-        per_page: PROFILES_PER_PAGE,
+        per_page: 10,
       },
     ],
-    () =>
-      mdmAPI.getCertificates({
-        team_id: currentTeamId,
-        page: currentPage,
-        per_page: 10,
-      }),
+    ({ queryKey }) => certAPI.getCertTemplates(queryKey[0]),
     {
-      ...DEFAULT_USE_QUERY_OPTIONS
-      enabled: config?.mdm.android_enabled_and_configured ?? false,
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier && androidMdmEnabled,
     }
   );
-  const profiles = profilesData?.profiles;
-  const meta = profilesData?.meta;
+
+  const certs = certsResp?.certificates;
+  const { has_next_results: hasNext, has_previous_results: hasPrev } =
+    certsResp?.meta || {};
+
+  const onAddCert = () => {
+    refetchCerts();
+    onMutation();
+  };
+
+  // const onDeleteCert = async (profileId: string) => {
+  //   setIsDeleting(true);
+  //   try {
+  //     await mdmAPI.deleteProfile(profileId);
+  //     refetchCerts();
+  //     onMutation();
+  //     renderFlash("success", "Successfully deleted!");
+  //   } catch (e) {
+  //     renderFlash("error", "Couldn't delete. Please try again.");
+  //   } finally {
+  //     selectedProfile.current = null;
+  //     setShowDeleteProfileModal(false);
+  //   }
+  //   setIsDeleting(false);
+  // };
+
+  // pagination controls
+  const path = PATHS.CONTROLS_CUSTOM_SETTINGS;
+  const queryString = isPremiumTier ? `?team_id=${currentTeamId}&` : "?";
+
+  const onPrevPage = useCallback(() => {
+    router.push(path.concat(`${queryString}page=${currentPage - 1}`));
+  }, [router, path, currentPage, queryString]);
+
+  const onNextPage = useCallback(() => {
+    router.push(path.concat(`${queryString}page=${currentPage + 1}`));
+  }, [router, path, currentPage, queryString]);
+
   const renderContent = () => {
     if (!isPremiumTier) {
       return <PremiumFeatureMessage />;
     }
-    if (isLoadingProfiles) {
+    if (isLoadingCerts) {
       return <Spinner />;
     }
 
-    if (isErrorProfiles) {
+    if (isErrorCerts) {
       return <DataError />;
     }
 
-    if (!profiles?.length) {
-      return <AddProfileCard setShowModal={setShowAddProfileModal} />;
+    if (!certs?.length) {
+      // TODO
+      <>ADD A CERT (empty to-do)</>;
     }
 
     return (
       <>
         <UploadList
-          keyAttribute="profile_uuid"
-          listItems={profiles}
+          keyAttribute="id"
+          listItems={certs || []}
           HeadingComponent={() => (
             <ProfileListHeading
-              onClickAddProfile={() => setShowAddProfileModal(true)}
+              entityName="Certificate"
+              createEntityText="Create"
+              onClickAdd={() => setShowAddCertModal(true)}
             />
           )}
-          ListItemComponent={({ listItem }) => (
-            <ProfileListItem
-              isPremium={!!isPremiumTier}
-              profile={listItem}
-              setProfileLabelsModalData={setProfileLabelsModalData}
-              onClickInfo={onClickInfo}
-              onClickDelete={onClickDelete}
-            />
-          )}
+          ListItemComponent={({ listItem }) => <CertificateListItem />}
         />
         <Pagination
-          disableNext={!meta?.has_next_results}
-          disablePrev={!meta?.has_previous_results}
-          hidePagination={
-            !meta?.has_next_results && !meta?.has_previous_results
-          }
+          disableNext={!hasNext}
+          disablePrev={!hasPrev}
+          hidePagination={!hasNext && !hasPrev}
           onNextPage={onNextPage}
           onPrevPage={onPrevPage}
         />
       </>
     );
-    // premium message if Free
-    // empty state if none
-    // <UploadList />
   };
 
   return (

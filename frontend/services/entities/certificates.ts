@@ -14,7 +14,10 @@ import {
   ICertificatesSmallstep,
   ICertificatesCustomEST,
 } from "interfaces/certificates";
-import { ListEntitiesResponsePaginationCommon } from "./common";
+import {
+  ListEntitiesResponsePaginationCommon,
+  PaginationParams,
+} from "./common";
 
 type IGetCertAuthoritiesListResponse = {
   certificate_authorities: ICertificateAuthorityPartial[];
@@ -44,23 +47,24 @@ export type IEditCertAuthorityBody =
   | { smallstep: Partial<ICertificatesSmallstep> }
   | { custom_est_proxy: Partial<ICertificatesCustomEST> };
 
-interface IGetCertTemplatesParams {
+interface IGetCertTemplatesParams extends PaginationParams {
   // not supported: after, order key, order direction, match query, meta (always included)
-  teamId?: number;
-  page?: number;
-  perPage?: number;
+  team_id?: number;
 }
 
 export interface IQueryKeyGetCerts extends IGetCertTemplatesParams {
   scope: "certificates";
 }
-export interface IGetCertTemplatesResponse
-  extends ListEntitiesResponsePaginationCommon {
+export interface ICertTemplate {
   id: number;
   name: string;
   certificate_authority_id: number;
   certificate_authority_name: string;
   created_at: string;
+}
+export interface IGetCertTemplatesResponse {
+  meta: ListEntitiesResponsePaginationCommon;
+  certificates: ICertTemplate[];
 }
 
 export interface ICreateCertTemplate {
@@ -106,18 +110,13 @@ export default {
     return sendRequest("GET", CERTIFICATE_AUTHORITY_REQUEST_CERT(id));
   },
   getCertTemplates: ({
-    teamId,
+    team_id,
     page,
-    perPage,
+    per_page,
   }: IGetCertTemplatesParams): Promise<IGetCertTemplatesResponse> => {
     const { CERT_TEMPLATES } = endpoints;
-    const snakeCaseParams = convertParamsToSnakeCase({
-      teamId,
-      page,
-      perPage,
-    });
 
-    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const queryString = buildQueryStringFromParams({ team_id, page, per_page });
 
     return sendRequest(
       "GET",
