@@ -90,25 +90,82 @@ if ($productCodes.Count -eq 0) {
 foreach ($productCode in $productCodes) {
   Write-Host "Attempting to uninstall product code: $productCode"
   
-  # Use /quiet (matches pattern from other working scripts)
-  $process = Start-Process msiexec -ArgumentList @("/quiet", "/x", $productCode, "/norestart") -PassThru
+  # Try WindowsInstaller COM object method first (more reliable)
+  $uninstalled = $false
+  try {
+    if (-not $installer) {
+      $installer = New-Object -ComObject WindowsInstaller.Installer
+    }
+    Write-Host "Using WindowsInstaller COM object to uninstall..."
+    $installer.ConfigureProduct($productCode, 0, 2, $null)  # 2 = INSTALLSTATE_ABSENT (uninstall)
+    $uninstalled = $true
+    Write-Host "WindowsInstaller COM object uninstall completed"
+  } catch {
+    Write-Host "WindowsInstaller COM object method failed: $_, trying msiexec..."
+  }
   
-  # Wait for process with timeout
-  $completed = $process.WaitForExit($timeoutSeconds * 1000)
+  # Fallback to msiexec if COM object method didn't work
+  if (-not $uninstalled) {
+    Write-Host "Using msiexec to uninstall..."
+    $process = Start-Process msiexec -ArgumentList @("/quiet", "/x", $productCode, "/norestart") -PassThru
+    
+    # Wait for process with timeout
+    $completed = $process.WaitForExit($timeoutSeconds * 1000)
+    
+    if (-not $completed) {
+      Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+      Write-Host "Uninstall timed out after $timeoutSeconds seconds for product code: $productCode"
+      Exit 1603  # ERROR_UNINSTALL_FAILURE
+    }
+    
+    # If the uninstall failed, bail
+    if ($process.ExitCode -ne 0) {
+      Write-Host "Uninstall for $productCode exited $($process.ExitCode)"
+      Exit $process.ExitCode
+    }
+  }
   
-  if (-not $completed) {
-    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-    Write-Host "Uninstall timed out after $timeoutSeconds seconds for product code: $productCode"
+  # Verify uninstall succeeded by checking if product still exists
+  Write-Host "Verifying uninstall for product code: $productCode"
+  Start-Sleep -Seconds 2
+  
+  $stillExists = $false
+  try {
+    if (-not $installer) {
+      $installer = New-Object -ComObject WindowsInstaller.Installer
+    }
+    $installState = $installer.ProductState($productCode)
+    # ProductState returns 0 if product is not installed
+    if ($installState -ne 0) {
+      $stillExists = $true
+      Write-Host "Product still exists (ProductState: $installState)"
+    } else {
+      Write-Host "Product verified as uninstalled (ProductState: 0)"
+    }
+  } catch {
+    # If we can't check via COM object, check registry
+    $paths = @(
+      'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+      'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+    )
+    foreach ($p in $paths) {
+      if (Test-Path "$p\$productCode") {
+        $stillExists = $true
+        Write-Host "Product still exists in registry: $p\$productCode"
+        break
+      }
+    }
+    if (-not $stillExists) {
+      Write-Host "Product verified as uninstalled (not found in registry)"
+    }
+  }
+  
+  if ($stillExists) {
+    Write-Host "Uninstall verification failed for product code: $productCode"
     Exit 1603  # ERROR_UNINSTALL_FAILURE
   }
   
-  # If the uninstall failed, bail
-  if ($process.ExitCode -ne 0) {
-    Write-Host "Uninstall for $productCode exited $($process.ExitCode)"
-    Exit $process.ExitCode
-  }
-  
-  Write-Host "Uninstall successful for product code: $productCode"
+  Write-Host "Uninstall successful and verified for product code: $productCode"
 }
 
 # All uninstalls succeeded; exit success
