@@ -14,9 +14,9 @@
   frequency: "Annually"
   description: "https://fleetdm.com/handbook/engineering#renew-mdm-certificate-signing-request-csr"
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#renew-mdm-certificate-signing-request-csr"
-  dri: "lukeheath"
+  dri: "georgekarrv"
   autoIssue: 
-    labels: [ "~engineering-initiated" ]
+    labels: [ "#g-mdm", "P2"]
     repo: "fleet"
 -
   task: "Renew Apple developer account"
@@ -24,9 +24,9 @@
   frequency: "Annually"
   description: https://fleetdm.com/handbook/engineering#accept-new-apple-developer-account-terms
   moreInfoUrl: https://fleetdm.com/handbook/engineering#accept-new-apple-developer-account-terms
-  dri: "lukeheath"
+  dri: "georgekarrv"
   autoIssue: 
-    labels: [ "~engineering-initiated" ]
+    labels: [ "#g-mdm", "P2"]
     repo: "fleet"
 - 
   task: "Oncall handoff"
@@ -67,7 +67,7 @@
   task: "Release ritual"
   startedOn: "2023-08-09" 
   frequency: "Triweekly"
-  description: "Go through the process of releasing the next iteration of Fleet."
+  description: "Go through the process of releasing the next minor version of Fleet."
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#prepare-fleet-release"
   dri: "lukeheath"
 - 
@@ -78,26 +78,19 @@
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#prepare-fleet-release"
   dri: "lukeheath"
 - 
-  task: "Bug review"
-  startedOn: "2023-08-09" 
-  frequency: "Weekly"
-  description: "Review bugs that are in QA's inbox."
-  moreInfoUrl: "https://www.fleetdm.com/handbook/company/product-groups#inbox"
-  dri: "xpkoala"
-- 
   task: "QA report"
   startedOn: "2023-08-09" 
   frequency: "Triweekly"
   description: "Every release cycle, on the Monday of release week, update the DRI for the release ritual on status of testing."
   moreInfoUrl:
-  dri: "xpkoala"
+  dri: "AndreyKizimenko"
 - 
   task: "Release QA"
   startedOn: "2023-08-09" 
   frequency: "Triweekly"
   description: "Every release cycle, by end of day Friday of release week, move all issues to the ”✅ Ready for release” column on the #g-mdm and #g-endpoint-ops sprint boards."
   moreInfoUrl:
-  dri: "xpkoala"
+  dri: "AndreyKizimenko"
 -
   task: "Submit test coverage requests to QA Wolf"
   startedOn: "2025-07-29" 
@@ -106,13 +99,6 @@
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#submit-test-coverage-requests-to-qa-wolf"
   dri: "AndreyKizimenko"
 -
-  task: "Review ongoing articles"
-  startedOn: "2023-10-02"
-  frequency: "Daily"
-  description: "Check 📃 Planned articles and complete steps in each issue"
-  moreInfoUrl: "https://fleetdm.com/handbook/marketing#review-ongoing-articles"
-  dri: "rachaelshaw"
-- 
   task: "Check production dependencies of fleetdm.com"
   startedOn: "2023-11-10" 
   frequency: "Weekly"

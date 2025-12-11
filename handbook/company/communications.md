@@ -250,6 +250,7 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 - We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
+- To save everyone time, please [don't ask to ask: just ask](https://dontasktoask.com/).
 
 > **Need an app that you don't see in Fleet Slack?** [Create a IT & Enablement issue](https://fleetdm.com/handbook/it-and-enablement#contact-us) to request an app be added to the Fleet Slack workspace.
 
@@ -685,7 +686,11 @@ Finance will review and process your request within 2 business days.
 - If the stay is longer than 4 nights and an Airbnb with a washing machine is not available, then dry cleaning can be purchased with your Brex card.
 - If you need to meet with a large group that won't fit in your hotel room or Airbnb (e.g. more than 5 people), [contact People](https://fleetdm.com/handbook/people#contact-us) for their help approving and booking additional event space.
 
+<!--
+
 > ***Tech Tip while traveling*** If you encounter issues connecting to airline or hotel Wi-Fi while on a Fleet-managed Mac, go to  > System Settings... > Network > Filters > Cloudflare DNS over HTTPS and temporarily toggle its status from Enabled to Disabled. Once you have an internet connection, you should toggle this status back to Enabled to stay protected while online. 
+
+-->
 
 
 ### Attending conferences

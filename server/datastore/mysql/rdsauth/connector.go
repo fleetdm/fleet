@@ -1,4 +1,5 @@
-package common_mysql
+// Package rdsauth provides AWS IAM authentication for RDS MySQL connections.
+package rdsauth
 
 import (
 	"context"
@@ -9,12 +10,15 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/rds/auth"
 	"github.com/fleetdm/fleet/v4/server/aws_common"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/go-kit/log"
 	"github.com/go-sql-driver/mysql"
+	// Blank import registers the "rdsmysql" TLS config with pre-loaded AWS RDS CA certificates
+	_ "github.com/shogo82148/rdsmysql/v2"
 )
 
-// awsIAMAuthTokenGenerator generates AWS IAM authentication tokens for RDS MySQL
-type awsIAMAuthTokenGenerator struct {
+// iamAuthTokenGenerator generates AWS IAM authentication tokens for RDS MySQL
+type iamAuthTokenGenerator struct {
 	dbEndpoint   string // Full endpoint with port
 	dbUsername   string
 	region       string
@@ -22,8 +26,8 @@ type awsIAMAuthTokenGenerator struct {
 	tokenManager *aws_common.IAMAuthTokenManager
 }
 
-// newAWSIAMAuthTokenGenerator creates a new IAM authentication token generator
-func newAWSIAMAuthTokenGenerator(dbEndpoint, dbUsername, dbPort, region, assumeRoleArn, stsExternalID string) (*awsIAMAuthTokenGenerator, error) {
+// newIAMAuthTokenGenerator creates a new IAM authentication token generator
+func newIAMAuthTokenGenerator(dbEndpoint, dbUsername, dbPort, region, assumeRoleArn, stsExternalID string) (*iamAuthTokenGenerator, error) {
 	// Load AWS configuration
 	cfg, err := aws_common.LoadAWSConfig(context.Background(), region, assumeRoleArn, stsExternalID)
 	if err != nil {
@@ -36,7 +40,7 @@ func newAWSIAMAuthTokenGenerator(dbEndpoint, dbUsername, dbPort, region, assumeR
 		fullEndpoint = fmt.Sprintf("%s:%s", dbEndpoint, dbPort)
 	}
 
-	g := &awsIAMAuthTokenGenerator{
+	g := &iamAuthTokenGenerator{
 		dbEndpoint:  fullEndpoint,
 		dbUsername:  dbUsername,
 		region:      region,
@@ -51,12 +55,12 @@ func newAWSIAMAuthTokenGenerator(dbEndpoint, dbUsername, dbPort, region, assumeR
 
 // getAuthToken gets an IAM authentication token for RDS
 // It uses a cache to avoid generating new tokens for every connection
-func (g *awsIAMAuthTokenGenerator) getAuthToken(ctx context.Context) (string, error) {
+func (g *iamAuthTokenGenerator) getAuthToken(ctx context.Context) (string, error) {
 	return g.tokenManager.GetToken(ctx)
 }
 
 // newToken creates a new IAM authentication token
-func (g *awsIAMAuthTokenGenerator) newToken(ctx context.Context) (string, error) {
+func (g *iamAuthTokenGenerator) newToken(ctx context.Context) (string, error) {
 	authToken, err := auth.BuildAuthToken(ctx, g.dbEndpoint, g.region, g.dbUsername, g.credentials)
 	if err != nil {
 		return "", fmt.Errorf("failed to build auth token: %w", err)
@@ -65,16 +69,15 @@ func (g *awsIAMAuthTokenGenerator) newToken(ctx context.Context) (string, error)
 	return authToken, nil
 }
 
-// awsIAMAuthConnector implements driver.Connector for IAM authentication
-type awsIAMAuthConnector struct {
-	driverName string
-	baseDSN    string
-	tokenGen   *awsIAMAuthTokenGenerator
-	logger     log.Logger
+// Connector implements driver.Connector for IAM authentication
+type Connector struct {
+	baseDSN  string
+	tokenGen *iamAuthTokenGenerator
+	logger   log.Logger
 }
 
 // Connect implements driver.Connector
-func (c *awsIAMAuthConnector) Connect(ctx context.Context) (driver.Conn, error) {
+func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
 	token, err := c.tokenGen.getAuthToken(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate IAM auth token: %w", err)
@@ -96,6 +99,31 @@ func (c *awsIAMAuthConnector) Connect(ctx context.Context) (driver.Conn, error) 
 }
 
 // Driver implements driver.Connector
-func (c *awsIAMAuthConnector) Driver() driver.Driver {
+func (c *Connector) Driver() driver.Driver {
 	return mysql.MySQLDriver{}
+}
+
+// NewConnectorFactory returns a factory function that creates IAM-authenticated
+// database connectors. This factory can be injected into common_mysql.NewDB
+// to enable IAM authentication without adding AWS dependencies to common_mysql.
+func NewConnectorFactory(conf *config.MysqlConfig, host, port string) (func(dsn string, logger log.Logger) (driver.Connector, error), error) {
+	tokenGen, err := newIAMAuthTokenGenerator(
+		host,
+		conf.Username,
+		port,
+		conf.Region,
+		conf.StsAssumeRoleArn,
+		conf.StsExternalID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create IAM token generator: %w", err)
+	}
+
+	return func(dsn string, logger log.Logger) (driver.Connector, error) {
+		return &Connector{
+			baseDSN:  dsn,
+			tokenGen: tokenGen,
+			logger:   logger,
+		}, nil
+	}, nil
 }

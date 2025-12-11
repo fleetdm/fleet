@@ -86,7 +86,7 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 			token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
 			require.NoError(t, err)
 
-			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) error {
 				return nil
 			}
 			ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
@@ -248,7 +248,7 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 			token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
 			require.NoError(t, err)
 
-			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) error {
 				return nil
 			}
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
@@ -368,7 +368,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
 			require.NoError(t, err)
 
-			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) error {
 				return nil
 			}
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
@@ -501,7 +501,7 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 			token, err := test.CreateVPPTokenEncoded(c.tokenExpiration, "fleet", "ca")
 			require.NoError(t, err)
 
-			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) error {
 				return nil
 			}
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {

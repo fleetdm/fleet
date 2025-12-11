@@ -3093,45 +3093,77 @@ spec:
     
     Supported applications: Cursor (macOS/Linux/Windows), Claude Desktop (macOS/Windows), Claude Code (macOS/Linux), VSCode (macOS/Linux/Windows), Windsurf (macOS), Gemini CLI (macOS/Linux/Windows), LMStudio (macOS/Linux/Windows)
   query: |
-    -- Step 1: Define config file path suffixes for each supported application
+        /* ----------------------------------------------------------
+      1️⃣  Get MCP client configurations from your endpoints.
+          (including the two new VS Code extensions: RooCode & Augment)
+      ---------------------------------------------------------- */
     WITH path_suffixes(path) AS (
       VALUES 
-        ('/.cursor/mcp.json'), -- Cursor, macOS/Linux/Windows
-        ('/Library/Application Support/Claude/claude_desktop_config.json'), -- Claude Desktop, macOS
-        ('\AppData\Roaming\Claude\claude_desktop_config.json'), -- Claude Desktop, Windows
-        ('/.claude.json'), -- Claude Code, macOS/Linux
-        ('/Library/Application Support/Code/User/mcp.json'), -- VSCode, macOS
-        ('/.config/Code/User/mcp.json'), -- VSCode, Linux
-        ('\AppData\Roaming\Code\User\mcp.json'), -- VSCode, Windows
-        ('/.codeium/windsurf/mcp_config.json'), -- Windsurf, macOS
-        ('/.gemini/settings.json'), -- Gemini CLI, macOS/Linux/Windows
-        ('/.lmstudio/mcp.json') -- LMStudio, macOS/Linux/Windows
-    ), 
-    -- Step 2: Build full file paths by combining each user's home directory with the path suffixes
+        -- Cursor
+        ('/.cursor/mcp.json'),
+
+        -- Claude Desktop (macOS)
+        ('/Library/Application Support/Claude/claude_desktop_config.json'),
+
+        -- Claude Desktop (Windows)
+        ('\\AppData\\Roaming\\Claude\\claude_desktop_config.json'),
+
+        -- Claude Code
+        ('/.claude.json'),
+
+        /* ───── VS Code (original paths) ────────────────────── */
+        ('/Library/Application Support/Code/User/mcp.json'),              -- macOS
+        ('/.config/Code/User/mcp.json'),                                   -- Linux / Ubuntu
+        ('\\AppData\\Roaming\\Code\User\\mcp.json'),                       -- Windows
+
+        /* ───── VS Code – RooCode & Augment (new paths) ────────── */
+        -- RooCode
+        ('/Library/Application Support/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/mcp_settings.json'),          -- macOS
+        ('/.config/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/mcp_settings.json'),                              -- Linux / Ubuntu
+        ('\\AppData\\Roaming\\Code\User\\globalStorage\\rooveterinaryinc.roo-cline\\settings\\mcp_settings.json'),              -- Windows
+
+        -- Augment
+        ('/Library/Application Support/Code/User/globalStorage/augment.vscode-augment/augment-global-state/mcpServers.json'),    -- macOS
+        ('/.config/Code/User/globalStorage/augment.vscode-augment/augment-global-state/mcpServers.json'),                        -- Linux / Ubuntu
+        ('\\AppData\\Roaming\\Code\User\\globalStorage\\augment.vscode-augment\\augment-global-state\\mcpServers.json'),          -- Windows
+
+        /* ───── Other apps ─────────────────────────────────── */
+        ('/.gemini/settings.json'),   -- Gemini CLI (macOS/Linux/Windows)
+        ('/.lmstudio/mcp.json')       -- LMStudio (macOS/Linux/Windows)
+    ),
+
+    /* ----------------------------------------------------------
+      2️⃣  Build absolute file paths for every user + suffix
+      ---------------------------------------------------------- */
     full_paths AS (
-      SELECT directory || path AS full_path
-      FROM users 
-      JOIN path_suffixes
-    ), 
-    -- Step 3: Read config files that exist and concatenate their lines into complete JSON strings
+      SELECT u.directory || p.path  AS full_path,
+            p.path                 AS suffix
+      FROM users   u
+      JOIN path_suffixes p ON 1=1     
+    ),
+
+    /* ----------------------------------------------------------
+      3️⃣  Read only the files that actually exist and concat them
+      ---------------------------------------------------------- */
     config_files AS (
-      SELECT path, group_concat(line, '') AS contents 
-      FROM file_lines 
-      WHERE path IN full_paths 
-      GROUP BY path
-    ) 
-    -- Step 4: Parse JSON and extract each MCP server configuration
-    SELECT 
-      config_files.path, 
-      key AS name, 
-      value AS mcp_config 
-    FROM config_files 
-    JOIN json_each(
-      COALESCE(
-        config_files.contents->'$.mcpServers',
-        config_files.contents->'$.servers'
-        ) -- Most configs use 'mcpServers' key, but some use 'servers' key
+      SELECT f.path,
+            group_concat(f.line, '') AS contents
+      FROM file_lines f
+      JOIN full_paths fp ON f.path = fp.full_path   
+      GROUP BY f.path
     )
+
+    /* ----------------------------------------------------------
+      4️⃣  Parse JSON & pull out each MCP server configuration
+      ---------------------------------------------------------- */
+    SELECT cf.path,
+          je.key  AS name,          
+          je.value AS mcp_config   
+    FROM config_files cf
+    JOIN json_each(
+          COALESCE(json_extract(cf.contents, '$.mcpServers'),
+                  json_extract(cf.contents, '$.servers'))
+        ) AS je;  
   purpose: Informational
   tags: fleet, osquery, mcp, ai, agents, llm, inventory
   contributors: zwass
