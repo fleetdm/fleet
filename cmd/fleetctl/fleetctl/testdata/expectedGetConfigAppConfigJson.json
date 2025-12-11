@@ -114,15 +114,15 @@
       "enable_disk_encryption": false,
       "macos_updates": {
         "minimum_version": null,
-        "deadline": null,
+        "deadline": null
       },
       "ios_updates": {
         "minimum_version": null,
-        "deadline": null,
+        "deadline": null
       },
       "ipados_updates": {
         "minimum_version": null,
-        "deadline": null,
+        "deadline": null
       },
       "windows_updates": {
         "deadline_days": 7,
