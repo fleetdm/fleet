@@ -18,7 +18,6 @@ func Up_20251209221730(tx *sql.Tx) error {
 	if err := updateAppConfigJSON(tx, func(config *fleet.AppConfig) error {
 		if config != nil {
 			config.MDM.MacOSUpdates.UpdateNewHosts = optjson.SetBool(config.MDM.MacOSUpdates.Configured())
-			fmt.Printf("Updating global config: %+v\n", config.MDM.MacOSUpdates.UpdateNewHosts)
 		}
 		return nil
 	}); err != nil {
