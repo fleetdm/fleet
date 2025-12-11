@@ -55,7 +55,7 @@ Software installer uploads will fail if Fleet can't extract this metadata and ve
 
 .tar.gz archives are uploaded as-is without attempting to pull metadata, and will be added successfully as long as they are valid archives, and as long as install and uninstall scripts are supplied.
 
-### Script packages
+### Payload-free packages
 
 Script packages (`.sh` and `.ps1` files) are payload-free packages that run scripts directly on hosts without installing traditional software. The script file's contents become the install script.
 
