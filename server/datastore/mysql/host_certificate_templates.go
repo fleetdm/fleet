@@ -15,7 +15,7 @@ import (
 
 // ListAndroidHostUUIDsWithDeliverableCertificateTemplates returns a batch of host UUIDs that have certificate templates to deliver
 func (ds *Datastore) ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {
-	const stmt = `
+	stmt := fmt.Sprintf(`
 		SELECT DISTINCT
 			hosts.uuid
 		FROM certificate_templates
@@ -25,12 +25,12 @@ func (ds *Datastore) ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx
 			ON host_certificate_templates.host_uuid = hosts.uuid
 			AND host_certificate_templates.certificate_template_id = certificate_templates.id
 		WHERE
-			hosts.platform = 'android' AND
+			hosts.platform = '%s' AND
 			host_mdm.enrolled = 1 AND
 			host_certificate_templates.id IS NULL
 		ORDER BY hosts.uuid
 		LIMIT ? OFFSET ?
-	`
+	`, fleet.AndroidPlatform)
 
 	var hostUUIDs []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt, limit, offset); err != nil {
@@ -230,15 +230,15 @@ func (ds *Datastore) ListAndroidHostUUIDsWithPendingCertificateTemplates(
 	offset int,
 	limit int,
 ) ([]string, error) {
-	const stmt = `
+	stmt := fmt.Sprintf(`
 		SELECT DISTINCT host_uuid
 		FROM host_certificate_templates
 		WHERE
-			status = 'pending' AND
-			operation_type = 'install'
+			status = '%s' AND
+			operation_type = '%s'
 		ORDER BY host_uuid
 		LIMIT ? OFFSET ?
-	`
+	`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
 	var hostUUIDs []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt, limit, offset); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host uuids with pending certificate templates")
@@ -256,16 +256,16 @@ func (ds *Datastore) TransitionCertificateTemplatesToDelivering(
 	var templates []fleet.HostCertificateTemplate
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Select templates that are pending
-		const selectStmt = `
+		selectStmt := fmt.Sprintf(`
 			SELECT
 				id, host_uuid, certificate_template_id, fleet_challenge, status, operation_type
 			FROM host_certificate_templates
 			WHERE
 				host_uuid = ? AND
-				status = 'pending' AND
-				operation_type = 'install'
+				status = '%s' AND
+				operation_type = '%s'
 			FOR UPDATE
-		`
+		`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
 		if err := sqlx.SelectContext(ctx, tx, &templates, selectStmt, hostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "select pending templates")
 		}
@@ -275,11 +275,11 @@ func (ds *Datastore) TransitionCertificateTemplatesToDelivering(
 		}
 
 		// Transition to delivering
-		const updateStmt = `
+		updateStmt := fmt.Sprintf(`
 			UPDATE host_certificate_templates
-			SET status = 'delivering', updated_at = NOW()
-			WHERE host_uuid = ? AND status = 'pending' AND operation_type = 'install'
-		`
+			SET status = '%s', updated_at = NOW()
+			WHERE host_uuid = ? AND status = '%s' AND operation_type = '%s'
+		`, fleet.CertificateTemplateDelivering, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
 		if _, err := tx.ExecContext(ctx, updateStmt, hostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "update to delivering")
 		}
@@ -325,14 +325,14 @@ func (ds *Datastore) TransitionCertificateTemplatesToDelivered(
 	query := fmt.Sprintf(`
 		UPDATE host_certificate_templates
 		SET
-			status = 'delivered',
+			status = '%s',
 			fleet_challenge = %s,
 			updated_at = NOW()
 		WHERE
 			host_uuid = ? AND
-			status = 'delivering' AND
+			status = '%s' AND
 			certificate_template_id IN (%s)
-	`, caseStmt.String(), strings.Join(inPlaceholders, ","))
+	`, fleet.CertificateTemplateDelivered, caseStmt.String(), fleet.CertificateTemplateDelivering, strings.Join(inPlaceholders, ","))
 
 	args := templateIDs
 	// Insert hostUUID before the IN clause placeholders
@@ -355,12 +355,13 @@ func (ds *Datastore) RevertCertificateTemplatesToPending(
 		return nil
 	}
 
-	stmt, args, err := sqlx.In(`
+	stmtTemplate := fmt.Sprintf(`
 		UPDATE host_certificate_templates
-		SET status = 'pending', updated_at = NOW()
-		WHERE host_uuid = ? AND status = 'delivering' AND operation_type = 'install'
+		SET status = '%s', updated_at = NOW()
+		WHERE host_uuid = ? AND status = '%s' AND operation_type = '%s'
 		AND certificate_template_id IN (?)
-	`, hostUUID, certificateTemplateIDs)
+	`, fleet.CertificateTemplatePending, fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeInstall)
+	stmt, args, err := sqlx.In(stmtTemplate, hostUUID, certificateTemplateIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build revert to pending query")
 	}
@@ -378,13 +379,13 @@ func (ds *Datastore) RevertStaleCertificateTemplates(
 	ctx context.Context,
 	staleDuration time.Duration,
 ) (int64, error) {
-	const stmt = `
+	stmt := fmt.Sprintf(`
 		UPDATE host_certificate_templates
-		SET status = 'pending', updated_at = NOW()
+		SET status = '%s', updated_at = NOW()
 		WHERE
-			status = 'delivering' AND
+			status = '%s' AND
 			updated_at < DATE_SUB(NOW(), INTERVAL ? SECOND)
-	`
+	`, fleet.CertificateTemplatePending, fleet.CertificateTemplateDelivering)
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, int(staleDuration.Seconds()))
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "revert stale certificate templates")

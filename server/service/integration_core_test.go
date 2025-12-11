@@ -8047,6 +8047,18 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	require.NoError(t, err)
 	certID := savedCertificateTemplates[0].ID
 
+	// Create a host_certificate_templates record for this host (simulating what happens during Android enrollment)
+	// The endpoint /api/fleetd/certificates/{id} requires a host_certificate_templates record to exist
+	err = s.ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+		{
+			HostUUID:              host.UUID,
+			CertificateTemplateID: certID,
+			Status:                fleet.CertificateTemplateDelivered,
+			OperationType:         fleet.MDMOperationTypeInstall,
+		},
+	})
+	require.NoError(t, err)
+
 	var getCertResp getDeviceCertificateTemplateResponse
 
 	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusOK, map[string]string{
@@ -8163,6 +8175,17 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	require.NoError(t, err)
 	require.Len(t, savedNoTeamCertTemplates, 3)
 	noTeamCertID := savedNoTeamCertTemplates[0].ID
+
+	// Create a host_certificate_templates record for this no-team host
+	err = s.ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+		{
+			HostUUID:              noTeamHost.UUID,
+			CertificateTemplateID: noTeamCertID,
+			Status:                fleet.CertificateTemplateDelivered,
+			OperationType:         fleet.MDMOperationTypeInstall,
+		},
+	})
+	require.NoError(t, err)
 
 	// Get certificate with orbit node_key (should return replaced variables)
 	var getNoTeamCertResp getDeviceCertificateTemplateResponse

@@ -38,7 +38,7 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 // This is used when a host (fleetd/Android agent) requests its certificate.
 func (ds *Datastore) GetCertificateTemplateByIdForHost(ctx context.Context, id uint, hostUUID string) (*fleet.CertificateTemplateResponseForHost, error) {
 	var template fleet.CertificateTemplateResponseForHost
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, `
+	stmt := fmt.Sprintf(`
 		SELECT
 			certificate_templates.id,
 			certificate_templates.name,
@@ -56,9 +56,10 @@ func (ds *Datastore) GetCertificateTemplateByIdForHost(ctx context.Context, id u
 		INNER JOIN host_certificate_templates
 			ON host_certificate_templates.certificate_template_id = certificate_templates.id
 			AND host_certificate_templates.host_uuid = ?
-			AND host_certificate_templates.operation_type = 'install'
+			AND host_certificate_templates.operation_type = '%s'
 		WHERE certificate_templates.id = ?
-	`, hostUUID, id); err != nil {
+	`, fleet.MDMOperationTypeInstall)
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, stmt, hostUUID, id); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id for host")
 	}
 
@@ -266,7 +267,7 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForExistingHosts(
 	certificateTemplateID uint,
 	teamID uint,
 ) (int64, error) {
-	const stmt = `
+	stmt := fmt.Sprintf(`
 		INSERT INTO host_certificate_templates (
 			host_uuid,
 			certificate_template_id,
@@ -278,16 +279,16 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForExistingHosts(
 			hosts.uuid,
 			?,
 			NULL,
-			'pending',
-			'install'
+			'%s',
+			'%s'
 		FROM hosts
 		INNER JOIN host_mdm ON host_mdm.host_id = hosts.id
 		WHERE
 			(hosts.team_id = ? OR (? = 0 AND hosts.team_id IS NULL)) AND
-			hosts.platform = 'android' AND
+			hosts.platform = '%s' AND
 			host_mdm.enrolled = 1
 		ON DUPLICATE KEY UPDATE host_uuid = host_uuid
-	`
+	`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall, fleet.AndroidPlatform)
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, certificateTemplateID, teamID, teamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "create pending certificate templates for hosts")
@@ -303,7 +304,7 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 	hostUUID string,
 	teamID uint,
 ) (int64, error) {
-	const stmt = `
+	stmt := fmt.Sprintf(`
 		INSERT INTO host_certificate_templates (
 			host_uuid,
 			certificate_template_id,
@@ -313,12 +314,12 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 		SELECT
 			?,
 			id,
-			'pending',
-			'install'
+			'%s',
+			'%s'
 		FROM certificate_templates
 		WHERE team_id = ?
 		ON DUPLICATE KEY UPDATE host_uuid = host_uuid
-	`
+	`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, teamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "create pending certificate templates for new host")
