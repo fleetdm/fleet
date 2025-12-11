@@ -220,6 +220,9 @@ func InitCommonDSMocks() *AndroidMockDS {
 	ds.Store.MarkAllPendingAndroidVPPInstallsAsFailedFunc = func(ctx context.Context) error {
 		return nil
 	}
+	ds.Store.CreatePendingCertificateTemplatesForNewHostFunc = func(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
+		return 0, nil
+	}
 	return &ds
 }
 

@@ -95,6 +95,9 @@ func (ds *Datastore) GetCertificateTemplateForHost(ctx context.Context, hostUUID
 
 	var result fleet.CertificateTemplateForHost
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, hostUUID, certificateTemplateID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("CertificateTemplateForHost"))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get certificate template for host")
 	}
 

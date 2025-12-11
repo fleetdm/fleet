@@ -163,24 +163,6 @@ func (v *SoftwareWorker) ensureHostSpecificPolicyIsApplied(ctx context.Context, 
 			return err
 		}
 
-		// Get android host info to access team ID for certificate templates
-		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
-		}
-
-		// Create pending certificate templates for this newly enrolled host
-		// so they can be picked up by BuildAndSendFleetAgentConfig.
-		// Use teamID = 0 for hosts with no team (certificate_templates uses team_id = 0 for "no team").
-		teamID := uint(0)
-		if androidHost.Host.TeamID != nil {
-			teamID = *androidHost.Host.TeamID
-		}
-		if _, err := v.Datastore.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, teamID); err != nil {
-			// Log error but don't fail - cron will pick up any missed templates
-			level.Error(v.Log).Log("msg", "failed to create pending certificate templates for new host", "host_uuid", hostUUID, "err", err)
-		}
-
 		err = v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "build and send fleet agent config for host %s", hostUUID)
@@ -198,6 +180,10 @@ func (v *SoftwareWorker) ensureHostSpecificPolicyIsApplied(ctx context.Context, 
 			// we probably don't want to re-enable it by accident. Those are the only
 			// 2 valid states when patching a device.
 			State: "ACTIVE",
+		}
+		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
 		}
 		deviceName := fmt.Sprintf("%s/devices/%s", enterpriseName, androidHost.DeviceID)
 		_, err = v.AndroidModule.PatchDevice(ctx, hostUUID, deviceName, device)
