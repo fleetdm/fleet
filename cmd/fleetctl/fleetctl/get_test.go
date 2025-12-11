@@ -3008,6 +3008,14 @@ func TestGetMDMCommands(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
+	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+		fmt.Println("Called", identifier)
+		if identifier == "foo" || identifier == "h1" {
+			return &fleet.HostLite{ID: 1, UUID: "h1", Hostname: "host1"}, nil
+		}
+		return nil, errors.New(fleet.HostIdentiferNotFound)
+	}
+
 	var empty bool
 	var listErr error
 	var noHostErr error
@@ -3029,7 +3037,7 @@ func TestGetMDMCommands(t *testing.T) {
 		if expectRequestType {
 			require.NotEmpty(t, listOpts.Filters.RequestType)
 		}
-
+		fmt.Println("Returning commands")
 		return []*fleet.MDMCommand{
 			{
 				HostUUID:    "h1",
@@ -3123,6 +3131,20 @@ The list of 3 most recent commands:
 	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
 	require.Error(t, err)
 	require.ErrorContains(t, err, fleet.HostIdentiferNotFound)
+
+	// Empty results when using host identifier
+	listErr = nil
+	empty = true
+	expectIdentifier = true
+	noHostErr = nil
+	buf, err = RunAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), "No MDM commands have been run on this host.")
+
+	// Command status no host
+	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--command_status", "ran"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `"host_identifier" must be specified when filtering by "command_status"`)
 }
 
 func TestUserIsObserver(t *testing.T) {
