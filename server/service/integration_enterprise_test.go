@@ -252,14 +252,17 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.15.0"),
 			Deadline:       optjson.SetString("2021-01-01"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.5.1"),
 			Deadline:       optjson.SetString("2024-07-23"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("18.0"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.Int{Set: true},
@@ -364,14 +367,17 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.15.0"),
 			Deadline:       optjson.SetString("2021-01-01"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.5.1"),
 			Deadline:       optjson.SetString("2024-07-23"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("18.0"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(1),
@@ -401,14 +407,17 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.15.0"),
 			Deadline:       optjson.SetString("2021-01-01"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.5.1"),
 			Deadline:       optjson.SetString("2024-07-23"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("18.0"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(1),
@@ -440,14 +449,17 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.15.0"),
 			Deadline:       optjson.SetString("2021-01-01"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.5.1"),
 			Deadline:       optjson.SetString("2024-07-23"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("18.0"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(1),
@@ -2662,14 +2674,17 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(5),

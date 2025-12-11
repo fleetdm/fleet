@@ -30,14 +30,17 @@
 				"enable_disk_encryption": false,
 				"windows_require_bitlocker_pin": false,
 				"macos_updates": {
+					"update_new_hosts": null,
 					"minimum_version": null,
 					"deadline": null
 				},
 				"ios_updates": {
+					"update_new_hosts": null,
 					"minimum_version": null,
 					"deadline": null
 				},
 				"ipados_updates": {
+					"update_new_hosts": null,
 					"minimum_version": null,
 					"deadline": null
 				},
@@ -120,14 +123,17 @@
 				"enable_disk_encryption": false,
 				"windows_require_bitlocker_pin": false,
 				"macos_updates": {
+					"update_new_hosts": null,
 					"minimum_version": "12.3.1",
 					"deadline": "2021-12-14"
 				},
 				"ios_updates": {
+					"update_new_hosts": null,
 					"minimum_version": "17.5",
 					"deadline": "2022-11-15"
 				},
 				"ipados_updates": {
+					"update_new_hosts": null,
 					"minimum_version": "18.0",
 					"deadline": "2023-01-01"
 				},
