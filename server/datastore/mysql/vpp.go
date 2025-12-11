@@ -454,7 +454,6 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			displayNameChanged = existingDisplayName != incomingDisplayName
 
 			if incomingApp.Platform == fleet.AndroidPlatform {
-				fmt.Println("incomingApp.Configuration: ", string(incomingApp.Configuration))
 				configurationChanged, err = ds.HasAndroidAppConfigurationChanged(ctx, existingApp.AdamID, ptr.ValOrZero(teamID), incomingApp.Configuration)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "getting existing configuration for android app")
@@ -551,8 +550,6 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			}
 
 			if toAdd.Configuration != nil {
-				fmt.Println("toAdd.Platform: ", toAdd.Platform)
-				fmt.Println("toAdd.Configuration: ", string(toAdd.Configuration))
 				if err := ds.updateAndroidAppConfigurationTx(ctx, tx, teamID, toAdd.AdamID, toAdd.Configuration); err != nil {
 					return ctxerr.Wrap(ctx, err, "setting configuration for android app")
 				}

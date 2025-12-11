@@ -881,12 +881,15 @@ func (c *Client) ApplyGroup(
 					return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", app.AppStoreID, app.Icon.Path, err)
 				}
 
-				androidConfig, err := getAndroidAppConfig(app.Configuration.Path)
-				if err != nil {
-					return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", app.AppStoreID, app.Configuration.Path, err)
+				var androidConfig json.RawMessage
+				if app.Platform == string(fleet.AndroidPlatform) {
+					androidConfig, err = getAndroidAppConfig(app.Configuration.Path)
+					if err != nil {
+						return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", app.AppStoreID, app.Configuration.Path, err)
+					}
 				}
 
-				appPayloads = append(appPayloads, fleet.VPPBatchPayload{
+				payload := fleet.VPPBatchPayload{
 					AppStoreID:         app.AppStoreID,
 					SelfService:        app.SelfService,
 					InstallDuringSetup: installDuringSetup,
@@ -897,8 +900,12 @@ func (c *Client) ApplyGroup(
 					IconPath:           app.Icon.Path,
 					IconHash:           iconHash,
 					Platform:           fleet.InstallableDevicePlatform(app.Platform),
-					Configuration:      androidConfig,
-				})
+				}
+				if androidConfig != nil {
+					payload.Configuration = androidConfig
+				}
+				appPayloads = append(appPayloads, payload)
+
 				// can be referenced by macos_setup.software.app_store_id
 				if tmSoftwareAppsByAppID[tmName] == nil {
 					tmSoftwareAppsByAppID[tmName] = make(map[string]fleet.TeamSpecAppStoreApp, len(apps))
@@ -1292,7 +1299,7 @@ func getIconHashIfValid(path string) (string, error) {
 
 func getAndroidAppConfig(path string) (json.RawMessage, error) {
 	if path == "" {
-		return nil, nil //TODO(JK): can we return nil here?
+		return nil, nil
 	}
 
 	configReader, err := os.ReadFile(path)
@@ -1700,7 +1707,6 @@ func extractTmSpecsFleetMaintainedApps(tmSpecs []json.RawMessage) map[string][]f
 }
 
 func extractTmSpecsSoftwareApps(tmSpecs []json.RawMessage) map[string][]fleet.TeamSpecAppStoreApp {
-	fmt.Println("extractTmSpecsSoftwareApps")
 	var m map[string][]fleet.TeamSpecAppStoreApp
 	for _, tm := range tmSpecs {
 		var spec struct {
@@ -1731,12 +1737,6 @@ func extractTmSpecsSoftwareApps(tmSpecs []json.RawMessage) map[string][]fleet.Te
 			}
 			m[spec.Name] = apps
 		}
-	}
-	tmp := m["📱🏢 Personal mobile devices"]
-	for _, x := range tmp {
-		fmt.Println("App: ", x.AppStoreID, " Conf: ", string(x.Configuration.Path))
-		err := fleet.ValidateAndroidAppConfiguration(json.RawMessage(x.Configuration.Path))
-		fmt.Println("err: ", err)
 	}
 	return m
 }
@@ -2516,12 +2516,15 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", vppApp.AppStoreID, vppApp.Icon.Path, err)
 			}
 
-			androidConfig, err := getAndroidAppConfig(vppApp.Configuration.Path)
-			if err != nil {
-				return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", vppApp.AppStoreID, vppApp.Configuration.Path, err)
+			var androidConfig json.RawMessage
+			if vppApp.Platform == string(fleet.AndroidPlatform) {
+				androidConfig, err = getAndroidAppConfig(vppApp.Configuration.Path)
+				if err != nil {
+					return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", vppApp.AppStoreID, vppApp.Configuration.Path, err)
+				}
 			}
 
-			appsPayload = append(appsPayload, fleet.VPPBatchPayload{
+			payload := fleet.VPPBatchPayload{
 				AppStoreID:         vppApp.AppStoreID,
 				SelfService:        vppApp.SelfService,
 				InstallDuringSetup: &installDuringSetup,
@@ -2529,8 +2532,11 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				IconPath:           vppApp.Icon.Path,
 				IconHash:           iconHash,
 				Platform:           fleet.InstallableDevicePlatform(vppApp.Platform),
-				Configuration:      androidConfig,
-			})
+			}
+			if androidConfig != nil {
+				payload.Configuration = androidConfig
+			}
+			appsPayload = append(appsPayload, payload)
 		}
 	}
 

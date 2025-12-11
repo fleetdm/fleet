@@ -661,7 +661,7 @@ type VPPBatchPayload struct {
 	IconPath      string                    `json:"-"`
 	IconHash      string                    `json:"-"`
 	Platform      InstallableDevicePlatform `json:"platform"`
-	Configuration json.RawMessage           `json:"configuration"`
+	Configuration json.RawMessage           `json:"configuration,omitempty"`
 }
 
 type VPPBatchPayloadWithPlatform struct {
@@ -676,7 +676,7 @@ type VPPBatchPayloadWithPlatform struct {
 	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
 	CategoryIDs   []uint          `json:"-"`
 	DisplayName   string          `json:"display_name"`
-	Configuration json.RawMessage `json:"configuration"`
+	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 
 type SoftwareCategory struct {

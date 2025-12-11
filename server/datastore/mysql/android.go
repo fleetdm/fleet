@@ -1817,7 +1817,6 @@ func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID st
 
 // updateAndroidAppConfigurationTx inserts or updates an app configuration using a transaction
 func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID *uint, appID string, config json.RawMessage) error {
-	fmt.Println("--------------- updateAndroidAppConfigurationTx : ", string(config))
 	err := fleet.ValidateAndroidAppConfiguration(config)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating android app configuration")
