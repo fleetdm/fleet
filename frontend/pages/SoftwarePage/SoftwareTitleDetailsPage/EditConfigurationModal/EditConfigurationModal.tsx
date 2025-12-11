@@ -1,10 +1,8 @@
-import React, { useContext, useEffect, useState, useCallback } from "react";
-import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
-import { IInputFieldParseTarget } from "interfaces/form_field";
+import React, { useContext, useState } from "react";
+import { IAppStoreApp } from "interfaces/software";
 
 import { NotificationContext } from "context/notification";
-import { INotification } from "interfaces/notification";
-import { getErrorReason } from "interfaces/errors";
+
 import softwareAPI from "services/entities/software";
 
 import Modal from "components/Modal";
@@ -15,6 +13,7 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import InstallerDetailsWidget from "../SoftwareInstallerCard/InstallerDetailsWidget";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "edit-configuration-modal";
 
@@ -28,13 +27,23 @@ const isErrorWithMessage = (error: unknown): error is ErrorWithMessage => {
   return (error as ErrorWithMessage).message !== undefined;
 };
 
+export interface ISoftwareConfigurationFormData {
+  configuration: string;
+}
+
 interface EditConfigurationModal {
+  softwareId: number;
+  teamId: number;
   softwareInstaller: IAppStoreApp;
+  refetchSoftwareTitle: () => void;
   onExit: () => void;
 }
 
 const EditConfigurationModal = ({
   softwareInstaller,
+  softwareId,
+  teamId,
+  refetchSoftwareTitle,
   onExit,
 }: EditConfigurationModal) => {
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
@@ -63,10 +72,48 @@ const EditConfigurationModal = ({
     return error;
   };
 
-  const onInputChange = (value: string, event?: any) => {
-    // TODO: handle input change
+  // Edit package API call
+  const onEditConfiguration = async (
+    evt: React.MouseEvent<HTMLFormElement>
+  ) => {
+    setIsUpdatingConfiguration(true);
+
+    evt.preventDefault();
+
+    // Format for API
+    const formDataToSubmit =
+      jsonFormData === ""
+        ? { configuration: {} } // Send empty object if no keys are set
+        : {
+            configuration: (jsonFormData && JSON.parse(jsonFormData)) || null,
+          };
+    try {
+      await softwareAPI.editAppStoreApp(softwareId, teamId, formDataToSubmit);
+
+      renderFlash(
+        "success",
+        <>
+          <strong>{softwareInstaller.name}</strong> configuration updated.
+        </>
+      );
+
+      refetchSoftwareTitle();
+      onExit();
+    } catch (e) {
+      renderFlash(
+        "error",
+        getErrorMessage(e, softwareInstaller as IAppStoreApp)
+      );
+    }
+    setIsUpdatingConfiguration(false);
+  };
+
+  const onInputChange = (value: string) => {
     setJsonFormData(value);
-    setFormError(validateForm(value));
+
+    const error = validateForm(value);
+    setFormError(error);
+    setCanSaveForm(!error);
   };
 
   const renderHelpText = () => {
@@ -89,16 +136,11 @@ const EditConfigurationModal = ({
         value={jsonFormData as string}
         helpText={renderHelpText()}
         onChange={onInputChange}
-        defaultValue="{}"
         error={formError}
         label="Configuration"
       />
     </>
   );
-
-  const onClickSave = async () => {
-    setIsUpdatingConfiguration(true);
-  };
 
   return (
     <Modal className={baseClass} title="Edit configuration" onExit={onExit}>
@@ -117,7 +159,7 @@ const EditConfigurationModal = ({
           primaryButtons={
             <Button
               type="submit"
-              onClick={onClickSave}
+              onClick={onEditConfiguration}
               isLoading={isUpdatingConfiguration}
               disabled={!canSaveForm || isUpdatingConfiguration}
             >

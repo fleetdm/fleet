@@ -112,7 +112,7 @@ export interface ISoftwarePackage {
   install_during_setup?: boolean;
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
-  categories?: SoftwareCategory[];
+  categories?: SoftwareCategory[] | null;
   fleet_maintained_app_id?: number | null;
   hash_sha256?: string | null;
 }
@@ -141,7 +141,7 @@ export interface IAppStoreApp {
   version?: string;
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
-  categories?: SoftwareCategory[];
+  categories?: SoftwareCategory[] | null;
   configuration?: string;
 }
 
@@ -521,7 +521,7 @@ export interface IHostSoftwarePackage {
   version: string;
   last_install: ISoftwareLastInstall | null;
   last_uninstall: ISoftwareLastUninstall | null;
-  categories?: SoftwareCategory[];
+  categories?: SoftwareCategory[] | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   platform?: Platform;
 }
@@ -533,7 +533,7 @@ export interface IHostAppStoreApp {
   icon_url: string;
   version: string;
   last_install: IAppLastInstall | null;
-  categories?: SoftwareCategory[];
+  categories?: SoftwareCategory[] | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
 }
 
@@ -802,7 +802,7 @@ export interface IFleetMaintainedAppDetails {
   url: string;
   slug: string;
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
-  categories: SoftwareCategory[];
+  categories: SoftwareCategory[] | null;
 }
 
 export const ROLLING_ARCH_LINUX_NAMES = [

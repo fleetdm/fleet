@@ -107,12 +107,7 @@ const SoftwareSummaryCard = ({
 
   const canEditSoftware = canManageSoftware;
 
-  const canEditConfiguration =
-    canManageSoftware &&
-    "platform" in softwareInstaller &&
-    softwareInstaller.platform === "darwin";
-  // && isAndroidPlayStoreApp
-  // TODO: Change to Android playstore app as "darwin" is only used for development now
+  const canEditConfiguration = canManageSoftware && isAndroidPlayStoreApp;
 
   const onClickEditAppearance = () => setShowEditIconModal(true);
   const onClickEditSoftware = () => setShowEditSoftwareModal(true);
@@ -199,6 +194,9 @@ const SoftwareSummaryCard = ({
       {showEditConfigurationModal && softwareInstaller && teamId && (
         <EditConfigurationModal
           softwareInstaller={softwareInstaller as IAppStoreApp}
+          softwareId={softwareId}
+          teamId={teamId}
+          refetchSoftwareTitle={refetchSoftwareTitle}
           onExit={() => setShowEditConfigurationModal(false)}
         />
       )}
