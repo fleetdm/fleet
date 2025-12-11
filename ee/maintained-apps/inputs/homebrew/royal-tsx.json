@@ -1,0 +1,8 @@
+{
+  "name": "Royal TSX",
+  "unique_identifier": "com.lemonmojo.RoyalTSX.App",
+  "token": "royal-tsx",
+  "installer_format": "dmg",
+  "slug": "royal-tsx/darwin",
+  "default_categories": ["Productivity"]
+}
