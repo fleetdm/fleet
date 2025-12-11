@@ -934,7 +934,7 @@ Learn how to write as Fleet:
 - [Writing style](https://fleetdm.com/handbook/company/communications#writing-style)
 - [Writing types](https://fleetdm.com/handbook/company/communications#writing-types)
 - [Editing and publishing](https://fleetdm.com/handbook/company/communications#editing-and-publishing)
-- [Writing assistance](https://fleetdm.com/handbook/company/communications#writing-assistance).
+- [Writing assistance](https://fleetdm.com/handbook/company/communications#writing-assistance)
 - [Writing mechanics](https://fleetdm.com/handbook/company/communications#writing-mechanics)
 - [Writing in Fleet-flavored Markdown](https://fleetdm.com/handbook/company/communications#writing-in-fleet-flavored-markdown)
 
