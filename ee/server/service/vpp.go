@@ -243,6 +243,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	appStoreIDToTitleID := make(map[string]uint, len(appStoreApps))
 	for _, a := range appStoreApps {
+		// The string representation includes the adam ID AND the platform, so it's unique per software title.
 		appStoreIDToTitleID[a.VPPAppID.String()] = a.TitleID
 	}
 
