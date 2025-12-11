@@ -14,6 +14,8 @@ Fleet’s self-service software lets end users update and install approved apps 
 4. Pick a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps), [app store app](https://fleetdm.com/guides/install-app-store-apps#add-the-app-to-fleet), or upload a [custom package](https://fleetdm.com/guides/deploy-software-packages).
 5. Check **Self-service** to make it available for self-service as soon as it's added.
 
+> Script packages (`.sh` and `.ps1` files) are useful for self-service configuration tasks like connecting to a VPN or configuring printers. Learn more in the [deploy software guide](https://fleetdm.com/guides/deploy-software-packages#script-packages).
+
 You can also add the software and later make it available in self-service:
 
 1. Select the team to which you added the software from the dropdown in the upper left corner of the page.
