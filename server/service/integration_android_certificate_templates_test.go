@@ -65,9 +65,16 @@ func (s *integrationMDMTestSuite) verifyCertificateStatusWithSubject(
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.Profiles)
-	require.Len(t, *getHostResp.Host.MDM.Profiles, 1)
-	profile := (*getHostResp.Host.MDM.Profiles)[0]
-	require.Equal(t, certTemplateName, profile.Name)
+	require.NotEmpty(t, *getHostResp.Host.MDM.Profiles)
+	// Find the profile by name
+	var profile *fleet.HostMDMProfile
+	for _, p := range *getHostResp.Host.MDM.Profiles {
+		if p.Name == certTemplateName {
+			profile = &p
+			break
+		}
+	}
+	require.NotNil(t, profile, "Profile %s not found in host MDM profiles", certTemplateName)
 	require.NotNil(t, profile.Status)
 	require.Equal(t, string(expectedStatus), *profile.Status)
 	if expectedDetail != "" {
@@ -481,4 +488,135 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 	require.Equal(t, fleet.CertificateTemplateFailed, getCertResp.Certificate.Status)
 
 	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateFailed, "", subjectName)
+}
+
+// TestCertificateTemplateUnenrollReenroll tests:
+// 1. Host with existing certificate templates is unenrolled
+// 2. A new certificate template is added while host is unenrolled (should NOT be marked for this host)
+// 3. Host re-enrolls and should automatically get pending records for all certificate templates
+func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
+	t := s.T()
+	ctx := t.Context()
+	setupAMAPIEnvVars(t)
+
+	enterpriseID := s.enableAndroidMDM(t)
+
+	// Step: Create a test team
+	teamName := t.Name() + "-team"
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		TeamPayload: fleet.TeamPayload{
+			Name: ptr.String(teamName),
+		},
+	}, http.StatusOK, &createTeamResp)
+	teamID := createTeamResp.Team.ID
+
+	// Step: Create a test certificate authority
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String(t.Name() + "-CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID := ca.ID
+
+	// Step: Create an enrolled Android host in the team
+	hostUUID := uuid.NewString()
+	androidHostInput := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			Hostname:       t.Name() + "-host",
+			ComputerName:   t.Name() + "-device",
+			Platform:       "android",
+			OSVersion:      "Android 14",
+			Build:          "build1",
+			Memory:         1024,
+			TeamID:         &teamID,
+			HardwareSerial: uuid.NewString(),
+			UUID:           hostUUID,
+		},
+		Device: &android.Device{
+			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
+			EnterpriseSpecificID: ptr.String(enterpriseID),
+			AppliedPolicyID:      ptr.String("1"),
+		},
+	}
+	androidHostInput.SetNodeKey(enterpriseID)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	require.NoError(t, err)
+
+	host := createdAndroidHost.Host
+
+	// Set OrbitNodeKey for API authentication
+	orbitNodeKey := *host.NodeKey
+	host.OrbitNodeKey = &orbitNodeKey
+	require.NoError(t, s.ds.UpdateHost(ctx, host))
+
+	// Step: Create the first certificate template (while host is enrolled)
+	certTemplateName := t.Name() + "-CertTemplate1"
+	var createResp createCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		Name:                   certTemplateName,
+		TeamID:                 teamID,
+		CertificateAuthorityId: caID,
+		SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.ID)
+	certTemplateID := createResp.ID
+
+	// Step: Verify host has pending certificate template record
+	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+		fleet.CertificateTemplatePending, "", "CN="+host.HardwareSerial)
+
+	// Step: Unenroll the host (simulates pubsub DELETED message)
+	unenrolled, err := s.ds.SetAndroidHostUnenrolled(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, unenrolled)
+
+	// Verify host is actually unenrolled
+	var enrolledStatus int
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &enrolledStatus, `SELECT enrolled FROM host_mdm WHERE host_id = ?`, host.ID)
+	})
+	require.Equal(t, 0, enrolledStatus, "Host should be marked as unenrolled in host_mdm")
+
+	// Step: Create a second certificate template while host is unenrolled
+	certTemplateName2 := t.Name() + "-CertTemplate2"
+	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		Name:                   certTemplateName2,
+		TeamID:                 teamID,
+		CertificateAuthorityId: caID,
+		SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.ID)
+	certTemplateID2 := createResp.ID
+
+	// Step: Verify that the unenrolled host did NOT get a host_certificate_templates record for the second template.
+	// The host API only returns profiles that have host_certificate_templates records, so the second
+	// template should not appear in the profiles list.
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	require.Len(t, *getHostResp.Host.MDM.Profiles, 1, "Only first template should appear (second was created while host was unenrolled)")
+	profile := (*getHostResp.Host.MDM.Profiles)[0]
+	require.Equal(t, certTemplateName, profile.Name, "First certificate template should be present")
+	require.NotNil(t, profile.Status)
+	require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status)
+
+	// Step: Re-enroll the host (simulates pubsub status report triggering UpdateAndroidHost with fromEnroll=true)
+	err = s.ds.UpdateAndroidHost(ctx, createdAndroidHost, true)
+	require.NoError(t, err)
+
+	// Verify host is re-enrolled
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &enrolledStatus, `SELECT enrolled FROM host_mdm WHERE host_id = ?`, host.ID)
+	})
+	require.Equal(t, 1, enrolledStatus, "Host should be marked as enrolled in host_mdm after re-enrollment")
+
+	// Step: Verify that the re-enrolled host now has BOTH certificate templates via the host API.
+	// The helper verifies both via the host API (MDM.Profiles) and the fleetd certificate API.
+	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+		fleet.CertificateTemplatePending, "", "CN="+host.HardwareSerial)
+	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certTemplateID2, certTemplateName2, caID,
+		fleet.CertificateTemplatePending, "", "CN="+host.UUID)
 }
