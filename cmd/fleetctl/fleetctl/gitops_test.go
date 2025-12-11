@@ -3807,6 +3807,12 @@ func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.Ce
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
+	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+		return nil
+	}
+	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
+		return nil
+	}
 
 	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
 		summaries := make([]*fleet.CertificateAuthoritySummary, 0, len(certAuthorities))
