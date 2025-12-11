@@ -348,7 +348,7 @@ func addRequestTypeFilter(stmt string, filter *fleet.MDMCommandFilters, params [
 	return stmt, params
 }
 
-func addAppleCommandStatusFilter(stmt string, filter *fleet.MDMCommandFilters, params []interface{}) (string, []interface{}) {
+func addAppleCommandStatusFilter(stmt string, filter *fleet.MDMCommandFilters, params []any) (string, []any) {
 	if len(filter.CommandStatuses) > 0 {
 		stmt += " AND ("
 		for i, status := range filter.CommandStatuses {
