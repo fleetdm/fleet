@@ -1750,4 +1750,20 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/Lions/i)).toBeInTheDocument();
     expect(screen.getByText(/team/i)).toBeInTheDocument();
   });
+  it("renders a disabledMacosUpdateNewHosts activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledMacosUpdateNewHosts,
+      details: {
+        team_name: "Lions",
+        team_id: 1,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText(/disabled updates for all new/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/macOS/i)).toBeInTheDocument();
+    expect(screen.getByText(/Lions/i)).toBeInTheDocument();
+    expect(screen.getByText(/team/i)).toBeInTheDocument();
+  });
 });
