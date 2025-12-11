@@ -2472,7 +2472,7 @@ func openBrowserWindow(browserURL string) error {
 		var opts []execuser.Option
 		opts = append(opts, execuser.WithUser(*loggedInUser))
 		opts = append(opts, execuser.WithArg(browserURL, ""))
-		log.Debug().Str("browser", browserBin).Str("url", browserURL).Str("user", *loggedInUser).Msg("opening browser for setup experience")
+		log.Debug().Str("browser", browserBin).Str("url", browserURL).Str("user", *loggedInUser).Msg("opening linux browser")
 		if _, err := execuser.Run(browserBin, opts...); err != nil {
 			return fmt.Errorf("opening browser with %s: %w", browserBin, err)
 		}
@@ -2487,8 +2487,24 @@ func openBrowserWindow(browserURL string) error {
 			return fmt.Errorf("opening windows browser: %w", err)
 		}
 	default:
-		log.Debug().Msg("could not open browser, unsupported OS: " + runtime.GOOS)
-		return errors.New("opening setup experience browser page not supported on " + runtime.GOOS)
+		loggedInUser, err := user.UserLoggedInViaGui()
+		if err != nil {
+			return fmt.Errorf("get logged in user: %w", err)
+		}
+
+		if loggedInUser == nil {
+			return errors.New("no user logged in")
+		}
+
+		browserBin := "open"
+
+		var opts []execuser.Option
+		opts = append(opts, execuser.WithUser(*loggedInUser))
+		opts = append(opts, execuser.WithArg(browserURL, ""))
+		log.Debug().Str("browser", browserBin).Str("url", browserURL).Str("user", *loggedInUser).Msg("opening macos browser")
+		if _, err := execuser.Run(browserBin, opts...); err != nil {
+			return fmt.Errorf("opening browser with %s: %w", browserBin, err)
+		}
 	}
 	return nil
 }
