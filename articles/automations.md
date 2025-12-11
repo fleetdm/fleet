@@ -1,9 +1,6 @@
 # Automations
 
-You can configure Fleet to automatically reserve time in your end users' calendars (maintenance
-windows), trigger or send query results to webhooks, or create tickets.
-
-To learn how to use Fleet's maintenance windows, head to this [article](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows). 
+Fleet supports triggering automations across [activities](#activity-automations), [policies](#policy-automations), [queries](#query-automations), [vulnerabilities](#vulnerability-automations), and [host status](#host-status-automations).
 
 ## Activity automations
 
@@ -17,7 +14,10 @@ Policy automations are triggered if a policy fails on a host.
 
 ### Calendar
 
-TODO
+You can configure Fleet to automatically reserve time in your end users' calendars (maintenance
+windows), trigger or send query results to webhooks, or create tickets.
+
+To learn how to use Fleet's maintenance windows, head to this [article](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows). 
 
 ### Software and scripts
 
