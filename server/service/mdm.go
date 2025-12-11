@@ -846,7 +846,9 @@ func (r listMDMCommandsResponse) Error() error { return r.Err }
 // We the DecodeBody method to perform custom validation before hitting the service layer.
 func (req listMDMCommandsRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
 	if req.CommandStatus != "" && req.HostIdentifier == "" {
-		return errors.New(`"host_identifier" must be specified when filtering by "command_status".`)
+		return &fleet.BadRequestError{
+			Message: `"host_identifier" must be specified when filtering by "command_status".`,
+		}
 	}
 
 	if req.CommandStatus != "" {
@@ -865,7 +867,9 @@ func (req listMDMCommandsRequest) DecodeBody(ctx context.Context, r io.Reader, u
 			for i, v := range fleet.AllMDMCommandStatusFilters {
 				allowed[i] = string(v)
 			}
-			return fleet.NewInvalidArgumentError("command_status", fmt.Sprintf("command_status only accepts the following values: %s", strings.Join(allowed, ", ")))
+			return &fleet.BadRequestError{
+				Message: fmt.Sprintf("command_status only accepts the following values: %s", strings.Join(allowed, ", ")),
+			}
 		}
 	}
 

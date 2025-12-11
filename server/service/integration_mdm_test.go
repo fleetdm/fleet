@@ -3389,6 +3389,34 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommandWithSecret() {
 	assert.NotContains(t, string(cmd.Raw), "FLEET_SECRET_VALUE")
 }
 
+func (s *integrationMDMTestSuite) TestListMDMCommands() {
+	t := s.T()
+
+	// No host identifier when using command status
+	res := s.DoRaw("GET", "/api/latest/fleet/mdm/commands?command_status=ran", nil, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"host_identifier" must be specified when filtering by "command_status".`)
+
+	// Invalid command_status
+	res = s.DoRaw("GET", "/api/latest/fleet/mdm/commands?host_identifier=some-uuid&command_status=invalid-status", nil, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `command_status only accepts the following values:`)
+
+	// Command status when host identifier resolves to Windows host
+	ctx := context.Background()
+	h, err := s.ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-win-host-name",
+		OsqueryHostID: ptr.String("1337"),
+		NodeKey:       ptr.String("1337"),
+		UUID:          "test-win-host-uuid",
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+	res = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/commands?host_identifier=%s&command_status=ran", h.UUID), nil, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`)
+}
+
 func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
 	ctx := context.Background()
 	t := s.T()
@@ -11710,7 +11738,6 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 			return nil
 		})
-
 	}
 
 	// Run worker to set apps available to device
@@ -11795,7 +11822,6 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 	setDisplayNames("VPPAppUpdatedName2", "DriveUpdatedName2")
 	setDisplayNames("", "")
-
 }
 
 func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {

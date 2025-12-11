@@ -404,6 +404,22 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
 	require.Equal(t, appleCmdUUID2, cmds[0].CommandUUID)
+
+	// filter by command status for windows host
+	cmds, total, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: test.UserAdmin},
+		&fleet.MDMCommandListOptions{
+			Filters: fleet.MDMCommandFilters{
+				HostIdentifier:  "123456",
+				CommandStatuses: []fleet.MDMCommandStatusFilter{fleet.MDMCommandStatusFilterPending},
+			},
+		},
+	)
+	require.Error(t, err)
+	require.ErrorContains(t, err, `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`)
+	require.Nil(t, cmds)
+	require.Nil(t, total)
 }
 
 // testListMDMCommandsWithTeamFilter tests listing MDM commands with team filters
