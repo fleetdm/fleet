@@ -275,10 +275,13 @@ type Service interface {
 	// ListLabelsForHost returns a slice of labels for a given host
 	ListLabelsForHost(ctx context.Context, hostID uint) ([]*Label, error)
 
-	// BatchValidateLabels validates that each of the provided label names exists. The returned map
-	// is keyed by label name. Caller must ensure that appropirate authorization checks are
-	// performed prior to calling this method.
-	BatchValidateLabels(ctx context.Context, labelNames []string) (map[string]LabelIdent, error)
+	// BatchValidateLabels validates that each of the provided label names exists,
+	// and verifies the provided label names belong to the given teamID.
+	//
+	// The returned map is keyed by label name.
+	// Caller must ensure that appropriate authorization checks are performed prior
+	// to calling this method.
+	BatchValidateLabels(ctx context.Context, teamID *uint, labelNames []string) (map[string]LabelIdent, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// QueryService

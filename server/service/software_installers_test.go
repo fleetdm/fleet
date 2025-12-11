@@ -210,7 +210,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 
 	t.Run("validate no update", func(t *testing.T) {
 		t.Run("no auth context", func(t *testing.T) {
-			_, err := eeservice.ValidateSoftwareLabels(context.Background(), svc, nil, nil)
+			_, err := eeservice.ValidateSoftwareLabels(context.Background(), svc, nil, nil, nil)
 			require.ErrorContains(t, err, "Authentication required")
 		})
 
@@ -218,7 +218,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 		ctx = authz_ctx.NewContext(ctx, &authCtx)
 
 		t.Run("no auth checked", func(t *testing.T) {
-			_, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, nil)
+			_, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, nil, nil)
 			require.ErrorContains(t, err, "Authentication required")
 		})
 
@@ -328,7 +328,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 		}
 		for _, tt := range testCases {
 			t.Run(tt.name, func(t *testing.T) {
-				got, err := eeservice.ValidateSoftwareLabels(ctx, svc, tt.payloadIncludeAny, tt.payloadExcludeAny)
+				got, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, tt.payloadIncludeAny, tt.payloadExcludeAny)
 				if tt.expectError != "" {
 					require.Error(t, err)
 					require.Contains(t, err.Error(), tt.expectError)

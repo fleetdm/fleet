@@ -2360,6 +2360,19 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 		}
 		return m, nil
 	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		m := map[string]*fleet.Label{}
+		for _, name := range names {
+			if name != "baddy" {
+				labelID++
+				m[name] = &fleet.Label{
+					ID:   labelID,
+					Name: name,
+				}
+			}
+		}
+		return m, nil
+	}
 	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
 		return nil
 	}

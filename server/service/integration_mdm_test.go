@@ -16854,7 +16854,6 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	}
 	installerID1, titleID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &swInstallerPayload1)
-	_ = installerID1
 	require.NoError(t, err)
 
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
@@ -19015,23 +19014,29 @@ func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
 
 	// Create label on team t1.
 	l1t1, err := s.ds.NewLabel(t.Context(), &fleet.Label{
-		Name:   "l1t1",
-		Query:  "SELECT t1;",
-		TeamID: &t1.ID,
+		Name:                "l1t1",
+		Query:               "SELECT t1;",
+		TeamID:              &t1.ID,
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 	})
 	require.NoError(t, err)
-	// Create two labels on team t2.
+	// Create a label on team t2.
 	l2t2, err := s.ds.NewLabel(t.Context(), &fleet.Label{
-		Name:   "l2t2",
-		Query:  "SELECT t2;",
-		TeamID: &t2.ID,
+		Name:                "l2t2",
+		Query:               "SELECT t2;",
+		TeamID:              &t2.ID,
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 	})
 	require.NoError(t, err)
 	// Create global label.
 	globalLabel, err := s.ds.NewLabel(t.Context(), &fleet.Label{
-		Name:   "global",
-		Query:  "SELECT global;",
-		TeamID: nil,
+		Name:                "global",
+		Query:               "SELECT global;",
+		TeamID:              nil,
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 	})
 	require.NoError(t, err)
 
@@ -19158,4 +19163,540 @@ func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
 	})
 	require.Equal(t, l2t2.ID, hostLabels[0].ID)
 	require.Equal(t, globalLabel.ID, hostLabels[1].ID)
+}
+
+func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
+	t := s.T()
+
+	test.CreateInsertGlobalVPPToken(t, s.ds)
+
+	t1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "t1",
+	})
+	require.NoError(t, err)
+	t2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "t2",
+	})
+	require.NoError(t, err)
+
+	// Create label on team t1.
+	l1t1, err := s.ds.NewLabel(t.Context(), &fleet.Label{
+		Name:                "l1t1",
+		Query:               "SELECT t1;",
+		TeamID:              &t1.ID,
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+	// Create label on team t2.
+	l2t2, err := s.ds.NewLabel(t.Context(), &fleet.Label{
+		Name:                "l2t2",
+		Query:               "SELECT t2;",
+		TeamID:              &t2.ID,
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+	// Create global label.
+	globalLabel, err := s.ds.NewLabel(t.Context(), &fleet.Label{
+		Name:   "global",
+		Query:  "SELECT global;",
+		TeamID: nil,
+	})
+	require.NoError(t, err)
+
+	t.Run("1. policy labels assignment checks", func(t *testing.T) {
+		// 1.A.1 Attempt to create global policy that references l1t1 (should fail).
+		var gpResp globalPolicyResponse
+		s.DoJSON("POST", "/api/latest/fleet/policies", globalPolicyRequest{
+			Name:             "All teams policy",
+			Query:            "SELECT 1;",
+			LabelsIncludeAny: []string{l1t1.Name, globalLabel.Name},
+		}, http.StatusBadRequest, &gpResp)
+		gpResp = globalPolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", globalPolicyRequest{
+			Name:             "All teams policy",
+			Query:            "SELECT 1;",
+			LabelsExcludeAny: []string{globalLabel.Name, l1t1.Name},
+		}, http.StatusBadRequest, &gpResp)
+
+		// 1.A.2 Attempt to create a global policy with global labels (should succeed).
+		gpResp = globalPolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", globalPolicyRequest{
+			Name:             "All teams policy",
+			Query:            "SELECT 1;",
+			LabelsIncludeAny: []string{globalLabel.Name},
+		}, http.StatusOK, &gpResp)
+		globalPolicyID := gpResp.Policy.ID
+		gpResp = globalPolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", globalPolicyRequest{
+			Name:             "All teams policy 2",
+			Query:            "SELECT 1;",
+			LabelsExcludeAny: []string{globalLabel.Name},
+		}, http.StatusOK, &gpResp)
+
+		// 1.A.3 Attempt to modify a global policy with team labels (should fail).
+		mgpr := &modifyGlobalPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				Name:             ptr.String("newName1"),
+				LabelsIncludeAny: []string{l1t1.Name},
+			},
+		}
+		patchPol1 := &modifyGlobalPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), mgpr, http.StatusBadRequest, patchPol1)
+		mgpr = &modifyGlobalPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				Name:             ptr.String("newName1"),
+				LabelsExcludeAny: []string{l1t1.Name},
+			},
+		}
+		patchPol1 = &modifyGlobalPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), mgpr, http.StatusBadRequest, patchPol1)
+
+		// 1.A.4 Attempt to modify a global policy with global labels (should succeed).
+		mgpr = &modifyGlobalPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				Name:             ptr.String("newName1"),
+				LabelsIncludeAny: []string{globalLabel.Name},
+			},
+		}
+		patchPol1 = &modifyGlobalPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), mgpr, http.StatusOK, patchPol1)
+		mgpr = &modifyGlobalPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				Name:             ptr.String("newName2"),
+				LabelsIncludeAny: []string{},
+				LabelsExcludeAny: []string{globalLabel.Name},
+			},
+		}
+		patchPol1 = &modifyGlobalPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), mgpr, http.StatusOK, patchPol1)
+
+		// 1.B.1 Attempt to create a team policy that references l2t2 (should fail).
+		tpResp := teamPolicyResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), teamPolicyRequest{
+			Name:             "t1 policy",
+			Query:            "SELECT 1;",
+			LabelsIncludeAny: []string{globalLabel.Name, l2t2.Name},
+		}, http.StatusBadRequest, &tpResp)
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), teamPolicyRequest{
+			Name:             "t1 policy",
+			Query:            "SELECT 1;",
+			LabelsExcludeAny: []string{globalLabel.Name, l2t2.Name},
+		}, http.StatusBadRequest, &tpResp)
+
+		// 1.B.2 Attempt to create a team policy with a global label and same team label (should succeed).
+		tpResp = teamPolicyResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), teamPolicyRequest{
+			Name:             "t1 policy",
+			Query:            "SELECT 1;",
+			LabelsIncludeAny: []string{globalLabel.Name, l1t1.Name},
+		}, http.StatusOK, &tpResp)
+		teamPolicyID := tpResp.Policy.ID
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), teamPolicyRequest{
+			Name:             "t1 policy 2",
+			Query:            "SELECT 1;",
+			LabelsExcludeAny: []string{globalLabel.Name, l1t1.Name},
+		}, http.StatusOK, &tpResp)
+
+		// 1.B.3 Attempt to edit a team policy with a team policy that references l2t2 (should fail).
+		mtplr := modifyTeamPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), modifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				LabelsIncludeAny: []string{l2t2.Name},
+			},
+		}, http.StatusBadRequest, &mtplr)
+		mtplr = modifyTeamPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), modifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				LabelsIncludeAny: []string{},
+				LabelsExcludeAny: []string{l2t2.Name},
+			},
+		}, http.StatusBadRequest, &mtplr)
+
+		// 1.B.3 Attempt to edit a team policy with a team policy that references a team label (should succeed).
+		mtplr = modifyTeamPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), modifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				LabelsIncludeAny: []string{l1t1.Name},
+			},
+		}, http.StatusOK, &mtplr)
+		mtplr = modifyTeamPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), modifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				LabelsIncludeAny: []string{},
+				LabelsExcludeAny: []string{l1t1.Name, globalLabel.Name},
+			},
+		}, http.StatusOK, &mtplr)
+
+		// 1.C.1 Attempt to create a "No team" policy that references l1t1 (should fail).
+		tpResp = teamPolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", teamPolicyRequest{
+			Name:             "no team policy",
+			Query:            "SELECT 1;",
+			LabelsIncludeAny: []string{globalLabel.Name, l2t2.Name},
+		}, http.StatusBadRequest, &tpResp)
+		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", teamPolicyRequest{
+			Name:             "no team policy",
+			Query:            "SELECT 1;",
+			LabelsExcludeAny: []string{globalLabel.Name, l2t2.Name},
+		}, http.StatusBadRequest, &tpResp)
+
+		// 1.B.2 Attempt to create a "No team" policy with a global label (should succeed).
+		tpResp = teamPolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", teamPolicyRequest{
+			Name:             "no team policy",
+			Query:            "SELECT 1;",
+			LabelsIncludeAny: []string{globalLabel.Name},
+		}, http.StatusOK, &tpResp)
+		noTeamPolicyID := tpResp.Policy.ID
+		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", teamPolicyRequest{
+			Name:             "no team policy 2",
+			Query:            "SELECT 1;",
+			LabelsExcludeAny: []string{globalLabel.Name},
+		}, http.StatusOK, &tpResp)
+
+		// 1.B.3 Attempt to edit a "No team" policy with a team policy that references l2t2 (should fail).
+		mtplr = modifyTeamPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), modifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				LabelsIncludeAny: []string{l2t2.Name},
+			},
+		}, http.StatusBadRequest, &mtplr)
+		mtplr = modifyTeamPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), modifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				LabelsIncludeAny: []string{},
+				LabelsExcludeAny: []string{l2t2.Name},
+			},
+		}, http.StatusBadRequest, &mtplr)
+
+		// 1.B.3 Attempt to edit a team policy with a team policy that references a global label (should succeed).
+		mtplr = modifyTeamPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), modifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				LabelsIncludeAny: []string{globalLabel.Name},
+			},
+		}, http.StatusOK, &mtplr)
+		mtplr = modifyTeamPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), modifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				LabelsIncludeAny: []string{},
+				LabelsExcludeAny: []string{globalLabel.Name},
+			},
+		}, http.StatusOK, &mtplr)
+	})
+
+	t.Run("2. query labels assignment checks", func(t *testing.T) {
+		// 2.A.1 Attempt to create global query with team labels (should fail).
+		var createQueryResp createQueryResponse
+		reqQuery := &fleet.QueryPayload{
+			Name:             ptr.String("All teams query"),
+			Query:            ptr.String("SELECT 1;"),
+			LabelsIncludeAny: []string{l1t1.Name},
+		}
+		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusBadRequest, &createQueryResp)
+
+		// 2.A.2 Attempt to create global query with global label (should succeed).
+		createQueryResp = createQueryResponse{}
+		reqQuery = &fleet.QueryPayload{
+			Name:             ptr.String("All teams query"),
+			Query:            ptr.String("SELECT 1;"),
+			LabelsIncludeAny: []string{globalLabel.Name},
+		}
+		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+		globalQueryID := createQueryResp.Query.ID
+
+		// 2.A.3 Attempt to edit global query with team label (should fail).
+		modifyQueryResp := modifyQueryResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", globalQueryID), modifyQueryRequest{
+			QueryPayload: fleet.QueryPayload{
+				LabelsIncludeAny: []string{l1t1.Name},
+			},
+		}, http.StatusBadRequest, &modifyQueryResp)
+
+		// 2.A.4 Attempt to edit global query with global label (should succeed).
+		modifyQueryResp = modifyQueryResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", globalQueryID), modifyQueryRequest{
+			QueryPayload: fleet.QueryPayload{
+				LabelsIncludeAny: []string{globalLabel.Name},
+			},
+		}, http.StatusOK, &modifyQueryResp)
+
+		// 2.B.1 Attempt to create a team query with a label of another team (should fail).
+		createQueryResp = createQueryResponse{}
+		reqQuery = &fleet.QueryPayload{
+			Name:             ptr.String("All teams query"),
+			Query:            ptr.String("SELECT 1;"),
+			LabelsIncludeAny: []string{l2t2.Name},
+
+			TeamID: &t1.ID,
+		}
+		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusBadRequest, &createQueryResp)
+
+		// 2.B.2 Attempt to create a team query with a label of the same team (should succeed).
+		createQueryResp = createQueryResponse{}
+		reqQuery = &fleet.QueryPayload{
+			Name:             ptr.String("All teams query"),
+			Query:            ptr.String("SELECT 1;"),
+			LabelsIncludeAny: []string{l1t1.Name, globalLabel.Name},
+
+			TeamID: &t1.ID,
+		}
+		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+		team1LabelID := createQueryResp.Query.ID
+
+		// 2.A.3 Attempt to edit a team query with a label of another team (should fail).
+		modifyQueryResp = modifyQueryResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", team1LabelID), modifyQueryRequest{
+			QueryPayload: fleet.QueryPayload{
+				LabelsIncludeAny: []string{l2t2.Name, globalLabel.Name},
+			},
+		}, http.StatusBadRequest, &modifyQueryResp)
+
+		// 2.A.4 Attempt to edit team query with a label of the same team (should succeed).
+		modifyQueryResp = modifyQueryResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", team1LabelID), modifyQueryRequest{
+			QueryPayload: fleet.QueryPayload{
+				LabelsIncludeAny: []string{l1t1.Name},
+			},
+		}, http.StatusOK, &modifyQueryResp)
+	})
+
+	t.Run("3. configuration profiles assignment check", func(t *testing.T) {
+		// NOTE: Not testing the API endpoint POST /api/latest/fleet/mdm/profiles used by the UI
+		// because of time constraints (we haven't yet implemented test utilities for multipart uploads).
+
+		// Attempt to create a team profile with labels from another team (should fail).
+		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
+				{
+					DisplayName: "N1", Profile: mobileconfigForTestWithContent("N1", "I1", "com.test.profile.content", "test inner type", "test inner name"),
+					LabelsIncludeAll: []string{l2t2.Name},
+				},
+			},
+		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
+				{
+					DisplayName: "N2", Profile: syncMLForTest("./Foo/Bar"),
+					LabelsIncludeAll: []string{l2t2.Name},
+				},
+			},
+		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
+				{
+					DisplayName: "N3", Profile: declarationForTest("D1"),
+					LabelsIncludeAll: []string{l2t2.Name},
+				},
+			},
+		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+
+		// Attempt to create a profile with a label on the same team (should succeed).
+		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
+				{
+					DisplayName: "N3", Profile: declarationForTest("D1"),
+					LabelsIncludeAll: []string{l1t1.Name},
+				},
+			},
+		}, http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
+
+		// Attempt to create a profile in "No team" with a label that belongs to a team (should fail).
+		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
+				{
+					DisplayName: "N1", Profile: mobileconfigForTestWithContent("N1", "I1", "com.test.profile.content", "test inner type", "test inner name"),
+					LabelsIncludeAll: []string{l1t1.Name},
+				},
+			},
+		}, http.StatusBadRequest)
+
+		// Attempt to create a profile in "No team" with a global label (should succeed).
+		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
+				{
+					DisplayName: "N1", Profile: mobileconfigForTestWithContent("N1", "I1", "com.test.profile.content", "test inner type", "test inner name"),
+					LabelsIncludeAll: []string{globalLabel.Name},
+				},
+			},
+		}, http.StatusNoContent)
+	})
+
+	t.Run("4. software installers assignment check", func(t *testing.T) {
+		// Attempt to create a software installer with a label of another team (should fail).
+		payloadRubyTm1 := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			Filename:         "ruby.deb",
+			SelfService:      false,
+			TeamID:           &t1.ID,
+			LabelsIncludeAny: []string{l2t2.Name},
+			Platform:         "linux",
+		}
+		s.uploadSoftwareInstaller(t, payloadRubyTm1, http.StatusBadRequest, "")
+
+		// Attempt to create a software installer with a label on the same team (should succeed).
+		payloadRubyTm1 = &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			Filename:         "ruby.deb",
+			SelfService:      false,
+			TeamID:           &t1.ID,
+			LabelsIncludeAny: []string{l1t1.Name},
+			Platform:         "linux",
+		}
+		s.uploadSoftwareInstaller(t, payloadRubyTm1, http.StatusOK, "")
+		swTitleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
+
+		// Attempt to edit a software installer with a label from another team (should fail).
+		updatePayload := &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:          swTitleID,
+			TeamID:           &t1.ID,
+			LabelsIncludeAny: []string{l2t2.Name},
+		}
+		s.updateSoftwareInstaller(t, updatePayload, http.StatusBadRequest, "")
+
+		// Attempt to edit a software installer with a label on the same team (should succeed).
+		updatePayload = &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:          swTitleID,
+			TeamID:           &t1.ID,
+			LabelsIncludeAny: []string{l1t1.Name, globalLabel.Name},
+		}
+		s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
+
+		// Attempt to create a software installer in "No team" with a team label (should fail).
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			Filename:         "dummy_installer.pkg",
+			Title:            "DummyApp",
+			TeamID:           nil,
+			LabelsExcludeAny: []string{l1t1.Name},
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "")
+
+		// Attempt to create a software installer in "No team" with a global label (should succeed).
+		payload = &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			Filename:         "dummy_installer.pkg",
+			Title:            "DummyApp",
+			TeamID:           nil,
+			LabelsExcludeAny: []string{globalLabel.Name},
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+		swTitleID = getSoftwareTitleID(t, s.ds, payload.Title, "apps")
+
+		// Attempt to edit a software installer in "No team" with a team label (should fail).
+		updatePayload = &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:          swTitleID,
+			TeamID:           nil,
+			LabelsIncludeAny: []string{l1t1.Name, globalLabel.Name},
+		}
+		s.updateSoftwareInstaller(t, updatePayload, http.StatusBadRequest, "")
+
+		// Attempt to edit a software installer in "No team" with a global label (should succeed).
+		updatePayload = &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:          swTitleID,
+			TeamID:           nil,
+			LabelsIncludeAny: []string{globalLabel.Name},
+		}
+		s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
+	})
+
+	t.Run("5. vpp apps assignment checks", func(t *testing.T) {
+		// Set up VPP token
+		orgName := "Fleet Device Management Inc."
+		token := "mycooltoken"
+		expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
+		expDate := expTime.Format(fleet.VPPTimeFormat)
+		tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+		t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+		var validToken uploadVPPTokenResponse
+		s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
+
+		// Get the token
+		var resp getVPPTokensResponse
+		s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+
+		// Associate team to the VPP token.
+		var resPatchVPP patchVPPTokensTeamsResponse
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{t1.ID}}, http.StatusOK, &resPatchVPP)
+
+		// Attempt to add an app store app on a team with a label from another team (should fail).
+		var addAppResp addAppStoreAppResponse
+		addAppReq := &addAppStoreAppRequest{
+			TeamID:           &t1.ID,
+			AppStoreID:       "1",
+			SelfService:      true,
+			LabelsIncludeAny: []string{l2t2.Name},
+		}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusBadRequest, &addAppResp)
+
+		// Attempt to add an app store app on a team with a label on the same team (should succeed).
+		addAppReq = &addAppStoreAppRequest{
+			TeamID:           &t1.ID,
+			AppStoreID:       "1",
+			SelfService:      true,
+			LabelsIncludeAny: []string{l1t1.Name},
+		}
+		addAppResp = addAppStoreAppResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusOK, &addAppResp)
+
+		// Associate all teams token.
+		resPatchVPP = patchVPPTokensTeamsResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
+
+		// Attempt to add an app store app to "No team" with a team label (should fail).
+		addAppResp = addAppStoreAppResponse{}
+		addAppReq = &addAppStoreAppRequest{
+			TeamID:           nil,
+			AppStoreID:       "1",
+			SelfService:      true,
+			LabelsIncludeAny: []string{l2t2.Name},
+		}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusBadRequest, &addAppResp)
+
+		// Attempt to add an app store app to "No team" with a global label (should succeed).
+		addAppResp = addAppStoreAppResponse{}
+		addAppReq = &addAppStoreAppRequest{
+			TeamID:           nil,
+			AppStoreID:       "1",
+			SelfService:      true,
+			LabelsIncludeAny: []string{globalLabel.Name},
+		}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusOK, &addAppResp)
+	})
+
+	t.Run("6. in-house apps assignment checks", func(t *testing.T) {
+		// Attempt to create in-house app in team t1 that references l2t2 (should fail).
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			TeamID:           &t1.ID,
+			Filename:         "ipa_test2.ipa",
+			Version:          "1.0.0",
+			StorageID:        uuid.New().String(),
+			SelfService:      true,
+			LabelsIncludeAny: []string{l2t2.Name},
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "")
+
+		// Attempt to create in-house app in team t1 that references l1t1 (should succeed).
+		payload = &fleet.UploadSoftwareInstallerPayload{
+			TeamID:           &t1.ID,
+			Filename:         "ipa_test2.ipa",
+			Version:          "1.0.0",
+			StorageID:        uuid.New().String(),
+			SelfService:      true,
+			LabelsIncludeAny: []string{l1t1.Name},
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		// Not testing edit as this was tested in (4) above.
+		// This is used to populate the in house apps tables.
+	})
+
+	// Make sure we can delete the teams given all the entities created.
+	err = s.ds.DeleteTeam(t.Context(), t1.ID)
+	require.NoError(t, err)
+	err = s.ds.DeleteTeam(t.Context(), t2.ID)
+	require.NoError(t, err)
 }
