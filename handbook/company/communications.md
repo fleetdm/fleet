@@ -413,8 +413,6 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 > - Create an issue tagged with the departmental GitHub label that corresponds with the Slack channel. If there isn't a corresponding departmental label for the channel, the issue defaults to the [#g-it-and-enablement](https://github.com/fleetdm/confidential/issues#workspaces/g-it-and-enablement-6451748b4eb15200131d4bab/board) kanban board.
 
 
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/97ce6caa-4b21-4cc2-8fcb-91aa03dfc6d6">
-
 
 ### Process new requests
 
