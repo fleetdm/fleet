@@ -1,7 +1,7 @@
 package fleet
 
 // AndroidCertificateTemplateProfileID Used by the front-end for determining the displaying logic.
-const AndroidCertificateTemplateProfileID = "certificate-template"
+const AndroidCertificateTemplateProfileID = "fleet-host-certificate-template"
 
 type HostCertificateTemplate struct {
 	ID                    uint              `db:"id"`

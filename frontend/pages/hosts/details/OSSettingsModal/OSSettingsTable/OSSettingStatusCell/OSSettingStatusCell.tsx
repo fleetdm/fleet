@@ -5,7 +5,7 @@ import { uniqueId } from "lodash";
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import {
-  FLEET_ANDROID_CERTIFICATE_PROFILE_ID,
+  FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   LinuxDiskEncryptionStatus,
   ProfileOperationType,
   ProfilePlatform,
@@ -48,7 +48,7 @@ const OSSettingStatusCell = ({
   // Android certificate templates.
   else if (
     hostPlatform === "android" &&
-    profileUUID === FLEET_ANDROID_CERTIFICATE_PROFILE_ID
+    profileUUID === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID
   ) {
     switch (status) {
       case "pending":
