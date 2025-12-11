@@ -173,7 +173,9 @@ const CustomSettings = ({
           listItems={profiles}
           HeadingComponent={() => (
             <ProfileListHeading
-              onClickAddProfile={() => setShowAddProfileModal(true)}
+              onClickAdd={() => setShowAddProfileModal(true)}
+              entityName="Configuration profile"
+              createEntityText="Add profile"
             />
           )}
           ListItemComponent={({ listItem }) => (
