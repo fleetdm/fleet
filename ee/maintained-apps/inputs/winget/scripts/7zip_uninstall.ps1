@@ -87,43 +87,31 @@ if ($productCodes.Count -eq 0) {
 }
 
 # Uninstall all found product codes
-$allSucceeded = $true
 foreach ($productCode in $productCodes) {
   Write-Host "Attempting to uninstall product code: $productCode"
   
-  try {
-    # Use /qn (quiet no UI) for better compatibility
-    # REBOOT=ReallySuppress prevents any reboot prompts
-    $process = Start-Process msiexec -ArgumentList @("/x", $productCode, "/qn", "/norestart", "REBOOT=ReallySuppress") -PassThru -NoNewWindow
-    
-    # Wait for process with timeout
-    $completed = $process.WaitForExit($timeoutSeconds * 1000)
-    if (-not $completed) {
-      Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-      Write-Host "Uninstall timed out after $timeoutSeconds seconds for product code: $productCode"
-      $allSucceeded = $false
-      continue
-    }
-    
-    # Check exit code
-    if ($process.ExitCode -eq 0) {
-      Write-Host "Uninstall successful for product code: $productCode (exit code: 0)"
-    } else {
-      Write-Host "Uninstall failed for product code: $productCode with exit code: $($process.ExitCode)"
-      $allSucceeded = $false
-    }
-  } catch {
-    Write-Host "Error running uninstaller for product code $productCode : $_"
-    $allSucceeded = $false
+  # Use /quiet (matches pattern from other working scripts)
+  $process = Start-Process msiexec -ArgumentList @("/quiet", "/x", $productCode, "/norestart") -PassThru
+  
+  # Wait for process with timeout
+  $completed = $process.WaitForExit($timeoutSeconds * 1000)
+  
+  if (-not $completed) {
+    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+    Write-Host "Uninstall timed out after $timeoutSeconds seconds for product code: $productCode"
+    Exit 1603  # ERROR_UNINSTALL_FAILURE
   }
+  
+  # If the uninstall failed, bail
+  if ($process.ExitCode -ne 0) {
+    Write-Host "Uninstall for $productCode exited $($process.ExitCode)"
+    Exit $process.ExitCode
+  }
+  
+  Write-Host "Uninstall successful for product code: $productCode"
 }
 
-# Add a delay to ensure filesystem and registry are updated
-if ($allSucceeded) {
-  Write-Host "All uninstalls completed successfully"
-  Start-Sleep -Seconds 5
-  Exit 0
-} else {
-  Write-Host "One or more uninstalls failed"
-  Exit 1603  # ERROR_UNINSTALL_FAILURE
-}
+# All uninstalls succeeded; exit success
+Write-Host "All uninstalls completed successfully"
+Start-Sleep -Seconds 3
+Exit 0
