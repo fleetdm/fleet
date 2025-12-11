@@ -243,7 +243,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	appStoreIDToTitleID := make(map[string]uint, len(appStoreApps))
 	for _, a := range appStoreApps {
-		appStoreIDToTitleID[a.AdamID+"_"+string(a.Platform)] = a.TitleID
+		appStoreIDToTitleID[a.VPPAppID.String()] = a.TitleID
 	}
 
 	// Filter out the apps with invalid platforms

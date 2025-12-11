@@ -13,6 +13,10 @@ type VPPAppID struct {
 	Platform InstallableDevicePlatform `db:"platform" json:"platform"`
 }
 
+func (v VPPAppID) String() string {
+	return fmt.Sprintf(`%s_%s`, v.AdamID, v.Platform)
+}
+
 // VPPAppTeam contains extra metadata injected by fleet
 type VPPAppTeam struct {
 	VPPAppID
