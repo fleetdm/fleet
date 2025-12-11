@@ -2426,6 +2426,7 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, hosts, 1)
 	require.Equal(t, host3.Host.ID, hosts[0].ID)
 }
+
 func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -2469,15 +2470,8 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 			a.Configuration = config.Configuration
 			assigned[a.VPPAppID] = a
 		}
-		// fmt.Printf("App: %+v\n", a)
 	}
 
-	// ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-	// 	DumpTable(t, tx, "software_titles")
-	// 	DumpTable(t, tx, "software_title_display_names")
-	// 	DumpTable(t, tx, "android_app_configurations")
-	// 	return nil
-	// })
 	require.Equal(t, json.RawMessage(nil), assigned[app1.VPPAppID].Configuration)
 	require.Equal(t, json.RawMessage(nil), assigned[app2.VPPAppID].Configuration)
 	require.Equal(t, json.RawMessage(`{}`), assigned[app3.VPPAppID].Configuration)
@@ -2486,8 +2480,8 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app1.VPPAppID}, // stays nil
 		{VPPAppID: app2.VPPAppID, Configuration: json.RawMessage(`{"managedConfiguration": 1}`)}, // updates
-		{VPPAppID: app3.VPPAppID, Configuration: json.RawMessage(nil)},                           // updates to null? or no update?
-		{VPPAppID: app4.VPPAppID, Configuration: config1},                                        // doesn't change
+		{VPPAppID: app3.VPPAppID, Configuration: json.RawMessage(nil)},
+		{VPPAppID: app4.VPPAppID, Configuration: config1},
 	}, map[string]uint{"1": 1, "2": 2, "3": 3, "4": 4})
 	require.NoError(t, err)
 
@@ -2506,24 +2500,10 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 
 	require.Equal(t, json.RawMessage(nil), assigned[app1.VPPAppID].Configuration)
 	require.Equal(t, json.RawMessage(`{"managedConfiguration": 1}`), assigned[app2.VPPAppID].Configuration)
-	require.Equal(t, json.RawMessage(`{}`), assigned[app3.VPPAppID].Configuration) // should update?
+	require.Equal(t, json.RawMessage(`{}`), assigned[app3.VPPAppID].Configuration)
 	require.Equal(t, expectedConfig1, assigned[app4.VPPAppID].Configuration)
-
-	// ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-	// 	DumpTable(t, tx, "software_titles")
-	// 	DumpTable(t, tx, "software_title_display_names")
-	// 	DumpTable(t, tx, "android_app_configurations")
-	// 	return nil
-	// })
 
 	// Delete all
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{}, nil)
 	require.NoError(t, err)
-
-	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		DumpTable(t, tx, "software_titles")
-		DumpTable(t, tx, "software_title_display_names")
-		DumpTable(t, tx, "android_app_configurations")
-		return nil
-	})
 }
