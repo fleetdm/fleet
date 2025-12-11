@@ -69,9 +69,6 @@ Script packages do not support `install_script` (the file contents are the insta
 
 If these parameters are provided when uploading a script package, they will be ignored.
 
-**Platform support:**
-- `.sh` files run on Linux hosts
-- `.ps1` files run on Windows hosts
 
 ### Pre-install query
 
