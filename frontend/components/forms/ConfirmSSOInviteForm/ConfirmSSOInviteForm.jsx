@@ -35,10 +35,13 @@ class ConfirmSSOInviteForm extends Component {
           inputOptions={{
             maxLength: "80",
           }}
+          ignore1password
         />
-        <Button onClick={handleSubmit} type="Submit">
-          Submit
-        </Button>
+        <div className="button-wrap">
+          <Button onClick={handleSubmit} type="Submit">
+            Submit
+          </Button>
+        </div>
       </form>
     );
   }

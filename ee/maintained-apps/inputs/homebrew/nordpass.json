@@ -1,0 +1,8 @@
+{
+  "name": "NordPass",
+  "unique_identifier": "com.nordsec.nordpass",
+  "token": "nordpass",
+  "installer_format": "dmg",
+  "slug": "nordpass/darwin",
+  "default_categories": ["Productivity"]
+}

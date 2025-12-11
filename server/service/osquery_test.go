@@ -256,16 +256,10 @@ func TestAgentOptionsForHost(t *testing.T) {
 	assert.JSONEq(t, `{"foo":"override2"}`, string(opt))
 }
 
-var allDetailQueries = osquery_utils.GetDetailQueries(
-	context.Background(),
-	config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}},
-	nil,
-	&fleet.Features{
-		EnableHostUsers:         true,
-		EnableSoftwareInventory: true,
-	},
-	osquery_utils.Integrations{},
-)
+var allDetailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, &fleet.Features{
+	EnableHostUsers:         true,
+	EnableSoftwareInventory: true,
+}, osquery_utils.Integrations{}, nil)
 
 func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.DetailQuery {
 	queries := make(map[string]osquery_utils.DetailQuery)
@@ -277,7 +271,7 @@ func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.
 	return queries
 }
 
-func TestEnrollAgent(t *testing.T) {
+func TestEnrollOsquery(t *testing.T) {
 	ds := new(mock.Store)
 	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 		switch secret {
@@ -287,8 +281,8 @@ func TestEnrollAgent(t *testing.T) {
 			return nil, errors.New("not found")
 		}
 	}
-	ds.EnrollHostFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
-		enrollConfig := &fleet.DatastoreEnrollHostConfig{}
+	ds.EnrollOsqueryFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
+		enrollConfig := &fleet.DatastoreEnrollOsqueryConfig{}
 		for _, opt := range opts {
 			opt(enrollConfig)
 		}
@@ -306,12 +300,12 @@ func TestEnrollAgent(t *testing.T) {
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	nodeKey, err := svc.EnrollAgent(ctx, "valid_secret", "host123", nil)
+	nodeKey, err := svc.EnrollOsquery(ctx, "valid_secret", "host123", nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, nodeKey)
 }
 
-func TestEnrollAgentEnforceLimit(t *testing.T) {
+func TestEnrollOsqueryEnforceLimit(t *testing.T) {
 	runTest := func(t *testing.T, pool fleet.RedisPool) {
 		const maxHosts = 2
 
@@ -325,8 +319,8 @@ func TestEnrollAgentEnforceLimit(t *testing.T) {
 				return nil, errors.New("not found")
 			}
 		}
-		ds.EnrollHostFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
-			enrollConfig := &fleet.DatastoreEnrollHostConfig{}
+		ds.EnrollOsqueryFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
+			enrollConfig := &fleet.DatastoreEnrollOsqueryConfig{}
 			for _, opt := range opts {
 				opt(enrollConfig)
 			}
@@ -347,6 +341,9 @@ func TestEnrollAgentEnforceLimit(t *testing.T) {
 		ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
 			return nil, newNotFoundError()
 		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
 
 		redisWrapDS := mysqlredis.New(ds, pool, mysqlredis.WithEnforcedHostLimit(maxHosts))
 		svc, ctx := newTestService(t, redisWrapDS, nil, nil, &TestServerOpts{
@@ -360,15 +357,15 @@ func TestEnrollAgentEnforceLimit(t *testing.T) {
 			},
 		})
 
-		nodeKey, err := svc.EnrollAgent(ctx, "valid_secret", "host001", nil)
+		nodeKey, err := svc.EnrollOsquery(ctx, "valid_secret", "host001", nil)
 		require.NoError(t, err)
 		assert.NotEmpty(t, nodeKey)
 
-		nodeKey, err = svc.EnrollAgent(ctx, "valid_secret", "host002", nil)
+		nodeKey, err = svc.EnrollOsquery(ctx, "valid_secret", "host002", nil)
 		require.NoError(t, err)
 		assert.NotEmpty(t, nodeKey)
 
-		_, err = svc.EnrollAgent(ctx, "valid_secret", "host003", nil)
+		_, err = svc.EnrollOsquery(ctx, "valid_secret", "host003", nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf("maximum number of hosts reached: %d", maxHosts))
 
@@ -377,7 +374,7 @@ func TestEnrollAgentEnforceLimit(t *testing.T) {
 		require.NoError(t, err)
 
 		// now host 003 can be enrolled
-		nodeKey, err = svc.EnrollAgent(ctx, "valid_secret", "host003", nil)
+		nodeKey, err = svc.EnrollOsquery(ctx, "valid_secret", "host003", nil)
 		require.NoError(t, err)
 		assert.NotEmpty(t, nodeKey)
 	}
@@ -393,7 +390,7 @@ func TestEnrollAgentEnforceLimit(t *testing.T) {
 	})
 }
 
-func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
+func TestEnrollOsqueryIncorrectEnrollSecret(t *testing.T) {
 	ds := new(mock.Store)
 	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 		switch secret {
@@ -406,18 +403,18 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	nodeKey, err := svc.EnrollAgent(ctx, "not_correct", "host123", nil)
+	nodeKey, err := svc.EnrollOsquery(ctx, "not_correct", "host123", nil)
 	assert.NotNil(t, err)
 	assert.Empty(t, nodeKey)
 }
 
-func TestEnrollAgentDetails(t *testing.T) {
+func TestEnrollOsqueryDetails(t *testing.T) {
 	ds := new(mock.Store)
 	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 		return &fleet.EnrollSecret{}, nil
 	}
-	ds.EnrollHostFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
-		config := &fleet.DatastoreEnrollHostConfig{}
+	ds.EnrollOsqueryFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
+		config := &fleet.DatastoreEnrollOsqueryConfig{}
 		for _, opt := range opts {
 			opt(config)
 		}
@@ -451,7 +448,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 		},
 		"foo": {"foo": "bar"},
 	}
-	nodeKey, err := svc.EnrollAgent(ctx, "", "host123", details)
+	nodeKey, err := svc.EnrollOsquery(ctx, "", "host123", details)
 	require.NoError(t, err)
 	assert.NotEmpty(t, nodeKey)
 
@@ -464,7 +461,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 
 func TestAuthenticateHost(t *testing.T) {
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, config.OsqueryConfig{})
+	task := async.NewTask(ds, nil, clock.C, nil)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
 
 	var gotKey string
@@ -1116,11 +1113,15 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "kubequery_info":                          {},
 		hostDetailQueryPrefix + "orbit_info":                              {},
 		hostDetailQueryPrefix + "software_vscode_extensions":              {},
+		hostDetailQueryPrefix + "software_jetbrains_plugins":              {},
+		hostDetailQueryPrefix + "software_linux_fleetd_pacman":            {},
 		hostDetailQueryPrefix + "software_python_packages":                {},
 		hostDetailQueryPrefix + "software_python_packages_with_users_dir": {},
 		hostDetailQueryPrefix + "software_macos_firefox":                  {},
 		hostDetailQueryPrefix + "battery":                                 {},
 		hostDetailQueryPrefix + "software_macos_codesign":                 {},
+		hostDetailQueryPrefix + "software_rpm_last_opened_at":             {},
+		hostDetailQueryPrefix + "software_deb_last_opened_at":             {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -1593,8 +1594,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	svc, ctx := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
-		ID:       1,
-		Platform: "windows",
+		ID:            1,
+		Platform:      "windows",
+		OsqueryHostID: ptr.String("very_random"),
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -1618,6 +1620,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 			return nil, errors.New("not found")
 		}
 		return host, nil
+	}
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+		return nil, nil
 	}
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
@@ -1791,6 +1796,7 @@ func TestDetailQueries(t *testing.T) {
 		ID:             1,
 		Platform:       "linux",
 		HardwareSerial: "HW_SRL",
+		OsqueryHostID:  ptr.String("foobar"),
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -1835,11 +1841,14 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, "foo", authToken)
 		return nil
 	}
-	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error {
+	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
 		require.Equal(t, 277.0, gigsAvailable)
 		require.Equal(t, 56.0, percentAvailable)
 		require.Equal(t, 500.1, gigsTotal)
 		return nil
+	}
+	ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+		return "", "", nil
 	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
@@ -1849,6 +1858,9 @@ func TestDetailQueries(t *testing.T) {
 	}
 	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
+	}
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+		return nil, nil
 	}
 
 	// With a new host, we should get the detail queries (and accelerated
@@ -2108,6 +2120,67 @@ func TestDetailQueries(t *testing.T) {
 		},
 	}, gotSoftware)
 
+	// Since this is set directly in the ingest function, it doesn't use the mock clock.
+	// So the expected restarted at time is calculated based on the current time.
+	expectedLastRestartedAt := time.Now().Add(-1730893 * time.Second)
+	require.NoError(t, err)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
+
+	// Set the last restarted at date, then change the uptime result to simulate
+	// a small drift (less than 30s). Verify that the LastRestartedAt is not updated.
+	host.LastRestartedAt = expectedLastRestartedAt
+	results["fleet_detail_query_uptime"] = []map[string]string{
+		{
+			"days":          "21",
+			"hours":         "0",
+			"minutes":       "46",
+			"seconds":       "13",
+			"total_seconds": "1730865",
+		},
+	}
+	// Verify that results are ingested properly
+	require.NoError(
+		t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{}),
+	)
+	require.NotNil(t, gotHost)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
+
+	// Test again with _forward_ drift, which would push the last restarted at date
+	// back, and verify that we ignore it.
+	results["fleet_detail_query_uptime"] = []map[string]string{
+		{
+			"days":          "0",
+			"hours":         "0",
+			"minutes":       "30",
+			"seconds":       "0",
+			"total_seconds": "1740865",
+		},
+	}
+	// Verify that results are ingested properly
+	require.NoError(
+		t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{}),
+	)
+	require.NotNil(t, gotHost)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
+
+	// One final test -- change the uptime to just one minute, and verify that we do update last restarted at.
+	results["fleet_detail_query_uptime"] = []map[string]string{
+		{
+			"days":          "0",
+			"hours":         "0",
+			"minutes":       "1",
+			"seconds":       "0",
+			"total_seconds": "60",
+		},
+	}
+	// Verify that results are ingested properly
+	require.NoError(
+		t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{}),
+	)
+	require.NotNil(t, gotHost)
+	expectedLastRestartedAt = time.Now().Add(-60 * time.Second)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
+
 	host.Hostname = "computer.local"
 	host.Platform = "darwin"
 	host.DetailUpdatedAt = mockClock.Now()
@@ -2156,8 +2229,8 @@ func TestMDMQueries(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: mdmEnabled}}, nil
 	}
-	ds.GetNanoMDMUserEnrollmentUsernameFunc = func(ctx context.Context, deviceID string) (string, error) {
-		return "", nil
+	ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, deviceID string) (string, string, error) {
+		return "", "", nil
 	}
 
 	host := fleet.Host{
@@ -2297,8 +2370,9 @@ func TestDistributedQueryResults(t *testing.T) {
 		return map[string]string{}, nil
 	}
 	host := &fleet.Host{
-		ID:       1,
-		Platform: "windows",
+		ID:            1,
+		Platform:      "windows",
+		OsqueryHostID: ptr.String("other_random_value"),
 	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
@@ -2317,6 +2391,9 @@ func TestDistributedQueryResults(t *testing.T) {
 			EnableHostUsers:         true,
 			EnableSoftwareInventory: true,
 		}}, nil
+	}
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+		return nil, nil
 	}
 
 	hostCtx := hostctx.NewContext(ctx, host)
@@ -3218,6 +3295,9 @@ func TestPolicyQueries(t *testing.T) {
 	) {
 		return nil, nil, nil
 	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: 0}, nil
+	}
 
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -3486,6 +3566,24 @@ func TestPolicyWebhooks(t *testing.T) {
 				},
 			},
 		}, nil
+	}
+
+	// Since the host doesn't have a team, DefaultTeamConfig will be called
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		if id == 0 {
+			return &fleet.TeamLite{
+				ID: 0,
+				Config: fleet.TeamConfigLite{
+					WebhookSettings: fleet.TeamWebhookSettings{
+						FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+							Enable:    true,
+							PolicyIDs: []uint{1, 2, 3},
+						},
+					},
+				},
+			}, nil
+		}
+		return nil, nil
 	}
 
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
@@ -4276,7 +4374,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			},
 		},
 		{
-			name: "non-ubuntu/debian installed python packages are NOT filtered out",
+			name: "non-ubuntu/debian installed python packages are filtered out",
 			host: &fleet.Host{ID: 1, Platform: "rhel"},
 			statusesIn: map[string]fleet.OsqueryStatus{
 				hostDetailQueryPrefix + "software_linux": fleet.StatusOK,
@@ -4313,12 +4411,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 						"source":  "rpm_packages",
 					},
 					{
-						"name":    "twisted", // duplicate of python3-twisted
-						"version": "20.3.0-2",
-						"source":  "python_packages",
-					},
-					{
-						"name":    "pillow",
+						"name":    "python3-pillow",
 						"version": "8.1.0",
 						"source":  "python_packages",
 					},
@@ -4470,4 +4563,54 @@ func BenchmarkPreprocessUbuntuPythonPackageFilter(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		preProcessSoftwareResults(&fleet.Host{ID: 1, Platform: platform}, results, statuses, nil, nil, log.NewNopLogger())
 	}
+}
+
+func TestUpdateFleetdVersion(t *testing.T) {
+	const (
+		orbitInfoQuery     = hostDetailQueryPrefix + "orbit_info"
+		softwareLinuxQuery = hostDetailQueryPrefix + "software_linux"
+	)
+
+	t.Run("updates fleet-osquery version on linux", func(t *testing.T) {
+		results := fleet.OsqueryDistributedQueryResults{
+			orbitInfoQuery: []map[string]string{
+				{"version": "1.2.3"},
+			},
+			softwareLinuxQuery: []map[string]string{
+				{"name": "some-other-package", "version": "0.0.1"},
+				{"name": "fleet-osquery", "version": "0.0.0"},
+			},
+		}
+
+		updateFleetdVersion("linux", results)
+
+		require.Equal(t, "1.2.3", results[softwareLinuxQuery][1]["version"])
+		require.Equal(t, "0.0.1", results[softwareLinuxQuery][0]["version"])
+	})
+
+	t.Run("non-linux platform - does nothing", func(t *testing.T) {
+		originalResults := fleet.OsqueryDistributedQueryResults{
+			orbitInfoQuery: []map[string]string{
+				{"version": "1.2.3"},
+			},
+			softwareLinuxQuery: []map[string]string{
+				{"name": "fleet-osquery", "version": "0.0.0"},
+			},
+		}
+
+		results := fleet.OsqueryDistributedQueryResults{
+			orbitInfoQuery: []map[string]string{
+				{"version": "1.2.3"},
+			},
+			softwareLinuxQuery: []map[string]string{
+				{"name": "fleet-osquery", "version": "0.0.0"},
+			},
+		}
+
+		updateFleetdVersion("darwin", results)
+		require.Equal(t, originalResults, results)
+
+		updateFleetdVersion("windows", results)
+		require.Equal(t, originalResults, results)
+	})
 }

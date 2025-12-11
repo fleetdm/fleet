@@ -9,12 +9,15 @@ import React, { useState, useEffect, ReactNode } from "react";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
+import ActionsDropdown from "components/ActionsDropdown";
+import { IDropdownOption } from "interfaces/dropdownOption";
 
 import {
   IHostSoftwarePackage,
   IHostAppStoreApp,
-  SoftwareInstallStatus,
+  EnhancedSoftwareInstallUninstallStatus,
   IHostSoftwareWithUiStatus,
+  SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
 import {
@@ -27,16 +30,18 @@ interface IActionButtonState {
   installTooltip?: React.ReactNode;
   uninstallDisabled: boolean;
   uninstallTooltip?: React.ReactNode;
+  moreDisabled?: boolean;
 }
 
 export interface IGetActionButtonStateProps {
   hostScriptsEnabled: boolean;
   softwareId: number;
-  status: SoftwareInstallStatus | null;
+  status: EnhancedSoftwareInstallUninstallStatus | null;
   softwarePackage: IHostSoftwarePackage | null;
   appStoreApp: IHostAppStoreApp | null;
   hostMDMEnrolled?: boolean;
   isMyDevicePage?: boolean;
+  installedVersionsDetected: boolean | null;
 }
 
 interface IHostInstallerActionButtonProps {
@@ -51,8 +56,12 @@ interface IHostInstallerActionButtonProps {
 
 interface IHostInstallerActionCellProps {
   software: IHostSoftwareWithUiStatus;
-  onClickInstallAction: (softwareId: number) => void;
+  onClickInstallAction: (
+    softwareId: number,
+    isSoftwarePackage?: boolean
+  ) => void;
   onClickUninstallAction: () => void;
+  onClickOpenInstructionsAction?: () => void;
   baseClass: string;
   hostScriptsEnabled?: boolean;
   hostMDMEnrolled?: boolean;
@@ -64,53 +73,102 @@ export const getActionButtonState = ({
   hostScriptsEnabled,
   status,
   appStoreApp,
+  softwarePackage,
   hostMDMEnrolled,
   isMyDevicePage,
+  installedVersionsDetected,
 }: IGetActionButtonStateProps): IActionButtonState => {
-  const pendingStatuses = ["pending_install", "pending_uninstall"];
-  let installDisabled = false;
-  let uninstallDisabled = false;
-  let installTooltip: ReactNode;
-  let uninstallTooltip: ReactNode;
+  // Determine platform and management method
+  const platform = softwarePackage?.platform || "";
+  const isIpaOrAppStore = ["ipados", "ios"].includes(platform) || !!appStoreApp;
 
-  // Action buttons are always disabled if status is pending for both
-  // Host details > Software > library page and  My Device > Self-service page
-  if (pendingStatuses.includes(status || "")) {
-    installDisabled = true;
-    uninstallDisabled = true;
+  // Pending states take priority
+  const isPending = ["pending_install", "pending_uninstall"].includes(
+    status || ""
+  );
+
+  if (isPending) {
+    return {
+      installDisabled: true,
+      uninstallDisabled: true,
+      moreDisabled: true,
+    };
   }
 
-  /** Host details > Software > Library page has additional tooltips and disabled states
-   * than My Device > Self-service page for disabled host scripts and mdm unenrolled
-   *
-   * If scripts are not enabled, software actions disabled with tooltip on
-   * Host details > Software > Library but doesn't show to Fleet Desktop > Self-service.
-   *
-   * If MDM is not enrolled, software actions disabled with tooltip on
+  /** My Device page doesn’t enforce tooltips/extra restrictions
+   * as these are enforced by the UI to hide when host scripts are
+   * not enabled, not enrolled into MDM, etc */
+  if (isMyDevicePage) {
+    return {
+      installDisabled: false,
+      uninstallDisabled: false,
+      moreDisabled: false,
+    };
+  }
+
+  /** Host details > Software > Library page has additional tooltips and
+   * disabled states than My Device > Self-service page */
+
+  /** If scripts are not enabled, software actions disabled with tooltip on
+   * Host details > Software > Library but doesn't show to Fleet Desktop > Self-service. */
+  const requiresScripts = !isIpaOrAppStore;
+  if (requiresScripts && !hostScriptsEnabled) {
+    return {
+      installDisabled: true,
+      uninstallDisabled: true,
+      installTooltip: "To install, turn on host scripts.",
+      uninstallTooltip: "To uninstall, turn on host scripts.",
+      moreDisabled: !installedVersionsDetected, // Can still reach how to open if scripts are disabled but app is installed
+    };
+  }
+
+  /** If MDM is not enrolled, software actions disabled with tooltip on
    * Host details > Software > Library but doesn't show Fleet Desktop > Self-service */
-  if (!isMyDevicePage) {
-    if (!hostScriptsEnabled && !appStoreApp) {
-      installDisabled = true;
-      uninstallDisabled = true;
-      installTooltip = "To install, turn on host scripts.";
-      uninstallTooltip = "To uninstall, turn on host scripts.";
-    }
-
-    if (appStoreApp) {
-      uninstallDisabled = true;
-      if (!hostMDMEnrolled) {
-        installDisabled = true;
-        installTooltip = "To install, turn on MDM for this host.";
-      }
-    }
+  if (isIpaOrAppStore) {
+    return {
+      installDisabled: !hostMDMEnrolled,
+      uninstallDisabled: true,
+      installTooltip: !hostMDMEnrolled
+        ? "To install, turn on MDM for this host."
+        : undefined,
+    };
   }
 
+  // Default: actions enabled, no tooltips
   return {
-    installDisabled,
-    installTooltip: installTooltip || undefined,
-    uninstallDisabled,
-    uninstallTooltip: uninstallTooltip || undefined,
+    installDisabled: false,
+    uninstallDisabled: false,
+    moreDisabled: false,
   };
+};
+
+const getMoreActionsDropdownOptions = (
+  canViewOpenInstructions: boolean,
+  canUninstallSoftware: boolean,
+  isUninstallDisabled: boolean,
+  uninstallTooltip: ReactNode,
+  uninstallText: string
+) => {
+  const options: IDropdownOption[] = [];
+
+  if (canViewOpenInstructions) {
+    options.unshift({
+      label: "How to open",
+      value: "instructions",
+      disabled: false,
+    });
+  }
+
+  if (canUninstallSoftware) {
+    options.unshift({
+      label: uninstallText,
+      value: "uninstall",
+      disabled: isUninstallDisabled,
+      tooltipContent: uninstallTooltip,
+    });
+  }
+
+  return options;
 };
 
 export const HostInstallerActionButton = ({
@@ -130,13 +188,14 @@ export const HostInstallerActionButton = ({
       position="top"
     >
       <Button
-        variant="text-icon"
+        variant="inverse"
         type="button"
         className={`${baseClass}__item-action-button`}
         onClick={onClick}
         disabled={disabled}
+        size="small"
       >
-        <Icon name={icon} color="core-fleet-blue" size="small" />
+        <Icon name={icon} color="ui-fleet-black-75" size="small" />
         <span data-testid={testId}>{text}</span>
       </Button>
     </TooltipWrapper>
@@ -150,6 +209,7 @@ export const HostInstallerActionCell = ({
   software,
   onClickInstallAction,
   onClickUninstallAction,
+  onClickOpenInstructionsAction,
   baseClass,
   hostScriptsEnabled,
   hostMDMEnrolled,
@@ -163,20 +223,6 @@ export const HostInstallerActionCell = ({
     ui_status,
     installed_versions,
   } = software;
-  const {
-    installDisabled,
-    installTooltip,
-    uninstallDisabled,
-    uninstallTooltip,
-  } = getActionButtonState({
-    hostScriptsEnabled: hostScriptsEnabled || false,
-    softwareId: id,
-    status,
-    appStoreApp: app_store_app,
-    hostMDMEnrolled,
-    softwarePackage: software_package,
-    isMyDevicePage,
-  });
 
   // buttonDisplayConfig is used to track the display text and icons of the install and uninstall button
   const [
@@ -187,7 +233,18 @@ export const HostInstallerActionCell = ({
     uninstall: getInstallerActionButtonConfig("uninstall", ui_status),
   });
 
+  // Local “clicked” state so the button disables immediately
+  const [
+    isInstallUninstallPendingLocal,
+    setIsInstallUninstallPendingLocal,
+  ] = useState(false);
+
   useEffect(() => {
+    // reset local pending state when status leaves pending (API round‑trip finished)
+    if (status !== "pending_install" && status !== "pending_uninstall") {
+      setIsInstallUninstallPendingLocal(false);
+    }
+
     // We update the text/icon only when we see a change to a non-pending status
     // Pending statuses keep the original text shown (e.g. "Retry" text on failed
     // install shouldn't change to "Install" text because it was clicked and went
@@ -201,34 +258,164 @@ export const HostInstallerActionCell = ({
     }
   }, [status, ui_status]);
 
+  const installedVersionsDetected =
+    installed_versions && installed_versions.length > 0;
+
+  const installedTgzPackageDetected =
+    software.source === "tgz_packages" &&
+    [
+      "installed",
+      "pending_uninstall",
+      "uninstalling",
+      "failed_uninstall",
+    ].includes(ui_status);
+
+  const isIpaPackage =
+    (software.source === "ios_apps" || software.source === "ipados_apps") &&
+    !!software_package;
+
   const canUninstallSoftware =
     !app_store_app &&
+    !isIpaPackage &&
     !!software_package &&
-    installed_versions &&
-    installed_versions.length > 0;
+    (installedVersionsDetected || installedTgzPackageDetected);
+
+  // Instructions to open software available for macOS apps and Windows programs only
+  const canViewOpenInstructions =
+    ["apps", "programs"].includes(software.source) &&
+    !!installedVersionsDetected;
+
+  const {
+    installDisabled,
+    installTooltip,
+    uninstallDisabled,
+    uninstallTooltip,
+    moreDisabled,
+  } = getActionButtonState({
+    hostScriptsEnabled: hostScriptsEnabled || false,
+    softwareId: id,
+    status,
+    appStoreApp: app_store_app,
+    hostMDMEnrolled,
+    softwarePackage: software_package,
+    isMyDevicePage,
+    installedVersionsDetected,
+  });
+
+  // Wrap handlers to disable action button(s) immediately, important for slow connections/APIs
+  const handleInstallClick = () => {
+    if (installDisabled || isInstallUninstallPendingLocal) return;
+    setIsInstallUninstallPendingLocal(true);
+    onClickInstallAction(id, SCRIPT_PACKAGE_SOURCES.includes(software.source));
+  };
+
+  const handleUninstallClick = () => {
+    if (uninstallDisabled || isInstallUninstallPendingLocal) return;
+    setIsInstallUninstallPendingLocal(true);
+    onClickUninstallAction();
+  };
+
+  const onSelectOption = (option: string) => {
+    switch (option) {
+      case "uninstall":
+        handleUninstallClick();
+        break;
+      case "instructions":
+        onClickOpenInstructionsAction && onClickOpenInstructionsAction();
+        break;
+      default:
+    }
+  };
+
+  const renderInstallButton = () => (
+    <HostInstallerActionButton
+      baseClass={baseClass}
+      tooltip={installTooltip}
+      disabled={installDisabled || isInstallUninstallPendingLocal}
+      onClick={handleInstallClick}
+      icon={buttonDisplayConfig.install.icon}
+      text={buttonDisplayConfig.install.text}
+      testId={`${baseClass}__install-button--test`}
+    />
+  );
+
+  const renderUninstallButton = () => {
+    if (!canUninstallSoftware) {
+      return null;
+    }
+
+    return (
+      <HostInstallerActionButton
+        baseClass={baseClass}
+        tooltip={uninstallTooltip}
+        disabled={uninstallDisabled || isInstallUninstallPendingLocal}
+        onClick={handleUninstallClick}
+        icon={buttonDisplayConfig.uninstall.icon}
+        text={buttonDisplayConfig.uninstall.text}
+        testId={`${baseClass}__uninstall-button--test`}
+      />
+    );
+  };
+
+  const renderSecondaryActions = () => {
+    // Case: both uninstall + instructions → "More" dropdown
+    if (canUninstallSoftware && canViewOpenInstructions) {
+      return (
+        <div className={`${baseClass}__more-actions-wrapper`}>
+          <ActionsDropdown
+            className={`${baseClass}__more-actions-dropdown`}
+            onChange={onSelectOption}
+            placeholder="More"
+            options={getMoreActionsDropdownOptions(
+              canViewOpenInstructions,
+              canUninstallSoftware,
+              uninstallDisabled || isInstallUninstallPendingLocal,
+              uninstallTooltip,
+              buttonDisplayConfig.uninstall.text
+            )}
+            variant="small-button"
+            disabled={moreDisabled}
+          />
+        </div>
+      );
+    }
+
+    // Case: uninstall only → Uninstall. button
+    if (canUninstallSoftware) {
+      return renderUninstallButton();
+    }
+
+    // Case: instructions only → How to open button
+    if (canViewOpenInstructions && onClickOpenInstructionsAction) {
+      return (
+        <HostInstallerActionButton
+          baseClass={baseClass}
+          disabled={false}
+          onClick={onClickOpenInstructionsAction}
+          icon="info-outline"
+          text="How to open"
+          testId={`${baseClass}__instructions-button--test`}
+        />
+      );
+    }
+
+    // Case: no secondary actions
+    return null;
+  };
+
+  if (isMyDevicePage) {
+    return (
+      <div className={`${baseClass}__item-actions`}>
+        {renderInstallButton()}
+        {renderSecondaryActions()}
+      </div>
+    );
+  }
 
   return (
     <div className={`${baseClass}__item-actions`}>
-      <HostInstallerActionButton
-        baseClass={baseClass}
-        tooltip={installTooltip}
-        disabled={installDisabled}
-        onClick={() => onClickInstallAction(id)}
-        icon={buttonDisplayConfig.install.icon}
-        text={buttonDisplayConfig.install.text}
-        testId={`${baseClass}__install-button--test`}
-      />
-      {canUninstallSoftware && (
-        <HostInstallerActionButton
-          baseClass={baseClass}
-          tooltip={uninstallTooltip}
-          disabled={uninstallDisabled}
-          onClick={onClickUninstallAction}
-          icon={buttonDisplayConfig.uninstall.icon}
-          text={buttonDisplayConfig.uninstall.text}
-          testId={`${baseClass}__uninstall-button--test`}
-        />
-      )}
+      {renderInstallButton()}
+      {renderUninstallButton()}
     </div>
   );
 };

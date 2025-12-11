@@ -34,7 +34,7 @@ locals {
       image      = "public.ecr.aws/docker/library/alpine@sha256:8a1f59ffb675680d47db6337b49d22281a139e9d709335b492be023728e11715"
       entrypoint = ["/bin/sh", "-c"]
       command = [templatefile("./templates/mysql_ca_tls_retrieval.sh.tpl", {
-        aws_region         = data.aws_region.current.id
+        aws_region         = data.aws_region.current.region
         container_path     = local.rds_container_path
         ca_cert_thumbprint = local.ca_cert_thumbprint
       })]
@@ -42,7 +42,7 @@ locals {
         logDriver = "awslogs"
         options = {
           "awslogs-group"         = local.customer_free
-          "awslogs-region"        = data.aws_region.current.id
+          "awslogs-region"        = data.aws_region.current.region
           "awslogs-stream-prefix" = "rds-tls-ca-retriever"
         }
       }
@@ -58,7 +58,7 @@ locals {
 }
 
 module "free" {
-  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-byo-vpc-v1.13.0"
+  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-byo-vpc-v1.18.3"
   vpc_config = {
     name   = local.customer_free
     vpc_id = module.main.vpc.vpc_id
@@ -106,8 +106,10 @@ module "free" {
     family              = local.customer_free
     security_group_name = local.customer_free
     autoscaling = {
-      min_capacity = 2
-      max_capacity = 5
+      min_capacity                 = 2
+      max_capacity                 = 5
+      cpu_tracking_target_value    = 70
+      memory_tracking_target_value = 70
     }
     awslogs = {
       name      = local.customer_free
@@ -185,16 +187,21 @@ resource "aws_route53_record" "free" {
 }
 
 module "ses-free" {
-  source  = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.3.0"
-  zone_id = aws_route53_zone.free.zone_id
-  domain  = "free.fleetdm.com"
+  source            = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.0"
+  zone_id           = aws_route53_zone.free.zone_id
+  domain            = "free.fleetdm.com"
+  extra_txt_records = []
+  custom_mail_from = {
+    enabled       = true
+    domain_prefix = "mail"
+  }
 }
 
 module "migrations_free" {
   depends_on = [
     module.geolite2
   ]
-  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.0.1"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.2.1"
   ecs_cluster              = module.free.byo-db.byo-ecs.service.cluster
   task_definition          = module.free.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.free.byo-db.byo-ecs.task_definition.revision
@@ -203,4 +210,5 @@ module "migrations_free" {
   ecs_service              = module.free.byo-db.byo-ecs.service.name
   desired_count            = module.free.byo-db.byo-ecs.appautoscaling_target.min_capacity
   min_capacity             = module.free.byo-db.byo-ecs.appautoscaling_target.min_capacity
+  max_capacity             = module.free.byo-db.byo-ecs.appautoscaling_target.max_capacity
 }

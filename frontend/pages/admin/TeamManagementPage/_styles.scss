@@ -35,6 +35,10 @@
         }
 
         .actions__cell {
+          .team-actions-wrapper {
+            display: flex;
+            align-items: center;
+          }
           width: $col-sm;
         }
       }

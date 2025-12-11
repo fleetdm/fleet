@@ -177,187 +177,195 @@ module.exports = {
       let macHostsToSyncWithVanta = [];
       let windowsHostsToSyncWithVanta = [];
 
+      // Batch the macOS hosts in smaller groups of 25 hosts.
+      let batchesOfMacOsHosts = _.chunk(macOsHosts, 25);
+      for(let batchOfMacOsHosts of batchesOfMacOsHosts) {
+        await sails.helpers.flow.simultaneouslyForEach(batchOfMacOsHosts, async (host) => {
+          let hostIdAsString = String(host.id);
+          // Start building the host resource to send to Vanta, using information we get from the Fleet instance's get Hosts endpoint
+          let macOsHostToSyncWithVanta = {
+            displayName: host.display_name,
+            uniqueId: hostIdAsString,
+            externalUrl: updatedRecord.fleetInstanceUrl + '/hosts/'+encodeURIComponent(hostIdAsString),
+            collectedTimestamp: host.updated_at,
+            osName: 'macOS', // Setting the osName for all macOS hosts to 'macOS'. Different versions of macOS have different prefixes, (e.g., a macOS host running 12.6 would be returned as "macOS 12.6.1", while a mac running version 10.15.7 would be displayed as "Mac OS X 10.15.7")
+            osVersion: host.os_version.replace(/^([\D]+)\s(.+)/g, '$2'), // removing everything but the version number (XX.XX.XX) from the host's os_version value.
+            hardwareUuid: host.uuid,
+            serialNumber: host.hardware_serial,
+            applications: [],
+            browserExtensions: [],
+            drives: [],
+            users: [],// Sending an empty array of users.
+            systemScreenlockPolicies: [],// Sending an empty array of screenlock policies.
+            isManaged: false, // Defaulting to false
+            autoUpdatesEnabled: false, // Always sending this value as false
+          };
 
-      await sails.helpers.flow.simultaneouslyForEach(macOsHosts, async (host) => {
-        let hostIdAsString = String(host.id);
-        // Start building the host resource to send to Vanta, using information we get from the Fleet instance's get Hosts endpoint
-        let macOsHostToSyncWithVanta = {
-          displayName: host.display_name,
-          uniqueId: hostIdAsString,
-          externalUrl: updatedRecord.fleetInstanceUrl + '/hosts/'+encodeURIComponent(hostIdAsString),
-          collectedTimestamp: host.updated_at,
-          osName: 'macOS', // Setting the osName for all macOS hosts to 'macOS'. Different versions of macOS have different prefixes, (e.g., a macOS host running 12.6 would be returned as "macOS 12.6.1", while a mac running version 10.15.7 would be displayed as "Mac OS X 10.15.7")
-          osVersion: host.os_version.replace(/^([\D]+)\s(.+)/g, '$2'), // removing everything but the version number (XX.XX.XX) from the host's os_version value.
-          hardwareUuid: host.uuid,
-          serialNumber: host.hardware_serial,
-          applications: [],
-          browserExtensions: [],
-          drives: [],
-          users: [],// Sending an empty array of users.
-          systemScreenlockPolicies: [],// Sending an empty array of screenlock policies.
-          isManaged: false, // Defaulting to false
-          autoUpdatesEnabled: false, // Always sending this value as false
-        };
-
-        // If the host has an mdm property, set the `isManaged` parameter to true if the hosts's mdm enrollment_status is either "On (automatic)" or "On (manual)")
-        if(host.mdm !== undefined && host.mdm.enrollment_status !== null) {
-          if(host.mdm.enrollment_status === 'On (automatic)' || host.mdm.enrollment_status === 'On (manual)'){
-            macOsHostToSyncWithVanta.isManaged = true;
+          // If the host has an mdm property, set the `isManaged` parameter to true if the hosts's mdm enrollment_status is either "On (automatic)" or "On (manual)")
+          if(host.mdm !== undefined && host.mdm.enrollment_status !== null) {
+            if(host.mdm.enrollment_status === 'On (automatic)' || host.mdm.enrollment_status === 'On (manual)'){
+              macOsHostToSyncWithVanta.isManaged = true;
+            }
+            // If this host's MDM status is pending (MDM is not yet fully turned on for this host), then it doesn't have comprehensive vitals nor a complete host details page thus we'll exclude it from the hosts we sync with Vanta.
+            // More info about pending hosts: https://github.com/fleetdm/fleet/blob/3cc7c971c2c24e28d06323c329475ae32e9a8198/docs/Using-Fleet/MDM-setup.md#pending-hosts
+            if(host.mdm.enrollment_status === 'Pending') {
+              return;
+            }
           }
-          // If this host's MDM status is pending (MDM is not yet fully turned on for this host), then it doesn't have comprehensive vitals nor a complete host details page thus we'll exclude it from the hosts we sync with Vanta.
-          // More info about pending hosts: https://github.com/fleetdm/fleet/blob/3cc7c971c2c24e28d06323c329475ae32e9a8198/docs/Using-Fleet/MDM-setup.md#pending-hosts
-          if(host.mdm.enrollment_status === 'Pending') {
+
+          // Send a request to this host's API endpoint to get the required information about this host.
+          // Note: this section is in a try-catch block so we can handle errors sent from the retry() method.
+          let detailedInformationAboutThisHost;
+          try {
+            detailedInformationAboutThisHost = await sails.helpers.http.get(
+              updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+encodeURIComponent(hostIdAsString),
+              {},
+              {'Authorization': 'bearer '+updatedRecord.fleetApiKey, 'User-Agent': userAgent}
+            )
+            .retry();
+          } catch(error) {
+            hostApiErrorReportById[connectionIdAsString].push(new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${util.inspect(error.raw)}`));
+          }
+          // If an error occured when sending a request to get detailed information about a host, skip this host for this run.
+          if(!detailedInformationAboutThisHost) {
             return;
           }
-        }
 
-        // Send a request to this host's API endpoint to get the required information about this host.
-        // Note: this section is in a try-catch block so we can handle errors sent from the retry() method.
-        let detailedInformationAboutThisHost;
-        try {
-          detailedInformationAboutThisHost = await sails.helpers.http.get(
-            updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+encodeURIComponent(hostIdAsString),
-            {},
-            {'Authorization': 'bearer '+updatedRecord.fleetApiKey, 'User-Agent': userAgent}
-          )
-          .retry();
-        } catch(error) {
-          hostApiErrorReportById[connectionIdAsString].push(new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${util.inspect(error.raw)}`));
-        }
-        // If an error occured when sending a request to get detailed information about a host, skip this host for this run.
-        if(!detailedInformationAboutThisHost) {
+          if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
+            // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`
+            let driveInformationForThisHost = {
+              name: 'Hard drive',
+              encrypted: detailedInformationAboutThisHost.host.disk_encryption_enabled,
+              filevaultEnabled: detailedInformationAboutThisHost.host.disk_encryption_enabled,
+            };
+            macOsHostToSyncWithVanta.drives.push(driveInformationForThisHost);
+          }
+
+          // Iterate through the array of software on a host to populate this hosts applications and
+          // browserExtensions arrays.
+          const softwareList = detailedInformationAboutThisHost.host.software;
+          if (softwareList) {
+            for (let software of softwareList) {
+              let softwareToAdd = {
+                name: software.name,
+              };
+              if(software.source === 'firefox_addons' || software.source === 'chrome_extensions') {
+                softwareToAdd.browser = software.source.toUpperCase().split('_')[0];// Get the uppercased first word of the software source, this will either be CHROME or FIREFOX.
+                softwareToAdd.extensionId = software.name + ' ' + software.version;// Set the extensionId to be the software's name and the software version.
+                if(software.extension_id !== undefined && software.extension_id !== null) {// If the Fleet instance reported an extension_id for the extension, we'll use that value.
+                  softwareToAdd.extensionId = software.extension_id;
+                }
+                macOsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
+              } else if(software.source === 'apps'){
+                softwareToAdd.name += ' '+software.version;// Add the version to the software name
+                softwareToAdd.bundleId = software.bundle_identifier ? software.bundle_identifier : ' '; // If the software is missing a bundle identifier, we'll set it to a blank string.
+                macOsHostToSyncWithVanta.applications.push(softwareToAdd);
+              }
+            }
+          }
+
+          // Add the host to the array of macOS hosts to sync with Vanta
+          macHostsToSyncWithVanta.push(macOsHostToSyncWithVanta);
+        }).tolerate((err)=>{// If an error occurs while sending requests for each host, add the error to the errorReportById object.
+          errorReportById[connectionIdAsString] = new Error(`When building an array of macOS hosts for a Vanta connection (id: ${connectionIdAsString}), an error occured: ${err}`);
+        });// After every macOS host
+
+        if(errorReportById[connectionIdAsString]){// If an error occured (that was not related to an API request) while gathering detailed host information, we'll bail early for this connection.
           return;
         }
 
-        if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
-          // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`
-          let driveInformationForThisHost = {
-            name: 'Hard drive',
-            encrypted: detailedInformationAboutThisHost.host.disk_encryption_enabled,
-            filevaultEnabled: detailedInformationAboutThisHost.host.disk_encryption_enabled,
-          };
-          macOsHostToSyncWithVanta.drives.push(driveInformationForThisHost);
-        }
+      }//∞ After every batch of 25 macOS hosts
 
-        // Iterate through the array of software on a host to populate this hosts applications and
-        // browserExtensions arrays.
-        const softwareList = detailedInformationAboutThisHost.host.software;
-        if (softwareList) {
-          for (let software of softwareList) {
-            let softwareToAdd = {
-              name: software.name,
-            };
-            if(software.source === 'firefox_addons' || software.source === 'chrome_extensions') {
-              softwareToAdd.browser = software.source.toUpperCase().split('_')[0];// Get the uppercased first word of the software source, this will either be CHROME or FIREFOX.
-              softwareToAdd.extensionId = software.name + ' ' + software.version;// Set the extensionId to be the software's name and the software version.
-              if(software.extension_id !== undefined && software.extension_id !== null) {// If the Fleet instance reported an extension_id for the extension, we'll use that value.
-                softwareToAdd.extensionId = software.extension_id;
-              }
-              macOsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
-            } else if(software.source === 'apps'){
-              softwareToAdd.name += ' '+software.version;// Add the version to the software name
-              softwareToAdd.bundleId = software.bundle_identifier ? software.bundle_identifier : ' '; // If the software is missing a bundle identifier, we'll set it to a blank string.
-              macOsHostToSyncWithVanta.applications.push(softwareToAdd);
+      // Batch the Windows hosts in smaller groups of 25 hosts.
+      let batchesOfWindowsHosts = _.chunk(windowsHosts, 25);
+      for(let batchOfWindowsHosts of batchesOfWindowsHosts) {
+        await sails.helpers.flow.simultaneouslyForEach(batchOfWindowsHosts, async (host) => {
+          let hostIdAsString = String(host.id);
+          // Start building the host resource to send to Vanta, using information we get from the Fleet instance's get Hosts endpoint
+          let windowsHostToSyncWithVanta = {
+            displayName: host.display_name,
+            uniqueId: hostIdAsString,
+            externalUrl: updatedRecord.fleetInstanceUrl + '/hosts/'+encodeURIComponent(hostIdAsString),
+            collectedTimestamp: host.updated_at,
+            osName: 'Windows',
+            osVersion: host.code_name,
+            hardwareUuid: host.uuid,
+            serialNumber: host.hardware_serial,
+            programs: [],
+            browserExtensions: [],
+            drives: [],
+            users: [],
+            systemScreenlockPolicies: [],
+            isManaged: false, // Defaulting to false, if the host is enrolled in an MDM, we'll set this value to true.
+            autoUpdatesEnabled: false, // Defaulting this value to false.
+            lastEnrolledTimestamp: host.last_enrolled_at,
+          };
+
+          // If the host has an mdm property, set the `isManaged` parameter to true if the hosts's mdm enrollment_status is either "On (automatic)" or "On (manual)")
+          if(host.mdm !== undefined && host.mdm.enrollment_status !== null){
+            if(host.mdm.enrollment_status === 'On (automatic)' || host.mdm.enrollment_status === 'On (manual)'){
+              windowsHostToSyncWithVanta.isManaged = true;
             }
           }
-        }
 
-        // Add the host to the array of macOS hosts to sync with Vanta
-        macHostsToSyncWithVanta.push(macOsHostToSyncWithVanta);
-      }).tolerate((err)=>{// If an error occurs while sending requests for each host, add the error to the errorReportById object.
-        errorReportById[connectionIdAsString] = new Error(`When building an array of macOS hosts for a Vanta connection (id: ${connectionIdAsString}), an error occured: ${err}`);
-      });// After every macOS host
-
-      if(errorReportById[connectionIdAsString]){// If an error occured (that was not related to an API request) while gathering detailed host information, we'll bail early for this connection.
-        return;
-      }
-
-
-      await sails.helpers.flow.simultaneouslyForEach(windowsHosts, async (host) => {
-        let hostIdAsString = String(host.id);
-        // Start building the host resource to send to Vanta, using information we get from the Fleet instance's get Hosts endpoint
-        let windowsHostToSyncWithVanta = {
-          displayName: host.display_name,
-          uniqueId: hostIdAsString,
-          externalUrl: updatedRecord.fleetInstanceUrl + '/hosts/'+encodeURIComponent(hostIdAsString),
-          collectedTimestamp: host.updated_at,
-          osName: 'Windows',
-          osVersion: host.code_name,
-          hardwareUuid: host.uuid,
-          serialNumber: host.hardware_serial,
-          programs: [],
-          browserExtensions: [],
-          drives: [],
-          users: [],
-          systemScreenlockPolicies: [],
-          isManaged: false, // Defaulting to false, if the host is enrolled in an MDM, we'll set this value to true.
-          autoUpdatesEnabled: false, // Defaulting this value to false.
-          lastEnrolledTimestamp: host.last_enrolled_at,
-        };
-
-        // If the host has an mdm property, set the `isManaged` parameter to true if the hosts's mdm enrollment_status is either "On (automatic)" or "On (manual)")
-        if(host.mdm !== undefined && host.mdm.enrollment_status !== null){
-          if(host.mdm.enrollment_status === 'On (automatic)' || host.mdm.enrollment_status === 'On (manual)'){
-            windowsHostToSyncWithVanta.isManaged = true;
+          // Send a request to this host's API endpoint to get the required information about this host.
+          let detailedInformationAboutThisHost;
+          try {
+            detailedInformationAboutThisHost = await sails.helpers.http.get(
+              updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+encodeURIComponent(hostIdAsString),
+              {},
+              {'Authorization': 'bearer '+updatedRecord.fleetApiKey, 'User-Agent': userAgent}
+            )
+            .retry();
+          } catch(error) {
+            hostApiErrorReportById[connectionIdAsString].push(new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${util.inspect(error.raw)}`));
           }
-        }
+          // If an error occured when sending a request to get detailed information about a host, add an error to the array of errors for this Vanta connection, and skip this host.
+          if(!detailedInformationAboutThisHost) {
+            return;
+          }
 
-        // Send a request to this host's API endpoint to get the required information about this host.
-        let detailedInformationAboutThisHost;
-        try {
-          detailedInformationAboutThisHost = await sails.helpers.http.get(
-            updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+encodeURIComponent(hostIdAsString),
-            {},
-            {'Authorization': 'bearer '+updatedRecord.fleetApiKey, 'User-Agent': userAgent}
-          )
-          .retry();
-        } catch(error) {
-          hostApiErrorReportById[connectionIdAsString].push(new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${util.inspect(error.raw)}`));
-        }
-        // If an error occured when sending a request to get detailed information about a host, add an error to the array of errors for this Vanta connection, and skip this host.
-        if(!detailedInformationAboutThisHost) {
+
+          if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
+            // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`
+            let driveInformationForThisHost = {
+              name: 'Hard drive',
+              encrypted: detailedInformationAboutThisHost.host.disk_encryption_enabled,
+            };
+            windowsHostToSyncWithVanta.drives.push(driveInformationForThisHost);
+          }
+
+          // Iterate through the array of software on a host to populate this hosts applications and
+          // browserExtensions arrays.
+          const softwareList = detailedInformationAboutThisHost.host.software;
+          if (softwareList) {
+            for (let software of softwareList) {
+              let softwareToAdd = {
+                name: software.name,
+              };
+              if (software.source === 'firefox_addons' || software.source === 'chrome_extensions') {
+                softwareToAdd.browser = software.source.toUpperCase().split('_')[0];// Get the uppercased first word of the software source, this will either be CHROME or FIREFOX.
+                softwareToAdd.extensionId = software.name + ' ' + software.version;// Set the extensionId to be the software's name and the software version.
+                if(software.extension_id !== undefined && software.extension_id !== null) {// If the Fleet instance reported an extension_id for this extension, we'll use that value.
+                  softwareToAdd.extensionId = software.extension_id;
+                }
+                windowsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
+              } else if (software.source === 'programs') {
+                windowsHostToSyncWithVanta.programs.push(softwareToAdd);
+              }
+            }
+          }
+          // Add the host to the array of macOS hosts to sync with Vanta
+          windowsHostsToSyncWithVanta.push(windowsHostToSyncWithVanta);
+        }).tolerate((err)=>{// If an error occurs while sending requests for each host, add the error to the errorReportById object.
+          errorReportById[connectionIdAsString] = new Error(`When building an array of Windows hosts for a Vanta connection (id: ${connectionIdAsString}), an error occured: ${err}`);
+        });// After every Windows host
+
+        if(errorReportById[connectionIdAsString]) {// If an error occured (that was not related to an API request) while gathering detailed host information, we'll bail early for this connection.
           return;
         }
+      }//∞ After every batch of 25 Windows hosts
 
-
-        if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
-          // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`
-          let driveInformationForThisHost = {
-            name: 'Hard drive',
-            encrypted: detailedInformationAboutThisHost.host.disk_encryption_enabled,
-          };
-          windowsHostToSyncWithVanta.drives.push(driveInformationForThisHost);
-        }
-
-        // Iterate through the array of software on a host to populate this hosts applications and
-        // browserExtensions arrays.
-        const softwareList = detailedInformationAboutThisHost.host.software;
-        if (softwareList) {
-          for (let software of softwareList) {
-            let softwareToAdd = {
-              name: software.name,
-            };
-            if (software.source === 'firefox_addons' || software.source === 'chrome_extensions') {
-              softwareToAdd.browser = software.source.toUpperCase().split('_')[0];// Get the uppercased first word of the software source, this will either be CHROME or FIREFOX.
-              softwareToAdd.extensionId = software.name + ' ' + software.version;// Set the extensionId to be the software's name and the software version.
-              if(software.extension_id !== undefined && software.extension_id !== null) {// If the Fleet instance reported an extension_id for this extension, we'll use that value.
-                softwareToAdd.extensionId = software.extension_id;
-              }
-              windowsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
-            } else if (software.source === 'programs') {
-              windowsHostToSyncWithVanta.programs.push(softwareToAdd);
-            }
-          }
-        }
-        // Add the host to the array of macOS hosts to sync with Vanta
-        windowsHostsToSyncWithVanta.push(windowsHostToSyncWithVanta);
-      }).tolerate((err)=>{// If an error occurs while sending requests for each host, add the error to the errorReportById object.
-        errorReportById[connectionIdAsString] = new Error(`When building an array of Windows hosts for a Vanta connection (id: ${connectionIdAsString}), an error occured: ${err}`);
-      });// After every Windows host
-
-      if(errorReportById[connectionIdAsString]){// If an error occured (that was not related to an API request) while gathering detailed host information, we'll bail early for this connection.
-        return;
-      }
       //  ┌─┐┬ ┬┌┐┌┌─┐  ┬ ┬┌─┐┌─┐┬─┐┌─┐  ┬ ┬┬┌┬┐┬ ┬  ╦  ╦┌─┐┌┐┌┌┬┐┌─┐
       //  └─┐└┬┘││││    │ │└─┐├┤ ├┬┘└─┐  ││││ │ ├─┤  ╚╗╔╝├─┤│││ │ ├─┤
       //  └─┘ ┴ ┘└┘└─┘  └─┘└─┘└─┘┴└─└─┘  └┴┘┴ ┴ ┴ ┴   ╚╝ ┴ ┴┘└┘ ┴ ┴ ┴

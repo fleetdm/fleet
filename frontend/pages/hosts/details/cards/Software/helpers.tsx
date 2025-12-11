@@ -1,12 +1,19 @@
 import { QueryParams } from "utilities/url";
 import { Row } from "react-table";
 import { flatMap } from "lodash";
+import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 import {
   IHostSoftware,
   IHostSoftwareUiStatus,
   IHostSoftwareWithUiStatus,
+  SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
+import {
+  getLastInstall,
+  getLastUninstall,
+} from "../HostSoftwareLibrary/helpers";
 
 // available_for_install string > boolean conversion in parseHostSoftwareQueryParams
 export const getHostSoftwareFilterFromQueryParams = (
@@ -156,15 +163,42 @@ const getInstallerVersion = (software: IHostSoftware) => {
 };
 
 // UI_STATUS UTILITIES
+
+const getNewerDate = (dateStr1: string, dateStr2: string) => {
+  return dateStr1 > dateStr2 ? dateStr1 : dateStr2;
+};
+
 export const getUiStatus = (
   software: IHostSoftware,
-  isHostOnline: boolean
+  isHostOnline: boolean,
+  hostSoftwareUpdatedAt?: string | null,
+  recentlyUpdatedIds?: Set<number>
 ): IHostSoftwareUiStatus => {
-  const { status, installed_versions } = software;
+  const { status, installed_versions, source } = software;
 
+  const lastInstallDate = getLastInstall(software)?.installed_at;
+  const lastUninstallDate = getLastUninstall(software)?.uninstalled_at;
   const installerVersion = getInstallerVersion(software);
+  const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(source);
+  /** True if a recent user-initiated action (install/uninstall) was detected for this software */
+  const recentUserActionDetected =
+    recentlyUpdatedIds && recentlyUpdatedIds.has(software.id);
 
-  // If the installation has failed, return 'failed_install'
+  // 0. Script Packages states
+  if (isScriptPackage) {
+    if (status === "failed_install") {
+      return "failed_script";
+    }
+    if (status === "pending_install") {
+      return isHostOnline ? "running_script" : "pending_script";
+    }
+    if (status === "installed") {
+      return "ran_script";
+    }
+    return "never_ran_script";
+  }
+
+  // 1. Failed install states
   if (status === "failed_install") {
     if (
       installerVersion &&
@@ -178,7 +212,7 @@ export const getUiStatus = (
     return "failed_install";
   }
 
-  // If the uninstallation has failed, return 'failed_uninstall'
+  // 2. Failed uninstall states
   if (status === "failed_uninstall") {
     if (
       installerVersion &&
@@ -192,34 +226,37 @@ export const getUiStatus = (
     return "failed_uninstall";
   }
 
-  // If installation is pending
+  // 3. Pending install/update
   if (status === "pending_install") {
     if (
       installed_versions &&
       installed_versions.length > 0 &&
       installerVersion
     ) {
-      // Are we updating (installerVersion > installed), or reinstalling (installerVersion == installed)?
       const isUpdate = installed_versions.some(
         (iv) => compareVersions(iv.version, installerVersion) === -1
       );
-
-      // Updating to a newer version
       if (isUpdate) {
         return isHostOnline ? "updating" : "pending_update";
       }
     }
-    // Reinstalling equivalent versions or installing with no currently installed versions
     return isHostOnline ? "installing" : "pending_install";
   }
 
-  // If uninstallation is pending
+  // 4. Pending uninstall
   if (status === "pending_uninstall") {
-    // Return 'uninstalling' if host is online, else 'pending_uninstall'
     return isHostOnline ? "uninstalling" : "pending_uninstall";
   }
 
-  // Check if any installed version is less than the installer version, indicating an update is available
+  // **Recently_uninstalled check comes BEFORE update_available**
+  if (status === null && lastUninstallDate && hostSoftwareUpdatedAt) {
+    const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastUninstallDate);
+    if (newerDate === lastUninstallDate || recentUserActionDetected) {
+      return "recently_uninstalled";
+    }
+  }
+
+  // 5. Update available and recently updated
   if (
     installerVersion &&
     installed_versions &&
@@ -227,20 +264,37 @@ export const getUiStatus = (
       (iv) => compareVersions(iv.version, installerVersion) === -1
     )
   ) {
-    return "update_available";
+    if (!lastInstallDate) {
+      return "update_available";
+    }
+    const newerDate = hostSoftwareUpdatedAt
+      ? getNewerDate(hostSoftwareUpdatedAt, lastInstallDate)
+      : lastInstallDate;
+    return newerDate === lastInstallDate || recentUserActionDetected
+      ? "recently_updated"
+      : "update_available";
   }
 
-  // Tgz packages that are installed via Fleet should return 'installed' as they
-  // are not tracked in software inventory (installed_versions)
-  if (software.source === "tgz_packages" && software.status === "installed") {
+  // 6. Recently installed (not an update)
+  if (status === "installed") {
+    if (lastInstallDate && hostSoftwareUpdatedAt) {
+      const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastInstallDate);
+      if (newerDate === lastInstallDate || recentUserActionDetected) {
+        return "recently_installed";
+      }
+    }
     return "installed";
   }
 
-  // If there are installed versions and none need updating, return 'installed'
+  // 7. Tarballs edge case
+  if (source === "tgz_packages" && status === "installed") {
+    return "installed";
+  }
+
+  // 8. Default to installed or uninstalled based on installed_versions
   if (installed_versions && installed_versions.length > 0) return "installed";
 
-  // Default fallback status when no other conditions are met
-  return "uninstalled"; // fallback
+  return "uninstalled";
 };
 
 // Library/Self-Service Action Button Configurations
@@ -270,6 +324,16 @@ export const getInstallerActionButtonConfig = (
 ): IButtonConfig => {
   if (type === "install") {
     switch (status) {
+      // Script statuses
+      case "failed_script":
+        return { text: "Retry", icon: "refresh" };
+      case "ran_script":
+        return { text: "Rerun", icon: "refresh" };
+      case "running_script":
+      case "pending_script":
+      case "never_ran_script":
+        return { text: "Run", icon: "install" };
+      // Normal install statuses
       case "failed_install":
       case "failed_install_update_available":
         return { text: "Retry", icon: "refresh" };
@@ -277,6 +341,8 @@ export const getInstallerActionButtonConfig = (
       case "pending_uninstall":
       case "uninstalling":
       case "failed_uninstall":
+      case "recently_installed":
+      case "recently_updated":
         return { text: "Reinstall", icon: "refresh" };
       case "pending_update":
       case "updating":
@@ -303,17 +369,22 @@ export const getInstallerActionButtonConfig = (
 const INSTALL_STATUS_SORT_ORDER: IHostSoftwareUiStatus[] = [
   "failed_install", // Failed
   "failed_install_update_available", // Failed install with update available
+  "failed_script", // Failed to run (for script packages)
   "failed_uninstall", // Failed uninstall
   "failed_uninstall_update_available", // Failed uninstall with update available
   "update_available", // Update available
   "updating", // Updating...
   "pending_update", // Update (pending)
+  "running_script", // Running... (for script packages)
+  "pending_script", // Run (pending) (for script packages)
   "installing", // Installing...
   "pending_install", // Install (pending)
   "uninstalling", // Uninstalling...
   "pending_uninstall", // Uninstall (pending)
+  "ran_script", // Ran (for script packages)
   "installed", // Installed
   "uninstalled", // Empty (---)
+  "never_ran_script", // Empty (---) for script packages
 ];
 
 /** Status column custom sortType */
@@ -340,4 +411,36 @@ export const installStatusSortType = (
   if (safeIndexA < safeIndexB) return -1;
   if (safeIndexA > safeIndexB) return 1;
   return 0;
+};
+
+interface IGetSoftwareSubheader {
+  platform: HostPlatform;
+  hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
+  isMyDevicePage?: boolean;
+}
+
+/**
+ * Returns a subheader string for the software page based on platform and MDM enrollment status.
+ * Handles iOS-specific cases for personal and manual MDM enrollment.
+ */
+export const getSoftwareSubheader = ({
+  platform,
+  hostMdmEnrollmentStatus,
+  isMyDevicePage,
+}: IGetSoftwareSubheader): string => {
+  if (isIPadOrIPhone(platform)) {
+    if (hostMdmEnrollmentStatus === "On (personal)") {
+      return isMyDevicePage
+        ? "Software installed on your work profile (Managed Apple Account)."
+        : "Software installed on work profile (Managed Apple Account).";
+    }
+    if (hostMdmEnrollmentStatus === "On (manual)") {
+      return isMyDevicePage
+        ? "Software installed on your device. Built-in apps (e.g. Calculator) aren't included."
+        : "Software installed on this host. Built-in apps (e.g. Calculator) aren't included.";
+    }
+  }
+  return isMyDevicePage
+    ? "Software installed on your device."
+    : "Software installed on this host.";
 };

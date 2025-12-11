@@ -1,0 +1,8 @@
+{
+  "name": "Zeplin",
+  "unique_identifier": "io.zeplin.osx",
+  "token": "zeplin",
+  "installer_format": "zip",
+  "slug": "zeplin/darwin",
+  "default_categories": ["Productivity"]
+}

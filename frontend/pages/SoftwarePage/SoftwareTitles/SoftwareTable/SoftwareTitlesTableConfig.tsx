@@ -4,6 +4,7 @@ import { InjectedRouter } from "react-router";
 
 import {
   ISoftwareTitle,
+  NO_VERSION_OR_HOST_DATA_SOURCES,
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
@@ -20,6 +21,7 @@ import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCe
 
 import VersionCell from "../../components/tables/VersionCell";
 import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
+import { getVulnerabilities } from "./helpers";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -35,26 +37,6 @@ type IHostCountCellProps = CellProps<
 type IViewAllHostsLinkProps = CellProps<ISoftwareTitle>;
 
 type ITableHeaderProps = IHeaderProps<ISoftwareTitle>;
-
-export const getVulnerabilities = <
-  T extends { vulnerabilities: string[] | null }
->(
-  versions: T[]
-) => {
-  if (!versions) {
-    return [];
-  }
-  const vulnerabilities = versions.reduce((acc: string[], currentVersion) => {
-    if (
-      currentVersion.vulnerabilities &&
-      currentVersion.vulnerabilities.length !== 0
-    ) {
-      acc.push(...currentVersion.vulnerabilities);
-    }
-    return acc;
-  }, []);
-  return vulnerabilities;
-};
 
 /**
  * Gets the data needed to render the software name cell.
@@ -91,6 +73,9 @@ const getSoftwareNameCellData = (
         ? "automatic"
         : "manual";
   }
+  if (softwareTitle.icon_url) {
+    iconUrl = softwareTitle.icon_url;
+  }
 
   const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
     softwareTitle
@@ -100,6 +85,7 @@ const getSoftwareNameCellData = (
 
   return {
     name: softwareTitle.name,
+    displayName: softwareTitle.display_name,
     source: softwareTitle.source,
     path: softwareTitleDetailsPath,
     hasInstaller: hasInstaller && !isAllTeams,
@@ -126,10 +112,14 @@ const generateTableHeaders = (
           cellProps.row.original,
           teamId
         );
+        const isAndroidPlayStoreApp =
+          !!cellProps.row.original.app_store_app &&
+          cellProps.row.original.source === "android_apps";
 
         return (
           <SoftwareNameCell
             name={nameCellData.name}
+            display_name={nameCellData.displayName}
             source={nameCellData.source}
             path={nameCellData.path}
             router={router}
@@ -139,6 +129,7 @@ const generateTableHeaders = (
             automaticInstallPoliciesCount={
               nameCellData.automaticInstallPoliciesCount
             }
+            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );
       },
@@ -202,8 +193,11 @@ const generateTableHeaders = (
       id: "view-all-hosts",
       disableSortBy: true,
       Cell: (cellProps: IViewAllHostsLinkProps) => {
-        const hostCountNotSupported =
-          cellProps.row.original.source === "tgz_packages";
+        const { source } = cellProps.row.original;
+
+        const hostCountNotSupported = NO_VERSION_OR_HOST_DATA_SOURCES.includes(
+          source
+        );
 
         if (hostCountNotSupported) return null;
 

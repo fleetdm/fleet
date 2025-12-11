@@ -8,17 +8,14 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"regexp"
+	"unicode"
 
 	"github.com/smallstep/pkcs7"
 )
-
-var ProfileVariableRegex = regexp.MustCompile(`(\$FLEET_VAR_(?P<name1>\w+))|(\${FLEET_VAR_(?P<name2>\w+)})`)
-
-// ProfileDataVariableRegex matches variables present in <data> section of Apple profile, which may cause validation issues.
-var ProfileDataVariableRegex = regexp.MustCompile(`(\$FLEET_VAR_DIGICERT_DATA_(?P<name1>\w+))|(\${FLEET_VAR_DIGICERT_DATA_(?P<name2>\w+)})`)
 
 // MaxProfileRetries is the maximum times an install profile command may be
 // retried, after which marked as failed and no further attempts will be made
@@ -61,7 +58,23 @@ func GetRawProfilePlatform(profile []byte) string {
 		return ""
 	}
 
-	if prefixMatches(trimmedProfile, "<?xml") || prefixMatches(trimmedProfile, `{`) {
+	if prefixMatches(trimmedProfile, "{") {
+		isAppleJson, isAndroidJson, err := DetermineJSONConfigType(trimmedProfile)
+		if err != nil {
+			return ""
+		}
+
+		if isAppleJson {
+			return "darwin"
+		}
+		if isAndroidJson {
+			return "android"
+		}
+
+		return ""
+	}
+
+	if prefixMatches(trimmedProfile, "<?xml") {
 		return "darwin"
 	}
 
@@ -70,6 +83,73 @@ func GetRawProfilePlatform(profile []byte) string {
 	}
 
 	return ""
+}
+
+// DetermineJSONConfigType checks the JSON data to determine if it is an Apple or Android profile.
+// Returns isApple, isAndroid, error.
+func DetermineJSONConfigType(data []byte) (bool, bool, error) {
+	type jsonObj map[string]interface{}
+	var profileKeyMap jsonObj
+	err := json.Unmarshal(data, &profileKeyMap)
+	if err != nil {
+		return false, false, fmt.Errorf("Couldn't add. The file should include valid JSON: %s", err.Error())
+	}
+	if len(profileKeyMap) == 0 {
+		return false, false, errors.New("Couldn't add. JSON is empty")
+	}
+	hasTypeKey := false
+	hasPayloadKey := false
+	hasKeysStartingInUpper := false
+	hasKeysStartingInLower := false
+	hasKeysContainingNonLetters := false
+	for k := range profileKeyMap {
+		if k == "" {
+			return false, false, errors.New("empty string is not a valid JSON configuration key")
+		}
+		if k == "Type" {
+			hasTypeKey = true
+			hasKeysStartingInUpper = true
+			continue
+		}
+		if k == "Payload" {
+			hasPayloadKey = true
+			hasKeysStartingInUpper = true
+			continue
+		}
+
+		for i, r := range k {
+			if i == 0 {
+				if unicode.IsUpper(r) {
+					hasKeysStartingInUpper = true
+				} else if unicode.IsLower(r) {
+					hasKeysStartingInLower = true
+				}
+			}
+			if !unicode.IsLetter(r) {
+				hasKeysContainingNonLetters = true
+			}
+		}
+	}
+
+	// It's an Apple declaration or at least looks like one
+	if hasKeysStartingInUpper && !hasKeysStartingInLower {
+		if hasTypeKey && hasPayloadKey {
+			return true, false, nil
+		}
+		if !hasTypeKey {
+			return false, false, errors.New("apple declaration missing Type")
+		}
+		return false, false, errors.New("apple declaration missing Payload")
+	}
+	// Android declaration
+	if !hasKeysStartingInUpper && hasKeysStartingInLower {
+		if !hasKeysContainingNonLetters {
+			return false, true, nil
+		}
+		return false, false, errors.New("android configuration profile contains invalid keys")
+	}
+	// Didn't match either one
+	return false, false, errors.New("Couldn't add. Keys in declaration (DDM) profile must contain only letters and start with a uppercase letter. Keys in Android profile must contain only letters and start with a lowercase letter.")
 }
 
 // GuessProfileExtension determines the likely file extension of a profile

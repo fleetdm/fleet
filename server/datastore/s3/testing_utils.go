@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	accessKeyID     = "minio"
-	secretAccessKey = "minio123!"
+	accessKeyID     = "locals3"
+	secretAccessKey = "locals3"
 	testEndpoint    = "http://localhost:9000"
 )
 
@@ -30,6 +30,12 @@ func SetupTestBootstrapPackageStore(tb testing.TB, bucket, prefix string) *Boots
 	return store
 }
 
+func SetupTestSoftwareTitleIconStore(tb testing.TB, bucket, prefix string) *SoftwareTitleIconStore {
+	store := setupTestStore(tb, bucket, prefix, NewSoftwareTitleIconStore)
+	tb.Cleanup(func() { cleanupStore(tb, store.s3store) })
+	return store
+}
+
 type testBucketCreator interface {
 	CreateTestBucket(ctx context.Context, name string) error
 }
@@ -40,7 +46,7 @@ func setupTestStore[T testBucketCreator](tb testing.TB, bucket, prefix string, n
 	store, err := newFn(config.S3Config{
 		SoftwareInstallersBucket:           bucket,
 		SoftwareInstallersPrefix:           prefix,
-		SoftwareInstallersRegion:           "minio",
+		SoftwareInstallersRegion:           "localhost",
 		SoftwareInstallersEndpointURL:      testEndpoint,
 		SoftwareInstallersAccessKeyID:      accessKeyID,
 		SoftwareInstallersSecretAccessKey:  secretAccessKey,
@@ -49,7 +55,7 @@ func setupTestStore[T testBucketCreator](tb testing.TB, bucket, prefix string, n
 
 		CarvesBucket:           bucket,
 		CarvesPrefix:           prefix,
-		CarvesRegion:           "minio",
+		CarvesRegion:           "localhost",
 		CarvesEndpointURL:      testEndpoint,
 		CarvesAccessKeyID:      accessKeyID,
 		CarvesSecretAccessKey:  secretAccessKey,
@@ -101,7 +107,7 @@ func cleanupStore(tb testing.TB, store *s3store) {
 }
 
 func checkEnv(tb testing.TB) {
-	if _, ok := os.LookupEnv("MINIO_STORAGE_TEST"); !ok {
-		tb.Skip("set MINIO_STORAGE_TEST environment variable to run S3-based tests")
+	if _, ok := os.LookupEnv("S3_STORAGE_TEST"); !ok {
+		tb.Skip("set S3_STORAGE_TEST environment variable to run S3-based tests")
 	}
 }

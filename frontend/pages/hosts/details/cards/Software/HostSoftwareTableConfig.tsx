@@ -3,30 +3,35 @@ import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
 
 import {
-  IHostSoftware,
-  SoftwareSource,
   formatSoftwareType,
+  IHostSoftware,
   isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
+import {
+  HostPlatform,
+  isIPadOrIPhone,
+  isLinuxLike,
+  isMacOS,
+  isWindows,
+} from "interfaces/platform";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { IDropdownOption } from "interfaces/dropdownOption";
 
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import InstalledPathCell from "pages/SoftwarePage/components/tables/InstalledPathCell";
 import HashCell from "pages/SoftwarePage/components/tables/HashCell/HashCell";
-import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
-import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
+import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
+import { sourcesWithLastOpenedTime } from "pages/hosts/details/components/InventoryVersions/InventoryVersions";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -41,7 +46,8 @@ type IInstalledPathCellProps = IInstalledVersionsCellProps;
 interface ISoftwareTableHeadersProps {
   router: InjectedRouter;
   teamId: number;
-  onClickMoreDetails: (software: IHostSoftware) => void;
+  onShowInventoryVersions: (software: IHostSoftware) => void;
+  platform: HostPlatform;
 }
 
 // NOTE: cellProps come from react-table
@@ -49,7 +55,8 @@ interface ISoftwareTableHeadersProps {
 export const generateSoftwareTableHeaders = ({
   router,
   teamId,
-  onClickMoreDetails,
+  onShowInventoryVersions,
+  platform,
 }: ISoftwareTableHeadersProps): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -62,9 +69,11 @@ export const generateSoftwareTableHeaders = ({
         const {
           id,
           name,
+          display_name,
           source,
           app_store_app,
           software_package,
+          icon_url,
         } = cellProps.row.original;
 
         const softwareTitleDetailsPath = getPathWithQueryParams(
@@ -78,18 +87,22 @@ export const generateSoftwareTableHeaders = ({
         const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
           cellProps.row.original
         );
+        const isAndroidPlayStoreApp =
+          !!app_store_app && source === "android_apps";
 
         return (
           <SoftwareNameCell
             name={name}
+            display_name={display_name}
             source={source}
-            iconUrl={app_store_app?.icon_url}
+            iconUrl={icon_url}
             path={softwareTitleDetailsPath}
             router={router}
             hasInstaller={hasInstaller}
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetails"
+            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );
       },
@@ -109,28 +122,37 @@ export const generateSoftwareTableHeaders = ({
     {
       Header: "Type",
       disableSortBy: true,
-      accessor: "source",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell
-          value={cellProps.cell.value}
-          formatter={() =>
-            formatSoftwareType({
-              source: cellProps.cell.value as SoftwareSource,
-            })
-          }
-        />
-      ),
+      id: "source",
+      Cell: (cellProps: ITableStringCellProps) => {
+        const { source, extension_for } = cellProps.row.original;
+        const value = formatSoftwareType({ source, extension_for });
+        return <TextCell value={value} />;
+      },
     },
     {
       Header: (): JSX.Element => {
-        const titleWithToolTip = (
-          <TooltipWrapper tipContent={<>Date and time of last open.</>}>
-            Last used
+        let tooltipContent = <></>;
+
+        if (isMacOS(platform)) {
+          tooltipContent = (
+            <>When the version installed most recently was last opened.</>
+          );
+        } else if (isLinuxLike(platform) || isWindows(platform)) {
+          tooltipContent = <>When any version was last opened.</>;
+        } else if (isIPadOrIPhone(platform)) {
+          tooltipContent = <>Date and time of last open.</>;
+        }
+
+        const lastOpenedHeader = tooltipContent ? (
+          <TooltipWrapper tipContent={tooltipContent}>
+            Last opened
           </TooltipWrapper>
+        ) : (
+          "Last opened"
         );
-        return <HeaderCell value={titleWithToolTip} disableSortBy />;
+        return <HeaderCell value={lastOpenedHeader} disableSortBy />;
       },
-      id: "Last used",
+      id: "Last opened",
       disableSortBy: true,
       accessor: (originalRow) => {
         // Extract all last_opened_at values, filter out null/undefined, and ensure valid dates
@@ -143,24 +165,25 @@ export const generateSoftwareTableHeaders = ({
         if (dateStrings.length === 0) return null;
 
         // Find the most recent date string by comparing their Date values
-        const mostRecent = dateStrings.reduce((a, b) =>
+        return dateStrings.reduce((a, b) =>
           new Date(a).getTime() > new Date(b).getTime() ? a : b
-        );
-
-        return mostRecent; // cellProps.cell.value = mostRecent;
+        ); // cellProps.cell.value = mostRecent;
       },
       Cell: (cellProps: ITableStringCellProps) => {
-        return (
-          <TextCell
-            value={
-              cellProps.cell.value ? (
+        if (cellProps.cell.value) {
+          return (
+            <TextCell
+              value={
                 <HumanTimeDiffWithDateTip timeString={cellProps.cell.value} />
-              ) : (
-                DEFAULT_EMPTY_CELL_VALUE
-              )
-            }
-            grey={!cellProps.cell.value}
-          />
+              }
+            />
+          );
+        }
+
+        return sourcesWithLastOpenedTime.has(cellProps.row.original.source) ? (
+          <TextCell value="Never" />
+        ) : (
+          <TextCell value="Not supported" grey />
         );
       },
     },
@@ -186,7 +209,7 @@ export const generateSoftwareTableHeaders = ({
         }
 
         const onClickMultiplePaths = () => {
-          onClickMoreDetails(cellProps.row.original);
+          onShowInventoryVersions(cellProps.row.original);
         };
 
         return (
@@ -207,7 +230,7 @@ export const generateSoftwareTableHeaders = ({
         }
 
         const onClickMultipleHashes = () => {
-          onClickMoreDetails(cellProps.row.original);
+          onShowInventoryVersions(cellProps.row.original);
         };
 
         return (

@@ -13,10 +13,9 @@ import mdmAPI, { IEulaMetadataResponse } from "services/entities/mdm";
 
 import MdmSettingsSection from "./components/MdmSettingsSection";
 import AppleBusinessManagerSection from "./components/AppleBusinessManagerSection";
-import IdpSection from "./components/IdpSection";
 import EulaSection from "./components/EulaSection";
 import EndUserMigrationSection from "./components/EndUserMigrationSection";
-import WindowsAutopilotSection from "./components/WindowsAutopilotSection";
+import MicrosoftEntraSection from "./components/MicrosoftEntraSection";
 
 const baseClass = "mdm-settings";
 
@@ -126,13 +125,12 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
             isPremiumTier={!!isPremiumTier}
             isVppOn={!noVppTokenUploaded}
           />
-          <WindowsAutopilotSection
+          <MicrosoftEntraSection
             router={router}
             isPremiumTier={!!isPremiumTier}
           />
           {isPremiumTier && !!config?.mdm.apple_bm_enabled_and_configured && (
             <>
-              <IdpSection />
               <EulaSection
                 eulaMetadata={eulaMetadata}
                 isEulaUploaded={!noEulaUploaded}

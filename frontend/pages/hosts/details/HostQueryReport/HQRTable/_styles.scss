@@ -1,5 +1,5 @@
 .hqr-table {
-  gap: $pad-medium;
+  @include vertical-card-layout;
 
   .last-fetched {
     font-weight: initial;
@@ -8,14 +8,13 @@
 
   &__results-cta {
     display: flex;
-    gap: $pad-medium;
+    gap: $gap-table-elements;
   }
 
   &__query-info {
-    margin-top: $pad-xsmall;
     display: flex;
     flex-direction: column;
-    gap: 0.8rem;
+    gap: $pad-xsmall;
 
     h2 {
       font-size: $medium;

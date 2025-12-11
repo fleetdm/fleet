@@ -13,6 +13,9 @@ agent_options:
       logger_tls_period: 10
       pack_delimiter: /
 controls:
+  android_settings:
+    custom_settings:
+    - path: ./lib/profiles/global-android-profile.json
   macos_settings:
     custom_settings:
     - labels_include_all:
@@ -35,8 +38,8 @@ labels:
   query: SELECT * FROM osquery_info
 - description: Label B description
   hosts:
-  - host1
-  - host2
+  - "1"
+  - "2"
   label_membership_type: manual
   name: Label B
 - criteria:
@@ -46,6 +49,42 @@ labels:
   label_membership_type: host_vitals
   name: Label C
 org_settings:
+  certificate_authorities:
+    custom_est_proxy:
+    - name: some-est-name
+      password: # TODO: Add your EST password here
+      url: https://some-est-url.example.com
+      username: some-est-username
+    custom_scep_proxy:
+    - challenge: # TODO: Add your custom SCEP proxy challenge here
+      name: some-custom-scep-proxy-name
+      url: https://some-custom-scep-proxy-url.com
+    digicert:
+    - api_token: # TODO: Add your Digicert API token here
+      certificate_common_name: some-digicert-certificate-common-name
+      certificate_seat_id: some-digicert-certificate-seat-id
+      certificate_user_principal_names:
+      - some-digicert-certificate-user-principal-name
+      - some-other-digicert-certificate-user-principal-name
+      name: some-digicert-name
+      profile_id: some-digicert-profile-id
+      url: https://some-digicert-url.com
+    hydrant:
+    - client_id: some-hydrant-client-id
+      client_secret: # TODO: Add your Hydrant client secret here
+      name: some-hydrant-name
+      url: https://some-hydrant-url.com
+    ndes_scep_proxy:
+      admin_url: https://some-ndes-admin-url.com
+      password: # TODO: Add your NDES SCEP proxy password here
+      url: https://some-ndes-scep-proxy-url.com
+      username: some-ndes-username
+    smallstep:
+    - challenge_url: https://some-smallstep-challenge-url.com
+      name: some-smallstep-name
+      password: # TODO: Add your Smallstep password here
+      url: https://some-smallstep-url.com
+      username: # TODO: Add your Smallstep username here
   features:
     additional_queries:
       macs: SELECT mac FROM interface_details
@@ -63,20 +102,6 @@ org_settings:
     host_expiry_window: 59995
   integrations:
     conditional_access_enabled: true
-    custom_scep_proxy:
-    - challenge: # TODO: Add your custom SCEP proxy challenge here
-      name: some-custom-scep-proxy-name
-      url: https://some-custom-scep-proxy-url.com
-    digicert:
-    - api_token: # TODO: Add your Digicert API token here
-      certificate_common_name: some-digicert-certificate-common-name
-      certificate_seat_id: some-digicert-certificate-seat-id
-      certificate_user_principal_names:
-      - some-digicert-certificate-user-principal-name
-      - some-other-digicert-certificate-user-principal-name
-      name: some-digicert-name
-      profile_id: some-digicert-profile-id
-      url: https://some-digicert-url.com
     google_calendar:
     - api_key_json:
         owl: hoot
@@ -89,11 +114,6 @@ org_settings:
       project_key: some-jira-project-key
       url: https://some-jira-url.com
       username: some-jira-username
-    ndes_scep_proxy:
-      admin_url: https://some-ndes-admin-url.com
-      password: # TODO: Add your NDES SCEP proxy password here
-      url: https://some-ndes-scep-proxy-url.com
-      username: some-ndes-username
     zendesk:
     - api_token: # TODO: Add your Zendesk API token here
       email: some-zendesk-email@example.com
@@ -136,6 +156,7 @@ org_settings:
     idp_name: some-idp-name
     metadata: # TODO: Add your SSO metadata here
     metadata_url: # TODO: Add your SSO metadata URL here
+    sso_server_url: https://sso.fleetdm.com
   webhook_settings:
     activities_webhook:
       destination_url: https://some-activities-webhook-url.com
@@ -162,7 +183,7 @@ policies:
   critical: false
   description: This is a global policy
   install_software:
-    hash_sha256: ___GITOPS_COMMENT_11___
+    hash_sha256: ___GITOPS_COMMENT_15___
   labels_include_any:
   - Label A
   - Label B

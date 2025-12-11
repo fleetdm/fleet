@@ -31,9 +31,9 @@ Render is a cloud hosting service that makes it easy to get up and running fast,
 
 5. From the "**Fleet**" service, click on the Fleet URL to open your Fleet instance. Then follow the on-screen instructions to set up your Fleet account.
 
-> **Add a license key:** After successful deployment, navigate to the environment variables section of the Render blueprint to manually add your license key. 
+> **Add a license key:** After successful deployment, navigate to the environment variables section of the Render blueprint to manually add your [license key](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key). 
 
-> Support for add/install software features is coming soon. Get [commmunity support](https://chat.osquery.io/c/fleet).
+> Support for add/install software features is coming soon. Get [community support](https://chat.osquery.io/c/fleet).
 
 <meta name="articleTitle" value="Deploy Fleet on Render">
 <meta name="authorGitHubUsername" value="edwardsb">

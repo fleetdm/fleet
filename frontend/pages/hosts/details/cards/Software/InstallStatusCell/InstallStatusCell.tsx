@@ -5,8 +5,13 @@ import {
   IHostSoftware,
   IHostSoftwareWithUiStatus,
   IHostSoftwareUiStatus,
-  SoftwareInstallStatus,
+  SoftwareInstallUninstallStatus,
+  IVPPHostSoftware,
+  SoftwareUninstallStatus,
+  IAppLastInstall,
+  SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
+import { isAndroid, isAppleDevice } from "interfaces/platform";
 import { Colors } from "styles/var/colors";
 
 import Icon from "components/Icon";
@@ -14,7 +19,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
-import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import {
   getLastInstall,
   getLastUninstall,
@@ -25,7 +30,7 @@ const baseClass = "install-status-cell";
 interface CommandUuid {
   command_uuid: string;
   software_title?: string;
-  status?: SoftwareInstallStatus;
+  status?: SoftwareInstallUninstallStatus;
 }
 
 interface InstallUuid {
@@ -42,7 +47,7 @@ interface TooltipArgs {
   isSelfService?: boolean;
   softwareName?: string | null;
   lastInstalledAt?: string;
-  isAppStoreApp?: boolean;
+  isAppleAppStoreApp?: boolean;
   isHostOnline?: boolean;
 }
 
@@ -58,32 +63,36 @@ export type IStatusDisplayConfig = {
   tooltip: (args: TooltipArgs) => ReactNode;
 };
 
+export const RECENT_SUCCESS_ACTION_MESSAGE = (
+  action: "installed" | "uninstalled" | "updated"
+) =>
+  `Fleet successfully ${action} software and is fetching latest software inventory.`;
+
 // Similar to SelfServiceTableConfig STATUS_CONFIG
 export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
-  Exclude<IHostSoftwareUiStatus, "uninstalled">, // Uninstalled is handled separately with empty cell
+  Exclude<
+    IHostSoftwareUiStatus,
+    "uninstalled" | "recently_uninstalled" | "never_ran_script"
+  >, // Uninstalled/recently uninstalled/ never ran script is handled separately with empty cell
   IStatusDisplayConfig
 > = {
   installed: {
     iconName: "success",
     displayText: "Installed",
-    tooltip: ({ isSelfService, isAppStoreApp, lastInstalledAt }) => {
-      if (!lastInstalledAt) {
-        return undefined;
-      }
-
-      return isAppStoreApp ? (
-        <>
-          The host acknowledged the MDM
-          <br />
-          command to install the app.
-        </>
-      ) : (
-        <>
-          Software was installed{" "}
-          {!isSelfService && "(install script finished with exit code 0) "}
-          {dateAgo(lastInstalledAt)}.
-        </>
-      );
+    tooltip: () => undefined, // No tooltip for installed state
+  },
+  recently_updated: {
+    iconName: "success",
+    displayText: "Updated",
+    tooltip: () => {
+      return RECENT_SUCCESS_ACTION_MESSAGE("updated");
+    },
+  },
+  recently_installed: {
+    iconName: "success",
+    displayText: "Installed",
+    tooltip: () => {
+      return RECENT_SUCCESS_ACTION_MESSAGE("installed");
     },
   },
   installing: {
@@ -156,9 +165,11 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
             Select <b>Retry</b> to install again, or contact your IT department.
           </>
         ) : (
-          <>
-            Select <b>Details &gt; Activity</b> to view errors.
-          </>
+          !lastInstalledAt && (
+            <>
+              Select <b>Details &gt; Activity</b> to view errors.
+            </>
+          )
         )}
       </>
     ),
@@ -205,7 +216,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   update_available: {
     iconName: "error-outline",
-    iconColor: "ui-fleet-black-50",
+    iconColor: "ui-fleet-black-75",
     displayText: "Update available",
     tooltip: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? (
@@ -272,21 +283,73 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
         </>
       ),
   },
+  // Script package statuses
+  ran_script: {
+    iconName: "success",
+    displayText: "Ran",
+    tooltip: ({ lastInstalledAt }) =>
+      lastInstalledAt ? (
+        <>
+          The script ran (finished with exit code 0) {dateAgo(lastInstalledAt)}.
+        </>
+      ) : undefined,
+  },
+  failed_script: {
+    iconName: "error",
+    displayText: "Failed",
+    tooltip: ({ lastInstalledAt, isSelfService }) => (
+      <>
+        The script failed to run
+        {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}.{" "}
+        {isSelfService ? (
+          <>
+            Select <b>Retry</b> to run again, or contact your IT department.
+          </>
+        ) : (
+          !lastInstalledAt && (
+            <>
+              Select <b>Details &gt; Activity</b> to view errors.
+            </>
+          )
+        )}
+      </>
+    ),
+  },
+  running_script: {
+    iconName: "pending-outline",
+    displayText: "Running...",
+    tooltip: () => "Fleet is running the script.",
+  },
+  pending_script: {
+    iconName: "pending-outline",
+    displayText: "Run (pending)",
+    tooltip: ({ isSelfService, isHostOnline }) =>
+      isSelfService || isHostOnline ? (
+        "Fleet is running the script."
+      ) : (
+        <>
+          Fleet will run the script when the host
+          <br /> comes online.
+        </>
+      ),
+  },
 };
 
 type IInstallStatusCellProps = {
   software: IHostSoftwareWithUiStatus;
-  onShowSoftwareDetails?: (software: IHostSoftware) => void;
+  onShowInventoryVersions?: (software: IHostSoftware) => void;
   onShowUpdateDetails: (software: IHostSoftware) => void;
-  onShowInstallDetails?: (uuid?: InstallOrCommandUuid) => void;
-  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
+  onShowInstallDetails: (hostSoftware: IHostSoftware) => void;
+  onShowIpaInstallDetails: (hostSoftware: IHostSoftware) => void;
+  onShowScriptDetails: (hostSoftware: IHostSoftware) => void;
+  onShowVPPInstallDetails: (s: IVPPHostSoftware) => void;
+  onShowUninstallDetails: (details: ISWUninstallDetailsParentState) => void;
   isSelfService?: boolean;
   isHostOnline?: boolean;
-  hostName?: string;
 };
 
-const getSoftwareName = (software: IHostSoftware) =>
-  software.software_package?.name;
+const getSoftwarePackageName = (software: IHostSoftware) =>
+  software.display_name || software.software_package?.name;
 
 const resolveDisplayText = (
   displayText: IStatusDisplayConfig["displayText"],
@@ -297,80 +360,128 @@ const resolveDisplayText = (
     ? displayText({ isSelfService, isHostOnline })
     : displayText;
 
-const getEmptyCellTooltip = (hasAppStoreApp: boolean, softwareName?: string) =>
-  hasAppStoreApp ? (
+const getEmptyCellTooltip = (
+  isAppleAppStoreApp: boolean,
+  isAndroidAppStoreApp: boolean,
+  isScriptPackage: boolean,
+  softwareName?: string
+) => {
+  if (isAppleAppStoreApp) {
+    return (
+      <>
+        App Store app can be installed on the host. <br />
+        Select <b>Actions &gt; Install</b> to install.
+      </>
+    );
+  }
+
+  if (isAndroidAppStoreApp) {
+    return (
+      <>
+        End users can install from the <strong>Play Store</strong> in their work
+        profile.
+      </>
+    );
+  }
+
+  return (
     <>
-      App Store app can be installed on the host. <br />
-      Select <b>Actions &gt; Install</b> to install.
-    </>
-  ) : (
-    <>
-      {softwareName ? <b>{softwareName}</b> : "Software"} can be installed on
-      the host.
+      {softwareName ? <b>{softwareName}</b> : "Software"} can be{" "}
+      {isScriptPackage ? "ran" : "installed"} on the host.
       <br /> Select <b>Actions &gt; Install</b> to install.
     </>
   );
+};
 
+// TODO: Update for Android Play Store apps
 const InstallStatusCell = ({
   software,
-  onShowSoftwareDetails,
+  onShowInventoryVersions,
   onShowUpdateDetails,
   onShowInstallDetails,
+  onShowIpaInstallDetails,
+  onShowScriptDetails,
+  onShowVPPInstallDetails,
   onShowUninstallDetails,
   isSelfService = false,
   isHostOnline = false,
-  hostName,
 }: IInstallStatusCellProps) => {
-  const hasAppStoreApp = !!software.app_store_app;
-  const lastInstall = getLastInstall(software);
+  const isAppleAppStoreApp =
+    !!software.app_store_app && isAppleDevice(software.app_store_app.platform);
+  const isAndroidAppStoreApp =
+    !!software.app_store_app && isAndroid(software.app_store_app.platform);
+  const lastInstall = getLastInstall(software); // TODO (back end bug fix) - `software.app_store_app.last_install sometimes coming back `null` for VPP apps, currently falls back to displaying the `InventoryVersionsModal`
   const lastUninstall = getLastUninstall(software);
-  const softwareName = getSoftwareName(software);
+  const softwarePackageName = getSoftwarePackageName(software); // @RachelElysia I renamed this function and the variable name its return value is set to here because it is looking at the software_package.name, which has a suffix like ".pkg". software.name has the more human-readable version. Not sure how else this data is being used so I am not going to refactor anything. Please update if needed.
   const displayStatus = software.ui_status;
 
-  if (displayStatus === "uninstalled") {
+  if (displayStatus === "uninstalled" || displayStatus === "never_ran_script") {
     return (
       <TextCell
         grey
         italic
-        emptyCellTooltipText={getEmptyCellTooltip(hasAppStoreApp, softwareName)}
+        emptyCellTooltipText={getEmptyCellTooltip(
+          isAppleAppStoreApp,
+          isAndroidAppStoreApp,
+          displayStatus === "never_ran_script",
+          softwarePackageName
+        )}
+      />
+    );
+  }
+
+  if (displayStatus === "recently_uninstalled") {
+    return (
+      <TextCell
+        grey
+        italic
+        emptyCellTooltipText={RECENT_SUCCESS_ACTION_MESSAGE("uninstalled")}
       />
     );
   }
 
   const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
 
+  // This is only called for script packages (payload-free installers: .sh, .ps1)
+  const onClickScriptStatus = () => {
+    onShowScriptDetails(software);
+  };
+
+  // This is never called for App Store app missing 'last_install' info for
+  // successful and failed installs (Old clients <4.72 bug) See shouldOnClickBeDisabled
   const onClickInstallStatus = () => {
-    if (onShowInstallDetails && lastInstall) {
-      if ("command_uuid" in lastInstall) {
-        onShowInstallDetails({
-          command_uuid: lastInstall.command_uuid,
-          software_title: software.name,
-          status: software.status || undefined,
-        });
-      } else if ("install_uuid" in lastInstall) {
-        onShowInstallDetails({ install_uuid: lastInstall.install_uuid });
-      } else {
-        onShowInstallDetails(undefined);
-      }
-    } else if (onShowSoftwareDetails) {
-      onShowSoftwareDetails(software);
+    // VPP Install details modal will handle command_uuid missing gracefully for pending installs, etc
+    if (isAppleAppStoreApp) {
+      onShowVPPInstallDetails({
+        ...software,
+        ...(lastInstall && {
+          commandUuid: (lastInstall as IAppLastInstall).command_uuid,
+        }),
+      });
+    }
+    // TODO: Is this the best way to check for IPA installer?
+    if (software.source === "ios_apps" || software.source === "ipados_apps") {
+      onShowIpaInstallDetails(software);
+    } else {
+      // Default also includes Android Play Store installs (isAndroidAppStoreApp)
+      onShowInstallDetails(software);
     }
   };
 
   const onClickUninstallStatus = () => {
-    if (onShowUninstallDetails && lastUninstall) {
+    if (lastUninstall) {
       if ("script_execution_id" in lastUninstall) {
         onShowUninstallDetails({
-          ...lastUninstall,
-          status: software.status || undefined,
-          software_title: software.name,
-          host_display_name: hostName,
+          softwareName: software.display_name || software.name || "",
+          softwarePackageName,
+          uninstallStatus: (software.status ||
+            "pending_uninstall") as SoftwareUninstallStatus,
+          scriptExecutionId: lastUninstall.script_execution_id,
+          hostSoftware: software,
         });
-      } else {
-        onShowUninstallDetails(undefined);
       }
-    } else if (onShowSoftwareDetails) {
-      onShowSoftwareDetails(software);
+    } else if (onShowInventoryVersions) {
+      onShowInventoryVersions(software);
     }
   };
 
@@ -385,10 +496,36 @@ const InstallStatusCell = ({
       isHostOnline
     );
 
+    // Software "installed" by Fleet (backend) and shows as "installed" (UI)
+    const isInstalledInFleetAndUI =
+      software.status === "installed" && software.ui_status === "installed";
+
+    // Is this an Apple App Store app missing 'last_install' info? (Old clients <4.72 bug)
+    const isMissingLastInstallInfo =
+      isAppleAppStoreApp && !software.app_store_app?.last_install;
+
+    // These temporary statuses are not clickable because it will show outdated info in modal
+    const recentlyTakenAction =
+      software.ui_status === "recently_installed" ||
+      software.ui_status === "recently_updated" ||
+      software.ui_status === "recently_uninstalled";
+
+    const shouldOnClickBeDisabled =
+      (isMissingLastInstallInfo &&
+        (software.status === "failed_install" || isInstalledInFleetAndUI)) ||
+      recentlyTakenAction;
+
+    const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(software.source);
+
     // Status groups and their click handlers
     const displayStatusConfig = [
       {
-        condition: true, // Allow click even if no last install to see details modal
+        condition: isScriptPackage, // Still allows click even if no last install to see details modal
+        statuses: ["Failed", "Run (pending)", "Ran"],
+        onClick: onClickScriptStatus,
+      },
+      {
+        condition: !isScriptPackage, // Still allows click even if no last install to see details modal
         statuses: ["Failed", "Install (pending)", "Installed"],
         onClick: onClickInstallStatus,
       },
@@ -405,12 +542,13 @@ const InstallStatusCell = ({
     ];
 
     // Find a matching config for the current display text
+    // Given the condition is met and the display text is in the statuses array
     const match = displayStatusConfig.find(
       ({ condition, statuses }) =>
         condition && statuses.includes(resolvedDisplayText as string)
     );
 
-    if (match) {
+    if (match && !shouldOnClickBeDisabled) {
       return (
         <Button
           className={`${baseClass}__item-status-button`}
@@ -428,8 +566,8 @@ const InstallStatusCell = ({
 
   const tooltipContent = displayConfig.tooltip({
     lastInstalledAt: lastInstall?.installed_at,
-    softwareName,
-    isAppStoreApp: hasAppStoreApp,
+    softwareName: softwarePackageName,
+    isAppleAppStoreApp,
     isSelfService,
     isHostOnline,
   });
@@ -443,6 +581,7 @@ const InstallStatusCell = ({
         position="top"
         className={`${baseClass}__tooltip-wrapper`}
         disableTooltip={!tooltipContent}
+        tipOffset={8}
       >
         {(isSelfService || isHostOnline) &&
         displayConfig.iconName === "pending-outline" ? (

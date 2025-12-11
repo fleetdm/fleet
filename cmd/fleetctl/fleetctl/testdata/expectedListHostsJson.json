@@ -10,6 +10,7 @@
 		"last_enrolled_at": "0001-01-01T00:00:00Z",
 		"last_restarted_at": "0001-01-01T00:00:00Z",
 		"seen_time": "0001-01-01T00:00:00Z",
+		"software": [],
 		"software_updated_at": "0001-01-01T00:00:00Z",
 		"refetch_requested": false,
 		"refetch_critical_queries_until": null,
@@ -66,6 +67,7 @@
 		"gigs_disk_space_available": 0,
 		"percent_disk_space_available": 0,
 		"gigs_total_disk_space": 0,
+		"gigs_all_disk_space": null,
 		"issues": {
 			"total_issues_count": 0,
 			"failing_policies_count": 0
@@ -86,6 +88,7 @@
 		"last_enrolled_at": "0001-01-01T00:00:00Z",
 		"last_restarted_at": "0001-01-01T00:00:00Z",
 		"seen_time": "0001-01-01T00:00:00Z",
+		"software": [],
 		"software_updated_at": "0001-01-01T00:00:00Z",
 		"refetch_requested": false,
 		"refetch_critical_queries_until": null,
@@ -134,6 +137,7 @@
 		"gigs_disk_space_available": 0,
 		"percent_disk_space_available": 0,
 		"gigs_total_disk_space": 0,
+		"gigs_all_disk_space": null,
 		"issues": {
 			"total_issues_count": 0,
 			"failing_policies_count": 0

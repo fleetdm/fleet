@@ -38,6 +38,7 @@
     font-size: 14px;
     font-weight: 400;
     line-height: 150%; /*  */
+    text-decoration: none;
     &:hover {
       color: #192147;
       text-decoration: none;
@@ -93,8 +94,8 @@
   }
   [purpose='policy-details'] {
     padding-right: 64px;
-    max-width: 800px;
     width: 100%;
+    min-width: 0px;// Prevents long overflowing nowrap text from keeping this element from shrinking.
   }
   [purpose='powershell-note'] {
     display: flex;
@@ -290,7 +291,7 @@
 
   }
   [purpose='right-sidebar'] {
-    width: 256px;
+    min-width: 220px;
     margin-left: 16px;
     font-size: 14px;
     transition-property: transform;
@@ -300,6 +301,7 @@
       margin-bottom: 8px;
       display: block;
       color: #515774;
+      text-decoration: none;
       &:hover {
         text-decoration: none;
         color: @core-fleet-black;

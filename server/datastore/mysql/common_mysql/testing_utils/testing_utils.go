@@ -19,10 +19,20 @@ import (
 const (
 	TestUsername              = "root"
 	TestPassword              = "toor"
-	TestAddress               = "localhost:3307"
 	TestReplicaDatabaseSuffix = "_replica"
 	TestReplicaAddress        = "localhost:3310"
 )
+
+var TestAddress = getTestAddress()
+
+// getTestAddress returns the MySQL test server address from environment variable
+// FLEET_MYSQL_TEST_PORT or defaults to localhost:3307
+func getTestAddress() string {
+	if port := os.Getenv("FLEET_MYSQL_TEST_PORT"); port != "" {
+		return "localhost:" + port
+	}
+	return "localhost:3307"
+}
 
 // TruncateTables truncates the specified tables, in order, using ds.writer.
 // Note that the order is typically not important because FK checks are

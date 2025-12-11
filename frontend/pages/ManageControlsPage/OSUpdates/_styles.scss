@@ -1,39 +1,9 @@
 .os-updates {
-  font-size: $x-small;
+  @include vertical-page-tab-panel-layout;
+  margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
 
   &__description {
-    margin: $pad-xxlarge 0;
-  }
-
-  &__content {
-    display: grid;
-    gap: $pad-xxlarge;
-    margin: 0 auto;
-
-    grid-template-columns: 1fr 1fr;
-    grid-template-areas:
-      "current-version current-version"
-      "target nudge-preview";
-
-    @media (max-width: $break-md) {
-      grid-template-columns: 1fr;
-      grid-template-areas:
-        "current-version"
-        "target"
-        "nudge-preview";
-    }
-  }
-
-  &__current-version-container {
-    grid-area: current-version;
-  }
-
-  &__target-container {
-    grid-area: target;
-  }
-
-  &__nudge-preview-container {
-    grid-area: nudge-preview;
+    margin: 0;
   }
 
   &__os-versions-card {
@@ -42,5 +12,9 @@
 
   &__premium-feature-message {
     margin-top: 80px;
+  }
+
+  &__target-container {
+    @include vertical-page-layout;
   }
 }

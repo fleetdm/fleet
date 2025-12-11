@@ -36,9 +36,9 @@ Install dependencies:
 sudo apt-get install -y git golang make nodejs npm
 sudo npm install -g yarn
 # Install nvm to manage node versions (apt very out of date) https://github.com/nvm-sh/nvm#install--update-script
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 # refresh your session before continuing
-nvm install v20.18.1
+nvm install v24.10.0
 ```
 
 #### Windows
@@ -57,6 +57,8 @@ If you plan to use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) 
 
 ### Clone and build
 
+The following commands will clone the repository and build the Fleet and fleetctl binaries. When running these commands for the first time, please review the [Details](#details) section below for additional required dependencies.
+
 ```sh
 git clone https://github.com/fleetdm/fleet.git
 cd fleet
@@ -69,13 +71,14 @@ The binaries are now available in `./build/`.
 
 ### Details
 
-To set up a working local development environment, you must install the following minimum toolset:
+To set up a working local development environment, you must have the following toolset:
 
 * [Go](https://golang.org/doc/install)
-* [Node.js v20.18.1](https://nodejs.org/en/blog/release/v20.18.1) and [Yarn](https://yarnpkg.com/en/docs/install)
+* [Node.js v24.10.0](https://nodejs.org/en/blog/release/v24.10.0) and [Yarn](https://yarnpkg.com/en/docs/install)
+  * A specific version of Node.js can be installed using [nvm](https://github.com/nvm-sh/nvm#install--update-script)
 * [GNU Make](https://www.gnu.org/software/make/) (probably already installed if you're on macOS/Linux)
 
-Once you have those minimum requirements, check out this [Loom video](https://www.loom.com/share/e7439f058eb44c45af872abe8f8de4a1) that walks through starting up a local development environment for Fleet.
+Once you have those requirements, check out this [Loom video](https://www.loom.com/share/e7439f058eb44c45af872abe8f8de4a1) that walks through starting up a local development environment for Fleet.
 
 For a text-based walkthrough, continue through the following steps:
 
@@ -107,7 +110,7 @@ To generate all necessary code (bundling JavaScript into Go, etc.), run the foll
 make generate
 ```
 
-If you are using a Mac computer with Apple Silicon and have not installed Rosetta 2, you will need to do so before running `make generate`.
+If you are using a Mac computer with Apple Silicon and have not installed Rosetta 2, you will need to do so before running `make generate`. Otherwise, you may see the following error: `Unknown system error -86`
 
 ```sh
 /usr/sbin/softwareupdate --install-rosetta --agree-to-license
@@ -179,6 +182,8 @@ To start the Fleet server backed by the Docker development infrastructure, run t
 ```sh
 ./build/fleet serve --dev
 ```
+
+> To develop Fleet's MDM features, you have to pass a `--fleet_server_private_key` in your `fleet serve --dev` command. Learn how to generate a private key in [Fleet's server configuration documentation](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key).
 
 ### Developing the Fleet UI
 

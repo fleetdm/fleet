@@ -1,14 +1,23 @@
 import { ISoftwareVulnerability } from "./software";
 
+export interface IOperatingSystemKernels {
+  id: number; // the software version ID of the kernel
+  version: string;
+  vulnerabilities: string[] | null;
+  hosts_count: number;
+}
 export interface IOperatingSystemVersion {
   os_version_id: number;
+  /** name often includes "<name> <version>" */
   name: string;
   name_only: string;
   version: string;
-  platform: string;
+  platform: string; // TODO: More specific
   hosts_count: number;
   generated_cpes?: string[];
   vulnerabilities: ISoftwareVulnerability[];
+  vulnerabilities_count?: number;
+  kernels: IOperatingSystemKernels[] | [];
 }
 
 export type IVulnerabilityOSVersion = Omit<

@@ -13,7 +13,10 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/go-kit/log"
@@ -42,8 +45,15 @@ func (s *integrationLoggerTestSuite) SetupSuite() {
 	s.buf = new(bytes.Buffer)
 	logger := log.NewJSONLogger(s.buf)
 	logger = level.NewFilter(logger, level.AllowDebug())
+	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 
-	users, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{Logger: logger})
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier: fleet.TierPremium,
+		},
+		Logger: logger,
+		Pool:   redisPool,
+	})
 	s.server = server
 	s.users = users
 }
@@ -272,7 +282,7 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 	s.DoRawWithHeaders("POST", "/api/osquery/log", body.Bytes(), http.StatusBadRequest, nil)
 }
 
-func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
+func (s *integrationLoggerTestSuite) TestEnrollOsqueryLogsErrors() {
 	t := s.T()
 	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -303,4 +313,93 @@ func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
 	assert.Equal(t, `"error"`, string(logData["level"]))
 	assert.Contains(t, string(logData["err"]), `"enroll failed:`)
 	assert.Contains(t, string(logData["err"]), `no matching secret found`)
+}
+
+func (s *integrationLoggerTestSuite) TestSetupExperienceEULAMetadataDoesNotLogErrorIfNotFound() {
+	t := s.T()
+
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	originalAppConf := *appConf
+
+	t.Cleanup(func() {
+		// restore app config
+		err = s.ds.SaveAppConfig(context.Background(), &originalAppConf)
+		require.NoError(t, err)
+	})
+
+	appConf.MDM.EnabledAndConfigured = true
+	appConf.MDM.WindowsEnabledAndConfigured = true
+	appConf.MDM.AppleBMEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(t, err)
+
+	s.token = getTestAdminToken(t, s.server)
+	s.Do("GET", "/api/v1/fleet/setup_experience/eula/metadata", nil, http.StatusNotFound)
+
+	logs := strings.Split(strings.TrimSpace(s.buf.String()), "\n")
+	require.Len(t, logs, 2) // Login and not found
+
+	logData := make(map[string]json.RawMessage)
+	log := logs[1]
+
+	assert.NoError(t, json.Unmarshal([]byte(log), &logData))
+	assert.Equal(t, `"info"`, string(logData["level"]))
+	assert.Equal(t, string(logData["err"]), `"not found"`)
+}
+
+func (s *integrationLoggerTestSuite) TestWindowsMDMEnrollEmptyBinarySecurityToken() {
+	t := s.T()
+	ctx := t.Context()
+
+	appConf, err := s.ds.AppConfig(ctx)
+	require.NoError(s.T(), err)
+	originalAppConf := *appConf
+
+	t.Cleanup(func() {
+		// restore app config
+		err = s.ds.SaveAppConfig(context.Background(), &originalAppConf)
+		require.NoError(t, err)
+	})
+
+	appConf.MDM.EnabledAndConfigured = true
+	appConf.MDM.WindowsEnabledAndConfigured = true
+	appConf.MDM.AppleBMEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(t, err)
+
+	host := createOrbitEnrolledHost(t, "windows", "", s.ds)
+	mdmDevice := mdmtest.NewTestMDMClientWindowsEmptyBinarySecurityToken(s.server.URL, *host.OrbitNodeKey)
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	t.Log(s.buf.String())
+
+	var foundDiscovery, foundPolicy, foundEnroll bool
+	for line := range strings.SplitSeq(s.buf.String(), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "{") {
+			continue
+		}
+
+		var m map[string]string
+		err := json.Unmarshal([]byte(line), &m)
+		require.NoError(t, err)
+
+		switch m["uri"] {
+		case microsoft_mdm.MDE2DiscoveryPath:
+			foundDiscovery = true
+		case microsoft_mdm.MDE2PolicyPath:
+			foundPolicy = true
+			require.Equal(t, "info", m["level"])
+			require.Equal(t, "binarySecurityToken is empty", m["soap_fault"])
+		case microsoft_mdm.MDE2EnrollPath:
+			require.Equal(t, "info", m["level"])
+			require.Equal(t, "binarySecurityToken is empty", m["soap_fault"])
+			foundEnroll = true
+		}
+	}
+	require.True(t, foundDiscovery)
+	require.True(t, foundPolicy)
+	require.True(t, foundEnroll)
 }

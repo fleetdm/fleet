@@ -178,6 +178,13 @@ will be disabled and/or hidden in the UI.
                 throw new Error('Cannot attach view local `me`, because this view local already exists!  (Is it being attached somewhere else?)');
               }
               res.locals.me = undefined;
+
+              // Set security headers for all GET and HEAD requests.
+              res.setHeader(`X-Content-Type-Options`, `nosniff`);//[?]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Content-Type-Options
+              res.setHeader('X-Frame-Options', 'SAMEORIGIN');// [?]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Frame-Options
+              res.setHeader(`Referrer-Policy`, `strict-origin-when-cross-origin`);// [?]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Referrer-Policy
+              res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains;');// [?]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Strict-Transport-Security
+              res.setHeader(`Permissions-Policy`, `camera=(), microphone=(), usb=()`);// [?]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Permissions-Policy
             }//ﬁ
 
             // Check for query parameters set by ad clicks.
@@ -342,7 +349,7 @@ will be disabled and/or hidden in the UI.
                       contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
                     });
                     let websiteVisitReason;
-                    if(req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
+                    if(req.session.adAttributionString && req.session.visitedSiteFromAdAt) {
                       let thirtyMinutesAgoAt = Date.now() - (1000 * 60 * 30);
                       // If this user visited the website from an ad, set the websiteVisitReason to be the adAttributionString stored in their session.
                       if(req.session.visitedSiteFromAdAt > thirtyMinutesAgoAt) {

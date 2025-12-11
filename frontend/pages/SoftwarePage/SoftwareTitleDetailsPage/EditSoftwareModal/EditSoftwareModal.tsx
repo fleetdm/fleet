@@ -1,7 +1,6 @@
 import React, { useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
-import paths from "router/paths";
 import classnames from "classnames";
 
 import { ILabelSummary } from "interfaces/label";
@@ -10,8 +9,6 @@ import {
   ISoftwarePackage,
   isSoftwarePackage,
 } from "interfaces/software";
-import mdmAppleAPI from "services/entities/mdm_apple";
-
 import { NotificationContext } from "context/notification";
 import softwareAPI, {
   MAX_FILE_SIZE_BYTES,
@@ -22,7 +19,6 @@ import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import deepDifference from "utilities/deep_difference";
 import { getFileDetails } from "utilities/file/fileUtils";
-import { getPathWithQueryParams, QueryParams } from "utilities/url";
 
 import Modal from "components/Modal";
 import FileProgressModal from "components/FileProgressModal";
@@ -53,10 +49,11 @@ interface IEditSoftwareModalProps {
   software: ISoftwarePackage | IAppStoreApp;
   refetchSoftwareTitle: () => void;
   onExit: () => void;
-  installerType: "package" | "vpp";
+  installerType: "package" | "app-store";
   router: InjectedRouter;
   gitOpsModeEnabled?: boolean;
   openViewYamlModal: () => void;
+  isIosOrIpadosApp?: boolean;
 }
 
 const EditSoftwareModal = ({
@@ -69,6 +66,7 @@ const EditSoftwareModal = ({
   router,
   gitOpsModeEnabled = false,
   openViewYamlModal,
+  isIosOrIpadosApp = false,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -250,12 +248,12 @@ const EditSoftwareModal = ({
     }
   };
 
-  // Edit VPP API call
+  // Edit App Store API call -- currently only for VPP apps and not Google Play apps
   const onEditVpp = async (formData: ISoftwareVppFormData) => {
     setIsUpdatingSoftware(true);
 
     try {
-      await mdmAppleAPI.editVppApp(softwareId, teamId, formData);
+      await softwareAPI.editAppStoreApp(softwareId, teamId, formData);
 
       renderFlash(
         "success",
@@ -340,7 +338,7 @@ const EditSoftwareModal = ({
     <>
       <Modal
         className={editSoftwareModalClasses}
-        title="Edit software"
+        title={isSoftwarePackage(software) ? "Edit package" : "Edit app"}
         onExit={onExit}
         width="large"
       >
@@ -357,11 +355,12 @@ const EditSoftwareModal = ({
       {showPreviewEndUserExperienceModal && (
         <CategoriesEndUserExperienceModal
           onCancel={togglePreviewEndUserExperienceModal}
+          isIosOrIpadosApp={isIosOrIpadosApp}
         />
       )}
       {!!pendingPackageUpdates.software && isUpdatingSoftware && (
         <FileProgressModal
-          fileDetails={getFileDetails(pendingPackageUpdates.software)}
+          fileDetails={getFileDetails(pendingPackageUpdates.software, true)}
           fileProgress={uploadProgress}
         />
       )}

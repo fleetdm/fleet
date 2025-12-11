@@ -87,7 +87,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 
 				return signedBytes
 			}(),
-			shouldFail: false,
+			shouldFail: true,
 		},
 	}
 
@@ -156,7 +156,8 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 			require.Equal(t, "ValidName", parsed.Name)
 			require.Equal(t, "ValidIdentifier", parsed.Identifier)
 
-			err = parsed.ValidateUserProvided()
+			// Test with allowCustomOSUpdatesAndFileVault = false (default behavior)
+			err = parsed.ValidateUserProvided(false)
 			for _, pt := range c.shouldFail {
 				require.Error(t, err)
 				require.ErrorContains(t, err, pt)
@@ -166,6 +167,83 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMDMAppleConfigProfileAllowCustomOSUpdatesAndFileVault(t *testing.T) {
+	cases := []struct {
+		testName     string
+		payloadTypes []string
+	}{
+		{
+			testName:     "FileVault2Allowed",
+			payloadTypes: []string{"com.apple.MCX.FileVault2"},
+		},
+		{
+			testName:     "FDERecoveryKeyEscrowAllowed",
+			payloadTypes: []string{"com.apple.security.FDERecoveryKeyEscrow"},
+		},
+		{
+			testName:     "AllFileVaultTypesAllowed",
+			payloadTypes: []string{"com.apple.security.FDERecoveryKeyEscrow", "com.apple.MCX.FileVault2"},
+		},
+		{
+			testName:     "FileVaultMixedWithOtherPayloadTypes",
+			payloadTypes: []string{"com.apple.MCX.FileVault2", "com.apple.security.firewall", "com.apple.security.FDERecoveryKeyEscrow"},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.testName, func(t *testing.T) {
+			mc := MobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), mcPayloadContentForTest(c.payloadTypes))
+			parsed, err := NewMDMAppleConfigProfile(mc, nil)
+			require.NoError(t, err)
+			require.Equal(t, "ValidName", parsed.Name)
+			require.Equal(t, "ValidIdentifier", parsed.Identifier)
+
+			// When allowCustomOSUpdatesAndFileVault = true, these profiles should be allowed
+			err = parsed.ValidateUserProvided(true)
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestMDMAppleDeclarationAllowCustomOSUpdatesAndFileVault(t *testing.T) {
+	t.Run("OSUpdateDeclarationBlockedByDefault", func(t *testing.T) {
+		decl := &MDMAppleRawDeclaration{
+			Type:       "com.apple.configuration.softwareupdate.enforcement.specific",
+			Identifier: "test-os-update",
+		}
+
+		// Should fail when allowCustomOSUpdatesAndFileVault = false
+		err := decl.ValidateUserProvided(false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "Declaration profile can’t include OS updates settings")
+	})
+
+	t.Run("OSUpdateDeclarationAllowedWhenFlagEnabled", func(t *testing.T) {
+		decl := &MDMAppleRawDeclaration{
+			Type:       "com.apple.configuration.softwareupdate.enforcement.specific",
+			Identifier: "test-os-update",
+		}
+
+		// Should succeed when allowCustomOSUpdatesAndFileVault = true
+		err := decl.ValidateUserProvided(true)
+		require.NoError(t, err)
+	})
+
+	t.Run("OtherDeclarationsUnaffected", func(t *testing.T) {
+		decl := &MDMAppleRawDeclaration{
+			Type:       "com.apple.configuration.passcode.settings",
+			Identifier: "test-passcode",
+		}
+
+		// Should succeed regardless of flag
+		err := decl.ValidateUserProvided(false)
+		require.NoError(t, err)
+
+		err = decl.ValidateUserProvided(true)
+		require.NoError(t, err)
+	})
 }
 
 func TestMDMAppleConfigProfileScreenPayloadIdentifiers(t *testing.T) {
@@ -214,7 +292,7 @@ func TestMDMAppleConfigProfileScreenPayloadIdentifiers(t *testing.T) {
 			require.Equal(t, "ValidName", parsed.Name)
 			require.Equal(t, "ValidIdentifier", parsed.Identifier)
 
-			err = parsed.ValidateUserProvided()
+			err = parsed.ValidateUserProvided(false)
 			for _, pt := range c.shouldFail {
 				require.Error(t, err)
 				require.ErrorContains(t, err, pt)
@@ -260,7 +338,7 @@ func TestMDMAppleConfigProfileScreenReservedNames(t *testing.T) {
 			require.Equal(t, c.toplevelName, parsed.Name)
 			require.Equal(t, "ValidIdentifier", parsed.Identifier)
 
-			err = parsed.ValidateUserProvided()
+			err = parsed.ValidateUserProvided(false)
 			if c.shouldFail {
 				require.Error(t, err)
 				if c.toplevelName == "unreserved name" {
@@ -653,4 +731,101 @@ func TestConfigurationProfileLabelEqual(t *testing.T) {
 	assert.Equal(t, fieldsInEqualMethod, numberOfFields,
 		"Does cmp.Equal for ConfigurationProfileLabel needs to be updated for new/updated field(s)?")
 	assert.True(t, cmp.Equal(items[0], items[1]))
+}
+
+func TestValidateNoSecretsInProfileName(t *testing.T) {
+	testCases := []struct {
+		name       string
+		xmlContent string
+		expectErr  bool
+		errMsg     string
+	}{
+		{
+			name: "no secrets",
+			xmlContent: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadDisplayName</key>
+    <string>Test Profile</string>
+    <key>PayloadIdentifier</key>
+    <string>com.test.profile</string>
+</dict>
+</plist>`,
+			expectErr: false,
+		},
+		{
+			name: "secret in PayloadDisplayName",
+			xmlContent: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadDisplayName</key>
+    <string>Test $FLEET_SECRET_PASSWORD Profile</string>
+    <key>PayloadIdentifier</key>
+    <string>com.test.profile</string>
+</dict>
+</plist>`,
+			expectErr: true,
+			errMsg:    "PayloadDisplayName cannot contain FLEET_SECRET variables",
+		},
+		{
+			name: "multiple PayloadDisplayNames with secret in one",
+			xmlContent: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadDisplayName</key>
+    <string>Main Profile</string>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>PayloadDisplayName</key>
+            <string>Sub Profile $FLEET_SECRET_KEY</string>
+        </dict>
+    </array>
+</dict>
+</plist>`,
+			expectErr: true,
+			errMsg:    "PayloadDisplayName cannot contain FLEET_SECRET variables",
+		},
+		{
+			name: "secret in other field not PayloadDisplayName",
+			xmlContent: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadDisplayName</key>
+    <string>Test Profile</string>
+    <key>PayloadDescription</key>
+    <string>Description with $FLEET_SECRET_VALUE</string>
+</dict>
+</plist>`,
+			expectErr: false,
+		},
+		{
+			name: "whitespace in PayloadDisplayName value",
+			xmlContent: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadDisplayName</key>
+    <string>   Test Profile   </string>
+</dict>
+</plist>`,
+			expectErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateNoSecretsInProfileName([]byte(tc.xmlContent))
+			if tc.expectErr {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.errMsg)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }

@@ -274,8 +274,10 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		old := struct {
 			UserName   string  `db:"user_name"`
 			Department *string `db:"department"`
+			GivenName  *string `db:"given_name"`
+			FamilyName *string `db:"family_name"`
 		}{}
-		err := sqlx.GetContext(ctx, tx, &old, `SELECT user_name, department FROM scim_users WHERE id = ?`, user.ID)
+		err := sqlx.GetContext(ctx, tx, &old, `SELECT user_name, department, given_name, family_name FROM scim_users WHERE id = ?`, user.ID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return notFound("scim user").WithID(user.ID)
@@ -318,6 +320,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 
 		usernameChanged := old.UserName != user.UserName
 		departmentChanged := !cmp.Equal(old.Department, user.Department)
+		nameChanged := !cmp.Equal(old.GivenName, user.GivenName) || !cmp.Equal(old.FamilyName, user.FamilyName)
 
 		// Only update emails if they've changed
 		if emailsNeedUpdate {
@@ -346,7 +349,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		user.Groups = groups
 
 		// resend profiles that depend on this username if it changed
-		if usernameChanged || departmentChanged {
+		if usernameChanged || departmentChanged || nameChanged {
 			err = triggerResendProfilesForIDPUserChange(ctx, tx, user.ID)
 			if err != nil {
 				return err
@@ -1173,10 +1176,11 @@ func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtConte
 		return err
 	}
 	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
-		[]string{
+		[]fleet.FleetVarName{
 			fleet.FleetVarHostEndUserIDPUsername,
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPDepartment,
+			fleet.FleetVarHostEndUserIDPFullname,
 		})
 }
 
@@ -1186,11 +1190,12 @@ func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtCont
 		return err
 	}
 	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
-		[]string{
+		[]fleet.FleetVarName{
 			fleet.FleetVarHostEndUserIDPUsername,
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPGroups,
 			fleet.FleetVarHostEndUserIDPDepartment,
+			fleet.FleetVarHostEndUserIDPFullname,
 		})
 }
 
@@ -1210,7 +1215,7 @@ func triggerResendProfilesForIDPGroupChange(ctx context.Context, tx sqlx.ExtCont
 		return err
 	}
 	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
-		[]string{fleet.FleetVarHostEndUserIDPGroups})
+		[]fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
 }
 
 func triggerResendProfilesForIDPGroupChangeByUsers(ctx context.Context, tx sqlx.ExtContext, scimUserIDs []uint) error {
@@ -1223,7 +1228,7 @@ func triggerResendProfilesForIDPGroupChangeByUsers(ctx context.Context, tx sqlx.
 		return err
 	}
 	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
-		[]string{fleet.FleetVarHostEndUserIDPGroups})
+		[]fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
 }
 
 func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.ExtContext, hostID, updatedScimUserID uint) error {
@@ -1238,15 +1243,16 @@ func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.Ext
 		return nil
 	}
 	return triggerResendProfilesUsingVariables(ctx, tx, []uint{hostID},
-		[]string{
+		[]fleet.FleetVarName{
 			fleet.FleetVarHostEndUserIDPUsername,
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPDepartment,
 			fleet.FleetVarHostEndUserIDPGroups,
+			fleet.FleetVarHostEndUserIDPFullname,
 		})
 }
 
-func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []string) error {
+func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []fleet.FleetVarName) error {
 	if len(hostIDs) == 0 || len(affectedVars) == 0 {
 		return nil
 	}
@@ -1262,7 +1268,7 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 	// installed on the affected hosts. ReconcileAppleProfiles will take care of
 	// resending as appropriate based on label membershup and all at the time it
 	// runs.
-	const updateStatusQuery = `
+	const appleUpdateStatusQuery = `
 	UPDATE
 		host_mdm_apple_profiles hmap
 		JOIN hosts h
@@ -1275,36 +1281,63 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		JOIN fleet_variables fv
 			ON mcpv.fleet_variable_id = fv.id
 	SET
-		hmap.status = NULL
+		hmap.status = NULL,
+		hmap.command_uuid = ''
 	WHERE
 		h.id IN (:host_ids) AND
 		hmap.operation_type = :operation_type_install AND
 		hmap.status IS NOT NULL AND
 		fv.name IN (:affected_vars)
 `
+
+	const windowsUpdateStatusQuery = `
+	UPDATE
+		host_mdm_windows_profiles hmwp
+		JOIN hosts h
+			ON h.uuid = hmwp.host_uuid
+		JOIN mdm_windows_configuration_profiles mwcp
+			ON (mwcp.team_id = h.team_id OR (COALESCE(mwcp.team_id, 0) = 0 AND h.team_id IS NULL)) AND
+				 mwcp.profile_uuid = hmwp.profile_uuid
+		JOIN mdm_configuration_profile_variables mcpv
+			ON mcpv.windows_profile_uuid = mwcp.profile_uuid
+		JOIN fleet_variables fv
+			ON mcpv.fleet_variable_id = fv.id
+	SET
+		hmwp.status = NULL,
+		hmwp.command_uuid = ''
+	WHERE
+		h.id IN (:host_ids) AND
+		hmwp.operation_type = :operation_type_install AND
+		hmwp.status IS NOT NULL AND
+		fv.name IN (:affected_vars)
+`
+
 	vars := make([]any, len(affectedVars))
 	for i, v := range affectedVars {
-		vars[i] = "FLEET_VAR_" + v
+		vars[i] = "FLEET_VAR_" + string(v)
 	}
 
-	stmt, args, err := sqlx.Named(updateStatusQuery, map[string]any{
-		"host_ids":               hostIDs,
-		"operation_type_install": fleet.MDMOperationTypeInstall,
-		"affected_vars":          vars,
-	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare resend profiles replace names")
+	for _, query := range []string{appleUpdateStatusQuery, windowsUpdateStatusQuery} {
+		updateStmt, args, err := sqlx.Named(query, map[string]any{
+			"host_ids":               hostIDs,
+			"operation_type_install": fleet.MDMOperationTypeInstall,
+			"affected_vars":          vars,
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare resend profiles replace names")
+		}
+
+		updateStmt, args, err = sqlx.In(updateStmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare resend profiles arguments")
+		}
+
+		_, err = tx.ExecContext(ctx, updateStmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "execute resend profiles")
+		}
 	}
 
-	stmt, args, err = sqlx.In(stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare resend profiles arguments")
-	}
-
-	_, err = tx.ExecContext(ctx, stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "execute resend profiles")
-	}
 	return nil
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useContext, useCallback } from "react";
 
 import { NotificationContext } from "context/notification";
-import { getErrorReason } from "interfaces/errors";
+
 import mdmAppleAPI from "services/entities/mdm_apple";
 
 import Button from "components/buttons/Button";
@@ -77,7 +77,7 @@ const RenewVppModal = ({
           accept=".vpptoken"
           message="Content token (.vpptoken)"
           graphicName="file-vpp"
-          buttonType="link"
+          buttonType="brand-inverse-icon"
           buttonMessage="Upload"
           fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
           onFileUpload={onSelectFile}

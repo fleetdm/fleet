@@ -1,216 +1,339 @@
+version: "2"
+
+formatters:
+  enable:
+    - gofmt
+  settings:
+    gofmt:
+      # simplify code: gofmt with `-s` option, true by default
+      simplify: false
+  exclusions:
+    paths:
+      - server/fleet/agent_options_generated.go # generated file
+
+issues:
+  max-issues-per-linter: 0 # show all issues
+  max-same-issues: 0 # show all issues
+
 linters:
-  disable-all: true
+  default: none
   enable:
     - depguard
     - gosec
     - gocritic
-    - gofmt
+    - nilnesserr
     - govet
     - ineffassign
     - revive
     - rowserrcheck
     - sqlclosecheck
-    - typecheck
     - unconvert
     - unused
     - errcheck
-    - gosimple
     - staticcheck
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: github.com/pkg/errors
+              desc: "use ctxerr if a context.Context is available or stdlib errors.New / fmt.Errorf with the %w verb"
+    govet:
+      enable:
+        - nilness
 
-linters-settings:
-  depguard:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+      disable-default-exclusions: false
+      exclude-functions:
+        # Logging
+        - "(github.com/go-kit/log.Logger).Log"
+        # fmt package
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Print
+        - fmt.Printf
+        - fmt.Println
+        # Close methods
+        - "(io.Closer).Close"
+        - "(io.ReadCloser).Close"
+        - "(io.WriteCloser).Close"
+        - "(net.Conn).Close"
+        - "(net.Listener).Close"
+        - "(*database/sql.Rows).Close"
+        - "(*database/sql.DB).Close"
+        - "(*database/sql.Stmt).Close"
+        - "(*database/sql.Tx).Close"
+        - "(*database/sql.Tx).Rollback"
+        - "(*os.File).Close"
+        # OS operations
+        - os.Remove
+        - os.RemoveAll
+        - os.Setenv
+        - os.Unsetenv
+        - os.Chdir
+        - os.Mkdir
+        - os.MkdirAll
+        - os.Rename
+        # Writers and flushers
+        - "(*bufio.Writer).Flush"
+        - "(*bufio.ReadWriter).Flush"
+        - "(*archive/tar.Writer).Close"
+        - "(*archive/zip.Writer).Close"
+        - "(*archive/zip.ReadCloser).Close"
+        - "(*compress/gzip.Writer).Close"
+        - "(*compress/gzip.Reader).Close"
+        - "(*mime/multipart.Writer).Close"
+        # HTTP and network
+        - "(*net.TCPConn).Close"
+        - "(*net.UDPConn).Close"
+        - "(*net.UnixConn).Close"
+        - "(*net.TCPListener).Close"
+        - "(*net/http.Client).CloseIdleConnections"
+        - "(*crypto/tls.Conn).Close"
+        # Redis
+        - "(github.com/gomodule/redigo/redis.Conn).Close"
+        - "(*github.com/gomodule/redigo/redis.Pool).Close"
+        - "(*github.com/redis/go-redis/v9.ClusterClient).Close"
+        - "(*github.com/fleetdm/fleet/v4/server/datastore/redis.Pool).Close"
+        - "(*github.com/mna/redisc.Cluster).Close"
+        # WebSockets
+        - "(*github.com/gorilla/websocket.Conn).Close"
+        - "(*github.com/igm/sockjs-go/v3/sockjs.session).Close"
+        # Test helpers and Fleet-specific
+        - "(*github.com/fleetdm/fleet/v4/server/datastore/mysql.Datastore).Close"
+        - "(*github.com/DATA-DOG/go-sqlmock.Sqlmock).ExpectClose"
+        # Additional project-specific types
+        - "(*github.com/fleetdm/fleet/v4/pkg/file.TemporaryFile).Close"
+        - "(*github.com/fleetdm/fleet/v4/server/fleet.TempFileReader).Close"
+        - "(*github.com/fleetdm/fleet/v4/server/service.Session).Close"
+        - "(github.com/fleetdm/fleet/v4/server/fleet.RedisPool).Close"
+        - "(*github.com/go-redis/redis/v8.ClusterClient).Close"
+        - "(*go.etcd.io/bbolt.DB).Close"
+        - "(*github.com/boltdb/bolt.DB).Close"
+        - "(*net/smtp.Client).Close"
+        - "(*cloud.google.com/go/pubsub.Client).Close"
+        - "(*github.com/saferwall/pe.File).Close"
+        - "(*github.com/sassoftware/relic/v8/lib/comdoc.ComDoc).Close"
+        # Unix/syscall operations
+        - "golang.org/x/sys/unix.Close"
+        # Additional writers and iterators
+        - "(*go/printer.Config).Fprint"
+        - "go/printer.Fprint"
+        - "(*github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice.OfficeReleasesIterator).Close"
+        - "(*github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd.CPEIterator).Close"
+        - "(github.com/fleetdm/fleet/v4/server/fleet.SoftwareIterator).Close"
+        - "(*github.com/gosuri/uilive.Writer).Flush"
+        # Security hardware interface
+        - "(github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw.SecureHW).Close"
+        - "(github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw.Key).Close"
+        # Containerd
+        - "(*github.com/containerd/containerd.Client).Close"
+        # Windows-specific
+        - "(golang.org/x/sys/windows.Token).Close"
+        - "(golang.org/x/sys/windows/registry.Key).Close"
+        # Color package
+        - "(*github.com/fatih/color.Color).Fprint"
+        - "(*github.com/fatih/color.Color).Fprintf"
+        - "(*github.com/fatih/color.Color).Fprintln"
+        - "(*github.com/fatih/color.Color).Print"
+        - "(*github.com/fatih/color.Color).Printf"
+        - "(*github.com/fatih/color.Color).Println"
+
+    gosec:
+      excludes:
+        - G104 # Errors unhandled. We are using errcheck linter instead of this rule.
+        - G204 # Subprocess launched with variable. Some consider this rule to be too noisy.
+        - G301 # Directory permissions 0750 as opposed to standard 0755. Consider enabling stricter permission in the future.
+        - G304 # File path provided as taint input
+      config:
+        G306: "0644"
+
+    gocritic:
+      enabled-checks:
+        - ruleguard
+      settings:
+        ruleguard:
+          rules: "${base-path}/tools/ci/rules.go"
+          failOn: all
+
+    revive:
+      severity: "warning"
+      confidence: 0.8
+      rules:
+        - name: dot-imports
+        - name: error-return
+        - name: var-declaration
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unreachable-code
+        - name: redefines-builtin-id
+    staticcheck:
+      checks:
+        - "all"
+        - "-SA9003" # Empty body in an if or else branch.
+        - "-ST1000" # Incorrect or missing package comment.
+        - "-ST1003" # Poorly chosen identifier.
+        - "-ST1016" # Use consistent method receiver names.
+        - "-ST1020" # The documentation of an exported function should start with the function's name.
+        - "-ST1021" # The documentation of an exported type should start with type's name.
+        - "-ST1022" # The documentation of an exported variable or constant should start with variable's name.
+        - "-ST1023" # Redundant type in variable declaration.
+        - "-SA1019" # Using a deprecated function, variable, constant or field.
+        - "-ST1005" # Incorrectly formatted error string.
+        - "-ST1012" # Poorly chosen name for error variable.
+        - "-ST1019" # Importing the same package multiple times. TODO: Fix this.
+        - "-QF1001" # Apply De Morgan's law. TODO: Autofix these QFs (quick-fixes) in a follow-up PR.
+        - "-QF1002" # Convert untagged switch to tagged switch.
+        - "-QF1003" # Convert if/else-if chain to tagged switch.
+        - "-QF1008" # Omit embedded fields from selector expression.
+        - "-QF1009" # Use time.Time.Equal instead of == operator
+        - "-QF1011" # Omit redundant type from variable declaration.
+        - "-QF1012" # Use 'fmt.Fprintf(x, ...)' instead of 'x.Write(fmt.Sprintf(...))'.
+  exclusions:
+    generated: strict
+    # Before excluding files from gosec linter - an issue must be created and referenced in a comment.
     rules:
-      main:
-        deny:
-          - pkg: github.com/pkg/errors
-            desc: "use ctxerr if a context.Context is available or stdlib errors.New / fmt.Errorf with the %w verb"
-
-  errcheck:
-    check-type-assertions: false
-    check-blank: false
-    disable-default-exclusions: false
-    exclude-functions:
-      - "(github.com/go-kit/log.Logger).Log"
-      - fmt:.*
-  
-  gosec:
-    config:
-      G306: "0644"
-
-  gocritic:
-    enabled-checks:
-      - ruleguard
-    settings:
-      ruleguard:
-        rules: "./tools/ci/rules.go"
-        failOn: all
-
-  gofmt:
-    # simplify code: gofmt with `-s` option, true by default
-    simplify: false
-
-  revive:
-    ignoreGeneratedHeader: false
-    severity: "warning"
-    confidence: 0.8
-    errorCode: 0
-    warningCode: 0
-
-    rules:
-      - name: dot-imports
-      - name: error-return
-      - name: var-declaration
-      - name: package-comments
-      - name: range
-      - name: receiver-naming
-      - name: time-naming
-      - name: indent-error-flow
-      - name: errorf
-      - name: empty-block
-      - name: superfluous-else
-      - name: unreachable-code
-      - name: redefines-builtin-id
-  staticcheck:
-    checks: ["all", "-SA9003", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022", "-ST1023", "-SA1019"]
-
-# Before excluding files from gosec linter - an issue must be created and referenced in a comment.
-issues:
-  max-issues-per-linter: 0 # show all issues
-  max-same-issues: 0 # show all issues
-  exclude-rules:
-    - path: server/datastore/mysql/migrations/[^/]+/[^/]+\.go
-      linters:
-        - depguard
-    # cmd gosec exclusions https://github.com/fleetdm/fleet/issues/4451
-    - path: cmd/osquery-perf/agent.go
-      linters:
-        - gosec
-    - path: cmd/fleet/serve.go
-      linters:
-        - gosec
-    - path: cmd/fleetctl/fleetctl/api.go
-      linters:
-        - gosec
-    - path: cmd/fleetctl/fleetctl/get.go
-      linters:
-        - gosec
-    - path: cmd/fleetctl/fleetctl/preview.go
-      linters:
-        - gosec
-    # Orbit gosec exclusions https://github.com/fleetdm/fleet/issues/4452
-    - path: orbit/pkg/update/update.go
-      linters:
-        - gosec
-    - path: orbit/pkg/packaging/wix/wix.go
-      linters:
-        - gosec
-    - path: orbit/pkg/packaging/macos.go
-      linters:
-        - gosec
-    - path: orbit/pkg/packaging/windows.go
-      linters:
-        - gosec
-    - path: orbit/pkg/packaging/packaging.go
-      linters:
-        - gosec
-    # insecure proxy is insecure by design
-    - path: orbit/pkg/insecure/proxy.go
-      linters:
-        - gosec
-    # pkg gosec exclusions https://github.com/fleetdm/fleet/issues/4453
-    # Test file which triggers many TLS warnings by design
-    - path: pkg/fleethttp/fleethttp_test.go
-      linters:
-        - gosec
-    - path: pkg/certificate/certificate.go
-      linters:
-        - gosec
-    - path: pkg/download/download.go
-      linters:
-        - gosec
-    # server gosec exclusions https://github.com/fleetdm/fleet/issues/4455
-    - path: server/mail/mail.go
-      linters:
-        - gosec
-    - path: server/datastore/mysql/migrations/tables/20201011162341_CleanupSoftDeletedColumns.go
-      linters:
-        - gosec
-    - path: server/service/redis_policy_set/redis_policy_set_test.go
-      linters:
-        - gosec
-    - path: server/sso/settings.go
-      linters:
-        - gosec
-    - path: server/datastore/mysql/hosts.go
-      linters:
-        - gosec
-    - path: server/datastore/mysql/hosts_test.go
-      linters:
-        - gosec
-    - path: server/datastore/mysql/mysql_test.go
-      linters:
-        - gosec
-    - path: server/service/client_live_query.go
-      linters:
-        - gosec
-    - path: server/service/invites.go
-      linters:
-        - gosec
-    - path: server/service/service_appconfig.go
-      linters:
-        - gosec
-    - path: server/service/service_users.go
-      linters:
-        - gosec
-    - path: server/datastore/mysql/migrations/tables/20201011162341_CleanupSoftDeletedColumns.go
-      linters:
-        - gosec
-    - path: server/datastore/mysql/aggregated_stats_test.go
-      linters:
-        - gosec
-    - path: server/fleet/app.go
-      linters:
-        - gosec
-    - path: server/service/async/async_policy.go
-      linters:
-        - gosec
-    - path: server/logging/kinesis.go
-      linters:
-        - gosec
-    - path: server/logging/kinesis_test.go
-      linters:
-        - gosec
-    - path: server/config/config.go
-      linters:
-        - gosec
-    - path: server/datastore/redis/ratelimit_store.go
-      linters:
-        - gosec
-    - path: server/datastore/mysql/testing_utils.go
-      linters:
-        - gosec
-    - path: server/datastore/mysql/packs_test.go
-      linters:
-        - gosec
-    - path: server/service/appconfig.go
-      linters:
-        - gosec
-    - path: server/service/client.go
-      linters:
-        - gosec
-    - path: server/service/users.go
-      linters:
-        - gosec
-    - path: server/service/appconfig_test.go
-      linters:
-        - gosec
-    - path: server/service/service_campaign_test.go
-      linters:
-        - gosec
-    - path: server/datastore/mysql/software_test.go
-      linters:
-        - gosec
-    # tools gosec exclusions https://github.com/fleetdm/fleet/issues/4456
-    - path: tools/dbutils/schema_generator.go
-      linters:
-        - gosec
+      - path: server/datastore/mysql/migrations/[^/]+/[^/]+\.go
+        linters:
+          - depguard
+      # cmd gosec exclusions https://github.com/fleetdm/fleet/issues/4451
+      - path: cmd/osquery-perf/agent.go
+        linters:
+          - gosec
+      - path: cmd/fleet/serve.go
+        linters:
+          - gosec
+      - path: cmd/fleetctl/fleetctl/api.go
+        linters:
+          - gosec
+      - path: cmd/fleetctl/fleetctl/get.go
+        linters:
+          - gosec
+      - path: cmd/fleetctl/fleetctl/preview.go
+        linters:
+          - gosec
+      # Orbit gosec exclusions https://github.com/fleetdm/fleet/issues/4452
+      - path: orbit/pkg/update/update.go
+        linters:
+          - gosec
+      - path: orbit/pkg/packaging/wix/wix.go
+        linters:
+          - gosec
+      - path: orbit/pkg/packaging/macos.go
+        linters:
+          - gosec
+      - path: orbit/pkg/packaging/windows.go
+        linters:
+          - gosec
+      - path: orbit/pkg/packaging/packaging.go
+        linters:
+          - gosec
+      # insecure proxy is insecure by design
+      - path: orbit/pkg/insecure/proxy.go
+        linters:
+          - gosec
+      # pkg gosec exclusions https://github.com/fleetdm/fleet/issues/4453
+      # Test file which triggers many TLS warnings by design
+      - path: pkg/fleethttp/fleethttp_test.go
+        linters:
+          - gosec
+      - path: pkg/certificate/certificate.go
+        linters:
+          - gosec
+      - path: pkg/download/download.go
+        linters:
+          - gosec
+      # server gosec exclusions https://github.com/fleetdm/fleet/issues/4455
+      - path: server/mail/mail.go
+        linters:
+          - gosec
+      - path: server/datastore/mysql/migrations/tables/20201011162341_CleanupSoftDeletedColumns.go
+        linters:
+          - gosec
+      - path: server/service/redis_policy_set/redis_policy_set_test.go
+        linters:
+          - gosec
+      - path: server/sso/settings.go
+        linters:
+          - gosec
+      - path: server/datastore/mysql/hosts.go
+        linters:
+          - gosec
+      - path: server/datastore/mysql/hosts_test.go
+        linters:
+          - gosec
+      - path: server/datastore/mysql/mysql_test.go
+        linters:
+          - gosec
+      - path: server/service/client_live_query.go
+        linters:
+          - gosec
+      - path: server/service/invites.go
+        linters:
+          - gosec
+      - path: server/service/service_appconfig.go
+        linters:
+          - gosec
+      - path: server/service/service_users.go
+        linters:
+          - gosec
+      - path: server/datastore/mysql/migrations/tables/20201011162341_CleanupSoftDeletedColumns.go
+        linters:
+          - gosec
+      - path: server/datastore/mysql/aggregated_stats_test.go
+        linters:
+          - gosec
+      - path: server/fleet/app.go
+        linters:
+          - gosec
+      - path: server/service/async/async_policy.go
+        linters:
+          - gosec
+      - path: server/logging/kinesis.go
+        linters:
+          - gosec
+      - path: server/logging/kinesis_test.go
+        linters:
+          - gosec
+      - path: server/config/config.go
+        linters:
+          - gosec
+      - path: server/datastore/redis/ratelimit_store.go
+        linters:
+          - gosec
+      - path: server/datastore/mysql/testing_utils.go
+        linters:
+          - gosec
+      - path: server/datastore/mysql/packs_test.go
+        linters:
+          - gosec
+      - path: server/service/appconfig.go
+        linters:
+          - gosec
+      - path: server/service/client.go
+        linters:
+          - gosec
+      - path: server/service/users.go
+        linters:
+          - gosec
+      - path: server/service/appconfig_test.go
+        linters:
+          - gosec
+      - path: server/service/service_campaign_test.go
+        linters:
+          - gosec
+      - path: server/datastore/mysql/software_test.go
+        linters:
+          - gosec
+      # tools gosec exclusions https://github.com/fleetdm/fleet/issues/4456
+      - path: tools/dbutils/schema_generator.go
+        linters:
+          - gosec

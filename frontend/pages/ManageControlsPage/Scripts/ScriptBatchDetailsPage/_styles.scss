@@ -1,0 +1,47 @@
+.script-batch-details-page {
+  @include vertical-page-layout;
+
+  &__header {
+    margin-bottom: 0;
+    .section-header__sub-title {
+      display: flex;
+      align-items: center;
+      gap: $pad-large;
+      font-size: $x-small;
+    }
+    .when {
+      display: inline-flex;
+      align-items: center;
+      gap: $pad-xsmall;
+    }
+  }
+
+  &__tab-content {
+    @include flex-column-16px-gap;
+
+    &__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: $x-small;
+    }
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 4px;
+    padding: 40px;
+    gap: 8px;
+    font-size: $small;
+    p {
+      margin: 0;
+      @include help-text;
+    }
+  }
+  .back-link {
+    align-self: flex-start;
+  }
+}

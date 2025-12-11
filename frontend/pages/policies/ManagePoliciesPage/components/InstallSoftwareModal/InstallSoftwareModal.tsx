@@ -66,7 +66,9 @@ const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
 
   if (vppOption) {
     platformString = "macOS (App Store)";
-    versionString = title.app_store_app?.version || "";
+    versionString = title.app_store_app?.version
+      ? ` • ${title.app_store_app?.version}`
+      : "";
   } else {
     if (title.platform && title.extension) {
       platformString = `${PLATFORM_DISPLAY_NAMES[title.platform]} (.${
@@ -148,7 +150,7 @@ const InstallSoftwareModal = ({
       const foundTitle = titlesAvailableForInstall?.find(
         (title) => title.id === value
       );
-      return foundTitle ? foundTitle.name : "";
+      return foundTitle ? foundTitle.display_name || foundTitle.name : "";
     };
 
     return {
@@ -169,7 +171,7 @@ const InstallSoftwareModal = ({
         )
         .map((title) => {
           return {
-            label: title.name,
+            label: title.display_name || title.name,
             value: title.id,
             helpText: generateSoftwareOptionHelpText(title),
           };
@@ -203,7 +205,7 @@ const InstallSoftwareModal = ({
           if (currentSoftware) {
             options = [
               {
-                label: currentSoftware.name,
+                label: currentSoftware.display_name || currentSoftware.name,
                 value: currentSoftware.id,
                 helpText: generateSoftwareOptionHelpText(currentSoftware),
               },

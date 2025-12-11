@@ -237,6 +237,9 @@ export const reconcileMutuallyExclusiveHostParams = ({
     if (lowDiskSpaceHosts) {
       return { low_disk_space: lowDiskSpaceHosts };
     }
+    if (osSettings) {
+      return { [HOSTS_QUERY_PARAMS.OS_SETTINGS]: osSettings };
+    }
     return {};
   }
 
@@ -252,18 +255,24 @@ export const reconcileMutuallyExclusiveHostParams = ({
     case !!softwareStatus ||
       !!softwareTitleId ||
       !!softwareVersionId ||
-      !!softwareId:
-      return reconcileSoftwareParams({
+      !!softwareId: {
+      const params: Record<string, unknown> = reconcileSoftwareParams({
         teamId,
         softwareId,
         softwareVersionId,
         softwareTitleId,
         softwareStatus,
       });
-    case !!softwareVersionId:
-      return { software_version_id: softwareVersionId };
-    case !!softwareId:
-      return { software_id: softwareId };
+      // Software version can be combined with os name and os version
+      // e.g. Kernel version 6.8.0-71.71 (software version) on Ubuntu 24.04.2LTS (os name and os version)
+      if (osVersionId) {
+        params.os_version_id = osVersionId;
+      } else if (osName && osVersion) {
+        params.os_name = osName;
+        params.os_version = osVersion;
+      }
+      return params;
+    }
     case !!osVersionId:
       return { os_version_id: osVersionId };
     case !!osName && !!osVersion:

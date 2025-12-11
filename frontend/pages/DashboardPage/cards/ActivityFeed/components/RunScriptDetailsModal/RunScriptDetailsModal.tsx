@@ -6,7 +6,7 @@ import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
-import Icon from "components/Icon";
+import IconStatusMessage from "components/IconStatusMessage";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import Spinner from "components/Spinner/Spinner";
@@ -27,39 +27,35 @@ const ScriptContent = ({ content }: IScriptContentProps) => {
 };
 
 const StatusMessageRunning = () => (
-  <div className={`${baseClass}__status-message`}>
-    <p>
-      <Icon name="pending-outline" />
-      Script is running or will run when the host comes online.
-    </p>
-  </div>
+  <IconStatusMessage
+    className={`${baseClass}__status-message`}
+    iconName="pending-outline"
+    message="Script is running or will run when the host comes online."
+  />
 );
 
 const StatusMessageSuccess = () => (
-  <div className={`${baseClass}__status-message`}>
-    <p>
-      <Icon name="success-outline" />
-      Exit code: 0 (Script ran successfully.)
-    </p>
-  </div>
+  <IconStatusMessage
+    className={`${baseClass}__status-message`}
+    iconName="success-outline"
+    message="Exit code: 0 (Script ran successfully.)"
+  />
 );
 
 const StatusMessageFailed = ({ exitCode }: { exitCode: number }) => (
-  <div className={`${baseClass}__status-message`}>
-    <p>
-      <Icon name="error-outline" />
-      Exit code: {exitCode} (Script failed.)
-    </p>{" "}
-  </div>
+  <IconStatusMessage
+    className={`${baseClass}__status-message`}
+    iconName="error-outline"
+    message={`Exit code: ${exitCode} (Script failed.)`}
+  />
 );
 
 const StatusMessageError = ({ message }: { message: React.ReactNode }) => (
-  <div className={`${baseClass}__status-message`}>
-    <p>
-      <Icon name="error-outline" />
-      Error: {message}
-    </p>
-  </div>
+  <IconStatusMessage
+    className={`${baseClass}__status-message`}
+    iconName="error-outline"
+    message={<>Error: {message}</>}
+  />
 );
 
 interface IStatusMessageProps {
@@ -135,7 +131,7 @@ const ScriptOutput = ({
           <TooltipWrapper
             tipContent="Fleet records the last 10,000 characters to prevent downtime."
             tooltipClass={`${baseClass}__output-tooltip`}
-            isDelayed
+            delayInMs={500}
           >
             output recorded
           </TooltipWrapper>{" "}

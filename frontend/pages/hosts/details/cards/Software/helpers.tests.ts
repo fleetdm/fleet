@@ -2,7 +2,7 @@ import {
   createMockHostSoftware,
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
-import { compareVersions, getUiStatus } from "./helpers";
+import { compareVersions, getUiStatus, getSoftwareSubheader } from "./helpers";
 
 describe("compareVersions", () => {
   it("correctly compares patch increments", () => {
@@ -171,12 +171,126 @@ describe("getUiStatus", () => {
     expect(getUiStatus(sw, false)).toBe("pending_uninstall");
   });
 
-  it("returns 'update_available' if status not pending and update available", () => {
+  it("returns 'update_available' if inventory refresh is newer than last install (host software inventory is up to date, but there's still updates available)", () => {
+    const now = new Date();
+    const hostSoftwareUpdatedAt = new Date(
+      now.getTime() + 60 * 1000
+    ).toISOString(); // 1 min after install
+    const lastInstallDate = now.toISOString();
     const sw = createMockHostSoftware({
       status: "installed",
-      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }), // version higher than installed
+      software_package: createMockHostSoftwarePackage({
+        version: "2.0.0",
+        last_install: { install_uuid: "abc", installed_at: lastInstallDate },
+      }), // newer
     });
-    expect(getUiStatus(sw, true)).toBe("update_available");
+    // Simulate inventory updated after install
+    expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe(
+      "update_available"
+    );
+  });
+
+  it("returns 'recently_installed' if status is installed, lastInstallDate newer than hostSoftwareUpdatedAt, and no update", () => {
+    const now = new Date();
+    const lastInstallDate = new Date(now.getTime() + 60 * 1000).toISOString();
+    const hostSoftwareUpdatedAt = now.toISOString();
+
+    // Installed version matches installer version ⇒ not an update
+    const sw = createMockHostSoftware({
+      status: "installed",
+      software_package: createMockHostSoftwarePackage({
+        version: "1.0.0",
+        last_install: { install_uuid: "abc", installed_at: lastInstallDate },
+      }),
+      // installed_versions might still be empty if inventory hasn't updated yet
+      installed_versions: [],
+    });
+    expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe(
+      "recently_installed"
+    );
+  });
+
+  it("returns 'recently_updated' if status is installed, lastInstallDate newer than hostSoftwareUpdatedAt, AND update was applied", () => {
+    const now = new Date();
+    const lastInstallDate = new Date(now.getTime() + 60 * 1000).toISOString(); // just after inventory
+    const hostSoftwareUpdatedAt = now.toISOString();
+
+    // Installer version is higher (update applied)
+    const sw = createMockHostSoftware({
+      status: "installed",
+      software_package: createMockHostSoftwarePackage({
+        version: "2.0.0",
+        last_install: { install_uuid: "abc", installed_at: lastInstallDate },
+      }),
+      // installed_versions might still show lower version since inventory hasn't updated yet
+    });
+    expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe(
+      "recently_updated"
+    );
+  });
+
+  it("returns 'recently_uninstalled' if status is null and lastUninstallDate newer than hostSoftwareUpdatedAt", () => {
+    const now = new Date();
+    const lastUninstallDate = new Date(now.getTime() + 60 * 1000).toISOString();
+    const hostSoftwareUpdatedAt = now.toISOString();
+
+    const sw = createMockHostSoftware({
+      status: null,
+      software_package: createMockHostSoftwarePackage({
+        // last_uninstall must be present
+        last_uninstall: {
+          script_execution_id: "def",
+          uninstalled_at: lastUninstallDate,
+        },
+      }),
+      // installed_versions might still exist if inventory hasn't updated yet
+    });
+    expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe(
+      "recently_uninstalled"
+    );
+  });
+
+  // Extra verification: recently_uninstalled takes precedence over update_available
+  it("does NOT return 'update_available' if status is null and recently uninstalled, even if update available", () => {
+    const now = new Date();
+    const lastUninstallDate = new Date(now.getTime() + 60 * 1000).toISOString();
+    const hostSoftwareUpdatedAt = now.toISOString();
+
+    // installed_versions has older version than installerVersion!
+    const sw = createMockHostSoftware({
+      status: null,
+      software_package: createMockHostSoftwarePackage({
+        version: "2.0.0",
+        last_uninstall: {
+          script_execution_id: "def",
+          uninstalled_at: lastUninstallDate,
+        },
+      }),
+    });
+    expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe(
+      "recently_uninstalled"
+    );
+  });
+
+  // Extra negative case: If uninstalled, but not "recently" compared to inventory, falls back to "uninstalled"
+  it("returns 'uninstalled' if status is null, uninstall is older than inventory refresh", () => {
+    const now = new Date();
+    const lastUninstallDate = now.toISOString();
+    const hostSoftwareUpdatedAt = new Date(
+      now.getTime() + 60 * 1000
+    ).toISOString(); // Inventory more recent
+
+    const sw = createMockHostSoftware({
+      status: null,
+      software_package: createMockHostSoftwarePackage({
+        last_uninstall: {
+          script_execution_id: "def",
+          uninstalled_at: lastUninstallDate,
+        },
+      }),
+      installed_versions: [],
+    });
+    expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe("uninstalled");
   });
 
   // Tarball packages (tgz_packages) are not tracked in software inventory
@@ -195,6 +309,13 @@ describe("getUiStatus", () => {
     });
     expect(getUiStatus(sw, true)).toBe("installed");
   });
+  it("returns 'installed' for regular package, no installed versions present", () => {
+    const sw = createMockHostSoftware({
+      status: "installed",
+      installed_versions: null,
+    });
+    expect(getUiStatus(sw, true)).toBe("installed");
+  });
 
   it("returns 'installed' for regular package, installed version higher than library version", () => {
     const sw = createMockHostSoftware({
@@ -210,5 +331,129 @@ describe("getUiStatus", () => {
       installed_versions: [],
     });
     expect(getUiStatus(sw, true)).toBe("uninstalled");
+  });
+
+  describe("Script packages UI statuses", () => {
+    it("returns 'failed_script' when status is failed_install and isScriptPackage", () => {
+      const sw = createMockHostSoftware({
+        status: "failed_install",
+        source: "sh_packages",
+      });
+      expect(getUiStatus(sw, true)).toBe("failed_script");
+    });
+
+    it("returns 'running_script' when status is pending_install, isScriptPackage and host online", () => {
+      const sw = createMockHostSoftware({
+        status: "pending_install",
+        source: "sh_packages",
+      });
+      expect(getUiStatus(sw, true)).toBe("running_script");
+    });
+
+    it("returns 'pending_script' when status is pending_install, isScriptPackage and host offline", () => {
+      const sw = createMockHostSoftware({
+        status: "pending_install",
+        source: "sh_packages",
+      });
+      expect(getUiStatus(sw, false)).toBe("pending_script");
+    });
+
+    it("returns 'ran_script' when status is installed and isScriptPackage", () => {
+      const sw = createMockHostSoftware({
+        status: "installed",
+        source: "sh_packages",
+      });
+      expect(getUiStatus(sw, true)).toBe("ran_script");
+    });
+
+    it("returns 'never_ran_script' when status is null and isScriptPackage", () => {
+      const sw = createMockHostSoftware({
+        status: null,
+        source: "sh_packages",
+      });
+      expect(getUiStatus(sw, true)).toBe("never_ran_script");
+    });
+  });
+});
+
+describe("getSoftwareSubheader", () => {
+  test("iOS device, MDM status 'On (personal)', my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "ios",
+      hostMdmEnrollmentStatus: "On (personal)",
+      isMyDevicePage: true,
+    });
+    expect(result).toBe(
+      "Software installed on your work profile (Managed Apple Account)."
+    );
+  });
+
+  test("iOS device, MDM status 'On (personal)', NOT my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "ios",
+      hostMdmEnrollmentStatus: "On (personal)",
+      isMyDevicePage: false,
+    });
+    expect(result).toBe(
+      "Software installed on work profile (Managed Apple Account)."
+    );
+  });
+
+  test("iOS device, MDM status 'On (manual)', my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "ios",
+      hostMdmEnrollmentStatus: "On (manual)",
+      isMyDevicePage: true,
+    });
+    expect(result).toBe(
+      "Software installed on your device. Built-in apps (e.g. Calculator) aren't included."
+    );
+  });
+
+  test("iOS device, MDM status 'On (manual)', NOT my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "ios",
+      hostMdmEnrollmentStatus: "On (manual)",
+      isMyDevicePage: false,
+    });
+    expect(result).toBe(
+      "Software installed on this host. Built-in apps (e.g. Calculator) aren't included."
+    );
+  });
+
+  test("iOS device, MDM status not special, my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "ios",
+      hostMdmEnrollmentStatus: "Off",
+      isMyDevicePage: true,
+    });
+    expect(result).toBe("Software installed on your device.");
+  });
+
+  test("iOS device, MDM status not special, NOT my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "ios",
+      hostMdmEnrollmentStatus: "Off",
+      isMyDevicePage: false,
+    });
+    expect(result).toBe("Software installed on this host.");
+  });
+
+  test("default (NOT iOS device) my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "windows",
+      hostMdmEnrollmentStatus: "Off",
+      isMyDevicePage: true,
+    });
+    expect(result).toBe("Software installed on your device.");
+  });
+
+  test("default (NOT iOS device) NOT my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "windows",
+      hostMdmEnrollmentStatus: "Off",
+      isMyDevicePage: false,
+    });
+    expect(result).toBe("Software installed on this host.");
   });
 });

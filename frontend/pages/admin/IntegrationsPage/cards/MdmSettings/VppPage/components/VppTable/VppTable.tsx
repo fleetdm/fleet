@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useContext } from "react";
 
 import { IMdmVppToken } from "interfaces/mdm";
 
 import TableContainer from "components/TableContainer";
+import { AppContext } from "context/app";
 
 import { generateTableConfig } from "./VppTableConfig";
 
@@ -21,6 +22,10 @@ const VppTable = ({
   onRenewToken,
   onDeleteToken,
 }: IVppTableProps) => {
+  const { config } = useContext(AppContext); // We load gitops context here, since we can't use the default gitops wrapper since it's on a nested dropdown option
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+  const repoURL = config?.gitops.repository_url;
+
   const onSelectAction = (action: string, abmToken: IMdmVppToken) => {
     switch (action) {
       case "editTeams":
@@ -37,7 +42,11 @@ const VppTable = ({
     }
   };
 
-  const tableConfig = generateTableConfig(onSelectAction);
+  const tableConfig = generateTableConfig(
+    onSelectAction,
+    gitOpsModeEnabled ?? false,
+    repoURL ?? ""
+  );
 
   return (
     <TableContainer<IMdmVppToken>

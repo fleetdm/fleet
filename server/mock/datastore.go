@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -28,6 +29,10 @@ func (m *Store) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnrollOr
 
 func (m *Store) LoadHostByOrbitNodeKey(ctx context.Context, orbitNodeKey string) (*fleet.Host, error) {
 	return nil, nil
+}
+
+func (m *Store) GetCurrentTime(ctx context.Context) (time.Time, error) {
+	return time.Time{}, nil
 }
 
 func (m *Store) Drop() error                             { return nil }

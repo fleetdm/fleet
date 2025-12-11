@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -88,6 +89,8 @@ type TestAppleMDMClient struct {
 	fetchEnrollmentProfileFromOTA bool
 	// otaEnrollSecret is the team enroll secret to be used during the OTA flow.
 	otaEnrollSecret string
+	// otaIdpUUID is the optional uuid of the idp account that should be associated with the host enrolling
+	otaIdpUUID string
 
 	// fetchEnrollmentProfileFromMDMBYOD indicates whether this simulated device will fetch
 	// the enrollment profile from Fleet as if it were a device running the Account Driven User
@@ -127,6 +130,13 @@ func WithEnrollmentProfileFromDEPUsingPost() TestMDMAppleClientOption {
 	return func(c *TestAppleMDMClient) {
 		c.fetchEnrollmentProfileFromDEPUsingPost = true
 		c.fetchEnrollmentProfileFromDEP = false
+	}
+}
+
+// Will set a cookie for OTA requests which mimics SSO being enabled before OTA enrollment.
+func WithOTAIdpUUID(idpUUID string) TestMDMAppleClientOption {
+	return func(c *TestAppleMDMClient) {
+		c.otaIdpUUID = idpUUID
 	}
 }
 
@@ -172,6 +182,27 @@ func NewTestMDMClientAppleDEP(serverURL string, depURLToken string, opts ...Test
 
 		fetchEnrollmentProfileFromDEP: true,
 		depURLToken:                   depURLToken,
+
+		fleetServerURL: serverURL,
+	}
+	for _, fn := range opts {
+		fn(&c)
+	}
+	return &c
+}
+
+// NewTestMDMClientAppleDEPFromDevice will create a simulated device that will fetch
+// enrollment profile from Fleet as if it were a device running the DEP flow.
+// The deviceSerialNumber is used as the serial number of the device
+// The model is used as the model of the device
+func NewTestMDMClientAppleDEPFromDevice(serverURL string, depURLToken string, deviceSerialNumber string, model string, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
+	c := TestAppleMDMClient{
+		UUID:         strings.ToUpper(uuid.New().String()),
+		SerialNumber: deviceSerialNumber,
+		Model:        model,
+
+		fetchEnrollmentProfileFromDEPUsingPost: true,
+		depURLToken:                            depURLToken,
 
 		fleetServerURL: serverURL,
 	}
@@ -299,9 +330,53 @@ func (c *TestAppleMDMClient) UserEnroll() error {
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
-	return c.fetchOTAProfile(
-		"/api/latest/fleet/device/" + c.desktopURLToken + "/mdm/apple/manual_enrollment_profile",
-	)
+	request, err := http.NewRequest("GET", c.fleetServerURL+"/api/latest/fleet/device/"+c.desktopURLToken+"/mdm/apple/manual_enrollment_profile", nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	// #nosec (this client is used for testing only)
+	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+		InsecureSkipVerify: true,
+	}))
+
+	response, err := cc.Do(request)
+	if err != nil {
+		return fmt.Errorf("send request: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("request error: %d, %s", response.StatusCode, response.Status)
+	}
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return fmt.Errorf("read body: %w", err)
+	}
+
+	var dest struct {
+		EnrollURL string `json:"enroll_url,omitempty"`
+	}
+	err = json.Unmarshal(body, &dest)
+	if err != nil {
+		return fmt.Errorf("unmarshal response: %w", err)
+	}
+
+	if dest.EnrollURL == "" {
+		return errors.New("empty enroll URL in response")
+	}
+
+	urlParsed, err := url.Parse(dest.EnrollURL)
+	if err != nil {
+		return fmt.Errorf("parse enroll URL: %w", err)
+	}
+	q := urlParsed.Query()
+	es := q.Get("enroll_secret")
+	if es == "" {
+		return errors.New("missing enroll_secret in enroll URL")
+	}
+	c.otaEnrollSecret = es
+
+	return c.fetchEnrollmentProfileFromOTAURL()
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
@@ -359,6 +434,14 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 		InsecureSkipVerify: true,
 	}))
+
+	if c.otaIdpUUID != "" {
+		request.AddCookie(&http.Cookie{
+			Name:  shared_mdm.BYODIdpCookieName,
+			Value: c.otaIdpUUID,
+		})
+	}
+
 	response, err := cc.Do(request)
 	if err != nil {
 		return fmt.Errorf("send request: %w", err)
@@ -785,6 +868,25 @@ func (c *TestAppleMDMClient) UserTokenUpdate() error {
 	return err
 }
 
+// UserAuthenticate sends the UserAuthenticate message to the MDM server (Check In protocol).
+// Note that this is separate from the UserTokenUpdate and Authenticate used in device+user enrollment above.
+// Fleet does not currently support UserAuthenticate so this is stubbed out just to test the HTTP error
+//
+// For more details see https://developer.apple.com/documentation/devicemanagement/userauthenticaterequest
+func (c *TestAppleMDMClient) UserAuthenticate() error {
+	if c.UUID == "" {
+		return errors.New("UUID must be set for UserAuthenticate")
+	}
+	payload := map[string]any{
+		"MessageType": "UserAuthenticate",
+		"UDID":        c.UUID,
+		"UserID":      uuid.New().String(),
+	}
+
+	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
+	return err
+}
+
 // DeclarativeManagement sends a DeclarativeManagement checkin request to the server.
 //
 // The endpoint argument is used as the value for the `Endpoint` key in the request payload.
@@ -893,6 +995,7 @@ func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceN
 			"OSVersion":               "17.5.1",
 			"ProductName":             productName,
 			"WiFiMAC":                 "ff:ff:ff:ff:ff:ff",
+			"IsMDMLostModeEnabled":    false,
 		},
 	}
 	return c.sendAndDecodeCommandResponse(payload)

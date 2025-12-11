@@ -10,7 +10,7 @@ import { NotificationContext } from "context/notification";
 import configAPI from "services/entities/config";
 
 import { IConfig } from "interfaces/config";
-import { IFormField } from "interfaces/form_field";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import { getErrorReason } from "interfaces/errors";
 
 // @ts-ignore
@@ -21,9 +21,11 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
+import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import SettingsSection from "pages/admin/components/SettingsSection";
 
 const baseClass = "change-management";
 
@@ -43,8 +45,9 @@ const validate = (formData: IChangeManagementFormData) => {
     if (!repoURL) {
       errs.repository_url =
         "Git repository URL is required when GitOps mode is enabled";
-    } else if (!validUrl({ url: repoURL })) {
-      errs.repository_url = "Git repository URL must be a valid URL";
+    } else if (!validUrl({ url: repoURL, protocols: ["http", "https"] })) {
+      errs.repository_url =
+        "Git repository URL must include protocol (e.g. https://)";
     }
   }
   return errs;
@@ -62,30 +65,31 @@ const ChangeManagement = () => {
   const [formErrors, setFormErrors] = useState<IChangeManagementFormErrors>({});
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const {
-    isLoading: isLoadingConfig,
-    error: isLoadingConfigError,
-    refetch: refetchConfig,
-  } = useQuery<IConfig, Error, IConfig>(
-    ["integrations"],
-    () => configAPI.loadAll(),
-    {
-      onSuccess: (data) => {
-        const {
-          gitops: {
-            gitops_mode_enabled: gitOpsModeEnabled,
-            repository_url: repoURL,
-          },
-        } = data;
-        setFormData({ gitOpsModeEnabled, repoURL });
-        setConfig(data);
-      },
-    }
-  );
+  const { isLoading: isLoadingConfig, error: isLoadingConfigError } = useQuery<
+    IConfig,
+    Error,
+    IConfig
+  >(["integrations"], () => configAPI.loadAll(), {
+    onSuccess: (data) => {
+      const {
+        gitops: {
+          gitops_mode_enabled: gitOpsModeEnabled,
+          repository_url: repoURL,
+        },
+      } = data;
+      setFormData({ gitOpsModeEnabled, repoURL });
+      setConfig(data);
+    },
+  });
 
   const { isPremiumTier } = useContext(AppContext);
 
-  if (!isPremiumTier) return <PremiumFeatureMessage />;
+  if (!isPremiumTier)
+    return (
+      <SettingsSection title="Change management">
+        <PremiumFeatureMessage />
+      </SettingsSection>
+    );
 
   const { gitOpsModeEnabled, repoURL } = formData;
 
@@ -106,23 +110,30 @@ const ChangeManagement = () => {
     }
     setIsUpdating(true);
     try {
-      await configAPI.update({
+      const updatedConfig = await configAPI.update({
         gitops: {
           gitops_mode_enabled: formData.gitOpsModeEnabled,
           repository_url: formData.repoURL,
         },
       });
+
+      setFormData({
+        gitOpsModeEnabled: updatedConfig.gitops.gitops_mode_enabled,
+        repoURL: updatedConfig.gitops.repository_url,
+      });
+
+      setConfig(updatedConfig);
+
       renderFlash("success", "Successfully updated settings");
-      setIsUpdating(false);
-      refetchConfig();
     } catch (e) {
       const message = getErrorReason(e);
       renderFlash("error", message || "Failed to update settings");
+    } finally {
       setIsUpdating(false);
     }
   };
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validate(newFormData);
@@ -146,15 +157,20 @@ const ChangeManagement = () => {
   return (
     <div className={baseClass}>
       <SectionHeader title="Change management" />
-      <p className={`${baseClass}__page-description`}>
-        When using a git repository to manage Fleet, you can optionally put the
-        UI in GitOps mode. This prevents you from making changes in the UI that
-        would be overridden by GitOps workflows.
-      </p>
-      <CustomLink
-        newTab
-        url={`${LEARN_MORE_ABOUT_BASE_LINK}/gitops`}
-        text="Learn more about GitOps"
+      <PageDescription
+        content={
+          <>
+            When using a git repository to manage Fleet, you can optionally put
+            the UI in GitOps mode. This prevents you from making changes in the
+            UI that would be overridden by GitOps workflows.{" "}
+            <CustomLink
+              newTab
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/gitops`}
+              text="Learn more about GitOps"
+            />
+          </>
+        }
+        variant="right-panel"
       />
       <form onSubmit={handleSubmit}>
         <Checkbox
@@ -179,13 +195,15 @@ const ChangeManagement = () => {
           helpText="When GitOps mode is enabled, you will be directed here to make changes."
           disabled={!gitOpsModeEnabled}
         />
-        <Button
-          type="submit"
-          disabled={!!Object.keys(formErrors).length}
-          isLoading={isUpdating}
-        >
-          Save
-        </Button>
+        <div className="button-wrap">
+          <Button
+            type="submit"
+            disabled={!!Object.keys(formErrors).length}
+            isLoading={isUpdating}
+          >
+            Save
+          </Button>
+        </div>
       </form>
     </div>
   );

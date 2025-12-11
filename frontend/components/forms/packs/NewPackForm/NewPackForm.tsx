@@ -9,7 +9,7 @@ import PATHS from "router/paths";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 // @ts-ignore
 import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
 
@@ -77,7 +77,7 @@ const NewPackForm = ({
   return (
     <>
       <div className={`${baseClass}__header-links`}>
-        <BackLink text="Back to packs" path={PATHS.MANAGE_PACKS} />
+        <BackButton text="Back to packs" path={PATHS.MANAGE_PACKS} />
       </div>
       <form
         className={newPackFormClass}

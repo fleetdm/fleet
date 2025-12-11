@@ -76,6 +76,7 @@ func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		HardwareSerial:    req.HardwareSerial,
 		Hostname:          req.Hostname,
 		Platform:          req.Platform,
+		PlatformLike:      req.PlatformLike,
 		OsqueryIdentifier: req.OsqueryIdentifier,
 		ComputerName:      req.ComputerName,
 		HardwareModel:     req.HardwareModel,
@@ -124,6 +125,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			"hardware_serial", hostInfo.HardwareSerial,
 			"hostname", hostInfo.Hostname,
 			"platform", hostInfo.Platform,
+			"platform_like", hostInfo.PlatformLike,
 			"osquery_identifier", hostInfo.OsqueryIdentifier,
 			"computer_name", hostInfo.ComputerName,
 			"hardware_model", hostInfo.HardwareModel,
@@ -175,6 +177,52 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	if err != nil {
 		return "", fleet.OrbitError{Message: "app config load failed: " + err.Error()}
 	}
+	isEndUserAuthRequired := appConfig.MDM.MacOSSetup.EnableEndUserAuthentication
+	// If the secret is for a team, get the team config as well.
+	if secret.TeamID != nil {
+		team, err := svc.ds.TeamLite(ctx, *secret.TeamID)
+		if err != nil {
+			return "", fleet.OrbitError{Message: "failed to get team config: " + err.Error()}
+		}
+		isEndUserAuthRequired = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
+	}
+
+	if isEndUserAuthRequired {
+		if hostInfo.HardwareUUID == "" {
+			return "", fleet.OrbitError{Message: "failed to get IdP account: hardware uuid is empty"}
+		}
+		// Try to find an IdP account for this host.
+		idpAccount, err := svc.ds.GetMDMIdPAccountByHostUUID(ctx, hostInfo.HardwareUUID)
+		if err != nil {
+			return "", fleet.OrbitError{Message: "failed to get IdP account: " + err.Error()}
+		}
+		if idpAccount == nil {
+			// If the Orbit client doesn't support end user auth, complain loudly and let the host enroll.
+			mp, ok := capabilities.FromContext(ctx)
+			//nolint:gocritic // ignore ifElseChain
+			if !ok {
+				level.Error(svc.logger).Log("msg", "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but fleet could not determine whether orbit supports end-user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
+			} else if !mp.Has(fleet.CapabilityEndUserAuth) {
+				level.Error(svc.logger).Log("msg", "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but connected with an orbit version that does not support end user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
+			} else {
+				// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
+				return "", fleet.NewOrbitIDPAuthRequiredError()
+			}
+		}
+	}
+
+	var stickyEnrollment *string
+	if svc.keyValueStore != nil {
+		// Check for sticky MDM enrollment flag. When set (e.g., after a host transfer),
+		// this prevents enrollment-based team changes for a time window to avoid race conditions
+		// with MDM profile delivery.
+		stickyEnrollment, err = svc.keyValueStore.Get(ctx, fleet.StickyMDMEnrollmentKeyPrefix+hostInfo.HardwareUUID)
+		if err != nil {
+			// Log error but continue enrollment (fail-open approach). If Redis is unavailable,
+			// enrollment proceeds without sticky behavior rather than blocking.
+			level.Error(svc.logger).Log("msg", "failed to get sticky enrollment", "err", err, "host_uuid", hostInfo.HardwareUUID)
+		}
+	}
 
 	host, err := svc.ds.EnrollOrbit(ctx,
 		fleet.WithEnrollOrbitMDMEnabled(appConfig.MDM.EnabledAndConfigured),
@@ -182,6 +230,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		fleet.WithEnrollOrbitNodeKey(orbitNodeKey),
 		fleet.WithEnrollOrbitTeamID(secret.TeamID),
 		fleet.WithEnrollOrbitIdentityCert(identityCert),
+		fleet.WithEnrollOrbitIgnoreTeamUpdate(stickyEnrollment != nil),
 	)
 	if err != nil {
 		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}
@@ -284,7 +333,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	// set the host's orbit notifications for Windows MDM
-	if appConfig.MDM.WindowsEnabledAndConfigured {
+	if appConfig.MDM.WindowsEnabledAndConfigured && !appConfig.MDM.EnableTurnOnWindowsMDMManually {
 		if isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
 			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
 			if err != nil {
@@ -512,7 +561,7 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 		}
 		manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 	} else {
-		tm, err := svc.ds.Team(ctx, *host.TeamID)
+		tm, err := svc.ds.TeamLite(ctx, *host.TeamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
 		}
@@ -871,7 +920,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 		} else if updated {
 			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.ExecutionID)
 			fromSetupExperience = true
-			_, err := svc.EnterpriseOverrides.SetupExperienceNextStep(ctx, host.UUID)
+			_, err := svc.EnterpriseOverrides.SetupExperienceNextStep(ctx, host)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
 			}
@@ -952,6 +1001,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 					HostID:              host.ID,
 					HostDisplayName:     host.DisplayName(),
 					ScriptExecutionID:   hsr.ExecutionID,
+					BatchExecutionID:    hsr.BatchExecutionID,
 					ScriptName:          scriptName,
 					Async:               !hsr.SyncRequest,
 					PolicyID:            hsr.PolicyID,
@@ -1001,7 +1051,7 @@ func putOrbitDeviceMappingEndpoint(ctx context.Context, request interface{}, svc
 		return orbitPutDeviceMappingResponse{Err: err}, nil
 	}
 
-	_, err := svc.SetCustomHostDeviceMapping(ctx, host.ID, req.Email)
+	_, err := svc.SetHostDeviceMapping(ctx, host.ID, req.Email, fleet.DeviceMappingCustomReplacement)
 	return orbitPutDeviceMappingResponse{Err: err}, nil
 }
 
@@ -1079,8 +1129,29 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 		decryptable = ptr.Bool(true)
 	}
 
-	if err := svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, encryptedEncryptionKey, clientError, decryptable); err != nil {
+	keyArchived, err := svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, encryptedEncryptionKey, clientError, decryptable)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "set or update disk encryption key")
+	}
+
+	// We only want to record the activity if the key was successfully archived.
+	if !keyArchived {
+		return nil
+	}
+	if err := svc.NewActivity(
+		ctx,
+		nil,
+		fleet.ActivityTypeEscrowedDiskEncryptionKey{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		},
+	); err != nil {
+		// OK: this is not critical to the operation of the endpoint
+		level.Error(svc.logger).Log(
+			"msg", "record fleet disk encryption key escrowed activity",
+			"err", err,
+		)
+		ctxerr.Handle(ctx, err)
 	}
 
 	return nil
@@ -1142,7 +1213,32 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 		return err
 	}
 
-	return svc.ds.SaveLUKSData(ctx, host, encryptedPassphrase, encryptedSalt, validatedKeySlot)
+	keyArchived, err := svc.ds.SaveLUKSData(ctx, host, encryptedPassphrase, encryptedSalt, validatedKeySlot)
+	if err != nil {
+		return err
+	}
+
+	// When only want to record a new activity if the current key was archived ...
+	if !keyArchived {
+		return nil
+	}
+	if err := svc.NewActivity(
+		ctx,
+		nil,
+		fleet.ActivityTypeEscrowedDiskEncryptionKey{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		},
+	); err != nil {
+		// OK: this is not critical to the operation of the endpoint
+		level.Error(svc.logger).Log(
+			"msg", "record fleet disk encryption key escrowed activity",
+			"err", err,
+		)
+		ctxerr.Handle(ctx, err)
+	}
+
+	return nil
 }
 
 func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, salt string, keySlot *uint) (encryptedPassphrase string, encryptedSalt string, validatedKeySlot uint, err error) {
@@ -1314,24 +1410,57 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 
 	// always use the authenticated host's ID as host_id
 	result.HostID = host.ID
-	installWasCanceled, err := svc.ds.SetHostSoftwareInstallResult(ctx, result)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "save host software installation result")
+
+	// If this is an intermediate failure that will be retried, handle it specially
+	if result.RetriesRemaining > 0 {
+		// Create a record while keeping the original pending
+		_, err := svc.ds.CreateIntermediateInstallFailureRecord(ctx, result)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "save intermediate install failure")
+		}
+
+		// Don't create activities for intermediate failures during setup experience.
+		// Only the final result (RetriesRemaining == 0) should create an activity.
+		// This prevents multiple activity items from appearing when a package fails
+		// during setup experience with retries enabled.
+		// See https://github.com/fleetdm/fleet/issues/34818
+
+		// Don't update setup experience status for intermediate failures
+		return nil
 	}
+
 	var fromSetupExperience bool
 	if fleet.IsSetupExperienceSupported(host.Platform) {
-		// this might be a setup experience software install result
+		// This might be a setup experience software install result, so we attempt to update the
+		// "Setup experience" status for that item.
+		hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
+		}
 		if updated, err := maybeUpdateSetupExperienceStatus(ctx, svc.ds, fleet.SetupExperienceSoftwareInstallResult{
-			HostUUID:        host.UUID,
+			HostUUID:        hostUUID,
 			ExecutionID:     result.InstallUUID,
 			InstallerStatus: result.Status(),
 		}, true); err != nil {
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
-			// TODO: call next step of setup experience?
+			level.Debug(svc.logger).Log(
+				"msg", "setup experience software install result updated",
+				"host_uuid", hostUUID,
+				"execution_id", result.InstallUUID,
+			)
 			fromSetupExperience = true
-			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.InstallUUID)
+			// We need to trigger the next step to properly support setup experience on Linux.
+			// On Linux, users can skip the setup experience by closing the "My device" page.
+			if _, err := svc.EnterpriseOverrides.SetupExperienceNextStep(ctx, host); err != nil {
+				return ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
+			}
 		}
+	}
+
+	installWasCanceled, err := svc.ds.SetHostSoftwareInstallResult(ctx, result)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
 
 	// do not create a "past" activity if the status is not terminal or if the activity
@@ -1368,6 +1497,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				SoftwarePackage:     hsi.SoftwarePackage,
 				InstallUUID:         result.InstallUUID,
 				Status:              string(status),
+				Source:              hsi.Source,
 				SelfService:         hsi.SelfService,
 				PolicyID:            hsi.PolicyID,
 				PolicyName:          policyName,
@@ -1394,6 +1524,9 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 type getOrbitSetupExperienceStatusRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
 	ForceRelease bool   `json:"force_release"`
+	// Whether to re-enqueue canceled setup experience steps after a previous
+	// software install failure on MacOS.
+	ResetFailedSetupSteps bool `json:"reset_failed_setup_steps"`
 }
 
 func (r *getOrbitSetupExperienceStatusRequest) setOrbitNodeKey(nodeKey string) {
@@ -1413,14 +1546,61 @@ func (r getOrbitSetupExperienceStatusResponse) Error() error { return r.Err }
 
 func getOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getOrbitSetupExperienceStatusRequest)
-	results, err := svc.GetOrbitSetupExperienceStatus(ctx, req.OrbitNodeKey, req.ForceRelease)
+	results, err := svc.GetOrbitSetupExperienceStatus(ctx, req.OrbitNodeKey, req.ForceRelease, req.ResetFailedSetupSteps)
 	if err != nil {
 		return &getOrbitSetupExperienceStatusResponse{Err: err}, nil
 	}
 	return &getOrbitSetupExperienceStatusResponse{Results: results}, nil
 }
 
-func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceStatusPayload, error) {
+func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetFailedSetupSteps bool) (*fleet.SetupExperienceStatusPayload, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Setup experience init
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitSetupExperienceInitRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+}
+
+func (r *orbitSetupExperienceInitRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *orbitSetupExperienceInitRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitSetupExperienceInitResponse struct {
+	Result fleet.SetupExperienceInitResult `json:"result"`
+	Err    error                           `json:"error,omitempty"`
+}
+
+func (r orbitSetupExperienceInitResponse) Error() error {
+	return r.Err
+}
+
+func orbitSetupExperienceInitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	_, ok := request.(*orbitSetupExperienceInitRequest)
+	if !ok {
+		return nil, fmt.Errorf("internal error: invalid request type: %T", request)
+	}
+	result, err := svc.SetupExperienceInit(ctx)
+	if err != nil {
+		return orbitSetupExperienceInitResponse{Err: err}, nil
+	}
+	return orbitSetupExperienceInitResponse{
+		Result: *result,
+	}, nil
+}
+
+func (svc *Service) SetupExperienceInit(ctx context.Context) (*fleet.SetupExperienceInitResult, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

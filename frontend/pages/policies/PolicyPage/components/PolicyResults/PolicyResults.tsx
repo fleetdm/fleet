@@ -115,7 +115,7 @@ const PolicyResults = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQueryModal}
-          variant="text-icon"
+          variant="inverse"
         >
           <>
             Show query <Icon name="eye" />
@@ -126,11 +126,11 @@ const PolicyResults = ({
           onClick={
             tableType === "errors" ? onExportErrorsResults : onExportResults
           }
-          variant="text-icon"
+          variant="inverse"
         >
           <>
             Export {tableType}
-            <Icon name="download" color="core-fleet-blue" />
+            <Icon name="download" color="ui-fleet-black-75" />
           </>
         </Button>
       </div>
@@ -255,7 +255,7 @@ const PolicyResults = ({
               <TabText>{NAV_TITLES.RESULTS}</TabText>
             </Tab>
             <Tab disabled={!errors?.length}>
-              <TabText count={errors?.length} isErrorCount>
+              <TabText count={errors?.length} countVariant="alert">
                 {NAV_TITLES.ERRORS}
               </TabText>
             </Tab>

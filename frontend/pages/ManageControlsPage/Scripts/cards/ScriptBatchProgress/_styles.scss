@@ -1,0 +1,46 @@
+.script-batch-progress {
+  @include vertical-page-layout;
+  font-size: $x-small;
+
+  &__status-count {
+    font-weight: $bold;
+  }
+
+  .paginated-list__row {
+    padding: 16px 24px;
+  }
+
+  .list-item__details {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    @include help-text;
+  }
+
+  &__row-right {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  &__row-errors {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    @include help-text;
+  }
+
+  &__empty {
+    @include tab-empty-state;
+    gap: $pad-small;
+  }
+
+  .paginated-list .loading-overlay {
+    position: initial;
+    top: initial;
+    bottom: initial;
+    left: initial;
+    right: initial;
+  }
+}

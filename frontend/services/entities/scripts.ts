@@ -1,8 +1,23 @@
-import { IHostScript, IScript } from "interfaces/script";
+import {
+  IHostScript,
+  IScript,
+  ScriptBatchHostStatus,
+  ScriptBatchStatus,
+} from "interfaces/script";
 import sendRequest from "services";
+
+import {
+  createMockBatchScriptSummary,
+  createMockScriptBatchHostResults,
+} from "__mocks__/scriptMock";
+
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
-
+import {
+  ListEntitiesResponseCommon,
+  OrderDirection,
+  PaginationParams,
+} from "./common";
 /** Single script response from GET /script/:id */
 export type IScriptResponse = IScript;
 
@@ -96,6 +111,7 @@ export interface IScriptBatchSupportedFilters {
 }
 interface IRunScriptBatchRequestBase {
   script_id: number;
+  not_before?: string; // ISO 8601 date-time string
 }
 
 interface IByFilters extends IRunScriptBatchRequestBase {
@@ -121,23 +137,95 @@ export interface IScriptBatchSummaryQueryKey extends IScriptBatchSummaryParams {
   scope: "script_batch_summary";
 }
 
-export interface IScriptBatchExecutionStatuses {
+export interface IScriptBatchHostCountsV1 {
   ran: number;
   pending: number;
   errored: number;
+  canceled: number;
 }
-export type ScriptBatchExecutionStatus = keyof IScriptBatchExecutionStatuses;
+export type ScriptBatchHostCountV1 = keyof IScriptBatchHostCountsV1;
 // 200 successful response
-export interface IScriptBatchSummaryResponse
-  extends IScriptBatchExecutionStatuses {
+
+export interface IScriptBatchSummaryV1 extends IScriptBatchHostCountsV1 {
   team_id: number;
   script_name: string;
   created_at: string;
   // below fields not yet used by the UI
-  canceled: number;
   targeted: number;
   script_id: number;
 }
+
+export interface IScriptBatchHostCountsV2 {
+  targeted_host_count: number;
+  ran_host_count: number;
+  errored_host_count: number;
+  pending_host_count: number;
+  incompatible_host_count: number;
+  canceled_host_count: number;
+}
+
+export interface IScriptBatchSummaryV2 extends IScriptBatchHostCountsV2 {
+  batch_execution_id: string;
+  /** ISO 8601 date-time string. When the script batch run was created (NOT when it is/was scheduled
+   * to run by, which is represented by `not_before`. */
+  created_at: string;
+  script_id: number;
+  script_name: string;
+  team_id: number;
+  status: ScriptBatchStatus;
+  canceled: boolean;
+  /** ISO 8601 date-time string. Always present as of Fleet 4.73.0 - `null`able for backwards compatibility with older batch runs. */
+  not_before: string | null;
+  // /** ISO 8601 date-time string. If present, this script batch run has started. */
+  started_at: string | null;
+  /** ISO 8601 date-time string. If present, this script has completed running. */
+  finished_at: string | null;
+}
+
+export interface IScriptBatchSummariesParams {
+  team_id: number;
+  status: ScriptBatchStatus;
+  page: number;
+  per_page: number;
+}
+export interface IScriptBatchSummariesQueryKey
+  extends IScriptBatchSummariesParams {
+  scope: "script_batch_summaries";
+}
+
+export interface IScriptBatchSummariesResponse
+  extends ListEntitiesResponseCommon {
+  batch_executions: IScriptBatchSummaryV2[] | null; // should not return `null`, but API currently does sometimes. Remove this option when it's fixed.
+}
+
+export type ScriptBatchHostsOrderKey = "display_name" | "script_executed_at";
+export interface IScriptBatchHostResultsParams extends PaginationParams {
+  batch_execution_id: string;
+  status: ScriptBatchHostStatus;
+  order_key: ScriptBatchHostsOrderKey;
+  order_direction: OrderDirection;
+}
+
+export interface IScriptBatchHostResultsQueryKey
+  extends IScriptBatchHostResultsParams {
+  scope: "script_batch_host_results";
+}
+
+export interface IScriptBatchHostResult {
+  id: number;
+  display_name: string;
+  script_status: ScriptBatchHostStatus;
+  script_execution_id: string | null; // if status === pending, this may be `null` or contain a value dependending on whether the script exectution is this hosts next scheduled activity on the server
+  //  /** ISO 8601 date-time string. `null` if pending, cancelled, or incompatible. */
+  script_executed_at: string | null;
+  /** `null` if pending, cancelled, or incompatible. */
+  script_output_preview: string | null;
+}
+export interface IScriptBatchHostResultsResponse
+  extends ListEntitiesResponseCommon {
+  hosts: IScriptBatchHostResult[];
+}
+
 export default {
   getHostScripts({ host_id, page, per_page }: IHostScriptsRequestParams) {
     const { HOST_SCRIPTS } = endpoints;
@@ -213,12 +301,55 @@ export default {
     const { SCRIPT_RUN_BATCH } = endpoints;
     return sendRequest("POST", SCRIPT_RUN_BATCH, request);
   },
-  getRunScriptBatchSummary({
+  cancelScriptBatch(batchExecutionId: string) {
+    const { SCRIPT_CANCEL_BATCH } = endpoints;
+    return sendRequest("POST", SCRIPT_CANCEL_BATCH(batchExecutionId));
+  },
+  /** calls the deprecated endpoint */
+  getRunScriptBatchSummaryV1({
     batch_execution_id,
-  }: IScriptBatchSummaryParams): Promise<IScriptBatchSummaryResponse> {
+  }: IScriptBatchSummaryParams): Promise<IScriptBatchSummaryV1> {
     return sendRequest(
       "GET",
-      `${endpoints.SCRIPT_RUN_BATCH_SUMMARY(batch_execution_id)}`
+      `${endpoints.SCRIPT_RUN_BATCH_SUMMARY_V1(batch_execution_id)}`
     );
+  },
+  getRunScriptBatchSummaryV2({
+    batch_execution_id,
+  }: IScriptBatchSummaryParams): Promise<IScriptBatchSummaryV2> {
+    return sendRequest(
+      "GET",
+      `${endpoints.SCRIPT_RUN_BATCH_SUMMARY_V2(batch_execution_id)}`
+    );
+  },
+  getRunScriptBatchSummaries(
+    params: IScriptBatchSummariesParams
+  ): Promise<IScriptBatchSummariesResponse> {
+    const path = `${
+      endpoints.SCRIPT_RUN_BATCH_SUMMARIES
+    }?${buildQueryStringFromParams({ ...params })}`;
+    return sendRequest("GET", path);
+  },
+  getScriptBatchHostResults(
+    params: IScriptBatchHostResultsParams
+  ): Promise<IScriptBatchHostResultsResponse> {
+    const {
+      batch_execution_id,
+      status,
+      page,
+      per_page,
+      order_key,
+      order_direction,
+    } = params;
+    const path = `${endpoints.SCRIPT_BATCH_HOST_RESULTS(
+      batch_execution_id
+    )}?${buildQueryStringFromParams({
+      status,
+      page,
+      per_page,
+      order_key: order_key === "script_executed_at" ? "updated_at" : order_key, // map to server field name
+      order_direction,
+    })}`;
+    return sendRequest("GET", path);
   },
 };

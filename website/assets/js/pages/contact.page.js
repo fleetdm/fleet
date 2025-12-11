@@ -91,14 +91,11 @@ parasails.registerPage('contact', {
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
       }
-      if(typeof analytics !== 'undefined'){
-        analytics.track('fleet_website__contact_forms');
-      }
       // Show the success message.
       this.cloudSuccess = true;
 
     },
-    submittedTalkToUsForm: async function() {
+    handleSubmittingTalkToUsForm: async function(argins) {
       this.syncing = true;
       if(typeof gtag !== 'undefined'){
         gtag('event','fleet_website__contact_forms');
@@ -106,14 +103,9 @@ parasails.registerPage('contact', {
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
       }
-      if(typeof analytics !== 'undefined'){
-        analytics.track('fleet_website__contact_forms');
-      }
-      if(this.formData.numberOfHosts >= 700){
-        this.goto(`https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.formData.emailAddress)}&name=${encodeURIComponent(this.formData.firstName+' '+this.formData.lastName)}`);
-      } else {
-        this.goto(`https://calendly.com/fleetdm/chat?email=${encodeURIComponent(this.formData.emailAddress)}&name=${encodeURIComponent(this.formData.firstName+' '+this.formData.lastName)}`);
-      }
+      let eventUrl = await Cloud.deliverTalkToUsFormSubmission.with(argins);
+
+      this.goto(eventUrl);
     },
 
     clickSwitchForms: function(form) {

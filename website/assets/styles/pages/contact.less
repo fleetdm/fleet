@@ -121,8 +121,8 @@
     line-height: 16px;
     align-items: center;
     justify-content: center;
-    background-color: #ff5c83;
-    border-color: #ff5c83;
+    background-color: @core-vibrant-green;
+    border-color: @core-vibrant-green;
   }
   [purpose='page-container'] {
     padding: 64px;
@@ -215,6 +215,7 @@
     padding-right: 60px;
     padding-top: 80px;
     text-align: center;
+    max-width: 664px;
     width: 100%;
   }
 
@@ -269,14 +270,19 @@
     display: none;
   }
   [purpose='logos'] {
+    max-width: 392px;
     display: flex;
     padding-top: 60px;
+    [parasails-component='logo-carousel'] {
+      max-width: 100%;
+      padding-top: 0px;
+      margin-bottom: 0px;
+    }
   }
   [purpose='logo-row'] {
     margin-bottom: 32px;
     padding-left: 16px;
     padding-right: 16px;
-    width: 100%;
     img {
       max-height: 32px;
     }
@@ -298,22 +304,25 @@
       padding-bottom: 40px;
       text-align: center;
       width: 100%;
+      max-width: unset;
     }
     [purpose='quote-and-logos'] {
       margin-top: 64px;
       width: 100%;
       min-width: unset;
       display: flex;
-      flex-direction: row;
+      flex-direction: column;
       justify-content: center;
     }
     [purpose='quote'] {
-      max-width: 50%;
+      max-width: unset;
+      width: 100%;
       margin-right: 24px;
     }
     [purpose='logos'] {
       min-width: 339px;
-      // width: 339px;
+      max-width: unset;
+      width: 100%;
     }
     [purpose='logo-row'] {
       padding-left: 13px;
@@ -340,7 +349,6 @@
       margin-bottom: 32px;
       padding-left: 16px;
       padding-right: 16px;
-      width: 100%;
       img {
         max-height: 32px;
       }

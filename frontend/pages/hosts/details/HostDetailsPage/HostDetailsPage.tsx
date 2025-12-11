@@ -31,13 +31,19 @@ import { ILabel } from "interfaces/label";
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
-import { IHostSoftware } from "interfaces/software";
+import {
+  IHostSoftware,
+  resolveUninstallStatus,
+  SCRIPT_PACKAGE_SOURCES,
+  SoftwareInstallUninstallStatus,
+} from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
 import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
+import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
@@ -55,22 +61,26 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import MainContent, { IMainContentConfig } from "components/MainContent";
-import BackLink from "components/BackLink";
-import Card from "components/Card";
+import BackButton from "components/BackButton";
 import CustomLink from "components/CustomLink/CustomLink";
 import EmptyTable from "components/EmptyTable";
 
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 import {
-  AppInstallDetailsModal,
-  IAppInstallDetails,
-} from "components/ActivityDetails/InstallDetails/AppInstallDetails/AppInstallDetails";
+  VppInstallDetailsModal,
+  IVppInstallDetails,
+} from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
 import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
-} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
+} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
+import { SoftwareScriptDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
+import {
+  SoftwareIpaInstallDetailsModal,
+  ISoftwareIpaInstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal/SoftwareIpaInstallDetailsModal";
 import SoftwareUninstallDetailsModal, {
-  ISoftwareUninstallDetails,
+  ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
@@ -108,24 +118,25 @@ import {
   getHostDeviceStatusUIState,
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
-import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { getErrorMessage } from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
-import AddEndUserModal from "../cards/User/components/AddEndUserModal";
-import {
-  generateChromeProfilesValues,
-  generateOtherEmailsValues,
-  generateUsernameValues,
-} from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader";
+import InventoryVersionsModal from "../modals/InventoryVersionsModal";
+import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
 
 const baseClass = "host-details";
 
 const defaultCardClass = `${baseClass}__card`;
 const fullWidthCardClass = `${baseClass}__card--full-width`;
 const doubleHeightCardClass = `${baseClass}__card--double-height`;
+
+export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
+const BYOD_SW_INSTALL_LEARN_MORE_LINK =
+  "https://fleetdm.com/learn-more-about/byod-hosts-vpp-install";
+const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
+  "https://fleetdm.com/learn-more-about/install-google-play-apps";
 
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
@@ -174,6 +185,7 @@ const HostDetailsPage = ({
     isGlobalAdmin = false,
     isGlobalMaintainer,
     isGlobalObserver,
+    isTeamMaintainerOrTeamAdmin,
     isPremiumTier = false,
     isOnlyObserver,
     filteredHostsPath,
@@ -197,6 +209,10 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
+  const [showUpdateEndUserModal, setShowUpdateEndUserModal] = useState(false);
+
+  // General-use updating state
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Used in activities to show run script details modal
   const [scriptExecutionId, setScriptExecutiontId] = useState("");
@@ -208,15 +224,22 @@ const HostDetailsPage = ({
     setPackageInstallDetails,
   ] = useState<IPackageInstallDetails | null>(null);
   const [
+    scriptPackageDetails,
+    setScriptPackageDetails,
+  ] = useState<IPackageInstallDetails | null>(null);
+  const [
+    ipaPackageInstallDetails,
+    setIpaPackageInstallDetails,
+  ] = useState<ISoftwareIpaInstallDetails | null>(null);
+  const [
     packageUninstallDetails,
     setPackageUninstallDetails,
-  ] = useState<ISoftwareUninstallDetails | null>(null);
+  ] = useState<ISWUninstallDetailsParentState | null>(null);
   const [
-    appInstallDetails,
-    setAppInstallDetails,
-  ] = useState<IAppInstallDetails | null>(null);
+    activityVPPInstallDetails,
+    setActivityVPPInstallDetails,
+  ] = useState<IVppInstallDetails | null>(null);
 
-  const [isUpdatingHost, setIsUpdatingHost] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [schedule, setSchedule] = useState<IQueryStats[]>();
@@ -228,8 +251,8 @@ const HostDetailsPage = ({
     setHostMdmDeviceState,
   ] = useState<HostMdmDeviceStatusUIState>("unlocked");
   const [
-    selectedSoftwareDetails,
-    setSelectedSoftwareDetails,
+    selectedHostSWForInventoryVersions,
+    setSelectedHostSWForInventoryVersions,
   ] = useState<IHostSoftware | null>(null);
   const [
     selectedCancelActivity,
@@ -253,7 +276,6 @@ const HostDetailsPage = ({
   const [sortCerts, setSortCerts] = useState<IListSort>({
     ...CERTIFICATES_DEFAULT_SORT,
   });
-  const [showAddEndUserModal, setShowAddEndUserModal] = useState(false);
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
@@ -335,6 +357,15 @@ const HostDetailsPage = ({
     hostCertificates && refetchHostCertificates();
   };
 
+  /**
+   * Hides refetch spinner and resets refetch timer,
+   * ensuring no stale timeout triggers on new requests.
+   */
+  const resetHostRefetchStates = () => {
+    setShowRefetchSpinner(false);
+    setRefetchStartTime(null);
+  };
+
   const {
     isLoading: isLoadingHost,
     data: host,
@@ -350,42 +381,22 @@ const HostDetailsPage = ({
       retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
-        setShowRefetchSpinner(returnedHost.refetch_requested);
-        setHostMdmDeviceState(
-          getHostDeviceStatusUIState(
-            returnedHost.mdm.device_status,
-            returnedHost.mdm.pending_action
-          )
-        );
-        if (
-          returnedHost.refetch_requested &&
-          !isAndroid(returnedHost.platform)
-        ) {
-          // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
-          // host details. Here we set a one second timeout and poll the API again using
-          // fullyReloadHost. We will repeat this process with each onSuccess cycle for a total of
-          // 60 seconds or until the API reports that the Fleet refetch request has been resolved
-          // or that the host has gone offline.
+        // If API returns refetch_requested: true,
+        // only set timer if *not* already set!
+        if (returnedHost.refetch_requested) {
           if (!refetchStartTime) {
-            // If our 60 second timer wasn't already started (e.g., if a refetch was pending when
-            // the first page loads), we start it now if the host is online. If the host is offline,
-            // we skip the refetch on page load.
-            if (
-              returnedHost.status === "online" ||
-              isIPadOrIPhone(returnedHost.platform)
-            ) {
-              setRefetchStartTime(Date.now());
-              setTimeout(() => {
-                refetchHostDetails();
-                refetchExtensions();
-              }, 1000);
-            } else {
-              setShowRefetchSpinner(false);
-            }
-          } else {
-            // !!refetchStartTime
-            const totalElapsedTime = Date.now() - refetchStartTime;
-            if (totalElapsedTime < 60000) {
+            setRefetchStartTime(Date.now());
+          }
+          setShowRefetchSpinner(true);
+
+          // If Android, don't run timers/polling logic
+          if (!isAndroid(returnedHost.platform)) {
+            // Compute how long since timer started (if set)
+            const totalElapsedTime = refetchStartTime
+              ? Date.now() - refetchStartTime
+              : 0;
+            if (!refetchStartTime) {
+              // Timer just started - poll again after interval!
               if (
                 returnedHost.status === "online" ||
                 isIPadOrIPhone(returnedHost.platform)
@@ -393,25 +404,47 @@ const HostDetailsPage = ({
                 setTimeout(() => {
                   refetchHostDetails();
                   refetchExtensions();
-                }, 1000);
+                }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
+              } else {
+                resetHostRefetchStates();
+              }
+            } else if (totalElapsedTime < 60000) {
+              // Timer running, still inside poll window
+              if (
+                returnedHost.status === "online" ||
+                isIPadOrIPhone(returnedHost.platform)
+              ) {
+                setTimeout(() => {
+                  refetchHostDetails();
+                  refetchExtensions();
+                }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
                 renderFlash(
                   "error",
                   `This host is offline. Please try refetching host vitals later.`
                 );
-                setShowRefetchSpinner(false);
+                resetHostRefetchStates();
               }
             } else {
-              // totalElapsedTime > 60000
+              // Total elapsed poll window exceeded (60s), stop and alert
               renderFlash(
                 "error",
                 `We're having trouble fetching fresh vitals for this host. Please try again later.`
               );
-              setShowRefetchSpinner(false);
+              resetHostRefetchStates();
             }
           }
-          return; // exit early because refectch is pending so we can avoid unecessary steps below
+        } else {
+          // Not refetching: reset spinner and timer
+          resetHostRefetchStates();
         }
+
+        setHostMdmDeviceState(
+          getHostDeviceStatusUIState(
+            returnedHost.mdm.device_status,
+            returnedHost.mdm.pending_action
+          )
+        );
         setUsersState(returnedHost.users || []);
         setSchedule(schedule);
         if (returnedHost.pack_stats) {
@@ -594,7 +627,7 @@ const HostDetailsPage = ({
 
   const onDestroyHost = async () => {
     if (host) {
-      setIsUpdatingHost(true);
+      setIsUpdating(true);
       try {
         await hostAPI.destroy(host);
         router.push(PATHS.MANAGE_HOSTS);
@@ -610,7 +643,7 @@ const HostDetailsPage = ({
         );
       } finally {
         setShowDeleteHostModal(false);
-        setIsUpdatingHost(false);
+        setIsUpdating(false);
       }
     }
   };
@@ -627,14 +660,24 @@ const HostDetailsPage = ({
           setTimeout(() => {
             refetchHostDetails();
             refetchExtensions();
-          }, 1000);
+          }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
         });
       } catch (error) {
         renderFlash("error", getErrorMessage(error, host.display_name));
-        setShowRefetchSpinner(false);
+        resetHostRefetchStates();
       }
     }
   };
+
+  const resendProfile = useCallback(
+    (profileUUID: string): Promise<void> => {
+      if (!host?.id) {
+        return new Promise(() => undefined);
+      }
+      return hostAPI.resendProfile(host.id, profileUUID);
+    },
+    [host?.id]
+  );
 
   const onChangeActivityTab = (tabIndex: number) => {
     setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
@@ -648,29 +691,55 @@ const HostDetailsPage = ({
           setScriptExecutiontId(details?.script_execution_id || "");
           break;
         case "installed_software":
-          setPackageInstallDetails({
-            ...details,
-            // FIXME: It seems like the backend is not using the correct display name when it returns
-            // upcoming install activities. As a workaround, we'll prefer the display name from
-            // the host object if it's available.
-            host_display_name:
-              host?.display_name || details?.host_display_name || "",
-          });
+          if (details?.command_uuid) {
+            setIpaPackageInstallDetails({
+              fleetInstallStatus: details?.status as SoftwareInstallUninstallStatus,
+              hostDisplayName:
+                host?.display_name || details?.host_display_name || "",
+              appName: details.software_display_name || details?.name || "", // TODO: Confirm correct field
+              commandUuid: details?.command_uuid,
+            });
+          } else if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
+            setScriptPackageDetails({
+              ...details,
+              // FIXME: It seems like the backend is not using the correct display name when it returns
+              // upcoming install activities. As a workaround, we'll prefer the display name from
+              // the host object if it's available.
+              host_display_name:
+                host?.display_name || details?.host_display_name || "",
+            });
+          } else {
+            setPackageInstallDetails({
+              ...details,
+              // FIXME: It seems like the backend is not using the correct display name when it returns
+              // upcoming install activities. As a workaround, we'll prefer the display name from
+              // the host object if it's available.
+              host_display_name:
+                host?.display_name || details?.host_display_name || "",
+            });
+          }
           break;
         case "uninstalled_software":
           setPackageUninstallDetails({
             ...details,
-            host_display_name:
-              host?.display_name || details?.host_display_name || "",
+            softwareName:
+              details?.software_display_name || details?.software_title || "",
+            uninstallStatus: resolveUninstallStatus(details?.status),
+            scriptExecutionId: details?.script_execution_id || "",
+            hostDisplayName: host?.display_name || details?.host_display_name,
           });
           break;
         case "installed_app_store_app":
-          setAppInstallDetails({
-            ...details,
+          setActivityVPPInstallDetails({
+            appName:
+              details?.software_display_name || details?.software_title || "",
+            fleetInstallStatus: (details?.status ||
+              "pending_install") as SoftwareInstallUninstallStatus,
+            commandUuid: details?.command_uuid || "",
             // FIXME: It seems like the backend is not using the correct display name when it returns
             // upcoming install activities. As a workaround, we'll prefer the display name from
             // the host object if it's available.
-            host_display_name:
+            hostDisplayName:
               host?.display_name || details?.host_display_name || "",
           });
           break;
@@ -690,23 +759,13 @@ const HostDetailsPage = ({
       : router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
   };
 
-  const onShowSoftwareDetails = useCallback(
-    (software?: IHostSoftware) => {
-      if (software) {
-        setSelectedSoftwareDetails(software);
+  const onSetSelectedHostSWForInventoryVersions = useCallback(
+    (hostSW?: IHostSoftware) => {
+      if (hostSW) {
+        setSelectedHostSWForInventoryVersions(hostSW);
       }
     },
-    [setSelectedSoftwareDetails]
-  );
-
-  const onShowUninstallDetails = useCallback(
-    (details?: ISoftwareUninstallDetails) => {
-      setPackageUninstallDetails({
-        ...details,
-        host_display_name: host?.display_name || "",
-      });
-    },
-    [setPackageUninstallDetails]
+    [setSelectedHostSWForInventoryVersions]
   );
 
   const onCancelRunScriptDetailsModal = useCallback(() => {
@@ -720,12 +779,16 @@ const HostDetailsPage = ({
     setPackageInstallDetails(null);
   }, []);
 
-  const onCancelAppInstallDetailsModal = useCallback(() => {
-    setAppInstallDetails(null);
+  const onCancelIpaSoftwareInstallDetailsModal = useCallback(() => {
+    setIpaPackageInstallDetails(null);
+  }, []);
+
+  const onCancelVppInstallDetailsModal = useCallback(() => {
+    setActivityVPPInstallDetails(null);
   }, []);
 
   const onTransferHostSubmit = async (team: ITeam) => {
-    setIsUpdatingHost(true);
+    setIsUpdating(true);
 
     const teamId = typeof team.id === "number" ? team.id : null;
 
@@ -741,10 +804,9 @@ const HostDetailsPage = ({
       refetchHostDetails(); // Note: it is not necessary to `refetchExtensions` here because only team has changed
       setShowTransferHostModal(false);
     } catch (error) {
-      console.log(error);
       renderFlash("error", "Could not transfer host. Please try again.");
     } finally {
-      setIsUpdatingHost(false);
+      setIsUpdating(false);
     }
   };
 
@@ -799,7 +861,7 @@ const HostDetailsPage = ({
     setSelectedCertificate(certificate);
   };
 
-  const renderActionDropdown = () => {
+  const renderActionsDropdown = () => {
     if (!host) {
       return null;
     }
@@ -833,6 +895,25 @@ const HostDetailsPage = ({
       (host.platform === "windows" || isLinuxLike(host.platform))
     ) {
       refetchHostDetails();
+    }
+  };
+
+  const onUpdateEndUser = async (username: string) => {
+    setIsUpdating(true);
+    try {
+      if (username === "") {
+        await hostAPI.deleteHostIdp(hostIdFromURL);
+        renderFlash("success", "Removed end user.");
+      } else {
+        await hostAPI.updateHostIdp(hostIdFromURL, username);
+        renderFlash("success", "Updated end user.");
+      }
+      setShowUpdateEndUserModal(false);
+      refetchHostDetails();
+    } catch (e) {
+      renderFlash("error", "Could not update end user. Please try again.");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -942,12 +1023,15 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
 
-  const isSoftwareLibrarySupported = isPremiumTier && !isAndroidHost;
+  const canResendProfiles =
+    isDarwinHost &&
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isHostTeamAdmin ||
+      isHostTeamMaintainer);
 
-  const showUsersCard =
-    isDarwinHost ||
-    generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
-    generateOtherEmailsValues(host.end_users ?? []).length > 0;
+  const showSoftwareLibraryTab = isPremiumTier;
+
   const showActivityCard = !isAndroidHost;
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
@@ -957,17 +1041,16 @@ const HostDetailsPage = ({
 
   const renderSoftwareCard = () => {
     return (
-      <Card
-        className={`${baseClass}__software-card`}
-        borderRadiusSize="xxlarge"
-        paddingSize="xlarge"
-        includeShadow
-      >
-        {isSoftwareLibrarySupported ? (
+      <div className={`${baseClass}__software-card`}>
+        {showSoftwareLibraryTab ? (
           <>
             <TabList>
-              <Tab>Inventory</Tab>
-              <Tab>Library</Tab>
+              <Tab>
+                <TabText>Inventory</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Library</TabText>
+              </Tab>
             </TabList>
             <TabPanel>
               <SoftwareInventoryCard
@@ -981,8 +1064,11 @@ const HostDetailsPage = ({
                   include_available_for_install: false,
                 }}
                 pathname={location.pathname}
-                onShowSoftwareDetails={setSelectedSoftwareDetails}
+                onShowInventoryVersions={
+                  onSetSelectedHostSWForInventoryVersions
+                }
                 hostTeamId={host.team_id || 0}
+                hostMdmEnrollmentStatus={host.mdm.enrollment_status}
               />
               {isDarwinHost && macadmins?.munki?.version && (
                 <MunkiIssuesCard
@@ -993,10 +1079,11 @@ const HostDetailsPage = ({
               )}
             </TabPanel>
             <TabPanel>
-              {/* There is a special case for personally enrolled mdm hosts where we are not
+              {/* There is a special case for BYOD account driven enrolled mdm hosts where we are not
                currently supporting software installs. This check should be removed
-               when we add that feature. */}
-              {host.mdm.enrollment_status === "On (personal)" ? (
+               when we add that feature. Note: Android is currently a subset of BYODAccountDrivenUserEnrollment */}
+              {isBYODAccountDrivenUserEnrollment(host.mdm.enrollment_status) ||
+              isAndroidHost ? (
                 <EmptyTable
                   header="Software library is currently not supported on this host."
                   info={
@@ -1005,7 +1092,11 @@ const HostDetailsPage = ({
                       <CustomLink
                         newTab
                         text="Learn more"
-                        url="https://fleetdm.com/learn-more-about/byod-hosts-vpp-install"
+                        url={
+                          isAndroidHost
+                            ? ANDROID_SW_INSTALL_LEARN_MORE_LINK
+                            : BYOD_SW_INSTALL_LEARN_MORE_LINK
+                        }
                       />
                     </>
                   }
@@ -1024,8 +1115,9 @@ const HostDetailsPage = ({
                     available_for_install: true,
                   }}
                   pathname={location.pathname}
-                  onShowSoftwareDetails={onShowSoftwareDetails}
-                  onShowUninstallDetails={onShowUninstallDetails}
+                  onShowInventoryVersions={
+                    onSetSelectedHostSWForInventoryVersions
+                  }
                   hostTeamId={host.team_id || 0}
                   hostName={host.display_name}
                   hostMDMEnrolled={host.mdm.connected_to_fleet}
@@ -1049,7 +1141,7 @@ const HostDetailsPage = ({
                 include_available_for_install: false,
               }}
               pathname={location.pathname}
-              onShowSoftwareDetails={setSelectedSoftwareDetails}
+              onShowInventoryVersions={onSetSelectedHostSWForInventoryVersions}
               hostTeamId={host.team_id || 0}
             />
             {isDarwinHost && macadmins?.munki?.version && (
@@ -1061,7 +1153,7 @@ const HostDetailsPage = ({
             )}
           </>
         )}
-      </Card>
+      </div>
     );
   };
 
@@ -1083,7 +1175,7 @@ const HostDetailsPage = ({
             />
           )}
           <div className={`${baseClass}__header-links`}>
-            <BackLink
+            <BackButton
               text="Back to all hosts"
               path={filteredHostsPath || PATHS.MANAGE_HOSTS}
             />
@@ -1093,7 +1185,7 @@ const HostDetailsPage = ({
               summaryData={summaryData}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
-              renderActionDropdown={renderActionDropdown}
+              renderActionsDropdown={renderActionsDropdown}
               hostMdmDeviceStatus={hostMdmDeviceStatus}
             />
           </div>
@@ -1108,7 +1200,7 @@ const HostDetailsPage = ({
                   // so we add a hidden pseudo element with the same text string
                   return (
                     <Tab key={navItem.title}>
-                      <TabText count={navItem.count} isErrorCount>
+                      <TabText count={navItem.count} countVariant="alert">
                         {navItem.name}
                       </TabText>
                     </Tab>
@@ -1130,25 +1222,28 @@ const HostDetailsPage = ({
                   className={fullWidthCardClass}
                 />
                 <AboutCard
-                  className={
-                    showUsersCard ? defaultCardClass : fullWidthCardClass
-                  }
+                  className={defaultCardClass}
                   aboutData={aboutData}
                   munki={macadmins?.munki}
                   mdm={mdm}
                 />
-                {showUsersCard && (
-                  <UserCard
-                    className={defaultCardClass}
-                    platform={host.platform}
-                    endUsers={host.end_users ?? []}
-                    enableAddEndUser={
-                      isDarwinHost &&
-                      generateUsernameValues(host.end_users ?? []).length === 0
-                    }
-                    onAddEndUser={() => setShowAddEndUserModal(true)}
-                  />
-                )}
+                <UserCard
+                  className={defaultCardClass}
+                  endUsers={host.end_users ?? []}
+                  canWriteEndUser={
+                    isTeamMaintainerOrTeamAdmin ||
+                    isGlobalAdmin ||
+                    isGlobalMaintainer
+                  }
+                  onClickUpdateUser={(
+                    e:
+                      | React.MouseEvent<HTMLButtonElement>
+                      | React.KeyboardEvent<HTMLButtonElement>
+                  ) => {
+                    e.preventDefault();
+                    setShowUpdateEndUserModal(true);
+                  }}
+                />
                 {showActivityCard && (
                   <ActivityCard
                     className={
@@ -1233,7 +1328,7 @@ const HostDetailsPage = ({
                 )}
               </TabPanel>
               <TabPanel>
-                <TabNav className={`${baseClass}__software-tab-nav`}>
+                <TabNav className={`${baseClass}__software-tab-nav`} secondary>
                   <Tabs
                     selectedIndex={getSoftwareTabIndex(location.pathname)}
                     onSelect={(i) => navigateToSoftwareTab(i)}
@@ -1276,7 +1371,7 @@ const HostDetailsPage = ({
               onCancel={() => setShowDeleteHostModal(false)}
               onSubmit={onDestroyHost}
               hostName={host?.display_name}
-              isUpdating={isUpdatingHost}
+              isUpdating={isUpdating}
             />
           )}
           {showSelectQueryModal && host && (
@@ -1303,7 +1398,8 @@ const HostDetailsPage = ({
               onSubmit={onTransferHostSubmit}
               teams={teams || []}
               isGlobalAdmin={isGlobalAdmin as boolean}
-              isUpdating={isUpdatingHost}
+              isUpdating={isUpdating}
+              hostsTeamId={host.team_id}
             />
           )}
           {!!host && showPolicyDetailsModal && (
@@ -1314,19 +1410,20 @@ const HostDetailsPage = ({
           )}
           {showOSSettingsModal && (
             <OSSettingsModal
-              canResendProfiles={host.platform === "darwin"}
-              hostId={host.id}
+              canResendProfiles={canResendProfiles}
               platform={host.platform}
               hostMDMData={host.mdm}
               onClose={toggleOSSettingsModal}
+              resendRequest={resendProfile}
               onProfileResent={refetchHostDetails}
             />
           )}
-          {showUnenrollMdmModal && !!host && (
+          {showUnenrollMdmModal && !!host && host.mdm.enrollment_status && (
             <UnenrollMdmModal
               hostId={host.id}
               hostPlatform={host.platform}
               hostName={host.display_name}
+              enrollmentStatus={host.mdm.enrollment_status}
               onClose={toggleUnenrollMdmModal}
             />
           )}
@@ -1358,16 +1455,35 @@ const HostDetailsPage = ({
               onCancel={onCancelSoftwareInstallDetailsModal}
             />
           )}
+          {scriptPackageDetails && (
+            <SoftwareScriptDetailsModal
+              details={scriptPackageDetails}
+              onCancel={() => setScriptPackageDetails(null)}
+            />
+          )}
+          {ipaPackageInstallDetails && (
+            <SoftwareIpaInstallDetailsModal
+              details={{
+                appName: ipaPackageInstallDetails.appName || "",
+                fleetInstallStatus: (ipaPackageInstallDetails.fleetInstallStatus ||
+                  "pending_install") as SoftwareInstallUninstallStatus,
+                hostDisplayName: ipaPackageInstallDetails.hostDisplayName || "",
+                commandUuid: ipaPackageInstallDetails.commandUuid || "",
+              }}
+              onCancel={onCancelIpaSoftwareInstallDetailsModal}
+            />
+          )}
           {packageUninstallDetails && (
             <SoftwareUninstallDetailsModal
-              details={packageUninstallDetails}
+              {...packageUninstallDetails}
+              hostDisplayName={packageUninstallDetails.hostDisplayName || ""}
               onCancel={() => setPackageUninstallDetails(null)}
             />
           )}
-          {!!appInstallDetails && (
-            <AppInstallDetailsModal
-              details={appInstallDetails}
-              onCancel={onCancelAppInstallDetailsModal}
+          {!!activityVPPInstallDetails && (
+            <VppInstallDetailsModal
+              details={activityVPPInstallDetails}
+              onCancel={onCancelVppInstallDetailsModal}
             />
           )}
           {showLockHostModal && (
@@ -1399,11 +1515,10 @@ const HostDetailsPage = ({
               onClose={() => setShowWipeModal(false)}
             />
           )}
-          {selectedSoftwareDetails && (
-            <SoftwareDetailsModal
-              hostDisplayName={host.display_name}
-              software={selectedSoftwareDetails}
-              onExit={() => setSelectedSoftwareDetails(null)}
+          {selectedHostSWForInventoryVersions && (
+            <InventoryVersionsModal
+              hostSoftware={selectedHostSWForInventoryVersions}
+              onExit={() => setSelectedHostSWForInventoryVersions(null)}
             />
           )}
           {selectedCancelActivity && (
@@ -1422,8 +1537,14 @@ const HostDetailsPage = ({
             />
           )}
         </>
-        {showAddEndUserModal && (
-          <AddEndUserModal onExit={() => setShowAddEndUserModal(false)} />
+        {showUpdateEndUserModal && (
+          <UpdateEndUserModal
+            isPremiumTier={isPremiumTier}
+            endUsers={host.end_users ?? []}
+            onUpdate={onUpdateEndUser}
+            isUpdating={isUpdating}
+            onExit={() => setShowUpdateEndUserModal(false)}
+          />
         )}
       </>
     );

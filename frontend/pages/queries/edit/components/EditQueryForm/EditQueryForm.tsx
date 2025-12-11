@@ -14,9 +14,6 @@ import { size } from "lodash";
 import classnames from "classnames";
 import { useDebouncedCallback } from "use-debounce";
 import { IAceEditor } from "react-ace/lib/types";
-import ReactTooltip from "react-tooltip";
-
-import { COLORS } from "styles/var/colors";
 
 import PATHS from "router/paths";
 
@@ -28,6 +25,7 @@ import {
   getCustomDropdownOptions,
   secondsToDhms,
 } from "utilities/helpers";
+
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
@@ -53,13 +51,16 @@ import labelsAPI, {
 
 import Avatar from "components/Avatar";
 import SQLEditor from "components/SQLEditor";
-// @ts-ignore
-import validateQuery from "components/forms/validators/validate_query";
+import {
+  validateQuery,
+  EMPTY_QUERY_ERR,
+} from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import DataSet from "components/DataSet";
 import Slider from "components/forms/fields/Slider";
 import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
@@ -68,6 +69,7 @@ import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import LogDestinationIndicator from "components/LogDestinationIndicator";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TargetLabelSelector from "components/TargetLabelSelector";
+import PageDescription from "components/PageDescription";
 
 import SaveNewQueryModal from "../SaveNewQueryModal";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
@@ -104,7 +106,8 @@ const validateQuerySQL = (query: string) => {
   const { error: queryError, valid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
-    errors.query = queryError;
+    // queryError should be truthy at this point
+    errors.query = queryError ?? "Invalid query";
   }
 
   const valid = !size(errors);
@@ -375,12 +378,12 @@ const EditQueryForm = ({
       });
     }
 
-    let valid = true;
-    const { valid: isValidated } = validateQuerySQL(lastEditedQueryBody);
+    const { valid, errors: newErrs } = validateQuerySQL(lastEditedQueryBody);
 
-    valid = isValidated;
+    // allow save when invalid sqlite syntax
+    const canSave = valid || (!valid && newErrs.query !== EMPTY_QUERY_ERR);
 
-    if (valid) {
+    if (canSave) {
       if (!savedQueryMode) {
         platformSelector.setSelectedPlatforms(
           platformCompatibility.getCompatiblePlatforms()
@@ -394,22 +397,24 @@ const EditQueryForm = ({
 
   const renderAuthor = (): JSX.Element | null => {
     return storedQuery ? (
-      <>
-        <b>Author</b>
-        <div>
-          <Avatar
-            user={addGravatarUrlToResource({
-              email: storedQuery.author_email,
-            })}
-            size="xsmall"
-          />
-          <span>
-            {storedQuery.author_name === currentUser?.name
-              ? "You"
-              : storedQuery.author_name}
-          </span>
-        </div>
-      </>
+      <DataSet
+        title="Author"
+        value={
+          <>
+            <Avatar
+              user={addGravatarUrlToResource({
+                email: storedQuery.author_email,
+              })}
+              size="xsmall"
+            />
+            <span>
+              {storedQuery.author_name === currentUser?.name
+                ? "You"
+                : storedQuery.author_name}
+            </span>
+          </>
+        }
+      />
     ) : null;
   };
 
@@ -419,7 +424,7 @@ const EditQueryForm = ({
     }
 
     return (
-      <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
+      <Button variant="inverse" onClick={onOpenSchemaSidebar}>
         <>
           Schema
           <Icon name="info" size="small" />
@@ -442,12 +447,12 @@ const EditQueryForm = ({
     }
   };
 
-  const queryNameWrapperClass = "query-name-wrapper";
+  const queryNameWrapperClass = `${baseClass}__query-name-wrapper`;
   const queryNameWrapperClasses = classnames(queryNameWrapperClass, {
     [`${baseClass}--editing`]: isEditingName,
   });
 
-  const queryDescriptionWrapperClass = "query-description-wrapper";
+  const queryDescriptionWrapperClass = `${baseClass}__query-description-wrapper`;
   const queryDescriptionWrapperClasses = classnames(
     queryDescriptionWrapperClass,
     {
@@ -493,6 +498,7 @@ const EditQueryForm = ({
                   name="pencil"
                   className={`edit-icon ${isEditingName ? "hide" : ""}`}
                   size="small-medium"
+                  color="core-fleet-green"
                 />
               </div>
             );
@@ -544,6 +550,7 @@ const EditQueryForm = ({
                   name="pencil"
                   className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
                   size="small-medium"
+                  color="core-fleet-green"
                 />
               </div>
             );
@@ -558,16 +565,15 @@ const EditQueryForm = ({
   const renderNonEditableForm = (
     <form className={`${baseClass}`}>
       <div className={`${baseClass}__title-bar`}>
-        <div className="name-description">
-          <h1 className={`${baseClass}__query-name no-hover`}>
-            {lastEditedQueryName}
-          </h1>
-          <p className={`${baseClass}__query-description no-hover`}>
-            {lastEditedQueryDescription}
-          </p>
-        </div>
-        <div className="author">{renderAuthor()}</div>
+        <h1 className={`${baseClass}__query-name no-hover`}>
+          {lastEditedQueryName}
+        </h1>
+        {renderAuthor()}
       </div>
+      <PageDescription
+        className={`${baseClass}__query-description no-hover`}
+        content={lastEditedQueryDescription}
+      />
       {((!isObserverPlus && isGlobalObserver) || !isAnyTeamObserverPlus) && (
         <RevealButton
           isShowing={showQueryEditor}
@@ -597,15 +603,16 @@ const EditQueryForm = ({
         isObserverPlus ||
         isAnyTeamObserverPlus) && (
         <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
-          <div
-            data-tip
-            data-for="live-query-button"
-            // Tooltip shows when live queries are globally disabled
-            data-tip-disable={!disabledLiveQuery}
+          <TooltipWrapper
+            className="live-query-button-tooltip"
+            tipContent="Live queries are disabled in organization settings"
+            disableTooltip={!disabledLiveQuery}
+            position="top"
+            showArrow
+            tipOffset={8}
+            underline={false}
           >
             <Button
-              className={`${baseClass}__run`}
-              variant="success"
               onClick={() => {
                 router.push(
                   getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
@@ -616,19 +623,9 @@ const EditQueryForm = ({
               }}
               disabled={disabledLiveQuery}
             >
-              Live query
+              Live query <Icon name="run" />
             </Button>
-          </div>
-          <ReactTooltip
-            className={`live-query-button-tooltip`}
-            place="top"
-            effect="solid"
-            backgroundColor={COLORS["tooltip-bg"]}
-            id="live-query-button"
-            data-html
-          >
-            Live queries are disabled in organization settings
-          </ReactTooltip>
+          </TooltipWrapper>
         </div>
       )}
     </form>
@@ -684,7 +681,7 @@ const EditQueryForm = ({
     // Save and save as new disabled for query name blank on existing query or sql errors
     const disableSaveFormErrors =
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
-      !!size(errors) ||
+      (!!errors.query && errors.query === EMPTY_QUERY_ERR) ||
       (savedQueryMode && !platformSelector.isAnyPlatformSelected) ||
       (selectedTargetType === "Custom" &&
         !Object.entries(selectedLabels).some(([, value]) => {
@@ -693,14 +690,13 @@ const EditQueryForm = ({
 
     return (
       <>
-        <form className={`${baseClass}`} autoComplete="off">
+        <form className={baseClass} autoComplete="off">
           <div className={`${baseClass}__title-bar`}>
-            <div className="name-description">
-              {renderName()}
-              {renderDescription()}
-            </div>
-            <div className="author">{savedQueryMode && renderAuthor()}</div>
+            {renderName()}
+
+            {savedQueryMode && renderAuthor()}
           </div>
+          {renderDescription()}
           <SQLEditor
             value={lastEditedQueryBody}
             error={errors.query}
@@ -859,7 +855,7 @@ const EditQueryForm = ({
                   <GitOpsModeTooltipWrapper
                     renderChildren={(disableChildren) => (
                       <Button
-                        variant="text-link"
+                        variant="inverse"
                         onClick={toggleSaveAsNewQueryModal}
                         disabled={disableSaveFormErrors || disableChildren}
                       >
@@ -889,15 +885,18 @@ const EditQueryForm = ({
                 </div>
               </>
             )}
-            <div
-              data-tip
-              data-for="live-query-button"
-              // Tooltip shows when live queries are globally disabled
-              data-tip-disable={!disabledLiveQuery}
+            <TooltipWrapper
+              className="live-query-button-tooltip"
+              tipContent="Live queries are disabled in organization settings"
+              disableTooltip={!disabledLiveQuery}
+              position="top"
+              showArrow
+              tipOffset={8}
+              underline={false}
             >
               <Button
                 className={`${baseClass}__run`}
-                variant="success"
+                variant="inverse"
                 onClick={() => {
                   // calling `setEditingExistingQuery` here prevents
                   // inclusion of `query_id` in the subsequent `run` API call, which prevents counting
@@ -919,19 +918,9 @@ const EditQueryForm = ({
                 }}
                 disabled={disabledLiveQuery}
               >
-                Live query
+                Live query <Icon name="run" />
               </Button>
-            </div>
-            <ReactTooltip
-              className={`live-query-button-tooltip`}
-              place="top"
-              effect="solid"
-              backgroundColor={COLORS["tooltip-bg"]}
-              id="live-query-button"
-              data-html
-            >
-              Live queries are disabled in organization settings
-            </ReactTooltip>
+            </TooltipWrapper>
           </div>
         </form>
         {showSaveNewQueryModal && (

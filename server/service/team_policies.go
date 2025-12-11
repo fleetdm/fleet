@@ -102,14 +102,46 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
 	}
 
+	if teamID == 0 {
+		noTeamID := int64(0)
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeCreatedPolicy{
+				ID:       policy.ID,
+				Name:     policy.Name,
+				TeamID:   &noTeamID,
+				TeamName: nil,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for no-team policy creation")
+		}
+		return policy, nil
+	}
+
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
+
+	var teamName *string
+	if teamID != 0 {
+		if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
+			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "fetching team details")
+			}
+			teamName = &team.Name
+		}
+	}
+
+	teamIDPtr := int64(teamID)
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedPolicy{
-			ID:   policy.ID,
-			Name: policy.Name,
+			ID:       policy.ID,
+			Name:     policy.Name,
+			TeamID:   &teamIDPtr,
+			TeamName: teamName,
 		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for team policy creation")
@@ -126,6 +158,7 @@ func (svc *Service) populatePolicyInstallSoftware(ctx context.Context, p *fleet.
 		p.InstallSoftware = &fleet.PolicySoftwareTitle{
 			SoftwareTitleID: *installerMetadata.TitleID,
 			Name:            installerMetadata.SoftwareTitle,
+			DisplayName:     installerMetadata.DisplayName,
 		}
 		return nil
 	} else if p.VPPAppsTeamsID != nil {
@@ -223,7 +256,7 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	}
 
 	if teamID > 0 {
-		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+		if _, err := svc.ds.TeamLite(ctx, teamID); err != nil { // TODO see if we can use TeamExists here instead
 			return nil, nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 		}
 	}
@@ -294,7 +327,7 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 	}
 
 	if teamID > 0 {
-		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+		if _, err := svc.ds.TeamLite(ctx, teamID); err != nil { // TODO see if we can use TeamExists here instead
 			return 0, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 		}
 	}
@@ -390,7 +423,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	}
 
 	if teamID > 0 {
-		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+		if _, err := svc.ds.TeamLite(ctx, teamID); err != nil { // TODO see if we can use TeamExists here instead
 			return nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 		}
 	}
@@ -419,15 +452,49 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 		return nil, err
 	}
 
+	if teamID == 0 {
+		noTeamID := int64(0)
+		for _, id := range deletedIDs {
+			if err := svc.NewActivity(
+				ctx,
+				authz.UserFromContext(ctx),
+				fleet.ActivityTypeDeletedPolicy{
+					ID:       id,
+					Name:     policiesByID[id].Name,
+					TeamID:   &noTeamID,
+					TeamName: nil,
+				},
+			); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for no-team policy deletion")
+			}
+		}
+		return ids, nil
+	}
+
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
+
+	var teamName *string
+	if teamID != 0 {
+		if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
+			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "fetching team details")
+			}
+			teamName = &team.Name
+		}
+	}
+
 	for _, id := range deletedIDs {
+		teamIDPtr := int64(teamID)
 		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeDeletedPolicy{
-				ID:   id,
-				Name: policiesByID[id].Name,
+				ID:       id,
+				Name:     policiesByID[id].Name,
+				TeamID:   &teamIDPtr,
+				TeamName: teamName,
 			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for policy deletion")
@@ -593,14 +660,68 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
 	}
 
+	if teamID == nil {
+		globalTeamID := int64(-1)
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedPolicy{
+				ID:       policy.ID,
+				Name:     policy.Name,
+				TeamID:   &globalTeamID,
+				TeamName: nil,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for global policy modification")
+		}
+		return policy, nil
+	}
+
+	// Add a special case for handling "No Team" (teamID = 0) in ModifyTeamPolicy
+	if *teamID == 0 {
+		noTeamID := int64(0)
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedPolicy{
+				ID:       policy.ID,
+				Name:     policy.Name,
+				TeamID:   &noTeamID,
+				TeamName: nil,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for no-team policy modification")
+		}
+		return policy, nil
+	}
+
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
+
+	var teamName *string
+	if *teamID != 0 {
+		if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
+			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, teamID, nil)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "fetching team details")
+			}
+			teamName = &team.Name
+		}
+	}
+
+	// Convert *uint to *int64 for the activity
+	var activityTeamID *int64
+	teamIDInt64 := int64(*teamID)
+	activityTeamID = &teamIDInt64
+
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeEditedPolicy{
-			ID:   policy.ID,
-			Name: policy.Name,
+			ID:       policy.ID,
+			Name:     policy.Name,
+			TeamID:   activityTeamID,
+			TeamName: teamName,
 		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for policy modification")

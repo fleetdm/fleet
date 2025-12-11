@@ -34,6 +34,7 @@ class InputField extends Component {
       PropTypes.string,
       PropTypes.number,
     ]).isRequired,
+    /** Returns both name and value */
     parseTarget: PropTypes.bool,
     tooltip: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
     labelTooltipPosition: PropTypes.string,
@@ -46,6 +47,13 @@ class InputField extends Component {
     enableShowSecret: PropTypes.bool,
     enableCopy: PropTypes.bool,
     ignore1password: PropTypes.bool,
+    // Accepts string or number for HTML compatibility, (e.g., step="0.1", step={0.1})
+    /** Only effective on input type number */
+    step: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    /** Only effective on input type number */
+    min: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    /** Only effective on input type number */
+    max: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   };
 
   static defaultProps = {
@@ -66,6 +74,9 @@ class InputField extends Component {
     enableCopy: false,
     enableShowSecret: false,
     ignore1password: false,
+    step: undefined,
+    min: undefined,
+    max: undefined,
   };
 
   constructor() {
@@ -125,6 +136,7 @@ class InputField extends Component {
         variant="icon"
         className={`${baseClass}__show-secret-icon`}
         onClick={onToggleSecret}
+        size="small"
       >
         <Icon name="eye" />
       </Button>
@@ -146,7 +158,7 @@ class InputField extends Component {
         {this.state.copied && (
           <span className={copiedConfirmationClasses}>Copied!</span>
         )}
-        <Button variant={"icon"} onClick={onClickCopy} iconStroke>
+        <Button variant="icon" onClick={onClickCopy} size="small" iconStroke>
           {copyButtonValue}
         </Button>
         {this.props.enableShowSecret && this.renderShowSecretButton()}
@@ -172,6 +184,9 @@ class InputField extends Component {
       ignore1password,
       enableCopy,
       enableShowSecret,
+      step,
+      min,
+      max,
     } = this.props;
 
     const { onInputChange } = this;
@@ -260,6 +275,9 @@ class InputField extends Component {
             value={value}
             autoComplete={blockAutoComplete ? "new-password" : ""}
             data-1p-ignore={ignore1password}
+            step={step}
+            min={min}
+            max={max}
           />
 
           {enableCopy && this.renderCopyButton()}

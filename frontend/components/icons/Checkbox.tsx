@@ -1,11 +1,14 @@
 import React from "react";
 import { COLORS, Colors } from "styles/var/colors";
+import { uniqueId } from "lodash";
 
 interface ICheckboxProps {
   color?: Colors;
 }
 
-const Checkbox = ({ color = "core-fleet-blue" }: ICheckboxProps) => {
+const Checkbox = ({ color = "core-fleet-green" }: ICheckboxProps) => {
+  const clipPathId = uniqueId("clip-path-");
+
   return (
     <svg width="16" height="17" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect
@@ -19,7 +22,7 @@ const Checkbox = ({ color = "core-fleet-blue" }: ICheckboxProps) => {
         stroke={COLORS[color]}
         strokeWidth="2"
       />
-      <g clipPath="url(#checkbox)">
+      <g clipPath={`url(#${clipPathId})`}>
         <path
           fillRule="evenodd"
           clipRule="evenodd"
@@ -28,7 +31,7 @@ const Checkbox = ({ color = "core-fleet-blue" }: ICheckboxProps) => {
         />
       </g>
       <defs>
-        <clipPath id="checkbox">
+        <clipPath id={clipPathId}>
           <path
             fill="#fff"
             transform="translate(3.2 4.1)"

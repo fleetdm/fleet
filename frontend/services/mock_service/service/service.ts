@@ -5,7 +5,7 @@
 
 import { trim } from "lodash";
 
-import CONFIG from "../mocks/config";
+import CONFIG, { MockEndpointHandler } from "../mocks/config";
 
 const {
   DELAY,
@@ -14,7 +14,8 @@ const {
   WILDCARDS,
 } = CONFIG;
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const sleep = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 const splitRouteAndQueryString = (path: string) => {
   path = trim(path, "/").replace(trim(ENDPOINT, "/"), "");
@@ -85,7 +86,10 @@ export const sendRequest = async (
   console.log("Mock service request body: ", data);
 
   requestPath = trim(requestPath, "/").replace(ENDPOINT, "");
-  let response: Record<string, unknown> | undefined;
+  let response:
+    | Record<string, unknown>
+    | ((requestPath: string, data?: unknown) => Record<string, unknown>)
+    | undefined;
   let responseKey: string | undefined;
 
   try {
@@ -101,7 +105,16 @@ export const sendRequest = async (
   }
 
   if (responseKey) {
-    response = RESPONSES?.[method]?.[responseKey];
+    const methodHandlers = RESPONSES[method] as
+      | Record<string, MockEndpointHandler>
+      | undefined;
+    const handler = methodHandlers?.[responseKey];
+
+    if (typeof handler === "function") {
+      response = await handler(requestPath, data);
+    } else {
+      response = handler;
+    }
   }
 
   if (!responseKey || !response) {

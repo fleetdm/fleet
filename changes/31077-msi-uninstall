@@ -1,1 +1,0 @@
-* Revised MSI uninstall scripts to wait for an uninstall to complete before returning and avoid restarting after an uninstall.

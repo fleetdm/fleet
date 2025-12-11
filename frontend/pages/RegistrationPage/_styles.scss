@@ -1,8 +1,11 @@
 .registration-page {
   display: flex;
-  justify-content: center;
   flex-direction: column;
-  margin-top: 24px;
+  height: 100%;
+
+  .registration-breadcrumbs {
+    flex-shrink: 0; // Keeps it at top—no vertical stretching
+  }
 
   &__logo {
     width: 120px;

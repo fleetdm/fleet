@@ -2,6 +2,7 @@ import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError, AxiosResponse } from "axios";
 
+import PATHS from "router/paths";
 import { IApiError } from "interfaces/errors";
 import { IConfig } from "interfaces/config";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
@@ -14,18 +15,24 @@ import mdmAPI, {
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { NotificationContext } from "context/notification";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 
 import Spinner from "components/Spinner";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import SectionHeader from "components/SectionHeader";
+import CustomLink from "components/CustomLink";
 
-import BootstrapPackagePreview from "./components/BootstrapPackagePreview";
 import PackageUploader from "./components/BootstrapPackageUploader";
 import UploadedPackageView from "./components/UploadedPackageView";
 import DeleteBootstrapPackageModal from "./components/DeleteBootstrapPackageModal";
 import BootstrapAdvancedOptions from "./components/BootstrapAdvancedOptions";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { getInstallSoftwareDuringSetupCount } from "../InstallSoftware/components/AddInstallSoftware/helpers";
+import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
+import getManualAgentInstallSetting from "../../helpers";
 
 const baseClass = "bootstrap-package";
 
@@ -33,22 +40,10 @@ const baseClass = "bootstrap-package";
 // available for install so we can correctly display the selected count.
 const PER_PAGE_SIZE = 3000;
 
-export const getManualAgentInstallSetting = (
-  currentTeamId: number,
-  globalConfig?: IConfig,
-  teamConfig?: ITeamConfig
-) => {
-  if (currentTeamId === API_NO_TEAM_ID) {
-    return globalConfig?.mdm.macos_setup.manual_agent_install || false;
-  }
-  return teamConfig?.mdm?.macos_setup.manual_agent_install || false;
-};
-
-interface IBootstrapPackageProps {
-  currentTeamId: number;
-}
-
-const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
+const BootstrapPackage = ({
+  currentTeamId,
+  router,
+}: ISetupExperienceCardProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [
     selectedManualAgentInstall,
@@ -59,7 +54,7 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     setShowDeleteBootstrapPackageModal,
   ] = useState(false);
 
-  const { data: softwareTitles, isLoading: isLoadingSoftware } = useQuery<
+  const { data: macSoftwareTitles, isLoading: isLoadingSoftware } = useQuery<
     IGetSetupExperienceSoftwareResponse,
     AxiosError,
     ISoftwareTitle[] | null
@@ -67,6 +62,7 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     ["install-software", currentTeamId],
     () =>
       mdmAPI.getSetupExperienceSoftware({
+        platform: "macos",
         team_id: currentTeamId,
         per_page: PER_PAGE_SIZE,
       }),
@@ -86,6 +82,7 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
   );
 
   const {
+    data: globalConfig,
     isLoading: isLoadingGlobalConfig,
     refetch: refetchGlobalConfig,
   } = useQuery<IConfig, Error>(
@@ -93,11 +90,12 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     () => configAPI.loadAll(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: currentTeamId === API_NO_TEAM_ID,
       onSuccess: (data) => {
-        setSelectedManualAgentInstall(
-          getManualAgentInstallSetting(currentTeamId, data)
-        );
+        if (currentTeamId === API_NO_TEAM_ID) {
+          setSelectedManualAgentInstall(
+            getManualAgentInstallSetting(currentTeamId, data)
+          );
+        }
       },
     }
   );
@@ -165,7 +163,7 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     (errorBootstrapMetadata && errorBootstrapMetadata.status === 404) ||
     !bootstrapMetadata;
   const hasSetupExperienceInstallSoftware =
-    getInstallSoftwareDuringSetupCount(softwareTitles) !== 0;
+    getInstallSoftwareDuringSetupCount(macSoftwareTitles) !== 0;
   const hasSetupExperienceScript = !!script;
 
   const renderBootstrapView = () => {
@@ -196,9 +194,6 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
             }}
           />
         </div>
-        <div className={`${baseClass}__preview-container`}>
-          <BootstrapPackagePreview />
-        </div>
       </SetupExperienceContentContainer>
     );
   };
@@ -210,10 +205,42 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     isLoadingScript ||
     isLoadingSoftware;
 
+  const renderContent = () => {
+    if (isLoading) {
+      return <Spinner />;
+    }
+    if (
+      !(
+        globalConfig?.mdm.enabled_and_configured &&
+        globalConfig?.mdm.apple_bm_enabled_and_configured
+      )
+    ) {
+      return (
+        <GenericMsgWithNavButton
+          header="Additional configuration required"
+          info="Supported on macOS. To customize, first turn on automatic enrollment."
+          buttonText="Turn on"
+          path={PATHS.ADMIN_INTEGRATIONS_MDM}
+          router={router}
+        />
+      );
+    }
+    return renderBootstrapView();
+  };
+
   return (
     <section className={baseClass}>
-      <SectionHeader title="Bootstrap package" />
-      {isLoading ? <Spinner /> : renderBootstrapView()}
+      <SectionHeader
+        title="Bootstrap package"
+        details={
+          <CustomLink
+            newTab
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-experience/bootstrap-package`}
+            text="Preview end user experience"
+          />
+        }
+      />
+      {renderContent()}
       {showDeleteBootstrapPackageModal && (
         <DeleteBootstrapPackageModal
           onDelete={onDelete}

@@ -1,4 +1,6 @@
 .about-card {
+  @include vertical-card-layout;
+
   .truncated-tooltip {
     .about-card__device-mapping__source {
       color: inherit;
@@ -43,7 +45,7 @@
   &__info-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(150px, max-content));
-    gap: $pad-medium $pad-xxlarge;
+    gap: $gap-data-sets $pad-xxlarge;
 
     // at the larger screen widths we want to have 3 columns.
     @media (min-width: $break-xxl) {

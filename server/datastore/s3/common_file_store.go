@@ -6,10 +6,13 @@ import (
 	"io"
 	"net/url"
 	"path"
+	"runtime"
+	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/feature/cloudfront/sign"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -34,6 +37,12 @@ type commonFileStore struct {
 	*s3store
 	pathPrefix string
 	fileLabel  string // how to call the file in error messages
+
+	gcs bool
+}
+
+func isGCS(endpointURL string) bool {
+	return strings.Contains(endpointURL, "storage.googleapis.com")
 }
 
 // Get retrieves the requested file from S3.
@@ -66,11 +75,27 @@ func (s *commonFileStore) Put(ctx context.Context, fileID string, content io.Rea
 	}
 
 	key := s.keyForFile(fileID)
-	_, err := s.s3Client.PutObject(ctx, &s3.PutObjectInput{
+
+	// Init the uploader with the default upload part size (5MB) and concurrency
+	// equal to the host's logical processors.
+	uploader := manager.NewUploader(s.s3Client, func(u *manager.Uploader) {
+		u.PartSize = manager.DefaultUploadPartSize
+		u.Concurrency = runtime.NumCPU()
+	})
+
+	var checksumAlgorithm types.ChecksumAlgorithm
+	if s.gcs {
+		checksumAlgorithm = types.ChecksumAlgorithmCrc32c // Required for GCS
+	}
+
+	_, err := uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: &s.bucket,
 		Body:   content,
 		Key:    &key,
+
+		ChecksumAlgorithm: checksumAlgorithm,
 	})
+
 	return err
 }
 

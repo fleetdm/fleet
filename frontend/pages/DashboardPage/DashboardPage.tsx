@@ -632,6 +632,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         router={router}
       />
     ),
+    className: "activity-feed-card",
   });
 
   const SoftwareCard = useInfoCard({
@@ -643,7 +644,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     },
     actionUrl: softwareActionUrl,
     titleDetail: softwareTitleDetail,
-    showTitle: !isSoftwareFetching,
     children: (
       <Software
         errorSoftware={errorSoftware}
@@ -743,7 +743,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               {LearnFleetCard}
             </>
           )}
-        {showSoftwareCard && SoftwareCard}
+        {(isSoftwareFetching || showSoftwareCard) && SoftwareCard}
         {!isAnyTeamSelected && isOnGlobalTeam && <>{ActivityFeedCard}</>}
         {showMdmCard && <>{MDMCard}</>}
       </div>
@@ -878,7 +878,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     <Spinner />
   ) : (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
+      <>
         <div className={`${baseClass}__header`}>
           <div className={`${baseClass}__text`}>
             <div className={`${baseClass}__title`}>
@@ -905,6 +905,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             }}
           />
         </div>
+
         <div className={`${baseClass}__host-sections`}>
           <>
             {isHostSummaryFetching ? (
@@ -927,7 +928,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             isUpdating={updatingActivityFeedAutomations}
           />
         )}
-      </div>
+      </>
     </MainContent>
   );
 };

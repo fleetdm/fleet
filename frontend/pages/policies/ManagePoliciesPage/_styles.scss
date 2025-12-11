@@ -1,9 +1,18 @@
 .manage-policies-page {
+  @include vertical-page-layout;
+
   &__header-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__header {
     @include normalize-team-header;
 
     .button-wrap {
       display: flex;
+      flex-direction: row;
       justify-content: flex-end;
       align-items: center;
       gap: 8px;
@@ -82,18 +91,6 @@
     }
   }
 
-  &__description {
-    margin: 0;
-    margin-bottom: $pad-xxlarge;
-
-    p {
-      color: $ui-fleet-black-75;
-      margin: 0;
-      font-size: $x-small;
-      font-style: italic;
-    }
-  }
-
   &__action-button-container {
     display: flex;
     align-items: flex-start;
@@ -122,7 +119,7 @@
     transition: color 150ms ease-in-out, background 150ms ease-in-out,
       top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
     position: relative;
-    color: $core-white;
+    color: $core-fleet-white;
     text-decoration: none;
     flex-direction: row;
     justify-content: center;
@@ -140,9 +137,9 @@
     cursor: pointer;
 
     @include button-variant(
-      $core-vibrant-blue,
-      $core-vibrant-blue-over,
-      $core-vibrant-blue-down
+      $ui-fleet-black-75,
+      $ui-fleet-black-75-over,
+      $ui-fleet-black-75-down
     );
   }
 

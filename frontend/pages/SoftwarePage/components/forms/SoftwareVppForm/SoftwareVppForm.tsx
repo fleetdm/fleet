@@ -117,7 +117,7 @@ interface ISoftwareVppFormProps {
   onSubmit: (formData: ISoftwareVppFormData) => void;
   isLoading?: boolean;
   onCancel: () => void;
-  onClickPreviewEndUserExperience: () => void;
+  onClickPreviewEndUserExperience: (isIosOrIpadosApp: boolean) => void;
 }
 
 const SoftwareVppForm = ({
@@ -250,7 +250,7 @@ const SoftwareVppForm = ({
             graphicNames="app-store"
             fileDetails={{
               name: softwareVppForEdit.name,
-              platform: PLATFORM_DISPLAY_NAMES[softwareVppForEdit.platform],
+              description: PLATFORM_DISPLAY_NAMES[softwareVppForEdit.platform],
             }}
             canEdit={false}
           />
@@ -263,8 +263,11 @@ const SoftwareVppForm = ({
                 onToggleSelfService={onToggleSelfServiceCheckbox}
                 onSelectCategory={onSelectCategory}
                 isEditingSoftware
-                onClickPreviewEndUserExperience={
-                  onClickPreviewEndUserExperience
+                onClickPreviewEndUserExperience={() =>
+                  onClickPreviewEndUserExperience(
+                    softwareVppForEdit.platform === "ios" ||
+                      softwareVppForEdit.platform === "ipados"
+                  )
                 }
               />
             </Card>
@@ -316,8 +319,11 @@ const SoftwareVppForm = ({
                 onToggleAutomaticInstall={onToggleAutomaticInstall}
                 onToggleSelfService={onToggleSelfServiceCheckbox}
                 onSelectCategory={onSelectCategory}
-                onClickPreviewEndUserExperience={
-                  onClickPreviewEndUserExperience
+                onClickPreviewEndUserExperience={() =>
+                  onClickPreviewEndUserExperience(
+                    formData.selectedApp?.platform === "ios" ||
+                      formData.selectedApp?.platform === "ipados"
+                  )
                 }
               />
             </Card>
@@ -357,9 +363,6 @@ const SoftwareVppForm = ({
     <form className={baseClass} onSubmit={onFormSubmit}>
       {isLoading && <div className={`${baseClass}__overlay`} />}
       <div className={contentWrapperClasses}>
-        {!softwareVppForEdit && (
-          <p>Apple App Store apps purchased via Apple Business Manager:</p>
-        )}
         <div className={formContentClasses}>
           <>{renderContent()}</>
         </div>
@@ -372,7 +375,7 @@ const SoftwareVppForm = ({
                 type="submit"
                 disabled={disableChildren || isSubmitDisabled}
                 isLoading={isLoading}
-                className={`${baseClass}__add-secret-btn`}
+                className={`${baseClass}__add-software-btn`}
               >
                 {softwareVppForEdit ? "Save" : "Add software"}
               </Button>

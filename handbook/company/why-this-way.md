@@ -69,10 +69,10 @@ Investing in people and providing generous, prioritized training, especially up 
 
 Here are a few examples of how Fleet prioritizes training:
 - the first 3 days at the company for every new team member are reserved for working on the tasks and training in their onboarding issue.
-- during the first 2 weeks at the company, every new fleetie joins a **daily 1:1 meeting** with their manager to check in and see how they're doing, and if they have any questions or blockers.  If the manager is not available for this meeting, the CEO (pending availability) or the Head of Digital Experience will join this short daily meeting with them instead.
+- during the first 2 weeks at the company, every new fleetie joins a **daily 1:1 meeting** with their manager to check in and see how they're doing, and if they have any questions or blockers.  If the manager is not available for this meeting, the CEO (pending availability) or the Head of People will join this short daily meeting with them instead.
 - In their first few days, every new fleetie joins:
-  - hands-on contributor experience training session with the Head of Digital Experience where they share their screen, check the configuration of their tools, complete any remaining setup, and discuss best practices.
-  - a short sightseeing tour with the Head of Digital Experience and (pending availability) Fleet's CEO to show them around and welcome them to the company.
+  - hands-on contributor experience training session with the Head of People where they share their screen, check the configuration of their tools, complete any remaining setup, and discuss best practices.
+  - a short sightseeing tour with the Head of People to show them around and welcome them to the company.
 
 
 ## Why direct responsibility?
@@ -120,7 +120,6 @@ At Fleet, we keep everything in one repo ([`fleetdm/fleet`](https://github.com/f
 - One repo pools GitHub stars and more accurately reflects Fleet’s presence.
 - One repo means one set of automations and labels to manage, resulting in a consistent GitHub experience that is easier to keep organized.
 
-
 The only exceptions are:
 1. **Other open-source projects:** When we contribute to open-source projects owned by other people and organizations, we contribute to those outside repositories.  For example, Fleet contributes to [osquery](https://github.com/osquery/osquery/commits/master), [Sails.js](https://github.com/balderdashy/sails/commits/master), and [other open-source projects](https://github.com/orgs/fleetdm/sponsoring).
 2. **Non-public matters:** Since GitHub does not allow non-public issues inside public repos, we have to use separate repositories to track non-public issues.  Sometimes it is also useful to contribute files to a non-public repository, such as when they mention customer relationships that are under non-disclosure agreements.  When we work on something non-public, we contribute to the repository with the appropriate [level of confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality):
@@ -132,9 +131,7 @@ The only exceptions are:
   - _nvd:_ [`fleetdm/nvd`](https://github.com/fleetdm/nvd)
 5. **Terraform modules:** Since Terraform clones the entire repo once per tagged version of a module, we maintain a separate repo for Terraform modules at [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform) to expedite deployments using `terraform init`.
 
-
 Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.
-
 
 > _**Tip:** Did you know that you can [search through issues from all public and non-public Fleet repos](https://github.com/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+) at the same time?_
 > 
@@ -149,7 +146,7 @@ All new infrastructure at Fleet is first approved by the E-group. Currently appr
 
 Additional infrastructure:
 
-1. **HTTP server at [fleetdm.com](https://fleetdm.com/)**. When a public HTTP server is required to broker information, [Digital Experience](https://fleetdm.com/handbook/digital-experience) adds the functionality to the existing fleetdm.com HTTP server. The fleetdm.com web server is hosted at [Heroku](https://heroku.com/).
+1. **HTTP server at [fleetdm.com](https://fleetdm.com/)**. When a public HTTP server is required to broker information, the [Website group](https://fleetdm.com/handbook/company/product-groups#website-group) adds the functionality to the existing fleetdm.com HTTP server. The fleetdm.com web server is hosted at [Heroku](https://heroku.com/).
 
 2. **Managed Cloud**. All Managed Cloud [customer environments](https://docs.google.com/spreadsheets/d/1nGgy7Gx1Y3sYHinL8kFWnhejghV1QDtv9uQgKu91F9E/edit?usp=sharing) and Fleet's dogfooding environments are hosted at [AWS](https://aws.amazon.com).
 
@@ -271,6 +268,11 @@ Why bother with all that?  And why do it in this particular order?
 ## Why fix small inconsistencies quickly?
 
 Fixing small inconsistencies quickly is worth it. When we tolerate and overlook little things, we send contributors mixed messages, like "[broken windows](https://en.wikipedia.org/wiki/Broken_windows_theory)". (Are these things actually important?) Since new contributors join the team all the time, we also prevent learning the right way to do things through osmosis, since pattern matching from a bad pattern creates even more inconsistencies. Plus these things add up over time, creating problems for both users and contributors.
+
+
+## Why t-shirt size customer promises before committing? 
+
+[Customer promises](https://fleetdm.com/handbook/company/product-groups#new-customer-promise-s) are one of the ways we collaborate with our customers to improve Fleet. We [t-shirt size](https://fleetdm.com/handbook/company/product-groups#t-shirt-sizing-capacity-planning) all customer promises and place them on our product roadmap before committing to them. This allows us to make sure there is available product design and engineering capacity to deliver the promise before we commit to a delivery date.
 
 
 ## Why make it obvious when stuff breaks?
@@ -406,7 +408,7 @@ I held on as long as I could.  But due to volume, in late 2022, I made the decis
 
 Keep in mind I am often in meetings all day, and may not be able to reply promptly.
   
-When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from [Sam Pfluger](https://fleetdm.com/handbook/digital-experience#team).
+When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Mike's [Executive Assistant](https://fleetdm.com/handbook/ceo#team).
 Thank you so much!" 🙇
 </blockquote> 
 

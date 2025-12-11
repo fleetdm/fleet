@@ -6,9 +6,9 @@ import {
   IHostSoftwareWithUiStatus,
   IHostAppStoreApp,
   IHostSoftware,
+  IVPPHostSoftware,
 } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
@@ -16,8 +16,11 @@ import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
+import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
+import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 import HostInstallerActionCell from "../HostInstallerActionCell";
 import InstallStatusCell from "../../Software/InstallStatusCell";
 import { installStatusSortType } from "../../Software/helpers";
@@ -45,10 +48,16 @@ interface IHostSWLibraryTableHeaders {
   teamId: number;
   hostMDMEnrolled?: boolean;
   baseClass: string;
-  onShowSoftwareDetails?: (software?: IHostSoftware) => void;
+  onShowInventoryVersions?: (software?: IHostSoftware) => void;
   onShowUpdateDetails: (software?: IHostSoftware) => void;
-  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
-  onClickInstallAction: (softwareId: number) => void;
+  onSetSelectedHostSWInstallDetails: (details?: IHostSoftware) => void;
+  onSetSelectedHostSWIpaInstallDetails: (details?: IHostSoftware) => void;
+  onSetSelectedHostSWScriptDetails: (details?: IHostSoftware) => void;
+  onSetSelectedHostSWUninstallDetails: (
+    details?: ISWUninstallDetailsParentState
+  ) => void;
+  onSetSelectedVPPInstallDetails: (s: IVPPHostSoftware) => void;
+  onClickInstallAction: (softwareId: number, isScriptPackage?: boolean) => void;
   onClickUninstallAction: (softwareId: number) => void;
   isHostOnline: boolean;
   hostName: string;
@@ -63,13 +72,16 @@ export const generateHostSWLibraryTableHeaders = ({
   teamId,
   hostMDMEnrolled,
   baseClass,
-  onShowSoftwareDetails,
+  onShowInventoryVersions,
   onShowUpdateDetails,
-  onShowUninstallDetails,
+  onSetSelectedHostSWInstallDetails,
+  onSetSelectedHostSWIpaInstallDetails,
+  onSetSelectedHostSWScriptDetails,
+  onSetSelectedHostSWUninstallDetails,
+  onSetSelectedVPPInstallDetails,
   onClickInstallAction,
   onClickUninstallAction,
   isHostOnline,
-  hostName,
 }: IHostSWLibraryTableHeaders): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -82,7 +94,9 @@ export const generateHostSWLibraryTableHeaders = ({
         const {
           id,
           name,
+          display_name,
           source,
+          icon_url,
           app_store_app,
           software_package,
         } = cellProps.row.original;
@@ -98,18 +112,22 @@ export const generateHostSWLibraryTableHeaders = ({
         const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
           cellProps.row.original
         );
+        const isAndroidPlayStoreApp =
+          !!app_store_app && source === "android_apps";
 
         return (
           <SoftwareNameCell
             name={name}
+            display_name={display_name}
             source={source}
-            iconUrl={app_store_app?.icon_url}
+            iconUrl={icon_url}
             path={softwareTitleDetailsPath}
             router={router}
             hasInstaller={hasInstaller}
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetailsLibrary"
+            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );
       },
@@ -123,9 +141,13 @@ export const generateHostSWLibraryTableHeaders = ({
         return (
           <InstallStatusCell
             software={original}
-            onShowSoftwareDetails={onShowSoftwareDetails}
+            onShowInventoryVersions={onShowInventoryVersions}
             onShowUpdateDetails={onShowUpdateDetails}
-            onShowUninstallDetails={onShowUninstallDetails}
+            onShowInstallDetails={onSetSelectedHostSWInstallDetails}
+            onShowIpaInstallDetails={onSetSelectedHostSWIpaInstallDetails}
+            onShowScriptDetails={onSetSelectedHostSWScriptDetails}
+            onShowVPPInstallDetails={onSetSelectedVPPInstallDetails}
+            onShowUninstallDetails={onSetSelectedHostSWUninstallDetails}
             isHostOnline={isHostOnline}
           />
         );
@@ -157,6 +179,26 @@ export const generateHostSWLibraryTableHeaders = ({
         const installerData = softwareTitle.software_package
           ? softwareTitle.software_package
           : (softwareTitle.app_store_app as IHostAppStoreApp);
+        const isAndroidPlayStoreApp =
+          !!softwareTitle.app_store_app &&
+          softwareTitle.source === "android_apps";
+
+        // For Android Play Store apps, we show "Latest" in the UI
+        if (isAndroidPlayStoreApp) {
+          const androidPlayStoreId =
+            cellProps.row.original.app_store_app?.app_store_id;
+
+          return (
+            <TextCell
+              value={
+                <AndroidLatestVersionWithTooltip
+                  androidPlayStoreId={androidPlayStoreId || ""}
+                />
+              }
+            />
+          );
+        }
+
         return (
           <VersionCell versions={[{ version: installerData?.version || "" }]} />
         );

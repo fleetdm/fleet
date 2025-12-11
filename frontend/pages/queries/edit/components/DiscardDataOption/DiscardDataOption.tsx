@@ -1,4 +1,3 @@
-import Card from "components/Card";
 import Checkbox from "components/forms/fields/Checkbox";
 import Icon from "components/Icon";
 import InfoBanner from "components/InfoBanner";
@@ -54,7 +53,11 @@ const DiscardDataOption = ({
           >
             <>
               Edit anyway
-              <Icon name="chevron-right" color="core-fleet-blue" size="small" />
+              <Icon
+                name="chevron-right"
+                color="ui-fleet-black-75"
+                size="small"
+              />
             </>
           </Link>
         </>

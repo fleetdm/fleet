@@ -5,8 +5,12 @@ import TabText from "components/TabText";
 import CustomLink from "components/CustomLink";
 import { SUPPORT_LINK } from "utilities/constants";
 
+import EndUserOSRequirementPreview from "../EndUserOSRequirementPreview";
 import WindowsTargetForm from "../WindowsTargetForm";
-import { OSUpdatesTargetPlatform } from "../../OSUpdates";
+import {
+  OSUpdatesSupportedPlatform,
+  OSUpdatesTargetPlatform,
+} from "../../OSUpdates";
 import AppleOSTargetForm from "../AppleOSTargetForm";
 
 const baseClass = "platform-tabs";
@@ -63,7 +67,7 @@ const PlatformTabs = ({
 
   return (
     <div className={baseClass}>
-      <TabNav>
+      <TabNav secondary>
         <Tabs
           defaultIndex={platformByIndex.indexOf(selectedPlatform)}
           onSelect={onTabChange}
@@ -89,7 +93,7 @@ const PlatformTabs = ({
               </Tab>
             )}
           </TabList>
-          <TabPanel>
+          <TabPanel className={`${baseClass}__tab-panel`}>
             <AppleOSTargetForm
               currentTeamId={currentTeamId}
               applePlatform="darwin"
@@ -99,9 +103,14 @@ const PlatformTabs = ({
               refetchAppConfig={refetchAppConfig}
               refetchTeamConfig={refetchTeamConfig}
             />
+            <div className={`${baseClass}__nudge-preview`}>
+              <EndUserOSRequirementPreview
+                platform={selectedPlatform as OSUpdatesSupportedPlatform}
+              />
+            </div>
           </TabPanel>
           {isWindowsMdmEnabled && (
-            <TabPanel>
+            <TabPanel className={`${baseClass}__tab-panel`}>
               <WindowsTargetForm
                 currentTeamId={currentTeamId}
                 defaultDeadlineDays={defaultWindowsDeadlineDays}
@@ -110,9 +119,14 @@ const PlatformTabs = ({
                 refetchAppConfig={refetchAppConfig}
                 refetchTeamConfig={refetchTeamConfig}
               />
+              <div className={`${baseClass}__nudge-preview`}>
+                <EndUserOSRequirementPreview
+                  platform={selectedPlatform as OSUpdatesSupportedPlatform}
+                />
+              </div>
             </TabPanel>
           )}
-          <TabPanel>
+          <TabPanel className={`${baseClass}__tab-panel`}>
             <AppleOSTargetForm
               currentTeamId={currentTeamId}
               applePlatform="ios"
@@ -122,8 +136,13 @@ const PlatformTabs = ({
               refetchAppConfig={refetchAppConfig}
               refetchTeamConfig={refetchTeamConfig}
             />
+            <div className={`${baseClass}__nudge-preview`}>
+              <EndUserOSRequirementPreview
+                platform={selectedPlatform as OSUpdatesSupportedPlatform}
+              />
+            </div>
           </TabPanel>
-          <TabPanel>
+          <TabPanel className={`${baseClass}__tab-panel`}>
             <AppleOSTargetForm
               currentTeamId={currentTeamId}
               applePlatform="ipados"
@@ -133,9 +152,14 @@ const PlatformTabs = ({
               refetchAppConfig={refetchAppConfig}
               refetchTeamConfig={refetchTeamConfig}
             />
+            <div className={`${baseClass}__nudge-preview`}>
+              <EndUserOSRequirementPreview
+                platform={selectedPlatform as OSUpdatesSupportedPlatform}
+              />
+            </div>
           </TabPanel>
           {isAndroidMdmEnabled && (
-            <TabPanel>
+            <TabPanel className={`${baseClass}__tab-panel`}>
               <div className={`${baseClass}__coming-soon`}>
                 <p>
                   <b>Android updates are coming soon.</b>

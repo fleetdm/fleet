@@ -23,6 +23,8 @@ const (
 	CronActivitiesStreaming          CronScheduleName = "activities_streaming"
 	CronMDMAppleProfileManager       CronScheduleName = "mdm_apple_profile_manager"
 	CronMDMWindowsProfileManager     CronScheduleName = "mdm_windows_profile_manager"
+	CronMDMAndroidProfileManager     CronScheduleName = "mdm_android_profile_manager"
+	CronMDMAndroidDeviceReconciler   CronScheduleName = "mdm_android_device_reconciler"
 	CronAppleMDMIPhoneIPadRefetcher  CronScheduleName = "apple_mdm_iphone_ipad_refetcher"
 	CronAppleMDMAPNsPusher           CronScheduleName = "apple_mdm_apns_pusher"
 	CronCalendar                     CronScheduleName = "calendar"
@@ -31,10 +33,18 @@ const (
 	CronMaintainedApps               CronScheduleName = "maintained_apps"
 	// CronRefreshVPPAppVersions updates the versions of VPP apps in Fleet to the latest value. Runs
 	// every 1h.
-	CronRefreshVPPAppVersions         CronScheduleName = "refresh_vpp_app_versions"
-	CronAppleMDMIPhoneIPadReviver     CronScheduleName = "apple_mdm_iphone_ipad_reviver"
-	CronUpcomingActivitiesMaintenance CronScheduleName = "upcoming_activities_maintenance"
-	CronHostVitalsLabelMembership     CronScheduleName = "host_vitals_label_membership"
+	CronRefreshVPPAppVersions          CronScheduleName = "refresh_vpp_app_versions"
+	CronAppleMDMIPhoneIPadReviver      CronScheduleName = "apple_mdm_iphone_ipad_reviver"
+	CronUpcomingActivitiesMaintenance  CronScheduleName = "upcoming_activities_maintenance"
+	CronHostVitalsLabelMembership      CronScheduleName = "host_vitals_label_membership"
+	CronBatchActivityCompletionChecker CronScheduleName = "batch_activity_completion_checker"
+	CronScheduledBatchActivities       CronScheduleName = "scheduled_batch_activities"
+	// CronEnableAndroidAppReportsOnDefaultPolicy enables applications reports on the default Android MDM policy (profile).
+	// This job only runs once after upgrading to v4.76.0.
+	CronEnableAndroidAppReportsOnDefaultPolicy CronScheduleName = "enable_android_app_reports_on_default_policy"
+	// CronMigrateToPerHostPolicy moves all Android hosts that are on the default MDM policy to a dedicated
+	// policy per host. This job only runs once after upgrading to v4.77.0.
+	CronMigrateToPerHostPolicy CronScheduleName = "migrate_to_per_host_policy"
 )
 
 type CronSchedulesService interface {

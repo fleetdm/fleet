@@ -29,6 +29,9 @@ const PKG_TYPE_TO_ID_TEXT = {
   rpm: "package name",
   msi: "product code",
   exe: "software name",
+  sh: "package name",
+  ps1: "package name",
+  ipa: "software name",
 } as const;
 
 const getInstallScriptTooltip = (pkgType: PackageType) => {
@@ -90,7 +93,7 @@ const getUninstallScriptTooltip = (pkgType: PackageType) => {
 
 const getUninstallHelpText = (pkgType: PackageType) => {
   if (isFleetMaintainedPackageType(pkgType)) {
-    return "Currently, shell scripts are supported.";
+    return "Currently, only shell scripts are supported.";
   }
 
   if (pkgType === "exe") {
@@ -98,8 +101,7 @@ const getUninstallHelpText = (pkgType: PackageType) => {
       <>
         For Windows, Fleet only creates uninstall scripts for .msi packages.
         $PACKAGE_ID will be populated with the software name from the .exe file
-        after it&apos;s added.
-        {getSupportedScriptTypeText(pkgType)}{" "}
+        after it&apos;s added. {getSupportedScriptTypeText(pkgType)}{" "}
         <CustomLink
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/exe-install-scripts`}
           text="Learn more"
@@ -112,7 +114,7 @@ const getUninstallHelpText = (pkgType: PackageType) => {
   if (pkgType === "tar.gz") {
     return (
       <>
-        Currently, shell scripts are supported.{" "}
+        Currently, only shell scripts are supported.{" "}
         <CustomLink
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/uninstall-scripts`}
           text="Learn more about uninstall scripts"
@@ -215,6 +217,8 @@ const PackageAdvancedOptions = ({
     );
   };
 
+  const requiresAdvancedOptions = ext === "exe" || ext === "tar.gz";
+
   return (
     <div className={baseClass}>
       <RevealButton
@@ -224,12 +228,16 @@ const PackageAdvancedOptions = ({
         hideText="Advanced options"
         caretPosition="after"
         onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-        disabled={!selectedPackage}
+        disabled={!selectedPackage || requiresAdvancedOptions}
         disabledTooltipContent={
-          <>
-            Choose a file to modify <br />
-            advanced options.
-          </>
+          requiresAdvancedOptions ? (
+            <>Install and uninstall scripts are required for .{ext} packages.</>
+          ) : (
+            <>
+              Choose a file to modify <br />
+              advanced options.
+            </>
+          )
         }
       />
       {(showAdvancedOptions || ext === "exe" || ext === "tar.gz") &&

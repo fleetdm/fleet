@@ -39,7 +39,10 @@ module.exports = {
       'Dan Grzelak',
       'Philip Chotipradit',
       'Roger Cantrell',
+      'Chayce O\'Neal',
       'u/Heteronymous',
+      'David Bodmer',
+      'Fiona Skelton',
     ];
     let testimonialsForMdm = _.filter(testimonials, (testimonial)=>{
       return _.contains(testimonial.productCategories, 'Device management') && _.contains(testimonialOrderForMdm, testimonial.quoteAuthorName);
