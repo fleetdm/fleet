@@ -142,7 +142,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// we get one result
-	cmds, _, err = ds.ListMDMCommands(
+	cmds, total, err := ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{},
@@ -152,6 +152,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, winCmd.CommandUUID, cmds[0].CommandUUID)
 	require.Equal(t, winCmd.TargetLocURI, cmds[0].RequestType)
 	require.Equal(t, "101", cmds[0].Status)
+	require.Nil(t, total)
 
 	appleCmdUUID := uuid.New().String()
 	appleCmd := createRawAppleCmd("ProfileList", appleCmdUUID)
@@ -160,7 +161,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// we get both commands
-	cmds, _, err = ds.ListMDMCommands(
+	cmds, total, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
@@ -174,6 +175,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, winCmd.CommandUUID, cmds[1].CommandUUID)
 	require.Equal(t, winCmd.TargetLocURI, cmds[1].RequestType)
 	require.Equal(t, "101", cmds[1].Status)
+	require.Nil(t, total)
 
 	// store results for both commands
 	err = appleCommanderStorage.StoreCommandReport(&mdm.Request{
@@ -210,7 +212,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	})
 
 	// we get both commands
-	cmds, _, err = ds.ListMDMCommands(
+	cmds, total, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
@@ -224,6 +226,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, winCmd.CommandUUID, cmds[1].CommandUUID)
 	require.Equal(t, winCmd.TargetLocURI, cmds[1].RequestType)
 	require.Equal(t, "200", cmds[1].Status)
+	require.Nil(t, total)
 
 	// add more windows commands
 	winCmd2 := &fleet.MDMWindowsCommand{
@@ -311,9 +314,10 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 			},
 		},
 		{
-			name:       "macOS host by UUID",
-			identifier: macH.UUID,
-			expected:   []string{appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
+			name:          "macOS host by UUID",
+			identifier:    macH.UUID,
+			commandStatus: ptr.T(fleet.MDMCommandStatusFilterPending),
+			expected:      []string{appleCmdUUID2, appleCmdUUID3},
 		},
 		{
 			name:       "macOS host by hardware serial",
@@ -322,12 +326,17 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			commandStatuses := []fleet.MDMCommandStatusFilter{}
+			if tc.commandStatus != nil {
+				commandStatuses = append(commandStatuses, *tc.commandStatus)
+			}
 			cmds, total, err := ds.ListMDMCommands(
 				ctx,
 				fleet.TeamFilter{User: test.UserAdmin},
 				&fleet.MDMCommandListOptions{
 					Filters: fleet.MDMCommandFilters{
-						HostIdentifier: tc.identifier,
+						HostIdentifier:  tc.identifier,
+						CommandStatuses: commandStatuses,
 					},
 				},
 			)
@@ -339,8 +348,8 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 			}
 			require.ElementsMatch(t, tc.expected, got)
 
-			if tc.commandStatus != nil {
-				require.Equal(t, int64(len(tc.expected)), total)
+			if tc.commandStatus != nil && *tc.commandStatus == fleet.MDMCommandStatusFilterPending {
+				require.Equal(t, int64(len(tc.expected)), *total)
 			} else {
 				require.Nil(t, total)
 			}
