@@ -802,7 +802,22 @@ var extraDetailQueries = map[string]DetailQuery{
 	WHERE
 		path LIKE '/Users/%/Library/Keychains/login.keychain-db';`,
 		Platforms:        []string{"darwin"},
-		DirectIngestFunc: directIngestHostCertificates,
+		DirectIngestFunc: directIngestHostCertificatesDarwin,
+	},
+	"certificates_windows": {
+		Query: `
+	SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1, username,
+		path
+	FROM
+		certificates
+	WHERE
+		store = 'Personal';`,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestHostCertificatesWindows,
 	},
 }
 
@@ -3186,7 +3201,7 @@ func directIngestWindowsProfiles(
 
 var rxExtractUsernameFromHostCertPath = regexp.MustCompile(`^/Users/([^/]+)/Library/Keychains/login\.keychain\-db$`)
 
-func directIngestHostCertificates(
+func directIngestHostCertificatesDarwin(
 	ctx context.Context,
 	logger log.Logger,
 	host *fleet.Host,
@@ -3206,12 +3221,12 @@ func directIngestHostCertificates(
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "decoding sha1", "err", err)
 			continue
 		}
-		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(row["subject"])
+		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject"])
 		if err != nil {
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting subject details", "err", err)
 			continue
 		}
-		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(row["issuer"])
+		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["issuer"])
 		if err != nil {
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting issuer details", "err", err)
 			continue
@@ -3258,6 +3273,92 @@ func directIngestHostCertificates(
 			Source:                    source,
 			Username:                  username,
 		})
+	}
+
+	if len(certs) == 0 {
+		// don't overwrite existing certs if we were unable to parse any new ones
+		return nil
+	}
+
+	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs)
+}
+
+func directIngestHostCertificatesWindows(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		// if there are no results, it indicates we may have a problem so we log it
+		level.Debug(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "no rows returned", "host_id", host.ID)
+		return nil
+	}
+
+	certs := make([]*fleet.HostCertificateRecord, 0, len(rows))
+	// on windows, the osquery certificates table returns duplicate
+	// entries for the same certificate if it is present in multiple
+	// certificate stores so we deduplicate them here based on the
+	// SHA1 sum + username
+	existsSha1User := make(map[string]bool, len(rows))
+	for _, row := range rows {
+		csum, err := hex.DecodeString(row["sha1"])
+		if err != nil {
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "decoding sha1", "err", err)
+			continue
+		}
+		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject"])
+		if err != nil {
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting subject details", "err", err)
+			continue
+		}
+		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["issuer"])
+		if err != nil {
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting issuer details", "err", err)
+			continue
+		}
+
+		username := row["username"]
+		source := fleet.UserHostCertificate
+		if username == "SYSTEM" {
+			source = fleet.SystemHostCertificate
+		}
+
+		cert := &fleet.HostCertificateRecord{
+			HostID:                    host.ID,
+			SHA1Sum:                   csum,
+			NotValidAfter:             time.Unix(cast.ToInt64(row["not_valid_after"]), 0).UTC(),
+			NotValidBefore:            time.Unix(cast.ToInt64(row["not_valid_before"]), 0).UTC(),
+			CertificateAuthority:      cast.ToBool(row["ca"]),
+			CommonName:                row["common_name"],
+			KeyAlgorithm:              row["key_algorithm"],
+			KeyStrength:               cast.ToInt(row["key_strength"]),
+			KeyUsage:                  row["key_usage"],
+			Serial:                    row["serial"],
+			SigningAlgorithm:          row["signing_algorithm"],
+			SubjectCountry:            subject.Country,
+			SubjectOrganizationalUnit: subject.OrganizationalUnit,
+			SubjectOrganization:       subject.Organization,
+			SubjectCommonName:         subject.CommonName,
+			IssuerCountry:             issuer.Country,
+			IssuerOrganizationalUnit:  issuer.OrganizationalUnit,
+			IssuerOrganization:        issuer.Organization,
+			IssuerCommonName:          issuer.CommonName,
+			Source:                    source,
+			Username:                  username,
+		}
+
+		// deduplicate by SHA1 + Username
+		sha1UserKey := fmt.Sprintf("%x|%s", csum, username)
+		if exists := existsSha1User[sha1UserKey]; exists {
+			level.Debug(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg",
+				"skipping duplicate certificate for sha1+user", "host_id", host.ID, "username", username, "sha1", fmt.Sprintf("%x", csum),
+				"issuer", cert.IssuerCommonName, "subject", cert.SubjectCommonName, "path", row["path"])
+			continue
+		}
+		existsSha1User[sha1UserKey] = true
+		certs = append(certs, cert)
 	}
 
 	if len(certs) == 0 {

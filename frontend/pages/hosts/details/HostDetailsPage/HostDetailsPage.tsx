@@ -1399,6 +1399,7 @@ const HostDetailsPage = ({
               teams={teams || []}
               isGlobalAdmin={isGlobalAdmin as boolean}
               isUpdating={isUpdating}
+              hostsTeamId={host.team_id}
             />
           )}
           {!!host && showPolicyDetailsModal && (
