@@ -40,7 +40,7 @@ func createCertificateTemplateEndpoint(ctx context.Context, request interface{},
 	}, nil
 }
 
-func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*fleet.CertificateTemplateResponseFull, error) {
+func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*fleet.CertificateTemplateResponse, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -134,8 +134,8 @@ type getDeviceCertificateTemplateRequest struct {
 }
 
 type getDeviceCertificateTemplateResponse struct {
-	Certificate *fleet.CertificateTemplateResponseFull `json:"certificate"`
-	Err         error                                  `json:"error,omitempty"`
+	Certificate *fleet.CertificateTemplateResponseForHost `json:"certificate"`
+	Err         error                                     `json:"error,omitempty"`
 }
 
 func (r getDeviceCertificateTemplateResponse) Error() error { return r.Err }
@@ -149,7 +149,7 @@ func getDeviceCertificateTemplateEndpoint(ctx context.Context, request interface
 	return getDeviceCertificateTemplateResponse{Certificate: certificate}, nil
 }
 
-func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
+func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseForHost, error) {
 	// skipauth: This endpoint uses node key authentication instead of user authentication.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -158,7 +158,7 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 		return nil, ctxerr.New(ctx, "missing host from request context")
 	}
 
-	certificate, err := svc.ds.GetCertificateTemplateById(ctx, id)
+	certificate, err := svc.ds.GetCertificateTemplateByIdForHost(ctx, id, host.UUID)
 	if err != nil {
 		return nil, err
 	}
@@ -198,8 +198,8 @@ type getCertificateTemplateRequest struct {
 }
 
 type getCertificateTemplateResponse struct {
-	Certificate *fleet.CertificateTemplateResponseFull `json:"certificate"`
-	Err         error                                  `json:"error,omitempty"`
+	Certificate *fleet.CertificateTemplateResponse `json:"certificate"`
+	Err         error                              `json:"error,omitempty"`
 }
 
 func (r getCertificateTemplateResponse) Error() error { return r.Err }
@@ -213,7 +213,7 @@ func getCertificateTemplateEndpoint(ctx context.Context, request interface{}, sv
 	return getCertificateTemplateResponse{Certificate: certificate}, nil
 }
 
-func (svc *Service) GetCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
+func (svc *Service) GetCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error) {
 	certificate, err := svc.ds.GetCertificateTemplateById(ctx, id)
 	if err != nil {
 		svc.authz.SkipAuthorization(ctx)

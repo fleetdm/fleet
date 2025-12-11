@@ -598,10 +598,10 @@ func (MockClient) GetCertificateTemplates(teamID string) ([]*fleet.CertificateTe
 	return res, nil
 }
 
-func (MockClient) GetCertificateTemplate(certificateID uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error) {
-	var res *fleet.CertificateTemplateResponseFull
+func (MockClient) GetCertificateTemplate(certificateID uint, hostUUID *string) (*fleet.CertificateTemplateResponse, error) {
+	var res *fleet.CertificateTemplateResponse
 	if certificateID == 1 {
-		res = &fleet.CertificateTemplateResponseFull{
+		res = &fleet.CertificateTemplateResponse{
 			CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
 				ID:                       1,
 				CertificateAuthorityName: "DIGIDOO",

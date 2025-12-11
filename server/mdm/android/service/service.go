@@ -1171,7 +1171,7 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 	}
 
 	// Helper to build config for a single host
-	buildHostConfig := func(hostUUID string, challenges map[uint]string) (*android.AgentManagedConfiguration, error) {
+	buildHostConfig := func(hostUUID string, templateIDs []uint) (*android.AgentManagedConfiguration, error) {
 		androidHost, err := svc.ds.AndroidHostLiteByHostUUID(ctx, hostUUID)
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "get android host %s", hostUUID)
@@ -1185,9 +1185,9 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			return nil, ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
 		}
 
-		// Build certificate template IDs list from challenges
+		// Build certificate template IDs list
 		var certificateTemplateIDs []android.AgentCertificateTemplate
-		for templateID := range challenges {
+		for _, templateID := range templateIDs {
 			certificateTemplateIDs = append(certificateTemplateIDs, android.AgentCertificateTemplate{
 				ID: templateID,
 			})
@@ -1228,35 +1228,14 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			continue
 		}
 
-		// Extract template IDs for potential revert
+		// Extract template IDs
 		templateIDs := make([]uint, len(templates))
 		for i, tmpl := range templates {
 			templateIDs[i] = tmpl.CertificateTemplateID
 		}
 
-		// Step 2: Generate challenges for each template
-		challenges := make(map[uint]string)
-		challengeGenFailed := false
-		for _, tmpl := range templates {
-			challenge, err := svc.fleetDS.NewChallenge(ctx)
-			if err != nil {
-				level.Error(svc.logger).Log("msg", "failed to generate challenge", "host_uuid", hostUUID, "template_id", tmpl.CertificateTemplateID, "err", err)
-				challengeGenFailed = true
-				break
-			}
-			challenges[tmpl.CertificateTemplateID] = challenge
-		}
-
-		if challengeGenFailed {
-			// Revert only the templates we transitioned to pending
-			if revertErr := svc.fleetDS.RevertCertificateTemplatesToPending(ctx, hostUUID, templateIDs); revertErr != nil {
-				level.Error(svc.logger).Log("msg", "failed to revert to pending after challenge generation failure", "host_uuid", hostUUID, "err", revertErr)
-			}
-			continue
-		}
-
-		// Step 3: Build and send config to AMAPI
-		config, err := buildHostConfig(hostUUID, challenges)
+		// Step 2: Build and send config to AMAPI
+		config, err := buildHostConfig(hostUUID, templateIDs)
 		if err != nil {
 			level.Error(svc.logger).Log("msg", "failed to build host config", "host_uuid", hostUUID, "err", err)
 			if revertErr := svc.fleetDS.RevertCertificateTemplatesToPending(ctx, hostUUID, templateIDs); revertErr != nil {
@@ -1267,7 +1246,7 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 
 		hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
 		if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
-			// AMAPI call failed, revert only the templates we transitioned
+			// AMAPI call failed, revert to pending for retry later
 			level.Error(svc.logger).Log("msg", "failed to send to AMAPI", "host_uuid", hostUUID, "err", err)
 			if revertErr := svc.fleetDS.RevertCertificateTemplatesToPending(ctx, hostUUID, templateIDs); revertErr != nil {
 				level.Error(svc.logger).Log("msg", "failed to revert to pending after AMAPI failure", "host_uuid", hostUUID, "err", revertErr)
@@ -1275,12 +1254,35 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			continue
 		}
 
-		// Step 4: Success! Transition delivering → delivered with challenges
+		// Step 3: AMAPI succeeded - generate challenges for each template
+		// Note: Android app may try to fetch the certificate, but status is still delivering and no challenge is generated yet.
+		// The app will retry until status turns to delivered.
+		challenges := make(map[uint]string)
+		challengeGenFailed := false
+		for _, templateID := range templateIDs {
+			challenge, err := svc.fleetDS.NewChallenge(ctx)
+			if err != nil {
+				level.Error(svc.logger).Log("msg", "failed to generate challenge", "host_uuid", hostUUID, "template_id", templateID, "err", err)
+				challengeGenFailed = true
+				break
+			}
+			challenges[templateID] = challenge
+		}
+
+		if challengeGenFailed {
+			// Challenge generation failed after AMAPI success - this is rare but we need to handle it.
+			// Revert to pending so cron can retry. The device won't be able to fetch certs until
+			// challenges are generated and status is 'delivered'.
+			if revertErr := svc.fleetDS.RevertCertificateTemplatesToPending(ctx, hostUUID, templateIDs); revertErr != nil {
+				level.Error(svc.logger).Log("msg", "failed to revert to pending after challenge generation failure", "host_uuid", hostUUID, "err", revertErr)
+			}
+			continue
+		}
+
+		// Step 4: Transition delivering → delivered with challenges
 		if err := svc.fleetDS.TransitionCertificateTemplatesToDelivered(ctx, hostUUID, challenges); err != nil {
 			level.Error(svc.logger).Log("msg", "failed to transition to delivered", "host_uuid", hostUUID, "err", err)
-			// Note: AMAPI already has the config, so this is a DB-only issue
-			// The device will be able to fetch the cert, but our status won't update until
-			// the SCEP request comes in and we update to verified/failed
+			return ctxerr.Wrap(ctx, err, "transition certificate templates to delivered")
 		}
 	}
 

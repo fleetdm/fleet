@@ -12,8 +12,32 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
-	var template fleet.CertificateTemplateResponseFull
+func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error) {
+	var template fleet.CertificateTemplateResponse
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, `
+		SELECT
+			certificate_templates.id,
+			certificate_templates.name,
+			certificate_templates.team_id,
+			certificate_templates.subject_name,
+			certificate_templates.created_at,
+			certificate_authorities.id AS certificate_authority_id,
+			certificate_authorities.name AS certificate_authority_name,
+			certificate_authorities.type AS certificate_authority_type
+		FROM certificate_templates
+		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+		WHERE certificate_templates.id = ?
+	`, id); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id")
+	}
+
+	return &template, nil
+}
+
+// GetCertificateTemplateByIdForHost gets a certificate template by ID with host-specific status and challenge.
+// This is used when a host (fleetd/Android agent) requests its certificate.
+func (ds *Datastore) GetCertificateTemplateByIdForHost(ctx context.Context, id uint, hostUUID string) (*fleet.CertificateTemplateResponseForHost, error) {
+	var template fleet.CertificateTemplateResponseForHost
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, `
 		SELECT
 			certificate_templates.id,
@@ -31,9 +55,10 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
 		LEFT JOIN host_certificate_templates
 			ON host_certificate_templates.certificate_template_id = certificate_templates.id
+			AND host_certificate_templates.host_uuid = ?
 		WHERE certificate_templates.id = ?
-	`, id); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id")
+	`, hostUUID, id); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id for host")
 	}
 
 	// Only include challenges if status is "delivered"
@@ -98,7 +123,7 @@ func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID
 	return templates, metaData, nil
 }
 
-func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponseFull, error) {
+func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponse, error) {
 	result, err := ds.writer(ctx).ExecContext(ctx, `
 		INSERT INTO certificate_templates (
 			name,
@@ -116,7 +141,7 @@ func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateT
 		return nil, ctxerr.Wrap(ctx, err, "getting last insert id for certificate_template")
 	}
 
-	return &fleet.CertificateTemplateResponseFull{
+	return &fleet.CertificateTemplateResponse{
 		CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
 			ID:                     uint(id), //nolint:gosec
 			Name:                   certificateTemplate.Name,

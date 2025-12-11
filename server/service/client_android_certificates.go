@@ -18,9 +18,8 @@ func (c *Client) GetCertificateTemplates(teamID string) ([]*fleet.CertificateTem
 	return responseBody.Certificates, nil
 }
 
-// GetCertificateTemplate retrieves the full details of a single certificate, optionally
-// replacing vars in the subject with values from a specified host.
-func (c *Client) GetCertificateTemplate(certificateID uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error) {
+// GetCertificateTemplate retrieves the details of a single certificate.
+func (c *Client) GetCertificateTemplate(certificateID uint, hostUUID *string) (*fleet.CertificateTemplateResponse, error) {
 	verb, path := "GET", "/api/latest/fleet/certificates/"+strconv.FormatUint(uint64(certificateID), 10)
 	var responseBody getCertificateTemplateResponse
 	var query string

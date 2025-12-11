@@ -3794,7 +3794,6 @@ func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.Ce
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 
-	// Mock CreatePendingCertificateTemplatesForExistingHosts (called when creating certificate templates)
 	ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
 		return 0, nil
 	}
@@ -3923,10 +3922,10 @@ func TestGitOpsAndroidCertificatesChange(t *testing.T) {
 	}
 
 	// Simulate full certificate details for existing certificates
-	ds.GetCertificateTemplateByIdFunc = func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
+	ds.GetCertificateTemplateByIdFunc = func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error) {
 		switch id {
 		case 1:
-			return &fleet.CertificateTemplateResponseFull{
+			return &fleet.CertificateTemplateResponse{
 				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
 					ID:                     1,
 					Name:                   "Certificate 1",
@@ -3935,7 +3934,7 @@ func TestGitOpsAndroidCertificatesChange(t *testing.T) {
 				SubjectName: "CN=Original Subject 1",
 			}, nil
 		case 2:
-			return &fleet.CertificateTemplateResponseFull{
+			return &fleet.CertificateTemplateResponse{
 				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
 					ID:                     2,
 					Name:                   "Certificate 2",
@@ -4173,10 +4172,10 @@ func TestGitOpsAndroidCertificatesDeleteOne(t *testing.T) {
 	}
 
 	// Mock GetCertificateTemplateByIdFunc to return full certificate details
-	ds.GetCertificateTemplateByIdFunc = func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
+	ds.GetCertificateTemplateByIdFunc = func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error) {
 		switch id {
 		case 1:
-			return &fleet.CertificateTemplateResponseFull{
+			return &fleet.CertificateTemplateResponse{
 				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
 					ID:                     1,
 					Name:                   "Certificate 1",
@@ -4185,7 +4184,7 @@ func TestGitOpsAndroidCertificatesDeleteOne(t *testing.T) {
 				SubjectName: "CN=Device Certificate 1",
 			}, nil
 		case 2:
-			return &fleet.CertificateTemplateResponseFull{
+			return &fleet.CertificateTemplateResponse{
 				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
 					ID:                     2,
 					Name:                   "Certificate 2",

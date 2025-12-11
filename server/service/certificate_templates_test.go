@@ -45,8 +45,8 @@ func TestCreateCertificateTemplate(t *testing.T) {
 		return nil, errors.New("not found")
 	}
 
-	ds.CreateCertificateTemplateFunc = func(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponseFull, error) {
-		return &fleet.CertificateTemplateResponseFull{
+	ds.CreateCertificateTemplateFunc = func(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponse, error) {
+		return &fleet.CertificateTemplateResponse{
 			CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
 				ID:   1,
 				Name: certificateTemplate.Name,

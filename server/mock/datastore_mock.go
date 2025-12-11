@@ -1649,11 +1649,13 @@ type BatchUpsertCertificateTemplatesFunc func(ctx context.Context, certificates 
 
 type BatchDeleteCertificateTemplatesFunc func(ctx context.Context, certificateTemplateIDs []uint) error
 
-type CreateCertificateTemplateFunc func(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponseFull, error)
+type CreateCertificateTemplateFunc func(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponse, error)
 
 type DeleteCertificateTemplateFunc func(ctx context.Context, id uint) error
 
-type GetCertificateTemplateByIdFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error)
+type GetCertificateTemplateByIdFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error)
+
+type GetCertificateTemplateByIdForHostFunc func(ctx context.Context, id uint, hostUUID string) (*fleet.CertificateTemplateResponseForHost, error)
 
 type GetCertificateTemplatesByTeamIDFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
 
@@ -4127,6 +4129,9 @@ type DataStore struct {
 
 	GetCertificateTemplateByIdFunc        GetCertificateTemplateByIdFunc
 	GetCertificateTemplateByIdFuncInvoked bool
+
+	GetCertificateTemplateByIdForHostFunc        GetCertificateTemplateByIdForHostFunc
+	GetCertificateTemplateByIdForHostFuncInvoked bool
 
 	GetCertificateTemplatesByTeamIDFunc        GetCertificateTemplatesByTeamIDFunc
 	GetCertificateTemplatesByTeamIDFuncInvoked bool
@@ -9858,7 +9863,7 @@ func (s *DataStore) BatchDeleteCertificateTemplates(ctx context.Context, certifi
 	return s.BatchDeleteCertificateTemplatesFunc(ctx, certificateTemplateIDs)
 }
 
-func (s *DataStore) CreateCertificateTemplate(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponseFull, error) {
+func (s *DataStore) CreateCertificateTemplate(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponse, error) {
 	s.mu.Lock()
 	s.CreateCertificateTemplateFuncInvoked = true
 	s.mu.Unlock()
@@ -9872,11 +9877,18 @@ func (s *DataStore) DeleteCertificateTemplate(ctx context.Context, id uint) erro
 	return s.DeleteCertificateTemplateFunc(ctx, id)
 }
 
-func (s *DataStore) GetCertificateTemplateById(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
+func (s *DataStore) GetCertificateTemplateById(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error) {
 	s.mu.Lock()
 	s.GetCertificateTemplateByIdFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCertificateTemplateByIdFunc(ctx, id)
+}
+
+func (s *DataStore) GetCertificateTemplateByIdForHost(ctx context.Context, id uint, hostUUID string) (*fleet.CertificateTemplateResponseForHost, error) {
+	s.mu.Lock()
+	s.GetCertificateTemplateByIdForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCertificateTemplateByIdForHostFunc(ctx, id, hostUUID)
 }
 
 func (s *DataStore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {

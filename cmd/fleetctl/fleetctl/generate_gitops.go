@@ -84,7 +84,7 @@ type generateGitopsClient interface {
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
-	GetCertificateTemplate(certificateID uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error)
+	GetCertificateTemplate(certificateID uint, hostUUID *string) (*fleet.CertificateTemplateResponse, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -1083,7 +1083,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 
 	if len(certSummaries) > 0 {
 		androidSettingsType := reflect.TypeOf(fleet.AndroidSettings{})
-		certType := reflect.TypeOf(fleet.CertificateTemplateResponseFull{})
+		certType := reflect.TypeOf(fleet.CertificateTemplateResponse{})
 		fullCerts := make([]map[string]interface{}, 0, len(certSummaries))
 		for _, certSummary := range certSummaries {
 			certFull, err := cmd.Client.GetCertificateTemplate(certSummary.ID, nil)

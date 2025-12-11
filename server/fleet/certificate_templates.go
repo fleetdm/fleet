@@ -26,15 +26,23 @@ type CertificateTemplateResponseSummary struct {
 	CreatedAt                string `json:"created_at" db:"created_at"`
 }
 
-type CertificateTemplateResponseFull struct {
+// CertificateTemplateResponse contains certificate template details without host-specific data.
+// Used when fetching a template by ID for admin/API purposes.
+type CertificateTemplateResponse struct {
 	CertificateTemplateResponseSummary
-	SubjectName              string                     `json:"subject_name" db:"subject_name"`
-	CertificateAuthorityType string                     `json:"certificate_authority_type" db:"certificate_authority_type"`
-	Status                   *CertificateTemplateStatus `json:"status" db:"status"`
-	SCEPChallenge            *string                    `json:"scep_challenge" db:"scep_challenge"`
-	FleetChallenge           *string                    `json:"fleet_challenge" db:"fleet_challenge"`
-	SCEPChallengeEncrypted   []byte                     `json:"-" db:"scep_challenge_encrypted"`
-	TeamID                   uint                       `json:"-" db:"team_id"`
+	SubjectName              string `json:"subject_name" db:"subject_name"`
+	CertificateAuthorityType string `json:"certificate_authority_type" db:"certificate_authority_type"`
+	TeamID                   uint   `json:"-" db:"team_id"`
+}
+
+// CertificateTemplateResponseForHost contains certificate template details with host-specific data.
+// Used when a host (fleetd/Android agent) requests its certificate.
+type CertificateTemplateResponseForHost struct {
+	CertificateTemplateResponse
+	Status                 *CertificateTemplateStatus `json:"status" db:"status"`
+	SCEPChallenge          *string                    `json:"scep_challenge" db:"scep_challenge"`
+	FleetChallenge         *string                    `json:"fleet_challenge" db:"fleet_challenge"`
+	SCEPChallengeEncrypted []byte                     `json:"-" db:"scep_challenge_encrypted"`
 }
 
 type CertificateTemplateStatus string
