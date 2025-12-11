@@ -496,3 +496,102 @@ func (s *integrationMDMTestSuite) enableAndroidMDM(t *testing.T) string {
 
 	return enterpriseID
 }
+
+func (s *integrationMDMTestSuite) TestAndroidAppConfigurations() {
+	t := s.T()
+
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+
+	s.enableAndroidMDM(t)
+
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: "Test App"}, nil
+	}
+
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+		Name: t.Name(),
+	}, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+	teamID := &createTeamResp.Team.ID
+
+	// Android app with configuration
+	exampleConfiguration := json.RawMessage(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
+	androidAppFoo := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			AppTeamID: ptr.ValOrZero(teamID),
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.foo",
+				Platform: fleet.AndroidPlatform,
+			},
+			Configuration: exampleConfiguration,
+		},
+	}
+
+	// Add Android app
+	var appWithConfigResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{
+			TeamID:        teamID,
+			AppStoreID:    androidAppFoo.AdamID,
+			Platform:      androidAppFoo.VPPAppID.Platform,
+			Configuration: androidAppFoo.Configuration,
+		},
+		http.StatusOK, &appWithConfigResp,
+	)
+
+	// Verify that activity includes configuration
+	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true,"configuration": %s}`,
+			t.Name(), "Test App", appWithConfigResp.TitleID, androidAppFoo.AdamID, 1, androidAppFoo.Platform, androidAppFoo.Configuration), 0)
+
+	var listSWTitles listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(*teamID))
+	s.Assert().Len(listSWTitles.SoftwareTitles, 1)
+	s.Assert().Equal(androidAppFoo.AdamID, listSWTitles.SoftwareTitles[0].AppStoreApp.AppStoreID)
+
+	// Batch app store apps call won't create an activity
+	var batchResp batchAssociateAppStoreAppsResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
+		batchAssociateAppStoreAppsRequest{
+			DryRun: false,
+			Apps: []fleet.VPPBatchPayload{
+				{AppStoreID: "app_1", SelfService: true, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage("{}")},
+				{AppStoreID: "app_2", SelfService: true, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage("{}")},
+				{AppStoreID: "app_3", SelfService: true, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage("{}")},
+				{AppStoreID: "app_4", SelfService: true, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage("{}")},
+			},
+		},
+		http.StatusOK, &batchResp, "team_name", t.Name(),
+	)
+
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(*teamID))
+	s.Assert().Len(listSWTitles.SoftwareTitles, 4)
+	s.Assert().Equal("app_1", listSWTitles.SoftwareTitles[0].AppStoreApp.AppStoreID)
+
+	// Batch app store apps call won't create an activity
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
+		batchAssociateAppStoreAppsRequest{
+			DryRun: false,
+			Apps: []fleet.VPPBatchPayload{
+				{AppStoreID: "app_1", SelfService: true, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage("{}")},
+				{AppStoreID: "app_2", SelfService: true, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage("{}")},
+				{AppStoreID: "app_3", SelfService: true, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage("{}")},
+				{AppStoreID: "app_4", SelfService: true, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage("{}")},
+			},
+		}, http.StatusOK, &batchResp,
+	)
+
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(0))
+	s.Assert().Len(listSWTitles.SoftwareTitles, 4)
+
+	// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	// 	mysql.DumpTable(t, q, "teams", "id", "created_at", "name")
+	// 	mysql.DumpTable(t, q, "android_app_configurations")
+	// 	return nil
+	// })
+}

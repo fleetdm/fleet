@@ -120,7 +120,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				DisplayName:        payload.DisplayName,
 				Configuration:      payload.Configuration,
 			})
-			fmt.Println("payload.Configuration", string(payload.Configuration))
 		}
 
 	}
