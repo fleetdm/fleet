@@ -45,7 +45,7 @@ const OSSettingStatusCell = ({
       LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG[status as LinuxDiskEncryptionStatus];
   }
 
-  // Android certificate templates.
+  // Android host certificate templates.
   else if (
     hostPlatform === "android" &&
     profileUUID === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID
@@ -56,26 +56,26 @@ const OSSettingStatusCell = ({
           statusText:
             operationType === "install"
               ? "Enforcing (pending)"
-              : "Removing (pending)",
+              : "Removing enforcement (pending)",
           iconName: "pending-outline",
           tooltip: () =>
-            `Waiting for confirmation from Fleet's Android agent that the certificate is ${
-              operationType === "install" ? "installed" : "removed"
-            }`,
+            operationType === "install"
+              ? "The host is running the command to apply settings or will run it when the host comes online."
+              : "The host is running the command to remove settings or will run it when the host comes online.",
         };
         break;
       case "verified":
         displayOption = {
           statusText: "Verified",
           iconName: "success",
-          tooltip: () => "Certificate is installed",
+          tooltip: () => "The host applied the setting. Fleet verified",
         };
         break;
       case "failed":
         displayOption = {
           statusText: "Failed",
           iconName: "error",
-          tooltip: () => "Fleet's Android agent returned an error",
+          tooltip: null,
         };
         break;
       default:
