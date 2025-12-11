@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -95,14 +94,6 @@ func (ac *AppCommander) uninstallApp(ctx context.Context) bool {
 		return false
 	}
 	level.Debug(ac.appLogger).Log("msg", fmt.Sprintf("Output: %s", output))
-
-	// On Windows, wait a few seconds after uninstall completes to allow the registry to update
-	// MSI uninstall operations can update the registry asynchronously, so we need to give Windows
-	// time to complete the registry updates before checking if the app still exists.
-	if ac.cfg.operatingSystem == "windows" {
-		level.Info(ac.appLogger).Log("msg", "Waiting for Windows registry to update after uninstall...")
-		time.Sleep(5 * time.Second)
-	}
 
 	existance, err := appExists(ctx, ac.appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
 	if err != nil {
