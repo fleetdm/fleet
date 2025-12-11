@@ -413,6 +413,280 @@ class CertificateOrchestratorTest {
         assertFalse(mockInstaller.wasInstallCalled)
     }
 
+    // ========== Test Category 4: Certificate Cleanup ==========
+
+    @Test
+    fun `removeCertificateInstallInfo removes certificate from DataStore`() = runTest {
+        // Arrange: Store 3 certificates
+        storeTestCertificateInDataStore(1, "cert-1")
+        storeTestCertificateInDataStore(2, "cert-2")
+        storeTestCertificateInDataStore(3, "cert-3")
+
+        // Act: Remove certificate 2
+        CertificateOrchestrator.removeCertificateInstallInfo(context, 2)
+
+        // Assert: Only 1 and 3 remain
+        val stored = getStoredCertificates()
+        assertEquals(2, stored.size)
+        assertTrue(stored.containsKey(1))
+        assertFalse(stored.containsKey(2))
+        assertTrue(stored.containsKey(3))
+        assertEquals("cert-1", stored[1]?.alias)
+        assertEquals("cert-3", stored[3]?.alias)
+    }
+
+    @Test
+    fun `removeCertificateInstallInfo handles non-existent certificate gracefully`() = runTest {
+        // Arrange: Store 2 certificates
+        storeTestCertificateInDataStore(1, "cert-1")
+        storeTestCertificateInDataStore(2, "cert-2")
+
+        // Act: Try to remove non-existent certificate
+        CertificateOrchestrator.removeCertificateInstallInfo(context, 999)
+
+        // Assert: No exception thrown, DataStore unchanged
+        val stored = getStoredCertificates()
+        assertEquals(2, stored.size)
+        assertTrue(stored.containsKey(1))
+        assertTrue(stored.containsKey(2))
+    }
+
+    @Test
+    fun `removeCertificateInstallInfo handles corrupted DataStore gracefully`() = runTest {
+        // Arrange: Corrupt DataStore with invalid JSON
+        context.prefDataStore.edit { preferences ->
+            preferences[stringPreferencesKey("installed_certificates")] = "{ invalid json }"
+        }
+
+        // Act: Try to remove certificate (should not throw)
+        CertificateOrchestrator.removeCertificateInstallInfo(context, 123)
+
+        // Assert: No exception, operation succeeds
+        // DataStore should be cleared/reset
+        val stored = getStoredCertificates()
+        assertTrue(stored.isEmpty())
+    }
+
+    @Test
+    fun `concurrent removeCertificateInstallInfo operations are thread-safe`() = runTest {
+        // Arrange: Store 10 certificates
+        repeat(10) { id ->
+            storeTestCertificateInDataStore(id + 1, "cert-${id + 1}")
+        }
+
+        // Act: Remove certificates 2, 4, 6, 8, 10 in parallel
+        val jobs = listOf(2, 4, 6, 8, 10).map { certId ->
+            launch {
+                CertificateOrchestrator.removeCertificateInstallInfo(context, certId)
+            }
+        }
+        jobs.forEach { it.join() }
+
+        // Assert: Only odd-numbered certificates remain (1, 3, 5, 7, 9)
+        val stored = getStoredCertificates()
+        assertEquals(5, stored.size)
+        listOf(1, 3, 5, 7, 9).forEach { id ->
+            assertTrue("Certificate $id should exist", stored.containsKey(id))
+        }
+        listOf(2, 4, 6, 8, 10).forEach { id ->
+            assertFalse("Certificate $id should not exist", stored.containsKey(id))
+        }
+    }
+
+    @Test
+    fun `cleanupRemovedCertificates returns empty map when DataStore is empty`() = runTest {
+        // Arrange: DataStore is empty (default state after clearDataStore in setup)
+
+        // Act: Call cleanup with some certificate IDs
+        val results = CertificateOrchestrator.cleanupRemovedCertificates(
+            context = context,
+            currentCertificateIds = listOf(1, 2, 3),
+        )
+
+        // Assert: No cleanup performed
+        assertTrue(results.isEmpty())
+    }
+
+    @Test
+    fun `cleanupRemovedCertificates returns empty map when all certificates still in config`() = runTest {
+        // Arrange: Store 3 certificates
+        storeTestCertificateInDataStore(1, "cert-1")
+        storeTestCertificateInDataStore(2, "cert-2")
+        storeTestCertificateInDataStore(3, "cert-3")
+
+        // Act: Call cleanup with the same certificate IDs
+        val results = CertificateOrchestrator.cleanupRemovedCertificates(
+            context = context,
+            currentCertificateIds = listOf(1, 2, 3),
+        )
+
+        // Assert: No cleanup performed
+        assertTrue(results.isEmpty())
+
+        // Verify certificates still in DataStore
+        val stored = getStoredCertificates()
+        assertEquals(3, stored.size)
+    }
+
+    @Ignore("Requires DevicePolicyManager mocking for removeKeyPair - cleanup will be attempted but DPM not available")
+    @Test
+    fun `cleanupRemovedCertificates identifies single removed certificate`() = runTest {
+        // Arrange: Store 3 certificates
+        storeTestCertificateInDataStore(1, "cert-1")
+        storeTestCertificateInDataStore(2, "cert-2")
+        storeTestCertificateInDataStore(3, "cert-3")
+
+        // Act: Call cleanup with only 1 and 3 (2 is removed)
+        val results = CertificateOrchestrator.cleanupRemovedCertificates(
+            context = context,
+            currentCertificateIds = listOf(1, 3),
+        )
+
+        // Assert: Cleanup attempted for certificate 2
+        // Note: In real environment with DPM, this would remove the keypair
+        // In test environment, we can verify the attempt was made by checking results
+        assertTrue("Results should contain certificate 2", results.containsKey(2))
+    }
+
+    @Ignore("Requires DevicePolicyManager mocking for removeKeyPair")
+    @Test
+    fun `cleanupRemovedCertificates identifies multiple removed certificates`() = runTest {
+        // Arrange: Store 5 certificates
+        storeTestCertificateInDataStore(1, "cert-1")
+        storeTestCertificateInDataStore(2, "cert-2")
+        storeTestCertificateInDataStore(3, "cert-3")
+        storeTestCertificateInDataStore(4, "cert-4")
+        storeTestCertificateInDataStore(5, "cert-5")
+
+        // Act: Call cleanup with only 2 and 4 (1, 3, 5 are removed)
+        val results = CertificateOrchestrator.cleanupRemovedCertificates(
+            context = context,
+            currentCertificateIds = listOf(2, 4),
+        )
+
+        // Assert: Cleanup attempted for certificates 1, 3, 5
+        assertEquals(3, results.size)
+        assertTrue(results.containsKey(1))
+        assertTrue(results.containsKey(3))
+        assertTrue(results.containsKey(5))
+    }
+
+    @Ignore("Requires DevicePolicyManager mocking for removeKeyPair")
+    @Test
+    fun `cleanupRemovedCertificates handles empty currentIds list`() = runTest {
+        // Arrange: Store 3 certificates
+        storeTestCertificateInDataStore(1, "cert-1")
+        storeTestCertificateInDataStore(2, "cert-2")
+        storeTestCertificateInDataStore(3, "cert-3")
+
+        // Act: Call cleanup with empty list (all certificates removed from config)
+        val results = CertificateOrchestrator.cleanupRemovedCertificates(
+            context = context,
+            currentCertificateIds = emptyList(),
+        )
+
+        // Assert: Cleanup attempted for all 3 certificates
+        assertEquals(3, results.size)
+        assertTrue(results.containsKey(1))
+        assertTrue(results.containsKey(2))
+        assertTrue(results.containsKey(3))
+    }
+
+    @Ignore("Requires DevicePolicyManager mocking for removeKeyPair")
+    @Test
+    fun `cleanupRemovedCertificates removes certificates with FAILED status`() = runTest {
+        // Arrange: Store certificate with FAILED status
+        storeTestCertificateInDataStore(
+            certificateId = 123,
+            alias = "failed-cert",
+            status = CertificateInstallStatus.FAILED,
+        )
+
+        // Act: Call cleanup (certificate not in current config)
+        val results = CertificateOrchestrator.cleanupRemovedCertificates(
+            context = context,
+            currentCertificateIds = emptyList(),
+        )
+
+        // Assert: Cleanup attempted even for failed certificate
+        assertTrue("Failed certificate should be cleaned up", results.containsKey(123))
+    }
+
+    @Ignore("Requires DevicePolicyManager mocking for removeKeyPair")
+    @Test
+    fun `cleanupRemovedCertificates removes certificates with RETRY status`() = runTest {
+        // Arrange: Store certificate with RETRY status
+        storeTestCertificateInDataStore(
+            certificateId = 456,
+            alias = "retry-cert",
+            status = CertificateInstallStatus.RETRY,
+            retries = 2,
+        )
+
+        // Act: Call cleanup (certificate not in current config)
+        val results = CertificateOrchestrator.cleanupRemovedCertificates(
+            context = context,
+            currentCertificateIds = emptyList(),
+        )
+
+        // Assert: Cleanup attempted even for retry certificate
+        assertTrue("Retry certificate should be cleaned up", results.containsKey(456))
+    }
+
+    @Ignore("Requires DevicePolicyManager mocking - documents expected behavior for future DI improvements")
+    @Test
+    fun `cleanupRemovedCertificates removes keypair and cleans DataStore on success`() = runTest {
+        // This test documents the expected full flow when DevicePolicyManager is mockable:
+        //
+        // 1. Identify certificate to remove (in DataStore but not in current config)
+        // 2. Call DevicePolicyManager.removeKeyPair() - should succeed
+        // 3. Call ApiClient.updateCertificateStatus() with status="verified"
+        // 4. Remove from DataStore
+        // 5. Return CleanupResult.Success
+        //
+        // Expected behavior:
+        // - Keypair removed from device keystore
+        // - DataStore cleaned up
+        // - Server notified of successful removal
+        // - CleanupResult.Success returned with alias
+    }
+
+    @Ignore("Requires DevicePolicyManager mocking - documents error handling behavior")
+    @Test
+    fun `cleanupRemovedCertificates handles removeKeyPair failure`() = runTest {
+        // This test documents the expected error handling when removeKeyPair fails:
+        //
+        // 1. Identify certificate to remove
+        // 2. Call DevicePolicyManager.removeKeyPair() - returns false (failure)
+        // 3. Call ApiClient.updateCertificateStatus() with status="failed"
+        // 4. DO NOT remove from DataStore (keep for investigation)
+        // 5. Return CleanupResult.Failure
+        //
+        // Expected behavior:
+        // - Keypair not removed (permission/delegation issue)
+        // - DataStore NOT cleaned (certificate remains tracked)
+        // - Server notified of failure
+        // - CleanupResult.Failure returned with reason
+    }
+
+    @Ignore("Requires DevicePolicyManager and ApiClient mocking - documents resilience behavior")
+    @Test
+    fun `cleanupRemovedCertificates continues cleanup when ApiClient fails`() = runTest {
+        // This test documents resilience when server communication fails:
+        //
+        // 1. Identify certificate to remove
+        // 2. Call DevicePolicyManager.removeKeyPair() - succeeds
+        // 3. Call ApiClient.updateCertificateStatus() - network error (fails)
+        // 4. Still remove from DataStore (local cleanup is most important)
+        // 5. Return CleanupResult.Success (local operation succeeded)
+        //
+        // Expected behavior:
+        // - Keypair removed from device despite server communication failure
+        // - DataStore cleaned up
+        // - Server notification failure logged but doesn't block cleanup
+        // - CleanupResult.Success returned (local state is correct)
+    }
+
     // ========== Helper Methods for Tests ==========
 
     private fun createMockTemplate(
