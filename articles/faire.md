@@ -1,25 +1,5 @@
 # Faire secures Macs with CIS benchmarks and Fleet
 
-<!-- <case-study-summary>
-
-### Challenge
-
-Faire’s previous MDM slowed them down. It lacked timely support for new OS controls, its APIs made config-as-code workflows hard to automate, and support responses were too slow to keep up with their needs.
-
-### Solution
-
-Fleet replaced their previous MDM for managing Macs and iPads, and supports the GitOps workflows they use to manage their infrastructure.
-
-
-### Key results
-
-- Enforced CIS Level 1 benchmarks to keep laptops secure
-- Migrated 1,000 Macs and iPads to Fleet without disruption
-- Moved device management workflows into GitOps
-- Received proactive support from Fleet
-
-</case-study-summary>
- -->
 
 ## Why Faire needed a change
 
