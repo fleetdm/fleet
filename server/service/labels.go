@@ -227,7 +227,7 @@ type getLabelRequest struct {
 }
 
 type labelResponse struct {
-	fleet.Label
+	fleet.LabelWithTeamName
 	DisplayText string `json:"display_text"`
 	Count       int    `json:"count"`
 	HostIDs     []uint `json:"host_ids,omitempty"`
@@ -253,7 +253,7 @@ func getLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Servic
 	return getLabelResponse{Label: *resp}, nil
 }
 
-func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.Label, []uint, error) {
+func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.LabelWithTeamName, []uint, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
 		return nil, nil, err
 	}
@@ -331,12 +331,12 @@ func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions, inclu
 	return svc.ds.ListLabels(ctx, filter, opt)
 }
 
-func labelResponseForLabel(label *fleet.Label, hostIDs []uint) (*labelResponse, error) {
+func labelResponseForLabel(label *fleet.LabelWithTeamName, hostIDs []uint) (*labelResponse, error) {
 	return &labelResponse{
-		Label:       *label,
-		DisplayText: label.Name,
-		Count:       label.HostCount,
-		HostIDs:     hostIDs,
+		LabelWithTeamName: *label,
+		DisplayText:       label.Name,
+		Count:             label.HostCount,
+		HostIDs:           hostIDs,
 	}, nil
 }
 

@@ -154,6 +154,11 @@ type Label struct {
 	TeamID              *uint               `json:"team_id" db:"team_id"`
 }
 
+type LabelWithTeamName struct {
+	Label
+	TeamName *string `json:"team_name" db:"team_name"`
+}
+
 // Implement the HostVitalsLabel interface.
 func (l *Label) GetLabel() *Label {
 	return l

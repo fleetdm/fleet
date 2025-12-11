@@ -203,7 +203,7 @@ func batchHostnames(hostnames []string) [][]string {
 	return batches
 }
 
-func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// delete all label membership
 		sql := `
@@ -418,7 +418,7 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 	return label, nil
 }
 
-func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 	query := `UPDATE labels SET name = ?, description = ? WHERE id = ?`
 	_, err := ds.writer(ctx).ExecContext(ctx, query, label.Name, label.Description, label.ID)
 	if err != nil {
@@ -470,20 +470,20 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string) error {
 }
 
 // Label returns a fleet.Label identified by lid if one exists.
-func (ds *Datastore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+func (ds *Datastore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 	return ds.labelDB(ctx, lid, teamFilter, ds.reader(ctx))
 }
 
-func (ds *Datastore) labelDB(ctx context.Context, lid uint, teamFilter fleet.TeamFilter, q sqlx.QueryerContext) (*fleet.Label, []uint, error) {
+func (ds *Datastore) labelDB(ctx context.Context, lid uint, teamFilter fleet.TeamFilter, q sqlx.QueryerContext) (*fleet.LabelWithTeamName, []uint, error) {
 	stmt := fmt.Sprintf(`
 		SELECT
-		       l.*,
+		       l.*, teams.name team_name,
 		       (SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s) AS host_count
-		FROM labels l
-		WHERE id = ?
+		FROM labels l LEFT JOIN teams ON teams.id = labels.team_id
+		WHERE labels.id = ?
 	`, ds.whereFilterHostsByTeams(teamFilter, "h"))
 
-	var label fleet.Label
+	var label fleet.LabelWithTeamName
 	if err := sqlx.GetContext(ctx, q, &label, stmt, lid); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil, ctxerr.Wrap(ctx, notFound("Label").WithID(lid))
