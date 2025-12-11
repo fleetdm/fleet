@@ -47,25 +47,29 @@ Signing configuration is already set up in `build.gradle.kts`. You just need to 
 1. **Create a keystore:**
 
 ```bash
-keytool -genkey -v -keystore keystore.jks \
+keytool -genkeypair \
   -alias fleet-android \
-  -keyalg RSA -keysize 2048 -validity 10000
+  -keyalg EC \
+  -groupname secp256r1 \
+  -validity 10000 \
+  -keystore key.p12 \
+  -storetype PKCS12 \
+  -storepass YOUR_PASSWORD \
+  -dname "CN=Your Name, O=Your Org, L=City, ST=State, C=US"
 ```
 
-You'll be prompted for:
-- **Password** (enter twice for confirmation) - This will be used for both keystore and key
-- Your name, organization, location, etc.
+This creates a PKCS12 keystore with an ECDSA key (secp256r1 curve), which is the recommended format for Android signing.
 
 2. **Create `keystore.properties` file in the `android/` directory:**
 
 ```properties
-storeFile=path/to/keystore.jks
-storePassword=your-password
+storeFile=/path/to/key.p12
+storePassword=YOUR_PASSWORD
 keyAlias=fleet-android
-keyPassword=your-password
+keyPassword=YOUR_PASSWORD
 ```
 
-**Note:** Use the same password you entered during keystore creation for both `storePassword` and `keyPassword`.
+**Note:** For PKCS12 keystores, use the same password for both `storePassword` and `keyPassword`.
 
 3. **Build signed release:**
 
@@ -101,9 +105,9 @@ jarsigner -verify app/build/outputs/bundle/release/app-release.aab
 The SHA256 fingerprint is required for MDM deployment. You can get it from your keystore.
 
 ```bash
-keytool -list -v -keystore keystore.jks -alias fleet-android
-# Grab SHA256
-echo <SHA256> | xxd -r -p | base64
+keytool -list -v -keystore key.p12 -alias fleet-android
+# Grab SHA256 (remove colons and convert to base64)
+echo <SHA256> | tr -d ':' | xxd -r -p | base64
 ```
 
 Copy the fingerprint for use in `FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256`
