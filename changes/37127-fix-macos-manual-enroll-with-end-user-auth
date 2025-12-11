@@ -1,1 +1,1 @@
-- Fixed issue where MacOS devices were blocked from enrolling when Orbit was installed manually.
+- Fixed an issue where MacOS devices were blocked from enrolling when Orbit was installed manually.
