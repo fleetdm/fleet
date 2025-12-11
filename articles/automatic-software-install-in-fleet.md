@@ -11,10 +11,9 @@ Current supported software deployment formats:
 - Windows: .msi, .exe, and [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps)
 - Linux: .deb, .rpm
 
-> Script packages (`.sh` and `.ps1` files) do not support automatic install.
-
 > If you check the "Automatic install" box when adding software, you do not have to create your own policy, so you can skip the remaining steps of this process.
 
+> Script packages (`.sh` and `.ps1` files) do not support automatic install.
 2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go the **Policies** tab, select a team, then press the **Add policy** button. Next, click **Create your own policy**, enter your policy SQL, click **Save**, fill in remaining details in the Save modal, then and click **Save** again.
 
 ```sql
