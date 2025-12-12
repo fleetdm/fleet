@@ -1304,7 +1304,7 @@ func getAndroidAppConfig(path string) (json.RawMessage, error) {
 
 	configReader, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("reading config file: %w", err)
+		return nil, fmt.Errorf("reading android app configuration file: %w", err)
 	}
 
 	config := json.RawMessage(configReader)
