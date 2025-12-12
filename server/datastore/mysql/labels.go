@@ -203,7 +203,7 @@ func batchHostnames(hostnames []string) [][]string {
 	return batches
 }
 
-func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
 	// TODO ensure host IDs are in the same team for a team label
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -251,7 +251,12 @@ VALUES ` + strings.Join(placeholders, ", ")
 		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostIDs transaction")
 	}
 
-	return ds.labelDB(ctx, labelID, teamFilter, ds.writer(ctx))
+	updatedLabel, hostIDs, err := ds.labelDB(ctx, labelID, teamFilter, ds.writer(ctx))
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostIDs get label after update")
+	}
+
+	return updatedLabel.GetLabel(), hostIDs, err
 }
 
 // Update label membership for a host vitals label.

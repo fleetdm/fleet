@@ -136,8 +136,8 @@ type modifyLabelRequest struct {
 }
 
 type modifyLabelResponse struct {
-	Label labelResponse `json:"label"`
-	Err   error         `json:"error,omitempty"`
+	Label labelWithTeamNameResponse `json:"label"`
+	Err   error                     `json:"error,omitempty"`
 }
 
 func (r modifyLabelResponse) Error() error { return r.Err }
@@ -149,7 +149,7 @@ func modifyLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		return modifyLabelResponse{Err: err}, nil
 	}
 
-	labelResp, err := labelResponseForLabel(label, hostIDs)
+	labelResp, err := labelResponseForLabelWithTeamName(label, hostIDs)
 	if err != nil {
 		return modifyLabelResponse{Err: err}, nil
 	}
@@ -157,7 +157,7 @@ func modifyLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	return modifyLabelResponse{Label: *labelResp}, err
 }
 
-func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.Label, []uint, error) {
+func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.LabelWithTeamName, []uint, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
 		return nil, nil, err
 	}
@@ -215,7 +215,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		}
 	}
 
-	return svc.ds.SaveLabel(ctx, label, filter)
+	return svc.ds.SaveLabel(ctx, &label.Label, filter)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -226,16 +226,23 @@ type getLabelRequest struct {
 	ID uint `url:"id"`
 }
 
-type labelResponse struct {
+type labelWithTeamNameResponse struct {
 	fleet.LabelWithTeamName
 	DisplayText string `json:"display_text"`
 	Count       int    `json:"count"`
 	HostIDs     []uint `json:"host_ids,omitempty"`
 }
 
+type labelResponse struct {
+	fleet.Label
+	DisplayText string `json:"display_text"`
+	Count       int    `json:"count"`
+	HostIDs     []uint `json:"host_ids,omitempty"`
+}
+
 type getLabelResponse struct {
-	Label labelResponse `json:"label"`
-	Err   error         `json:"error,omitempty"`
+	Label labelWithTeamNameResponse `json:"label"`
+	Err   error                     `json:"error,omitempty"`
 }
 
 func (r getLabelResponse) Error() error { return r.Err }
@@ -246,7 +253,7 @@ func getLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Servic
 	if err != nil {
 		return getLabelResponse{Err: err}, nil
 	}
-	resp, err := labelResponseForLabel(label, hostIDs)
+	resp, err := labelResponseForLabelWithTeamName(label, hostIDs)
 	if err != nil {
 		return getLabelResponse{Err: err}, nil
 	}
@@ -331,8 +338,17 @@ func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions, inclu
 	return svc.ds.ListLabels(ctx, filter, opt)
 }
 
-func labelResponseForLabel(label *fleet.LabelWithTeamName, hostIDs []uint) (*labelResponse, error) {
+func labelResponseForLabel(label *fleet.Label, hostIDs []uint) (*labelResponse, error) {
 	return &labelResponse{
+		Label:       *label,
+		DisplayText: label.Name,
+		Count:       label.HostCount,
+		HostIDs:     hostIDs,
+	}, nil
+}
+
+func labelResponseForLabelWithTeamName(label *fleet.LabelWithTeamName, hostIDs []uint) (*labelWithTeamNameResponse, error) {
+	return &labelWithTeamNameResponse{
 		LabelWithTeamName: *label,
 		DisplayText:       label.Name,
 		Count:             label.HostCount,
