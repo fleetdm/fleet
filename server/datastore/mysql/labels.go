@@ -204,6 +204,8 @@ func batchHostnames(hostnames []string) [][]string {
 }
 
 func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+	// TODO ensure host IDs are in the same team for a team label
+
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// delete all label membership
 		sql := `
