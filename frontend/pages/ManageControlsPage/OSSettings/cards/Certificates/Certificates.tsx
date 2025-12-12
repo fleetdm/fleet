@@ -51,7 +51,9 @@ const Certificates = ({
   currentPage = 0,
   onMutation,
 }: ICertificatesProps) => {
-  const [showAddCertModal, setShowAddCertModal] = useState(false);
+  const [showAddCertTemplateModal, setShowAddCertTemplateModal] = useState(
+    false
+  );
   const [
     certTemplateToDelete,
     setCertTemplateToDelete,
@@ -62,10 +64,10 @@ const Certificates = ({
   const androidMdmEnabled = true;
 
   let {
-    data: certsResp,
-    isLoading: isLoadingCerts,
-    isError: isErrorCerts,
-    refetch: refetchCerts,
+    data: cTsResp,
+    isLoading: isLoadingCTs,
+    isError: isErrorCTs,
+    refetch: refetchCTs,
   } = useQuery<
     IGetCertTemplatesResponse,
     AxiosError,
@@ -74,7 +76,7 @@ const Certificates = ({
   >(
     [
       {
-        scope: "certificates",
+        scope: "certificate_templates",
         team_id: currentTeamId,
         page: currentPage,
         per_page: 10,
@@ -88,7 +90,7 @@ const Certificates = ({
   );
 
   // TODO - undo
-  certsResp = {
+  cTsResp = {
     certificates: [createMockAndroidCertTemplate()],
     meta: {
       has_next_results: false,
@@ -96,12 +98,12 @@ const Certificates = ({
     },
   };
 
-  const certs = certsResp?.certificates;
+  const cTs = cTsResp?.certificates;
   const { has_next_results: hasNext, has_previous_results: hasPrev } =
-    certsResp?.meta || {};
+    cTsResp?.meta || {};
 
   const onAddCert = () => {
-    refetchCerts();
+    refetchCTs();
     onMutation();
   };
 
@@ -148,28 +150,28 @@ const Certificates = ({
         />
       );
     }
-    if (isLoadingCerts) {
+    if (isLoadingCTs) {
       return <Spinner />;
     }
 
-    if (isErrorCerts) {
+    if (isErrorCTs) {
       return <DataError />;
     }
 
-    if (!certs?.length) {
-      return <AddCertificateCard setShowModal={setShowAddCertModal} />;
+    if (!cTs?.length) {
+      return <AddCertificateCard setShowModal={setShowAddCertTemplateModal} />;
     }
 
     return (
       <>
         <UploadList
           keyAttribute="id"
-          listItems={certs || []}
+          listItems={cTs || []}
           HeadingComponent={() => (
             <UploadListHeading
               entityName="Certificate"
               createEntityText="Create"
-              onClickAdd={() => setShowAddCertModal(true)}
+              onClickAdd={() => setShowAddCertTemplateModal(true)}
             />
           )}
           ListItemComponent={({ listItem }) => {
@@ -238,7 +240,13 @@ const Certificates = ({
         }
       />
       {renderContent()}
-      {showAddCertModal && <>TODO - Add Cert Modal</>}
+      {showAddCertTemplateModal && (
+        <AddCertTemplateModal
+          existingCTs={cTs}
+          onExit={() => setShowAddCertTemplateModal(false)}
+          onAdd={onAddCert}
+        />
+      )}
       {certTemplateToDelete && (
         <DeleteCertTemplateModal
           cT={certTemplateToDelete}

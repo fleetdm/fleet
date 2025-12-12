@@ -50,7 +50,7 @@ interface IGetCertTemplatesParams extends PaginationParams {
 }
 
 export interface IQueryKeyGetCerts extends IGetCertTemplatesParams {
-  scope: "certificates";
+  scope: "certificate_templates";
 }
 export interface ICertTemplate {
   id: number;
@@ -61,7 +61,7 @@ export interface ICertTemplate {
 }
 export interface IGetCertTemplatesResponse {
   meta: ListEntitiesResponsePaginationCommon;
-  certificates: ICertTemplate[];
+  certificates: ICertTemplate[]; // TODO - lobby to call this certificate_templates
 }
 
 export interface ICreateCertTemplate {
