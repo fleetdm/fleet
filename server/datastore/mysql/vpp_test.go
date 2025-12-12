@@ -2452,11 +2452,11 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 	expectedConfig1 := json.RawMessage(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED", "managedConfiguration": {"1": 1}}`)
 
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
-		{VPPAppID: app1.VPPAppID, SelfService: true, DisplayName: ptr.String("app 1")},
-		{VPPAppID: app2.VPPAppID, SelfService: true, DisplayName: ptr.String("app 2"), Configuration: json.RawMessage(nil)},
-		{VPPAppID: app3.VPPAppID, SelfService: true, DisplayName: ptr.String("app 3"), Configuration: json.RawMessage(`{}`)},
-		{VPPAppID: app4.VPPAppID, SelfService: true, DisplayName: ptr.String("app 4"), Configuration: config1},
-	}, map[string]uint{"1": 1, "2": 2, "3": 3, "4": 4})
+		{VPPAppID: app1.VPPAppID, SelfService: true, DisplayName: ptr.String("name 1")},
+		{VPPAppID: app2.VPPAppID, SelfService: true, DisplayName: ptr.String("name 2"), Configuration: json.RawMessage(nil)},
+		{VPPAppID: app3.VPPAppID, SelfService: true, DisplayName: ptr.String("name 3"), Configuration: json.RawMessage(`{}`)},
+		{VPPAppID: app4.VPPAppID, SelfService: true, DisplayName: ptr.String("name 4"), Configuration: config1},
+	}, map[string]uint{"1_android": 1, "2_android": 2, "3_android": 3, "4_android": 4})
 	require.NoError(t, err)
 
 	assigned, err := ds.GetAssignedVPPApps(ctx, &team.ID)
