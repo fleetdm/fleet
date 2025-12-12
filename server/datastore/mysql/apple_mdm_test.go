@@ -3357,7 +3357,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	// no enrolled host, unknown command
-	res, err := ds.GetMDMAppleCommandResults(ctx, uuid.New().String())
+	res, err := ds.GetMDMAppleCommandResults(ctx, uuid.New().String(), "")
 	require.NoError(t, err)
 	require.Empty(t, res)
 
@@ -3403,7 +3403,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint16(mysqlerr.ER_NO_REFERENCED_ROW_2), mysqlErr.Number)
 
 	// command has no results
-	res, err = ds.GetMDMAppleCommandResults(ctx, uuid1)
+	res, err = ds.GetMDMAppleCommandResults(ctx, uuid1, "")
 	require.NoError(t, err)
 	require.Empty(t, res)
 
@@ -3418,7 +3418,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// command has no results yet
-	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2)
+	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2, "")
 	require.NoError(t, err)
 	require.Empty(t, res)
 	// but it's already enqueued
@@ -3438,7 +3438,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// command has a result for [0]
-	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2)
+	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2, "")
 	require.NoError(t, err)
 	require.Len(t, res, 1)
 	require.NotZero(t, res[0].UpdatedAt)
@@ -3467,7 +3467,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// command has both results
-	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2)
+	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2, "")
 	require.NoError(t, err)
 	require.Len(t, res, 2)
 
@@ -3503,7 +3503,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	err = ds.DeleteHost(ctx, enrolledHosts[0].ID)
 	require.NoError(t, err)
 
-	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2)
+	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2, "")
 	require.NoError(t, err)
 	require.Len(t, res, 2)
 

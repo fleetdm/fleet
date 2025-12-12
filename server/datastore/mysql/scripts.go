@@ -1542,7 +1542,7 @@ func (ds *Datastore) getHostMDMAppleCommand(ctx context.Context, cmdUUID, hostUU
 	// get the MDM command result, which may be not found (indicating the command
 	// is pending). Note that it doesn't return ErrNoRows if not found, it
 	// returns success and an empty cmdRes slice.
-	cmdResults, err := ds.GetMDMAppleCommandResults(ctx, cmdUUID)
+	cmdResults, err := ds.GetMDMAppleCommandResults(ctx, cmdUUID, "")
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "get Apple MDM command result")
 	}
