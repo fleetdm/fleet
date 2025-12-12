@@ -136,7 +136,7 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 
 	// next, we need to read the command results before we know what hosts (and
 	// therefore what teams) we're dealing with.
-	results, err := svc.ds.GetMDMAppleCommandResults(ctx, commandUUID)
+	results, err := svc.ds.GetMDMAppleCommandResults(ctx, commandUUID, "")
 	if err != nil {
 		return nil, err
 	}
