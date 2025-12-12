@@ -283,7 +283,7 @@ func (c *Client) deleteMacOSSetupAssistant(teamID *uint) error {
 func (c *Client) MDMListCommands(opts fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
 	const defaultCommandsPerPage = 20
 
-	verb, path := http.MethodGet, "/api/latest/fleet/mdm/commands"
+	verb, path := http.MethodGet, "/api/latest/fleet/commands"
 
 	query := url.Values{}
 	query.Set("per_page", fmt.Sprint(defaultCommandsPerPage))
@@ -311,7 +311,7 @@ func (c *Client) MDMListCommands(opts fleet.MDMCommandListOptions) ([]*fleet.MDM
 }
 
 func (c *Client) MDMGetCommandResults(commandUUID, hostIdentifier string) ([]*fleet.MDMCommandResult, error) {
-	verb, path := http.MethodGet, "/api/latest/fleet/mdm/commandresults"
+	verb, path := http.MethodGet, "/api/latest/fleet/commands/results"
 
 	query := url.Values{}
 	query.Set("command_uuid", commandUUID)
