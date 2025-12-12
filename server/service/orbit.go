@@ -583,7 +583,7 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 		adminTeamFilter := fleet.TeamFilter{
 			User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 		}
-		acctCmds, err := svc.ds.ListMDMCommands(ctx, adminTeamFilter, &fleet.MDMCommandListOptions{
+		acctCmds, _, err := svc.ds.ListMDMCommands(ctx, adminTeamFilter, &fleet.MDMCommandListOptions{
 			Filters: fleet.MDMCommandFilters{
 				HostIdentifier: host.UUID,
 				RequestType:    "AccountConfiguration",
