@@ -3217,7 +3217,7 @@ func testWindowsMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 
 			t.Run("Non renewal scenario 1 - validity window > 30 days but not yet time to renew", func(t *testing.T) {
 				// Set not_valid_before to 1 day in the past and not_valid_after to 31 days in the future so
-				// teh validity window is 32 days of which there are 31 left which should not trigger renewal
+				// the validity window is 32 days of which there are 31 left which should not trigger renewal
 				notValidAfter := time.Now().Add(31 * 24 * time.Hour).UTC().Round(time.Microsecond)
 				notValidBefore := time.Now().Add(-1 * 24 * time.Hour).UTC().Round(time.Microsecond)
 				err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
