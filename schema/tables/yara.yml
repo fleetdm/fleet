@@ -1,4 +1,10 @@
 name: yara
+columns:
+  - name: count
+    description: |-
+      Number of YARA matches. 
+      _Note that `count` is a reserved word and should be wrapped in quotes when referencing this column in a query._
+    type: INTEGER
 examples: |-
   Look for files under `/root` that match a Yara signature. This example uses the [EICAR test file](https://www.eicar.org/download-anti-malware-testfile/).
 

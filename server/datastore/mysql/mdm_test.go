@@ -800,9 +800,9 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 
 	// add fleet-managed Apple profiles for the team and globally
 	for idf := range mobileconfig.FleetPayloadIdentifiers() {
-		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("name_"+idf, idf, team.ID), nil)
+		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("name_"+idf, idf, team.ID), nil)
 		require.NoError(t, err)
-		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("name_"+idf, idf, 0), nil)
+		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("name_"+idf, idf, 0), nil)
 		require.NoError(t, err)
 	}
 
@@ -845,7 +845,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Equal(t, *meta, fleet.PaginationMetadata{})
 
 	// create a mac profile for global and a Windows profile for team
-	profA, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("A", "A", 0), nil)
+	profA, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("A", "A", 0), nil)
 	require.NoError(t, err)
 	profB, err := ds.NewMDMWindowsConfigProfile(
 		ctx,
@@ -882,7 +882,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		inc := i * 6 // e.g. C, D, E, F, G, H on first loop, I, J, K, L, M, N on second loop, O, P, Q, R, S, T on third
 
 		// create label-based profiles for i==0, meaning CDEF will be label-based
-		acp := *generateCP(string(rune('C'+inc)), string(rune('C'+inc)), 0) // C, I and O
+		acp := *generateAppleCP(string(rune('C'+inc)), string(rune('C'+inc)), 0) // C, I and O
 		if i == 0 {
 			acp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[0].Name, LabelID: labels[0].ID},
@@ -892,7 +892,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		_, err = ds.NewMDMAppleConfigProfile(ctx, acp, nil)
 		require.NoError(t, err)
 
-		acp = *generateCP(string(rune('C'+inc+1)), string(rune('C'+inc+1)), team.ID) // D, J and P
+		acp = *generateAppleCP(string(rune('C'+inc+1)), string(rune('C'+inc+1)), team.ID) // D, J and P
 		if i == 0 {
 			acp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[2].Name, LabelID: labels[2].ID},
@@ -8347,11 +8347,11 @@ func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create some profiles , a and b for no team, c for team
-	profA, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 0), nil)
+	profA, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("a", "a", 0), nil)
 	require.NoError(t, err)
-	profB, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", 0), nil)
+	profB, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("b", "b", 0), nil)
 	require.NoError(t, err)
-	profC, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("c", "c", team.ID), nil)
+	profC, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("c", "c", team.ID), nil)
 	require.NoError(t, err)
 
 	t.Logf("profA=%s, profB=%s, profC=%s", profA.ProfileUUID, profB.ProfileUUID, profC.ProfileUUID)
