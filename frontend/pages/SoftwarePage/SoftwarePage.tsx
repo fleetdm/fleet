@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { Tab, TabList, Tabs } from "react-tabs";
@@ -103,6 +103,7 @@ interface ISoftwarePageProps {
     query: {
       team_id?: string;
       available_for_install?: string;
+      self_service?: string;
       vulnerable?: string;
       exploit?: string;
       min_cvss_score?: string;
@@ -217,6 +218,24 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       select: (data) => ("team" in data ? data.team : data),
     }
   );
+
+  // When switching to "All teams" context, remove only unsupported query params in URL
+  useEffect(() => {
+    // teamIdForApi is undefined for "All teams"
+    if (teamIdForApi === undefined) {
+      const { available_for_install, self_service, ...rest } = location.query;
+
+      if (available_for_install !== undefined || self_service !== undefined) {
+        router.replace(
+          getNextLocationPath({
+            pathPrefix: location.pathname,
+            routeTemplate: "",
+            queryParams: rest,
+          })
+        );
+      }
+    }
+  }, [teamIdForApi, location.pathname, location.query, router]);
 
   const isSoftwareConfigLoaded =
     !isFetchingSoftwareConfig && !softwareConfigError && !!softwareConfig;
