@@ -9,7 +9,6 @@ They had used their previous MDM for several years, but frustration grew as it l
 
 With all their other IT systems, like their IDP, productivity software, and cloud infrastructure, all configured through code with automated CI/CD pipelines, maintaining an MDM that had to be managed via the UI became increasingly painful.
 
-Faire’s workflow, based on ‘config-as-code’, also proved challenging for their previous MDM. With all their other IT systems - like their IDP, productivity software, and cloud infrastructure all configured through code with automated CI/CD pipelines, it became increasingly painful to keep an MDM that had to be managed via the UI.
 
 One team member spent months trying to build a Terraform provider for the previous MDM, but gave up because of bugs and inconsistent APIs.
 
