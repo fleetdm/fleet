@@ -35,6 +35,7 @@ interface IManualLabelFormProps {
   defaultName?: string;
   defaultDescription?: string;
   defaultTargetedHosts?: IHost[];
+  teamName: string | null;
   onSave: (formData: IManualLabelFormData) => void;
   onCancel: () => void;
 }
@@ -43,6 +44,7 @@ const ManualLabelForm = ({
   defaultName = "",
   defaultDescription = "",
   defaultTargetedHosts = [],
+  teamName,
   onSave,
   onCancel,
 }: IManualLabelFormProps) => {
@@ -128,6 +130,7 @@ const ManualLabelForm = ({
       <LabelForm
         defaultName={defaultName}
         defaultDescription={defaultDescription}
+        teamName={teamName}
         onCancel={onCancel}
         onSave={onSaveNewLabel}
         additionalFields={

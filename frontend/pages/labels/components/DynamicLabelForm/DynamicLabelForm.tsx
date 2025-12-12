@@ -32,6 +32,7 @@ interface IDynamicLabelFormProps {
   isEditing?: boolean;
   onOpenSidebar?: () => void;
   onOsqueryTableSelect?: (tableName: string) => void;
+  teamName: string | null;
   onSave: (formData: IDynamicLabelFormData) => void;
   onCancel: () => void;
 }
@@ -45,6 +46,7 @@ const DynamicLabelForm = ({
   showOpenSidebarButton = false,
   onOpenSidebar,
   onOsqueryTableSelect,
+  teamName,
   onSave,
   onCancel,
 }: IDynamicLabelFormProps) => {
@@ -120,6 +122,7 @@ const DynamicLabelForm = ({
       <LabelForm
         defaultName={defaultName}
         defaultDescription={defaultDescription}
+        teamName={teamName}
         onSave={onSaveForm}
         onCancel={onCancel}
         additionalFields={

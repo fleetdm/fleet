@@ -5,6 +5,7 @@ import validate_presence from "components/forms/validators/validate_presence";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
+import TeamNameField from "../TeamNameField/TeamNameField";
 
 export interface ILabelFormData {
   name: string;
@@ -16,6 +17,8 @@ interface ILabelFormProps {
   defaultDescription?: string;
   additionalFields?: ReactNode;
   isUpdatingLabel?: boolean;
+  // Nullable string, required prop per request; pass-through from parent
+  teamName?: string | null;
   onCancel: () => void;
   onSave: (formData: ILabelFormData, isValid: boolean) => void;
 }
@@ -27,6 +30,7 @@ const LabelForm = ({
   defaultDescription = "",
   additionalFields,
   isUpdatingLabel,
+  teamName,
   onCancel,
   onSave,
 }: ILabelFormProps) => {
@@ -75,6 +79,11 @@ const LabelForm = ({
         type="textarea"
         placeholder="Label description (optional)"
       />
+      {teamName ? (
+        // Lazy import to avoid circulars; colocated component
+        // We keep a static import at the top for clarity in this codebase style
+        <TeamNameReadOnly teamName={teamName} />
+      ) : null}
       {additionalFields}
       <div className="button-wrap">
         <Button onClick={onCancel} variant="inverse">
