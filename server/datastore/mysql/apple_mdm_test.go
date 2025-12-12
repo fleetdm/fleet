@@ -3420,8 +3420,14 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	// command has no results yet
 	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2, "")
 	require.NoError(t, err)
-	require.Empty(t, res)
-	// but it's already enqueued
+	require.Len(t, res, 2)
+	for _, r := range res {
+		require.Equal(t, r.CommandUUID, uuid2)
+		require.Equal(t, r.Status, "Pending")
+		require.Equal(t, r.RequestType, "ProfileList")
+		require.Empty(t, r.Result)
+		require.Equal(t, []byte(rawCmd2), r.Payload)
+	}
 	p, err = ds.GetMDMCommandPlatform(ctx, uuid2)
 	require.NoError(t, err)
 	require.Equal(t, "darwin", p)
@@ -3440,17 +3446,20 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	// command has a result for [0]
 	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2, "")
 	require.NoError(t, err)
-	require.Len(t, res, 1)
-	require.NotZero(t, res[0].UpdatedAt)
-	res[0].UpdatedAt = time.Time{}
-	require.Equal(t, res[0], &fleet.MDMCommandResult{
-		HostUUID:    enrolledHosts[0].UUID,
-		CommandUUID: uuid2,
-		Status:      "Acknowledged",
-		RequestType: "ProfileList",
-		Result:      []byte(rawCmd2),
-		Payload:     []byte(rawCmd2),
-	})
+	require.Len(t, res, 2)
+	for _, r := range res {
+		require.Equal(t, r.CommandUUID, uuid2)
+		require.Equal(t, r.RequestType, "ProfileList")
+		require.Equal(t, []byte(rawCmd2), r.Payload)
+		if r.HostUUID == enrolledHosts[0].UUID {
+			require.Equal(t, r.Status, "Acknowledged")
+			require.Equal(t, r.Result, []byte(rawCmd2))
+		} else {
+			require.Equal(t, r.HostUUID, enrolledHosts[1].UUID)
+			require.Equal(t, r.Status, "Pending")
+			require.Empty(t, r.Result)
+		}
+	}
 	p, err = ds.GetMDMCommandPlatform(ctx, uuid2)
 	require.NoError(t, err)
 	require.Equal(t, "darwin", p)
