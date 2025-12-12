@@ -281,6 +281,8 @@ WHERE
 	}
 	listStmt, params = appendListOptionsWithCursorToSQL(listStmt, params, &listOpts.ListOptions)
 
+	fmt.Printf("list mdm commands stmt: %s", listStmt) // for debugging
+
 	var results []*fleet.MDMCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list commands")
@@ -2665,4 +2667,87 @@ func (ds *Datastore) ListHostMDMManagedCertificates(ctx context.Context, hostUUI
 	WHERE host_uuid = ?
 	`, hostUUID)
 	return hostCertsToRenew, ctxerr.Wrap(ctx, err, "get mdm managed certificates for host")
+}
+
+// RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
+func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
+	totalHostCertsToRenew := 0
+	hostCertTypesToRenew := fleet.ListCATypesWithRenewalSupport()
+	// Map is used to take advantage of Go map iteration order randomization so that
+	// if a customer is issuing certs across multiple platforms we will not bias renewals
+	// toward a specific platform
+	hostProfileTables := map[string]string{
+		"apple":   "host_mdm_apple_profiles",
+		"windows": "host_mdm_windows_profiles",
+	}
+	for _, hostCertType := range hostCertTypesToRenew {
+		// Limit to 1000 renewals per CA type per run across all platforms
+		limit := 1000
+		for hostPlatform, table := range hostProfileTables {
+			if limit == 0 {
+				level.Debug(ds.logger).Log("msg", "Skipping check of %s certificates on %s hosts to renew - limit exceeded by prior platform", hostCertType, hostPlatform)
+				continue
+			}
+			// This will trigger a resend next time profiles are checked
+			updateQuery := `UPDATE ` + table + ` SET status = NULL WHERE status IS NOT NULL AND operation_type = ? AND (`
+			hostProfileClause := ``
+			values := []interface{}{fleet.MDMOperationTypeInstall}
+			hostCertsToRenew := []struct {
+				HostUUID       string    `db:"host_uuid"`
+				ProfileUUID    string    `db:"profile_uuid"`
+				NotValidAfter  time.Time `db:"not_valid_after"`
+				ValidityPeriod int       `db:"validity_period"`
+			}{}
+			// Fetch all MDM Managed certificates of the given type that aren't already queued for
+			// resend(hmap.status=null) and which
+			// * Have a validity period > 30 days and are expiring in the next 30 days
+			// * Have a validity period <= 30 days and are within half the validity period of expiration
+			// nb: we SELECT not_valid_after and validity_period here so we can use them in the HAVING clause, but
+			// we don't actually need them for the update logic.
+			err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
+	SELECT
+		hmmc.host_uuid,
+		hmmc.profile_uuid,
+		hmmc.not_valid_after,
+		DATEDIFF(hmmc.not_valid_after, hmmc.not_valid_before) AS validity_period
+	FROM
+		host_mdm_managed_certificates hmmc
+	INNER JOIN
+		`+table+` hp
+		ON hmmc.host_uuid = hp.host_uuid AND hmmc.profile_uuid = hp.profile_uuid
+	WHERE
+		hmmc.type = ? AND hp.status IS NOT NULL AND hp.operation_type = ?
+	HAVING
+		validity_period IS NOT NULL AND
+		((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
+		(validity_period <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
+	LIMIT ?`, hostCertType, fleet.MDMOperationTypeInstall, limit)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
+			}
+			if len(hostCertsToRenew) == 0 {
+				level.Debug(ds.logger).Log("msg", "No %s certificates on %s hosts to renew", hostCertType, hostPlatform)
+				continue
+			}
+			limit -= len(hostCertsToRenew)
+			totalHostCertsToRenew += len(hostCertsToRenew)
+
+			for _, hostCertToRenew := range hostCertsToRenew {
+				hostProfileClause += `(host_uuid = ? AND profile_uuid = ?) OR `
+				values = append(values, hostCertToRenew.HostUUID, hostCertToRenew.ProfileUUID)
+			}
+			hostProfileClause = strings.TrimSuffix(hostProfileClause, " OR ")
+
+			level.Info(ds.logger).Log("msg", "Renewing MDM managed certificates", "len", len(hostCertsToRenew), "type", hostCertType, "platform", hostPlatform)
+			err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+				_, err := tx.ExecContext(ctx, updateQuery+hostProfileClause+")", values...)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "updating mdm managed certificates to renew")
+				}
+				return nil
+			})
+		}
+	}
+
+	return nil
 }
