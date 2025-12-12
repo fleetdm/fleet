@@ -275,7 +275,6 @@ export interface IMdmCommandResult {
   payload: string;
   /** Result is a base64-enconded string containing the MDM command response */
   result: string;
-  platform?: string;
   /** SoftwareInstalled indicates if the software is currently installed on the host.
    * Only populated for VPP app install commands for now. */
   software_installed?: boolean;

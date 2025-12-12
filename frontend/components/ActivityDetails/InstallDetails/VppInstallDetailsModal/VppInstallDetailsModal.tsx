@@ -64,11 +64,11 @@ export const getStatusMessage = ({
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
   const displayTimeStamp =
     ["failed_install", "installed"].includes(displayStatus || "") &&
-    commandUpdatedAt
+      commandUpdatedAt
       ? ` (${formatDistanceToNow(new Date(commandUpdatedAt), {
-          includeSeconds: true,
-          addSuffix: true,
-        })})`
+        includeSeconds: true,
+        addSuffix: true,
+      })})`
       : null;
 
   // Handles "pending" value prior to 4.57
@@ -318,8 +318,8 @@ export const VppInstallDetailsModal = ({
     async () => {
       return deviceAuthToken
         ? deviceUserAPI
-            .getVppCommandResult(deviceAuthToken, commandUuid)
-            .then(responseHandler)
+          .getVppCommandResult(deviceAuthToken, commandUuid)
+          .then(responseHandler)
         : mdmApi.getCommandResults(commandUuid).then(responseHandler);
     },
     {
@@ -364,10 +364,7 @@ export const VppInstallDetailsModal = ({
     appName,
     hostDisplayName,
     commandUpdatedAt: vppCommandResult?.updated_at || "",
-    platform:
-      vppCommandResult?.platform ||
-      hostSoftware?.app_store_app?.platform ||
-      detailsPlatform,
+    platform: hostSoftware?.app_store_app?.platform || detailsPlatform,
     hasInstalledVersions:
       vppCommandResult?.software_installed ??
       !!hostSoftware?.installed_versions?.length,

@@ -1179,10 +1179,12 @@ SELECT
 	hvsi.command_uuid AS command_uuid,
 	hvsi.self_service AS self_service,
 	hvsi.policy_id AS policy_id,
-	p.name AS policy_name
+	p.name AS policy_name,
+	h.platform AS platform
 FROM
 	host_vpp_software_installs hvsi
 	LEFT OUTER JOIN users u ON hvsi.user_id = u.id
+	LEFT OUTER JOIN hosts h ON h.id = hvsi.host_id
 	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hvsi.host_id
 	LEFT OUTER JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
 	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
@@ -1204,6 +1206,7 @@ WHERE
 		SelfService     bool    `db:"self_service"`
 		PolicyID        *uint   `db:"policy_id"`
 		PolicyName      *string `db:"policy_name"`
+		HostPlatform    string  `db:"platform"`
 	}
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
@@ -1255,6 +1258,7 @@ WHERE
 		PolicyID:        res.PolicyID,
 		PolicyName:      res.PolicyName,
 		Status:          status,
+		HostPlatform:    res.HostPlatform,
 	}
 
 	return user, act, nil

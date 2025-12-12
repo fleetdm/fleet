@@ -350,8 +350,6 @@ type MDMCommandResult struct {
 	Hostname string `json:"hostname" db:"-"`
 	// Payload is the contents of the command
 	Payload []byte `json:"payload" db:"payload"`
-	// Platform is the host platform (darwin, ios, ipados, etc).
-	Platform string `json:"platform,omitempty" db:"-"`
 	// SoftwareInstalled indicates whether the software is currently installed on the host.
 	SoftwareInstalled *bool `json:"software_installed,omitempty" db:"-"`
 }

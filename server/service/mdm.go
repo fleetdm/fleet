@@ -794,16 +794,14 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 		}
 	}
 
-	// add the hostnames & platform to the results
+	// add the hostnames to the results, and populate software_installed for VPP app installs
 	hasInstallApp := false
 	for _, res := range results {
 		if h := hostsByUUID[res.HostUUID]; h != nil {
 			res.Hostname = hostsByUUID[res.HostUUID].Hostname
 		}
 
-		// Only populate platform for InstallApplication (VPP) commands
 		if res.RequestType == "InstallApplication" {
-			res.Platform = p
 			hasInstallApp = true
 		}
 	}

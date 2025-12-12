@@ -2353,6 +2353,7 @@ type ActivityInstalledAppStoreApp struct {
 	SelfService         bool    `json:"self_service"`
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
+	HostPlatform        string  `json:"host_platform"`
 	FromSetupExperience bool    `json:"-"`
 }
 
