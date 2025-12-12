@@ -1542,17 +1542,16 @@ func (ds *Datastore) getHostMDMAppleCommand(ctx context.Context, cmdUUID, hostUU
 	// get the MDM command result, which may be not found (indicating the command
 	// is pending). Note that it doesn't return ErrNoRows if not found, it
 	// returns success and an empty cmdRes slice.
-	cmdResults, err := ds.GetMDMAppleCommandResults(ctx, cmdUUID, hostUUID) // TODO: consider passing empty hostUUID to get all results
+	cmdResults, err := ds.GetMDMAppleCommandResults(ctx, cmdUUID, hostUUID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "get Apple MDM command result")
 	}
 
-	// each item in the slice returned by GetMDMAppleCommandResults is
-	// potentially a result for a different host, we need to find the one for
-	// that specific host.
+	// filter by result status to preserve old behavior of this method where it doesn't return pending results.
 	var cmdRes *fleet.MDMCommandResult
 	for _, r := range cmdResults {
 		if r.HostUUID != hostUUID {
+			// this should never happen because we already filter by hostUUID, but just in case
 			continue
 		}
 		if r.Status == fleet.MDMAppleStatusAcknowledged || r.Status == fleet.MDMAppleStatusError || r.Status == fleet.MDMAppleStatusCommandFormatError {
