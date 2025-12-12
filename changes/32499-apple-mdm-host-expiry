@@ -1,1 +1,0 @@
-* Update host expiry logic to not delete macOS hosts that checkin via MDM protocol but not via orbit

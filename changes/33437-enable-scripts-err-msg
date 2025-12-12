@@ -1,2 +1,0 @@
-- Updated error message when attempting to run software install script on host with scripts disabled
-  to refer to `--enable-scripts` flag (instead of `--scripts-enabled`).

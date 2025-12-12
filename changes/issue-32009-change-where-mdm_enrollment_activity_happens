@@ -1,1 +1,0 @@
-- change where mdm_enrolled activity is created so it occures after the inital Token Update command. This allows the webhook to fire after the host can recieve additonal commands from fleet MDM.

@@ -1,1 +1,0 @@
-* Added experimental FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT configuration to allow deploying custom OS settings including Filevault payloads and macOS and Windows update settings
