@@ -214,8 +214,7 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 		}
 	}
 	if cfg.WorkProfileWidgets != "" && !validAndroidWorkProfileWidgets[cfg.WorkProfileWidgets] {
-		// TODO(mna): awaiting proper error message from product, see https://github.com/fleetdm/fleet/pull/36966/files#r2607977422
-		return &BadRequestError{Message: "Couldn't update configuration. Invalid JSON."}
+		return &BadRequestError{Message: `Couldn't update configuration. "PROFILE_WIDGETS_ALLOWED" is not a supported value for "workProfileWidget".`}
 	}
 
 	return nil
