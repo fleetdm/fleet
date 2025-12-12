@@ -50,7 +50,7 @@ Fleet’s API-first design let Stripe automate their entire MDM workflow. They m
 
 <div purpose="attribution-quote">
 
-*We saved a couple of hundred thousand dollars a year*
+*We saved a couple of hundred thousand dollars a year.*
 
 **Wes Whetstone**
 
