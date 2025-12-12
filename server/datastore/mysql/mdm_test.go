@@ -420,6 +420,40 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.ErrorContains(t, err, `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`)
 	require.Nil(t, cmds)
 	require.Nil(t, total)
+
+	failedAppleCmdUUID := uuid.New().String()
+	appleCmd = createRawAppleCmd("ProfileList", failedAppleCmdUUID)
+	err = commander.EnqueueCommand(ctx, []string{macH.UUID}, appleCmd)
+	require.NoError(t, err)
+
+	// store failed result for the command
+	err = appleCommanderStorage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: macH.UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: failedAppleCmdUUID,
+		Status:      "Error",
+		Raw:         []byte(appleCmd),
+	})
+	require.NoError(t, err)
+	cmds, total, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: test.UserAdmin},
+		&fleet.MDMCommandListOptions{
+			Filters: fleet.MDMCommandFilters{
+				HostIdentifier:  macH.UUID,
+				CommandStatuses: []fleet.MDMCommandStatusFilter{fleet.MDMCommandStatusFilterRan, fleet.MDMCommandStatusFilterFailed},
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.Nil(t, total)
+	require.Len(t, cmds, 2)
+	var got []string
+	for _, cmd := range cmds {
+		got = append(got, cmd.CommandUUID)
+	}
+	require.ElementsMatch(t, []string{appleCmdUUID, failedAppleCmdUUID}, got)
 }
 
 // testListMDMCommandsWithTeamFilter tests listing MDM commands with team filters
