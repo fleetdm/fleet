@@ -28,7 +28,7 @@ func TestLabelsAuth(t *testing.T) {
 		return lbl, nil
 	}
 	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
-		return &fleet.LabelWithTeamName{Label: lbl}, nil, nil
+		return &fleet.LabelWithTeamName{Label: *lbl}, nil, nil
 	}
 	ds.DeleteLabelFunc = func(ctx context.Context, nm string) error {
 		return nil
