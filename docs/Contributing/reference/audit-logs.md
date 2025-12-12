@@ -457,6 +457,29 @@ This activity contains the following fields:
 }
 ```
 
+## deleted_host
+
+Generated when a host is deleted.
+
+This activity contains the following fields:
+- "host_id": Unique ID of the deleted host in Fleet.
+- "host_display_name": Display name of the deleted host.
+- "host_serial": Hardware serial number of the deleted host.
+- "triggered_by": How the deletion was triggered. Can be "manual" for manual deletions or "expiration" for automatic deletions due to host expiry settings.
+- "host_expiry_window": (Optional) The number of days configured for host expiry. Only present when "triggered_by" is "expiration".
+
+#### Example
+
+```json
+{
+	"host_id": 42,
+	"host_display_name": "USER-WINDOWS",
+	"host_serial": "ABC123",
+	"triggered_by": "expiration",
+	"host_expiry_window": 30
+}
+```
+
 ## changed_user_global_role
 
 Generated when user global roles are changed.
@@ -578,6 +601,7 @@ This activity contains the following fields:
 - "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
 - "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
 - "enrollment_id": The unique identifier for MDM BYOD enrollments; null for other enrollments.
+- "platform": The enrolled host's platform
 
 #### Example
 
@@ -586,8 +610,9 @@ This activity contains the following fields:
   "host_serial": "C08VQ2AXHT96",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
-  "mdm_platform": "apple"
-  "enrollment_id": null
+  "mdm_platform": "apple",
+  "enrollment_id": null,
+  "platform": "darwin"
 }
 ```
 
@@ -597,16 +622,20 @@ Generated when a host is unenrolled from Fleet's MDM.
 
 This activity contains the following fields:
 - "host_serial": Serial number of the host.
+- "enrollment_id": Unique identifier for personal (BYOD) hosts.
 - "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP.
+- "platform": The unenrolled host's platform
 
 #### Example
 
 ```json
 {
   "host_serial": "C08VQ2AXHT96",
+  "enrollment_id": null,
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
-  "installed_from_dep": true
+  "installed_from_dep": true,
+  "platform": "darwin"
 }
 ```
 
@@ -691,6 +720,40 @@ This activity contains the following fields:
   "team_name": "Workstations",
   "deadline_days": 5,
   "grace_period_days": 2
+}
+```
+
+## enabled_macos_update_new_hosts
+
+Generated when a user turns on updates during macOS Setup Assistant for hosts that automatically enroll (ADE).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## disabled_macos_update_new_hosts
+
+Generated when a user turns off updates during macOS Setup Assistant for hosts that automatically enroll (ADE).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
 }
 ```
 
@@ -1337,8 +1400,10 @@ This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "status": Status of the software installation.
+- "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
 - "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
+- "command_uuid": ID of the in-house app installation.
 
 
 #### Example
@@ -1352,6 +1417,7 @@ This activity contains the following fields:
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "status": "pending",
+  "source": "pkg_packages",
   "policy_id": 1337,
   "policy_name": "Ensure 1Password is installed and up to date"
 }
@@ -1368,6 +1434,7 @@ This activity contains the following fields:
 - "script_execution_id": ID of the software uninstall script.
 - "self_service": Whether the uninstallation was initiated by the end user from the My device UI.
 - "status": Status of the software uninstallation.
+- "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
 
 #### Example
 
@@ -1378,7 +1445,8 @@ This activity contains the following fields:
   "software_title": "Falcon.app",
   "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
   "self_service": false,
-  "status": "uninstalled"
+  "status": "uninstalled",
+  "source": "pkg_packages"
 }
 ```
 
@@ -1432,6 +1500,7 @@ This activity contains the following fields:
 - "software_title_id": ID of the added software title.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
+- "software_display_name": Display name of the software title.
 
 #### Example
 
@@ -1444,6 +1513,7 @@ This activity contains the following fields:
   "self_service": true,
   "software_title_id": 2234,
   "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
+  "software_display_name": "Crowdstrike Falcon",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1642,6 +1712,7 @@ This activity contains the following fields:
 - "team_id": ID of the team on which this App Store app was updated, or `null`if it was updated on no team.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
+- "software_display_name": Display name of the software title.
 
 #### Example
 
@@ -1665,6 +1736,7 @@ This activity contains the following fields:
       "id": 17
     }
   ]
+  "software_display_name": "Logic Pro DAW"
 }
 ```
 
@@ -1818,6 +1890,51 @@ This activity contains the following fields:
 ```json
 {
   "name": "HYDRANT_WIFI"
+}
+```
+
+## added_custom_est_proxy
+
+Generated when a custom EST certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "EST_WIFI"
+}
+```
+
+## deleted_custom_est_proxy
+
+Generated when a custom EST certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "EST_WIFI"
+}
+```
+
+## edited_custom_est_proxy
+
+Generated when a custom EST certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "EST_WIFI"
 }
 ```
 
@@ -2057,6 +2174,18 @@ Generated when Microsoft Entra is integration is disconnected.
 
 This activity does not contain any detail fields.
 
+## added_conditional_access_okta
+
+Generated when Okta is configured or edited for conditional access.
+
+This activity does not contain any detail fields.
+
+## deleted_conditional_access_okta
+
+Generated when Okta conditional access configuration is removed.
+
+This activity does not contain any detail fields.
+
 ## enabled_conditional_access_automations
 
 Generated when conditional access automations are enabled for a team.
@@ -2147,7 +2276,7 @@ This activity contains the following fields:
 Generated when a user edits setup experience software.
 
 This activity contains the following fields:
-- "platform": the platform of the host ("darwin", "windows", or "linux").
+- "platform": the platform of the host ("darwin", "android", "windows", or "linux").
 - "team_id": the ID of the team associated with the setup experience (0 for "No team").
 - "team_name": the name of the team associated with the setup experience (empty for "No team").
 
@@ -2158,6 +2287,25 @@ This activity contains the following fields:
 	"platform": "darwin",
 	"team_id": 1,
 	"team_name": "Workstations"
+}
+```
+
+## edited_host_idp_data
+
+Generated when a user updates a host's IdP data. Currently IdP username can be edited.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_idp_username": The updated IdP username for this host.
+
+#### Example
+
+```json
+{
+	"host_id": 1,
+	"host_display_name": "Anna's MacBook Pro",
+	"host_idp_username": "anna.chao@example.com"
 }
 ```
 

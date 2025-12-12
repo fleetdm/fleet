@@ -7,14 +7,13 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Interim Head of Marketing          | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
+| Chief  Marketing Officer          | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
 | Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
-| Data & Video Specialist            | [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
-
+| Head of Demand Generation                  | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
 
 ## Contact us
 
-- To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-marketing&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
+- To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-marketing&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (if urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/94) for this department, including pending tasks and the status of new requests.
 
@@ -24,7 +23,22 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Responsibilities
 
 The Marketing department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
-For responsibilities and rituals directly responsible by an Account Development Representative (ADR), follow [this outline](https://docs.google.com/document/d/1gdjvqE8KGUC1fSWMWgNz8kn_R2i_MBg9ZxNrpnI4zGY/edit?tab=t.0).
+
+
+### Organize work in GitHub issues with marketing labels
+
+In the Marketing department, we're using the following issue labels to organize our work into different categories/buckets.
+
+| Label | Definition (When to use it) |
+| :---- | :---- |
+| **:mktg-campaign** | For tasks related to a specific, multi-touch marketing initiative (e.g., a product launch, awareness campaign, Q4 demand-gen). |
+| **:mktg-content** | For creating or updating any marketing asset: blog posts, case studies, website copy, videos, white papers, etc. |
+| **:mktg-event** | For tasks related to any event, virtual or in-person (e.g., webinars, conference logistics, booth design, talk submissions). |
+| **:mktg-social** | For tasks related to managing organic social media channels or creating social posts. |
+| **:mktg-ops** | For internal "infrastructure" work: tooling (e.g., "Fix email automation"), analytics, reporting, list management, and process improvements. |
+| **:mktg-ar** | For tasks related to analyst relations - briefing, responding to reports, inquiries, etc. |
+| **:mktg-pr** | All tasks/effort related to public relations, press releases, earned media, interviews, responding to reporters, etc. |
+| **:mktg-enablement** | All work associated with designing, developing, delivering enablement content for sales, partners, etc. |
 
 
 ### Prepare "Let's get you set up!" meeting notes
@@ -39,23 +53,6 @@ Fleet's Head of Marketing is directly responsible for the accuracy of event loca
 2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
 
 
-### Manage duplicates in CRM
-
-1. For accounts, navigate to the ["Ω Possible duplicate accounts" report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001FA1h2AG/view). For Contacts, navigate to the ["Ω Possible duplicate contacts" report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002qAoX2AU/view).
-2. Verify that each potential duplicate record is indeed a duplicate of the record it has been paired with.
-3. Open and compare the duplicate records to select the most up-to-date record to "Use as principal" (the record all other duplicates will be merged into). Consider the following:
-  - Is there an open opportunity on any of the records? If so, this is your "principal" account/contact.
-  - Do any of the accounts not have contacts? If no contacts found on the account and no significant activity, delete the account. 
-  - Do any of these accounts/contacts have activity that the others don't have (e.g. a rep sent an email or logged a call)? Be sure to preserve the maximum amount of historical activity on the principal record.
-4. Click "View duplicates", select all relevant records that appear. Click next.
-5. Select the best and most up-to-date data to combine into the single principal account/contact.
-
-> Do *NOT* change account owners if you can help it during this process. For "non-sales-ready" accounts default to the Integrations Admin. If the account is owned by an active user, be sure they maintain ownership of the principal account. 
-
-6. YOU CAN NOT UNDO THIS NEXT PART! Click next, click merge. 
-7. Verify that the principal record details match exactly what is on LinkedIn.
-
-
 ### Begin or modify an advertising campaign
 
 Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93).
@@ -67,16 +64,6 @@ To propose an ad, or a change to an ad:
 4. Add your proposed ads to the ["🧫 Experiment review" agenda](https://docs.google.com/document/d/1e2TFsV0JFFym7MvCUrJR1Wr2DVmqUgboKYFUXBEmCyI/edit#heading=h.kvp9pcc0kkq) (private Google doc) and attend the next episode.  During the meeting, existing ads will be compared against the newly proposed ads within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
 5. Make revisions and re-attend the meeting as needed until the planned change is executed.
 7. Create a calendar reminder to check ad performance two weeks from the date changes were made.
-
-
-### Measure intent signals
-
-Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/blob/main/go-to-market-strategy.md#daily) to measure and process intent signals.
-
-
-### Research an account
-
-to research an account, follow the steps in the follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/edit/main/go-to-market-strategy.md#research-an-account) and move it toward sales-readiness **after** discovering [relevant intent signals](https://fleetdm.com/handbook/marketing#measure-intent-signals).
 
 
 ### Promote a post on LinkedIn
@@ -157,16 +144,6 @@ Check the "📃 Planned articles" column in [:help-marketing board](https://gith
   - Pens and sticky note pads are ordered through TODO.
 
 
-### Monitor the help-create-contact channel
-
-When Fleeties need a contact created in Fleet's CRM but are unable to do so in the moment, they'll send a message to the ["#help-create-contact" channel](https://fleetdm.slack.com/archives/C091MLXQKQV) in Slack. Use the following steps to add the profile to Fleet's CRM:
-1. Add the `:eyes` emoji (👀) to the Slack thread. 
-2. Log in to Salesforce and navigate to the contact tab, click "New".
-3. Create the contact from research and the context left in the channel. If the account doesn't exist, then it will also need to be created and researched.
-4. Add any additional context to the "Description" field. 
-5. Once the contact and account exist in Salesforce, reply to the thread with the contact URL from Salesforce and add the `white-check-mark` emoji (✅) to indicate you're done.
-
-
 ### Process pending swag requests from the website
 
 On a weekly basis, log in to [Printful](https://www.printful.com/) and complete any draft orders so that they are sent. We currently only ship within the 48 contiguous United States and approve one free order per household under normal circumstances.
@@ -184,6 +161,7 @@ There are many times in which community members, customers, and contributors are
 1. [Create an issue](https://github.com/orgs/fleetdm/projects/65) on the :help-marketing board.
 2. Provide order details (e.g. expected shirt size, name, and shipping details).
 3. Decide if you'd like to include a personalized message and attach it to the issue.
+
 
 ### Fulfill a swag request
 
@@ -222,9 +200,9 @@ Fleet regularly uploads a variety of content to YouTube such as podcast episodes
 
 - Login to the Fleet YouTube channel, click the create button and then upload the video.
 - Fill out relevant information such as title, description, thumbnail, playlists, audience, and [tags](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing).
-- Create a new video thumbnail within Figma in the [YouTube covers board](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing) with the video Title.
-- Set the visibility to "Public"
-- Share video link on social media
+- Create a new video thumbnail within Figma in the [YouTube covers board](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing) with the video title.
+- Set the visibility to "Public".
+- Share video link on social media.
 
 
 ### Create a podcast episode
@@ -240,10 +218,64 @@ Fleet invites guests to discuss the future of IT and security on the [ExpedITion
 - Use the show notes to complete the Podbean description and [create a new article](https://github.com/fleetdm/fleet/tree/main/articles) on Fleet's website.
 - Publish on social media
 
+### Website traffic Looker dashboard 
+<!-- 2025-11-29 This heading doesn't follow the format of a responsibility (https://fleetdm.com/handbook/company/leadership#outline-of-departmental-page-structure). However, we will leave the title as is in preparation for moving it to a separate page, not yet created-->
+
+This dashboard is the first iteration of a tracking website that monitors performance, traffic acquisition, and key event conversions. It is updated daily and is essential for tracking the success of marketing initiatives.
+
+**Dashboard Link:** [Website Traffic by Source](https://lookerstudio.google.com/reporting/612ee012-b35a-42d3-8806-3ff0728dde58)
+
+#### Simple summary
+
+The Website Traffic Dashboard provides a comprehensive view of how users interact with the Fleet website. It tracks overall health metrics, such as **Total Users**, **Bounce Rate**, and **Sessions per user**, alongside detailed breakdowns of **traffic sources** and **conversion performance**. It is a critical tool for measuring the effectiveness of our organic and paid strategies, identifying high-performing content, and spotting trends in user behavior and goal completion.
+
+#### Key views description
+
+The dashboard is structured with a side navigation menu that allows you to dive into specific areas of performance:
+
+##### 1\. WebTraffic dashboard (overview)
+
+This is the main landing page, providing a high-level snapshot of website performance for the selected date range.
+
+* **Top Metrics:** Shows current values and trends for Total Users, Bounce Rate, Average session duration, and Sessions per user.  
+* **Volume Chart:** Tracks the daily/monthly volume of Views, Total users, and Sessions.  
+* **Acquisition Table:** The table further down breaks down traffic by **Session / medium** (e.g., google / organic, google / cpc, (direct) / (none)), providing total users, engagement rate, and key event volume for each channel.
+
+##### 2\. Organic traffic
+
+This view isolates the performance of all non-paid traffic, which is a major focus for content and SEO efforts.
+
+* **Channel Trends:** The chart shows the total users over time broken down by specific organic channels: **Organic Search**, Organic Video, Organic Social, and Organic Shopping.  
+* **Usage:** Used to track the growth of our SEO efforts and the health of our overall content visibility.
+
+##### 3\. Traffic by landing page
+
+This view is crucial for understanding how specific pages on the site are performing in attracting and engaging users.
+
+* **Performance Table:** Lists the top-performing **Landing Pages** by **Total users** and displays their corresponding **Bounce rate**.  
+* **Key Pages:** Allows us to quickly identify our most popular entry points (e.g., the homepage /, /docs/get-started/why-fleet, /pricing) and assess content quality based on bounce rate.
+
+##### 4\. Key events
+
+This section tracks the **volume** of our most important user actions on the website, allowing us to see how marketing activity correlates with goal completion.
+
+* **Events over time:** The chart tracks the total number of key events (e.g., form\_submit, purchase, fleet\_website\_contact\_forms, and fleet\_website\_swag\_request) completed over the time range.  
+* **Usage:** Helps identify peak periods for event completion and measure the absolute success of lead generation forms.
+
+##### 5\. Key event conversion rates
+
+This view displays the website's efficiency by tracking the rate at which users complete a key event. Conversion rate is generally a stronger indicator of performance than event volume alone.
+
+- **Conversion Rates:** Displays the **User Key Event Rate** for primary goals, including:  
+  - **Sign Up Form (Sign up for Fleet):** Tracks the rate of fleet\_website\_sign\_up.  
+  - **Contact Us (or Request Demo):** Tracks the rate of fleet website contact forms.  
+  - **Swag:** Tracks the rate of fleet\_website\_swag\_request.  
+- **Usage:** Used to monitor A/B test results, measure the quality of traffic from different channels, and ensure key pathways in the product/website are optimized.
 
 ## Rituals
 
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
+
 
 
 #### Stubs
@@ -268,5 +300,5 @@ Please see [handbook/company/communications#video](https://fleetdm.com/handbook/
 
 
 
-<meta name="maintainedBy" value="sampfluger88">
+<meta name="maintainedBy" value="akuthiala">
 <meta name="title" value="🫧 Marketing">

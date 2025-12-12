@@ -24,12 +24,13 @@ func (ds *Datastore) GetMDMCommandPlatform(ctx context.Context, commandUUID stri
 SELECT CASE
 	WHEN EXISTS (SELECT 1 FROM nano_commands WHERE command_uuid = ?) THEN 'darwin'
 	WHEN EXISTS (SELECT 1 FROM windows_mdm_commands WHERE command_uuid = ?) THEN 'windows'
+	WHEN EXISTS (SELECT 1 FROM host_vpp_software_installs WHERE command_uuid = ? AND platform = 'android') THEN 'android'
 	ELSE ''
 END AS platform
 `
 
 	var p string
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &p, stmt, commandUUID, commandUUID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &p, stmt, commandUUID, commandUUID, commandUUID); err != nil {
 		return "", err
 	}
 	if p == "" {
@@ -63,7 +64,7 @@ WHERE
 SELECT
     mwe.host_uuid,
     wmc.command_uuid,
-    COALESCE(NULLIF(wmcr.status_code, ''), 'Pending') as status,
+    COALESCE(NULLIF(wmcr.status_code, ''), '101') as status,
     COALESCE(wmc.updated_at, wmc.created_at) as updated_at,
     wmc.target_loc_uri as request_type,
     h.hostname,
@@ -227,7 +228,7 @@ SELECT
 	mwe.host_uuid,
 	wq.command_uuid,
 	COALESCE(wcr.updated_at, wc.created_at) AS updated_at,
-	COALESCE(NULLIF(wcr.status_code, ''), 'Pending') AS status,
+	COALESCE(NULLIF(wcr.status_code, ''), '101') AS status,
 	wc.target_loc_uri AS request_type
 FROM
 	windows_mdm_command_queue wq
@@ -1847,13 +1848,17 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 }
 
 func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
-	if host.Platform == "windows" {
+	switch host.Platform {
+	case "windows":
 		return isWindowsHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
-	} else if host.Platform == "darwin" || host.Platform == "ipados" || host.Platform == "ios" {
+	case "darwin", "ipados", "ios":
 		return isAppleHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
+	case "android":
+		// Android hosts can only enroll via MDM
+		return isAndroidHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
+	default:
+		return false, nil
 	}
-
-	return false, nil
 }
 
 func batchSetProfileVariableAssociationsDB(
@@ -2299,7 +2304,7 @@ GROUP BY
 	return counts, nil
 }
 
-func (ds *Datastore) IsHostPendingVPPInstallVerification(ctx context.Context, hostUUID string) (bool, error) {
+func (ds *Datastore) IsHostPendingMDMInstallVerification(ctx context.Context, hostUUID string) (bool, error) {
 	stmt := `
 SELECT EXISTS (
 	SELECT 1
@@ -2583,4 +2588,81 @@ func getMDMIdPAccountByHostID(ctx context.Context, q sqlx.QueryerContext, logger
 	}
 
 	return &idp, nil
+}
+
+func (ds *Datastore) CleanUpMDMManagedCertificates(ctx context.Context) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+	DELETE hmmc FROM host_mdm_managed_certificates hmmc
+LEFT JOIN host_mdm_apple_profiles hmap ON hmmc.host_uuid = hmap.host_uuid
+    AND hmmc.profile_uuid = hmap.profile_uuid
+LEFT JOIN host_mdm_windows_profiles hwmp ON hmmc.host_uuid = hwmp.host_uuid
+    AND hmmc.profile_uuid = hwmp.profile_uuid
+WHERE
+    hmap.host_uuid IS NULL
+    AND hwmp.host_uuid IS NULL`)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "clean up mdm certificate profiles")
+	}
+	return nil
+}
+
+func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
+	if len(payload) == 0 {
+		return nil
+	}
+
+	executeUpsertBatch := func(valuePart string, args []any) error {
+		stmt := fmt.Sprintf(`
+	    INSERT INTO host_mdm_managed_certificates (
+              host_uuid,
+              profile_uuid,
+              challenge_retrieved_at,
+			  not_valid_before,
+	          not_valid_after,
+			  type,
+			  ca_name,
+			  serial
+            )
+            VALUES %s
+            ON DUPLICATE KEY UPDATE
+              challenge_retrieved_at = VALUES(challenge_retrieved_at),
+			  not_valid_before = VALUES(not_valid_before),
+			  not_valid_after = VALUES(not_valid_after),
+			  type = VALUES(type),
+			  ca_name = VALUES(ca_name),
+			  serial = VALUES(serial)`,
+			strings.TrimSuffix(valuePart, ","),
+		)
+
+		_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		return err
+	}
+
+	generateValueArgs := func(p *fleet.MDMManagedCertificate) (string, []any) {
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?),"
+		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidBefore, p.NotValidAfter, p.Type, p.CAName, p.Serial}
+		return valuePart, args
+	}
+
+	const defaultBatchSize = 1000
+	batchSize := defaultBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
+	}
+
+	if err := batchProcessDB(payload, batchSize, generateValueArgs, executeUpsertBatch); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ds *Datastore) ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*fleet.MDMManagedCertificate, error) {
+	hostCertsToRenew := []*fleet.MDMManagedCertificate{}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
+	SELECT profile_uuid, host_uuid, challenge_retrieved_at, not_valid_before, not_valid_after, type, ca_name, serial
+	FROM host_mdm_managed_certificates
+	WHERE host_uuid = ?
+	`, hostUUID)
+	return hostCertsToRenew, ctxerr.Wrap(ctx, err, "get mdm managed certificates for host")
 }

@@ -309,6 +309,13 @@ describe("getUiStatus", () => {
     });
     expect(getUiStatus(sw, true)).toBe("installed");
   });
+  it("returns 'installed' for regular package, no installed versions present", () => {
+    const sw = createMockHostSoftware({
+      status: "installed",
+      installed_versions: null,
+    });
+    expect(getUiStatus(sw, true)).toBe("installed");
+  });
 
   it("returns 'installed' for regular package, installed version higher than library version", () => {
     const sw = createMockHostSoftware({
@@ -324,6 +331,48 @@ describe("getUiStatus", () => {
       installed_versions: [],
     });
     expect(getUiStatus(sw, true)).toBe("uninstalled");
+  });
+
+  describe("Script packages UI statuses", () => {
+    it("returns 'failed_script' when status is failed_install and isScriptPackage", () => {
+      const sw = createMockHostSoftware({
+        status: "failed_install",
+        source: "sh_packages",
+      });
+      expect(getUiStatus(sw, true)).toBe("failed_script");
+    });
+
+    it("returns 'running_script' when status is pending_install, isScriptPackage and host online", () => {
+      const sw = createMockHostSoftware({
+        status: "pending_install",
+        source: "sh_packages",
+      });
+      expect(getUiStatus(sw, true)).toBe("running_script");
+    });
+
+    it("returns 'pending_script' when status is pending_install, isScriptPackage and host offline", () => {
+      const sw = createMockHostSoftware({
+        status: "pending_install",
+        source: "sh_packages",
+      });
+      expect(getUiStatus(sw, false)).toBe("pending_script");
+    });
+
+    it("returns 'ran_script' when status is installed and isScriptPackage", () => {
+      const sw = createMockHostSoftware({
+        status: "installed",
+        source: "sh_packages",
+      });
+      expect(getUiStatus(sw, true)).toBe("ran_script");
+    });
+
+    it("returns 'never_ran_script' when status is null and isScriptPackage", () => {
+      const sw = createMockHostSoftware({
+        status: null,
+        source: "sh_packages",
+      });
+      expect(getUiStatus(sw, true)).toBe("never_ran_script");
+    });
   });
 });
 

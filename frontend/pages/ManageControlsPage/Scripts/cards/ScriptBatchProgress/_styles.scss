@@ -1,19 +1,16 @@
 .script-batch-progress {
   @include vertical-page-layout;
+  font-size: $x-small;
 
   &__status-count {
     font-weight: $bold;
-    margin: $pad-medium 0;
   }
+
   .paginated-list__row {
     padding: 16px 24px;
   }
-  &__row-left {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  &__row-when {
+
+  .list-item__details {
     display: flex;
     align-items: center;
     gap: 4px;
@@ -37,9 +34,6 @@
   &__empty {
     @include tab-empty-state;
     gap: $pad-small;
-  }
-  .react-tabs__tab-list {
-    margin-bottom: $pad-large;
   }
 
   .paginated-list .loading-overlay {

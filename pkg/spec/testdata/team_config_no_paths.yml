@@ -62,6 +62,7 @@ controls:
     webhook_url: ""
   windows_enabled_and_configured: true
   windows_migration_enabled: false
+  enable_turn_on_windows_mdm_manually: false
 labels:
   - name: a
     description: A cool global label

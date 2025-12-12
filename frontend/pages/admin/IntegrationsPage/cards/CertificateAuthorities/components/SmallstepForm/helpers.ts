@@ -160,9 +160,6 @@ export const validateFormData = (
         message: getErrorMessage(formData, failedValidation.message),
       };
     }
-
-    console.log("objKey", objKey);
-    console.log("formValidation", formValidation);
   });
 
   return formValidation;

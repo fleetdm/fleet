@@ -23,3 +23,6 @@ reviews:
       enabled: false
 chat:
   auto_reply: false
+issue_enrichment:
+  auto_enrich:
+    enabled: false

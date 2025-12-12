@@ -12,13 +12,13 @@ import (
 
 func (ds *Datastore) CreateOrUpdateSoftwareTitleIcon(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (*fleet.SoftwareTitleIcon, error) {
 	var query string
-	var args []interface{}
+	var args []any
 	query = `
 		INSERT INTO software_title_icons (team_id, software_title_id, storage_id, filename)
 		VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE
 		storage_id = VALUES(storage_id), filename = VALUES(filename)
 	`
-	args = []interface{}{payload.TeamID, payload.TitleID, payload.StorageID, payload.Filename}
+	args = []any{payload.TeamID, payload.TitleID, payload.StorageID, payload.Filename}
 
 	_, err := ds.writer(ctx).ExecContext(ctx, query, args...)
 	if err != nil {
@@ -34,7 +34,7 @@ func (ds *Datastore) CreateOrUpdateSoftwareTitleIcon(ctx context.Context, payloa
 }
 
 func (ds *Datastore) GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) (*fleet.SoftwareTitleIcon, error) {
-	args := []interface{}{teamID, titleID}
+	args := []any{teamID, titleID}
 	query := `
 		SELECT team_id, software_title_id, storage_id, filename
 		FROM software_title_icons
@@ -67,7 +67,7 @@ func (ds *Datastore) GetSoftwareIconsByTeamAndTitleIds(ctx context.Context, team
 		return map[uint]fleet.SoftwareTitleIcon{}, nil
 	}
 
-	var args []interface{}
+	var args []any
 	query := `
 		SELECT team_id, software_title_id, storage_id, filename
 		FROM software_title_icons
@@ -115,12 +115,11 @@ func (ds *Datastore) DeleteSoftwareTitleIcon(ctx context.Context, teamID, titleI
 
 func (ds *Datastore) DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx context.Context, teamID uint) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM software_title_icons WHERE team_id = ?
-		   AND software_title_id NOT IN (
-			   SELECT title_id FROM vpp_apps va
-				   JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND vat.platform = va.platform
-				   WHERE global_or_team_id = ?
-		   ) AND software_title_id NOT IN (SELECT title_id FROM software_installers WHERE global_or_team_id = ?)`,
-		teamID, teamID, teamID)
+		AND software_title_id NOT IN (SELECT title_id FROM vpp_apps va JOIN vpp_apps_teams vat 
+			ON vat.adam_id = va.adam_id AND vat.platform = va.platform WHERE global_or_team_id = ?)
+		AND software_title_id NOT IN (SELECT title_id FROM software_installers WHERE global_or_team_id = ?)
+		AND software_title_id NOT IN (SELECT title_id FROM in_house_apps WHERE global_or_team_id = ?)`,
+		teamID, teamID, teamID, teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up icons not associated with software installers")
 	}
@@ -147,20 +146,22 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 	query := `
 		SELECT
 			software_installers.id AS software_installer_id,
+			in_house_apps.id AS in_house_app_id,
 			vpp_apps.adam_id AS adam_id,
 			vpp_apps_teams.id AS vpp_app_team_id,
 			vpp_apps.icon_url AS vpp_icon_url,
 			COALESCE(software_titles.name, vpp_apps.name) AS software_title,
-			software_installers.filename AS filename,
+			COALESCE(software_installers.filename, in_house_apps.filename) AS filename,
 			teams.name AS team_name,
 			COALESCE(teams.id, 0) AS team_id,
-			COALESCE(software_installers.self_service, vpp_apps_teams.self_service) AS self_service,
+			COALESCE(software_installers.self_service, vpp_apps_teams.self_service, in_house_apps.self_service) AS self_service,
 			software_titles.id AS software_title_id,
 			vpp_apps.platform AS platform
 		FROM software_title_icons
 		INNER JOIN software_titles ON software_title_icons.software_title_id = software_titles.id
 		LEFT JOIN teams ON software_title_icons.team_id = teams.id
 		LEFT JOIN software_installers ON software_installers.title_id = software_titles.id
+		LEFT JOIN in_house_apps ON in_house_apps.title_id = software_titles.id
 		LEFT JOIN vpp_apps ON vpp_apps.title_id = software_titles.id
 		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.adam_id = vpp_apps.adam_id AND vpp_apps_teams.platform = vpp_apps.platform
 		WHERE software_title_icons.team_id = ? AND software_title_icons.software_title_id = ?
@@ -204,6 +205,21 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 			return fleet.DetailsForSoftwareIconActivity{}, ctxerr.Wrap(ctx, err, "getting labels for software title icon")
 		}
 	}
+	if details.InHouseAppID != nil {
+		labelQuery := `
+			SELECT
+				labels.id AS id,
+				labels.name AS name,
+				in_house_app_labels.exclude AS exclude
+			FROM in_house_app_labels
+			INNER JOIN labels ON in_house_app_labels.label_id = labels.id
+			WHERE in_house_app_id = ?
+		`
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, labelQuery, details.InHouseAppID); err != nil {
+			return fleet.DetailsForSoftwareIconActivity{}, ctxerr.Wrap(ctx, err, "getting labels for software title icon")
+		}
+	}
+
 	for _, l := range labels {
 		if l.Exclude {
 			details.LabelsExcludeAny = append(details.LabelsExcludeAny, fleet.ActivitySoftwareLabel{

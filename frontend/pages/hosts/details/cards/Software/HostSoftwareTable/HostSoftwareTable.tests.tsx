@@ -47,17 +47,6 @@ describe("HostSoftwareTable", () => {
     expect(screen.getByText(/no software detected/i)).toBeInTheDocument();
   });
 
-  it("renders the Android not supported state", () => {
-    renderWithContext({ platform: "android" });
-    expect(
-      screen.getByText(/software is not supported for this host/i)
-    ).toBeInTheDocument();
-    expect(screen.getByText(/let us know/i)).toBeInTheDocument();
-    expect(
-      screen.queryByText(/Software installed on this host/i)
-    ).not.toBeInTheDocument();
-  });
-
   it("renders custom filter button when filters are applied", () => {
     renderWithContext({
       vulnFilters: { vulnerable: true },

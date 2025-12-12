@@ -1268,7 +1268,7 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 	// installed on the affected hosts. ReconcileAppleProfiles will take care of
 	// resending as appropriate based on label membershup and all at the time it
 	// runs.
-	const updateStatusQuery = `
+	const appleUpdateStatusQuery = `
 	UPDATE
 		host_mdm_apple_profiles hmap
 		JOIN hosts h
@@ -1281,36 +1281,63 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		JOIN fleet_variables fv
 			ON mcpv.fleet_variable_id = fv.id
 	SET
-		hmap.status = NULL
+		hmap.status = NULL,
+		hmap.command_uuid = ''
 	WHERE
 		h.id IN (:host_ids) AND
 		hmap.operation_type = :operation_type_install AND
 		hmap.status IS NOT NULL AND
 		fv.name IN (:affected_vars)
 `
+
+	const windowsUpdateStatusQuery = `
+	UPDATE
+		host_mdm_windows_profiles hmwp
+		JOIN hosts h
+			ON h.uuid = hmwp.host_uuid
+		JOIN mdm_windows_configuration_profiles mwcp
+			ON (mwcp.team_id = h.team_id OR (COALESCE(mwcp.team_id, 0) = 0 AND h.team_id IS NULL)) AND
+				 mwcp.profile_uuid = hmwp.profile_uuid
+		JOIN mdm_configuration_profile_variables mcpv
+			ON mcpv.windows_profile_uuid = mwcp.profile_uuid
+		JOIN fleet_variables fv
+			ON mcpv.fleet_variable_id = fv.id
+	SET
+		hmwp.status = NULL,
+		hmwp.command_uuid = ''
+	WHERE
+		h.id IN (:host_ids) AND
+		hmwp.operation_type = :operation_type_install AND
+		hmwp.status IS NOT NULL AND
+		fv.name IN (:affected_vars)
+`
+
 	vars := make([]any, len(affectedVars))
 	for i, v := range affectedVars {
 		vars[i] = "FLEET_VAR_" + string(v)
 	}
 
-	stmt, args, err := sqlx.Named(updateStatusQuery, map[string]any{
-		"host_ids":               hostIDs,
-		"operation_type_install": fleet.MDMOperationTypeInstall,
-		"affected_vars":          vars,
-	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare resend profiles replace names")
+	for _, query := range []string{appleUpdateStatusQuery, windowsUpdateStatusQuery} {
+		updateStmt, args, err := sqlx.Named(query, map[string]any{
+			"host_ids":               hostIDs,
+			"operation_type_install": fleet.MDMOperationTypeInstall,
+			"affected_vars":          vars,
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare resend profiles replace names")
+		}
+
+		updateStmt, args, err = sqlx.In(updateStmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare resend profiles arguments")
+		}
+
+		_, err = tx.ExecContext(ctx, updateStmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "execute resend profiles")
+		}
 	}
 
-	stmt, args, err = sqlx.In(stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare resend profiles arguments")
-	}
-
-	_, err = tx.ExecContext(ctx, stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "execute resend profiles")
-	}
 	return nil
 }
 

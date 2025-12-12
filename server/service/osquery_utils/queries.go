@@ -125,6 +125,56 @@ ORDER BY
 	inet_aton(ia.address) IS NOT NULL DESC
 LIMIT 1;`
 
+const linuxGigsAllDiskSpaceSubQueryConditions = `WHERE
+-- exclude mounts with no space
+blocks > 0
+AND blocks_size > 0
+
+-- exclude external storage
+AND path NOT LIKE '/media%' AND path NOT LIKE '/mnt%'
+  
+-- exclude device drivers
+AND path NOT LIKE '/dev%' 
+
+-- exclude kernel-related mounts
+AND path NOT LIKE '/proc%'
+AND path NOT LIKE '/sys%'
+
+-- exclude process files
+AND path NOT LIKE '/run%'
+AND path NOT LIKE '/var/run%'
+
+-- exclude boot files
+AND path NOT LIKE '/boot%' 
+
+-- exclude snap packages
+AND path NOT LIKE '/snap%' AND path NOT LIKE '/var/snap%'
+
+-- exclude virtualized mounts, would double-count bare metal storage
+AND path NOT LIKE '/var/lib/docker%'
+AND path NOT LIKE '/var/lib/containers%'
+
+AND type IN (
+'ext4', 
+'ext3', 
+'ext2', 
+'xfs', 
+'btrfs', 
+'ntfs', 
+'vfat',
+'fuseblk', --seen on NTFS and exFAT volumes mounted via FUSE
+'zfs' --also valid storage
+)
+AND (
+device LIKE '/dev/sd%' 
+OR device LIKE '/dev/hd%' 
+OR device LIKE '/dev/vd%' 
+OR device LIKE '/dev/nvme%' 
+OR device LIKE '/dev/mapper%'
+OR device LIKE '/dev/md%'
+OR device LIKE '/dev/dm-%'
+)`
+
 // hostDetailQueries defines the detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the
 // fleet.Host data model (via IngestFunc).
@@ -373,16 +423,20 @@ var hostDetailQueries = map[string]DetailQuery{
 			}
 			host.Uptime = time.Duration(uptimeSeconds) * time.Second
 
+			// Update the last restart date of the host if it's changed more than 30 seconds.
+			maybeUpdateLastRestartedAt(time.Now(), host)
+
 			return nil
 		},
 		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 	},
 	"disk_space_unix": {
-		Query: `
-SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
-       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
-       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
-FROM mounts WHERE path = '/' LIMIT 1;`,
+		Query: fmt.Sprintf(`
+		SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
+		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
+					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts %s) AS gigs_all_disk_space
+		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestDiskSpace,
 	},
@@ -463,7 +517,21 @@ func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.H
 		return err
 	}
 
-	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable, gigsTotal)
+	var gigsAllForFnCall *float64
+	if fleet.IsLinux(host.Platform) {
+		strippedRawRes := strings.TrimSpace(rows[0]["gigs_all_disk_space"])
+		// write `nil`, not 0, if osquery returns `""`, since a host cannot have 0 disk space and
+		// therefore this must represent a problematic query result
+		if strippedRawRes != "" {
+			gigsAll, err := strconv.ParseFloat(strippedRawRes, 64)
+			if err != nil {
+				return err
+			}
+			gigsAllForFnCall = &gigsAll
+		}
+	}
+
+	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable, gigsTotal, gigsAllForFnCall)
 }
 
 func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
@@ -734,7 +802,22 @@ var extraDetailQueries = map[string]DetailQuery{
 	WHERE
 		path LIKE '/Users/%/Library/Keychains/login.keychain-db';`,
 		Platforms:        []string{"darwin"},
-		DirectIngestFunc: directIngestHostCertificates,
+		DirectIngestFunc: directIngestHostCertificatesDarwin,
+	},
+	"certificates_windows": {
+		Query: `
+	SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1, username,
+		path
+	FROM
+		certificates
+	WHERE
+		store = 'Personal';`,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestHostCertificatesWindows,
 	},
 }
 
@@ -909,11 +992,11 @@ var softwareMacOS = DetailQuery{
 	// which is used in vulnerability scanning.
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
-  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
+  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'), TRIM(name, '.app') ) AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'apps' AS source,
   '' AS vendor,
   last_opened_time AS last_opened_at,
@@ -925,7 +1008,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -937,7 +1020,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   identifier AS extension_id,
-  'firefox' AS browser,
+  'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -949,7 +1032,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'safari_extensions' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -961,7 +1044,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'homebrew_packages' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -975,6 +1058,18 @@ SELECT
   '' AS bundle_identifier,
   '' AS extension_id,
   '' AS browser,
+  'npm_packages' AS source,
+  '' AS vendor,
+  0 AS last_opened_at,
+  path AS installed_path
+FROM npm_packages
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS extension_for,
   'homebrew_packages' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -998,7 +1093,7 @@ SELECT
   version,
   '' AS bundle_identifier,
   vscode_extensions.uuid AS extension_id,
-  '' AS browser,
+  vscode_edition AS extension_for,
   'vscode_extensions' AS source,
   publisher AS vendor,
   '' AS last_opened_at,
@@ -1006,6 +1101,25 @@ SELECT
 FROM cached_users CROSS JOIN vscode_extensions USING (uid)`),
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
 	Discovery: discoveryTable("vscode_extensions"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
+}
+
+var softwareJetbrainsPlugins = DetailQuery{
+	Query: withCachedUsers(`WITH cached_users AS (%s)
+SELECT
+  name,
+  version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  product_type AS extension_for,
+  'jetbrains_plugins' AS source,
+  vendor,
+  '' AS last_opened_at,
+  path AS installed_path
+FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)`),
+	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
+	Discovery: discoveryTable("jetbrains_plugins"),
 	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
@@ -1025,7 +1139,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'pacman_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -1044,7 +1158,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'deb_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -1057,7 +1171,7 @@ SELECT
   package AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'portage_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -1069,7 +1183,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'rpm_packages' AS source,
   release AS release,
   vendor AS vendor,
@@ -1081,7 +1195,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'npm_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -1093,7 +1207,7 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS release,
   '' AS vendor,
@@ -1105,7 +1219,7 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  'firefox' AS browser,
+  'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS release,
   '' AS vendor,
@@ -1123,50 +1237,55 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'programs' AS source,
   publisher AS vendor,
-  install_location AS installed_path
+  install_location AS installed_path,
+  upgrade_code AS upgrade_code
 FROM programs
 UNION
 SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'ie_extensions' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM ie_extensions
 UNION
 SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  'firefox' AS browser,
+  'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'chocolatey_packages' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM chocolatey_packages
 `),
 	Platforms:        []string{"windows"},
@@ -1184,7 +1303,7 @@ var softwarePythonPackages = DetailQuery{
 		  name AS name,
 		  version AS version,
 		  '' AS extension_id,
-		  '' AS browser,
+		  '' AS extension_for,
 		  'python_packages' AS source,
 		  '' AS vendor,
 		  path AS installed_path
@@ -1207,7 +1326,7 @@ var softwarePythonPackagesWithUsersDir = DetailQuery{
 		  name AS name,
 		  version AS version,
 		  '' AS extension_id,
-		  '' AS browser,
+		  '' AS extension_for,
 		  'python_packages' AS source,
 		  '' AS vendor,
 		  path AS installed_path
@@ -1226,7 +1345,7 @@ var softwareChrome = DetailQuery{
   name AS name,
   version AS version,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
   '' AS installed_path
@@ -1268,7 +1387,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 				COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
 				apps.bundle_identifier AS bundle_identifier,
 				'' AS extension_id,
-				'' AS browser,
+				'' AS extension_for,
 				'apps' AS source,
 				'' AS vendor,
 				apps.last_opened_time AS last_opened_at,
@@ -1863,8 +1982,9 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			row["arch"],
 			row["bundle_identifier"],
 			row["extension_id"],
-			row["browser"],
+			row["extension_for"],
 			row["last_opened_at"],
+			row["upgrade_code"],
 		)
 		if err != nil {
 			level.Debug(logger).Log(
@@ -1926,19 +2046,123 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 }
 
 var (
-	dcvVersionFormat   = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
-	softwareSanitizers = []struct {
-		matches func(*fleet.Software) bool
-		mutate  func(*fleet.Software, log.Logger)
+	dcvVersionFormat         = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
+	tunnelblickVersionFormat = regexp.MustCompile(`^(.+?)\s*\(build\s+\d+\)$`)
+	basicAppSanitizers       = []struct {
+		matchBundleIdentifier string
+		matchName             string
+		mutate                func(*fleet.Software, log.Logger)
 	}{
 		{
-			matches: func(s *fleet.Software) bool {
-				return s.Source == "apps" && s.BundleIdentifier == "com.nicesoftware.dcvviewer"
-			},
+			matchBundleIdentifier: "com.nicesoftware.dcvviewer",
 			mutate: func(s *fleet.Software, logger log.Logger) {
 				if versionMatches := dcvVersionFormat.FindStringSubmatch(s.Version); len(versionMatches) == 3 {
 					s.Version = fmt.Sprintf("%s.%s", versionMatches[1], versionMatches[2])
 				}
+			},
+		},
+		// Bundle executable name cleanup #34159
+		{
+			matchBundleIdentifier: "com.synology.DSAssistant",
+			matchName:             "DSAssistant",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "SynologyAssistant"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.now.gg.BlueStacksMIM",
+			matchName:             "HD-MultiInstanceManager",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "BlueStacksMIM"
+			},
+		},
+		{
+			matchBundleIdentifier: "jp.go.jpki.JPKIUninstall",
+			matchName:             "JPKIUninstall.scpt",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "JPKIUninstall"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.oracle.OracleDataModeler",
+			matchName:             "datamodeler.sh",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "OracleDataModeler"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.easeus.ntfsformacdaemon",
+			matchName:             "euntfsservice",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "EaseUS NTFS Service"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.poly.lens.legacyhost.app",
+			matchName:             "legacyhost",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Poly Lens Desktop (Legacy)"
+			},
+		},
+		{
+			matchBundleIdentifier: "app.zen-browser.plugincontainer",
+			matchName:             "plugin-container",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Zen Browser Plugin Container"
+			},
+		},
+		{
+			matchBundleIdentifier: "org.mozilla.plugincontainer",
+			matchName:             "plugin-container",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Mozilla Plugin Container"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.google.chromeremotedesktop.me2me-host-uninstaller",
+			matchName:             "remoting_host_uninstaller",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Chrome Remote Desktop Host Uninstaller"
+			},
+		},
+		{
+			matchName: "runemu",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				if s.BundleIdentifier == "" {
+					s.Name = "Android Emulator"
+				}
+			},
+		},
+		{
+			matchBundleIdentifier: "com.oracle.SQLDeveloper",
+			matchName:             "sqldeveloper.sh/",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Oracle SQLDeveloper"
+			},
+		},
+		{
+			matchBundleIdentifier: "net.tunnelblick.tunnelblick",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				if versionMatches := tunnelblickVersionFormat.FindStringSubmatch(s.Version); len(versionMatches) == 2 {
+					s.Version = versionMatches[1]
+				}
+			},
+		},
+		// end of #34159 cleanup in basic matchers
+	}
+	customAppSanitizers = []struct {
+		matches func(*fleet.Software) bool
+		mutate  func(*fleet.Software, log.Logger)
+	}{
+		{
+			matches: func(s *fleet.Software) bool { // #34159
+				return strings.HasPrefix(s.Name, "TNMS ") &&
+					strings.HasPrefix(s.BundleIdentifier, "TNMS_") &&
+					strings.Replace(s.BundleIdentifier, "_", " ", 1) == s.Name
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "TNMS"
+				s.Version = strings.Replace(s.BundleIdentifier, "TNMS_", "", 1)
 			},
 		},
 	}
@@ -1948,15 +2172,32 @@ var (
 //
 // Some fields are reported with known incorrect values and we need to fix them before using them.
 func MutateSoftwareOnIngestion(s *fleet.Software, logger log.Logger) {
-	for _, softwareSanitizer := range softwareSanitizers {
-		if softwareSanitizer.matches(s) {
-			defer func() {
-				if r := recover(); r != nil {
-					level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
-				}
-			}()
-			softwareSanitizer.mutate(s, logger)
-			break
+	// all of our current on-ingest mutations use this table,
+	// so might as well let other stuff go faster and save some redundant checks inside the matchers
+	if s != nil && s.Source == "apps" {
+		for _, sanitizer := range basicAppSanitizers {
+			if (sanitizer.matchBundleIdentifier != "" || sanitizer.matchName != "") &&
+				(sanitizer.matchBundleIdentifier == "" || sanitizer.matchBundleIdentifier == s.BundleIdentifier) &&
+				(sanitizer.matchName == "" || sanitizer.matchName == s.Name) {
+				defer func() {
+					if r := recover(); r != nil {
+						level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
+					}
+				}()
+				sanitizer.mutate(s, logger)
+				break
+			}
+		}
+		for _, sanitizer := range customAppSanitizers {
+			if sanitizer.matches(s) {
+				defer func() {
+					if r := recover(); r != nil {
+						level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
+					}
+				}()
+				sanitizer.mutate(s, logger)
+				break
+			}
 		}
 	}
 }
@@ -2159,6 +2400,18 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 			// as a possible status for Windows hosts (which would be otherwise be categorized as
 			// "Pending"). Currently, the "Pending" status is supported only for macOS hosts.
 			automatic = true
+			// We also must check the MDM Enrollment information on the fleet side here. If the host set the NotInOobe
+			// flag during enrollment, the enrollment is considered manual as it was user-initiated via the Settings app.
+			// There does not seem to be a way on the host to detect this via osquery.
+			windowsDevice, err := ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "checking windows enrolled device for AAD enrolled host")
+			}
+			// Not a big deal if we didn't find it - the query may not have been processed to link the host
+			// to the enrollment yet
+			if windowsDevice != nil {
+				automatic = !windowsDevice.MDMNotInOOBE
+			}
 		}
 	}
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
@@ -2431,7 +2684,58 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 	if len(rows) > 1 {
 		return ctxerr.Errorf(ctx, "directIngestMDMDeviceIDWindows invalid number of rows: %d", len(rows))
 	}
-	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
+	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating windows mdm device id")
+	}
+	if updated {
+		device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, rows[0]["data"])
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
+		}
+		if device != nil && microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
+			// Update the host's MDM enrolled flags to show it as a manual enrollment. THis is to avoid
+			// it taking two full refreshes to show this
+			if device.MDMNotInOOBE {
+				err = ds.UpdateMDMInstalledFromDEP(ctx, host.ID, false)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
+				}
+			}
+
+			mapping := []*fleet.HostDeviceMapping{
+				{
+					HostID: host.ID,
+					Email:  device.MDMEnrollUserID,
+					Source: fleet.DeviceMappingMDMIdpAccounts,
+				},
+			}
+			err = ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping, fleet.DeviceMappingMDMIdpAccounts)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "replacing host device mapping for windows mdm enrolled device")
+			}
+			// Check if the user is a valid SCIM user to manage the join table
+			scimUser, err := ds.ScimUserByUserNameOrEmail(ctx, device.MDMEnrollUserID, device.MDMEnrollUserID)
+			if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
+				return ctxerr.Wrap(ctx, err, "find SCIM user for Windows Azure enrollment linking by username or email")
+			}
+			if err == nil && scimUser != nil {
+				// User exists in SCIM, create/update the mapping for additional attributes
+				// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
+				if err := ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUser.ID); err != nil {
+					// Log the error but don't fail the request since the main IDP mapping succeeded
+					level.Debug(logger).Log("msg", "failed to set SCIM user mapping", "err", err)
+				}
+			} else {
+				// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
+				if err := ds.DeleteHostSCIMUserMapping(ctx, host.ID); err != nil && !fleet.IsNotFound(err) {
+					// Log the error but don't fail the request
+					level.Debug(logger).Log("msg", "failed to delete SCIM user mapping", "err", err)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 var luksVerifyQuery = DetailQuery{
@@ -2728,6 +3032,7 @@ func GetDetailQueries(
 		generatedMap["software_python_packages_with_users_dir"] = softwarePythonPackagesWithUsersDir
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
+		generatedMap["software_jetbrains_plugins"] = softwareJetbrainsPlugins
 
 		for key, query := range SoftwareOverrideQueries {
 			generatedMap["software_"+key] = query
@@ -2834,7 +3139,7 @@ func buildConfigProfilesWindowsQuery(
 	var sb strings.Builder
 	sb.WriteString("<SyncBody>")
 	gotProfiles := false
-	err := microsoft_mdm.LoopOverExpectedHostProfiles(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
+	err := microsoft_mdm.LoopOverExpectedHostProfiles(ctx, logger, ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
 		// Per the [docs][1], to `<Get>` configurations you must
 		// replace `/Policy/Config/` with `Policy/Result/`
 		// [1]: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider
@@ -2896,7 +3201,7 @@ func directIngestWindowsProfiles(
 
 var rxExtractUsernameFromHostCertPath = regexp.MustCompile(`^/Users/([^/]+)/Library/Keychains/login\.keychain\-db$`)
 
-func directIngestHostCertificates(
+func directIngestHostCertificatesDarwin(
 	ctx context.Context,
 	logger log.Logger,
 	host *fleet.Host,
@@ -2916,12 +3221,12 @@ func directIngestHostCertificates(
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "decoding sha1", "err", err)
 			continue
 		}
-		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(row["subject"])
+		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject"])
 		if err != nil {
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting subject details", "err", err)
 			continue
 		}
-		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(row["issuer"])
+		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["issuer"])
 		if err != nil {
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting issuer details", "err", err)
 			continue
@@ -2976,4 +3281,117 @@ func directIngestHostCertificates(
 	}
 
 	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs)
+}
+
+func directIngestHostCertificatesWindows(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		// if there are no results, it indicates we may have a problem so we log it
+		level.Debug(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "no rows returned", "host_id", host.ID)
+		return nil
+	}
+
+	certs := make([]*fleet.HostCertificateRecord, 0, len(rows))
+	// on windows, the osquery certificates table returns duplicate
+	// entries for the same certificate if it is present in multiple
+	// certificate stores so we deduplicate them here based on the
+	// SHA1 sum + username
+	existsSha1User := make(map[string]bool, len(rows))
+	for _, row := range rows {
+		csum, err := hex.DecodeString(row["sha1"])
+		if err != nil {
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "decoding sha1", "err", err)
+			continue
+		}
+		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject"])
+		if err != nil {
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting subject details", "err", err)
+			continue
+		}
+		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["issuer"])
+		if err != nil {
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting issuer details", "err", err)
+			continue
+		}
+
+		username := row["username"]
+		source := fleet.UserHostCertificate
+		if username == "SYSTEM" {
+			source = fleet.SystemHostCertificate
+		}
+
+		cert := &fleet.HostCertificateRecord{
+			HostID:                    host.ID,
+			SHA1Sum:                   csum,
+			NotValidAfter:             time.Unix(cast.ToInt64(row["not_valid_after"]), 0).UTC(),
+			NotValidBefore:            time.Unix(cast.ToInt64(row["not_valid_before"]), 0).UTC(),
+			CertificateAuthority:      cast.ToBool(row["ca"]),
+			CommonName:                row["common_name"],
+			KeyAlgorithm:              row["key_algorithm"],
+			KeyStrength:               cast.ToInt(row["key_strength"]),
+			KeyUsage:                  row["key_usage"],
+			Serial:                    row["serial"],
+			SigningAlgorithm:          row["signing_algorithm"],
+			SubjectCountry:            subject.Country,
+			SubjectOrganizationalUnit: subject.OrganizationalUnit,
+			SubjectOrganization:       subject.Organization,
+			SubjectCommonName:         subject.CommonName,
+			IssuerCountry:             issuer.Country,
+			IssuerOrganizationalUnit:  issuer.OrganizationalUnit,
+			IssuerOrganization:        issuer.Organization,
+			IssuerCommonName:          issuer.CommonName,
+			Source:                    source,
+			Username:                  username,
+		}
+
+		// deduplicate by SHA1 + Username
+		sha1UserKey := fmt.Sprintf("%x|%s", csum, username)
+		if exists := existsSha1User[sha1UserKey]; exists {
+			level.Debug(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg",
+				"skipping duplicate certificate for sha1+user", "host_id", host.ID, "username", username, "sha1", fmt.Sprintf("%x", csum),
+				"issuer", cert.IssuerCommonName, "subject", cert.SubjectCommonName, "path", row["path"])
+			continue
+		}
+		existsSha1User[sha1UserKey] = true
+		certs = append(certs, cert)
+	}
+
+	if len(certs) == 0 {
+		// don't overwrite existing certs if we were unable to parse any new ones
+		return nil
+	}
+
+	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs)
+}
+
+func maybeUpdateLastRestartedAt(now time.Time, host *fleet.Host) {
+	// If the uptime is 0, don't change the last restarted at time.
+	if host.Uptime == 0 {
+		return
+	}
+	// Calculate the last restart date.
+	newLastRestartedAt := now.Add(-host.Uptime)
+
+	// If we have a previous last restarted at time, compare it to the new one.
+	if !host.LastRestartedAt.IsZero() {
+		diff := newLastRestartedAt.Sub(host.LastRestartedAt)
+		// The new date should always be later, so if it's not, ignore.
+		if diff < 0 {
+			return
+		}
+		// If the new date is within 30 seconds of the previous one, ignore.
+		// This accounts for small differences between when the uptime
+		// reading was taken and when we process it here.
+		if diff < 30*time.Second {
+			return
+		}
+	}
+
+	// Update the last restarted at time.
+	host.LastRestartedAt = newLastRestartedAt
 }

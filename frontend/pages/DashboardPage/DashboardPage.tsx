@@ -632,6 +632,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         router={router}
       />
     ),
+    className: "activity-feed-card",
   });
 
   const SoftwareCard = useInfoCard({

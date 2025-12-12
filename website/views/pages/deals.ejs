@@ -30,7 +30,7 @@
             </div>
             <div class="form-group">
               <label for="submitters-organization">Organization *</label>
-              <input class="form-control" id="submitters-organization" type="text" disabled  :class="[formErrors.submittersOrganization ? 'is-invalid' : '']" v-model.trim="formData.submittersOrganization" @input="typeClearOneFormError('submittersOrganization')">
+              <input class="form-control" id="submitters-organization" type="text"  :class="[formErrors.submittersOrganization ? 'is-invalid' : '']" v-model.trim="formData.submittersOrganization" @input="typeClearOneFormError('submittersOrganization')">
               <div class="invalid-feedback" v-if="formErrors.submittersOrganization">Please enter the name of your organization.</div>
             </div>
           </div>

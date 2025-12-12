@@ -98,6 +98,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	if err != nil {
 		panic(err)
@@ -110,6 +111,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		clock.C,
 		depStorage,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -195,7 +197,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			}
 			return nil, ctxerr.Wrap(ctx, &eeservice.NotFoundError{})
 		}
-		ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 			tm, ok := teamStore[id]
 			if !ok {
 				return nil, errors.New("team id not found")

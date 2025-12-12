@@ -151,6 +151,7 @@ type Label struct {
 	LabelType           LabelType           `json:"label_type" db:"label_type"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
 	HostCount           int                 `json:"host_count,omitempty" db:"host_count"`
+	TeamID              *uint               `json:"team_id" db:"team_id"`
 }
 
 // Implement the HostVitalsLabel interface.
@@ -162,6 +163,7 @@ type LabelSummary struct {
 	ID          uint      `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
+	TeamID      *uint     `json:"team_id" db:"team_id"`
 	LabelType   LabelType `json:"label_type" db:"label_type"`
 }
 
@@ -214,7 +216,7 @@ func (s *HostsSlice) UnmarshalJSON(data []byte) error {
 }
 
 type LabelSpec struct {
-	ID                  uint                `json:"id"`
+	ID                  uint                `json:"id" db:"id"`
 	Name                string              `json:"name"`
 	Description         string              `json:"description"`
 	Query               string              `json:"query"`

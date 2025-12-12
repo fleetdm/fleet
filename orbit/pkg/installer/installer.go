@@ -330,7 +330,6 @@ func (r *Runner) installWithRetry(ctx context.Context, installer *fleet.Software
 
 // attemptInstall performs a single installation attempt (download + install)
 func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareInstallDetails, payload *fleet.HostSoftwareInstallResultPayload, logger zerolog.Logger) (*fleet.HostSoftwareInstallResultPayload, error) {
-
 	tmpDirFn := r.tempDirFn
 	if tmpDirFn == nil {
 		tmpDirFn = os.MkdirTemp

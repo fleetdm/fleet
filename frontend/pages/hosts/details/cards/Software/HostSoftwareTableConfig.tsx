@@ -6,9 +6,14 @@ import {
   formatSoftwareType,
   IHostSoftware,
   isIpadOrIphoneSoftwareSource,
-  SoftwareSource,
 } from "interfaces/software";
-import { HostPlatform, isLinuxLike } from "interfaces/platform";
+import {
+  HostPlatform,
+  isIPadOrIPhone,
+  isLinuxLike,
+  isMacOS,
+  isWindows,
+} from "interfaces/platform";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import PATHS from "router/paths";
@@ -64,6 +69,7 @@ export const generateSoftwareTableHeaders = ({
         const {
           id,
           name,
+          display_name,
           source,
           app_store_app,
           software_package,
@@ -81,10 +87,13 @@ export const generateSoftwareTableHeaders = ({
         const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
           cellProps.row.original
         );
+        const isAndroidPlayStoreApp =
+          !!app_store_app && source === "android_apps";
 
         return (
           <SoftwareNameCell
             name={name}
+            display_name={display_name}
             source={source}
             iconUrl={icon_url}
             path={softwareTitleDetailsPath}
@@ -93,6 +102,8 @@ export const generateSoftwareTableHeaders = ({
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetails"
+            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(source)}
+            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );
       },
@@ -112,29 +123,29 @@ export const generateSoftwareTableHeaders = ({
     {
       Header: "Type",
       disableSortBy: true,
-      accessor: "source",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell
-          value={cellProps.cell.value}
-          formatter={() =>
-            formatSoftwareType({
-              source: cellProps.cell.value as SoftwareSource,
-            })
-          }
-        />
-      ),
+      id: "source",
+      Cell: (cellProps: ITableStringCellProps) => {
+        const { source, extension_for } = cellProps.row.original;
+        const value = formatSoftwareType({ source, extension_for });
+        return <TextCell value={value} />;
+      },
     },
     {
       Header: (): JSX.Element => {
-        const lastOpenedHeader = isLinuxLike(platform) ? (
-          <TooltipWrapper
-            tipContent={
-              <>
-                The last time the package was opened by the end user <br />
-                or accessed by any process on the host.
-              </>
-            }
-          >
+        let tooltipContent = <></>;
+
+        if (isMacOS(platform)) {
+          tooltipContent = (
+            <>When the version installed most recently was last opened.</>
+          );
+        } else if (isLinuxLike(platform) || isWindows(platform)) {
+          tooltipContent = <>When any version was last opened.</>;
+        } else if (isIPadOrIPhone(platform)) {
+          tooltipContent = <>Date and time of last open.</>;
+        }
+
+        const lastOpenedHeader = tooltipContent ? (
+          <TooltipWrapper tipContent={tooltipContent}>
             Last opened
           </TooltipWrapper>
         ) : (

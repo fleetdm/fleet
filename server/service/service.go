@@ -66,6 +66,8 @@ type Service struct {
 	digiCertService   fleet.DigiCertService
 
 	conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
+
+	keyValueStore fleet.KeyValueStore
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -138,6 +140,7 @@ func NewService(
 	scepConfigService fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
 	conditionalAccessProxy ConditionalAccessMicrosoftProxy,
+	keyValueStore fleet.KeyValueStore,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -175,6 +178,7 @@ func NewService(
 		digiCertService:      digiCertService,
 
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
+		keyValueStore:                   keyValueStore,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

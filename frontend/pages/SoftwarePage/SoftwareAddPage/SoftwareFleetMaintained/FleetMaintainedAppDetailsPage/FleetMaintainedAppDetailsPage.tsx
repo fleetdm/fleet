@@ -40,10 +40,6 @@ import FleetAppDetailsModal from "./FleetAppDetailsModal";
 import { getErrorMessage } from "./helpers";
 import TooltipWrapper from "../../../../../components/TooltipWrapper";
 
-const DEFAULT_ERROR_MESSAGE = "Couldn't add. Please try again.";
-const REQUEST_TIMEOUT_ERROR_MESSAGE =
-  "Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.";
-
 const baseClass = "fleet-maintained-app-details-page";
 
 interface IFleetAppSummaryProps {
@@ -244,18 +240,7 @@ const FleetMaintainedAppDetailsPage = ({
     } catch (error) {
       const ae = (typeof error === "object" ? error : {}) as AxiosResponse;
 
-      const errorMessage = getErrorMessage(ae);
-
-      if (
-        ae.status === 408 ||
-        errorMessage.includes("json decoder error") // 400 bad request when really slow
-      ) {
-        renderFlash("error", REQUEST_TIMEOUT_ERROR_MESSAGE);
-      } else if (errorMessage) {
-        renderFlash("error", errorMessage);
-      } else {
-        renderFlash("error", DEFAULT_ERROR_MESSAGE);
-      }
+      renderFlash("error", getErrorMessage(ae));
     }
 
     setShowAddFleetAppSoftwareModal(false);

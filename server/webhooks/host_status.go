@@ -3,6 +3,7 @@ package webhooks
 import (
 	"context"
 	"fmt"
+
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -85,7 +86,7 @@ func triggerTeamHostStatusWebhook(ctx context.Context, ds fleet.Datastore, logge
 	multiErr := &multierror.Error{}
 	for _, teamSummary := range teams {
 		id := teamSummary.ID
-		team, err := ds.Team(ctx, id)
+		team, err := ds.TeamLite(ctx, id)
 		if err != nil {
 			multiErr = multierror.Append(multiErr, ctxerr.Wrap(ctx, err, "getting team"))
 			continue

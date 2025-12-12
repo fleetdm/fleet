@@ -47,6 +47,9 @@ module.exports = {
         'LinkedIn - Liked the LinkedIn company page',
         'Event - Marketing-led event',
         'Event - Sales-led event',
+        'GitHub - Stared fleetdm/fleet',
+        'GitHub - Forked fleetdm/fleet',
+        'GitHub - Contributed to fleetdm/fleet',
       ],
     },
     getStartedResponses: {
@@ -262,6 +265,7 @@ module.exports = {
             // eslint-disable-next-line camelcase
             Current_Assignment_Reason__c: 'Inbound Lead',// TODO verify that this matters. if not, do not set it.
             Prospect_Status__c: 'Assigned',// eslint-disable-line camelcase
+            Type: 'Prospect',
 
             Name: enrichmentData.employer.organization,// IFWMIH: We know organization exists
             Website: enrichmentData.employer.emailDomain,

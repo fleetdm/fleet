@@ -156,7 +156,8 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 			require.Equal(t, "ValidName", parsed.Name)
 			require.Equal(t, "ValidIdentifier", parsed.Identifier)
 
-			err = parsed.ValidateUserProvided()
+			// Test with allowCustomOSUpdatesAndFileVault = false (default behavior)
+			err = parsed.ValidateUserProvided(false)
 			for _, pt := range c.shouldFail {
 				require.Error(t, err)
 				require.ErrorContains(t, err, pt)
@@ -166,6 +167,83 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMDMAppleConfigProfileAllowCustomOSUpdatesAndFileVault(t *testing.T) {
+	cases := []struct {
+		testName     string
+		payloadTypes []string
+	}{
+		{
+			testName:     "FileVault2Allowed",
+			payloadTypes: []string{"com.apple.MCX.FileVault2"},
+		},
+		{
+			testName:     "FDERecoveryKeyEscrowAllowed",
+			payloadTypes: []string{"com.apple.security.FDERecoveryKeyEscrow"},
+		},
+		{
+			testName:     "AllFileVaultTypesAllowed",
+			payloadTypes: []string{"com.apple.security.FDERecoveryKeyEscrow", "com.apple.MCX.FileVault2"},
+		},
+		{
+			testName:     "FileVaultMixedWithOtherPayloadTypes",
+			payloadTypes: []string{"com.apple.MCX.FileVault2", "com.apple.security.firewall", "com.apple.security.FDERecoveryKeyEscrow"},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.testName, func(t *testing.T) {
+			mc := MobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), mcPayloadContentForTest(c.payloadTypes))
+			parsed, err := NewMDMAppleConfigProfile(mc, nil)
+			require.NoError(t, err)
+			require.Equal(t, "ValidName", parsed.Name)
+			require.Equal(t, "ValidIdentifier", parsed.Identifier)
+
+			// When allowCustomOSUpdatesAndFileVault = true, these profiles should be allowed
+			err = parsed.ValidateUserProvided(true)
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestMDMAppleDeclarationAllowCustomOSUpdatesAndFileVault(t *testing.T) {
+	t.Run("OSUpdateDeclarationBlockedByDefault", func(t *testing.T) {
+		decl := &MDMAppleRawDeclaration{
+			Type:       "com.apple.configuration.softwareupdate.enforcement.specific",
+			Identifier: "test-os-update",
+		}
+
+		// Should fail when allowCustomOSUpdatesAndFileVault = false
+		err := decl.ValidateUserProvided(false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "Declaration profile can’t include OS updates settings")
+	})
+
+	t.Run("OSUpdateDeclarationAllowedWhenFlagEnabled", func(t *testing.T) {
+		decl := &MDMAppleRawDeclaration{
+			Type:       "com.apple.configuration.softwareupdate.enforcement.specific",
+			Identifier: "test-os-update",
+		}
+
+		// Should succeed when allowCustomOSUpdatesAndFileVault = true
+		err := decl.ValidateUserProvided(true)
+		require.NoError(t, err)
+	})
+
+	t.Run("OtherDeclarationsUnaffected", func(t *testing.T) {
+		decl := &MDMAppleRawDeclaration{
+			Type:       "com.apple.configuration.passcode.settings",
+			Identifier: "test-passcode",
+		}
+
+		// Should succeed regardless of flag
+		err := decl.ValidateUserProvided(false)
+		require.NoError(t, err)
+
+		err = decl.ValidateUserProvided(true)
+		require.NoError(t, err)
+	})
 }
 
 func TestMDMAppleConfigProfileScreenPayloadIdentifiers(t *testing.T) {
@@ -214,7 +292,7 @@ func TestMDMAppleConfigProfileScreenPayloadIdentifiers(t *testing.T) {
 			require.Equal(t, "ValidName", parsed.Name)
 			require.Equal(t, "ValidIdentifier", parsed.Identifier)
 
-			err = parsed.ValidateUserProvided()
+			err = parsed.ValidateUserProvided(false)
 			for _, pt := range c.shouldFail {
 				require.Error(t, err)
 				require.ErrorContains(t, err, pt)
@@ -260,7 +338,7 @@ func TestMDMAppleConfigProfileScreenReservedNames(t *testing.T) {
 			require.Equal(t, c.toplevelName, parsed.Name)
 			require.Equal(t, "ValidIdentifier", parsed.Identifier)
 
-			err = parsed.ValidateUserProvided()
+			err = parsed.ValidateUserProvided(false)
 			if c.shouldFail {
 				require.Error(t, err)
 				if c.toplevelName == "unreserved name" {

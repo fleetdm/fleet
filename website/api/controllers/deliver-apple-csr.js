@@ -166,6 +166,8 @@ module.exports = {
     // Send a message to Slack.
     await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForMDMSignups, {
       text: `An MDM CSR was generated for ${generateCertificateResult.org} - ${generateCertificateResult.email}`
+    }).tolerate((err)=>{
+      sails.log.warn(`When an MDM CSR was generated for ${generateCertificateResult.org} (email: ${generateCertificateResult.email}), an error occured when posting a notification to Slack. Full error: ${require('util').inspect(err)}`);
     });
 
 

@@ -18,7 +18,7 @@ into your local development Fleet server without needing a real host or osquery-
 3. Run the data seeder
 
 ```bash
-go run ./tools/software/vulnerabilities/seed_data/seed_vuln_data.go --ubuntu 1 --macos 1 --windows 1 --linux-kernels 1
+go run ./tools/software/vulnerabilities/seed_vuln_data.go --ubuntu 1 --macos 1 --windows 1 --linux-kernels 1
 ```
 
 You should now see new hosts with the configured software attached in the UI and database.  This

@@ -76,6 +76,9 @@ export interface IAppleSetupEnrollmentProfileResponse {
 export interface IMDMSSOParams {
   deviceinfo: string;
   initiator: string;
+  // optional host_uuid to link SSO to a specific host; used in Orbit-initiated
+  // enrollments with end-user authentication.
+  host_uuid?: string;
 }
 
 export interface IMDMAppleEnrollmentProfileParams {
@@ -272,6 +275,14 @@ const mdmService = {
     return sendRequest("PATCH", MDM_SETUP, {
       team_id: teamId,
       enable_end_user_authentication: isEnabled,
+    });
+  },
+
+  updateRequireAllSoftwareMacOS: (teamId: number, isEnabled: boolean) => {
+    const { MDM_SETUP } = endpoints;
+    return sendRequest("PATCH", MDM_SETUP, {
+      team_id: teamId,
+      require_all_software_macos: isEnabled,
     });
   },
 

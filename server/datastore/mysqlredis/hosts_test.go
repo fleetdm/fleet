@@ -22,7 +22,8 @@ func TestEnforceHostLimit(t *testing.T) {
 
 	runTest := func(t *testing.T, pool fleet.RedisPool) {
 		var hostIDSeq uint
-		var expiredHostsIDs, incomingHostsIDs []uint
+		var expiredHostDetails []fleet.DeletedHostDetails
+		var incomingHostsIDs []uint
 
 		ctx := context.Background()
 		ds := new(mock.Store)
@@ -47,8 +48,8 @@ func TestEnforceHostLimit(t *testing.T) {
 		ds.DeleteHostsFunc = func(ctx context.Context, ids []uint) error {
 			return nil
 		}
-		ds.CleanupExpiredHostsFunc = func(ctx context.Context) ([]uint, error) {
-			return expiredHostsIDs, nil
+		ds.CleanupExpiredHostsFunc = func(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+			return expiredHostDetails, nil
 		}
 		ds.CleanupIncomingHostsFunc = func(ctx context.Context, now time.Time) ([]uint, error) {
 			return incomingHostsIDs, nil
@@ -125,7 +126,7 @@ func TestEnforceHostLimit(t *testing.T) {
 		requireCanEnroll(false)
 
 		// cleanup expired removes h4
-		expiredHostsIDs = []uint{h4.ID}
+		expiredHostDetails = []fleet.DeletedHostDetails{{ID: h4.ID}}
 		_, err = wrappedDS.CleanupExpiredHosts(ctx)
 		require.NoError(t, err)
 		requireCanEnroll(true)

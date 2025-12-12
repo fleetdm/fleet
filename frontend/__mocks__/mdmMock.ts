@@ -1,5 +1,6 @@
 import { IHostMdmData } from "interfaces/host";
 import {
+  IMdmCommandResult,
   IMdmSolution,
   IMdmProfile,
   IMdmSummaryMdmSolution,
@@ -78,4 +79,34 @@ export const createMockHostMdmData = (
   overrides?: Partial<IHostMdmData>
 ): IHostMdmData => {
   return { ...DEFAULT_HOST_MDM_DATA, ...overrides };
+};
+
+/**
+ * Creates a mock of an Apple MDM command result.
+ * Matches the IMdmCommandResult interface.
+ */
+export const createMockMdmCommandResult = (
+  overrides?: Partial<IMdmCommandResult>
+): IMdmCommandResult => {
+  const defaultPayload = `<Command>
+    <RequestType>InstallApplication</RequestType>
+    <Identifier>com.example.MockApp</Identifier>
+  </Command>`;
+
+  const defaultResult = `<Result>
+    <Status>Acknowledged</Status>
+    <Message>Installation complete</Message>
+  </Result>`;
+
+  return {
+    host_uuid: "11111111-2222-3333-4444-555555555555",
+    command_uuid: "mock-command-uuid-1234",
+    status: "Acknowledged", // or "Error", "NotNow", "200", etc.
+    updated_at: "2025-08-10T12:05:00Z",
+    request_type: "InstallApplication",
+    hostname: "Mock iPhone",
+    payload: btoa(defaultPayload),
+    result: btoa(defaultResult),
+    ...overrides,
+  };
 };

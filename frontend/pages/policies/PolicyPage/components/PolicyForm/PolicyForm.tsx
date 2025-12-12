@@ -29,7 +29,7 @@ import {
 import Avatar from "components/Avatar";
 import SQLEditor from "components/SQLEditor";
 // @ts-ignore
-import validateQuery from "components/forms/validators/validate_query";
+import { validateQuery } from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -403,10 +403,10 @@ const PolicyForm = ({
     return (
       <div className={`${baseClass}__sql-editor-label-actions`}>
         {showOpenSchemaActionText && (
-          <Button variant="inverse" onClick={onOpenSchemaSidebar} size="small">
+          <Button variant="inverse" onClick={onOpenSchemaSidebar}>
             <>
               Schema
-              <Icon name="info" size="small" />
+              <Icon name="info" />
             </>
           </Button>
         )}
@@ -739,7 +739,6 @@ const PolicyForm = ({
             handleSubmit={promptSavePolicy}
             wrapEnabled
             focus={!isEditMode}
-            disabled={gitOpsModeEnabled}
           />
           {renderPlatformCompatibility()}
           {isEditMode && platformSelector.render()}
@@ -819,7 +818,7 @@ const PolicyForm = ({
                 }
                 variant="inverse"
               >
-                Run
+                Run <Icon name="run" />
               </Button>
             </span>
             <ReactTooltip

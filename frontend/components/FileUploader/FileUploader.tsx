@@ -28,8 +28,12 @@ export type ISupportedGraphicNames = Extract<
 >;
 
 interface IFileUploaderProps {
+  label?: React.ReactNode;
   graphicName: ISupportedGraphicNames | ISupportedGraphicNames[];
-  message: string;
+  message: React.ReactNode;
+  title?: string;
+  /** allow error state within the file uploader, as opposed to on its label */
+  internalError?: string;
   additionalInfo?: string;
   /** Controls the loading spinner on the upload button */
   isLoading?: boolean;
@@ -58,9 +62,15 @@ interface IFileUploaderProps {
   canEdit?: boolean;
   /** renders the current file with the delete trash button */
   onDeleteFile?: () => void;
+  /** if provided, will be called when the button is clicked
+   * instead of opening the file selector. Useful if you want to
+   * show the file selector UI but handle the file selection
+   * in a modal.
+   */
+  onButtonClick?: () => void;
   fileDetails?: {
     name: string;
-    description?: string;
+    description?: React.ReactNode;
   };
   /** Indicates that this file uploader deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;
@@ -72,8 +82,11 @@ interface IFileUploaderProps {
  * A component that encapsulates the UI for uploading a file and a file selected.
  */
 export const FileUploader = ({
+  label,
   graphicName: graphicNames,
   message,
+  title,
+  internalError,
   additionalInfo,
   isLoading = false,
   disabled = false,
@@ -82,6 +95,7 @@ export const FileUploader = ({
   buttonMessage = "Upload",
   buttonType = "button",
   buttonTooltip,
+  onButtonClick,
   onFileUpload,
   canEdit = false,
   onDeleteFile,
@@ -94,6 +108,7 @@ export const FileUploader = ({
 
   const classes = classnames(baseClass, className, {
     [`${baseClass}__file-preview`]: isFileSelected,
+    [`${baseClass}__error`]: !!internalError,
   });
   const buttonVariant =
     buttonType === "button" ? "default" : "brand-inverse-icon";
@@ -123,6 +138,11 @@ export const FileUploader = ({
     }
   };
 
+  const renderLabel = () => {
+    return label ? (
+      <div className={`${baseClass}__label form-field__label`}>{label}</div>
+    ) : null;
+  };
   const renderGraphics = () => {
     const graphicNamesArr =
       typeof graphicNames === "string" ? [graphicNames] : graphicNames;
@@ -136,6 +156,21 @@ export const FileUploader = ({
   };
 
   const renderUploadButton = () => {
+    let buttonMarkup = (
+      <>
+        {buttonMessage}
+        {buttonType === "brand-inverse-icon" && (
+          <Icon color="core-fleet-green" name="upload" />
+        )}
+      </>
+    );
+    // If we want to actual do file uploading, wrap in a label that
+    // references the hidden file input. Otherwise just use a span.
+    if (!onButtonClick) {
+      buttonMarkup = <label htmlFor="upload-file">{buttonMarkup}</label>;
+    } else {
+      buttonMarkup = <span>{buttonMarkup}</span>;
+    }
     // the gitops mode tooltip wrapper takes presedence over other button
     // renderings
     if (gitopsCompatible) {
@@ -156,15 +191,11 @@ export const FileUploader = ({
                 variant={buttonVariant}
                 isLoading={isLoading}
                 disabled={disabled || disableChildren}
-                customOnKeyDown={handleKeyDown}
+                customOnKeyDown={!onButtonClick ? handleKeyDown : undefined}
+                onClick={onButtonClick || undefined}
                 tabIndex={0}
               >
-                <label htmlFor="upload-file">
-                  {buttonType === "brand-inverse-icon" && (
-                    <Icon color="core-fleet-green" name="upload" />
-                  )}
-                  <span>{buttonMessage}</span>
-                </label>
+                {buttonMarkup}
               </Button>
             </TooltipWrapper>
           )}
@@ -186,35 +217,45 @@ export const FileUploader = ({
           variant={buttonVariant}
           isLoading={isLoading}
           disabled={disabled}
-          customOnKeyDown={handleKeyDown}
+          customOnKeyDown={!onButtonClick ? handleKeyDown : undefined}
+          onClick={onButtonClick || undefined}
           tabIndex={0}
         >
-          <label htmlFor="upload-file">
-            {buttonType === "brand-inverse-icon" && (
-              <Icon color="core-fleet-green" name="upload" />
-            )}
-            <span>{buttonMessage}</span>
-          </label>
+          {buttonMarkup}
         </Button>
       </TooltipWrapper>
     );
   };
 
+  const renderTitle = () => {
+    if (internalError) {
+      return (
+        <div className={`${baseClass}__internal-error`}>{internalError}</div>
+      );
+    }
+    if (title) {
+      return <div className={`${baseClass}__title`}>{title}</div>;
+    }
+    return null;
+  };
+
   const renderFileUploader = () => {
     return (
-      <>
-        <div className="content-wrapper">
-          <div className="outer">
-            <div className="inner">
-              <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
-              <p className={`${baseClass}__message`}>{message}</p>
-              {additionalInfo && (
-                <p className={`${baseClass}__additional-info`}>
-                  {additionalInfo}
-                </p>
-              )}
-            </div>
-            {renderUploadButton()}
+      <div className="content-wrapper">
+        <div className="outer">
+          <div className="inner">
+            <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
+            {renderTitle()}
+            <p className={`${baseClass}__message`}>{message}</p>
+            {additionalInfo && (
+              <p className={`${baseClass}__additional-info`}>
+                {additionalInfo}
+              </p>
+            )}
+          </div>
+          {renderUploadButton()}
+          {/* If onButtonClick is provided, we're not actually uploading files here. */}
+          {!onButtonClick && (
             <input
               ref={fileInputRef}
               accept={accept}
@@ -222,29 +263,32 @@ export const FileUploader = ({
               type="file"
               onChange={onFileSelect}
             />
-          </div>
+          )}
         </div>
-      </>
+      </div>
     );
   };
 
   return (
-    <Card color="grey" className={classes}>
-      {fileDetails ? (
-        <FileDetails
-          graphicNames={graphicNames}
-          fileDetails={fileDetails}
-          canEdit={canEdit}
-          onDeleteFile={onDeleteFile}
-          onFileSelect={onFileSelect}
-          accept={accept}
-          gitopsCompatible={gitopsCompatible}
-          gitOpsModeEnabled={gitOpsModeEnabled}
-        />
-      ) : (
-        renderFileUploader()
-      )}
-    </Card>
+    <div className={`${baseClass}__wrapper form-field`}>
+      {renderLabel()}
+      <Card color="grey" className={classes}>
+        {fileDetails ? (
+          <FileDetails
+            graphicNames={graphicNames}
+            fileDetails={fileDetails}
+            canEdit={canEdit}
+            onDeleteFile={onDeleteFile}
+            onFileSelect={onFileSelect}
+            accept={accept}
+            gitopsCompatible={gitopsCompatible}
+            gitOpsModeEnabled={gitOpsModeEnabled}
+          />
+        ) : (
+          renderFileUploader()
+        )}
+      </Card>
+    </div>
   );
 };
 

@@ -1289,7 +1289,7 @@ func TestApplyAsGitOps(t *testing.T) {
 		savedTeam = team
 		return team, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return savedTeam, nil
 	}
 
@@ -2050,7 +2050,7 @@ func TestApplyMacosSetup(t *testing.T) {
 			return team, nil
 		}
 
-		ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 			tm, ok := teamsByID[id]
 			if !ok {
 				return nil, &notFoundError{}
@@ -2238,6 +2238,7 @@ spec:
 `
 		team1EnableReleaseSpec = team1Spec + `
         enable_release_device_manually: %s
+        require_all_software_macos: %s
 `
 		team1NoKeySpec = `
 apiVersion: v1
@@ -2409,7 +2410,8 @@ spec:
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Set.yml"))
 		require.NoError(t, err)
 		expectedTm1Set := fmt.Sprintf(string(b), "", "")
-		expectedTm1SetReleaseEnabled := strings.ReplaceAll(expectedTm1Set, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
+		expectedTm1SetReleaseAndRequireEnabled := strings.ReplaceAll(expectedTm1Set, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
+		expectedTm1SetReleaseAndRequireEnabled = strings.ReplaceAll(expectedTm1SetReleaseAndRequireEnabled, `require_all_software_macos: false`, `require_all_software_macos: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Empty.yml"))
 		require.NoError(t, err)
@@ -2513,7 +2515,7 @@ spec:
 		assert.YAMLEq(t, expectedEmptyTm1And2, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
 
 		// apply team 1 without the setup assistant key but enable device release
-		name = writeTmpYml(t, fmt.Sprintf(team1EnableReleaseSpec, "", "", "true"))
+		name = writeTmpYml(t, fmt.Sprintf(team1EnableReleaseSpec, "", "", "true", "true"))
 		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
 		ds.DeleteMDMAppleSetupAssistantFuncInvoked = false
 		ds.SaveTeamFuncInvoked = false
@@ -2522,7 +2524,7 @@ spec:
 		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
-		assert.YAMLEq(t, expectedTm1SetReleaseEnabled, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedTm1SetReleaseAndRequireEnabled, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
 
 		// apply appconfig with invalid URL key
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidURLMacosSetup))
@@ -2555,7 +2557,7 @@ spec:
 			expectedErr error
 		}{
 			{"signed.pkg", nil},
-			{"unsigned.pkg", errors.New("applying fleet config: Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#step-2-sign-the-package")},
+			{"unsigned.pkg", errors.New("applying fleet config: Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")},
 			{"invalid.tar.gz", errors.New("applying fleet config: Couldn’t edit bootstrap_package. The file must be a package (.pkg).")},
 			{"wrong-toc.pkg", errors.New("applying fleet config: checking package signature: decompressing TOC: unexpected EOF")},
 		}

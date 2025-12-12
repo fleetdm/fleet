@@ -1,0 +1,8 @@
+{
+  "name": "Apparency",
+  "unique_identifier": "com.mothersruin.Apparency",
+  "token": "apparency",
+  "installer_format": "dmg",
+  "slug": "apparency/darwin",
+  "default_categories": ["Developer tools"]
+}

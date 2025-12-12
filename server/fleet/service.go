@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"io"
+	"net/url"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/version"
@@ -181,7 +182,9 @@ type Service interface {
 	// different from InitiateSSO because it receives a different
 	// configuration and only supports a subset of the features (eg: we
 	// don't want to allow IdP initiated authentications)
-	InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
+	// When initiated from Orbit, the hostUUID is used to link the SSO
+	// session to a specific host.
+	InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
 	// InitSSOCallback handles the IdP SAMLResponse and ensures the credentials are valid.
 	// The sessionID is used to identify the SSO session and samlResponse is the raw SAMLResponse.
@@ -258,7 +261,7 @@ type Service interface {
 
 	NewLabel(ctx context.Context, p LabelPayload) (label *Label, hostIDs []uint, err error)
 	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, []uint, error)
-	ListLabels(ctx context.Context, opt ListOptions) (labels []*Label, err error)
+	ListLabels(ctx context.Context, opt ListOptions, includeHostCounts bool) (labels []*Label, err error)
 	LabelsSummary(ctx context.Context) (labels []*LabelSummary, err error)
 	GetLabel(ctx context.Context, id uint) (label *Label, hostIDs []uint, err error)
 
@@ -351,6 +354,14 @@ type Service interface {
 	// AuthenticateDevice loads host identified by the device's auth token.
 	// Returns an error if the auth token doesn't exist.
 	AuthenticateDevice(ctx context.Context, authToken string) (host *Host, debug bool, err error)
+	// AuthenticateDeviceByCertificate loads host identified by certificate serial and UUID.
+	// This is used for iOS/iPadOS devices accessing My Device page via client certificates.
+	// Returns an error if the certificate doesn't match the host or if the host is not iOS/iPadOS.
+	AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (host *Host, debug bool, err error)
+	// AuthenticateIDeviceByURL loads host identified by the URL UUID.
+	// This is used for iOS/iPadOS devices (iDevices) accessing endpoints via a unique URL parameter.
+	// Returns an error if the UUID doesn't exist or if the host is not iOS/iPadOS.
+	AuthenticateIDeviceByURL(ctx context.Context, urlUUID string) (host *Host, debug bool, err error)
 
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
 	// GetHost returns the host with the provided ID.
@@ -372,6 +383,8 @@ type Service interface {
 	HostByIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
 	// RefetchHost requests a refetch of host details for the provided host.
 	RefetchHost(ctx context.Context, id uint) (err error)
+	// CleanupExpiredHosts cleans up hosts that have exceeded the expiry window and creates activities for each deletion.
+	CleanupExpiredHosts(ctx context.Context) ([]DeletedHostDetails, error)
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
 	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their team settings if teamID is nil. Hosts are
@@ -387,13 +400,11 @@ type Service interface {
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
-	// SetCustomHostDeviceMapping sets the custom email address associated with
-	// the host, which is either set by the fleetd installer at startup (via a
-	// device-authenticated API), or manually by the user (via the
-	// user-authenticated API).
-	SetCustomHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*HostDeviceMapping, error)
-	// HostLiteByIdentifier returns a host and a subset of its fields using an "identifier" string.
-	// The identifier string will be matched against the Hostname, OsqueryHostID, NodeKey, UUID and HardwareSerial fields.
+	// SetHostDeviceMapping sets the email address associated with the host.
+	// The source parameter determines the type: "custom" for manually set
+	// mappings or DeviceMappingIDP for identity provider mappings.
+	SetHostDeviceMapping(ctx context.Context, id uint, email, source string) ([]*HostDeviceMapping, error)
+	DeleteHostIDP(ctx context.Context, id uint) error
 	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
@@ -435,9 +446,10 @@ type Service interface {
 	// OSVersions returns a list of operating systems and associated host counts, which may be
 	// filtered using the following optional criteria: team id, platform, or name and version.
 	// Name cannot be used without version, and conversely, version cannot be used without name.
-	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts ListOptions, includeCVSS bool) (*OSVersions, int, *PaginationMetadata, error)
-	// OSVersion returns an operating system and associated host counts
-	OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool) (*OSVersion, *time.Time, error)
+	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts ListOptions, includeCVSS bool, maxVulnerabilities *int) (*OSVersions, int, *PaginationMetadata, error)
+	// OSVersion returns an operating system and associated host counts. If maxVulnerabilities is provided,
+	// limits the number of vulnerabilities returned while still providing the total count.
+	OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool, maxVulnerabilities *int) (*OSVersion, *time.Time, error)
 
 	// ListHostSoftware lists the software installed or available for install on
 	// the specified host.
@@ -622,6 +634,18 @@ type Service interface {
 	ApplyUserRolesSpecs(ctx context.Context, specs UsersRoleSpec) error
 
 	// /////////////////////////////////////////////////////////////////////////////
+	// Certificate Templates
+
+	CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*CertificateTemplateResponseFull, error)
+	ListCertificateTemplates(ctx context.Context, teamID uint, opts ListOptions) ([]*CertificateTemplateResponseSummary, *PaginationMetadata, error)
+	GetDeviceCertificateTemplate(ctx context.Context, id uint) (*CertificateTemplateDeviceResponseFull, error)
+	GetCertificateTemplate(ctx context.Context, id uint) (*CertificateTemplateResponseFull, error)
+	DeleteCertificateTemplate(ctx context.Context, id uint) error
+	ApplyCertificateTemplateSpecs(ctx context.Context, specs []*CertificateRequestSpec) error
+	DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
+	UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status MDMDeliveryStatus, detail *string) error
+
+	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalScheduleService
 
 	GlobalScheduleQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
@@ -709,7 +733,13 @@ type Service interface {
 
 	// AddAppStoreApp persists a VPP app onto a team and returns the resulting title ID
 	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) (uint, error)
-	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string) (*VPPAppStoreApp, error)
+	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload AppStoreAppUpdatePayload) (*VPPAppStoreApp, error)
+
+	// GetInHouseAppManifest returns a manifest XML file that points at the download URL for the given in-house app.
+	GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error)
+
+	// GetInHouseAppPackage downloads the bytes of the given in-house app.
+	GetInHouseAppPackage(ctx context.Context, titleID uint, teamID *uint) (*DownloadSoftwareInstallerPayload, error)
 
 	// MDMAppleProcessOTAEnrollment handles OTA enrollment requests.
 	//
@@ -855,7 +885,7 @@ type Service interface {
 
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
-	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error)
+	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error)
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
@@ -969,10 +999,10 @@ type Service interface {
 	// error can be raised to the user.
 	VerifyMDMWindowsConfigured(ctx context.Context) error
 
-	// VerifyMDMAppleOrWindowsConfigured verifies that the server is configured
-	// for either Apple or Windows MDM. If an error is returned, authorization is
+	// VerifyAnyMDMConfigured verifies that the server is configured for any MDM
+	// (Apple, Windows, or Android). If an error is returned, authorization is
 	// skipped so the error can be raised to the user.
-	VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error
+	VerifyAnyMDMConfigured(ctx context.Context) error
 
 	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error
 
@@ -1259,10 +1289,12 @@ type Service interface {
 	SetSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, titleIDs []uint) error
 	ListSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	// GetOrbitSetupExperienceStatus gets the current status of a macOS setup experience for the given host.
-	GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*SetupExperienceStatusPayload, error)
+	GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetFailedSetupSteps bool) (*SetupExperienceStatusPayload, error)
 	// GetSetupExperienceScript gets the current setup experience script for the given team.
 	GetSetupExperienceScript(ctx context.Context, teamID *uint, downloadRequested bool) (*Script, []byte, error)
-	// SetSetupExperienceScript sets the setup experience script for the given team.
+	// SetSetupExperienceScript sets the setup experience script for a given team, deleting the existing one if it exists
+	// and is different and replacing it with a new one. Effectively an upsert operation which does nothing if the contents
+	// do not change
 	SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error
 	// DeleteSetupExperienceScript deletes the setup experience script for the given team.
 	DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error
@@ -1276,6 +1308,10 @@ type Service interface {
 	SetupExperienceInit(ctx context.Context) (*SetupExperienceInitResult, error)
 	// GetDeviceSetupExperienceStatus returns the "Setup experience" status for a "Fleet Desktop" device.
 	GetDeviceSetupExperienceStatus(ctx context.Context) (*DeviceSetupExperienceStatusPayload, error)
+
+	MaybeCancelPendingSetupExperienceSteps(ctx context.Context, host *Host) error
+
+	IsAllSetupExperienceSoftwareRequired(ctx context.Context, host *Host) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Fleet-maintained apps
@@ -1328,6 +1364,16 @@ type Service interface {
 	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, setupError string, err error)
 	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Okta conditional access
+
+	// ConditionalAccessGetIdPSigningCert returns the Okta IdP signing certificate (public key only)
+	// for administrators to download and configure in Okta.
+	ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error)
+	// ConditionalAccessGetIdPAppleProfile returns the Apple MDM configuration profile
+	// (for user scope) to configure Okta conditional access on the host.
+	ConditionalAccessGetIdPAppleProfile(ctx context.Context) (profileData []byte, err error)
 
 	//////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities
