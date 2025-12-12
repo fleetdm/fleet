@@ -1713,6 +1713,8 @@ This activity contains the following fields:
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "software_display_name": Display name of the software title.
+- "auto_update_enabled": Whether automatic updates are enabled for iOS/iPadOS App Store (VPP) apps.
+- "auto_update_start_time": 24-hour time formatted as HH:MM when iOS/iPadOS App Store (VPP) apps begin auto updating (UTC).
 
 #### Example
 
@@ -1735,8 +1737,10 @@ This activity contains the following fields:
       "name": "Product",
       "id": 17
     }
-  ]
-  "software_display_name": "Logic Pro DAW"
+  ],
+  "software_display_name": "Logic Pro DAW",
+  "auto_update_enabled": true,
+  "auto_update_start_time": "13:37"
 }
 ```
 
