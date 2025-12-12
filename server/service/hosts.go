@@ -180,7 +180,22 @@ func (svc *Service) GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*flee
 	return svc.ds.GetMunkiIssue(ctx, munkiIssueID)
 }
 
-func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) (iter.Seq2[*fleet.Host, error], error) {
+func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	hostIterator, err := svc.StreamHosts(ctx, opt)
+	if err != nil {
+		return nil, err
+	}
+	var hosts []*fleet.Host
+	for host, err := range hostIterator {
+		if err != nil {
+			return nil, err
+		}
+		hosts = append(hosts, host)
+	}
+	return hosts, nil
+}
+
+func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) (iter.Seq2[*fleet.Host, error], error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
