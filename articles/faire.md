@@ -5,7 +5,9 @@
 
 Faire’s IT team is highly technical and prefers vendors that provide features through APIs. They’re builders who extend applications when out-of-the-box features fall short, and their workflows are highly automated and managed as code.
 
-They had used their previous MDM for several years, but frustration grew as it lagged in adopting new MDM APIs, including Apple’s Declarative Device Management. Their config-as-code approach also clashed with an MDM that had to be managed through the UI. While their IDP, productivity tools, and cloud infrastructure were all configured through code with automated CI/CD pipelines, it became increasing painful to keep an MDM that had to managed via the UI.
+They had used their previous MDM for several years, but frustration grew as it lagged in adopting new MDM APIs, including Apple’s Declarative Device Management. Faire’s workflow, based on ‘config-as-code’, also proved challenging. 
+
+With all their other IT systems, like their IDP, productivity software, and cloud infrastructure, all configured through code with automated CI/CD pipelines, maintaining an MDM that had to be managed via the UI became increasingly painful.
 
 Faire’s workflow, based on ‘config-as-code’, also proved challenging for their previous MDM. With all their other IT systems - like their IDP, productivity software, and cloud infrastructure all configured through code with automated CI/CD pipelines, it became increasingly painful to keep an MDM that had to be managed via the UI.
 
