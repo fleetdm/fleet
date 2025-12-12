@@ -264,12 +264,12 @@ func testLabelsSearch(t *testing.T, db *Datastore) {
 	labels, err := db.SearchLabels(context.Background(), filter, "")
 	require.Nil(t, err)
 	assert.Len(t, labels, 12)
-	assert.Contains(t, labels, all)
+	assert.Contains(t, labels, &all.Label)
 
 	labels, err = db.SearchLabels(context.Background(), filter, "foo")
 	require.Nil(t, err)
 	assert.Len(t, labels, 3)
-	assert.Contains(t, labels, all)
+	assert.Contains(t, labels, &all.Label)
 
 	labels, err = db.SearchLabels(context.Background(), filter, "foo", all.ID, l3.ID)
 	require.Nil(t, err)
@@ -279,7 +279,7 @@ func testLabelsSearch(t *testing.T, db *Datastore) {
 	labels, err = db.SearchLabels(context.Background(), filter, "xxx")
 	require.Nil(t, err)
 	assert.Len(t, labels, 1)
-	assert.Contains(t, labels, all)
+	assert.Contains(t, labels, &all.Label)
 }
 
 func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
