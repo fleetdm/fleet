@@ -11,7 +11,7 @@ import LabelForm from "./LabelForm";
 describe("LabelForm", () => {
   it("should validate the name to be required", async () => {
     const { user } = renderWithSetup(
-      <LabelForm onSave={noop} onCancel={noop} />
+      <LabelForm onSave={noop} onCancel={noop} teamName={null} />
     );
 
     const nameInput = screen.getByLabelText("Name");
@@ -30,6 +30,7 @@ describe("LabelForm", () => {
       <LabelForm
         onSave={noop}
         onCancel={noop}
+        teamName={null}
         additionalFields={<InputField name="test field" label="test field" />}
       />
     );
@@ -40,7 +41,7 @@ describe("LabelForm", () => {
   it("should pass up the form data when the form is submitted and valid", async () => {
     const onSave = jest.fn();
     const { user } = renderWithSetup(
-      <LabelForm onSave={onSave} onCancel={jest.fn()} />
+      <LabelForm onSave={onSave} onCancel={jest.fn()} teamName={null} />
     );
 
     const nameValue = "Test Name";
