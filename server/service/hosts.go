@@ -108,7 +108,7 @@ func (r listHostsResponse) HijackRender(_ context.Context, w http.ResponseWriter
 			return
 		}
 		fmt.Fprint(w, `"software":`)
-		fmt.Fprint(w, data)
+		fmt.Fprint(w, string(data))
 		w.(http.Flusher).Flush()
 		firstKey = false
 	}
@@ -123,7 +123,7 @@ func (r listHostsResponse) HijackRender(_ context.Context, w http.ResponseWriter
 			fmt.Fprint(w, `,`)
 		}
 		fmt.Fprint(w, `"software_title":`)
-		fmt.Fprint(w, data)
+		fmt.Fprint(w, string(data))
 		w.(http.Flusher).Flush()
 		firstKey = false
 	}
@@ -138,7 +138,7 @@ func (r listHostsResponse) HijackRender(_ context.Context, w http.ResponseWriter
 			return
 		}
 		fmt.Fprint(w, `"mobile_device_management_solution":`)
-		fmt.Fprint(w, data)
+		fmt.Fprint(w, string(data))
 		w.(http.Flusher).Flush()
 		firstKey = false
 	}
@@ -153,7 +153,7 @@ func (r listHostsResponse) HijackRender(_ context.Context, w http.ResponseWriter
 			fmt.Fprint(w, `,`)
 		}
 		fmt.Fprint(w, `"munki_issue":`)
-		fmt.Fprint(w, data)
+		fmt.Fprint(w, string(data))
 		w.(http.Flusher).Flush()
 		firstKey = false
 	}
