@@ -92,7 +92,8 @@ Senior Manager, Corporate Engineer
 <meta name="quoteAuthorJobTitle" value="Senior Manager, Corporate Engineer">
 
 <meta name="companyName" value="Foursquare">
-<meta name="companyInfo" value="Foursquare is the industry's leading geospatial technology platform, designed to help businesses make smarter decisions and create more engaging customer experiences. Powered by deep machine learning and a privacy-forward approach, their technology and solutions are redefining how organizations derive value from location intelligence.">
+<meta name="companyInfo" value="Foursquare is the industry's leading geospatial technology platform, designed to help businesses make smarter decisions and create more engaging customer experiences.">
+<meta name="companyInfoLineTwo" value="Powered by deep machine learning and a privacy-forward approach, their technology and solutions are redefining how organizations derive value from location intelligence.">
 
 <meta name="summaryChallenge" value="Foursquare wanted to simplify how they managed Macs and Windows devices. Their devices were split across two different MDMs, which created extra work and made automation harder for a small IT team.">
 <meta name="summarySolution" value="Fleet provided Foursquare with a single MDM platform that supports both Mac and Windows. Migrating from their previous MDMs was seamless and easy, with Fleet-provided out-of-the-box tools to add speed and simplicity.">
