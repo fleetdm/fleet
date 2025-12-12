@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -121,11 +122,15 @@ func GetServerDeviceCapabilities() CapabilityMap {
 }
 
 func GetOrbitClientCapabilities() CapabilityMap {
-	return CapabilityMap{
+	capabilities := CapabilityMap{
 		CapabilityEscrowBuddy:     {},
 		CapabilitySetupExperience: {},
-		CapabilityEndUserAuth:     {},
 	}
+	// On non-macOS systems, include end user auth capability.
+	if runtime.GOOS != "darwin" {
+		capabilities[CapabilityEndUserAuth] = struct{}{}
+	}
+	return capabilities
 }
 
 // CapabilitiesHeader is the header name used to communicate the capabilities.
