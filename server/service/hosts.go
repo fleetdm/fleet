@@ -85,11 +85,106 @@ type listHostsResponse struct {
 	// in the database). It is nil otherwise and absent of the JSON response
 	// payload.
 	MunkiIssue *fleet.MunkiIssue `json:"munki_issue,omitempty"`
+	// HostResponseIterator is an iterator to stream hosts one by one.
+	HostResponseIterator iter.Seq2[*fleet.HostResponse, error] `json:"-"`
 
 	Err error `json:"error,omitempty"`
 }
 
 func (r listHostsResponse) Error() error { return r.Err }
+
+func (r listHostsResponse) HijackRender(_ context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.(http.Flusher).Flush()
+
+	fmt.Fprint(w, `{`)
+	firstKey := true
+	if r.Software != nil {
+		data, err := json.Marshal(r.Software)
+		if err != nil {
+			fmt.Fprintf(w, `"error": "marshaling software: %s`, err.Error())
+			fmt.Fprint(w, `}`)
+			return
+		}
+		fmt.Fprint(w, `"software":`)
+		fmt.Fprint(w, data)
+		w.(http.Flusher).Flush()
+		firstKey = false
+	}
+	if r.SoftwareTitle != nil {
+		data, err := json.Marshal(r.SoftwareTitle)
+		if err != nil {
+			fmt.Fprintf(w, `"error": "marshaling software title: %s`, err.Error())
+			fmt.Fprint(w, `}`)
+			return
+		}
+		if !firstKey {
+			fmt.Fprint(w, `,`)
+		}
+		fmt.Fprint(w, `"software_title":`)
+		fmt.Fprint(w, data)
+		w.(http.Flusher).Flush()
+		firstKey = false
+	}
+	if r.MDMSolution != nil {
+		if !firstKey {
+			fmt.Fprint(w, `,`)
+		}
+		data, err := json.Marshal(r.MDMSolution)
+		if err != nil {
+			fmt.Fprintf(w, `"error": "marshaling mdm solution: %s`, err.Error())
+			fmt.Fprint(w, `}`)
+			return
+		}
+		fmt.Fprint(w, `"mobile_device_management_solution":`)
+		fmt.Fprint(w, data)
+		w.(http.Flusher).Flush()
+		firstKey = false
+	}
+	if r.MunkiIssue != nil {
+		data, err := json.Marshal(r.MunkiIssue)
+		if err != nil {
+			fmt.Fprintf(w, `"error": "marshaling munki issue: %s`, err.Error())
+			fmt.Fprint(w, `}`)
+			return
+		}
+		if !firstKey {
+			fmt.Fprint(w, `,`)
+		}
+		fmt.Fprint(w, `"munki_issue":`)
+		fmt.Fprint(w, data)
+		w.(http.Flusher).Flush()
+		firstKey = false
+	}
+	if !firstKey {
+		fmt.Fprint(w, `,`)
+	}
+	fmt.Fprint(w, `"hosts": [`)
+	firstHost := true
+	for hostResp, err := range r.HostResponseIterator {
+		if err != nil {
+			fmt.Fprint(w, `],`)
+			fmt.Fprintf(w, `"error": "getting host: %s`, err.Error())
+			fmt.Fprint(w, `}`)
+			return
+		}
+		data, err := json.Marshal(hostResp)
+		if err != nil {
+			fmt.Fprint(w, `],`)
+			fmt.Fprintf(w, `"error": "marshaling host response: %s`, err.Error())
+			fmt.Fprint(w, `}`)
+			return
+		}
+		if !firstHost {
+			fmt.Fprint(w, `,`)
+		}
+		fmt.Fprint(w, string(data))
+		w.(http.Flusher).Flush()
+		firstHost = false
+	}
+	fmt.Fprint(w, `]}`)
+}
 
 func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostsRequest)
@@ -136,31 +231,40 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		}
 	}
 
-	hosts, err := svc.ListHosts(ctx, req.Opts)
+	hostIterator, err := svc.StreamHosts(ctx, req.Opts)
 	if err != nil {
 		return listHostsResponse{Err: err}, nil
 	}
 
-	hostResponses := make([]fleet.HostResponse, len(hosts))
-	for i, host := range hosts {
-		h := fleet.HostResponseForHost(ctx, svc, host)
-		hostResponses[i] = *h
-
-		if req.Opts.PopulateLabels {
-			labels, err := svc.ListLabelsForHost(ctx, h.ID)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("failed to list labels for host %d", h.ID))
+	hostResponseIterator := func() iter.Seq2[*fleet.HostResponse, error] {
+		return func(yield func(*fleet.HostResponse, error) bool) {
+			for host, err := range hostIterator {
+				if err != nil {
+					yield(nil, err)
+					return
+				}
+				h := fleet.HostResponseForHost(ctx, svc, host)
+				if req.Opts.PopulateLabels {
+					labels, err := svc.ListLabelsForHost(ctx, h.ID)
+					if err != nil {
+						yield(nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("failed to list labels for host %d", h.ID)))
+						return
+					}
+					h.Labels = labels
+				}
+				if !yield(h, nil) {
+					return // consumer wants us to stop
+				}
 			}
-			hostResponses[i].Labels = labels
 		}
 	}
 
 	return listHostsResponse{
-		Hosts:         hostResponses,
-		Software:      software,
-		SoftwareTitle: softwareTitle,
-		MDMSolution:   mdmSolution,
-		MunkiIssue:    munkiIssue,
+		Software:             software,
+		SoftwareTitle:        softwareTitle,
+		MDMSolution:          mdmSolution,
+		MunkiIssue:           munkiIssue,
+		HostResponseIterator: hostResponseIterator(),
 	}, nil
 }
 
