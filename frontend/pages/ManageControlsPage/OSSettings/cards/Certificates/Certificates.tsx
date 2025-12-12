@@ -36,7 +36,7 @@ import certAPI, {
 } from "services/entities/certificates";
 
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
-import AddCertificateCard from "./components/AddCertificateCard/AddCertificateCard";
+import AddCTCard from "./components/AddCertificateTemplateCard/AddCertificateTemplateCard";
 import DeleteCertTemplateModal from "./components/DeleteCertTemplateModal";
 
 const baseClass = "certificates";
@@ -51,9 +51,7 @@ const Certificates = ({
   currentPage = 0,
   onMutation,
 }: ICertificatesProps) => {
-  const [showAddCertTemplateModal, setShowAddCertTemplateModal] = useState(
-    false
-  );
+  const [showAddCTModal, setShowAddCTModal] = useState(false);
   const [
     certTemplateToDelete,
     setCertTemplateToDelete,
@@ -159,7 +157,7 @@ const Certificates = ({
     }
 
     if (!cTs?.length) {
-      return <AddCertificateCard setShowModal={setShowAddCertTemplateModal} />;
+      return <AddCTCard setShowModal={setShowAddCTModal} />;
     }
 
     return (
@@ -171,7 +169,7 @@ const Certificates = ({
             <UploadListHeading
               entityName="Certificate"
               createEntityText="Create"
-              onClickAdd={() => setShowAddCertTemplateModal(true)}
+              onClickAdd={() => setShowAddCTModal(true)}
             />
           )}
           ListItemComponent={({ listItem }) => {
@@ -240,12 +238,8 @@ const Certificates = ({
         }
       />
       {renderContent()}
-      {showAddCertTemplateModal && (
-        <AddCertTemplateModal
-          existingCTs={cTs}
-          onExit={() => setShowAddCertTemplateModal(false)}
-          onAdd={onAddCert}
-        />
+      {showAddCTModal && (
+        <AddCTModal existingCTs={cTs} onExit={() => setShowAddCTModal(false)} />
       )}
       {certTemplateToDelete && (
         <DeleteCertTemplateModal
