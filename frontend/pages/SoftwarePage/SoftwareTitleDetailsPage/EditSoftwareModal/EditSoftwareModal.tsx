@@ -241,6 +241,11 @@ const EditSoftwareModal = ({
 
     const updates = deepDifference(formData, currentData);
 
+    // Send empty categories, as null will ignore any changes to categories
+    if (!formData.categories?.length) {
+      formData.categories = [""];
+    }
+
     if (isOnlySelfServiceUpdated(updates)) {
       onEditPackage(formData);
     } else {
