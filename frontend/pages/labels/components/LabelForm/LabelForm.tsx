@@ -17,8 +17,7 @@ interface ILabelFormProps {
   defaultDescription?: string;
   additionalFields?: ReactNode;
   isUpdatingLabel?: boolean;
-  // Nullable string, required prop per request; pass-through from parent
-  teamName?: string | null;
+  teamName: string | null;
   onCancel: () => void;
   onSave: (formData: ILabelFormData, isValid: boolean) => void;
 }
@@ -79,11 +78,7 @@ const LabelForm = ({
         type="textarea"
         placeholder="Label description (optional)"
       />
-      {teamName ? (
-        // Lazy import to avoid circulars; colocated component
-        // We keep a static import at the top for clarity in this codebase style
-        <TeamNameReadOnly teamName={teamName} />
-      ) : null}
+      {teamName ? <TeamNameField name={teamName} /> : null}
       {additionalFields}
       <div className="button-wrap">
         <Button onClick={onCancel} variant="inverse">
