@@ -1066,25 +1066,30 @@ WHERE
 	return results, nil
 }
 
-func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 	query := `
 SELECT
-    ncr.id as host_uuid,
-    ncr.command_uuid,
-    ncr.status,
-    ncr.result,
-    ncr.updated_at,
-    nc.request_type,
-    nc.command as payload
+	nq.id AS host_uuid,
+	nc.command_uuid,
+	COALESCE(ncr.updated_at, nc.created_at) AS updated_at,
+	COALESCE(ncr.status, 'Pending') AS status,
+	request_type,
+	nc.command AS payload,
+	COALESCE(ncr.result, '') AS result
 FROM
-    nano_command_results ncr
-INNER JOIN
-    nano_commands nc
-ON
-    ncr.command_uuid = nc.command_uuid
+	nano_enrollment_queue nq
+	JOIN nano_commands nc ON nq.command_uuid = nc.command_uuid
+	LEFT JOIN nano_command_results ncr ON nq.id = ncr.id
+		AND nc.command_uuid = ncr.command_uuid
 WHERE
-    ncr.command_uuid = ?
-`
+	nq.active = 1
+	AND nc.command_uuid = ?`
+
+	args := []any{commandUUID}
+	if hostUUID != "" {
+		query += " AND nq.id = ?"
+		args = append(args, hostUUID)
+	}
 
 	var results []*fleet.MDMCommandResult
 	err := sqlx.SelectContext(
@@ -1092,7 +1097,7 @@ WHERE
 		ds.reader(ctx),
 		&results,
 		query,
-		commandUUID,
+		args...,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
