@@ -57,7 +57,7 @@ Telemetry from Fleet remains important for device posture. It gives Faire the vi
 
 Fleet is working with Faire to explore managing other platforms, including Windows, Linux, and potentially BYOD mobile devices.
 
-Interested to learn more? Read Faire’s article about their MDM migration.
+Interested to learn more? [Read Faire’s article](https://craft.faire.com/using-observability-to-reduce-chaos-in-an-mdm-migration-20a0056a48e7) about their MDM migration.
 
 
 
