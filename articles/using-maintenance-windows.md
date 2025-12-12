@@ -24,8 +24,8 @@ You can customize these flows with a webhook (e.g. Tines) to run scripts, use th
 
 ### End user experience
 
-* If a user owns multiple failing hosts, only one host is scheduled at a time. Once it's fixed, Fleet schedules the next.
-* If a host has multiple users, Fleet chooses one user to receive the event.
+* If a user is present in host vitals on multiple failing hosts, only one user, at random, gets a calendar event. For example, if the CEO's Executive Assistant (EA) is logged into Google Chrome on their Mac and the CEO's Mac, the CEO will get calendar events for the EA's maintenance window.
+* If a host has multiple users listed in host vitals (e.g. IdP user + a Google Chrome profile or multiple Google Chrome profiles), Fleet chooses one user to receive the event.
 * Users can reschedule the event on their calendar—Fleet will run remediation at the new time.
 * If a user moves the event to before the current time, Fleet shifts it to the next day.
 * If a user deletes the event, Fleet automatically reschedules it for the next day.
