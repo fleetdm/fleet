@@ -20,7 +20,7 @@ They also wanted the migration to be quick and seamless. With their past experie
 
 ## Choosing Fleet
 
-The Foursquare team had met Fleet at a DevOps conference. After hearing positive feedback and conducting their own research they decided to evaluate the platform. Fleet checked all the boxes they were looking for: macOS and Windows support, a developer-friendly API, and a GitOps-first approach.
+The Foursquare team had met Fleet at a DevOps conference. After hearing positive feedback and conducting their own research, they decided to evaluate the platform. Fleet checked all the boxes they were looking for: macOS and Windows support, a developer-friendly API, and a GitOps-first approach.
 
 During the evaluation, the team was particularly impressed with Fleet’s Open Source roots. The transparency gave them confidence early on. Everything from bugs, to roadmaps and source code was available for review.
 
