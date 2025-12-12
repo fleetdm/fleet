@@ -38,6 +38,7 @@ import certAPI, {
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 import AddCTCard from "./components/AddCertificateTemplateCard/AddCertificateTemplateCard";
 import DeleteCertTemplateModal from "./components/DeleteCertTemplateModal";
+import AddCTModal from "./components/AddCTModal";
 
 const baseClass = "certificates";
 
@@ -239,7 +240,11 @@ const Certificates = ({
       />
       {renderContent()}
       {showAddCTModal && (
-        <AddCTModal existingCTs={cTs} onExit={() => setShowAddCTModal(false)} />
+        <AddCTModal
+          existingCTs={cTs}
+          onExit={() => setShowAddCTModal(false)}
+          onSuccess={onAddCert}
+        />
       )}
       {certTemplateToDelete && (
         <DeleteCertTemplateModal
