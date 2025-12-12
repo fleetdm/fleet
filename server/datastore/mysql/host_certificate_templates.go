@@ -106,14 +106,15 @@ func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hos
 		return nil
 	}
 
-	const argsCount = 4
+	const argsCount = 5
 
 	const sqlInsert = `
 		INSERT INTO host_certificate_templates (
 			host_uuid,
 			certificate_template_id,
 			fleet_challenge,
-			status
+			status,
+			operation_type
 		) VALUES %s
 	`
 
@@ -121,8 +122,8 @@ func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hos
 	args := make([]interface{}, 0, len(hostCertTemplates)*argsCount)
 
 	for _, hct := range hostCertTemplates {
-		args = append(args, hct.HostUUID, hct.CertificateTemplateID, hct.FleetChallenge, hct.Status)
-		placeholders.WriteString("(?,?,?,?),")
+		args = append(args, hct.HostUUID, hct.CertificateTemplateID, hct.FleetChallenge, hct.Status, hct.OperationType)
+		placeholders.WriteString("(?,?,?,?,?),")
 	}
 
 	stmt := fmt.Sprintf(sqlInsert, strings.TrimSuffix(placeholders.String(), ","))
@@ -178,8 +179,8 @@ func (ds *Datastore) UpsertCertificateStatus(
     WHERE host_uuid = ? AND certificate_template_id = ?`
 
 	insertStmt := `
-		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge)
-		VALUES (?, ?, ?, ?, ?)`
+		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge, operation_type)
+		VALUES (?, ?, ?, ?, ?, ?)`
 
 	// Validate the status.
 	if !status.IsValid() {
@@ -211,7 +212,8 @@ func (ds *Datastore) UpsertCertificateStatus(
 			return ctxerr.Wrap(ctx, err, "could not read certificate template for inserting new record")
 		}
 
-		params := []any{hostUUID, certificateTemplateID, status, detail, ""}
+		// Default to install operation type for new records
+		params := []any{hostUUID, certificateTemplateID, status, detail, "", fleet.MDMOperationTypeInstall}
 		if _, err := ds.writer(ctx).ExecContext(ctx, insertStmt, params...); err != nil {
 			return ctxerr.Wrap(ctx, err, "could not insert new host certificate template")
 		}

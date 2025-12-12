@@ -7,13 +7,13 @@ import {
   IHostAppStoreApp,
   IHostSoftware,
   IVPPHostSoftware,
+  isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
-
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
 import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
@@ -115,6 +115,8 @@ export const generateHostSWLibraryTableHeaders = ({
         const isAndroidPlayStoreApp =
           !!app_store_app && source === "android_apps";
 
+        const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(source);
+
         return (
           <SoftwareNameCell
             name={name}
@@ -127,6 +129,7 @@ export const generateHostSWLibraryTableHeaders = ({
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetailsLibrary"
+            isIosOrIpadosApp={isIosOrIpadosApp}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );

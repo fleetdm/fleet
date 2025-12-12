@@ -1,0 +1,8 @@
+{
+  "name": "Tableau Desktop",
+  "unique_identifier": "com.tableausoftware.Desktop.app",
+  "token": "tableau",
+  "installer_format": "dmg",
+  "slug": "tableau/darwin",
+  "default_categories": ["Productivity"]
+}
