@@ -28,9 +28,6 @@ If a software item isn't made available in self-service, end users will not see 
 
 Install this configuration profile to add the self-service web app to the home screen on iPhone and iPad.
 
-### Prerequisites
-
-- Safari must be installed on the host.
 
 ### Create the self-service configuration profile
 
