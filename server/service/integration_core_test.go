@@ -14865,6 +14865,7 @@ INSERT INTO host_certificate_templates (
 	require.Len(t, *getHostResp.Host.MDM.Profiles, 1)
 	profile := (*getHostResp.Host.MDM.Profiles)[0]
 	require.Equal(t, savedTemplate.Name, profile.Name)
+	require.Equal(t, fleet.AndroidCertificateTemplateProfileID, profile.ProfileUUID)
 	require.Equal(t, fleet.MDMOperationTypeInstall, profile.OperationType, "operation_type should be populated for certificate templates")
 
 	// Test cases
