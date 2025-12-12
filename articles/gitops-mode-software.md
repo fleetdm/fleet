@@ -8,6 +8,8 @@ When using GitOps, you can optionally put Fleet in [GitOps mode](https://fleetdm
 
 To manage custom packages via GitOps, please see the [`packages`](https://fleetdm.com/docs/configuration/yaml-files#packages) in Fleet's GitOps docs.
 
+> For script packages (`.sh` and `.ps1` files), the `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields are not supported and will be ignored. The script file's contents become the install script. Learn more in the [deploy software guide](https://fleetdm.com/guides/deploy-software-packages#script-packages).
+
 If you want to use Fleet to host custom packages instead of a third-party package hosting tool (ex. [Artifactory](https://jfrog.com/artifactory/)), first turn GitOps mode on in **Settings > Integration > Change management**
 1. Navigate to **Software** and select a team. Then select **Add Software > Custom package**
 2. Select a team and choose a file to upload and select **Add software**
