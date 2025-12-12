@@ -1840,7 +1840,7 @@ func testUpdateLabelMembershipForTransferredHost(t *testing.T, ds *Datastore) {
 		NodeKey:       ptr.String("2"),
 		UUID:          "2",
 		Hostname:      "foo2.local",
-		Platform:      "windowqs",
+		Platform:      "windows",
 		TeamID:        &t2.ID,
 	})
 	require.NoError(t, err)
