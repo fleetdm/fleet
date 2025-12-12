@@ -1839,7 +1839,7 @@ func createTestBuckets(config *configpkg.FleetConfig, logger log.Logger) {
 		initFatal(err, "initializing S3 software installer store")
 	}
 	if err := softwareInstallerStore.CreateTestBucket(context.Background(), config.S3.SoftwareInstallersBucket); err != nil {
-		// Don't panic, allow devs to run Fleet without minio/S3 dependency.
+		// Don't panic, allow devs to run Fleet without S3 dependency.
 		level.Info(logger).Log(
 			"err", err,
 			"msg", "failed to create test software installer bucket",
@@ -1851,7 +1851,7 @@ func createTestBuckets(config *configpkg.FleetConfig, logger log.Logger) {
 		initFatal(err, "initializing S3 carve store")
 	}
 	if err := carveStore.CreateTestBucket(context.Background(), config.S3.CarvesBucket); err != nil {
-		// Don't panic, allow devs to run Fleet without minio/S3 dependency.
+		// Don't panic, allow devs to run Fleet without S3 dependency.
 		level.Info(logger).Log(
 			"err", err,
 			"msg", "failed to create test carve bucket",

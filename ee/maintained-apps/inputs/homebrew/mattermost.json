@@ -1,0 +1,8 @@
+{
+  "name": "Mattermost",
+  "unique_identifier": "Mattermost.Desktop",
+  "token": "mattermost",
+  "installer_format": "zip",
+  "slug": "mattermost/darwin",
+  "default_categories": ["Communication"]
+}

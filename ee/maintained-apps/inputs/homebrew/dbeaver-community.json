@@ -1,0 +1,8 @@
+{
+  "name": "DBeaver",
+  "unique_identifier": "org.jkiss.dbeaver.core.product",
+  "token": "dbeaver-community",
+  "installer_format": "dmg",
+  "slug": "dbeaver-community/darwin",
+  "default_categories": ["Developer tools"]
+}

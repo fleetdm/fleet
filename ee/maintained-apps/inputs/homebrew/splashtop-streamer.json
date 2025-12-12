@@ -1,0 +1,8 @@
+{
+  "name": "Splashtop Streamer",
+  "unique_identifier": "com.splashtop.Splashtop-Streamer",
+  "token": "splashtop-streamer",
+  "installer_format": "dmg",
+  "slug": "splashtop-streamer/darwin",
+  "default_categories": ["Productivity"]
+}

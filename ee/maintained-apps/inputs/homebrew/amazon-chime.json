@@ -1,0 +1,8 @@
+{
+  "name": "Amazon Chime",
+  "unique_identifier": "com.amazon.Amazon-Chime",
+  "token": "amazon-chime",
+  "installer_format": "dmg",
+  "slug": "amazon-chime/darwin",
+  "default_categories": ["Communication"]
+}

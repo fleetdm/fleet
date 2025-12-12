@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "15.2.0.60459",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Cisco Jabber' AND publisher = 'Cisco Systems, Inc';"
+      },
+      "installer_url": "https://binaries.webex.com/jabberclientwindows/20251117102106/CiscoJabberSetup.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "163f2357",
+      "sha256": "adf7ac006769ba1e7df82fb322c48e27df56a53c5664a989d7b5ed55ea58b4a6",
+      "default_categories": [
+        "Communication"
+      ],
+      "upgrade_code": "{6FA51B39-4177-411C-A3A3-5A81C464278B}"
+    }
+  ],
+  "refs": {
+    "163f2357": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\nforeach ($product_code in $inst.RelatedProducts(\"{6FA51B39-4177-411C-A3A3-5A81C464278B}\")) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n    \n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n    \n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n    \n    # If the uninstall failed, bail\n    if ($process.ExitCode -ne 0) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n",
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

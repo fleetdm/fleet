@@ -46,6 +46,24 @@ SELECT
 		path LIKE '/Users/%/Library/Keychains/login.keychain-db';
 ```
 
+## certificates_windows
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1, username,
+		path
+	FROM
+		certificates
+	WHERE
+		store = 'Personal';
+```
+
 ## chromeos_profile_user_info
 
 - Platforms: chrome

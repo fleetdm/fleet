@@ -64,7 +64,7 @@ class ScepIntegrationTest {
     ): GetCertificateTemplateResponse = GetCertificateTemplateResponse(
         id = 1,
         name = name,
-        certificateAuthorityId = "ca-123",
+        certificateAuthorityId = 123,
         certificateAuthorityName = "Test CA",
         createdAt = "2024-01-01T00:00:00Z",
         subjectName = subject,
@@ -122,7 +122,7 @@ class ScepIntegrationTest {
             val uniqueId = System.currentTimeMillis()
             val template = createTemplate(
                 url = testTemplate.url ?: "https://scep.example.com/scep",
-                challenge = testTemplate.scepChallenge,
+                challenge = testTemplate.scepChallenge ?: "test-challenge",
                 name = "test-cert-$keySize-$uniqueId",
                 subject = "CN=IntegrationTestDevice-$keySize-$uniqueId,O=FleetDM,C=US",
                 keyLength = keySize,
