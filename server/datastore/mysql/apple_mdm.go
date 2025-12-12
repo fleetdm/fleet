@@ -1154,15 +1154,12 @@ FROM
 		AND nc.command_uuid = ncr.command_uuid
 WHERE
 	nq.active = 1
-	AND nc.command_uuid = ?
-	%s
-`
+	AND nc.command_uuid = ?`
+
 	args := []any{commandUUID}
 	if hostUUID != "" {
-		query = fmt.Sprintf(query, "AND nq.id = ?")
+		query += " AND nq.id = ?"
 		args = append(args, hostUUID)
-	} else {
-		query = fmt.Sprintf(query, "")
 	}
 
 	var results []*fleet.MDMCommandResult

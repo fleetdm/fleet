@@ -805,7 +805,7 @@ func (svc *Service) getMDMCommandResults(ctx context.Context, commandUUID string
 	case "darwin":
 		results, err = svc.ds.GetMDMAppleCommandResults(ctx, commandUUID, hostUUID)
 	case "windows":
-		results, err = svc.ds.GetMDMWindowsCommandResults(ctx, commandUUID)
+		results, err = svc.ds.GetMDMWindowsCommandResults(ctx, commandUUID, hostUUID)
 	case "android":
 		// TODO(mna): maybe in the future we'll store responses from AMAPI commands, but for
 		// now we don't (they are very large), just return an empty list.

@@ -1506,7 +1506,7 @@ func (ds *Datastore) getHostMDMWindowsCommand(ctx context.Context, cmdUUID, host
 
 	// get the MDM command result, which may be not found (indicating the command doesn't exist).
 	// If it is pending, then it returns 101, and result will be empty.
-	cmdResults, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID)
+	cmdResults, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, "")
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "get Windows MDM command result")
 	}
