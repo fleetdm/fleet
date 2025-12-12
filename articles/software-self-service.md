@@ -67,7 +67,6 @@ Tips:
 - Use the **Software > Library** table to quickly identify and action pending updates.
 - When a software install or uninstall fails, select **Failed** to see error details that can help with troubleshooting.
 - To automatically install software, you can use Fleet's policy automations. [Learn how](https://fleetdm.com/guides/automatic-software-install-in-fleet).
-- You can download an example Web Clip profile from [our repository](https://github.com/fleetdm/fleet/tree/main/docs/solutions/ios-ipados/Fleet-self-service.mobileconfig).
 
 ## End user experience
 
