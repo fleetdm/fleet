@@ -22,8 +22,9 @@ import (
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill"
-	"github.com/ThreeDotsLabs/watermill-sql/v4/pkg/sql"
+	"github.com/ThreeDotsLabs/watermill-redisstream/pkg/redisstream"
 	"github.com/ThreeDotsLabs/watermill/message"
+	goredis "github.com/redis/go-redis/v9"
 
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
@@ -1609,18 +1610,35 @@ the way that the Fleet server works.
 				}()
 			}()
 
-			db := createDB()
-			logger2 := watermill.NewStdLogger(false, false)
+			// db := createDB()
 
-			subscriber, err := sql.NewSubscriber(
-				sql.BeginnerFromStdSQL(db),
-				sql.SubscriberConfig{
-					SchemaAdapter:    sql.DefaultMySQLSchema{},
-					OffsetsAdapter:   sql.DefaultMySQLOffsetsAdapter{},
-					InitializeSchema: true,
+			subClient := goredis.NewClient(&goredis.Options{
+				Addr: "0.0.0.0:6379",
+				DB:   0,
+			})
+			subscriber, err := redisstream.NewSubscriber(
+				redisstream.SubscriberConfig{
+					Client:        subClient,
+					Unmarshaller:  redisstream.DefaultMarshallerUnmarshaller{},
+					ConsumerGroup: "test_consumer_group",
 				},
-				logger2,
+				watermill.NewStdLogger(false, false),
 			)
+			if err != nil {
+				panic(err)
+			}
+
+			// logger2 := watermill.NewStdLogger(false, false)
+
+			// subscriber, err := sql.NewSubscriber(
+			// 	sql.BeginnerFromStdSQL(db),
+			// 	sql.SubscriberConfig{
+			// 		SchemaAdapter:    sql.DefaultMySQLSchema{},
+			// 		OffsetsAdapter:   sql.DefaultMySQLOffsetsAdapter{},
+			// 		InitializeSchema: true,
+			// 	},
+			// 	logger2,
+			// )
 			if err != nil {
 				panic(err)
 			}
@@ -1632,12 +1650,27 @@ the way that the Fleet server works.
 
 			go process(messages)
 
-			publisher, err := sql.NewPublisher(
-				sql.BeginnerFromStdSQL(db),
-				sql.PublisherConfig{
-					SchemaAdapter: sql.DefaultMySQLSchema{},
+			// publisher, err := sql.NewPublisher(
+			// 	sql.BeginnerFromStdSQL(db),
+			// 	sql.PublisherConfig{
+			// 		SchemaAdapter: sql.DefaultMySQLSchema{},
+			// 	},
+			// 	logger2,
+			// )
+			// if err != nil {
+			// 	panic(err)
+			// }
+
+			pubClient := goredis.NewClient(&goredis.Options{
+				Addr: "0.0.0.0:6379",
+				DB:   0,
+			})
+			publisher, err := redisstream.NewPublisher(
+				redisstream.PublisherConfig{
+					Client:     pubClient,
+					Marshaller: redisstream.DefaultMarshallerUnmarshaller{},
 				},
-				logger2,
+				watermill.NewStdLogger(false, false),
 			)
 			if err != nil {
 				panic(err)
