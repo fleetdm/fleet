@@ -12,7 +12,7 @@ With all their other IT systems, like their IDP, productivity software, and clou
 
 One team member spent months trying to build a Terraform provider for the previous MDM, but gave up because of bugs and inconsistent APIs.
 
-Support also became a problem. Feature requests felt ignored, and responses were slow, which didn’t work for a company the size of Faire.
+Support also became a problem. Feature requests often felt ignored, and responses were slow, which didn’t work for a company of Faire's size.
 
 ## The search for a solution
 
