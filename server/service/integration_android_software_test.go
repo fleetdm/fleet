@@ -545,7 +545,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfigurations() {
 	// Verify that activity includes configuration
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true,"configuration": %s}`,
-			t.Name(), "Test App", appWithConfigResp.TitleID, androidAppFoo.AdamID, 1, androidAppFoo.Platform, androidAppFoo.Configuration), 0)
+			t.Name(), "Test App", appWithConfigResp.TitleID, androidAppFoo.AdamID, ptr.ValOrZero(teamID), androidAppFoo.Platform, androidAppFoo.Configuration), 0)
 
 	var listSWTitles listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(*teamID))
