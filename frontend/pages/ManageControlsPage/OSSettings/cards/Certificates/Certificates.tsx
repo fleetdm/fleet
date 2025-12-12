@@ -1,13 +1,20 @@
 import React, { useState, useCallback, useContext } from "react";
 import { AxiosError } from "axios";
 import { useQuery } from "react-query";
+import { formatDistanceToNow } from "date-fns";
 
 import { AppContext } from "context/app";
 import PATHS from "router/paths";
 
+import { createMockAndroidCertTemplate } from "__mocks__/certificatesMock";
+
 import UploadList from "pages/ManageControlsPage/components/UploadList";
 import UploadListHeading from "pages/ManageControlsPage/components/UploadListHeading";
 
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import ListItem from "components/ListItem";
 import Pagination from "components/Pagination";
 import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
@@ -29,12 +36,6 @@ import certAPI, {
 
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 import AddCertificateCard from "./components/AddCertificateCard/AddCertificateCard";
-import { createMockAndroidCertTemplate } from "__mocks__/certificatesMock";
-import { formatDistanceToNow } from "date-fns";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
-import ListItem from "components/ListItem";
 
 const baseClass = "certificates";
 
@@ -180,25 +181,27 @@ const Certificates = ({
                 {formatDistanceToNow(new Date(created_at))} ago
               </>
             );
-            <ListItem
-              graphic="file-certificate"
-              title={name}
-              details={details}
-              actions={
-                <GitOpsModeTooltipWrapper
-                  renderChildren={(disableChildren) => (
-                    <Button
-                      disabled={disableChildren}
-                      className={`${baseClass}__delete-button`}
-                      variant="icon"
-                      onClick={() => setCertIdToDelete(id)}
-                    >
-                      <Icon name="trash" />
-                    </Button>
-                  )}
-                />
-              }
-            />;
+            return (
+              <ListItem
+                graphic="file-certificate"
+                title={name}
+                details={details}
+                actions={
+                  <GitOpsModeTooltipWrapper
+                    renderChildren={(disableChildren) => (
+                      <Button
+                        disabled={disableChildren}
+                        className={`${baseClass}__delete-button`}
+                        variant="icon"
+                        onClick={() => setCertIdToDelete(id)}
+                      >
+                        <Icon name="trash" />
+                      </Button>
+                    )}
+                  />
+                }
+              />
+            );
           }}
         />
         <Pagination
