@@ -180,7 +180,7 @@ func (svc *Service) GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*flee
 	return svc.ds.GetMunkiIssue(ctx, munkiIssueID)
 }
 
-func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) (iter.Seq2[*fleet.Host, error], error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
@@ -252,49 +252,7 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 		}
 	}
 
-	// If issues are enabled, we need to remove the critical vulnerabilities count for non-premium license.
-	// If issues are disabled, we need to explicitly set the critical vulnerabilities count to 0 for premium license.
-	if !opt.DisableIssues && !premiumLicense {
-		// Remove critical vulnerabilities count if not premium license
-		for _, host := range hosts {
-			host.HostIssues.CriticalVulnerabilitiesCount = nil
-		}
-	} else if opt.DisableIssues && premiumLicense {
-		var zero uint64
-		for _, host := range hosts {
-			host.HostIssues.CriticalVulnerabilitiesCount = &zero
-		}
-	}
-
-	if opt.PopulateSoftware {
-		for _, host := range hosts {
-			if err = svc.ds.LoadHostSoftware(ctx, host, opt.PopulateSoftwareVulnerabilityDetails); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	if opt.PopulatePolicies {
-		for _, host := range hosts {
-			hp, err := svc.ds.ListPoliciesForHost(ctx, host)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get policies for host %d", host.ID))
-			}
-			host.Policies = &hp
-		}
-	}
-
-	if opt.PopulateUsers {
-		for _, host := range hosts {
-			hu, err := svc.ds.ListHostUsers(ctx, host.ID)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get users for host %d", host.ID))
-			}
-			host.Users = hu
-		}
-	}
-
-	return hosts, nil
+	return hostIterator(), nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
