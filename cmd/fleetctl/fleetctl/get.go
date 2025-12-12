@@ -1489,7 +1489,7 @@ func getMDMCommandResultsCommand() *cli.Command {
 			res, err := client.MDMGetCommandResults(c.String("id"), c.String("host"))
 			if err != nil {
 				var nfe service.NotFoundErr
-				if errors.As(err, &nfe) {
+				if errors.As(err, &nfe) && c.String("host") == "" {
 					return errors.New("The command doesn't exist. Please provide a valid command ID. To see a list of commands that were run, run `fleetctl get mdm-commands`.")
 				}
 
