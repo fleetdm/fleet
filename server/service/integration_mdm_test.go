@@ -12197,44 +12197,7 @@ func checkInstallFleetdCommandSent(t *testing.T, mdmDevice *mdmtest.TestAppleMDM
 
 func (s *integrationMDMTestSuite) TestVPPApps() {
 	t := s.T()
-	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
-
-	// Debug: Log VPP tokens and teams at test start
-	t.Log("=== DEBUG: TestVPPApps starting ===")
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		var tokens []struct {
-			ID               uint   `db:"id"`
-			OrganizationName string `db:"organization_name"`
-			Location         string `db:"location"`
-		}
-		if err := sqlx.SelectContext(ctx, q, &tokens, `SELECT id, organization_name, location FROM vpp_tokens`); err != nil {
-			t.Logf("DEBUG: Error getting vpp_tokens: %v", err)
-		} else {
-			t.Logf("DEBUG: VPP tokens at test start: %+v", tokens)
-		}
-
-		var teams []struct {
-			ID   uint   `db:"id"`
-			Name string `db:"name"`
-		}
-		if err := sqlx.SelectContext(ctx, q, &teams, `SELECT id, name FROM teams`); err != nil {
-			t.Logf("DEBUG: Error getting teams: %v", err)
-		} else {
-			t.Logf("DEBUG: Teams at test start: %+v", teams)
-		}
-
-		var vppTokenTeams []struct {
-			VPPTokenID uint  `db:"vpp_token_id"`
-			TeamID     *uint `db:"team_id"`
-		}
-		if err := sqlx.SelectContext(ctx, q, &vppTokenTeams, `SELECT vpp_token_id, team_id FROM vpp_token_teams`); err != nil {
-			t.Logf("DEBUG: Error getting vpp_token_teams: %v", err)
-		} else {
-			t.Logf("DEBUG: VPP token teams at test start: %+v", vppTokenTeams)
-		}
-		return nil
-	})
 
 	// Invalid token
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?invalidToken")
@@ -12577,42 +12540,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	var newTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("VPPApps Test Team " + t.Name())}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
-
-	// Debug: Log state before PATCH that assigns team to VPP token
-	t.Logf("=== DEBUG: Before PATCH to assign team %d (%s) to VPP token %d ===", team.ID, team.Name, resp.Tokens[0].ID)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		var tokens []struct {
-			ID               uint   `db:"id"`
-			OrganizationName string `db:"organization_name"`
-			Location         string `db:"location"`
-		}
-		if err := sqlx.SelectContext(ctx, q, &tokens, `SELECT id, organization_name, location FROM vpp_tokens`); err != nil {
-			t.Logf("DEBUG: Error getting vpp_tokens: %v", err)
-		} else {
-			t.Logf("DEBUG: VPP tokens before PATCH: %+v", tokens)
-		}
-
-		var teams []struct {
-			ID   uint   `db:"id"`
-			Name string `db:"name"`
-		}
-		if err := sqlx.SelectContext(ctx, q, &teams, `SELECT id, name FROM teams`); err != nil {
-			t.Logf("DEBUG: Error getting teams: %v", err)
-		} else {
-			t.Logf("DEBUG: Teams before PATCH: %+v", teams)
-		}
-
-		var vppTokenTeams []struct {
-			VPPTokenID uint  `db:"vpp_token_id"`
-			TeamID     *uint `db:"team_id"`
-		}
-		if err := sqlx.SelectContext(ctx, q, &vppTokenTeams, `SELECT vpp_token_id, team_id FROM vpp_token_teams`); err != nil {
-			t.Logf("DEBUG: Error getting vpp_token_teams: %v", err)
-		} else {
-			t.Logf("DEBUG: VPP token teams before PATCH: %+v", vppTokenTeams)
-		}
-		return nil
-	})
 
 	// Associate team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
@@ -12984,21 +12911,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.appleVPPConfigSrvConfig.Location = "Spooky Haunted House"
 	var vppRes uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSONBad))), http.StatusAccepted, "", &vppRes)
-
-	// Debug: Log state before PATCH that assigns team to second VPP token
-	t.Logf("=== DEBUG: Before PATCH to assign team %d to second VPP token %d ===", team.ID, vppRes.Token.ID)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		var vppTokenTeams []struct {
-			VPPTokenID uint  `db:"vpp_token_id"`
-			TeamID     *uint `db:"team_id"`
-		}
-		if err := sqlx.SelectContext(ctx, q, &vppTokenTeams, `SELECT vpp_token_id, team_id FROM vpp_token_teams`); err != nil {
-			t.Logf("DEBUG: Error getting vpp_token_teams: %v", err)
-		} else {
-			t.Logf("DEBUG: VPP token teams before second PATCH: %+v", vppTokenTeams)
-		}
-		return nil
-	})
 
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, 99999}}, http.StatusUnprocessableEntity, &resPatchVPP)
 
