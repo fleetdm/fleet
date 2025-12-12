@@ -97,4 +97,4 @@ Senior Manager, Corporate Engineer
 
 <meta name="summaryChallenge" value="Foursquare wanted to simplify how they managed Macs and Windows devices. Their devices were split across two different MDMs, which created extra work and made automation harder for a small IT team.">
 <meta name="summarySolution" value="Fleet provided Foursquare with a single MDM platform that supports both Mac and Windows. Migrating from their previous MDMs was seamless and easy, with Fleet-provided out-of-the-box tools to add speed and simplicity.">
-<meta name="summaryKeyResults" value="Cut endpoint maintenance effort by 50%; Reduced licensing costs by 21%; Achieved 114% ROI by removing duplicate tools; Real-time visibility with direct integration to their SIEM, without extra agents; Increased reliability of security controls with GitOps">
+<meta name="summaryKeyResults" value="Cut endpoint maintenance effort by 50%; Reduced licensing costs by 24%; Achieved 114% ROI by removing duplicate tools; Real-time visibility with direct integration to their SIEM, with no latency; Increased reliability of security controls with GitOps">
