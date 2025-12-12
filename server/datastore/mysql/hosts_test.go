@@ -4225,7 +4225,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	}
 
 	// set up data
-	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault-1", "com.fleetdm.fleet.mdm.filevault", 0), nil)
+	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("filevault-1", "com.fleetdm.fleet.mdm.filevault", 0), nil)
 	require.NoError(t, err)
 
 	// verifying status
@@ -4397,7 +4397,7 @@ func testListHostsProfileUUIDAndStatus(t *testing.T, ds *Datastore) {
 	// no team Apple config profile //
 	/////////////////////////////
 
-	noTeamProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("test-profile", "com.fleetdm.fleet.mdm.test", 0), nil)
+	noTeamProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("test-profile", "com.fleetdm.fleet.mdm.test", 0), nil)
 	require.NoError(t, err)
 
 	verified := fleet.OSSettingsVerified

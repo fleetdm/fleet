@@ -22,7 +22,7 @@ func TestHostCertificateTemplates(t *testing.T) {
 		{"ListAndroidHostUUIDsWithDeliverableCertificateTemplates", testListAndroidHostUUIDsWithDeliverableCertificateTemplates},
 		{"ListCertificateTemplatesForHosts", testListCertificateTemplatesForHosts},
 		{"BulkInsertAndDeleteHostCertificateTemplates", testBulkInsertAndDeleteHostCertificateTemplates},
-		{"UpdateHostCertificateTemplateStatus", testUpdateHostCertificateTemplateStatus},
+		{"UpsertHostCertificateTemplateStatus", testUpsertHostCertificateTemplateStatus},
 	}
 
 	for _, c := range cases {
@@ -480,9 +480,9 @@ func testBulkInsertAndDeleteHostCertificateTemplates(t *testing.T, ds *Datastore
 			func(t *testing.T, ds *Datastore) {
 				// Insert host certificate templates
 				hostCerts := []fleet.HostCertificateTemplate{
-					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-1", Status: fleet.MDMDeliveryPending},
-					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateIDTwo, FleetChallenge: "challenge-2", Status: fleet.MDMDeliveryPending},
-					{HostUUID: "host-2", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-3", Status: fleet.MDMDeliveryVerified},
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-1", Status: fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateIDTwo, FleetChallenge: "challenge-2", Status: fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+					{HostUUID: "host-2", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-3", Status: fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
 				}
 				err := ds.BulkInsertHostCertificateTemplates(ctx, hostCerts)
 				require.NoError(t, err)
@@ -557,8 +557,8 @@ func testBulkInsertAndDeleteHostCertificateTemplates(t *testing.T, ds *Datastore
 
 				// Insert host certificate templates
 				hostCerts := []fleet.HostCertificateTemplate{
-					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-1", Status: fleet.MDMDeliveryPending},
-					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateIDTwo, FleetChallenge: "challenge-2", Status: fleet.MDMDeliveryPending},
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateID, FleetChallenge: "challenge-1", Status: fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+					{HostUUID: "host-1", CertificateTemplateID: certificateTemplateIDTwo, FleetChallenge: "challenge-2", Status: fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
 				}
 				err = ds.BulkInsertHostCertificateTemplates(ctx, hostCerts)
 				require.NoError(t, err)
@@ -612,7 +612,7 @@ func testBulkInsertAndDeleteHostCertificateTemplates(t *testing.T, ds *Datastore
 	}
 }
 
-func testUpdateHostCertificateTemplateStatus(t *testing.T, ds *Datastore) {
+func testUpsertHostCertificateTemplateStatus(t *testing.T, ds *Datastore) {
 	nodeKey := uuid.New().String()
 	uuid := uuid.New().String()
 	hostName := "test-update-host-certificate-template"
@@ -634,15 +634,23 @@ func testUpdateHostCertificateTemplateStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	caID := ca.ID
 
-	certTemplate := &fleet.CertificateTemplate{
+	ct1, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
 		Name:                   "Cert1",
 		TeamID:                 teamID,
 		CertificateAuthorityID: caID,
 		SubjectName:            "CN=Test Subject 1",
-	}
-	savedTemplate, err := ds.CreateCertificateTemplate(ctx, certTemplate)
+	})
 	require.NoError(t, err)
-	require.NotNil(t, savedTemplate)
+	require.NotNil(t, ct1)
+
+	ct2, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "Cert2",
+		TeamID:                 teamID,
+		CertificateAuthorityID: caID,
+		SubjectName:            "CN=Test Subject 1",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, ct2)
 
 	// Create a host
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
@@ -654,9 +662,6 @@ func testUpdateHostCertificateTemplateStatus(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// TODO -- add a host certificate template when we have a foreign key set up.
-	certificateTemplateID := savedTemplate.ID
-
 	// Create a record in host_certificate_templates using ad hoc SQL
 	sql := `
 INSERT INTO host_certificate_templates (
@@ -667,7 +672,7 @@ INSERT INTO host_certificate_templates (
 ) VALUES (?, ?, ?, ?);
 	`
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err = q.ExecContext(context.Background(), sql, host.UUID, certificateTemplateID, "pending", "some_challenge_value")
+		_, err = q.ExecContext(context.Background(), sql, host.UUID, ct1.ID, "pending", "some_challenge_value")
 		require.NoError(t, err)
 		return nil
 	})
@@ -681,35 +686,33 @@ INSERT INTO host_certificate_templates (
 		detail           *string
 	}{
 		{
-			name:             "Valid Update",
-			templateID:       certificateTemplateID,
-			newStatus:        "verified",
-			expectedErrorMsg: "",
+			name:       "Valid Update",
+			templateID: ct1.ID,
+			newStatus:  "verified",
 		},
 		{
-			name:             "Valid Update with some details",
-			templateID:       certificateTemplateID,
-			newStatus:        "failed",
-			detail:           ptr.String("some details"),
-			expectedErrorMsg: "",
+			name:       "Valid Update with some details",
+			templateID: ct1.ID,
+			newStatus:  "failed",
+			detail:     ptr.String("some details"),
 		},
 		{
 			name:             "Invalid Status",
-			templateID:       certificateTemplateID,
+			templateID:       ct1.ID,
 			newStatus:        "invalid_status",
 			expectedErrorMsg: fmt.Sprintf("Invalid status '%s'", "invalid_status"),
 		},
 		{
-			name:             "Wrong Template ID",
-			templateID:       9999,
-			newStatus:        "verified",
-			expectedErrorMsg: fmt.Sprintf("No certificate found for host UUID '%s' and template ID '%d'", host.UUID, 9999),
+			name:       "Creates a new status if record does not exist",
+			templateID: ct2.ID,
+			newStatus:  "verified",
+			detail:     ptr.String("some details"),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("TestUpdateHostCertificateTemplate:%s", tc.name), func(t *testing.T) {
-			err := ds.UpdateCertificateStatus(context.Background(), host.UUID, tc.templateID, fleet.MDMDeliveryStatus(tc.newStatus), tc.detail)
+			err := ds.UpsertCertificateStatus(context.Background(), host.UUID, tc.templateID, fleet.MDMDeliveryStatus(tc.newStatus), tc.detail)
 			if tc.expectedErrorMsg == "" {
 				require.NoError(t, err)
 				// Verify the update

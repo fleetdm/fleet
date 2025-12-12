@@ -262,11 +262,11 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	var softwareInstallerStore fleet.SoftwareInstallerStore
 	var bootstrapPackageStore fleet.MDMBootstrapPackageStore
-	_, minioEnabled := os.LookupEnv("MINIO_STORAGE_TEST")
-	if wantStore := os.Getenv("FLEET_INTEGRATION_TESTS_SOFTWARE_INSTALLER_STORE"); minioEnabled &&
+	_, localS3Enabled := os.LookupEnv("S3_STORAGE_TEST")
+	if wantStore := os.Getenv("FLEET_INTEGRATION_TESTS_SOFTWARE_INSTALLER_STORE"); localS3Enabled &&
 		(wantStore == "s3" || (wantStore == "" && time.Now().UnixNano()%2 == 0)) {
 
-		s.T().Log(">>> using S3/minio software installer store")
+		s.T().Log(">>> using S3-compatible software installer store")
 		softwareInstallerStore = s3.SetupTestSoftwareInstallerStore(s.T(), "integration-tests", "")
 		bootstrapPackageStore = s3.SetupTestBootstrapPackageStore(s.T(), "integration-tests", "")
 	}
@@ -4702,6 +4702,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	// Associate the token with the team
 	s.enableABM(t.Name())
 	// start a server that will mock the Apple DEP API
+	profileCalls := 0
 	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		encoder := json.NewEncoder(w)
 		switch r.URL.Path {
@@ -4712,6 +4713,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		case "/profile":
 			body, err := io.ReadAll(r.Body)
 			require.NoError(t, err)
+			profileCalls++
 			var prof godep.Profile
 			require.NoError(t, json.Unmarshal(body, &prof))
 			switch {
@@ -4879,6 +4881,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	time.Sleep(time.Second)
 
 	// no change to no-team
+	priorProfileCalls := profileCalls
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            nil,
 		Name:              "no-team2",
@@ -4887,6 +4890,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	// the last activity is that of the team (i.e. no new activity was created for no-team)
 	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
 		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), lastChangedActID)
+	// No new requests to DEP were made since nothing changed
+	require.Equal(t, priorProfileCalls, profileCalls)
 
 	// no change to team
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
@@ -4896,6 +4901,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	}, http.StatusOK, &createResp)
 	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
 		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), lastChangedActID)
+	// No new requests to DEP were made since nothing changed
+	require.Equal(t, priorProfileCalls, profileCalls)
 
 	// update team with only a setup assistant JSON change, should detect it
 	// and create a new activity (name is the same)
@@ -4908,6 +4915,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	latestChangedActID := s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
 		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), 0)
 	require.Greater(t, latestChangedActID, lastChangedActID)
+	// Should revalidate with Apple now since there was a change
+	require.Greater(t, profileCalls, priorProfileCalls)
 
 	// get no team
 	s.DoJSON("GET", "/api/latest/fleet/enrollment_profiles/automatic", nil, http.StatusOK, &getResp)
@@ -11306,6 +11315,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	tmGood, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		Name:        t.Name() + " good",
 		Description: "desc",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "goodsecret"}},
 	})
 	require.NoError(t, err)
 
@@ -11599,6 +11609,202 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	checkSetupExperienceVPP(t, "macos", tmGood.ID, []string{})
 	checkSetupExperienceVPP(t, string(fleet.IPadOSPlatform), tmGood.ID, []string{})
 	checkSetupExperienceVPP(t, string(fleet.IOSPlatform), tmGood.ID, []string{})
+
+	// ===================================================
+	//                   Android apps
+	// ===================================================
+
+	// Android MDM not set up yet, should fail
+	resp := s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+		{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}, {AppStoreID: "com.foo.bar", Platform: fleet.AndroidPlatform},
+	}}, http.StatusBadRequest, "team_name", tmGood.Name)
+
+	s.Assert().Contains(extractServerErrorText(resp.Body), "Android MDM is not enabled")
+
+	s.enableAndroidMDM(s.T())
+
+	// Android app not found, should fail
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		return nil, &notFoundError{}
+	}
+	resp = s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+		{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}, {AppStoreID: "com.app.not.found", Platform: fleet.AndroidPlatform},
+	}}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
+
+	s.Assert().Contains(extractServerErrorText(resp.Body), "Validation Failed: Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
+
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		return &androidmanagement.Application{}, nil
+	}
+
+	// Enroll an Android host
+	secrets, err := s.ds.GetEnrollSecrets(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken}, nil)
+	require.NoError(t, err)
+	pubsubToken := assets[fleet.MDMAssetAndroidPubSubToken]
+	require.NotEmpty(t, pubsubToken.Value)
+
+	deviceID1 := createAndroidDeviceID("test-android")
+
+	enterpriseSpecificID1 := strings.ToUpper(uuid.New().String())
+	var req android_service.PubSubPushRequest
+	for _, d := range []struct {
+		id  string
+		esi string
+	}{{deviceID1, enterpriseSpecificID1}} {
+		enrollmentMessage := enrollmentMessageWithEnterpriseSpecificID(
+			t,
+			androidmanagement.Device{
+				Name:                d.id,
+				EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
+			},
+			d.esi,
+		)
+
+		req = android_service.PubSubPushRequest{
+			PubSubMessage: *enrollmentMessage,
+		}
+
+		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
+	}
+
+	var hosts listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "query", enterpriseSpecificID1)
+
+	assert.Len(t, hosts.Hosts, 1)
+
+	// Run setup experience job
+	s.runWorker()
+	time.Sleep(time.Second)
+
+	chromeAppID := "com.google.chrome"
+	driveAppID := "com.google.drive"
+	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+		{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID},
+		{AppStoreID: chromeAppID, Platform: fleet.AndroidPlatform},
+		{AppStoreID: driveAppID, Platform: fleet.AndroidPlatform},
+	}}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
+	require.Len(t, batchAssociateResponse.Apps, 3)
+
+	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, assoc, 3)
+
+	for _, a := range []fleet.VPPAppID{
+		{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform},
+		{AdamID: chromeAppID, Platform: fleet.AndroidPlatform},
+		{AdamID: driveAppID, Platform: fleet.AndroidPlatform},
+	} {
+		assert.Contains(t, assoc, a)
+	}
+
+	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
+
+	checkJobs := func(expectedAppIDs []string) {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			w := &worker.SoftwareWorker{}
+			var j fleet.Job
+
+			err := sqlx.GetContext(ctx, q, &j, "SELECT * FROM jobs WHERE name = ? ORDER BY updated_at DESC LIMIT 1", w.Name())
+			s.Require().NoError(err)
+
+			var args map[string]any
+			s.Require().NoError(json.Unmarshal(*j.Args, &args))
+			s.Assert().Equal("bulk_set_android_apps_available_for_host", args["task"])
+			s.Assert().Equal(fleet.JobStateSuccess, j.State)
+			s.Assert().ElementsMatch(expectedAppIDs, args["application_ids"])
+
+			return nil
+		})
+
+	}
+
+	// Run worker to set apps available to device
+	time.Sleep(time.Second)
+	s.runWorker()
+	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
+	checkJobs([]string{chromeAppID, driveAppID})
+
+	// Remove an app
+	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+		{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, DisplayName: "VPPAppUpdatedName"},
+		{AppStoreID: driveAppID, Platform: fleet.AndroidPlatform, DisplayName: "DriveUpdatedName"},
+	}}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
+	require.Len(t, batchAssociateResponse.Apps, 2)
+
+	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, assoc, 2)
+
+	for _, a := range []fleet.VPPAppID{
+		{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform},
+		{AdamID: driveAppID, Platform: fleet.AndroidPlatform},
+	} {
+		assert.Contains(t, assoc, a)
+	}
+
+	time.Sleep(time.Second)
+	s.runWorker()
+	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+	checkJobs([]string{driveAppID})
+
+	var listSwTitles listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSwTitles, "team_id", fmt.Sprint(tmGood.ID))
+
+	s.Assert().Len(listSwTitles.SoftwareTitles, 2)
+	for _, sw := range listSwTitles.SoftwareTitles {
+		switch sw.AppStoreApp.AppStoreID {
+		case driveAppID:
+			s.Assert().Equal("DriveUpdatedName", sw.DisplayName)
+		case s.appleVPPConfigSrvConfig.Assets[0].AdamID:
+			s.Assert().Equal("VPPAppUpdatedName", sw.DisplayName)
+		}
+	}
+
+	// change display names
+	setDisplayNames := func(androidAppName, vppAppName string) {
+		s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+			{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, DisplayName: vppAppName},
+			{AppStoreID: driveAppID, Platform: fleet.AndroidPlatform, DisplayName: androidAppName},
+		}}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
+		require.Len(t, batchAssociateResponse.Apps, 2)
+
+		assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+		require.NoError(t, err)
+		require.Len(t, assoc, 2)
+
+		for _, a := range []fleet.VPPAppID{
+			{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform},
+			{AdamID: driveAppID, Platform: fleet.AndroidPlatform},
+		} {
+			assert.Contains(t, assoc, a)
+		}
+
+		time.Sleep(time.Second)
+		s.runWorker()
+		s.Assert().True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+		checkJobs([]string{driveAppID})
+
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSwTitles, "team_id", fmt.Sprint(tmGood.ID))
+
+		s.Assert().Len(listSwTitles.SoftwareTitles, 2)
+		for _, sw := range listSwTitles.SoftwareTitles {
+			switch sw.AppStoreApp.AppStoreID {
+			case driveAppID:
+				s.Assert().Equal(androidAppName, sw.DisplayName)
+			case s.appleVPPConfigSrvConfig.Assets[0].AdamID:
+				s.Assert().Equal(vppAppName, sw.DisplayName)
+			}
+		}
+	}
+
+	setDisplayNames("VPPAppUpdatedName2", "DriveUpdatedName2")
+	setDisplayNames("", "")
+
 }
 
 func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {

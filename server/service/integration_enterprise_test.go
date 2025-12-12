@@ -252,14 +252,17 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.15.0"),
 			Deadline:       optjson.SetString("2021-01-01"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.5.1"),
 			Deadline:       optjson.SetString("2024-07-23"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("18.0"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.Int{Set: true},
@@ -364,14 +367,17 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.15.0"),
 			Deadline:       optjson.SetString("2021-01-01"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.5.1"),
 			Deadline:       optjson.SetString("2024-07-23"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("18.0"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(1),
@@ -401,14 +407,17 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.15.0"),
 			Deadline:       optjson.SetString("2021-01-01"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.5.1"),
 			Deadline:       optjson.SetString("2024-07-23"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("18.0"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(1),
@@ -440,14 +449,17 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.15.0"),
 			Deadline:       optjson.SetString("2021-01-01"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.5.1"),
 			Deadline:       optjson.SetString("2024-07-23"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("18.0"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(1),
@@ -2662,14 +2674,17 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
+			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(5),
@@ -3781,7 +3796,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 		// get the appconfig, nothing changed
 		acResp = appConfigResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-		require.Equal(t, fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}}, acResp.MDM.MacOSUpdates)
+		require.Equal(t, fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.SetBool(false)}, acResp.MDM.MacOSUpdates)
 
 		// no activity got created
 		activitiesResp = listActivitiesResponse{}
@@ -9616,6 +9631,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		Filename:      "ruby.deb",
 		SelfService:   false,
 		TeamID:        &team1.ID,
+		Platform:      "linux",
 	}
 	s.uploadSoftwareInstaller(t, payloadRubyTm1, http.StatusOK, "")
 
@@ -9624,6 +9640,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		Filename:          "emacs.deb",
 		PostInstallScript: "d",
 		SelfService:       true,
+		Platform:          "linux",
 	}
 	s.uploadSoftwareInstallerWithErrorNameReason(t, payloadEmacsMissingSecret, http.StatusUnprocessableEntity, "$FLEET_SECRET_INVALID",
 		"install script")
@@ -9633,6 +9650,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		Filename:          "emacs.deb",
 		PostInstallScript: "d $FLEET_SECRET_INVALID",
 		SelfService:       true,
+		Platform:          "linux",
 	}
 	s.uploadSoftwareInstallerWithErrorNameReason(t, payloadEmacsMissingPostSecret, http.StatusUnprocessableEntity, "$FLEET_SECRET_INVALID",
 		"post-install script")
@@ -9643,6 +9661,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		PostInstallScript: "d",
 		UninstallScript:   "delet $FLEET_SECRET_INVALID",
 		SelfService:       true,
+		Platform:          "linux",
 	}
 	s.uploadSoftwareInstallerWithErrorNameReason(t, payloadEmacsMissingUnSecret, http.StatusUnprocessableEntity, "$FLEET_SECRET_INVALID",
 		"uninstall script")
@@ -9653,6 +9672,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		Filename:         "emacs.deb",
 		SelfService:      true,
 		AutomaticInstall: true,
+		Platform:         "linux",
 	}
 	s.uploadSoftwareInstaller(t, payloadEmacs, http.StatusOK, "")
 
@@ -9662,6 +9682,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		SelfService:      true,
 		TeamID:           ptr.Uint(0),
 		AutomaticInstall: true,
+		Platform:         "linux",
 	}
 	s.uploadSoftwareInstaller(t, payloadVim, http.StatusOK, "")
 
@@ -9684,6 +9705,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		InstallScript: "install",
 		Filename:      "ruby_arm64.deb",
 		TeamID:        &team2.ID,
+		Platform:      "linux",
 	}
 	s.uploadSoftwareInstaller(t, payloadRubyTm2, http.StatusOK, "")
 
@@ -9754,6 +9776,38 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.NotNil(t, respTitle.SoftwareTitle)
 	require.Equal(t, "emacs.deb", respTitle.SoftwareTitle.SoftwarePackage.Name)
 	require.True(t, respTitle.SoftwareTitle.SoftwarePackage.SelfService)
+
+	darwinSwPayload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "dummy_installer.pkg",
+		SelfService:   false,
+		TeamID:        &team2.ID,
+		Platform:      "darwin",
+	}
+	s.uploadSoftwareInstaller(t, darwinSwPayload, http.StatusOK, "")
+
+	// Filtering by platform without team errors
+	res := s.Do("GET", "/api/latest/fleet/software/titles?platform=darwin", nil, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, fleet.FilterTitlesByPlatformNeedsTeamIdErrMsg)
+
+	// Filtering by platform with team ok
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"platform", "darwin",
+		"team_id", fmt.Sprint(team2.ID))
+
+	require.Len(t, resp.SoftwareTitles, 1)
+	dummyTitleId := resp.SoftwareTitles[0].ID
+	dummyPath := fmt.Sprintf("/api/latest/fleet/software/titles/%d", dummyTitleId)
+	respTitle = getSoftwareTitleResponse{}
+	s.DoJSON("GET", dummyPath, listSoftwareTitlesRequest{}, http.StatusOK, &respTitle)
+	title := respTitle.SoftwareTitle
+	require.NotNil(t, title)
+	require.Equal(t, "DummyApp", title.Name)
 }
 
 func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
@@ -10737,7 +10791,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
 
 	team1.Config.Integrations.GoogleCalendar = &fleet.TeamGoogleCalendarIntegration{
 		Enable:     true,
-		WebhookURL: "https://foo.example.com",
+		WebhookURL: "https://eoo.example.com",
 	}
 	team1, err = s.ds.SaveTeam(ctx, team1)
 	require.NoError(t, err)
@@ -22237,7 +22291,7 @@ func generateTestCertForDeviceAuth(t *testing.T, certSerial uint64, deviceUUID s
 	return string(certPEM), certHash, cert
 }
 
-func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
+func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -22331,8 +22385,19 @@ func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
 		require.Equal(t, "ios", getHostResp.Host.Platform)
 	})
 
-	t.Run("iOS device without certificate header", func(t *testing.T) {
-		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized)
+	t.Run("iOS device without certificate header (UUID fallback auth)", func(t *testing.T) {
+		// Without cert header, UUID auth is used as fallback for iOS/iPadOS devices
+		var getHostResp getDeviceHostResponse
+		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
+		require.NoError(t, res.Body.Close())
+		require.Equal(t, iosHost.ID, getHostResp.Host.ID)
+		require.Equal(t, "ios", getHostResp.Host.Platform)
+	})
+
+	t.Run("iOS device with invalid UUID (no fallback)", func(t *testing.T) {
+		// Invalid UUID should fail both UUID auth and token auth
+		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid-uuid-does-not-exist", nil, http.StatusUnauthorized)
 		res.Body.Close()
 	})
 
@@ -22463,6 +22528,14 @@ func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
 			"X-Client-Cert-Serial": "0",
 		}
 		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized, headers)
+		res.Body.Close()
+	})
+
+	t.Run("macOS device UUID in URL should be rejected (not iOS/iPadOS)", func(t *testing.T) {
+		// Using macOS host UUID directly in URL should fail:
+		// - Token auth fails (macHost.UUID is not a valid token)
+		// - UUID auth fails (platform is darwin, not iOS/iPadOS)
+		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", macHost.UUID), nil, http.StatusUnauthorized)
 		res.Body.Close()
 	})
 
