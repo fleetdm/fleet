@@ -2746,6 +2746,9 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 				}
 				return nil
 			})
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "renewing mdm managed certificates")
+			}
 		}
 	}
 
