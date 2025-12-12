@@ -1814,84 +1814,171 @@ func labelIDFromName(t *testing.T, ds fleet.Datastore, name string) uint {
 	return 0
 }
 
-func testUpdateLabelMembershipForTransferredHost(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
+func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
 
-	t1, err := ds.NewTeam(ctx, &fleet.Team{
-		Name: "t1",
-	})
-	require.NoError(t, err)
-	t2, err := ds.NewTeam(ctx, &fleet.Team{
-		Name: "t2",
-	})
-	require.NoError(t, err)
-
-	macOSHostT1, err := ds.NewHost(ctx, &fleet.Host{
+	host1, err := ds.NewHost(ctx, &fleet.Host{
 		OsqueryHostID: ptr.String("1"),
 		NodeKey:       ptr.String("1"),
 		UUID:          "1",
 		Hostname:      "foo.local",
 		Platform:      "darwin",
-		TeamID:        &t1.ID,
 	})
 	require.NoError(t, err)
-	windowsHostT2, err := ds.NewHost(ctx, &fleet.Host{
+	host2, err := ds.NewHost(ctx, &fleet.Host{
 		OsqueryHostID: ptr.String("2"),
 		NodeKey:       ptr.String("2"),
 		UUID:          "2",
-		Hostname:      "foo2.local",
+		Hostname:      "bar.local",
 		Platform:      "windows",
-		TeamID:        &t2.ID,
+	})
+	require.NoError(t, err)
+	// hosts 2 and 3 have the same hostname
+	host3, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: ptr.String("3"),
+		NodeKey:       ptr.String("3"),
+		UUID:          "3",
+		Hostname:      "bar.local",
+		Platform:      "windows",
 	})
 	require.NoError(t, err)
 
-	globalLabel, err := ds.NewLabel(ctx, &fleet.Label{
-		Name:                "global",
-		Query:               "SELECT 1;",
+	label1, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "label1",
+		Query:               "",
 		LabelType:           fleet.LabelTypeRegular,
 		LabelMembershipType: fleet.LabelMembershipTypeManual,
-		TeamID:              nil,
-	})
-	require.NoError(t, err)
-	l1t1, err := ds.NewLabel(ctx, &fleet.Label{
-		Name:     "l1t1",
-		Query:    "SELECT 2;",
-		TeamID:   &t1.ID,
-		Platform: "", // all platforms
-	})
-	require.NoError(t, err)
-	l2t2, err := ds.NewLabel(ctx, &fleet.Label{
-		Name:     "l2t2",
-		Query:    "SELECT 3;",
-		TeamID:   &t2.ID,
-		Platform: "", // all platforms
 	})
 	require.NoError(t, err)
 
-	err = ds.RecordLabelQueryExecutions(ctx, macOSHostT1, map[uint]*bool{
-		globalLabel.ID: ptr.Bool(true),
-		l1t1.ID:        ptr.Bool(true),
-	}, time.Now(), false)
-	require.NoError(t, err)
-	err = ds.RecordLabelQueryExecutions(ctx, windowsHostT2, map[uint]*bool{
-		globalLabel.ID: ptr.Bool(true),
-		l2t2.ID:        ptr.Bool(true),
-	}, time.Now(), false)
+	// add hosts 1 and 2 to the label
+	label, hostIDs, err := ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{host1.ID, host2.ID}, filter)
 	require.NoError(t, err)
 
-	// Move hosts to "No team".
-	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{macOSHostT1.ID, windowsHostT2.ID}))
-	require.NoError(t, err)
+	require.Equal(t, label.HostCount, 2)
 
-	// Both hosts have their team label memberships erased, but the global label membership stays.
-	labels, err := ds.ListLabelsForHost(ctx, macOSHostT1.ID)
+	// expect hosts 1 and 2 to be in the label, but not 3
+	require.NoError(t, err)
+	// correct hosts were added to label
+	require.Len(t, hostIDs, 2)
+	require.Equal(t, host1.ID, hostIDs[0])
+	require.Equal(t, host2.ID, hostIDs[1])
+
+	labelSpec, err := ds.GetLabelSpec(ctx, label1.Name)
+	require.NoError(t, err)
+	// label.Hosts contains hostnames
+	require.Len(t, labelSpec.Hosts, 2)
+	require.Equal(t, strconv.Itoa(int(host1.ID)), labelSpec.Hosts[0]) //nolint:gosec // dismiss G115
+	require.Equal(t, strconv.Itoa(int(host2.ID)), labelSpec.Hosts[1]) //nolint:gosec // dismiss G115
+
+	labels, err := ds.ListLabelsForHost(ctx, host1.ID)
 	require.NoError(t, err)
 	require.Len(t, labels, 1)
-	require.Equal(t, "global", labels[0].Name)
-	labels, err = ds.ListLabelsForHost(ctx, windowsHostT2.ID)
+	require.Equal(t, "label1", labels[0].Name)
+
+	labels, err = ds.ListLabelsForHost(ctx, host2.ID)
 	require.NoError(t, err)
 	require.Len(t, labels, 1)
-	require.Equal(t, "global", labels[0].Name)
+	require.Equal(t, "label1", labels[0].Name)
+
+	labels, err = ds.ListLabelsForHost(ctx, host3.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 0)
+
+	// modify the label to contain hosts 1 and 3, confirm
+	label, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{host1.ID, host3.ID}, filter)
+	require.NoError(t, err)
+
+	require.Equal(t, label.HostCount, 2)
+
+	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+
+	labels, err = ds.ListLabelsForHost(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 0)
+
+	labels, err = ds.ListLabelsForHost(ctx, host3.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+
+	// modify the label to contain hosts 2 and 3, confirm
+	label, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{host2.ID, host3.ID}, filter)
+	require.NoError(t, err)
+
+	require.Equal(t, label.HostCount, 2)
+
+	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 0)
+
+	labels, err = ds.ListLabelsForHost(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+
+	labels, err = ds.ListLabelsForHost(ctx, host3.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+
+	// modify the label to contain no hosts, confirm
+	label, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{}, filter)
+	require.NoError(t, err)
+	require.Equal(t, label.HostCount, 0)
+
+	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 0)
+
+	labels, err = ds.ListLabelsForHost(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 0)
+
+	labels, err = ds.ListLabelsForHost(ctx, host3.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 0)
+
+	// modify the label to contain all 3 hosts, confirm
+	label, hostIDs, err = ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{host1.ID, host2.ID, host3.ID}, filter)
+	require.NoError(t, err)
+
+	require.Equal(t, label.HostCount, 3)
+
+	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+
+	labels, err = ds.ListLabelsForHost(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+
+	labels, err = ds.ListLabelsForHost(ctx, host3.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+
+	require.NoError(t, err)
+	require.Len(t, hostIDs, 3)
+	require.Equal(t, host1.ID, hostIDs[0])
+	// 2 and 3 have same name
+	require.Equal(t, host2.ID, hostIDs[1])
+	require.Equal(t, host3.ID, hostIDs[2])
+
+	labelSpec, err = ds.GetLabelSpec(ctx, label1.Name)
+	require.NoError(t, err)
+
+	// label.Hosts contains hostnames
+	require.Len(t, labelSpec.Hosts, 3)
+	require.Equal(t, strconv.Itoa(int(host1.ID)), labelSpec.Hosts[0]) //nolint:gosec // dismiss G115
+	require.Equal(t, strconv.Itoa(int(host2.ID)), labelSpec.Hosts[1]) //nolint:gosec // dismiss G115
+	require.Equal(t, strconv.Itoa(int(host3.ID)), labelSpec.Hosts[2]) //nolint:gosec // dismiss G115
 }
 
 func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
@@ -2208,173 +2295,6 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID}, []uint{hostsInLabel[0].ID, hostsInLabel[1].ID, hostsInLabel[2].ID})
 }
 
-func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-	filter := fleet.TeamFilter{User: test.UserAdmin}
-
-	host1, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID: ptr.String("1"),
-		NodeKey:       ptr.String("1"),
-		UUID:          "1",
-		Hostname:      "foo.local",
-		Platform:      "darwin",
-	})
-	require.NoError(t, err)
-	host2, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID: ptr.String("2"),
-		NodeKey:       ptr.String("2"),
-		UUID:          "2",
-		Hostname:      "bar.local",
-		Platform:      "windows",
-	})
-	require.NoError(t, err)
-	// hosts 2 and 3 have the same hostname
-	host3, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID: ptr.String("3"),
-		NodeKey:       ptr.String("3"),
-		UUID:          "3",
-		Hostname:      "bar.local",
-		Platform:      "windows",
-	})
-	require.NoError(t, err)
-
-	label1, err := ds.NewLabel(ctx, &fleet.Label{
-		Name:                "label1",
-		Query:               "",
-		LabelType:           fleet.LabelTypeRegular,
-		LabelMembershipType: fleet.LabelMembershipTypeManual,
-	})
-	require.NoError(t, err)
-
-	// add hosts 1 and 2 to the label
-	label, hostIDs, err := ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{host1.ID, host2.ID}, filter)
-	require.NoError(t, err)
-
-	require.Equal(t, label.HostCount, 2)
-
-	// expect hosts 1 and 2 to be in the label, but not 3
-	require.NoError(t, err)
-	// correct hosts were added to label
-	require.Len(t, hostIDs, 2)
-	require.Equal(t, host1.ID, hostIDs[0])
-	require.Equal(t, host2.ID, hostIDs[1])
-
-	labelSpec, err := ds.GetLabelSpec(ctx, label1.Name)
-	require.NoError(t, err)
-	// label.Hosts contains hostnames
-	require.Len(t, labelSpec.Hosts, 2)
-	require.Equal(t, strconv.Itoa(int(host1.ID)), labelSpec.Hosts[0]) //nolint:gosec // dismiss G115
-	require.Equal(t, strconv.Itoa(int(host2.ID)), labelSpec.Hosts[1]) //nolint:gosec // dismiss G115
-
-	labels, err := ds.ListLabelsForHost(ctx, host1.ID)
-	require.NoError(t, err)
-	require.Len(t, labels, 1)
-	require.Equal(t, "label1", labels[0].Name)
-
-	labels, err = ds.ListLabelsForHost(ctx, host2.ID)
-	require.NoError(t, err)
-	require.Len(t, labels, 1)
-	require.Equal(t, "label1", labels[0].Name)
-
-	labels, err = ds.ListLabelsForHost(ctx, host3.ID)
-	require.NoError(t, err)
-	require.Len(t, labels, 0)
-
-	// modify the label to contain hosts 1 and 3, confirm
-	label, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{host1.ID, host3.ID}, filter)
-	require.NoError(t, err)
-
-	require.Equal(t, label.HostCount, 2)
-
-	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
-	require.NoError(t, err)
-	require.Len(t, labels, 1)
-	require.Equal(t, "label1", labels[0].Name)
-
-	labels, err = ds.ListLabelsForHost(ctx, host2.ID)
-	require.NoError(t, err)
-	require.Len(t, labels, 0)
-
-	labels, err = ds.ListLabelsForHost(ctx, host3.ID)
-	require.NoError(t, err)
-	require.Len(t, labels, 1)
-	require.Equal(t, "label1", labels[0].Name)
-
-	// modify the label to contain hosts 2 and 3, confirm
-	label, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{host2.ID, host3.ID}, filter)
-	require.NoError(t, err)
-
-	require.Equal(t, label.HostCount, 2)
-
-	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
-	require.NoError(t, err)
-	require.Len(t, labels, 0)
-
-	labels, err = ds.ListLabelsForHost(ctx, host2.ID)
-	require.NoError(t, err)
-	require.Len(t, labels, 1)
-	require.Equal(t, "label1", labels[0].Name)
-
-	labels, err = ds.ListLabelsForHost(ctx, host3.ID)
-	require.NoError(t, err)
-	require.Len(t, labels, 1)
-	require.Equal(t, "label1", labels[0].Name)
-
-	// modify the label to contain no hosts, confirm
-	label, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{}, filter)
-	require.NoError(t, err)
-	require.Equal(t, label.HostCount, 0)
-
-	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
-	require.NoError(t, err)
-	require.Len(t, labels, 0)
-
-	labels, err = ds.ListLabelsForHost(ctx, host2.ID)
-	require.NoError(t, err)
-	require.Len(t, labels, 0)
-
-	labels, err = ds.ListLabelsForHost(ctx, host3.ID)
-	require.NoError(t, err)
-	require.Len(t, labels, 0)
-
-	// modify the label to contain all 3 hosts, confirm
-	label, hostIDs, err = ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{host1.ID, host2.ID, host3.ID}, filter)
-	require.NoError(t, err)
-
-	require.Equal(t, label.HostCount, 3)
-
-	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
-	require.NoError(t, err)
-	require.Len(t, labels, 1)
-	require.Equal(t, "label1", labels[0].Name)
-
-	labels, err = ds.ListLabelsForHost(ctx, host2.ID)
-	require.NoError(t, err)
-	require.Len(t, labels, 1)
-	require.Equal(t, "label1", labels[0].Name)
-
-	labels, err = ds.ListLabelsForHost(ctx, host3.ID)
-	require.NoError(t, err)
-	require.Len(t, labels, 1)
-	require.Equal(t, "label1", labels[0].Name)
-
-	require.NoError(t, err)
-	require.Len(t, hostIDs, 3)
-	require.Equal(t, host1.ID, hostIDs[0])
-	// 2 and 3 have same name
-	require.Equal(t, host2.ID, hostIDs[1])
-	require.Equal(t, host3.ID, hostIDs[2])
-
-	labelSpec, err = ds.GetLabelSpec(ctx, label1.Name)
-	require.NoError(t, err)
-
-	// label.Hosts contains hostnames
-	require.Len(t, labelSpec.Hosts, 3)
-	require.Equal(t, strconv.Itoa(int(host1.ID)), labelSpec.Hosts[0]) //nolint:gosec // dismiss G115
-	require.Equal(t, strconv.Itoa(int(host2.ID)), labelSpec.Hosts[1]) //nolint:gosec // dismiss G115
-	require.Equal(t, strconv.Itoa(int(host3.ID)), labelSpec.Hosts[2]) //nolint:gosec // dismiss G115
-}
-
 func testTeamLabels(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -2483,4 +2403,84 @@ func testTeamLabels(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, queries, 1)
 	require.Equal(t, queries[fmt.Sprint(gl.ID)], "SELECT 1;")
+}
+
+func testUpdateLabelMembershipForTransferredHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t1, err := ds.NewTeam(ctx, &fleet.Team{
+		Name: "t1",
+	})
+	require.NoError(t, err)
+	t2, err := ds.NewTeam(ctx, &fleet.Team{
+		Name: "t2",
+	})
+	require.NoError(t, err)
+
+	macOSHostT1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: ptr.String("1"),
+		NodeKey:       ptr.String("1"),
+		UUID:          "1",
+		Hostname:      "foo.local",
+		Platform:      "darwin",
+		TeamID:        &t1.ID,
+	})
+	require.NoError(t, err)
+	windowsHostT2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: ptr.String("2"),
+		NodeKey:       ptr.String("2"),
+		UUID:          "2",
+		Hostname:      "foo2.local",
+		Platform:      "windows",
+		TeamID:        &t2.ID,
+	})
+	require.NoError(t, err)
+
+	globalLabel, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "global",
+		Query:               "SELECT 1;",
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+		TeamID:              nil,
+	})
+	require.NoError(t, err)
+	l1t1, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:     "l1t1",
+		Query:    "SELECT 2;",
+		TeamID:   &t1.ID,
+		Platform: "", // all platforms
+	})
+	require.NoError(t, err)
+	l2t2, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:     "l2t2",
+		Query:    "SELECT 3;",
+		TeamID:   &t2.ID,
+		Platform: "", // all platforms
+	})
+	require.NoError(t, err)
+
+	err = ds.RecordLabelQueryExecutions(ctx, macOSHostT1, map[uint]*bool{
+		globalLabel.ID: ptr.Bool(true),
+		l1t1.ID:        ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+	err = ds.RecordLabelQueryExecutions(ctx, windowsHostT2, map[uint]*bool{
+		globalLabel.ID: ptr.Bool(true),
+		l2t2.ID:        ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	// Move hosts to "No team".
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{macOSHostT1.ID, windowsHostT2.ID}))
+	require.NoError(t, err)
+
+	// Both hosts have their team label memberships erased, but the global label membership stays.
+	labels, err := ds.ListLabelsForHost(ctx, macOSHostT1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "global", labels[0].Name)
+	labels, err = ds.ListLabelsForHost(ctx, windowsHostT2.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "global", labels[0].Name)
 }
