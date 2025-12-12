@@ -147,8 +147,7 @@ const EditConfigurationModal = ({
       <>
         <InstallerDetailsWidget
           softwareName={softwareInstaller.name}
-          androidPlayStoreId="com.android.chrome" // TODO: pass real value
-          // androidPlayStoreId={softwareInstaller.app_store_id}
+          androidPlayStoreId={softwareInstaller.app_store_id}
           customDetails="Android"
           installerType="app-store"
           isFma={false}
