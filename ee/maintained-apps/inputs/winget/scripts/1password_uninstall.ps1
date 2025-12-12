@@ -12,16 +12,42 @@ winget uninstall --id AgileBits.1Password `
     --silent `
     --disable-interactivity
 
-# Verify the uninstall was successful by checking if the package is still installed
-# winget list returns exit code 0 if package is found, non-zero if not found
-$null = winget list --id AgileBits.1Password --exact 2>&1
-if ($LASTEXITCODE -eq 0) {
-    # Package is still installed, uninstall failed
-    Write-Host "Error: Package is still installed after uninstall attempt"
+# Wait a moment for registry/file system updates to propagate
+Start-Sleep -Seconds 3
+
+# Verify the uninstall was successful by checking the Windows registry
+# This matches how appExists() verifies - by checking the programs registry entries
+$registryPaths = @(
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+)
+
+$found = $false
+foreach ($path in $registryPaths) {
+    $items = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object {
+        $_.DisplayName -and ($_.DisplayName -eq "1Password" -or $_.DisplayName -like "1Password*")
+    }
+    if ($items) {
+        $found = $true
+        Write-Host "Found registry entry: $($items[0].DisplayName) at $path"
+        break
+    }
+}
+
+# Also check if the installation directory still exists
+if (-not $found) {
+    $installPath = "C:\Program Files\1Password"
+    if (Test-Path $installPath) {
+        $found = $true
+        Write-Host "Installation directory still exists: $installPath"
+    }
+}
+
+if ($found) {
+    Write-Host "Error: 1Password is still present in registry or file system after uninstall"
     Exit 1
 } else {
-    # Package not found, uninstall succeeded
-    Write-Host "Successfully uninstalled AgileBits.1Password"
+    Write-Host "Successfully uninstalled 1Password - verified registry and file system"
     Exit 0
 }
 
