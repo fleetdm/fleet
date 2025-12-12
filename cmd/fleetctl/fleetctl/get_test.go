@@ -2593,7 +2593,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 			{ID: 2, UUID: uuids[1], Hostname: "host2"},
 		}, nil
 	}
-	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 		switch commandUUID {
 		case "empty-cmd":
 			return nil, nil
@@ -2622,7 +2622,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 			}, nil
 		}
 	}
-	ds.GetMDMWindowsCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	ds.GetMDMWindowsCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 		switch commandUUID {
 		case "empty-cmd":
 			return nil, nil
@@ -3013,13 +3013,13 @@ func TestGetMDMCommands(t *testing.T) {
 	var noHostErr error
 	var expectIdentifier bool
 	var expectRequestType bool
-	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
+	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, error) {
 		if empty || listErr != nil {
-			return nil, listErr
+			return nil, nil, listErr
 		}
 
 		if noHostErr != nil {
-			return nil, errors.New(fleet.HostIdentiferNotFound)
+			return nil, nil, errors.New(fleet.HostIdentiferNotFound)
 		}
 
 		if expectIdentifier {
@@ -3055,7 +3055,7 @@ func TestGetMDMCommands(t *testing.T) {
 				Status:      "200",
 				Hostname:    "host2",
 			},
-		}, nil
+		}, nil, nil
 	}
 
 	listErr = io.ErrUnexpectedEOF

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -3907,40 +3906,16 @@ func TestGitOpsAndroidCertificatesChange(t *testing.T) {
 				ID:                     1,
 				Name:                   "Certificate 1",
 				CertificateAuthorityId: 1,
+				SubjectName:            "CN=Original Subject 1",
 			},
 			{
 				ID:                     2,
 				Name:                   "Certificate 2",
 				CertificateAuthorityId: 2,
+				SubjectName:            "CN=Original Subject 2",
 			},
 		}
 		return existing, &fleet.PaginationMetadata{}, nil
-	}
-
-	// Simulate full certificate details for existing certificates
-	ds.GetCertificateTemplateByIdFunc = func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
-		switch id {
-		case 1:
-			return &fleet.CertificateTemplateResponseFull{
-				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
-					ID:                     1,
-					Name:                   "Certificate 1",
-					CertificateAuthorityId: 1,
-				},
-				SubjectName: "CN=Original Subject 1",
-			}, nil
-		case 2:
-			return &fleet.CertificateTemplateResponseFull{
-				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
-					ID:                     2,
-					Name:                   "Certificate 2",
-					CertificateAuthorityId: 2,
-				},
-				SubjectName: "CN=Original Subject 2",
-			}, nil
-		default:
-			return nil, errors.New("certificate not found")
-		}
 	}
 
 	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) error {
@@ -4157,40 +4132,16 @@ func TestGitOpsAndroidCertificatesDeleteOne(t *testing.T) {
 				ID:                     1,
 				Name:                   "Certificate 1",
 				CertificateAuthorityId: 1,
+				SubjectName:            "CN=Device Certificate 1",
 			},
 			{
 				ID:                     2,
 				Name:                   "Certificate 2",
 				CertificateAuthorityId: 2,
+				SubjectName:            "CN=Device Certificate 2",
 			},
 		}
 		return existing, &fleet.PaginationMetadata{}, nil
-	}
-
-	// Mock GetCertificateTemplateByIdFunc to return full certificate details
-	ds.GetCertificateTemplateByIdFunc = func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
-		switch id {
-		case 1:
-			return &fleet.CertificateTemplateResponseFull{
-				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
-					ID:                     1,
-					Name:                   "Certificate 1",
-					CertificateAuthorityId: 1,
-				},
-				SubjectName: "CN=Device Certificate 1",
-			}, nil
-		case 2:
-			return &fleet.CertificateTemplateResponseFull{
-				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
-					ID:                     2,
-					Name:                   "Certificate 2",
-					CertificateAuthorityId: 2,
-				},
-				SubjectName: "CN=Device Certificate 2",
-			}, nil
-		default:
-			return nil, errors.New("certificate not found")
-		}
 	}
 
 	// Create team config with only one certificate (Certificate 1 removed)

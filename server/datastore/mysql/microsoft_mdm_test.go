@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
+	"database/sql"
 	"encoding/xml"
 	"fmt"
 	"strings"
@@ -48,6 +49,8 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsSaveResponse", testSaveResponse},
 		{"TestSetMDMWindowsProfilesWithVariables", testSetMDMWindowsProfilesWithVariables},
 		{"TestWindowsMDMManagedSCEPCertificates", testWindowsMDMManagedSCEPCertificates},
+		{"TestGetWindowsMDMCommandsForResending", testGetWindowsMDMCommandsForResending},
+		{"TestResendWindowsMDMCommand", testResendWindowsMDMCommand},
 	}
 
 	for _, c := range cases {
@@ -1390,33 +1393,10 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 		return res.LastInsertId()
 	}
 
-	h, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:      "test-win-host-name",
-		OsqueryHostID: ptr.String("1337"),
-		NodeKey:       ptr.String("1337"),
-		UUID:          "test-win-host-uuid",
-		Platform:      "windows",
-	})
-	require.NoError(t, err)
-
-	dev := &fleet.MDMWindowsEnrolledDevice{
-		MDMDeviceID:            "test-device-id",
-		MDMHardwareID:          "test-hardware-id",
-		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
-		MDMDeviceType:          "dt",
-		MDMDeviceName:          "dn",
-		MDMEnrollType:          "et",
-		MDMEnrollUserID:        "euid",
-		MDMEnrollProtoVersion:  "epv",
-		MDMEnrollClientVersion: "ecv",
-		MDMNotInOOBE:           false,
-		HostUUID:               h.UUID,
-	}
-
-	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, dev))
+	dev := createMDMWindowsEnrollment(ctx, t, ds)
 	var enrollmentID uint
 	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &enrollmentID, `SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, dev.MDMDeviceID))
-	_, err = ds.writer(ctx).ExecContext(ctx,
+	_, err := ds.writer(ctx).ExecContext(ctx,
 		`UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE id = ?`, dev.HostUUID, enrollmentID)
 	require.NoError(t, err)
 
@@ -1458,7 +1438,7 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "windows", p)
 
-	results, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID)
+	results, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, "")
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, dev.HostUUID, results[0].HostUUID)
@@ -1473,9 +1453,37 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.True(t, fleet.IsNotFound(err))
 	require.Empty(t, p)
 
-	results, err = ds.GetMDMWindowsCommandResults(ctx, "unknown-cmd-uuid")
+	results, err = ds.GetMDMWindowsCommandResults(ctx, "unknown-cmd-uuid", "")
 	require.NoError(t, err) // expect no error here, just no results
 	require.Empty(t, results)
+}
+
+func createMDMWindowsEnrollment(ctx context.Context, t *testing.T, ds *Datastore) *fleet.MDMWindowsEnrolledDevice {
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-win-host-name",
+		OsqueryHostID: ptr.String("1337"),
+		NodeKey:       ptr.String("1337"),
+		UUID:          "test-win-host-uuid",
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	dev := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            "test-device-id",
+		MDMHardwareID:          "test-hardware-id",
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "dt",
+		MDMDeviceName:          "dn",
+		MDMEnrollType:          "et",
+		MDMEnrollUserID:        "euid",
+		MDMEnrollProtoVersion:  "epv",
+		MDMEnrollClientVersion: "ecv",
+		MDMNotInOOBE:           false,
+		HostUUID:               h.UUID,
+	}
+
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, dev))
+	return dev
 }
 
 func testMDMWindowsCommandResultsWithPendingResult(t *testing.T, ds *Datastore) {
@@ -1533,7 +1541,7 @@ func testMDMWindowsCommandResultsWithPendingResult(t *testing.T, ds *Datastore) 
 	require.NoError(t, err)
 	require.Equal(t, "windows", p)
 
-	results, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID)
+	results, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, "")
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, dev.HostUUID, results[0].HostUUID)
@@ -1548,7 +1556,7 @@ func testMDMWindowsCommandResultsWithPendingResult(t *testing.T, ds *Datastore) 
 	require.True(t, fleet.IsNotFound(err))
 	require.Empty(t, p)
 
-	results, err = ds.GetMDMWindowsCommandResults(ctx, "unknown-cmd-uuid")
+	results, err = ds.GetMDMWindowsCommandResults(ctx, "unknown-cmd-uuid", "")
 	require.NoError(t, err) // expect no error here, just no results
 	require.Empty(t, results)
 }
@@ -2052,7 +2060,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotEmpty(t, profB.ProfileUUID)
 	// create an Apple profile for no-team
-	profC, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("c", "c", 0), nil)
+	profC, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("c", "c", 0), nil)
 	require.NoError(t, err)
 	require.NotZero(t, profC.ProfileID)
 	require.NotEmpty(t, profC.ProfileUUID)
@@ -2064,7 +2072,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.NotNil(t, profATm.TeamID)
 	require.Equal(t, uint(1), *profATm.TeamID)
 	// create the same B profile for team 1 as Apple profile
-	profBTm, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", 1), nil)
+	profBTm, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("b", "b", 1), nil)
 	require.NoError(t, err)
 	require.NotZero(t, profBTm.ProfileID)
 	require.NotEmpty(t, profBTm.ProfileUUID)
@@ -2087,11 +2095,11 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 	// create a duplicate name with an Apple profile for no-team
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 0), nil)
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("a", "a", 0), nil)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 	// create a duplicate name with an Apple profile for team
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 1), nil)
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("a", "a", 1), nil)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 
@@ -2322,7 +2330,7 @@ func testSetOrReplaceMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	profNoTmN1 := getProfileByTeamAndName(nil, "N1")
 
 	// creating the same profile for Apple / no-team fails
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("N1", "I1", 0), nil)
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("N1", "I1", 0), nil)
 	require.Error(t, err)
 
 	cp1.UploadedAt = profNoTmN1.UploadedAt
@@ -2354,7 +2362,7 @@ func testSetOrReplaceMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	expectWindowsProfiles(t, ds, nil, []*fleet.MDMWindowsConfigProfile{&cp2})
 
 	// create a profile for Apple and team 1 with that name works
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("N1", "I1", 1), nil)
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("N1", "I1", 1), nil)
 	require.NoError(t, err)
 
 	// try to create that profile for Windows and team 1 fails
@@ -2846,9 +2854,10 @@ func windowsConfigProfileForTest(t *testing.T, name, locURI string, labels ...*f
 }
 
 func testSaveResponse(t *testing.T, ds *Datastore) {
-	// Set up: 2 devices, 1 command, 1 response for 1 device
+	// Set up: 3 devices, 1 command, 1 response for 1 device
 	enrolledDevice1 := createEnrolledDevice(t, ds)
 	enrolledDevice2 := createEnrolledDevice(t, ds)
+	enrolledDevice3 := createEnrolledDevice(t, ds)
 
 	atomicCommandUUID := uuid.NewString()
 	replaceCommandUUID := uuid.NewString()
@@ -2878,7 +2887,7 @@ func testSaveResponse(t *testing.T, ds *Datastore) {
 		TargetLocURI: "",
 	}
 	err := ds.mdmWindowsInsertCommandForHostsDB(context.Background(), ds.primary,
-		[]string{enrolledDevice1.MDMDeviceID, enrolledDevice2.MDMDeviceID}, cmd)
+		[]string{enrolledDevice1.MDMDeviceID, enrolledDevice2.MDMDeviceID, enrolledDevice3.MDMDeviceID}, cmd)
 	require.NoError(t, err)
 
 	// We only found a batch update method, so we are using a single statement here to insert host profile, for simplicity.
@@ -2892,11 +2901,11 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, atomicCommandUUID, replaceCommandUUID)
 
 	// Do test
-	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice1.MDMDeviceID, enrichedSyncML)
+	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice1.MDMDeviceID, enrichedSyncML, []string{})
 	require.NoError(t, err)
 
 	// Verify results
-	results, err := ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID)
+	results, err := ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID, "")
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, enrolledDevice1.HostUUID, results[0].HostUUID)
@@ -2908,7 +2917,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 		return sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?",
 			atomicCommandUUID)
 	})
-	assert.Equal(t, 1, count, "Only one device has responded, so the command should still be in the queue")
+	assert.Equal(t, 2, count, "Only one device has responded, so the command should still be in the queue")
 
 	// Finish setting up the second device for testing
 	ExecAdhocSQL(t, ds, func(t sqlx.ExtContext) error {
@@ -2920,11 +2929,11 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice2.Hos
 	enrichedSyncML2 := createResponseAsEnrichedSyncML(t, enrolledDevice2, atomicCommandUUID, replaceCommandUUID)
 
 	// Do test on the second device
-	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice2.MDMDeviceID, enrichedSyncML2)
+	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice2.MDMDeviceID, enrichedSyncML2, []string{})
 	require.NoError(t, err)
 
 	// Verify results for the second device
-	results, err = ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID)
+	results, err = ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID, "")
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 
@@ -2932,7 +2941,35 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice2.Hos
 		return sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?",
 			atomicCommandUUID)
 	})
-	assert.Empty(t, count, "All devices have responded, so the command should be completely removed from the queue")
+	assert.Equal(t, count, 1, "Two out of three have responded, so the command should still be in the queue for the last host")
+
+	// Third device, which in our test case failed and will have it's command resent
+	ExecAdhocSQL(t, ds, func(t sqlx.ExtContext) error {
+		_, err := t.ExecContext(context.Background(), `
+INSERT INTO host_mdm_windows_profiles (host_uuid, status, operation_type, command_uuid, profile_name, profile_uuid)
+VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice3.HostUUID, atomicCommandUUID, uuid.NewString())
+		return err
+	})
+	enrichedSyncML3 := createResponseAsEnrichedSyncML(t, enrolledDevice3, atomicCommandUUID, replaceCommandUUID)
+
+	// Do test on the third device
+	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice3.MDMDeviceID, enrichedSyncML3, []string{atomicCommandUUID})
+	require.NoError(t, err)
+
+	// Verify results does not exist for the third device
+	results, err = ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID, "")
+	require.NoError(t, err)
+	require.Len(t, results, 2) // still two
+	for _, res := range results {
+		assert.NotEqual(t, enrolledDevice3.HostUUID, res.HostUUID, "Host 3 should not have a result recorded")
+	}
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?",
+			atomicCommandUUID)
+	})
+	// We still expect one here, as the clearing of the command from the queue will happen in the resend flow.
+	assert.Equal(t, count, 1, "All devices have responded, so the command should be completely removed from the queue")
 }
 
 func createResponseAsEnrichedSyncML(t *testing.T, enrolledDevice *fleet.MDMWindowsEnrolledDevice, atomicCommandUUID string,
@@ -3423,4 +3460,125 @@ func testWindowsMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 						}) */
 		})
 	}
+}
+
+func testGetWindowsMDMCommandsForResending(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	topLevelCmdUUID := uuid.NewString()
+	cmdUUID := uuid.NewString()
+
+	// Create entry in mdm_windows_enrollments table for command queue
+	dev := createMDMWindowsEnrollment(ctx, t, ds)
+
+	// No commands in windows_mdm_commands so doesn't matter what we put in
+	commands, err := ds.GetWindowsMDMCommandsForResending(ctx, []string{cmdUUID})
+	require.NoError(t, err)
+	require.Empty(t, commands)
+
+	// Insert a command
+	rawCommand := []byte(cmdUUID)
+	err = ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.writer(ctx), []string{dev.HostUUID}, &fleet.MDMWindowsCommand{
+		CommandUUID: topLevelCmdUUID,
+		RawCommand:  rawCommand,
+	})
+	require.NoError(t, err)
+
+	// Fetch command for resending
+	commands, err = ds.GetWindowsMDMCommandsForResending(ctx, []string{cmdUUID})
+	require.NoError(t, err)
+	require.Len(t, commands, 1)
+	assert.Equal(t, topLevelCmdUUID, commands[0].CommandUUID)
+	assert.Equal(t, rawCommand, commands[0].RawCommand)
+
+	// Check that we search raw body and not match on command_uuid
+	commands, err = ds.GetWindowsMDMCommandsForResending(ctx, []string{topLevelCmdUUID})
+	require.NoError(t, err)
+	require.Empty(t, commands)
+}
+
+func testResendWindowsMDMCommand(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	dev := createMDMWindowsEnrollment(ctx, t, ds)
+	cmdUUID := uuid.NewString()
+
+	// Query enrollment id from mdm_windows_enrollments
+	var enrollmentID int64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &enrollmentID, "SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ?", dev.MDMDeviceID)
+	})
+	require.Greater(t, enrollmentID, int64(0), "Enrollment ID should be greater than 0")
+
+	// Insert host profile entry
+	err := ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+		{
+			HostUUID:      dev.HostUUID,
+			ProfileUUID:   uuid.NewString(),
+			ProfileName:   "test-profile",
+			Status:        &fleet.MDMDeliveryFailed,
+			OperationType: fleet.MDMOperationTypeInstall,
+			CommandUUID:   cmdUUID,
+			Checksum:      []byte("checksum"),
+			Detail:        "fake detail we expect to be cleared on resend",
+		},
+	})
+	require.NoError(t, err)
+
+	// Insert a command for the original profile
+	cmdBody := []byte(`<Add></Add>`)
+	cmd := &fleet.MDMWindowsCommand{
+		CommandUUID: cmdUUID,
+		RawCommand:  cmdBody,
+	}
+	err = ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.writer(ctx), []string{dev.HostUUID}, cmd)
+	require.NoError(t, err)
+
+	// Verify we have a windows_mdm_command_queue entry
+	var count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ? AND enrollment_id = ?",
+			cmd.CommandUUID, enrollmentID)
+	})
+	assert.Equal(t, 1, count, "Command queue entry should exist before resend")
+
+	// Resend command
+	// We manually do replacement here
+	newCmdUUID := uuid.NewString()
+	newBody := []byte(`<Replace></Replace>`)
+	newCmd := &fleet.MDMWindowsCommand{
+		CommandUUID: newCmdUUID,
+		RawCommand:  newBody,
+	}
+	err = ds.ResendWindowsMDMCommand(ctx, dev.MDMDeviceID, newCmd, cmd)
+	require.NoError(t, err)
+
+	// Verify we have a windows_mdm_command_queue entry for the new command
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ? AND enrollment_id = ?",
+			newCmd.CommandUUID, enrollmentID)
+	})
+	assert.Equal(t, 1, count, "New command queue entry should exist after resend")
+
+	// verify we don't have a windows_mdm_command_queue entry for the old command
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ? AND enrollment_id = ?",
+			cmd.CommandUUID, enrollmentID)
+	})
+	assert.Equal(t, 0, count, "Old command queue entry should not exist after resend")
+
+	// Verify host profile status is reset and detail cleared
+	var status string
+	var detail sql.NullString
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &status, "SELECT status FROM host_mdm_windows_profiles WHERE command_uuid = ? AND host_uuid = ?",
+			newCmd.CommandUUID, dev.HostUUID)
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &detail, "SELECT detail FROM host_mdm_windows_profiles WHERE command_uuid = ? AND host_uuid = ?",
+			newCmd.CommandUUID, dev.HostUUID)
+	})
+	assert.Equal(t, string(fleet.MDMDeliveryPending), status, "Host profile status should be reset to pending on resend")
+	require.True(t, detail.Valid, "Host profile detail should be cleared on resend")
+	assert.Empty(t, detail.String, "Host profile detail should be cleared on resend")
 }

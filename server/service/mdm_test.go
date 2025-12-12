@@ -1378,7 +1378,6 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 			syncml.DiskEncryptionProfileRestrictionErrMsg,
 		},
 		{"team Windows updates profile", 1, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
-
 		{"invalid team", 2, `<Replace></Replace>`, true, "not found"},
 	}
 
