@@ -6,6 +6,7 @@ import { AppContext } from "context/app";
 import PATHS from "router/paths";
 
 import UploadList from "pages/ManageControlsPage/components/UploadList";
+import UploadListHeading from "pages/ManageControlsPage/components/UploadListHeading";
 
 import Pagination from "components/Pagination";
 import CustomLink from "components/CustomLink";
@@ -14,6 +15,8 @@ import DataError from "components/DataError";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionHeader from "components/SectionHeader";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
@@ -25,7 +28,7 @@ import certAPI, {
 } from "services/entities/certificates";
 
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
-import ProfileListHeading from "../CustomSettings/components/ProfileListHeading";
+import AddCertificateCard from "./components/AddCertificateCard/AddCertificateCard";
 
 const baseClass = "certificates";
 
@@ -42,7 +45,8 @@ const Certificates = ({
   const [showAddCertModal, setShowAddCertModal] = useState(false);
   const { config, isPremiumTier } = useContext(AppContext);
 
-  const androidMdmEnabled = !!config?.mdm.android_enabled_and_configured;
+  // const androidMdmEnabled = !!config?.mdm.android_enabled_and_configured;
+  const androidMdmEnabled = true;
 
   const {
     data: certsResp,
@@ -111,6 +115,17 @@ const Certificates = ({
     if (!isPremiumTier) {
       return <PremiumFeatureMessage />;
     }
+    if (!androidMdmEnabled) {
+      return (
+        <GenericMsgWithNavButton
+          header="Manage your hosts"
+          buttonText="Turn on"
+          path={PATHS.ADMIN_INTEGRATIONS_MDM}
+          router={router}
+          info="Android MDM must be turned on to apply custom settings."
+        />
+      );
+    }
     if (isLoadingCerts) {
       return <Spinner />;
     }
@@ -120,8 +135,7 @@ const Certificates = ({
     }
 
     if (!certs?.length) {
-      // TODO
-      <>ADD A CERT (empty to-do)</>;
+      return <AddCertificateCard setShowModal={setShowAddCertModal} />;
     }
 
     return (
@@ -130,13 +144,14 @@ const Certificates = ({
           keyAttribute="id"
           listItems={certs || []}
           HeadingComponent={() => (
-            <ProfileListHeading
+            <UploadListHeading
               entityName="Certificate"
               createEntityText="Create"
               onClickAdd={() => setShowAddCertModal(true)}
             />
           )}
-          ListItemComponent={({ listItem }) => <CertificateListItem />}
+          // ListItemComponent={({ listItem }) => <CertificateListItem />}
+          ListItemComponent={({ listItem }) => <>TODO</>}
         />
         <Pagination
           disableNext={!hasNext}

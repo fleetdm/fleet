@@ -1,24 +1,26 @@
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon";
-import Button from "components/buttons/Button";
 import React from "react";
 
-const baseClass = "profile-list-heading";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
-interface IProfileListHeadingProps {
+import Icon from "components/Icon";
+import Button from "components/buttons/Button";
+
+const baseClass = "upload-list-heading";
+
+interface IUploadListHeadingProps {
   entityName: string;
   createEntityText: string;
   onClickAdd?: () => void;
 }
 
-const ProfileListHeading = ({
+const UploadListHeading = ({
   entityName,
   createEntityText,
   onClickAdd,
-}: IProfileListHeadingProps) => {
+}: IUploadListHeadingProps) => {
   return (
     <div className={baseClass}>
-      <span className={`${baseClass}__profile-name-heading`}>{entityName}</span>
+      <span className={`${baseClass}__upload-name-heading`}>{entityName}</span>
       <span className={`${baseClass}__actions-heading`}>
         <GitOpsModeTooltipWrapper
           position="left"
@@ -42,4 +44,4 @@ const ProfileListHeading = ({
   );
 };
 
-export default ProfileListHeading;
+export default UploadListHeading;
