@@ -53,7 +53,7 @@ Engineering Manager
 
 Faire continues to be impressed by Fleet’s proactive support. For example, Fleet reached out when they detected a downed webhook on Faire’s end. In another instance, an engineer got on a video call 10 minutes after Faire filed a critical migration ticket.
 
-Telemetry from Fleet remains important for device posture. It gives Faire the visibility they need to assess device signals alongside their IDP. Fleet’s integrated MDM then provides a path to remediation and risk mitigation when they find issues
+Telemetry from Fleet remains important for device posture. It gives Faire the visibility they need to assess device signals alongside their IDP. Fleet’s integrated MDM then provides a path to remediation and risk mitigation when they find issues.
 
 Fleet is working with Faire to explore managing other platforms, including Windows, Linux, and potentially BYOD mobile devices.
 
