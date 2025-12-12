@@ -374,6 +374,10 @@ type Datastore interface {
 	GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
 	GetHostMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 	GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*HostMDMCheckinInfo, error)
+	// GetHostMDMIdentifiers searches for hosts with identifiders matching the provided identifier.
+	// It is intended as an optimization over existing host-by-identifier methods (e.g.,
+	// HostLiteByIdentifier) that are prone to full-table scans. See the implementation for more details.
+	GetHostMDMIdentifiers(ctx context.Context, identifer string, teamFilter TeamFilter) ([]*HostMDMIdentifiers, error)
 
 	// ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched (their details haven't been
 	// updated in the given `interval`).
@@ -1248,8 +1252,9 @@ type Datastore interface {
 	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
 	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
 
-	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
-	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
+	// GetMDMAppleCommandResults returns the execution results of a command identified by a
+	// CommandUUID. If a hostUUID is provided, it filters the results for that host.
+	GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
 
 	// GetVPPCommandResults returns the execution results of a command identified by a CommandUUID,
 	// only if the command corresponds to a VPP software (un)install for the specified host (else error notFound)
@@ -1712,7 +1717,7 @@ type Datastore interface {
 	MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML EnrichedSyncML, commandIDsBeingResent []string) error
 
 	// GetMDMWindowsCommands returns the results of command
-	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
+	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
 
 	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID.
 	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
@@ -1768,7 +1773,8 @@ type Datastore interface {
 
 	// ListMDMCommands returns a list of MDM Apple commands that have been
 	// executed, based on the provided options.
-	ListMDMCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMCommand, error)
+	// returns a non-nil count if filtering by command_status = pending
+	ListMDMCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMCommand, *int64, error)
 
 	// GetMDMWindowsBitLockerSummary summarizes the current state of Windows disk encryption on
 	// each Windows host in the specified team (or, if no team is specified, each host that is not assigned
