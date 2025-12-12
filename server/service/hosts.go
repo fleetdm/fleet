@@ -1366,7 +1366,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
 				profiles = append(profiles, p.ToHostMDMProfile())
 			}
-
 		case "android":
 			if !ac.MDM.AndroidEnabledAndConfigured {
 				break

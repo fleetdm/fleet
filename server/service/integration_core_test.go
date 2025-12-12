@@ -14841,6 +14841,32 @@ INSERT INTO host_certificate_templates (
 		return nil
 	})
 
+	// Enable Android MDM and verify GetHost returns operation_type for certificate templates
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origAndroidEnabled := appCfg.MDM.AndroidEnabledAndConfigured
+	appCfg.MDM.AndroidEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	err = s.ds.SetAndroidEnabledAndConfigured(ctx, true)
+	require.NoError(t, err)
+	defer func() {
+		appCfg.MDM.AndroidEnabledAndConfigured = origAndroidEnabled
+		_ = s.ds.SaveAppConfig(ctx, appCfg)
+		_ = s.ds.SetAndroidEnabledAndConfigured(ctx, origAndroidEnabled)
+	}()
+
+	// Verify GetHost returns operation_type for certificate templates
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host)
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	require.Len(t, *getHostResp.Host.MDM.Profiles, 1)
+	profile := (*getHostResp.Host.MDM.Profiles)[0]
+	require.Equal(t, savedTemplate.Name, profile.Name)
+	require.Equal(t, fleet.AndroidCertificateTemplateProfileID, profile.ProfileUUID)
+	require.Equal(t, fleet.MDMOperationTypeInstall, profile.OperationType, "operation_type should be populated for certificate templates")
+
 	// Test cases
 	cases := []struct {
 		name                    string
