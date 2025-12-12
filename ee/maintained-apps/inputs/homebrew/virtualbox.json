@@ -1,0 +1,8 @@
+{
+  "name": "VirtualBox",
+  "unique_identifier": "org.virtualbox.app.VirtualBox",
+  "token": "virtualbox",
+  "installer_format": "dmg",
+  "slug": "virtualbox/darwin",
+  "default_categories": ["Productivity"]
+}
