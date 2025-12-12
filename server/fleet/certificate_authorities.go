@@ -17,6 +17,7 @@ const (
 	CAConfigDigiCert        CAConfigAssetType = "digicert"
 	CAConfigCustomSCEPProxy CAConfigAssetType = "custom_scep_proxy"
 	CAConfigSmallstep       CAConfigAssetType = "smallstep"
+	CAConfigOkta            CAConfigAssetType = "okta"
 )
 
 // ListCATypesWithRenewalSupport returns the CA types that support renewal by Fleet
@@ -50,6 +51,7 @@ const (
 	CATypeHydrant         CAType = "hydrant"
 	CATypeCustomESTProxy  CAType = "custom_est_proxy" // Enrollment over Secure Transport
 	CATypeSmallstep       CAType = "smallstep"
+	CATypeOkta            CAType = "okta"
 )
 
 type CertificateAuthoritySummary struct {
@@ -106,6 +108,7 @@ type CertificateAuthorityPayload struct {
 	Hydrant         *HydrantCA            `json:"hydrant,omitempty"`
 	CustomESTProxy  *ESTProxyCA           `json:"custom_est_proxy,omitempty"`
 	Smallstep       *SmallstepSCEPProxyCA `json:"smallstep,omitempty"`
+	Okta            *OktaSCEPProxyCA      `json:"okta,omitempty"`
 }
 
 // If you update this struct, make sure to adjust the Equals and NeedToVerify methods below
@@ -213,6 +216,8 @@ type SCEPConfigService interface {
 	ValidateSCEPURL(ctx context.Context, url string) error
 	ValidateSmallstepChallengeURL(ctx context.Context, ca SmallstepSCEPProxyCA) error
 	GetSmallstepSCEPChallenge(ctx context.Context, ca SmallstepSCEPProxyCA) (string, error)
+	ValidateOktaChallengeURL(ctx context.Context, ca OktaSCEPProxyCA) error
+	GetOktaSCEPChallenge(ctx context.Context, ca OktaSCEPProxyCA) (string, error)
 }
 
 type CustomSCEPProxyCA struct {
@@ -496,6 +501,7 @@ type GroupedCertificateAuthorities struct {
 	NDESSCEP        *NDESSCEPProxyCA       `json:"ndes_scep_proxy"`
 	CustomScepProxy []CustomSCEPProxyCA    `json:"custom_scep_proxy"`
 	Smallstep       []SmallstepSCEPProxyCA `json:"smallstep"`
+	Okta            []OktaSCEPProxyCA      `json:"okta"`
 }
 
 // ToCustomSCEPProxyCAMap converts the CustomScepProxy slice to a map keyed by CA name
@@ -515,6 +521,7 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 		CustomScepProxy: []CustomSCEPProxyCA{},
 		NDESSCEP:        nil,
 		Smallstep:       []SmallstepSCEPProxyCA{},
+		Okta:            []OktaSCEPProxyCA{},
 	}
 
 	for _, ca := range cas {
@@ -568,6 +575,15 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 			})
 		case string(CATypeSmallstep):
 			grouped.Smallstep = append(grouped.Smallstep, SmallstepSCEPProxyCA{
+				ID:           ca.ID,
+				Name:         *ca.Name,
+				URL:          *ca.URL,
+				ChallengeURL: *ca.ChallengeURL,
+				Username:     *ca.Username,
+				Password:     *ca.Password,
+			})
+		case string(CATypeOkta):
+			grouped.Okta = append(grouped.Okta, OktaSCEPProxyCA{
 				ID:           ca.ID,
 				Name:         *ca.Name,
 				URL:          *ca.URL,
@@ -722,6 +738,35 @@ func (s *SmallstepSCEPProxyCA) Preprocess() {
 	s.URL = Preprocess(s.URL)
 	s.ChallengeURL = Preprocess(s.ChallengeURL)
 	s.Username = Preprocess(s.Username)
+}
+
+// OktaSCEPProxyCA represents an Okta SCEP CA configuration. Okta returns challenges
+// in NDES HTML format but uses HTTP Basic Auth (not NTLMSSP) and UTF-8 encoding.
+type OktaSCEPProxyCA struct {
+	ID           uint   `json:"-"`
+	Name         string `json:"name"`
+	URL          string `json:"url"`
+	ChallengeURL string `json:"challenge_url"`
+	Username     string `json:"username"`
+	Password     string `json:"password"` // not stored here -- encrypted in DB
+}
+
+func (o *OktaSCEPProxyCA) Preprocess() {
+	o.Name = Preprocess(o.Name)
+	o.URL = Preprocess(o.URL)
+	o.ChallengeURL = Preprocess(o.ChallengeURL)
+	o.Username = Preprocess(o.Username)
+}
+
+func (o *OktaSCEPProxyCA) Equals(other *OktaSCEPProxyCA) bool {
+	if o == nil && other == nil {
+		return true
+	}
+	if o == nil || other == nil {
+		return false
+	}
+	return o.Name == other.Name && o.URL == other.URL &&
+		o.ChallengeURL == other.ChallengeURL && o.Username == other.Username
 }
 
 // SmallstepChallengeRequestBody represents the minimumrequest body for obtaining a challenge from a

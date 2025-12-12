@@ -15,6 +15,7 @@ import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
 import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
+import { IOktaFormData } from "../OktaForm/OktaForm";
 
 // keep these alphabetized
 const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
@@ -35,6 +36,7 @@ const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
     label: "Microsoft NDES (Network Device Enrollment Service)",
     value: "ndes_scep_proxy",
   },
+  { label: "Okta", value: "okta" },
   { label: "Smallstep", value: "smallstep" },
 ];
 
@@ -170,6 +172,24 @@ export const generateAddCertAuthorityData = (
           url: customESTUrl,
           username: customESTUsername,
           password: customESTPassword,
+        },
+      };
+    }
+    case "okta": {
+      const {
+        name: oktaName,
+        scepURL: oktaScepURL,
+        challengeURL: oktaChallengeURL,
+        username: oktaUsername,
+        password: oktaPassword,
+      } = formData as IOktaFormData;
+      return {
+        okta: {
+          name: oktaName,
+          url: oktaScepURL,
+          challenge_url: oktaChallengeURL,
+          username: oktaUsername,
+          password: oktaPassword,
         },
       };
     }
