@@ -1256,8 +1256,12 @@ None.
     "sso_server_url": ""
   },
   "conditional_access": {
-    "microsoft_entra_tenant_id": "<TENANT ID>",
-    "microsoft_entra_connection_configured": true
+    "microsoft_entra_tenant_id": "",
+    "microsoft_entra_connection_configured": false,
+    "okta_idp_id": "0ogmbinlfy9hvGs7cx492",
+    "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
+    "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
+    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----"
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -1495,6 +1499,7 @@ Modifies the Fleet's configuration with the supplied information.
 | integrations             | object  | body  | See [integrations](#integrations).                                                                                           |
 | gitops                   | object  | body  | See [gitops](#gitops).                                                                                                               |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
+| conditional_access       | object  | body  | See [conditional_access](#conditional-access).    |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
 | scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
 | yara_rules               | array   | body  | A list of YARA rule files to add.                                                                                                    |
@@ -1562,7 +1567,11 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "conditional_access": {
     "microsoft_entra_tenant_id": "<TENANT ID>",
-    "microsoft_entra_connection_configured": true
+    "microsoft_entra_connection_configured": true,
+    "okta_idp_id": "0ogmbinlfy9hvGs7cx492",
+    "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
+    "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
+    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----"
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -2130,6 +2139,32 @@ _Available in Fleet Premium._
         "api_key_json": "<API KEY JSON>"
       }
     ]
+  }
+}
+```
+
+#### conditional_access
+
+_Available in Fleet Premium._
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------- |
+| okta_idp_id                         | string  | The IdP ID found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
+| okta_assertion_consumer_service_url | string  | The assertion consumer service URL found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
+| okta_audience_uri                   | string  | The audience URI found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
+| okta_certificate                    | string  | The certificate provided by Okta during the **Set Up Authenticator** workflow      |
+
+When updating conditional access config, all `conditional_access` fields must either be empty or included in the request.
+
+##### Example request body
+
+```json
+{
+  "conditional_access": {
+    "okta_idp_id": "0ogmbinlfy9hvGs7cx492",
+    "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
+    "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
+    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----"
   }
 }
 ```
@@ -11923,7 +11958,7 @@ _Available in Fleet Premium_
 | jira            | array  | See [`integrations.jira`](#integrations-jira2).                       |
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk2).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar2). |
-| conditional_access_enabled | boolean | **Available in Fleet Premium for managed cloud customers.** Whether to block third party app sign-ins on hosts failing policies. Must have Microsoft Entra connected and configured in global config. |
+| conditional_access_enabled | boolean | **Available in Fleet Premium.** Whether to block third party app sign-ins on hosts failing policies. Must have Microsoft Entra or Okta connected and configured in global config. |
 
 <br/>
 
