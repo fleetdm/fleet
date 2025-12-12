@@ -115,6 +115,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMEnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMTermsExpired	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSUpdates	fleet.AppleOSUpdateSettings
+github.com/fleetdm/fleet/v4/server/fleet/AppleOSUpdateSettings	UpdateNewHosts	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/AppleOSUpdateSettings	MinimumVersion	optjson.String
 github.com/fleetdm/fleet/v4/pkg/optjson/String	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/String	Valid	bool
