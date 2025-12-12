@@ -6811,7 +6811,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	mappings, err := ds.ListHostDeviceMapping(ctx, h1.ID)
 	require.NoError(t, err)
 	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
-		{Email: "user1@idp.com", Source: fleet.DeviceMappingIDP},
+		{Email: "user1@idp.com", Source: fleet.DeviceMappingMDMIdpAccounts},
 	})
 
 	// Test 2: Replace IDP mapping with new user (should replace, not add)
@@ -6822,7 +6822,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
 	require.NoError(t, err)
 	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
-		{Email: "user2@idp.com", Source: fleet.DeviceMappingIDP},
+		{Email: "user2@idp.com", Source: fleet.DeviceMappingMDMIdpAccounts},
 	})
 
 	// Test 3: Test idempotent behavior - setting same mapping again should not change anything
@@ -6833,7 +6833,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
 	require.NoError(t, err)
 	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
-		{Email: "user2@idp.com", Source: fleet.DeviceMappingIDP},
+		{Email: "user2@idp.com", Source: fleet.DeviceMappingMDMIdpAccounts},
 	})
 
 	// Test 4: Add IDP mapping for different host
@@ -6844,14 +6844,14 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	mappings, err = ds.ListHostDeviceMapping(ctx, h2.ID)
 	require.NoError(t, err)
 	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
-		{Email: "user3@idp.com", Source: fleet.DeviceMappingIDP},
+		{Email: "user3@idp.com", Source: fleet.DeviceMappingMDMIdpAccounts},
 	})
 
 	// Verify h1 still has its current mapping unchanged
 	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
 	require.NoError(t, err)
 	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
-		{Email: "user2@idp.com", Source: fleet.DeviceMappingIDP},
+		{Email: "user2@idp.com", Source: fleet.DeviceMappingMDMIdpAccounts},
 	})
 
 	// Test 5: Test coexistence with custom mappings
@@ -6862,7 +6862,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	require.Len(t, customMappings, 2)
 	assertHostDeviceMapping(t, customMappings, []*fleet.HostDeviceMapping{
 		{Email: "custom@example.com", Source: fleet.DeviceMappingCustomReplacement}, // displayed as "custom"
-		{Email: "user2@idp.com", Source: fleet.DeviceMappingIDP},
+		{Email: "user2@idp.com", Source: fleet.DeviceMappingMDMIdpAccounts},
 	})
 
 	// Test 6: Test replacement with various email formats
@@ -6882,7 +6882,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Len(t, mappings, 1, "Should have exactly one IDP mapping after email %d", i)
 		assert.Equal(t, email, mappings[0].Email, "Should have the latest email")
-		assert.Equal(t, fleet.DeviceMappingIDP, mappings[0].Source, "Should be IDP source")
+		assert.Equal(t, fleet.DeviceMappingMDMIdpAccounts, mappings[0].Source, "Should be IDP source")
 	}
 
 	// Test 7: Test empty email (edge case)
@@ -6894,7 +6894,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	found := false
 	for _, mapping := range mappings {
-		if mapping.Email == "" && mapping.Source == fleet.DeviceMappingIDP {
+		if mapping.Email == "" && mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
 			found = true
 			break
 		}
@@ -6931,13 +6931,13 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	foundOldMdmIdp := false
 	foundEmptyEmail := false
 	for _, mapping := range mappings {
-		if mapping.Email == "new.user@example.com" && mapping.Source == fleet.DeviceMappingIDP {
+		if mapping.Email == "new.user@example.com" && mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
 			foundNewIdp = true
 		}
 		if mapping.Email == "mdm.user@example.com" && mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
 			foundOldMdmIdp = true
 		}
-		if mapping.Email == "" && mapping.Source == fleet.DeviceMappingIDP {
+		if mapping.Email == "" && mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
 			foundEmptyEmail = true
 		}
 	}
@@ -6955,7 +6955,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	foundIdP := false
 	foundCustom := false
 	for _, mapping := range mappings {
-		if mapping.Email == "new.user@example.com" && mapping.Source == fleet.DeviceMappingIDP {
+		if mapping.Email == "new.user@example.com" && mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
 			foundIdP = true
 		}
 		if mapping.Email == "custom@example.com" && mapping.Source == fleet.DeviceMappingCustomReplacement {
