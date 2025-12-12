@@ -8,7 +8,7 @@ try {
     
     $processOptions = @{
         FilePath = "winget"
-        ArgumentList = @("uninstall", "--id", $packageIdentifier, "--silent", "--accept-source-agreements", "--accept-package-agreements")
+        ArgumentList = @("uninstall", "--id", $packageIdentifier, "--silent")
         PassThru = $true
         Wait = $true
         NoNewWindow = $true
