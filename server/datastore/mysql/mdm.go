@@ -2691,7 +2691,7 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 			// This will trigger a resend next time profiles are checked
 			updateQuery := `UPDATE ` + table + ` SET status = NULL WHERE status IS NOT NULL AND operation_type = ? AND (`
 			hostProfileClause := ``
-			values := []interface{}{fleet.MDMOperationTypeInstall}
+			values := []any{fleet.MDMOperationTypeInstall}
 			hostCertsToRenew := []struct {
 				HostUUID       string    `db:"host_uuid"`
 				ProfileUUID    string    `db:"profile_uuid"`
