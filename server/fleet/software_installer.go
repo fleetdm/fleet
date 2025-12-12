@@ -709,6 +709,14 @@ type SoftwarePackageOrApp struct {
 	Categories           []string `json:"categories,omitempty"`
 }
 
+func (s *SoftwarePackageOrApp) GetPlatform() string {
+	return s.Platform
+}
+
+func (s *SoftwarePackageOrApp) GetAppStoreID() string {
+	return s.AppStoreID
+}
+
 type SoftwarePackageSpec struct {
 	URL                string                `json:"url"`
 	SelfService        bool                  `json:"self_service"`
