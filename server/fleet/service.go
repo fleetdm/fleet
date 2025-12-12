@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"io"
+	"iter"
 	"net/url"
 	"time"
 
@@ -363,6 +364,7 @@ type Service interface {
 	// Returns an error if the UUID doesn't exist or if the host is not iOS/iPadOS.
 	AuthenticateIDeviceByURL(ctx context.Context, urlUUID string) (host *Host, debug bool, err error)
 
+	StreamHosts(ctx context.Context, opt HostListOptions) (hostIterator iter.Seq2[*Host, error], err error)
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
 	// GetHost returns the host with the provided ID.
 	//
