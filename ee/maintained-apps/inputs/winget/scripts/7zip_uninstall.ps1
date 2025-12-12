@@ -1,6 +1,6 @@
 # Attempts to locate 7-Zip's uninstaller from registry and execute it silently
 
-$displayName = "7-Zip"
+$displayName = "7zip"
 $publisher = "Igor Pavlov"
 
 $paths = @(
@@ -75,3 +75,4 @@ try {
     Write-Host "Error running uninstaller: $_"
     Exit 1
 }
+

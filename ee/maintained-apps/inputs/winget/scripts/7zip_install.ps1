@@ -26,3 +26,4 @@ Exit $exitCode
   Write-Host "Error: $_"
   Exit 1
 }
+
