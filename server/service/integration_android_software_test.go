@@ -572,12 +572,10 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfigurations() {
 	s.Assert().Equal("app_1", listSWTitles.SoftwareTitles[0].AppStoreApp.AppStoreID)
 	titleApp1 := listSWTitles.SoftwareTitles[0].ID
 	titleApp2 := listSWTitles.SoftwareTitles[1].ID
-	// titleApp3 := listSWTitles.SoftwareTitles[2].ID
-	// titleApp4 := listSWTitles.SoftwareTitles[3].ID
 
 	// Batch app store apps call won't create an activity
 
-	// Add to team 0
+	// Add apps to team 0
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 		batchAssociateAppStoreAppsRequest{
 			DryRun: false,
@@ -623,9 +621,9 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfigurations() {
 		TeamID: teamID,
 	}, http.StatusOK, &titleResp)
 	require.Equal(t, "app_2", *titleResp.SoftwareTitle.ApplicationID)
-	require.Contains(t, string(titleResp.SoftwareTitle.AppStoreApp.Configuration), "workProfileWidgets")
+	require.Contains(t, string(titleResp.SoftwareTitle.AppStoreApp.Configuration), `"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"`)
 
-	// Remove 2 other apps, 2 configurations should remain
+	// Remove 2 other apps, 2 configurations should be deleted and 2 should be emptied/remain
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 		batchAssociateAppStoreAppsRequest{
 			DryRun: false,
@@ -639,4 +637,18 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfigurations() {
 
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(*teamID))
 	s.Assert().Len(listSWTitles.SoftwareTitles, 2)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleApp1), &getSoftwareTitleRequest{
+		ID:     titleApp1,
+		TeamID: teamID,
+	}, http.StatusOK, &titleResp)
+	require.Equal(t, "app_1", *titleResp.SoftwareTitle.ApplicationID)
+	require.Equal(t, json.RawMessage(`{}`), titleResp.SoftwareTitle.AppStoreApp.Configuration)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleApp2), &getSoftwareTitleRequest{
+		ID:     titleApp2,
+		TeamID: teamID,
+	}, http.StatusOK, &titleResp)
+	require.Equal(t, "app_2", *titleResp.SoftwareTitle.ApplicationID)
+	require.Contains(t, string(titleResp.SoftwareTitle.AppStoreApp.Configuration), `"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"`)
 }
