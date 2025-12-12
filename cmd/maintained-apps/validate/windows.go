@@ -46,12 +46,15 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion
 	if appPath != "" {
 		query += fmt.Sprintf(" OR install_location LIKE '%%%s%%'", appPath)
 	}
+	level.Info(logger).Log("msg", fmt.Sprintf("osquery query: %s", query))
 	cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		level.Error(logger).Log("msg", fmt.Sprintf("osquery error: %v", err))
 		level.Error(logger).Log("msg", fmt.Sprintf("osquery output: %s", string(output)))
 		return false, fmt.Errorf("executing osquery command: %w", err)
 	}
+	level.Info(logger).Log("msg", fmt.Sprintf("osquery raw output: %s", string(output)))
 
 	type AppResult struct {
 		Name            string `json:"name"`
@@ -65,7 +68,8 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion
 	}
 
 	if len(results) > 0 {
-		for _, result := range results {
+		level.Info(logger).Log("msg", fmt.Sprintf("osquery found %d matching app(s) in registry", len(results)))
+		for i, result := range results {
 			software := &fleet.Software{
 				Name:    result.Name,
 				Version: result.Version,
@@ -75,7 +79,7 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion
 			result.Version = software.Version
 			result.Name = software.Name
 
-			level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s", result.Name, result.InstallLocation, result.Version))
+			level.Info(logger).Log("msg", fmt.Sprintf("Found app %d: '%s' at %s, Version: %s (looking for version: %s)", i+1, result.Name, result.InstallLocation, result.Version, appVersion))
 
 			// Sublime Text's Inno Setup installer may not write version to registry properly
 			// If app is found but version is empty, check if it's Sublime Text and skip version check
@@ -86,14 +90,20 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion
 
 			// Check exact match first
 			if result.Version == appVersion {
+				level.Info(logger).Log("msg", fmt.Sprintf("Version match: '%s' == '%s' (exact match)", result.Version, appVersion))
 				return true, nil
 			}
 			// Check if found version starts with expected version (handles suffixes like ".0")
 			// This handles cases where the app version is "3.5.4.0" but expected is "3.5.4"
 			if strings.HasPrefix(result.Version, appVersion+".") {
+				level.Info(logger).Log("msg", fmt.Sprintf("Version match: '%s' starts with '%s.' (prefix match)", result.Version, appVersion))
 				return true, nil
 			}
+			level.Info(logger).Log("msg", fmt.Sprintf("Version mismatch: '%s' does not match '%s'", result.Version, appVersion))
 		}
+		level.Info(logger).Log("msg", fmt.Sprintf("No version matches found among %d results", len(results)))
+	} else {
+		level.Info(logger).Log("msg", "osquery found no matching apps in registry")
 	}
 
 	return false, nil

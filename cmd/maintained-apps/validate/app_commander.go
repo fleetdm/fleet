@@ -93,8 +93,9 @@ func (ac *AppCommander) uninstallApp(ctx context.Context) bool {
 		level.Error(ac.appLogger).Log("msg", fmt.Sprintf("Output: %s", output))
 		return false
 	}
-	level.Debug(ac.appLogger).Log("msg", fmt.Sprintf("Output: %s", output))
+	level.Info(ac.appLogger).Log("msg", fmt.Sprintf("Uninstall script output: %s", output))
 
+	level.Info(ac.appLogger).Log("msg", "Checking if app still exists after uninstall...")
 	existance, err := appExists(ctx, ac.appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
 	if err != nil {
 		level.Error(ac.appLogger).Log("msg", fmt.Sprintf("Error checking if app exists after uninstall: %v", err))
@@ -102,9 +103,11 @@ func (ac *AppCommander) uninstallApp(ctx context.Context) bool {
 	}
 	if existance {
 		level.Error(ac.appLogger).Log("msg", fmt.Sprintf("App version '%s' was found after uninstall", ac.Version))
+		level.Info(ac.appLogger).Log("msg", fmt.Sprintf("Uninstall script completed successfully but app is still detected. This may indicate a timing issue or the uninstaller did not complete."))
 		return false
 	}
 
+	level.Info(ac.appLogger).Log("msg", "App successfully uninstalled - no longer found in registry")
 	return true
 }
 
