@@ -35,9 +35,9 @@ You may also wish to create specialized API-Only users which may modify configur
 
 ## labels
 
-Labels can be specified in your `default.yml` file using inline configuration or references to separate files in your `lib/` folder.
+Labels can be specified in your `default.yml` and `teams/team-name.yml` files using inline configuration or references to separate files in your `lib/` folder. Labels cannot be specified in `teams/no-team.yml`.
 
-- `name` specifies the label's name.
+- `name` specifies the label's name. Must be unique across all global and team labels.
 - `description` specifies the label's description.
 - `platform` specifies platforms for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. Only supported if `label_membership_type` is `dynamic`.
 - `label_membership_type` specifies label type which determines. Choices for platform are `dynamic` , `manual`, and `host_vitals`.
@@ -45,11 +45,11 @@ Labels can be specified in your `default.yml` file using inline configuration or
 - `hosts` is a list of host identifiers (`id`, `hardware_serial`, or `uuid`). The label will apply to any host with a matching identifier. Only supported if `label_membership_type` is `manual`.
 - `criteria` - is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. See [criteria](https://fleetdm.com/docs/rest-api/rest-api#criteria) documentation for details.
 
-Only one of `query`, `hosts`, or `critera` can be specified. If none are specified, a manual label with no hosts will be created.
+Only one of `query`, `hosts`, or `criteria` can be specified. If none are specified, a manual label with no hosts will be created.
 
 The `hostname` host identifier is deprecated. Please use a host's `id`, `hardware_serial`, or `uuid` instead.
 
-> `labels` is an optional key: if included, existing labels not listed will be deleted. If the `label` key is omitted, existing labels will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing labels via the UI.
+> `labels` is an optional key: if included in `default.yml`, existing global labels not listed will be deleted. If included in `teams/team-name.yml`, the team's existing labels not listed will be deleted. If the `label` key is omitted, existing labels will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing labels via the UI.
 >
 > Any labels referenced in other sections (like [policies](https://fleetdm.com/docs/configuration/yaml-files#policies), [queries](https://fleetdm.com/docs/configuration/yaml-files#queries) or [software](https://fleetdm.com/docs/configuration/yaml-files#software)) _must_ be specified in the `labels` section.
 
