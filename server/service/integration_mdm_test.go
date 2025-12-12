@@ -18543,7 +18543,7 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 	res := s.DoRawNoAuth("GET", "/enroll", nil, http.StatusOK, "enroll_secret", "noidp")
 	page, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
-	require.Contains(t, string(page), "Enroll your Android device in Fleet")
+	require.Contains(t, string(page), "How to enroll your Android device to Fleet")
 
 	// try to BYOD-enroll in team with IdP enabled, should redirect to SSO login
 	res = s.DoRawNoAuth("GET", "/enroll", nil, http.StatusSeeOther, "enroll_secret", "idp")
@@ -18573,7 +18573,7 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=abc"}, "enroll_secret", "idp", "enrollment_reference", "abc")
 	page, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
-	require.Contains(t, string(page), "Enroll your Android device in Fleet")
+	require.Contains(t, string(page), "How to enroll your Android device to Fleet")
 
 	// try to BYOD-enroll with invalid enroll secret, should redirect to SSO
 	// login as at least one team has it enabled

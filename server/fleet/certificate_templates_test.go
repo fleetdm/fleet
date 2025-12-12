@@ -38,6 +38,7 @@ func TestHostCertificateTemplate(t *testing.T) {
 					require.Equal(t, "android", profile.Platform)
 					require.Equal(t, MDMDeliveryVerified, *profile.Status)
 					require.Equal(t, MDMOperationTypeInstall, profile.OperationType)
+					require.Equal(t, AndroidCertificateTemplateProfileID, profile.ProfileUUID)
 					require.Empty(t, profile.Detail)
 				},
 			},
