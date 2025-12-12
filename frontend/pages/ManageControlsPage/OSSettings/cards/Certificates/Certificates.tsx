@@ -29,6 +29,12 @@ import certAPI, {
 
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 import AddCertificateCard from "./components/AddCertificateCard/AddCertificateCard";
+import { createMockAndroidCertTemplate } from "__mocks__/certificatesMock";
+import { formatDistanceToNow } from "date-fns";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import ListItem from "components/ListItem";
 
 const baseClass = "certificates";
 
@@ -43,12 +49,13 @@ const Certificates = ({
   onMutation,
 }: ICertificatesProps) => {
   const [showAddCertModal, setShowAddCertModal] = useState(false);
+  const [certIdToDelete, setCertIdToDelete] = useState<null | number>(null);
   const { config, isPremiumTier } = useContext(AppContext);
 
   // const androidMdmEnabled = !!config?.mdm.android_enabled_and_configured;
   const androidMdmEnabled = true;
 
-  const {
+  let {
     data: certsResp,
     isLoading: isLoadingCerts,
     isError: isErrorCerts,
@@ -73,6 +80,15 @@ const Certificates = ({
       enabled: isPremiumTier && androidMdmEnabled,
     }
   );
+
+  // TODO - undo
+  certsResp = {
+    certificates: [createMockAndroidCertTemplate()],
+    meta: {
+      has_next_results: false,
+      has_previous_results: false,
+    },
+  };
 
   const certs = certsResp?.certificates;
   const { has_next_results: hasNext, has_previous_results: hasPrev } =
@@ -150,8 +166,40 @@ const Certificates = ({
               onClickAdd={() => setShowAddCertModal(true)}
             />
           )}
-          // ListItemComponent={({ listItem }) => <CertificateListItem />}
-          ListItemComponent={({ listItem }) => <>TODO</>}
+          ListItemComponent={({ listItem }) => {
+            const {
+              id,
+              name,
+              certificate_authority_name: caName,
+              created_at,
+            } = listItem;
+
+            const details = (
+              <>
+                {caName} &bull; Uploaded{" "}
+                {formatDistanceToNow(new Date(created_at))} ago
+              </>
+            );
+            <ListItem
+              graphic="file-certificate"
+              title={name}
+              details={details}
+              actions={
+                <GitOpsModeTooltipWrapper
+                  renderChildren={(disableChildren) => (
+                    <Button
+                      disabled={disableChildren}
+                      className={`${baseClass}__delete-button`}
+                      variant="icon"
+                      onClick={() => setCertIdToDelete(id)}
+                    >
+                      <Icon name="trash" />
+                    </Button>
+                  )}
+                />
+              }
+            />;
+          }}
         />
         <Pagination
           disableNext={!hasNext}
@@ -183,6 +231,8 @@ const Certificates = ({
         }
       />
       {renderContent()}
+      {showAddCertModal && <>TODO - Add Cert Modal</>}
+      {certIdToDelete && <>TODO - Delete Cert Modal</>}
     </div>
   );
 };

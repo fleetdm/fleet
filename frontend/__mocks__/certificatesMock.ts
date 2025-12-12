@@ -2,6 +2,8 @@ import {
   ICertificateAuthorityPartial,
   IHostCertificate,
 } from "interfaces/certificates";
+import { identity, over } from "lodash";
+import { ICertTemplate } from "services/entities/certificates";
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
 const DEFAULT_HOST_CERTIFICATE_MOCK: IHostCertificate = {
@@ -62,4 +64,18 @@ export const createMockCertificateAuthorityPartial = (
   overrides?: Partial<ICertificateAuthorityPartial>
 ): ICertificateAuthorityPartial => {
   return { ...DEFAULT_CERT_AUTHORITY_PARTIAL_MOCK, ...overrides };
+};
+
+const DEFAULT_ANDROID_CERT_TEMPLATE_MOCK: ICertTemplate = {
+  id: 1,
+  name: "Test Android Cert Template",
+  certificate_authority_id: 1,
+  certificate_authority_name: "Test CA",
+  created_at: "2021-08-19T02:02:17Z",
+};
+
+export const createMockAndroidCertTemplate = (
+  overrides?: Partial<ICertTemplate>
+): ICertTemplate => {
+  return { ...DEFAULT_ANDROID_CERT_TEMPLATE_MOCK, ...overrides };
 };
