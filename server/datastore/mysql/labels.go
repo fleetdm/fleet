@@ -486,8 +486,8 @@ func (ds *Datastore) labelDB(ctx context.Context, lid uint, teamFilter fleet.Tea
 		SELECT
 		       l.*, teams.name team_name,
 		       (SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s) AS host_count
-		FROM labels l LEFT JOIN teams ON teams.id = labels.team_id
-		WHERE labels.id = ?
+		FROM labels l LEFT JOIN teams ON teams.id = l.team_id
+		WHERE l.id = ?
 	`, ds.whereFilterHostsByTeams(teamFilter, "h"))
 
 	var label fleet.LabelWithTeamName
