@@ -18,6 +18,7 @@ import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem
 
 import PastActivityFeed from "./PastActivityFeed";
 import UpcomingActivityFeed from "./UpcomingActivityFeed";
+import MDMCommandsToggle from "./MDMCommandsToggle";
 
 const baseClass = "host-activity-card";
 
@@ -45,6 +46,8 @@ interface IActivityProps {
   onPreviousPage: () => void;
   onShowDetails: ShowActivityDetailsHandler;
   onCancel: (activity: IHostUpcomingActivity) => void;
+  onShowMDMCommands: () => void;
+  onHideMDMCommands: () => void;
 }
 
 const Activity = ({
@@ -76,7 +79,7 @@ const Activity = ({
       )}
       <div className={`${baseClass}__header`}>
         <CardHeader header="Activity" />
-        <UpcomingTooltip />
+        {activeTab === "upcoming" && <UpcomingTooltip />}
       </div>
       <TabNav secondary>
         <Tabs
@@ -92,6 +95,10 @@ const Activity = ({
             </Tab>
           </TabList>
           <TabPanel>
+            <MDMCommandsToggle
+              showMDMCommands={false}
+              onToggleMDMCommands={() => { }}
+            />
             <PastActivityFeed
               activities={activities as IHostPastActivitiesResponse | undefined}
               onShowDetails={onShowDetails}
@@ -101,6 +108,11 @@ const Activity = ({
             />
           </TabPanel>
           <TabPanel>
+            <MDMCommandsToggle
+              showMDMCommands={false}
+              commandCount={10}
+              onToggleMDMCommands={() => { }}
+            />
             <UpcomingActivityFeed
               activities={
                 activities as IHostUpcomingActivitiesResponse | undefined
