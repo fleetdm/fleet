@@ -11,7 +11,7 @@ const validQueryResponse = { valid: true, error: null };
 const parser = new Parser();
 
 export const validateQuery = (queryText?: string) => {
-  if (!queryText) {
+  if (!queryText?.trim()) {
     return invalidQueryResponse(EMPTY_QUERY_ERR);
   }
 
