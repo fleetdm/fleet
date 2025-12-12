@@ -1128,7 +1128,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 		for labelID := range labelResults {
 			if _, ok := hostLabelQueries[fmt.Sprint(labelID)]; !ok {
-				level.Debug(svc.logger).Log("msg", "clearing result for not applicable label", "labelID", labelID, "hostID", host.ID)
+				level.Debug(svc.logger).Log("msg", "clearing result for inapplicable label", "labelID", labelID, "hostID", host.ID)
 				labelResults[labelID] = ptr.Bool(false)
 			}
 		}
