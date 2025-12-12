@@ -57,6 +57,14 @@ type VPPAppTeam struct {
 	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 
+func (v VPPAppTeam) GetPlatform() string {
+	return string(v.Platform)
+}
+
+func (v VPPAppTeam) GetAppStoreID() string {
+	return v.AdamID
+}
+
 // VPPApp represents a VPP (Volume Purchase Program) application,
 // this is used by Apple MDM to manage applications via Apple
 // Business Manager.

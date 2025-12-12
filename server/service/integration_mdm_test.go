@@ -11304,6 +11304,11 @@ func (s *integrationMDMTestSuite) TestConnectedToFleetWithoutCheckout() {
 	require.False(t, *hostResp.Host.MDM.ConnectedToFleet)
 }
 
+type appStoreApp interface {
+	GetPlatform() string
+	GetAppStoreID() string
+}
+
 func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	t := s.T()
 	batchURL := "/api/latest/fleet/software/app_store_apps/batch"
@@ -11765,23 +11770,36 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		}
 	}
 
+	adamIDWithAllPlatforms := s.appleVPPConfigSrvConfig.Assets[1].AdamID
+
 	// change display names
-	setDisplayNames := func(androidAppName, vppAppName string) {
-		s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
-			{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, DisplayName: vppAppName},
-			{AppStoreID: driveAppID, Platform: fleet.AndroidPlatform, DisplayName: androidAppName},
-		}}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
-		require.Len(t, batchAssociateResponse.Apps, 2)
+	setDisplayNames := func(expectedAppCount int, expectedApps ...fleet.VPPBatchPayload) {
+		displayNameToAppStoreID := make(map[string]string)
+
+		// Make a unique key that uses the id + the platform
+		key := func(v appStoreApp) string {
+			return fmt.Sprintf(`%s_%s`, v.GetAppStoreID(), v.GetPlatform())
+		}
+
+		for _, e := range expectedApps {
+			if e.Platform == "" {
+				for _, p := range []fleet.InstallableDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform} {
+					e.Platform = p
+					displayNameToAppStoreID[key(e)] = e.DisplayName
+				}
+			}
+			displayNameToAppStoreID[key(e)] = e.DisplayName
+		}
+
+		s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: expectedApps}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
+		require.Len(t, batchAssociateResponse.Apps, expectedAppCount)
 
 		assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
 		require.NoError(t, err)
-		require.Len(t, assoc, 2)
+		require.Len(t, assoc, expectedAppCount)
 
-		for _, a := range []fleet.VPPAppID{
-			{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform},
-			{AdamID: driveAppID, Platform: fleet.AndroidPlatform},
-		} {
-			assert.Contains(t, assoc, a)
+		for _, a := range assoc {
+			assert.Contains(t, displayNameToAppStoreID, key(a))
 		}
 
 		time.Sleep(time.Second)
@@ -11791,19 +11809,60 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSwTitles, "team_id", fmt.Sprint(tmGood.ID))
 
-		s.Assert().Len(listSwTitles.SoftwareTitles, 2)
+		s.Assert().Len(listSwTitles.SoftwareTitles, expectedAppCount)
 		for _, sw := range listSwTitles.SoftwareTitles {
-			switch sw.AppStoreApp.AppStoreID {
-			case driveAppID:
-				s.Assert().Equal(androidAppName, sw.DisplayName)
-			case s.appleVPPConfigSrvConfig.Assets[0].AdamID:
-				s.Assert().Equal(vppAppName, sw.DisplayName)
-			}
+			id, ok := displayNameToAppStoreID[key(sw.AppStoreApp)]
+			s.Assert().True(ok)
+			s.Assert().Equal(id, sw.DisplayName)
 		}
 	}
 
-	setDisplayNames("VPPAppUpdatedName2", "DriveUpdatedName2")
-	setDisplayNames("", "")
+	setDisplayNames(
+		4,
+		fleet.VPPBatchPayload{
+			AppStoreID:  driveAppID,
+			Platform:    fleet.AndroidPlatform,
+			DisplayName: "AndroidUpdated2",
+		},
+		fleet.VPPBatchPayload{
+			AppStoreID:  adamIDWithAllPlatforms,
+			SelfService: true,
+			DisplayName: "AppleUpdated2",
+		})
+
+	setDisplayNames(
+		3,
+		fleet.VPPBatchPayload{
+			AppStoreID:  driveAppID,
+			Platform:    fleet.AndroidPlatform,
+			DisplayName: "AndroidUpdated2",
+		},
+		fleet.VPPBatchPayload{
+			AppStoreID:  adamIDWithAllPlatforms,
+			Platform:    fleet.MacOSPlatform,
+			SelfService: true,
+			DisplayName: "AppleUpdated2",
+		},
+		fleet.VPPBatchPayload{
+			AppStoreID:  adamIDWithAllPlatforms,
+			Platform:    fleet.IOSPlatform,
+			SelfService: true,
+			DisplayName: "IOSAPP",
+		},
+	)
+
+	setDisplayNames(
+		4,
+		fleet.VPPBatchPayload{
+			AppStoreID:  driveAppID,
+			Platform:    fleet.AndroidPlatform,
+			DisplayName: "",
+		},
+		fleet.VPPBatchPayload{
+			AppStoreID:  adamIDWithAllPlatforms,
+			SelfService: true,
+			DisplayName: "",
+		})
 
 }
 
