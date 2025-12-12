@@ -1143,17 +1143,7 @@ SELECT
 	nq.id AS host_uuid,
 	nc.command_uuid,
 	COALESCE(ncr.updated_at, nc.created_at) AS updated_at,
-	COALESCE(NULLIF(ncr.status, ''), 'Pending') AS status,
-	CASE WHEN COALESCE(NULLIF(ncr.status, ''), 'Pending')
-	IN('Pending', 'NotNow') THEN
-		'pending'
-	WHEN COALESCE(NULLIF(ncr.status, ''), 'Pending') = 'Acknowledged' THEN
-		'ran'
-	WHEN COALESCE(NULLIF(ncr.status, ''), 'Pending') = 'Error' THEN
-		'failed'
-	ELSE
-		'pending'
-	END AS command_status,
+	COALESCE(ncr.status, 'Pending') AS status,
 	request_type,
 	nc.command AS payload,
 	COALESCE(ncr.result, '') AS result
@@ -1167,7 +1157,7 @@ WHERE
 	AND nc.command_uuid = ?
 	%s
 `
-	args := []interface{}{commandUUID}
+	args := []any{commandUUID}
 	if hostUUID != "" {
 		query = fmt.Sprintf(query, "AND nq.id = ?")
 		args = append(args, hostUUID)
