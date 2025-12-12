@@ -755,12 +755,12 @@ If an end user is on vacation (offline for more than 30 days), their certificate
 ### User scoped certificates
 
 You can also upload a certificate to be installed in the login keychain of the managed user on a
-macOS host using a user-scoped configuration profile.
+macOS and Windows hosts using a user-scoped configuration profile.
 
 1. **Add your CA as before**
   Use the above steps to integrate your CA with Fleet.
 1. **Create a certificate payload**
-  Use your preferred tool (e.g., Apple Configurator or a `.mobileconfig` generator) to create a configuration profile that includes your certificate.
+  Use your preferred tool (e.g., Apple Configurator or a `.mobileconfig` generator) to create a configuration profile that includes your certificate. For Windows, use the [example profile](#example-configuration-profiles) and replace `./Device` with `./User` in all `<LocURI>` elements.
 2. **Ensure the payload is scoped to the user**
   In the payload, set the `PayloadScope` to `User`. This tells macOS to install the certificate in the user’s login keychain instead of the system keychain.
 3. **Upload the configuration profile to Fleet**
