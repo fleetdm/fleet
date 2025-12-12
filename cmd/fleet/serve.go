@@ -6,9 +6,11 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/tls"
+	stdSQL "database/sql"
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	stdlog "log"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -18,6 +20,10 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/ThreeDotsLabs/watermill"
+	"github.com/ThreeDotsLabs/watermill-sql/v4/pkg/sql"
+	"github.com/ThreeDotsLabs/watermill/message"
 
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
@@ -74,6 +80,9 @@ import (
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+
+	mysql_driver "github.com/go-sql-driver/mysql"
+
 	"github.com/google/uuid"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
@@ -1600,8 +1609,45 @@ the way that the Fleet server works.
 				}()
 			}()
 
+			db := createDB()
+			logger2 := watermill.NewStdLogger(false, false)
+
+			subscriber, err := sql.NewSubscriber(
+				sql.BeginnerFromStdSQL(db),
+				sql.SubscriberConfig{
+					SchemaAdapter:    sql.DefaultMySQLSchema{},
+					OffsetsAdapter:   sql.DefaultMySQLOffsetsAdapter{},
+					InitializeSchema: true,
+				},
+				logger2,
+			)
+			if err != nil {
+				panic(err)
+			}
+
+			messages, err := subscriber.Subscribe(context.Background(), "example_topic")
+			if err != nil {
+				panic(err)
+			}
+
+			go process(messages)
+
+			publisher, err := sql.NewPublisher(
+				sql.BeginnerFromStdSQL(db),
+				sql.PublisherConfig{
+					SchemaAdapter: sql.DefaultMySQLSchema{},
+				},
+				logger2,
+			)
+			if err != nil {
+				panic(err)
+			}
+
+			publishMessages(publisher)
+
 			// block on errs signal
 			logger.Log("terminated", <-errs)
+
 		},
 	}
 
@@ -1857,5 +1903,50 @@ func createTestBuckets(config *configpkg.FleetConfig, logger log.Logger) {
 			"msg", "failed to create test carve bucket",
 			"name", config.S3.CarvesBucket,
 		)
+	}
+}
+
+// =========================================
+// Watermill
+// =========================================
+func createDB() *stdSQL.DB {
+	conf := mysql_driver.NewConfig()
+	conf.Net = "tcp"
+	conf.User = "fleet"
+	conf.DBName = "fleet"
+	conf.Passwd = "insecure"
+
+	db, err := stdSQL.Open("mysql", conf.FormatDSN())
+	if err != nil {
+		panic(err)
+	}
+
+	err = db.Ping()
+	if err != nil {
+		panic(err)
+	}
+
+	return db
+}
+
+func publishMessages(publisher message.Publisher) {
+	for {
+		msg := message.NewMessage(watermill.NewUUID(), []byte(`{"message": "Hello, world!"}`))
+
+		if err := publisher.Publish("example_topic", msg); err != nil {
+			panic(err)
+		}
+
+		time.Sleep(time.Second)
+	}
+}
+
+func process(messages <-chan *message.Message) {
+	for msg := range messages {
+		stdlog.Printf("received message: %s, payload: %s", msg.UUID, string(msg.Payload))
+
+		// we need to Acknowledge that we received and processed the message,
+		// otherwise, it will be resent over and over again.
+		msg.Ack()
 	}
 }
