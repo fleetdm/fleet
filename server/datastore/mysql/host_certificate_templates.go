@@ -250,18 +250,21 @@ func (ds *Datastore) ListAndroidHostUUIDsWithPendingCertificateTemplates(
 }
 
 // TransitionCertificateTemplatesToDelivering atomically transitions certificate templates
-// from 'pending' to 'delivering' status. Returns templates that were successfully transitioned.
-// This prevents concurrent cron runs from processing the same templates.
+// from 'pending' to 'delivering' status. Returns the certificate template IDs that were
+// successfully transitioned. This prevents concurrent cron runs from processing the same templates.
 func (ds *Datastore) TransitionCertificateTemplatesToDelivering(
 	ctx context.Context,
 	hostUUID string,
-) ([]fleet.HostCertificateTemplate, error) {
-	var templates []fleet.HostCertificateTemplate
+) ([]uint, error) {
+	var certificateTemplateIDs []uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Select templates that are pending
+		// Select templates that are pending (only fetch id and certificate_template_id to minimize data transfer)
+		var rows []struct {
+			ID                    uint `db:"id"`
+			CertificateTemplateID uint `db:"certificate_template_id"`
+		}
 		selectStmt := fmt.Sprintf(`
-			SELECT
-				id, host_uuid, certificate_template_id, fleet_challenge, status, operation_type
+			SELECT id, certificate_template_id
 			FROM host_certificate_templates
 			WHERE
 				host_uuid = ? AND
@@ -269,18 +272,20 @@ func (ds *Datastore) TransitionCertificateTemplatesToDelivering(
 				operation_type = '%s'
 			FOR UPDATE
 		`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
-		if err := sqlx.SelectContext(ctx, tx, &templates, selectStmt, hostUUID); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &rows, selectStmt, hostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "select pending templates")
 		}
 
-		if len(templates) == 0 {
+		if len(rows) == 0 {
 			return nil // Another process already picked them up
 		}
 
 		// Collect IDs from locked rows to ensure we only update those specific rows
-		ids := make([]uint, len(templates))
-		for i, t := range templates {
-			ids[i] = t.ID
+		ids := make([]uint, len(rows))
+		certificateTemplateIDs = make([]uint, len(rows))
+		for i, r := range rows {
+			ids[i] = r.ID
+			certificateTemplateIDs[i] = r.CertificateTemplateID
 		}
 
 		// Transition to delivering - only update the rows we locked
@@ -296,14 +301,9 @@ func (ds *Datastore) TransitionCertificateTemplatesToDelivering(
 			return ctxerr.Wrap(ctx, err, "update to delivering")
 		}
 
-		// Update returned templates with new status
-		for i := range templates {
-			templates[i].Status = fleet.CertificateTemplateDelivering
-		}
-
 		return nil
 	})
-	return templates, err
+	return certificateTemplateIDs, err
 }
 
 // TransitionCertificateTemplatesToDelivered transitions templates from 'delivering' to 'delivered'
@@ -358,8 +358,8 @@ func (ds *Datastore) TransitionCertificateTemplatesToDelivered(
 	return nil
 }
 
-// RevertCertificateTemplatesToPending reverts specific templates from 'delivering' back to 'pending'.
-func (ds *Datastore) RevertCertificateTemplatesToPending(
+// RevertHostCertificateTemplatesToPending reverts specific host certificate templates from 'delivering' back to 'pending'.
+func (ds *Datastore) RevertHostCertificateTemplatesToPending(
 	ctx context.Context,
 	hostUUID string,
 	certificateTemplateIDs []uint,

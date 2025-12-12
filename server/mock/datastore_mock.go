@@ -1679,11 +1679,11 @@ type DeleteHostCertificateTemplatesFunc func(ctx context.Context, hostCertTempla
 
 type ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
 
-type TransitionCertificateTemplatesToDeliveringFunc func(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error)
+type TransitionCertificateTemplatesToDeliveringFunc func(ctx context.Context, hostUUID string) ([]uint, error)
 
 type TransitionCertificateTemplatesToDeliveredFunc func(ctx context.Context, hostUUID string, challenges map[uint]string) error
 
-type RevertCertificateTemplatesToPendingFunc func(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error
+type RevertHostCertificateTemplatesToPendingFunc func(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error
 
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
@@ -4184,8 +4184,8 @@ type DataStore struct {
 	TransitionCertificateTemplatesToDeliveredFunc        TransitionCertificateTemplatesToDeliveredFunc
 	TransitionCertificateTemplatesToDeliveredFuncInvoked bool
 
-	RevertCertificateTemplatesToPendingFunc        RevertCertificateTemplatesToPendingFunc
-	RevertCertificateTemplatesToPendingFuncInvoked bool
+	RevertHostCertificateTemplatesToPendingFunc        RevertHostCertificateTemplatesToPendingFunc
+	RevertHostCertificateTemplatesToPendingFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -9998,7 +9998,7 @@ func (s *DataStore) ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx cont
 	return s.ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc(ctx, offset, limit)
 }
 
-func (s *DataStore) TransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error) {
+func (s *DataStore) TransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) ([]uint, error) {
 	s.mu.Lock()
 	s.TransitionCertificateTemplatesToDeliveringFuncInvoked = true
 	s.mu.Unlock()
@@ -10012,11 +10012,11 @@ func (s *DataStore) TransitionCertificateTemplatesToDelivered(ctx context.Contex
 	return s.TransitionCertificateTemplatesToDeliveredFunc(ctx, hostUUID, challenges)
 }
 
-func (s *DataStore) RevertCertificateTemplatesToPending(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error {
+func (s *DataStore) RevertHostCertificateTemplatesToPending(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error {
 	s.mu.Lock()
-	s.RevertCertificateTemplatesToPendingFuncInvoked = true
+	s.RevertHostCertificateTemplatesToPendingFuncInvoked = true
 	s.mu.Unlock()
-	return s.RevertCertificateTemplatesToPendingFunc(ctx, hostUUID, certificateTemplateIDs)
+	return s.RevertHostCertificateTemplatesToPendingFunc(ctx, hostUUID, certificateTemplateIDs)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {

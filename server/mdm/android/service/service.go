@@ -1189,13 +1189,13 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 	for _, hostUUID := range hostUUIDs {
 		// Step 1: Transition pending → delivering (atomically)
 		// This prevents concurrent cron runs from processing the same templates
-		templates, err := svc.fleetDS.TransitionCertificateTemplatesToDelivering(ctx, hostUUID)
+		templateIDs, err := svc.fleetDS.TransitionCertificateTemplatesToDelivering(ctx, hostUUID)
 		if err != nil {
 			level.Error(svc.logger).Log("msg", "failed to transition to delivering", "host_uuid", hostUUID, "err", err)
 			return ctxerr.Wrapf(ctx, err, "transition certificate templates to delivering for host %s", hostUUID)
 		}
 
-		if len(templates) == 0 {
+		if len(templateIDs) == 0 {
 			// No pending templates for this host (another process got them, or none exist)
 			if skipHostsWithoutNewCerts {
 				continue
@@ -1214,12 +1214,6 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			continue
 		}
 
-		// Extract template IDs
-		templateIDs := make([]uint, len(templates))
-		for i, tmpl := range templates {
-			templateIDs[i] = tmpl.CertificateTemplateID
-		}
-
 		// Step 2: Build and send config to AMAPI
 		config, err := buildHostConfig(hostUUID, templateIDs)
 		if err != nil {
@@ -1231,7 +1225,7 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
 			// AMAPI call failed, revert to pending for retry later
 			level.Error(svc.logger).Log("msg", "failed to send to AMAPI", "host_uuid", hostUUID, "err", err)
-			if revertErr := svc.fleetDS.RevertCertificateTemplatesToPending(ctx, hostUUID, templateIDs); revertErr != nil {
+			if revertErr := svc.fleetDS.RevertHostCertificateTemplatesToPending(ctx, hostUUID, templateIDs); revertErr != nil {
 				level.Error(svc.logger).Log("msg", "failed to revert to pending after AMAPI failure", "host_uuid", hostUUID, "err", revertErr)
 				return ctxerr.Wrapf(ctx, revertErr, "revert certificate templates to pending after AMAPI failure for host %s", hostUUID)
 			}

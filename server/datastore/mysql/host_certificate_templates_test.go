@@ -608,12 +608,10 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 	require.Equal(t, "android-host", hostUUIDs[0])
 
 	// Step 3: Transition to delivering
-	templates, err := ds.TransitionCertificateTemplatesToDelivering(ctx, "android-host")
+	templateIDs, err := ds.TransitionCertificateTemplatesToDelivering(ctx, "android-host")
 	require.NoError(t, err)
-	require.Len(t, templates, 2)
-	for _, tmpl := range templates {
-		require.Equal(t, fleet.CertificateTemplateDelivering, tmpl.Status)
-	}
+	require.Len(t, templateIDs, 2)
+	require.ElementsMatch(t, []uint{setup.template.ID, templateTwo.ID}, templateIDs)
 
 	// Verify host is no longer in pending list
 	hostUUIDs, err = ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 10)
@@ -621,9 +619,9 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 	require.Len(t, hostUUIDs, 0)
 
 	// Second call should return empty (no more pending templates)
-	templates, err = ds.TransitionCertificateTemplatesToDelivering(ctx, "android-host")
+	templateIDs, err = ds.TransitionCertificateTemplatesToDelivering(ctx, "android-host")
 	require.NoError(t, err)
-	require.Len(t, templates, 0)
+	require.Len(t, templateIDs, 0)
 
 	// Verify database shows delivering status
 	records, err := ds.ListCertificateTemplatesForHosts(ctx, []string{"android-host"})
@@ -666,7 +664,7 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Revert to pending
-	err = ds.RevertCertificateTemplatesToPending(ctx, "revert-test-host", []uint{setup.template.ID})
+	err = ds.RevertHostCertificateTemplatesToPending(ctx, "revert-test-host", []uint{setup.template.ID})
 	require.NoError(t, err)
 
 	// Verify reverted state

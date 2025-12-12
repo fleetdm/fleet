@@ -2566,15 +2566,15 @@ type Datastore interface {
 	ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error)
 
 	// TransitionCertificateTemplatesToDelivering atomically transitions certificate templates
-	// from 'pending' to 'delivering' status.
-	TransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) ([]HostCertificateTemplate, error)
+	// from 'pending' to 'delivering' status. Returns the certificate template IDs that were transitioned.
+	TransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) ([]uint, error)
 
 	// TransitionCertificateTemplatesToDelivered transitions templates from 'delivering' to 'delivered'
 	// and sets the fleet_challenge for each template.
 	TransitionCertificateTemplatesToDelivered(ctx context.Context, hostUUID string, challenges map[uint]string) error
 
-	// RevertCertificateTemplatesToPending reverts specific templates from 'delivering' back to 'pending'.
-	RevertCertificateTemplatesToPending(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error
+	// RevertHostCertificateTemplatesToPending reverts specific host certificate templates from 'delivering' back to 'pending'.
+	RevertHostCertificateTemplatesToPending(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
