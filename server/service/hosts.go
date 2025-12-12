@@ -85,15 +85,21 @@ type listHostsResponse struct {
 	// in the database). It is nil otherwise and absent of the JSON response
 	// payload.
 	MunkiIssue *fleet.MunkiIssue `json:"munki_issue,omitempty"`
-	// HostResponseIterator is an iterator to stream hosts one by one.
-	HostResponseIterator iter.Seq2[*fleet.HostResponse, error] `json:"-"`
 
 	Err error `json:"error,omitempty"`
 }
 
 func (r listHostsResponse) Error() error { return r.Err }
 
-func (r listHostsResponse) HijackRender(_ context.Context, w http.ResponseWriter) {
+type streamHostsResponse struct {
+	listHostsResponse
+	// HostResponseIterator is an iterator to stream hosts one by one.
+	HostResponseIterator iter.Seq2[*fleet.HostResponse, error] `json:"-"`
+}
+
+func (r streamHostsResponse) Error() error { return r.Err }
+
+func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.(http.Flusher).Flush()
@@ -259,11 +265,13 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		}
 	}
 
-	return listHostsResponse{
-		Software:             software,
-		SoftwareTitle:        softwareTitle,
-		MDMSolution:          mdmSolution,
-		MunkiIssue:           munkiIssue,
+	return streamHostsResponse{
+		listHostsResponse: listHostsResponse{
+			Software:      software,
+			SoftwareTitle: softwareTitle,
+			MDMSolution:   mdmSolution,
+			MunkiIssue:    munkiIssue,
+		},
 		HostResponseIterator: hostResponseIterator(),
 	}, nil
 }
