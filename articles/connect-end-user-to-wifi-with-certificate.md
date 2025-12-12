@@ -542,7 +542,7 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         <Meta>
             <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
-        <Data>CN=$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</Data>
+        <Data>CN=$FLEET_VAR_HOST_HARDWARE_SERIAL,OU=$FLEET_VAR_SCEP_RENEWAL_ID</Data>
     </Item>
 </Add>
 <Add>
