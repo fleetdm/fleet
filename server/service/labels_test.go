@@ -27,8 +27,8 @@ func TestLabelsAuth(t *testing.T) {
 	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
 		return lbl, nil
 	}
-	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, filter fleet.TeamFilter) (*fleet.Label, []uint, error) {
-		return lbl, nil, nil
+	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{Label: lbl}, nil, nil
 	}
 	ds.DeleteLabelFunc = func(ctx context.Context, nm string) error {
 		return nil
@@ -36,8 +36,8 @@ func TestLabelsAuth(t *testing.T) {
 	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
 		return nil
 	}
-	ds.LabelFunc = func(ctx context.Context, id uint, filter fleet.TeamFilter) (*fleet.Label, []uint, error) {
-		return &fleet.Label{}, nil, nil
+	ds.LabelFunc = func(ctx context.Context, id uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{}, nil, nil
 	}
 	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.Label, error) {
 		return nil, nil
@@ -347,27 +347,27 @@ func TestLabelsWithReplica(t *testing.T) {
 	// make the newly-created label available to the reader
 	opts.RunReplication("labels", "label_membership")
 
-	lbl, hostIDs, err = svc.ModifyLabel(ctx, lbl.ID, fleet.ModifyLabelPayload{Hosts: []string{"host1"}})
+	lblWithName, hostIDs, err := svc.ModifyLabel(ctx, lbl.ID, fleet.ModifyLabelPayload{Hosts: []string{"host1"}})
 	require.NoError(t, err)
 	require.ElementsMatch(t, []uint{h1.ID}, hostIDs)
-	require.Equal(t, 1, lbl.HostCount)
-	require.Equal(t, user.ID, *lbl.AuthorID)
+	require.Equal(t, 1, lblWithName.HostCount)
+	require.Equal(t, user.ID, *lblWithName.AuthorID)
 
 	// reading this label without replication returns the old data as it only uses the reader
-	lbl, hostIDs, err = svc.GetLabel(ctx, lbl.ID)
+	lblWithName, hostIDs, err = svc.GetLabel(ctx, lblWithName.ID)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []uint{h1.ID, h2.ID}, hostIDs)
-	require.Equal(t, 2, lbl.HostCount)
-	require.Equal(t, user.ID, *lbl.AuthorID)
+	require.Equal(t, 2, lblWithName.HostCount)
+	require.Equal(t, user.ID, *lblWithName.AuthorID)
 
 	// running the replication makes the updated data available
 	opts.RunReplication("labels", "label_membership")
 
-	lbl, hostIDs, err = svc.GetLabel(ctx, lbl.ID)
+	lblWithName, hostIDs, err = svc.GetLabel(ctx, lblWithName.ID)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []uint{h1.ID}, hostIDs)
-	require.Equal(t, 1, lbl.HostCount)
-	require.Equal(t, user.ID, *lbl.AuthorID)
+	require.Equal(t, 1, lblWithName.HostCount)
+	require.Equal(t, user.ID, *lblWithName.AuthorID)
 }
 
 func TestBatchValidateLabels(t *testing.T) {
@@ -521,16 +521,18 @@ func TestModifyManualLabel(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
-	ds.LabelFunc = func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
-		return &fleet.Label{
-			ID:                  lid,
-			LabelMembershipType: fleet.LabelMembershipTypeManual,
+	ds.LabelFunc = func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{
+			Label: fleet.Label{
+				ID:                  lid,
+				LabelMembershipType: fleet.LabelMembershipTypeManual,
+			},
 		}, nil, nil
 	}
 	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 		return []uint{99, 100}, nil
 	}
-	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, filter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 		return nil, nil, nil
 	}
 
