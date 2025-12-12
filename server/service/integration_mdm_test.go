@@ -11719,7 +11719,6 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 			return nil
 		})
-
 	}
 
 	// Run worker to set apps available to device
@@ -11804,7 +11803,6 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 	setDisplayNames("VPPAppUpdatedName2", "DriveUpdatedName2")
 	setDisplayNames("", "")
-
 }
 
 func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {
@@ -18523,7 +18521,7 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 	res := s.DoRawNoAuth("GET", "/enroll", nil, http.StatusOK, "enroll_secret", "noidp")
 	page, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
-	require.Contains(t, string(page), "Enroll your Android device in Fleet")
+	require.Contains(t, string(page), "How to enroll your Android device to Fleet")
 
 	// try to BYOD-enroll in team with IdP enabled, should redirect to SSO login
 	res = s.DoRawNoAuth("GET", "/enroll", nil, http.StatusSeeOther, "enroll_secret", "idp")
