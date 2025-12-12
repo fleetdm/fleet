@@ -47,6 +47,8 @@ func (svc *Service) getVPPToken(ctx context.Context, teamID *uint) (string, erro
 	return token.Token, nil
 }
 
+var isAdamID = regexp.MustCompile(`^[0-9]+$`)
+
 func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return nil, err
@@ -75,8 +77,39 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	payloadsWithPlatform := make([]fleet.VPPBatchPayloadWithPlatform, 0, len(payloads))
 	for _, payload := range payloads {
-		if payload.Platform == "" {
-			payload.Platform = fleet.MacOSPlatform
+		if payload.Platform == "" && isAdamID.MatchString(payload.AppStoreID) {
+			// add all possible Apple platforms, we'll remove the ones that this app doesn't support later
+			payloadsWithPlatform = append(payloadsWithPlatform, fleet.VPPBatchPayloadWithPlatform{
+				AppStoreID:         payload.AppStoreID,
+				SelfService:        payload.SelfService,
+				InstallDuringSetup: payload.InstallDuringSetup,
+				Platform:           fleet.MacOSPlatform,
+				LabelsExcludeAny:   payload.LabelsExcludeAny,
+				LabelsIncludeAny:   payload.LabelsIncludeAny,
+				Categories:         payload.Categories,
+				DisplayName:        payload.DisplayName,
+			},
+				fleet.VPPBatchPayloadWithPlatform{
+					AppStoreID:         payload.AppStoreID,
+					SelfService:        payload.SelfService,
+					InstallDuringSetup: payload.InstallDuringSetup,
+					Platform:           fleet.IOSPlatform,
+					LabelsExcludeAny:   payload.LabelsExcludeAny,
+					LabelsIncludeAny:   payload.LabelsIncludeAny,
+					Categories:         payload.Categories,
+					DisplayName:        payload.DisplayName,
+				},
+				fleet.VPPBatchPayloadWithPlatform{
+					AppStoreID:         payload.AppStoreID,
+					SelfService:        payload.SelfService,
+					InstallDuringSetup: payload.InstallDuringSetup,
+					Platform:           fleet.IPadOSPlatform,
+					LabelsExcludeAny:   payload.LabelsExcludeAny,
+					LabelsIncludeAny:   payload.LabelsIncludeAny,
+					Categories:         payload.Categories,
+					DisplayName:        payload.DisplayName,
+				},
+			)
 		}
 
 		payloadsWithPlatform = append(payloadsWithPlatform, fleet.VPPBatchPayloadWithPlatform{
@@ -670,12 +703,12 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	for adamID := range adamIDMap {
 		adamIDs = append(adamIDs, adamID)
 	}
-	assetMetatada, err := itunes.GetAssetMetadata(adamIDs, &itunes.AssetMetadataFilter{Entity: "software"})
+	assetMetadata, err := itunes.GetAssetMetadata(adamIDs, &itunes.AssetMetadataFilter{Entity: "software"})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 	}
 
-	for adamID, metadata := range assetMetatada {
+	for adamID, metadata := range assetMetadata {
 		platforms := getPlatformsFromSupportedDevices(metadata.SupportedDevices)
 		for platform := range platforms {
 			if props, ok := adamIDMap[adamID][platform]; ok {
