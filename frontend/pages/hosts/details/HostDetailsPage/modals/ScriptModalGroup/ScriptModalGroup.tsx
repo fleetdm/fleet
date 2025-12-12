@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 
-import { IApiError } from "interfaces/errors";
+import { getErrorReason, IApiError } from "interfaces/errors";
 import { IHost } from "interfaces/host";
 import { IHostScript } from "interfaces/script";
 import { IUser } from "interfaces/user";
@@ -11,10 +11,13 @@ import scriptsAPI, {
   IHostScriptsResponse,
 } from "services/entities/scripts";
 
-import ScriptDetailsModal from "pages/ManageControlsPage/Scripts/components/ScriptDetailsModal";
+import { NotificationContext } from "context/notification";
+
+import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
 import DeleteScriptModal from "pages/ManageControlsPage/Scripts/components/DeleteScriptModal";
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 import RunScriptModal from "../RunScriptModal";
+import ConfirmRunScriptModal from "../ConfirmRunScriptModal";
 
 interface IScriptsProps {
   currentUser: IUser | null;
@@ -23,12 +26,13 @@ interface IScriptsProps {
   teamIdForApi?: number;
 }
 
-type ScriptGroupModals =
-  | "run-script"
-  | "view-script"
-  | "run-script-details"
-  | "delete-script"
-  | null;
+enum ModalGroupOption {
+  Run = "run",
+  ConfirmRun = "confirm-run",
+  ViewScriptDetails = "script-details",
+  ViewRunDetails = "run-details",
+  Delete = "delete",
+}
 
 const ScriptModalGroup = ({
   currentUser,
@@ -36,30 +40,31 @@ const ScriptModalGroup = ({
   onCloseScriptModalGroup,
   teamIdForApi,
 }: IScriptsProps) => {
-  const [previousModal, setPreviousModal] = useState<ScriptGroupModals>(null);
-  const [currentModal, setCurrentModal] = useState<ScriptGroupModals>(
-    "run-script"
+  const { renderFlash } = useContext(NotificationContext);
+  const [previousModal, setPreviousModal] = useState<ModalGroupOption | null>(
+    null
+  );
+  // this should never actually be null - nullability satisfies TS when setting current modal to previous
+  const [currentModal, setCurrentModal] = useState<ModalGroupOption | null>(
+    ModalGroupOption.Run
   );
   const [runScriptTablePage, setRunScriptTablePage] = useState(0);
-  const [selectedScriptId, setSelectedScriptId] = useState<number | undefined>(
-    undefined
-  );
   const [selectedExecutionId, setSelectedExecutionId] = useState<
     string | undefined
   >(undefined);
-  const [selectedScriptDetails, setSelectedScriptDetails] = useState<
-    IHostScript | undefined
-  >(undefined);
-  // This sets a loading state of the Run script modal during a run request
-  const [runScriptRequested, setRunScriptRequested] = useState(false);
+
+  const [selectedScript, setSelectedScript] = useState<IHostScript | null>(
+    null
+  );
+  const [isRunningScript, setIsRunningScript] = useState(false);
 
   // Almost everything from this is needed on RunScript.tsx modal
   // except refetch is used multiple places
   const {
     data: runScriptTableResponse,
-    isError,
-    isLoading,
-    isFetching,
+    isError: isErrorHostScripts,
+    isLoading: isLoadingHostScripts,
+    isFetching: isFetchingHostScripts,
     refetch: refetchHostScripts,
   } = useQuery<
     IHostScriptsResponse,
@@ -80,9 +85,6 @@ const ScriptModalGroup = ({
       refetchOnWindowFocus: false,
       retry: false,
       staleTime: 3000,
-      onSuccess: () => {
-        setRunScriptRequested(false);
-      },
     }
   );
 
@@ -91,110 +93,157 @@ const ScriptModalGroup = ({
   // So to get script name, we pass it into this modal instead of another API call
   // If in future iterations we want more script metadata, call scriptAPI.getScript()
   // and consider refactoring .getScript to return script content as well
+
+  // TODO- move into script details modal, depend on selectedScript and modal being selected
   const {
     data: selectedScriptContent,
     error: isSelectedScriptContentError,
     isLoading: isLoadingSelectedScriptContent,
   } = useQuery<string, Error>(
-    ["scriptContent", selectedScriptId],
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    () => scriptsAPI.downloadScript(selectedScriptId!),
+    ["scriptContent", selectedScript?.script_id],
+    () => scriptsAPI.downloadScript(selectedScript?.script_id ?? 1),
     {
       refetchOnWindowFocus: false,
-      enabled: !!selectedScriptId,
+      enabled:
+        !!selectedScript && currentModal === ModalGroupOption.ViewScriptDetails,
     }
   );
 
-  // Anytime a script runs, return back to Run script modal
-  useEffect(() => {
-    if (runScriptRequested) {
-      setCurrentModal("run-script");
+  const goBack = useCallback(() => {
+    setCurrentModal(previousModal);
+    setPreviousModal(null);
+  }, [previousModal]);
+
+  const onConfirmRunScript = useCallback(async () => {
+    // will always be truthy at this point
+    if (selectedScript) {
+      try {
+        setIsRunningScript(true);
+        await scriptsAPI.runScript({
+          host_id: host.id,
+          // will be defined when this is being called
+          script_id: selectedScript.script_id,
+        });
+        renderFlash(
+          "success",
+          "Script is running or will run when the host comes online."
+        );
+        refetchHostScripts();
+      } catch (e) {
+        renderFlash("error", getErrorReason(e));
+      } finally {
+        setIsRunningScript(false);
+        setSelectedScript(null);
+        setCurrentModal(ModalGroupOption.Run);
+      }
     }
-  }, [runScriptRequested]);
+  }, [host.id, refetchHostScripts, renderFlash, selectedScript]);
+
+  const onClikRunBeforeConfirmation = useCallback(
+    (script: IHostScript) => {
+      setPreviousModal(currentModal);
+      setCurrentModal(ModalGroupOption.ConfirmRun);
+      setSelectedScript(script);
+    },
+    [currentModal]
+  );
 
   return (
     <>
       <RunScriptModal
         currentUser={currentUser}
-        host={host}
+        hostTeamId={host.team_id}
+        onClickRun={onClikRunBeforeConfirmation}
         onClose={onCloseScriptModalGroup}
-        onClickViewScript={(scriptId: number, scriptDetails: IHostScript) => {
+        onClickViewScript={(script: IHostScript) => {
           setPreviousModal(currentModal);
-          setCurrentModal("view-script");
-          setSelectedScriptId(scriptId);
-          setSelectedScriptDetails(scriptDetails);
+          setCurrentModal(ModalGroupOption.ViewScriptDetails);
+          setSelectedScript(script);
         }}
         onClickRunDetails={(scriptExecutionId: string) => {
           setPreviousModal(currentModal);
-          setCurrentModal("run-script-details");
-          scriptExecutionId && setSelectedExecutionId(scriptExecutionId);
+          setCurrentModal(ModalGroupOption.ViewRunDetails);
+          setSelectedExecutionId(scriptExecutionId);
         }}
-        runScriptRequested={runScriptRequested}
-        refetchHostScripts={refetchHostScripts}
         page={runScriptTablePage}
         setPage={setRunScriptTablePage}
         hostScriptResponse={runScriptTableResponse}
-        isFetching={isFetching}
-        isLoading={isLoading}
-        isError={isError}
-        setRunScriptRequested={setRunScriptRequested}
-        isHidden={currentModal !== "run-script"}
+        isRunningScript={isRunningScript}
+        isFetchingHostScripts={isFetchingHostScripts}
+        isLoadingHostScripts={isLoadingHostScripts}
+        isError={isErrorHostScripts}
+        isHidden={currentModal !== ModalGroupOption.Run}
       />
-
-      <ScriptDetailsModal
-        hostId={host.id}
-        hostTeamId={host.team_id}
-        selectedScriptDetails={selectedScriptDetails}
-        selectedScriptContent={selectedScriptContent}
+      <ConfirmRunScriptModal
+        onClose={onCloseScriptModalGroup}
         onCancel={() => {
-          setCurrentModal(previousModal);
-          setPreviousModal(null);
+          if (previousModal === ModalGroupOption.Run) {
+            setSelectedScript(null);
+          }
+          goBack();
+        }}
+        onConfirmRunScript={onConfirmRunScript}
+        scriptName={selectedScript?.name}
+        hostName={host.display_name}
+        isRunningScript={isRunningScript}
+        isHidden={currentModal !== ModalGroupOption.ConfirmRun}
+      />
+      <ScriptDetailsModal
+        hostTeamId={host.team_id}
+        selectedScriptDetails={selectedScript}
+        // script id and details both passed to accomodate various instances of this component, some
+        // in a slightly different context
+        selectedScriptId={selectedScript?.script_id}
+        selectedScriptContent={selectedScriptContent}
+        onClose={onCloseScriptModalGroup}
+        onCancel={() => {
+          setSelectedScript(null);
+          goBack();
         }}
         onDelete={() => {
           setPreviousModal(currentModal);
-          setCurrentModal("delete-script");
+          setCurrentModal(ModalGroupOption.Delete);
         }}
         onClickRunDetails={(scriptExecutionId: string) => {
           setPreviousModal(currentModal);
-          setCurrentModal("run-script-details");
+          setCurrentModal(ModalGroupOption.ViewRunDetails);
           scriptExecutionId && setSelectedExecutionId(scriptExecutionId);
         }}
-        setRunScriptRequested={setRunScriptRequested}
-        refetchHostScripts={refetchHostScripts}
+        onClickRun={onClikRunBeforeConfirmation}
         isLoadingScriptContent={isLoadingSelectedScriptContent}
         isScriptContentError={isSelectedScriptContentError}
-        isHidden={currentModal !== "view-script"}
+        isHidden={currentModal !== ModalGroupOption.ViewScriptDetails}
         showHostScriptActions
         teamIdForApi={teamIdForApi}
       />
       <DeleteScriptModal
-        scriptId={selectedScriptDetails?.script_id || 1}
-        scriptName={selectedScriptDetails?.name || ""}
+        scriptId={selectedScript?.script_id || 1}
+        scriptName={selectedScript?.name || ""}
         onCancel={() => {
           setCurrentModal(previousModal);
-          setPreviousModal("run-script");
+          setPreviousModal(ModalGroupOption.Run);
         }}
-        onDone={() => {
+        afterDelete={() => {
           // The delete API call is handled in DeleteScriptModal
-          setCurrentModal(previousModal);
-          setPreviousModal("run-script");
+          setCurrentModal(ModalGroupOption.Run);
+          setPreviousModal(null);
           refetchHostScripts();
-          setSelectedScriptDetails(undefined);
+          setSelectedScript(null);
         }}
-        isHidden={currentModal !== "delete-script"}
+        isHidden={currentModal !== ModalGroupOption.Delete}
       />
       <RunScriptDetailsModal
         scriptExecutionId={selectedExecutionId || ""}
         onCancel={() => {
-          if (previousModal === "view-script") {
+          if (previousModal === ModalGroupOption.ViewScriptDetails) {
             setCurrentModal(previousModal);
-            setPreviousModal("run-script");
-          } else if (previousModal === "run-script") {
+            setPreviousModal(ModalGroupOption.Run);
+          } else if (previousModal === ModalGroupOption.Run) {
             setCurrentModal(previousModal);
             setPreviousModal(null);
           }
         }}
-        isHidden={currentModal !== "run-script-details"}
+        isHidden={currentModal !== ModalGroupOption.ViewRunDetails}
       />
     </>
   );

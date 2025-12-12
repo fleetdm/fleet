@@ -22,14 +22,19 @@ func TestEnforceHostLimit(t *testing.T) {
 
 	runTest := func(t *testing.T, pool fleet.RedisPool) {
 		var hostIDSeq uint
-		var expiredHostsIDs, incomingHostsIDs []uint
+		var expiredHostDetails []fleet.DeletedHostDetails
+		var incomingHostsIDs []uint
 
 		ctx := context.Background()
 		ds := new(mock.Store)
-		ds.EnrollHostFunc = func(ctx context.Context, isMDMEnabled bool, osqueryHostId, hUUID, hSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+		ds.EnrollOsqueryFunc = func(_ context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
+			config := &fleet.DatastoreEnrollOsqueryConfig{}
+			for _, opt := range opts {
+				opt(config)
+			}
 			hostIDSeq++
 			return &fleet.Host{
-				ID: hostIDSeq, OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
+				ID: hostIDSeq, OsqueryHostID: &config.OsqueryHostID, NodeKey: &config.NodeKey,
 			}, nil
 		}
 		ds.NewHostFunc = func(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
@@ -43,8 +48,8 @@ func TestEnforceHostLimit(t *testing.T) {
 		ds.DeleteHostsFunc = func(ctx context.Context, ids []uint) error {
 			return nil
 		}
-		ds.CleanupExpiredHostsFunc = func(ctx context.Context) ([]uint, error) {
-			return expiredHostsIDs, nil
+		ds.CleanupExpiredHostsFunc = func(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+			return expiredHostDetails, nil
 		}
 		ds.CleanupIncomingHostsFunc = func(ctx context.Context, now time.Time) ([]uint, error) {
 			return incomingHostsIDs, nil
@@ -68,35 +73,51 @@ func TestEnforceHostLimit(t *testing.T) {
 		require.NotNil(t, h1)
 		requireInvokedAndReset(&ds.NewHostFuncInvoked)
 		requireCanEnroll(true)
-		h2, err := wrappedDS.EnrollHost(ctx, false, "osquery-2", "", "", "node-2", nil, time.Second)
+		h2, err := wrappedDS.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID("osquery-2"),
+			fleet.WithEnrollOsqueryNodeKey("node-2"),
+			fleet.WithEnrollOsqueryCooldown(time.Second),
+		)
 		require.NoError(t, err)
 		require.NotNil(t, h2)
-		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
+		requireInvokedAndReset(&ds.EnrollOsqueryFuncInvoked)
 		requireCanEnroll(true)
-		h3, err := wrappedDS.EnrollHost(ctx, false, "osquery-3", "", "", "node-3", nil, time.Second)
+		h3, err := wrappedDS.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID("osquery-3"),
+			fleet.WithEnrollOsqueryNodeKey("node-3"),
+			fleet.WithEnrollOsqueryCooldown(time.Second),
+		)
 		require.NoError(t, err)
 		require.NotNil(t, h3)
-		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
+		requireInvokedAndReset(&ds.EnrollOsqueryFuncInvoked)
 		requireCanEnroll(false)
 
 		// deleting h1 allows h4 to be created
 		err = wrappedDS.DeleteHost(ctx, h1.ID)
 		require.NoError(t, err)
 		requireCanEnroll(true)
-		h4, err := wrappedDS.EnrollHost(ctx, false, "osquery-4", "", "", "node-4", nil, time.Second)
+		h4, err := wrappedDS.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID("osquery-4"),
+			fleet.WithEnrollOsqueryNodeKey("node-4"),
+			fleet.WithEnrollOsqueryCooldown(time.Second),
+		)
 		require.NoError(t, err)
 		require.NotNil(t, h4)
-		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
+		requireInvokedAndReset(&ds.EnrollOsqueryFuncInvoked)
 		requireCanEnroll(false)
 
 		// delete h1-h2-h3 (even if h1 is already deleted) should allow 2 more
 		err = wrappedDS.DeleteHosts(ctx, []uint{h1.ID, h2.ID, h3.ID})
 		require.NoError(t, err)
 		requireCanEnroll(true)
-		h5, err := wrappedDS.EnrollHost(ctx, false, "osquery-5", "", "", "node-5", nil, time.Second)
+		h5, err := wrappedDS.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID("osquery-5"),
+			fleet.WithEnrollOsqueryNodeKey("node-5"),
+			fleet.WithEnrollOsqueryCooldown(time.Second),
+		)
 		require.NoError(t, err)
 		require.NotNil(t, h5)
-		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
+		requireInvokedAndReset(&ds.EnrollOsqueryFuncInvoked)
 		requireCanEnroll(true)
 		h6, err := wrappedDS.NewHost(ctx, &fleet.Host{})
 		require.NoError(t, err)
@@ -105,7 +126,7 @@ func TestEnforceHostLimit(t *testing.T) {
 		requireCanEnroll(false)
 
 		// cleanup expired removes h4
-		expiredHostsIDs = []uint{h4.ID}
+		expiredHostDetails = []fleet.DeletedHostDetails{{ID: h4.ID}}
 		_, err = wrappedDS.CleanupExpiredHosts(ctx)
 		require.NoError(t, err)
 		requireCanEnroll(true)
@@ -116,10 +137,14 @@ func TestEnforceHostLimit(t *testing.T) {
 		requireCanEnroll(true)
 
 		// can now create 2 more
-		h7, err := wrappedDS.EnrollHost(ctx, false, "osquery-7", "", "", "node-7", nil, time.Second)
+		h7, err := wrappedDS.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID("osquery-7"),
+			fleet.WithEnrollOsqueryNodeKey("node-7"),
+			fleet.WithEnrollOsqueryCooldown(time.Second),
+		)
 		require.NoError(t, err)
 		require.NotNil(t, h7)
-		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
+		requireInvokedAndReset(&ds.EnrollOsqueryFuncInvoked)
 		requireCanEnroll(true)
 		h8, err := wrappedDS.NewHost(ctx, &fleet.Host{})
 		require.NoError(t, err)

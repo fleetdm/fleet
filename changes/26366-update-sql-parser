@@ -1,1 +1,0 @@
-- Updated the parser used when editing SQL in the UI to handle modern expressions like window functions

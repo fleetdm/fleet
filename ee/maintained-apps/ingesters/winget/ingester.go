@@ -2,16 +2,17 @@ package winget
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+	external_refs "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/winget/external_refs"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -83,8 +84,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string, sl
 
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
-			level.Warn(logger).Log("msg", "failed to ingest app", "err", err, "name", input.Name)
-			continue
+			return nil, ctxerr.Wrap(ctx, err, "ingesting winget app")
 		}
 
 		manifestApps = append(manifestApps, outApp)
@@ -210,6 +210,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			installerType = strings.Trim(filepath.Ext(installer.InstallerURL), ".")
 		}
 
+		// Normalize wix (WiX Toolset) to msi since wix installers are MSI files
+		if installerType == installerTypeWix {
+			installerType = installerTypeMSI
+		}
+
 		scope := m.Scope
 		if scope == "" {
 			scope = installer.Scope
@@ -230,12 +235,25 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			installer.InstallerLocale = ""
 		}
 
-		if installer.Architecture == input.InstallerArch &&
+		// Check if this installer matches our criteria
+		matches := installer.Architecture == input.InstallerArch &&
 			scope == input.InstallerScope &&
 			installer.InstallerLocale == input.InstallerLocale &&
-			installerType == input.InstallerType {
-			selectedInstaller = &installer
-			break
+			installerType == input.InstallerType
+
+		if matches {
+			// Prefer installers where the URL extension matches the desired installer type
+			// This ensures we select the actual MSI installer over burn (EXE) installers
+			urlExt := strings.Trim(filepath.Ext(installer.InstallerURL), ".")
+			if urlExt == input.InstallerType {
+				// Perfect match - URL extension matches desired type
+				selectedInstaller = &installer
+				break
+			}
+			// Keep as fallback candidate if we haven't found a perfect match yet
+			if selectedInstaller == nil {
+				selectedInstaller = &installer
+			}
 		}
 
 	}
@@ -250,7 +268,26 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		}
 	}
 
+	var upgradeCode string
 	if (input.InstallerType == installerTypeMSI || input.UninstallType == installerTypeMSI) && input.InstallerScope == machineScope {
+		for _, fe := range m.AppsAndFeaturesEntries {
+			if fe.UpgradeCode != "" {
+				upgradeCode = fe.UpgradeCode
+				break
+			}
+		}
+		if upgradeCode == "" {
+			for _, fe := range selectedInstaller.AppsAndFeaturesEntries {
+				if fe.UpgradeCode != "" {
+					upgradeCode = fe.UpgradeCode
+					break
+				}
+			}
+		}
+		if uninstallScript == "" && upgradeCode != "" {
+			uninstallScript = buildUpgradeCodeBasedUninstallScript(upgradeCode)
+		}
+
 		if uninstallScript == "" {
 			uninstallScript = file.GetUninstallScript(installerTypeMSI)
 		}
@@ -267,13 +304,17 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if productCode == "" {
 		productCode = selectedInstaller.ProductCode
 	}
-
 	productCode = strings.Split(productCode, ".")[0]
+
+	if upgradeCode != "" {
+		out.UpgradeCode = upgradeCode
+	}
 
 	out.Name = input.Name
 	out.Slug = input.Slug
 	out.InstallerURL = selectedInstaller.InstallerURL
 	out.UniqueIdentifier = input.UniqueIdentifier
+	out.DefaultCategories = input.DefaultCategories
 	out.SHA256 = "no_check"
 	if !input.IgnoreHash {
 		out.SHA256 = strings.ToLower(selectedInstaller.InstallerSha256) // maintain consistency with darwin outputs SHAs
@@ -287,6 +328,8 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if input.UniqueIdentifier != "" {
 		name = input.UniqueIdentifier
 	}
+
+	// TODO - consider UpgradeCode here?
 	existsTemplate := "SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';"
 	if input.FuzzyMatchName {
 		existsTemplate = "SELECT 1 FROM programs WHERE name LIKE '%s %%' AND publisher = '%s';"
@@ -298,15 +341,20 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	out.UninstallScript = preProcessUninstallScript(uninstallScript, productCode)
 	out.InstallScriptRef = maintained_apps.GetScriptRef(out.InstallScript)
 	out.UninstallScriptRef = maintained_apps.GetScriptRef(out.UninstallScript)
+	out.Frozen = input.Frozen
+
+	external_refs.EnrichManifest(&out)
 
 	return &out, nil
 }
 
-var packageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<suffix>\W|$))|(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)
+func buildUpgradeCodeBasedUninstallScript(upgradeCode string) string {
+	return file.UpgradeCodeRegex.ReplaceAllString(file.UninstallMsiWithUpgradeCodeScript, fmt.Sprintf("\"%s\"${suffix}", upgradeCode))
+}
 
 func preProcessUninstallScript(uninstallScript, productCode string) string {
 	code := fmt.Sprintf("\"%s\"", productCode)
-	return packageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", code))
+	return file.PackageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", code))
 }
 
 // these are installer types that correspond to software vendors, not the actual installer type
@@ -351,7 +399,9 @@ type inputApp struct {
 	UninstallType       string `json:"uninstall_type"`
 	FuzzyMatchName      bool   `json:"fuzzy_match_name"`
 	// Whether to use "no_check" instead of the app's hash (e.g. for non-pinned download URLs)
-	IgnoreHash bool `json:"ignore_hash"`
+	IgnoreHash        bool     `json:"ignore_hash"`
+	DefaultCategories []string `json:"default_categories"`
+	Frozen            bool     `json:"frozen"`
 }
 
 type installerManifest struct {

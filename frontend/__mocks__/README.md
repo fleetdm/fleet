@@ -48,8 +48,8 @@ Use the helper function with arguments to override the default mock data with th
 
 Check out the [frontend test directory](../test/README.md) for information about our unit and integration testing layers. We use default mocks and custom mocks when [mocking server requests](../test/README.md#server-handlers).
 
-Follow [this guide](../../docs/Contributing/Testing-and-local-development.md) to run tests locally.
+Follow [this guide](../../docs/Contributing/getting-started/testing-and-local-development.md) to run tests locally.
 
-Visit the frontend [overview of Fleet UI testing](../docs/Contributing/Fleet-UI-Testing.md) for more information on our testing strategy, philosophies, and tools.
+Visit the frontend [overview of Fleet UI testing](../docs/Contributing/guides/ui/fleet-ui-testing.md) for more information on our testing strategy, philosophies, and tools.
 
 

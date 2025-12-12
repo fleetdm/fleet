@@ -59,7 +59,7 @@ const Munki = ({
         </div>
       )}
       <div style={opacity}>
-        <TabNav>
+        <TabNav secondary>
           <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
             <TabList>
               <Tab>
@@ -71,7 +71,7 @@ const Munki = ({
             </TabList>
             <TabPanel>
               {errorMacAdmins ? (
-                <TableDataError card />
+                <TableDataError verticalPaddingSize="pad-large" />
               ) : (
                 <TableContainer
                   columnConfigs={tableHeaders}
@@ -98,7 +98,7 @@ const Munki = ({
             </TabPanel>
             <TabPanel>
               {errorMacAdmins ? (
-                <TableDataError card />
+                <TableDataError verticalPaddingSize="pad-large" />
               ) : (
                 <TableContainer
                   columnConfigs={munkiVersionsTableHeaders}

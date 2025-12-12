@@ -1,0 +1,23 @@
+.categories-end-user-experience-preview-modal {
+  .modal__content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__preview {
+    img {
+      width: 100%;
+    }
+  }
+
+  .modal-cta-wrap {
+    margin-top: 0; // Defer to new gap styling
+  }
+}
+
+// Pop up preview immediately.
+.modal__background:has(.calendar-event-preview-modal) {
+  transition: none;
+  animation: none;
+}

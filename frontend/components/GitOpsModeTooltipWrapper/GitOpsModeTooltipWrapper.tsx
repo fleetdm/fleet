@@ -1,9 +1,9 @@
-import CustomLink from "components/CustomLink";
 import TooltipWrapper, {
   ITooltipWrapper,
 } from "components/TooltipWrapper/TooltipWrapper";
 import { AppContext } from "context/app";
 import React, { useContext } from "react";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 
 interface IGitOpsModeTooltipWrapper {
   renderChildren: (disableChildren?: boolean) => React.ReactNode;
@@ -29,16 +29,8 @@ const GitOpsModeTooltipWrapper = ({
   }
 
   const tipContent = (
-    // at this point repoURL will always be defined
     <div className={`${baseClass}__tooltip-content`}>
-      {repoURL && (
-        <span>
-          Manage in{" "}
-          <CustomLink newTab text="YAML" variant="tooltip-link" url={repoURL} />
-          <br />
-        </span>
-      )}
-      <span>(GitOps mode enabled)</span>
+      {repoURL && getGitOpsModeTipContent(repoURL)}
     </div>
   );
 

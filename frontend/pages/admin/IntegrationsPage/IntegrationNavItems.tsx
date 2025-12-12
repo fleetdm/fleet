@@ -8,10 +8,10 @@ import ChangeManagement from "./cards/ChangeManagement";
 import CertificateAuthorities from "./cards/CertificateAuthorities";
 import ConditionalAccess from "./cards/ConditionalAccess";
 import IdentityProviders from "./cards/IdentityProviders";
+import Sso from "./cards/Sso";
+import GlobalHostStatusWebhook from "../IntegrationsPage/cards/GlobalHostStatusWebhook";
 
-const getIntegrationSettingsNavItems = (
-  isManagedCloud: boolean
-): ISideNavItem<any>[] => {
+const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
   const items: ISideNavItem<any>[] = [
     {
       title: "Ticket destinations",
@@ -20,7 +20,7 @@ const getIntegrationSettingsNavItems = (
       Card: Integrations,
     },
     {
-      title: "Mobile device management (MDM)",
+      title: "MDM",
       urlSection: "mdm",
       path: PATHS.ADMIN_INTEGRATIONS_MDM,
       Card: MdmSettings,
@@ -38,6 +38,12 @@ const getIntegrationSettingsNavItems = (
       Card: ChangeManagement,
     },
     {
+      title: "Single sign-on (SSO)",
+      urlSection: "sso",
+      path: PATHS.ADMIN_INTEGRATIONS_SSO_FLEET_USERS,
+      Card: Sso,
+    },
+    {
       title: "Certificates",
       urlSection: "certificates",
       path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
@@ -49,16 +55,20 @@ const getIntegrationSettingsNavItems = (
       path: PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER,
       Card: IdentityProviders,
     },
-  ];
-
-  if (isManagedCloud && featureFlags.allowConditionalAccess === "true") {
-    items.push({
+    {
+      title: "Host status webhook",
+      urlSection: "host-status-webhook",
+      path: PATHS.ADMIN_INTEGRATIONS_HOST_STATUS_WEBHOOK,
+      Card: GlobalHostStatusWebhook,
+    },
+    {
       title: "Conditional access",
       urlSection: "conditional-access",
       path: PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS,
       Card: ConditionalAccess,
-    });
-  }
+    },
+  ];
+
   return items;
 };
 

@@ -36,6 +36,41 @@ func (c *Client) ListProfiles(teamID *uint) ([]*fleet.MDMAppleConfigProfile, err
 	return responseBody.ConfigProfiles, nil
 }
 
+func (c *Client) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProfilePayload, error) {
+	verb, path := "GET", "/api/latest/fleet/configuration_profiles"
+	query := make(url.Values)
+	if teamID != nil {
+		query.Add("team_id", strconv.FormatUint(uint64(*teamID), 10))
+	}
+	var responseBody listMDMConfigProfilesResponse
+	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode()); err != nil {
+		return nil, err
+	}
+	return responseBody.Profiles, nil
+}
+
+// Get the contents of a saved profile.
+func (c *Client) GetProfileContents(profileID string) ([]byte, error) {
+	verb, path := "GET", "/api/latest/fleet/mdm/profiles/"+profileID
+	response, err := c.AuthenticatedDo(verb, path, "alt=media", nil)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
+	}
+	defer response.Body.Close()
+	err = c.parseResponse(verb, path, response, nil)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
+	}
+	if response.StatusCode != http.StatusNoContent {
+		b, err := io.ReadAll(response.Body)
+		if err != nil {
+			return nil, fmt.Errorf("reading response body: %w", err)
+		}
+		return b, nil
+	}
+	return nil, nil
+}
+
 func (c *Client) AddProfile(teamID uint, configurationProfile []byte) (uint, error) {
 	if c.token == "" {
 		return 0, errors.New("authentication token is empty")
@@ -110,4 +145,23 @@ func (c *Client) GetConfigProfilesSummary(teamID *uint) (*fleet.MDMProfilesSumma
 		return nil, err
 	}
 	return &responseBody.MDMProfilesSummary, nil
+}
+
+// Get the Apple setup assistant profile for the given team, if any.
+func (c *Client) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error) {
+	verb, path := "GET", "/api/latest/fleet/enrollment_profiles/automatic"
+	var query string
+	if teamID != 0 {
+		query = fmt.Sprintf("team_id=%d", teamID)
+	}
+	var responseBody createMDMAppleSetupAssistantResponse
+	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+		var notFoundErr notFoundErr
+		if errors.As(err, &notFoundErr) {
+			// If the profile is not found, return nil instead of an error.
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &responseBody.MDMAppleSetupAssistant, nil
 }

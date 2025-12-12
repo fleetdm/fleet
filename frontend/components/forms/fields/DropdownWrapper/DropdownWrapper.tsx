@@ -31,11 +31,70 @@ import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import { TooltipContent } from "interfaces/dropdownOption";
 
+interface CustomOptionProps
+  extends Omit<OptionProps<CustomOptionType, false>, "data"> {
+  data: CustomOptionType;
+}
+
+const baseClass = "dropdown-wrapper";
+
+const CustomOption = (props: CustomOptionProps) => {
+  const { data, ...rest } = props;
+
+  const optionContent = (
+    <div className={`${baseClass}__option`}>
+      {data.label}
+      {data.helpText && (
+        <span className={`${baseClass}__help-text`}>{data.helpText}</span>
+      )}
+    </div>
+  );
+
+  return (
+    <components.Option {...rest} data={data}>
+      {data.tooltipContent ? (
+        <DropdownOptionTooltipWrapper tipContent={data.tooltipContent}>
+          {optionContent}
+        </DropdownOptionTooltipWrapper>
+      ) : (
+        optionContent
+      )}
+    </components.Option>
+  );
+};
+
+export const CustomDropdownIndicator = (
+  props: DropdownIndicatorProps<
+    CustomOptionType,
+    false,
+    GroupBase<CustomOptionType>
+  >
+) => {
+  const { isFocused, selectProps } = props;
+  const color =
+    isFocused || selectProps.menuIsOpen
+      ? "ui-fleet-black-75-over"
+      : "ui-fleet-black-75";
+
+  return (
+    <components.DropdownIndicator
+      {...props}
+      className={`${baseClass}__indicator`}
+    >
+      <Icon
+        name="chevron-down"
+        color={color}
+        className={`${baseClass}__icon`}
+      />
+    </components.DropdownIndicator>
+  );
+};
+
 export interface CustomOptionType {
   label: React.ReactNode;
   value: string;
   tooltipContent?: TooltipContent;
-  helpText?: string;
+  helpText?: React.ReactNode;
   isDisabled?: boolean;
   iconName?: IconNames;
 }
@@ -70,7 +129,7 @@ export interface IDropdownWrapper {
 const getOptionBackgroundColor = (
   state: OptionProps<CustomOptionType, false>
 ) => {
-  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
+  return state.isFocused ? COLORS["ui-fleet-black-5"] : "transparent";
 };
 
 const getOptionFontWeight = (
@@ -83,10 +142,286 @@ const getOptionFontWeight = (
   }
 
   // For other variants, selected options are bold
-  return state.isSelected ? "bold" : "normal";
+  return state.isSelected ? "600" : "normal";
 };
 
-const baseClass = "dropdown-wrapper";
+/** generates the default custom styles for the dropdown component.
+ * NOTE: we export this from DropdownWrapper components so that other more
+ * customisable dropdown components can use this for consistency in styling */
+export const generateCustomDropdownStyles = (
+  variant?: DropdownWrapperVariant,
+  isDisabled = false,
+  nowrapMenu = false
+): StylesConfig<CustomOptionType, false> => {
+  return {
+    container: (provided) => {
+      const buttonVariantContainer = {
+        borderRadius: "6px",
+        "&:active": {
+          backgroundColor: "rgba(25, 33, 71, 0.05)",
+        },
+        height: "38px",
+      };
+
+      return {
+        ...provided,
+        width: "100%",
+        height: "36px",
+        ...(variant === "button" && buttonVariantContainer),
+      };
+    },
+
+    control: (provided, state) => {
+      if (variant === "button") {
+        return {
+          backgroundColor: "initial",
+          borderColor: "none",
+          display: "flex",
+          flexDirection: "row",
+          width: "max-content",
+          padding: PADDING["pad-small"],
+          border: 0,
+          borderRadius: "6px",
+          boxShadow: "none",
+          cursor: "pointer",
+          ".dropdown-wrapper__indicator path": {
+            stroke: COLORS["ui-fleet-black-75"],
+          },
+          "&:hover": {
+            backgroundColor: "rgba(25, 33, 71, 0.05)",
+            boxShadow: "none",
+            ".dropdown-wrapper__placeholder": {
+              color: COLORS["ui-fleet-black-75-over"],
+            },
+            ".dropdown-wrapper__indicator path": {
+              stroke: COLORS["ui-fleet-black-75-over"],
+            },
+          },
+          ".react-select__control--is-focused": {
+            backgroundColor: "rgba(25, 33, 71, 0.05)",
+            boxShadow: "none",
+            ".dropdown-wrapper__placeholder": {
+              color: COLORS["ui-fleet-black-75-down"],
+            },
+            ".dropdown-wrapper__indicator path": {
+              stroke: COLORS["ui-fleet-black-75-down"],
+            },
+          },
+          ...(state.isFocused && {
+            backgroundColor: "rgba(25, 33, 71, 0.05)",
+            ".dropdown-wrapper__placeholder": {
+              color: COLORS["ui-fleet-black-75-down"],
+            },
+            ".dropdown-wrapper__indicator path": {
+              stroke: COLORS["ui-fleet-black-75-down"],
+            },
+          }),
+          // TODO: Figure out a way to apply separate &:focus-visible styling
+          // Currently only relying on &:focus styling for tabbing through app
+          ...(state.menuIsOpen && {
+            ".dropdown-wrapper__indicator svg": {
+              transform: "rotate(180deg)",
+              transition: "transform 0.25s ease",
+            },
+          }),
+          ...(variant === "button" && { height: "22px" }),
+        };
+      }
+
+      return {
+        ...provided,
+        display: "flex",
+        flexDirection: "row",
+        width: "100%",
+        backgroundColor: COLORS["core-fleet-white"],
+        paddingLeft: "8px", // TODO: Update to match styleguide of (16px) when updating rest of UI (8px)
+        paddingRight: "8px",
+        cursor: "pointer",
+        boxShadow: "none",
+        borderRadius: "4px",
+        borderColor: state.isFocused
+          ? COLORS["core-fleet-black"]
+          : COLORS["ui-fleet-black-10"],
+        "&:hover": {
+          boxShadow: "none",
+          borderColor: COLORS["ui-fleet-black-50"],
+          ".dropdown-wrapper__single-value": {
+            color: COLORS["ui-fleet-black-75"],
+          },
+          ".dropdown-wrapper__indicator path": {
+            stroke: COLORS["ui-fleet-black-75"],
+          },
+          ".filter-icon path": {
+            fill: COLORS["ui-fleet-black-75"],
+          },
+        },
+        // When tabbing
+        // Relies on --is-focused for styling as &:focus-visible cannot be applied
+        "&.react-select__control--is-focused": {
+          borderColor: state.isFocused
+            ? COLORS["core-fleet-black"]
+            : COLORS["ui-fleet-black-25"],
+          ".dropdown-wrapper__indicator path": {
+            stroke: COLORS["ui-fleet-black-75"],
+          },
+          ".filter-icon path": {
+            fill: COLORS["ui-fleet-black-75"],
+          },
+        },
+        ...(state.isFocused && {
+          ".dropdown-wrapper__placeholder": {
+            color: COLORS["ui-fleet-black-75"],
+          },
+          ".dropdown-wrapper__indicator path": {
+            stroke: COLORS["ui-fleet-black-75"],
+          },
+        }),
+        ...(state.isDisabled && {
+          ".dropdown-wrapper__single-value": {
+            color: COLORS["ui-fleet-black-50"],
+          },
+          ".dropdown-wrapper__indicator path": {
+            stroke: COLORS["ui-fleet-black-50"],
+          },
+          ".filter-icon path": {
+            fill: COLORS["ui-fleet-black-50"],
+          },
+        }),
+        "&:active": {
+          ".dropdown-wrapper__single-value": {
+            color: COLORS["ui-fleet-black-75"],
+          },
+          ".dropdown-wrapper__indicator path": {
+            stroke: COLORS["ui-fleet-black-75"],
+          },
+          ".filter-icon path": {
+            fill: COLORS["ui-fleet-black-75"],
+          },
+        },
+        ...(state.menuIsOpen && {
+          ".dropdown-wrapper__indicator svg": {
+            transform: "rotate(180deg)",
+            transition: "transform 0.25s ease",
+          },
+        }),
+      };
+    },
+    placeholder: (provided, state) => {
+      const buttonVariantPlaceholder = {
+        color: state.isFocused
+          ? COLORS["ui-fleet-black-75-over"]
+          : COLORS["ui-fleet-black-75"],
+        fontSize: "13px",
+        fontWeight: "600",
+        lineHeight: "normal",
+        paddingLeft: 0,
+        opacity: isDisabled ? 0.5 : 1,
+        marginTop: variant === "button" ? "-1px" : "1px", // TODO: Figure out vertical centering to not need pixel fix
+      };
+
+      return {
+        ...provided,
+        ...(variant === "button" && buttonVariantPlaceholder),
+      };
+    },
+    singleValue: (provided) => ({
+      ...provided,
+      fontSize: "13px",
+      margin: 0,
+      padding: 0,
+    }),
+    dropdownIndicator: (provided) => ({
+      ...provided,
+      display: "flex",
+      padding: "2px",
+      svg: {
+        transition: "transform 0.25s ease",
+      },
+      opacity: isDisabled ? 0.5 : 1,
+    }),
+    menu: (provided) => ({
+      ...provided,
+      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
+      borderRadius: "4px",
+      zIndex: 6,
+      overflow: "hidden",
+      border: 0,
+      marginTop: "3px",
+      left: 0,
+      maxHeight: "none",
+      position: "absolute",
+      animation: "fade-in 150ms ease-out",
+      ...(nowrapMenu && {
+        width: "fit-content",
+        left: "auto",
+        right: "0",
+      }),
+    }),
+    menuList: (provided) => ({
+      ...provided,
+      padding: PADDING["pad-small"],
+      maxHeight: "none",
+      ...(nowrapMenu && { width: "fit-content" }),
+    }),
+    valueContainer: (provided) => ({
+      ...provided,
+      padding: 0,
+      display: "flex",
+      gap: PADDING[variant === "button" ? "pad-xsmall" : "pad-small"],
+      flexWrap: "nowrap", // This ensures the value is on a single line and truncated
+    }),
+    option: (provided, state) => ({
+      ...provided,
+      padding: "10px 8px",
+      fontSize: "13px",
+      borderRadius: "4px",
+      backgroundColor: getOptionBackgroundColor(state),
+      fontWeight: getOptionFontWeight(state, variant),
+      color: COLORS["core-fleet-black"],
+      "&:hover": {
+        backgroundColor: state.isDisabled
+          ? "transparent"
+          : COLORS["ui-fleet-black-5"],
+        cursor: state.isDisabled ? "not-allowed" : "pointer",
+      },
+      "&:active": {
+        backgroundColor: state.isDisabled
+          ? "transparent"
+          : COLORS["ui-fleet-black-5"],
+      },
+      ...(state.isDisabled && {
+        color: COLORS["ui-fleet-black-50"],
+        fontStyle: "italic",
+        cursor: "not-allowed",
+      }),
+      // Styles for custom option
+      ".dropdown-wrapper__option": {
+        display: "flex",
+        flexDirection: "column",
+        gap: "8px",
+        width: "100%",
+        whiteSpace: nowrapMenu ? "nowrap" : "normal",
+      },
+      ".dropdown-wrapper__help-text": {
+        fontSize: "12px",
+        width: "100%",
+        whiteSpace: nowrapMenu ? "nowrap" : "normal",
+        color: state.isDisabled
+          ? COLORS["ui-fleet-black-50"]
+          : COLORS["ui-fleet-black-75"],
+        fontStyle: "italic",
+        fontWeight: "normal",
+      },
+    }),
+    menuPortal: (base) => ({ ...base, zIndex: 999 }), // Not hidden beneath scrollable sections
+    noOptionsMessage: (provided) => ({
+      ...provided,
+      textAlign: "left",
+      fontSize: "13px",
+      padding: "10px 8px",
+    }),
+  };
+};
 
 const DropdownWrapper = ({
   options,
@@ -124,63 +459,6 @@ const DropdownWrapper = ({
     return value;
   };
 
-  interface CustomOptionProps
-    extends Omit<OptionProps<CustomOptionType, false>, "data"> {
-    data: CustomOptionType;
-  }
-
-  const CustomOption = (props: CustomOptionProps) => {
-    const { data, ...rest } = props;
-
-    const optionContent = (
-      <div className={`${baseClass}__option`}>
-        {data.label}
-        {data.helpText && (
-          <span className={`${baseClass}__help-text`}>{data.helpText}</span>
-        )}
-      </div>
-    );
-
-    return (
-      <components.Option {...rest} data={data}>
-        {data.tooltipContent ? (
-          <DropdownOptionTooltipWrapper tipContent={data.tooltipContent}>
-            {optionContent}
-          </DropdownOptionTooltipWrapper>
-        ) : (
-          optionContent
-        )}
-      </components.Option>
-    );
-  };
-
-  const CustomDropdownIndicator = (
-    props: DropdownIndicatorProps<
-      CustomOptionType,
-      false,
-      GroupBase<CustomOptionType>
-    >
-  ) => {
-    const { isFocused, selectProps } = props;
-    const color =
-      isFocused || selectProps.menuIsOpen
-        ? "core-fleet-blue"
-        : "core-fleet-black";
-
-    return (
-      <components.DropdownIndicator
-        {...props}
-        className={`${baseClass}__indicator`}
-      >
-        <Icon
-          name="chevron-down"
-          color={color}
-          className={`${baseClass}__icon`}
-        />
-      </components.DropdownIndicator>
-    );
-  };
-
   const ValueContainer = ({
     children,
     ...props
@@ -198,271 +476,6 @@ const DropdownWrapper = ({
         </components.ValueContainer>
       )
     );
-  };
-
-  const customStyles: StylesConfig<CustomOptionType, false> = {
-    container: (provided) => {
-      const buttonVariantContainer = {
-        borderRadius: "6px",
-        "&:active": {
-          backgroundColor: "rgba(25, 33, 71, 0.05)",
-        },
-        height: "38px",
-      };
-
-      return {
-        ...provided,
-        width: "100%",
-        height: "40px",
-        ...(variant === "button" && buttonVariantContainer),
-      };
-    },
-
-    control: (provided, state) => {
-      if (variant === "button")
-        return {
-          backgroundColor: "initial",
-          borderColor: "none",
-          display: "flex",
-          flexDirection: "row",
-          width: "max-content",
-          padding: PADDING["pad-small"],
-          border: 0,
-          borderRadius: "6px",
-          boxShadow: "none",
-          cursor: "pointer",
-          ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["core-fleet-blue"],
-          },
-          "&:hover": {
-            backgroundColor: "rgba(25, 33, 71, 0.05)",
-            boxShadow: "none",
-            ".dropdown-wrapper__placeholder": {
-              color: COLORS["core-vibrant-blue-over"],
-            },
-            ".dropdown-wrapper__indicator path": {
-              stroke: COLORS["core-vibrant-blue-over"],
-            },
-          },
-          ".react-select__control--is-focused": {
-            backgroundColor: "rgba(25, 33, 71, 0.05)",
-            boxShadow: "none",
-            ".dropdown-wrapper__placeholder": {
-              color: COLORS["core-vibrant-blue-down"],
-            },
-            ".dropdown-wrapper__indicator path": {
-              stroke: COLORS["core-vibrant-blue-down"],
-            },
-          },
-          ...(state.isFocused && {
-            backgroundColor: "rgba(25, 33, 71, 0.05)",
-            ".dropdown-wrapper__placeholder": {
-              color: COLORS["core-vibrant-blue-down"],
-            },
-            ".dropdown-wrapper__indicator path": {
-              stroke: COLORS["core-vibrant-blue-down"],
-            },
-          }),
-          // TODO: Figure out a way to apply separate &:focus-visible styling
-          // Currently only relying on &:focus styling for tabbing through app
-          ...(state.menuIsOpen && {
-            ".dropdown-wrapper__indicator svg": {
-              transform: "rotate(180deg)",
-              transition: "transform 0.25s ease",
-            },
-          }),
-          ...(variant === "button" && { height: "22px" }),
-        };
-
-      return {
-        ...provided,
-        display: "flex",
-        flexDirection: "row",
-        width: "100%",
-        backgroundColor: COLORS["ui-off-white"],
-        paddingLeft: "8px", // TODO: Update to match styleguide of (16px) when updating rest of UI (8px)
-        paddingRight: "8px",
-        cursor: "pointer",
-        boxShadow: "none",
-        borderRadius: "4px",
-        borderColor: state.isFocused
-          ? COLORS["core-fleet-blue"]
-          : COLORS["ui-fleet-black-10"],
-        "&:hover": {
-          boxShadow: "none",
-          borderColor: COLORS["core-vibrant-blue-over"],
-          ".dropdown-wrapper__single-value": {
-            color: COLORS["core-vibrant-blue-over"],
-          },
-          ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["core-vibrant-blue-over"],
-          },
-          ".filter-icon path": {
-            fill: COLORS["core-vibrant-blue-over"],
-          },
-        },
-        // When tabbing
-        // Relies on --is-focused for styling as &:focus-visible cannot be applied
-        "&.react-select__control--is-focused": {
-          borderColor: COLORS["core-vibrant-blue-down"],
-          ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["core-vibrant-blue-down"],
-          },
-          ".filter-icon path": {
-            fill: COLORS["core-vibrant-blue-down"],
-          },
-        },
-        ...(state.isFocused && {
-          ".dropdown-wrapper__placeholder": {
-            color: COLORS["core-vibrant-blue-down"],
-          },
-          ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["core-vibrant-blue-down"],
-          },
-        }),
-        ...(state.isDisabled && {
-          ".dropdown-wrapper__single-value": {
-            color: COLORS["ui-fleet-black-50"],
-          },
-          ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["ui-fleet-black-50"],
-          },
-          ".filter-icon path": {
-            fill: COLORS["ui-fleet-black-50"],
-          },
-        }),
-        "&:active": {
-          ".dropdown-wrapper__single-value": {
-            color: COLORS["core-vibrant-blue-down"],
-          },
-          ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["core-vibrant-blue-down"],
-          },
-          ".filter-icon path": {
-            fill: COLORS["core-vibrant-blue-down"],
-          },
-        },
-        ...(state.menuIsOpen && {
-          ".dropdown-wrapper__indicator svg": {
-            transform: "rotate(180deg)",
-            transition: "transform 0.25s ease",
-          },
-        }),
-      };
-    },
-    placeholder: (provided, state) => {
-      const buttonVariantPlaceholder = {
-        color: state.isFocused
-          ? COLORS["core-vibrant-blue-over"]
-          : COLORS["core-fleet-blue"],
-        fontSize: "14px",
-        fontWeight: "bold",
-        lineHeight: "normal",
-        paddingLeft: 0,
-        opacity: isDisabled ? 0.5 : 1,
-        marginTop: variant === "button" ? "-1px" : "1px", // TODO: Figure out vertical centering to not need pixel fix
-      };
-
-      return {
-        ...provided,
-        ...(variant === "button" && buttonVariantPlaceholder),
-      };
-    },
-    singleValue: (provided) => ({
-      ...provided,
-      fontSize: "16px",
-      margin: 0,
-      padding: 0,
-    }),
-    dropdownIndicator: (provided) => ({
-      ...provided,
-      display: "flex",
-      padding: "2px",
-      svg: {
-        transition: "transform 0.25s ease",
-      },
-      opacity: isDisabled ? 0.5 : 1,
-    }),
-    menu: (provided) => ({
-      ...provided,
-      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
-      borderRadius: "4px",
-      zIndex: 6,
-      overflow: "hidden",
-      border: 0,
-      marginTop: variant === "button" ? "3px" : 0,
-      left: 0,
-      maxHeight: "none",
-      position: "absolute",
-      animation: "fade-in 150ms ease-out",
-      ...(nowrapMenu && {
-        width: "fit-content",
-        left: "auto",
-        right: "0",
-      }),
-    }),
-    menuList: (provided) => ({
-      ...provided,
-      padding: PADDING["pad-small"],
-      maxHeight: "none",
-      ...(nowrapMenu && { width: "fit-content" }),
-    }),
-    valueContainer: (provided) => ({
-      ...provided,
-      padding: 0,
-      display: "flex",
-      gap: PADDING[variant === "button" ? "pad-xsmall" : "pad-small"],
-    }),
-    option: (provided, state) => ({
-      ...provided,
-      padding: "10px 8px",
-      fontSize: "14px",
-      borderRadius: "4px",
-      backgroundColor: getOptionBackgroundColor(state),
-      fontWeight: getOptionFontWeight(state, variant),
-      color: COLORS["core-fleet-black"],
-      "&:hover": {
-        backgroundColor: state.isDisabled
-          ? "transparent"
-          : COLORS["ui-vibrant-blue-10"],
-        cursor: state.isDisabled ? "not-allowed" : "pointer",
-      },
-      "&:active": {
-        backgroundColor: state.isDisabled
-          ? "transparent"
-          : COLORS["ui-vibrant-blue-25"],
-      },
-      ...(state.isDisabled && {
-        color: COLORS["ui-fleet-black-50"],
-        fontStyle: "italic",
-        cursor: "not-allowed",
-      }),
-      // Styles for custom option
-      ".dropdown-wrapper__option": {
-        display: "flex",
-        flexDirection: "column",
-        gap: "8px",
-        width: "100%",
-        whiteSpace: nowrapMenu ? "nowrap" : "normal",
-      },
-      ".dropdown-wrapper__help-text": {
-        fontSize: "12px",
-        width: "100%",
-        whiteSpace: nowrapMenu ? "nowrap" : "normal",
-        color: state.isDisabled
-          ? COLORS["ui-fleet-black-50"]
-          : COLORS["ui-fleet-black-75"],
-        fontStyle: "italic",
-        fontWeight: "normal",
-      },
-    }),
-    menuPortal: (base) => ({ ...base, zIndex: 999 }), // Not hidden beneath scrollable sections
-    noOptionsMessage: (provided) => ({
-      ...provided,
-      textAlign: "left",
-      fontSize: "14px",
-      padding: "10px 8px",
-    }),
   };
 
   const renderLabel = () => {
@@ -497,7 +510,7 @@ const DropdownWrapper = ({
       <Select<CustomOptionType, false>
         classNamePrefix="react-select"
         isSearchable={isSearchable}
-        styles={customStyles}
+        styles={generateCustomDropdownStyles(variant, isDisabled, nowrapMenu)}
         options={options}
         components={{
           Option: CustomOption,

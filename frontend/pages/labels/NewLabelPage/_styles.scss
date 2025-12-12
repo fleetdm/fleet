@@ -1,15 +1,68 @@
 .new-label-page {
-  h1 {
-    margin-bottom: $pad-large;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow: visible;
+  &__header {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
   }
-
   &__page-description {
     margin: 0;
     color: $ui-fleet-black-75;
     font-size: $xx-small;
+    font-style: italic;
+  }
+  &__label-name,
+  &__label-description {
+    width: 100%;
+    resize: vertical;
   }
 
-  &__new-label-tab-nav {
-    margin-bottom: $pad-xxlarge;
+  &__label-platform {
+    font-size: $x-small;
+    font-weight: $regular;
+    color: $core-fleet-black;
+    padding-bottom: $pad-large;
+
+    p {
+      padding-bottom: $pad-small;
+      margin-top: 0;
+      margin-bottom: 0;
+    }
+
+    .title {
+      font-weight: $bold;
+    }
+
+    .help-text {
+      color: $core-fleet-blue;
+      padding-top: $pad-small;
+    }
+  }
+  &__host_vitals-fields {
+    width: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $pad-small;
+
+    #criterion-and-value {
+      display: flex;
+      align-items: center;
+      gap: $pad-medium;
+    }
+    .form-field--dropdown {
+      .Select {
+        width: 300px;
+      }
+    }
+    p {
+      white-space: nowrap;
+    }
+    dropdown__select--error.Select {
+      border: initial;
+    }
   }
 }

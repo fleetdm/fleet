@@ -39,13 +39,13 @@ const config: Config = {
   setupFilesAfterEnv: ["<rootDir>/frontend/test/test-setup.ts"],
   clearMocks: true,
   testEnvironmentOptions: {
-    url: "http://localhost:8080",
+    url: "http://fleettest.test:9876",
     customExportConditions: [""],
   },
   transformIgnorePatterns: [`/node_modules/(?!(${esModules})/)`],
   globals: {
     TransformStream,
-    featureFlags: { allowConditionalAccess: "true" },
+    featureFlags: {},
   },
 };
 

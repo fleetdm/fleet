@@ -1,0 +1,10 @@
+{
+  "name": "Cisco Jabber",
+  "slug": "cisco-jabber/windows",
+  "package_identifier": "Cisco.Jabber",
+  "unique_identifier": "Cisco Jabber",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Communication"]
+}

@@ -95,15 +95,15 @@
   }
   [purpose='query-details'] {
     padding-right: 64px;
-    max-width: 800px;
     width: 100%;
+    min-width: 0px;// Prevents long overflowing text from keeping this element from shrinking.
   }
   [purpose='query-check'] {
     padding-bottom: 24px;
   }
 
   [purpose='right-sidebar'] {
-    width: 256px;
+    min-width: 220px;
     margin-left: 16px;
     font-size: 14px;
     transition-property: transform;
@@ -225,7 +225,7 @@
     background: #F7F7FC;
     margin-bottom: 40px;
     img {
-      width: 16px;
+      min-width: 16px;
       height: 16px;
     }
     p {
@@ -237,6 +237,9 @@
       font-size: 14px;
       font-weight: 400;
       line-height: 150%;
+    }
+    [purpose='note-text'] {
+      margin-left: 8px;
     }
     code {
       color: #515774;

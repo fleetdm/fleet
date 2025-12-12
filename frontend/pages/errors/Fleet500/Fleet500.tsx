@@ -37,11 +37,7 @@ const Fleet500 = () => (
       <p>Please file an issue if you believe this is a bug.</p>
       <div className={`${baseClass}__button-wrapper`}>
         <a href={SUPPORT_LINK} target="_blank" rel="noopener noreferrer">
-          <Button
-            type="button"
-            variant="unstyled"
-            className={`${baseClass}__slack-btn`}
-          >
+          <Button variant="unstyled" className={`${baseClass}__slack-btn`}>
             <>
               <img src={slackLogo} alt="Slack icon" />
               Get help on Slack
@@ -53,7 +49,7 @@ const Fleet500 = () => (
           target="_blank"
           rel="noopener noreferrer"
         >
-          <Button type="button">
+          <Button>
             <>
               <img src={githubLogo} alt="Github icon" />
               File an issue

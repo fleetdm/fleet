@@ -33,7 +33,7 @@ type DeviceClient struct {
 // NewDeviceClient instantiates a new client to perform requests against device endpoints.
 func NewDeviceClient(addr string, insecureSkipVerify bool, rootCA string, fleetClientCrt *tls.Certificate, fleetAlternativeBrowserHost string) (*DeviceClient, error) {
 	capabilities := fleet.CapabilityMap{}
-	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCrt, capabilities)
+	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCrt, capabilities, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -137,6 +137,15 @@ func (dc *DeviceClient) BrowserSelfServiceURL(token string) string {
 // BrowserDeviceURL returns the "My device" URL for the browser.
 func (dc *DeviceClient) BrowserDeviceURL(token string) string {
 	deviceURL := dc.baseClient.url("/device/"+token, "")
+	if dc.fleetAlternativeBrowserHost != "" {
+		deviceURL.Host = dc.fleetAlternativeBrowserHost
+	}
+	return deviceURL.String()
+}
+
+// BrowserPoliciesURL returns the "Policies" URL for the browser.
+func (dc *DeviceClient) BrowserPoliciesURL(token string) string {
+	deviceURL := dc.baseClient.url(fmt.Sprintf(`/device/%s/policies`, token), "")
 	if dc.fleetAlternativeBrowserHost != "" {
 		deviceURL.Host = dc.fleetAlternativeBrowserHost
 	}

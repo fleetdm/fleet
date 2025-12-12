@@ -16,14 +16,12 @@ interface IPolicyResultsTableProps {
   hostResponses: IPolicyHostResponse[];
   isLoading: boolean;
   resultsTitle?: string;
-  canAddOrDeletePolicy?: boolean;
 }
 
 const PolicyResultsTable = ({
   hostResponses,
   isLoading,
   resultsTitle,
-  canAddOrDeletePolicy,
 }: IPolicyResultsTableProps): JSX.Element => {
   return (
     <div className={baseClass}>
@@ -41,7 +39,7 @@ const PolicyResultsTable = ({
           name: "delete policy",
           buttonText: "Delete",
           iconSvg: "trash",
-          variant: "text-icon",
+          variant: "inverse",
         }}
         emptyComponent={() => (
           <div className="no-hosts__inner">

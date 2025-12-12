@@ -1,3 +1,11 @@
+## fleetd-chrome 1.3.3 (August 8, 2025)
+
+* Fixed a bug which caused fleetd-chrome to fail enrollment.
+
+## fleetd-chrome 1.3.2 (Feb 28, 2025)
+
+- Fixed "privacy_preferences" table query to return results correctly.
+
 ## fleetd-chrome 1.3.1 (May 20, 2024)
 
 * Fixed bug where fleetd-chrome sent multiple read requests to Fleet server at the same time.

@@ -204,9 +204,6 @@ parasails.registerPage('basic-documentation', {
       if(window.lintrk !== undefined) {
         window.lintrk('track', { conversion_id: 18587105 });// eslint-disable-line camelcase
       }
-      if(window.analytics !== undefined) {
-        analytics.track('fleet_website__swag_request');
-      }
       this.goto('https://kqphpqst851.typeform.com/to/ZfA3sOu0#from_page=docs');
     },
 
@@ -285,7 +282,7 @@ parasails.registerPage('basic-documentation', {
 
     handleScrollingInDocumentation: function () {
       let rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
-      let swagCta = document.querySelector('div[purpose="swag-cta"]');
+      let swagCta = document.querySelector('div[purpose="swag-cta"].left-cta');
       let backToTopButton = document.querySelector('div[purpose="back-to-top-button"]');
       let scrollTop = window.pageYOffset;
       let windowHeight = window.innerHeight;

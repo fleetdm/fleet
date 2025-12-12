@@ -62,6 +62,7 @@ import Profile from "./Profile";
 import Download from "./Download";
 import Upload from "./Upload";
 import Refresh from "./Refresh";
+import Run from "./Run";
 import Install from "./Install";
 import InstallSelfService from "./InstallSelfService";
 import Settings from "./Settings";
@@ -140,6 +141,7 @@ export const ICON_MAP = {
   download: Download,
   upload: Upload,
   refresh: Refresh,
+  run: Run,
   install: Install,
   "install-self-service": InstallSelfService,
   settings: Settings,

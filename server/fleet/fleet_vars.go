@@ -25,11 +25,30 @@ func ContainsPrefixVars(text, prefix string) []string {
 	return vars
 }
 
+// ContainsVar returns true if text contains the given variableName in the form of
+// $VAR and ${VAR} (based on os.Expand). Returns false if variableName is empty.
+func ContainsVar(text, variableName string) bool {
+	if variableName == "" {
+		return false
+	}
+	// ${} is all ASCII, so bytes are fine for this operation.
+	for j := 0; j < len(text); j++ {
+		if text[j] == '$' && j+1 < len(text) {
+			name, w := getShellName(text[j+1:])
+			if name == variableName {
+				return true
+			}
+			j += w
+		}
+	}
+	return false
+}
+
 // MaybeExpand conditionally replaces ${var} or $var in the string based on the mapping function.
-// Only repalces the variable with the mapper string if it returns true.
+// Only replaces the variable with the mapper string if it returns true.
 // The mapper returning false will leave the original variable unchanged.
 // Based on os.Expand
-func MaybeExpand(s string, mapping func(string) (string, bool)) string {
+func MaybeExpand(s string, mapping func(string, int, int) (string, bool)) string {
 	var buf []byte
 	// ${} is all ASCII, so bytes are fine for this operation.
 	i := 0
@@ -47,7 +66,7 @@ func MaybeExpand(s string, mapping func(string) (string, bool)) string {
 				w = 0
 				buf = append(buf, s[j])
 			} else {
-				replacement, shouldReplace := mapping(name)
+				replacement, shouldReplace := mapping(name, j, j+w+1)
 				if shouldReplace {
 					buf = append(buf, replacement...)
 				} else {

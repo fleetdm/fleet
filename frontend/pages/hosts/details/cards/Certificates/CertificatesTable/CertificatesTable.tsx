@@ -66,8 +66,8 @@ const CertificatesTable = ({
 
   const helpText = showHelpText ? (
     <p>
-      Showing certificates in the system keychain. To get all certificates, you
-      can query the certificates table.{" "}
+      Showing certificates in the system and login (user) keychain. To get all
+      certificates, you can query the certificates table.{" "}
       <CustomLink
         text="Learn more"
         url="https://fleetdm.com/learn-more-about/certificates-query"
@@ -88,9 +88,7 @@ const CertificatesTable = ({
       disableMultiRowSelect
       onSelectSingleRow={onClickTableRow}
       renderTableHelpText={() => helpText}
-      renderCount={() => (
-        <TableCount name="certificates" count={data.certificates.length} />
-      )}
+      renderCount={() => <TableCount name="certificates" count={data.count} />}
       pageSize={pageSize}
       pageIndex={page}
       defaultSortHeader={sortHeader}

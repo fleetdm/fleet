@@ -1,6 +1,6 @@
 import React, { useContext } from "react";
-import { Link } from "react-router";
 
+import CustomLink from "components/CustomLink";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 
@@ -27,9 +27,10 @@ const AndroidPanel = ({ enrollSecret }: IAndroidPanelProps) => {
   if (!isAndroidMdmEnabledAndConfigured) {
     return (
       <p>
-        <Link to={PATHS.ADMIN_INTEGRATIONS_MDM_ANDROID}>
-          Turn on Android MDM
-        </Link>{" "}
+        <CustomLink
+          url={PATHS.ADMIN_INTEGRATIONS_MDM_ANDROID}
+          text="Turn on Android MDM"
+        />{" "}
         to enroll Android hosts.
       </p>
     );
@@ -42,7 +43,6 @@ const AndroidPanel = ({ enrollSecret }: IAndroidPanelProps) => {
       <InputField
         label="Send this to your end users:"
         enableCopy
-        copyButtonPosition="inside"
         readOnly
         inputWrapperClass
         name="enroll-link"

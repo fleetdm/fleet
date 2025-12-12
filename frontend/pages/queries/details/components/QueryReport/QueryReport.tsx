@@ -31,6 +31,7 @@ const CSV_TITLE = "Query";
 const flattenResults = (results: IQueryReportResultRow[]) => {
   return results.map((result: IQueryReportResultRow) => {
     const hostInfoColumns = {
+      host_id: result.host_id,
       host_display_name: result.host_name,
       last_fetched: result.last_fetched,
     };
@@ -45,7 +46,7 @@ const QueryReport = ({
   queryReport,
   isClipped,
 }: IQueryReportProps): JSX.Element => {
-  const { lastEditedQueryName, lastEditedQueryBody } = useContext(QueryContext);
+  const { lastEditedQueryName } = useContext(QueryContext);
 
   const [filteredResults, setFilteredResults] = useState<Row[]>(
     flattenResults(queryReport?.results || [])
@@ -55,7 +56,8 @@ const QueryReport = ({
   useEffect(() => {
     if (queryReport && queryReport.results && queryReport.results.length > 0) {
       const newColumnConfigs = generateReportColumnConfigsFromResults(
-        flattenResults(queryReport.results)
+        flattenResults(queryReport.results),
+        queryReport.query_id
       );
 
       // Update tableHeaders if new headers are found
@@ -84,11 +86,11 @@ const QueryReport = ({
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
-          variant="text-icon"
+          variant="inverse"
         >
           <>
             Export results
-            <Icon name="download" color="core-fleet-blue" />
+            <Icon name="download" color="ui-fleet-black-75" />
           </>
         </Button>
       </div>

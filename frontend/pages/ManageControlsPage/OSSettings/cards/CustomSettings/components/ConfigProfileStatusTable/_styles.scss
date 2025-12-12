@@ -1,0 +1,13 @@
+.config-profile-status-table {
+
+  .config-profile-host-count-cell__resend-button {
+    transition: opacity 250ms;
+    opacity: 0;
+  }
+
+  tr:hover {
+    .config-profile-host-count-cell__resend-button {
+      opacity: 1;
+    }
+  }
+}

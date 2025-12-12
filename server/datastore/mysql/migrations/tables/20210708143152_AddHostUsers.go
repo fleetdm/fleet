@@ -21,7 +21,7 @@ func Up_20210708143152(tx *sql.Tx) error {
 		user_type VARCHAR(255),
 		UNIQUE KEY idx_uid_username (host_id, uid, username),
 		FOREIGN KEY (host_id) REFERENCES hosts (id) ON DELETE CASCADE
-	)`
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`
 	if _, err := tx.Exec(sqlStatement); err != nil {
 		return err
 	}

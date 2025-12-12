@@ -18,9 +18,6 @@ import (
 // Such theme detection logic was removed in this PR: https://github.com/fleetdm/fleet/pull/16402.
 
 //go:embed windows_app.ico
-var iconLight []byte
-
-//go:embed windows_app.ico
 var iconDark []byte
 
 // blockWaitForStopEvent waits for the named event kernel object to be signalled
@@ -54,7 +51,9 @@ func blockWaitForStopEvent(channelId string) error {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	defer windows.CloseHandle(handle)
+	defer func() {
+		_ = windows.CloseHandle(handle)
+	}()
 
 	// OpenEvent() call was successful and our process got a handle to the named event kernel object
 	log.Info().Msg("Comm channel was acquired")

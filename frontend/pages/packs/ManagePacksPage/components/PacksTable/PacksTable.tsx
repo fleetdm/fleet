@@ -86,16 +86,16 @@ const PacksTable = ({
   const secondarySelectActions: IActionButtonProps[] = [
     {
       name: "enable",
-      onActionButtonClick: onEnablePackClick,
+      onClick: onEnablePackClick,
       buttonText: "Enable",
-      variant: "text-icon",
+      variant: "inverse",
       iconSvg: "check",
     },
     {
       name: "disable",
-      onActionButtonClick: onDisablePackClick,
+      onClick: onDisablePackClick,
       buttonText: "Disable",
-      variant: "text-icon",
+      variant: "inverse",
       iconSvg: "disable",
     },
   ];
@@ -118,8 +118,8 @@ const PacksTable = ({
           name: "delete pack",
           buttonText: "Delete",
           iconSvg: "trash",
-          variant: "text-icon",
-          onActionButtonClick: onDeletePackClick,
+          variant: "inverse",
+          onClick: onDeletePackClick,
         }}
         secondarySelectActions={secondarySelectActions}
         emptyComponent={() =>

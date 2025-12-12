@@ -193,7 +193,7 @@ func getPreProcessedFileContent(path string) ([]byte, error) {
 	}
 
 	// replace newlines with unix style
-	fileContent := strings.Replace(string(decoded), "\r\n", "\n", -1)
+	fileContent := strings.ReplaceAll(string(decoded), "\r\n", "\n")
 
 	return []byte(fileContent), nil
 }

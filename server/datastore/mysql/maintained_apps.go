@@ -91,6 +91,32 @@ func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint, teamI
 	return &app, nil
 }
 
+func (ds *Datastore) GetMaintainedAppBySlug(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+	stmt := `SELECT fma.id, fma.name, fma.platform, fma.unique_identifier, fma.slug, `
+	var args []any
+
+	if teamID != nil {
+		stmt += teamFMATitlesJoin
+		args = []any{teamID, teamID}
+	} else {
+		stmt += `NULL software_title_id FROM fleet_maintained_apps fma`
+	}
+
+	stmt += ` WHERE fma.slug = ?`
+	args = append(args, slug)
+
+	var app fleet.MaintainedApp
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &app, stmt, args...); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("MaintainedApp"), "no matching maintained app found")
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "getting maintained app by slug")
+	}
+
+	return &app, nil
+}
+
 func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	stmt := `SELECT fma.id, fma.name, fma.platform, fma.slug, `
 	var args []any

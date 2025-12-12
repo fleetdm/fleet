@@ -56,11 +56,10 @@ ingress:
       paths:
         - path: /
           pathType: ImplementationSpecific
-  #tls: []
-  tls:
-    - secretName: chart-example-tls
-      hosts:
-        - chart-example.local
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious

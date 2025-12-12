@@ -169,6 +169,8 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 	p.GlobalRole = invite.GlobalRole.Ptr()
 	p.Teams = &invite.Teams
 	p.MFAEnabled = ptr.Bool(invite.MFAEnabled)
+	// Invite ID is only used as a uniq index to prevent a double invite acceptance race condition
+	p.InviteID = &invite.ID
 
 	user, err := svc.NewUser(ctx, p)
 	if err != nil {
@@ -935,7 +937,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 			AssetURL: getAssetURL(),
 		},
 	}
-	return svc.mailService.SendEmail(changeEmail)
+	return svc.mailService.SendEmail(ctx, changeEmail)
 }
 
 // saves user in datastore.
@@ -1200,7 +1202,7 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		},
 	}
 
-	err = svc.mailService.SendEmail(resetEmail)
+	err = svc.mailService.SendEmail(ctx, resetEmail)
 	if err != nil {
 		level.Error(svc.logger).Log("err", err, "msg", "failed to send password reset request email")
 	}

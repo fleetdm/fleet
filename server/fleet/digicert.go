@@ -6,12 +6,14 @@ import (
 )
 
 type DigiCertCertificate struct {
-	PfxData       []byte
-	Password      string
-	NotValidAfter time.Time
+	PfxData        []byte
+	Password       string
+	NotValidBefore time.Time
+	NotValidAfter  time.Time
+	SerialNumber   string
 }
 
 type DigiCertService interface {
-	VerifyProfileID(ctx context.Context, config DigiCertIntegration) error
-	GetCertificate(ctx context.Context, config DigiCertIntegration) (*DigiCertCertificate, error)
+	VerifyProfileID(ctx context.Context, config DigiCertCA) error
+	GetCertificate(ctx context.Context, config DigiCertCA) (*DigiCertCertificate, error)
 }

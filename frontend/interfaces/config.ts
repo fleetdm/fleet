@@ -15,6 +15,7 @@ export interface ILicense {
   organization: string;
   // Whether the Fleet instance is managed by FleetDM
   managed_cloud: boolean;
+  allow_disable_telemetry: boolean;
 }
 
 export interface IEndUserAuthentication {
@@ -40,12 +41,14 @@ interface ICustomSetting {
 export interface IAppleDeviceUpdates {
   minimum_version: string;
   deadline: string;
+  update_new_hosts?: boolean;
 }
 
 export interface IMdmConfig {
   /** Update this URL if you're self-hosting Fleet and you want your hosts to talk to a different URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.) */
   apple_server_url: string;
   enable_disk_encryption: boolean;
+  windows_require_bitlocker_pin: boolean;
   /** `enabled_and_configured` only tells us if Apples MDM has been enabled and
   configured correctly. The naming is slightly confusing but at one point we
   only supported apple mdm, so thats why it's name the way it is. */
@@ -59,6 +62,7 @@ export interface IMdmConfig {
   apple_bm_terms_expired: boolean;
   apple_bm_enabled_and_configured: boolean;
   windows_enabled_and_configured: boolean;
+  enable_turn_on_windows_mdm_manually: boolean;
   windows_migration_enabled: boolean;
   android_enabled_and_configured: boolean;
   end_user_authentication: IEndUserAuthentication;
@@ -74,6 +78,8 @@ export interface IMdmConfig {
     enable_end_user_authentication: boolean;
     macos_setup_assistant: string | null;
     enable_release_device_manually: boolean | null;
+    manual_agent_install: boolean | null;
+    require_all_software_macos: boolean | null;
   };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
@@ -86,7 +92,10 @@ export interface IMdmConfig {
 // values if the device is assigned to a team, e.g., features.enable_software_inventory reflects the
 // team config, if applicable, rather than the global config.
 export interface IDeviceGlobalConfig {
-  mdm: Pick<IMdmConfig, "enabled_and_configured">;
+  mdm: {
+    enabled_and_configured: boolean;
+    require_all_software_macos: boolean | null;
+  };
   features: Pick<IConfigFeatures, "enable_software_inventory">;
 }
 
@@ -110,7 +119,6 @@ export interface IConfigServerSettings {
 }
 
 export interface IConfig {
-  android_enabled: boolean; // TODO: feature flag, remove when feature releases.
   org_info: {
     org_name: string;
     org_logo_url: string;
@@ -134,7 +142,7 @@ export interface IConfig {
     verify_ssl_certs: boolean;
     enable_start_tls: boolean;
   };
-  sso_settings: {
+  sso_settings?: {
     entity_id: string;
     issuer_uri: string;
     idp_image_url: string;
@@ -145,12 +153,19 @@ export interface IConfig {
     enable_sso_idp_login: boolean;
     enable_jit_provisioning: boolean;
     enable_jit_role_sync: boolean;
+    sso_server_url?: string;
   };
   // configuration details for conditional access. For enabled/disabled status per team, see
   // subfields under `integrations`
   conditional_access?: {
+    // Microsoft Entra
     microsoft_entra_tenant_id: string;
     microsoft_entra_connection_configured: boolean;
+    // Okta
+    okta_idp_id: string;
+    okta_assertion_consumer_service_url: string;
+    okta_audience_uri: string;
+    okta_certificate: string;
   };
   host_expiry_settings: {
     host_expiry_enabled: boolean;
@@ -179,32 +194,7 @@ export interface IConfig {
   };
   webhook_settings: IWebhookSettings;
   integrations: IGlobalIntegrations;
-  logging: {
-    debug: boolean;
-    json: boolean;
-    result: {
-      plugin: string;
-      config: {
-        status_log_file: string;
-        result_log_file: string;
-        enable_log_rotation: boolean;
-        enable_log_compression: boolean;
-      };
-    };
-    status: {
-      plugin: string;
-      config: {
-        status_log_file: string;
-        result_log_file: string;
-        enable_log_rotation: boolean;
-        enable_log_compression: boolean;
-      };
-    };
-    audit?: {
-      plugin: string;
-      config: any;
-    };
-  };
+  logging: ILoggingConfig;
   email?: {
     backend: string;
     config: {
@@ -214,6 +204,11 @@ export interface IConfig {
   };
   mdm: IMdmConfig;
   gitops: IGitOpsModeConfig;
+  partnerships?: IFleetPartnerships;
+}
+
+interface IFleetPartnerships {
+  enable_primo: boolean;
 }
 
 export interface IWebhookSettings {
@@ -227,6 +222,46 @@ export type IAutomationsConfig = Pick<
   IConfig,
   "webhook_settings" | "integrations"
 >;
+
+export type LogDestination =
+  | "filesystem"
+  | "firehose"
+  | "kinesis"
+  | "lambda"
+  | "pubsub"
+  | "kafta"
+  | "stdout"
+  | "webhook"
+  | "";
+
+export interface ILoggingConfig {
+  debug: boolean;
+  json: boolean;
+  result: {
+    plugin: LogDestination;
+    config?: {
+      status_log_file: string;
+      result_log_file: string;
+      enable_log_rotation: boolean;
+      enable_log_compression: boolean;
+      status_url?: string;
+      result_url?: string;
+    };
+  };
+  status?: {
+    plugin: string;
+    config: {
+      status_log_file: string;
+      result_log_file: string;
+      enable_log_rotation: boolean;
+      enable_log_compression: boolean;
+    };
+  };
+  audit?: {
+    plugin: string;
+    config: any;
+  };
+}
 
 export const CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS = 30;
 

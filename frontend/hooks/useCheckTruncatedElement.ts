@@ -9,17 +9,27 @@ export const useCheckTruncatedElement = <T extends HTMLElement>(
 ) => {
   const [isTruncated, setIsTruncated] = useState(false);
 
+  const updateIsTruncated = (element: HTMLElement) => {
+    const { scrollWidth, clientWidth } = element;
+    setIsTruncated(scrollWidth > clientWidth);
+  };
+
   useLayoutEffect(() => {
+    const resizeObserver = new ResizeObserver((entries) => {
+      entries.forEach((entry) => {
+        updateIsTruncated(entry.target as HTMLElement);
+      });
+    });
     const element = ref.current;
-    function updateIsTruncated() {
-      if (element) {
-        const { scrollWidth, clientWidth } = element;
-        setIsTruncated(scrollWidth > clientWidth);
-      }
+    if (element) {
+      updateIsTruncated(element);
+      resizeObserver.observe(ref.current as HTMLElement);
     }
-    window.addEventListener("resize", updateIsTruncated);
-    updateIsTruncated();
-    return () => window.removeEventListener("resize", updateIsTruncated);
+    return () => {
+      if (element) {
+        resizeObserver.unobserve(element);
+      }
+    };
   }, [ref]);
 
   return isTruncated;

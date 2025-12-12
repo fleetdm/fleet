@@ -78,10 +78,11 @@ func TestVPPAuth(t *testing.T) {
 				return false, nil
 			}
 			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-				_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+				_ sqlx.QueryerContext,
+			) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, nil
 			}
-			ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+			ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 				return &fleet.Team{ID: 1}, nil
 			}
 			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
@@ -97,7 +98,7 @@ func TestVPPAuth(t *testing.T) {
 				checkAuthErr(t, tt.shouldFailRead, err)
 			}
 
-			err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "123", Platform: fleet.IOSPlatform}})
+			_, err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "123", Platform: fleet.IOSPlatform}})
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else {

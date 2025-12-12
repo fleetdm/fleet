@@ -2,8 +2,9 @@ import React from "react";
 import classnames from "classnames";
 
 interface ITabNavProps {
-  children: React.ReactChild | React.ReactChild[];
+  children: React.ReactNode;
   className?: string;
+  secondary?: boolean;
 }
 
 /*
@@ -12,8 +13,14 @@ interface ITabNavProps {
  */
 const baseClass = "tab-nav";
 
-const TabNav = ({ children, className }: ITabNavProps): JSX.Element => {
-  const classNames = classnames(baseClass, className);
+const TabNav = ({
+  children,
+  className,
+  secondary = false,
+}: ITabNavProps): JSX.Element => {
+  const classNames = classnames(baseClass, className, {
+    [`${baseClass}--secondary`]: secondary,
+  });
 
   return <div className={classNames}>{children}</div>;
 };

@@ -1,0 +1,175 @@
+Time: 2025-06-18 20:23:40 +0000
+
+Device Configuration:
+ {
+  "_deviceEncryptionKeyData" : "<REDACTED>",
+  "_deviceSigningKeyData" : "<REDACTED>",
+  "allowDeviceIdentifiersInAttestation" : false,
+  "authGracePeriodStart" : "2025-06-18T13:10:46Z",
+  "authorizationEnabled" : false,
+  "created" : "2025-06-18T20:23:40Z",
+  "createUsersEnabled" : false,
+  "deviceSigningCertificate" : "MIIDNzCCAh-gAwIBAgIQcdJMRMM2o4xHxrDE4zP1tzANBgkqhkiG9w0BAQsFADB4MXYwEQYKCZImiZPyLGQBGRYDbmV0MBUGCgmSJomT8ixkARkWB3dpbmRvd3MwHQYDVQQDExZNUy1Pcmdhbml6YXRpb24tQWNjZXNzMCsGA1UECxMkODJkYmFjYTQtM2U4MS00NmNhLTljNzMtMDk1MGMxZWFjYTk3MB4XDTI1MDYxODEyNDIyNloXDTM1MDYxODEzMTIyNlowLzEtMCsGA1UEAxMkMzRiMWJhOWEtM2IyZC00YzZjLWFiNGItNjE1ZjRiMTQzZWFiMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE7CIbedoCo3XPErh3BOXJBajYifimV1fEt9aSWEYnrnKW5nB6Ynr38taXo8ZeiRB2uN7fJrqtqo-Vd2nY8G8VNqOB0DCBzTAMBgNVHRMBAf8EAjAAMBYGA1UdJQEB_wQMMAoGCCsGAQUFBwMCMA4GA1UdDwEB_wQEAwIHgDAiBgsqhkiG9xQBBYIcAgQTBIEQmrqxNC07bEyrS2FfSxQ-qzAiBgsqhkiG9xQBBYIcAwQTBIEQMnxB-ihBNUyHp4spMP1LXTAiBgsqhkiG9xQBBYIcBQQTBIEQ3hS3ryz08kGAL2WykR3TRjAUBgsqhkiG9xQBBYIcCAQFBIECTkEwEwYLKoZIhvcUAQWCHAcEBASBATEwDQYJKoZIhvcNAQELBQADggEBAD3BG_COLS5iniJ0-pir1snO5W7JHVKKP97GLEtAbvvpJ1eG7lI5zQKZGqGyxHquq1p8rnCSf-cxIgl-OufMC6yRvO0M4yztd1X6DG4LZUZlV39LW8SM-Ag_08CBpYRAZuYPks5DY-VgF8zXEfTfvrJIjGcd3Vhd3nH0wzyI-OcC12qV7dC2PKP5B3ZCLmUUOgQ0giCBXO1LhW397HOewrnk-0B5n25KBLK7WYBG5qx9eTm2U7mMMHs93--VsIDjDkgBYd5EJPHylQDG_pkCdYDTDOfL9wWrAUiOu3pKi4yAuYNKqC2h06sg6xDomoVuDoGWhLdzoTpcmdzBYjPAutg",
+  "encryptionAlgorithm" : "ECDHE-A256GCM",
+  "extensionIdentifier" : "com.microsoft.CompanyPortalMac.ssoextension",
+  "fileVaultPolicy" : "None (0)",
+  "lastEncryptionKeyChange" : "2025-06-18T13:10:46Z",
+  "loginFrequency" : 64800,
+  "loginPolicy" : "None (0)",
+  "loginType" : "POLoginTypeUserSecureEnclaveKey (2)",
+  "newUserAuthorizationMode" : "None",
+  "offlineGracePeriod" : "0 hours",
+  "pendingEncryptionAlgorithm" : "none",
+  "pendingSigningAlgorithm" : "none",
+  "protocolVersion" : 1,
+  "registrationCompleted" : true,
+  "requireAuthGracePeriod" : "0 hours",
+  "sdkVersionString" : 0,
+  "sharedDeviceKeys" : true,
+  "signingAlgorithm" : "ES256",
+  "tokenToUserMapping" : {
+    "AccountName" : "preferred_username",
+    "FullName" : "name"
+  },
+  "unlockPolicy" : "None (0)",
+  "userAuthorizationMode" : "None",
+  "version" : 1
+}
+
+Login Configuration:
+ {
+  "accountDisplayName" : "Microsoft Entra",
+  "additionalScopes" : "aza urn:aad:tb:update:prt/.default profile offline_access openid",
+  "audience" : "login.microsoftonline.com",
+  "clientID" : "<REDACTED>",
+  "created" : "2025-06-18T20:23:40Z",
+  "customAssertionRequestHeaderClaims" : {
+    "typ" : "JWT",
+    "use" : "ngc"
+  },
+  "customKeyExchangeRequestBodyClaims" : {
+    "aud" : "https://login.microsoftonline.com/<REDACTED>/getkeydata"
+  },
+  "customKeyExchangeRequestHeaderClaims" : {
+    "typ" : "JWT"
+  },
+  "customKeyExchangeRequestValues" : {
+    "client_info" : "1",
+    "prt_protocol_version" : "4.0",
+    "tgt" : "true",
+    "x-client-brkrver" : "3.6.4",
+    "x-client-OS" : "15.5.0",
+    "x-client-SKU" : "MSAL.OSX",
+    "x-client-Ver" : "1.8.1"
+  },
+  "customKeyRequestBodyClaims" : {
+    "aud" : "https://login.microsoftonline.com/<REDACTED>/getkeydata"
+  },
+  "customKeyRequestHeaderClaims" : {
+    "typ" : "JWT"
+  },
+  "customKeyRequestValues" : {
+    "client_info" : "1",
+    "prt_protocol_version" : "4.0",
+    "tgt" : "true",
+    "x-client-brkrver" : "3.6.4",
+    "x-client-OS" : "15.5.0",
+    "x-client-SKU" : "MSAL.OSX",
+    "x-client-Ver" : "1.8.1"
+  },
+  "customLoginRequestHeaderClaims" : {
+    "typ" : "JWT"
+  },
+  "customLoginRequestValues" : {
+    "client_info" : "1",
+    "prt_protocol_version" : "4.0",
+    "tgt" : "true",
+    "x-client-brkrver" : "3.6.4",
+    "x-client-OS" : "15.5.0",
+    "x-client-SKU" : "MSAL.OSX",
+    "x-client-Ver" : "1.8.1"
+  },
+  "customNonceRequestValues" : {
+    "client_info" : "1",
+    "prt_protocol_version" : "4.0",
+    "tgt" : "true",
+    "x-client-brkrver" : "3.6.4",
+    "x-client-OS" : "15.5.0",
+    "x-client-SKU" : "MSAL.OSX",
+    "x-client-Ver" : "1.8.1"
+  },
+  "customRequestJWTParameterName" : "request",
+  "deviceContext" : "<REDACTED>",
+  "federationMexURLKeypath" : "federation_metadata_url",
+  "federationPredicate" : "account_type = 'Federated'",
+  "federationRequestURN" : "urn:federation:MicrosoftOnline",
+  "federationType" : 2,
+  "federationUserPreauthenticationURL" : "https://login.windows.net/common/UserRealm?api-version=1.0&checkForMicrosoftAccount=false",
+  "includePreviousRefreshTokenInLoginRequest" : true,
+  "invalidCredentialPredicate" : "error = 'invalid_grant' AND suberror != 'device_authentication_failed'",
+  "issuer" : "https://login.microsoftonline.com/<REDACTED>/v2.0",
+  "jwksEndpointURL" : "https://login.microsoftonline.com/<REDACTED>/discovery/v2.0/keys",
+  "kerberosTicketMappings" : [
+    {
+      "clientNameKeyName" : "cn",
+      "encryptionKeyTypeKeyName" : "keyType",
+      "messageBufferKeyName" : "messageBuffer",
+      "realmKeyName" : "realm",
+      "serviceNameKeyName" : "sn",
+      "sessionKeyKeyName" : "clientKey",
+      "ticketKeyPath" : "tgt_ad"
+    },
+    {
+      "clientNameKeyName" : "cn",
+      "encryptionKeyTypeKeyName" : "keyType",
+      "messageBufferKeyName" : "messageBuffer",
+      "realmKeyName" : "realm",
+      "serviceNameKeyName" : "sn",
+      "sessionKeyKeyName" : "clientKey",
+      "ticketKeyPath" : "tgt_cloud"
+    }
+  ],
+  "keyEndpointURL" : "https://login.microsoftonline.com/<REDACTED>/getkeydata",
+  "loginRequestEncryptionAlgorithm" : "ECDHE-A256GCM",
+  "nonceResponseKeypath" : "Nonce",
+  "previousRefreshTokenClaimName" : "previous_refresh_token",
+  "serverNonceClaimName" : "request_nonce",
+  "tokenEndpointURL" : "https://login.microsoftonline.com/<REDACTED>/oauth2/v2.0/token",
+  "uniqueIdentifierClaimName" : "oid",
+  "userSEPKeyBiometricPolicy" : "None (0)"
+}
+
+User Configuration:
+ {
+  "_sepKeyData" : "EOKfOXCpi9nQHsrm6EZtXXUiMJvabJeFmaiNoBHyuZE=",
+  "created" : "2025-06-18T20:23:40Z",
+  "kerberosStatus" : [
+    {
+      "cacheName" : "C0379BAF-5FE3-4002-9B66-F95205EE7BF6",
+      "exchangeRequired" : false,
+      "failedToConnect" : false,
+      "importSuccessful" : true,
+      "realm" : "KERBEROS.MICROSOFTONLINE.COM",
+      "ticketKeyPath" : "tgt_cloud",
+      "upn" : "foobar\\@contoso.onmicrosoft.com@KERBEROS.MICROSOFTONLINE.COM"
+    }
+  ],
+  "lastLoginDate" : "2025-06-18T20:22:55Z",
+  "loginType" : "POLoginTypeUserSecureEnclaveKey (2)",
+  "pendingSigningAlgorithm" : "none",
+  "signingAlgorithm" : "ES256",
+  "state" : "POUserStateNormal (0)",
+  "uniqueIdentifier" : "<REDACTED>",
+  "userLoginConfiguration" : {
+    "created" : "2025-06-18T20:23:40Z",
+    "loginUserName" : "f***@contoso.onmicrosoft.com"
+  },
+  "version" : 1
+}
+
+SSO Tokens:
+Received:
+2025-06-18T20:22:55Z
+Expiration:
+2025-07-02T20:22:54Z (Not Expired)
+

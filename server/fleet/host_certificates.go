@@ -8,6 +8,24 @@ import (
 	"time"
 )
 
+type HostCertificateSource string
+
+const (
+	SystemHostCertificate HostCertificateSource = "system"
+	UserHostCertificate   HostCertificateSource = "user"
+)
+
+// IsValid returns true if the current host certificate source value is
+// accepted, otherwise false.
+func (s HostCertificateSource) IsValid() bool {
+	switch s {
+	case SystemHostCertificate, UserHostCertificate:
+		return true
+	default:
+		return false
+	}
+}
+
 // HostCertificateRecord is the database model for a host certificate.
 type HostCertificateRecord struct {
 	ID     uint `json:"-" db:"id"`
@@ -42,6 +60,9 @@ type HostCertificateRecord struct {
 	IssuerOrganization        string `json:"-" db:"issuer_org"`
 	IssuerOrganizationalUnit  string `json:"-" db:"issuer_org_unit"`
 	IssuerCommonName          string `json:"-" db:"issuer_common_name"`
+
+	Source   HostCertificateSource `json:"-" db:"source"`
+	Username string                `json:"-" db:"username"` // username that owns the certificate, only if source == 'user'
 }
 
 func NewHostCertificateRecord(
@@ -69,16 +90,18 @@ func NewHostCertificateRecord(
 		// describes this as "Certificate key usage and extended key usage":
 		// https://github.com/osquery/osquery/blob/16bb01508eeca6d663b6d4f7e15034306be0fc3d/osquery/tables/system/posix/openssl_utils.cpp#L166
 		KeyUsage:                  "",
-		Serial:                    cert.SerialNumber.String(),
+		Serial:                    cert.SerialNumber.Text(16),
 		SigningAlgorithm:          cert.SignatureAlgorithm.String(),
 		SubjectCommonName:         cert.Subject.CommonName,
-		SubjectCountry:            firstOrEmpty(cert.Subject.Country),            // TODO: confirm methodology
-		SubjectOrganization:       firstOrEmpty(cert.Subject.Organization),       // TODO: confirm methodology
-		SubjectOrganizationalUnit: firstOrEmpty(cert.Subject.OrganizationalUnit), // TODO: confirm methodology
+		SubjectCountry:            firstOrEmpty(cert.Subject.Country),                    // TODO: confirm methodology
+		SubjectOrganization:       firstOrEmpty(cert.Subject.Organization),               // TODO: confirm methodology
+		SubjectOrganizationalUnit: strings.Join(cert.Subject.OrganizationalUnit, "+OU="), // NOTE: concatenation approach matches what we've observed osquery to do when there are multiple OU values
 		IssuerCommonName:          cert.Issuer.CommonName,
 		IssuerCountry:             firstOrEmpty(cert.Issuer.Country),            // TODO: confirm methodology
 		IssuerOrganization:        firstOrEmpty(cert.Issuer.Organization),       // TODO: confirm methodology
 		IssuerOrganizationalUnit:  firstOrEmpty(cert.Issuer.OrganizationalUnit), // TODO: confirm methodology
+		Source:                    SystemHostCertificate,                        // default to system host certificate, always 'system' for certs from MDM command for now
+		Username:                  "",                                           // always empty since this is a system certificate
 	}
 }
 
@@ -108,6 +131,8 @@ func (r *HostCertificateRecord) ToPayload() *HostCertificatePayload {
 		KeyUsage:             r.KeyUsage,
 		Serial:               r.Serial,
 		SigningAlgorithm:     r.SigningAlgorithm,
+		Source:               r.Source,
+		Username:             r.Username,
 		Subject:              subject,
 		Issuer:               issuer,
 	}
@@ -115,16 +140,18 @@ func (r *HostCertificateRecord) ToPayload() *HostCertificatePayload {
 
 // HostCertificatePayload is the JSON model for API endpoints that return host certificates.
 type HostCertificatePayload struct {
-	ID                   uint      `json:"id"`
-	NotValidAfter        time.Time `json:"not_valid_after"`
-	NotValidBefore       time.Time `json:"not_valid_before"`
-	CertificateAuthority bool      `json:"certificate_authority"`
-	CommonName           string    `json:"common_name"`
-	KeyAlgorithm         string    `json:"key_algorithm"`
-	KeyStrength          int       `json:"key_strength"`
-	KeyUsage             string    `json:"key_usage"`
-	Serial               string    `json:"serial"`
-	SigningAlgorithm     string    `json:"signing_algorithm"`
+	ID                   uint                  `json:"id"`
+	NotValidAfter        time.Time             `json:"not_valid_after"`
+	NotValidBefore       time.Time             `json:"not_valid_before"`
+	CertificateAuthority bool                  `json:"certificate_authority"`
+	CommonName           string                `json:"common_name"`
+	KeyAlgorithm         string                `json:"key_algorithm"`
+	KeyStrength          int                   `json:"key_strength"`
+	KeyUsage             string                `json:"key_usage"`
+	Serial               string                `json:"serial"`
+	SigningAlgorithm     string                `json:"signing_algorithm"`
+	Source               HostCertificateSource `json:"source"`
+	Username             string                `json:"username"`
 
 	Subject *HostCertificateNameDetails `json:"subject,omitempty"`
 	Issuer  *HostCertificateNameDetails `json:"issuer,omitempty"`
@@ -186,31 +213,93 @@ type MDMAppleErrorChainItem struct {
 // "/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM".
 //
 // See https://osquery.io/schema/5.15.0/#certificates
-func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNameDetails, error) {
-	str = strings.TrimSpace(str)
-	str = strings.Trim(str, "/")
-	parts := strings.Split(str, "/")
+func ExtractDetailsFromOsqueryDistinguishedName(hostPlatform string, dn string) (*HostCertificateNameDetails, error) {
+	switch {
+	case strings.EqualFold(hostPlatform, "windows"):
+		return parseWindowsDN(dn)
+	case strings.EqualFold(hostPlatform, "darwin"), strings.EqualFold(hostPlatform, "macos"):
+		return parseDarwinDN(dn)
+	default:
+		// usage error for unsupported host platforms to alert callers and ensure that
+		// platform-specific considerations are handled explicitly
+		return nil, fmt.Errorf("host platform not supported for osquery distinguished name parsing: %s %s", hostPlatform, dn)
+	}
+}
 
-	var details HostCertificateNameDetails
-	for _, part := range parts {
-		kv := strings.Split(part, "=")
-		if len(kv) != 2 {
-			return nil, fmt.Errorf("invalid distinguished name, wrong key value pair format: %s", str)
-		}
+// parseDarwinDN takes a distinguished name string and returns the country,
+// organization, and organizational unit. It assumes provided string follows the formatting used by
+// osquery `certificates` table[1] for macOS hosts, which appears to follow the style used by openSSL for `-subj`
+// values). Key-value pairs are assumed to be separated by forward slashes, for example:
+// "/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM".
+//
+// See https://osquery.io/schema/5.15.0/#certificates
+func parseDarwinDN(dn string) (*HostCertificateNameDetails, error) {
+	dn = strings.TrimSpace(dn)
+	dn = strings.Trim(dn, "/")
 
-		switch strings.ToUpper(kv[0]) {
-		case "C":
-			details.Country = strings.Trim(kv[1], " ")
-		case "O":
-			details.Organization = strings.Trim(kv[1], " ")
-		case "OU":
-			details.OrganizationalUnit = strings.Trim(kv[1], " ")
-		case "CN":
-			details.CommonName = strings.Trim(kv[1], " ")
-		}
+	dn = strings.ReplaceAll(dn, `\/`, `<<SLASH>>`) // Replace with our own "safe" sequence
+	parts := strings.Split(dn, "/")
+
+	if len(parts) == 1 {
+		// Try to split into parts based on +
+		parts = strings.Split(dn, "+")
 	}
 
+	ouParts := []string{}
+	var details HostCertificateNameDetails
+	for _, part := range parts {
+		key, value, found := strings.Cut(part, "=")
+
+		if !found {
+			return nil, fmt.Errorf("invalid distinguished name, wrong key value pair format: %s", dn)
+		}
+
+		value = strings.ReplaceAll(strings.Trim(value, " "), `<<SLASH>>`, `/`) // Replace our "safe" sequence with forward slash
+
+		switch strings.ToUpper(key) {
+		case "C":
+			details.Country = strings.Trim(value, " ")
+		case "O":
+			details.Organization = strings.Trim(value, " ")
+		case "OU":
+			// osquery is inconsistent in how it reports certs with multiple OUs; sometimes it
+			// concatenates them all joined by `+OU=` separator within the same `/` delimited
+			// string, other times it provides multiple `/` delimited strings that each contain
+			// distinct OU values. For example, compare the following two lines:
+			//   /OU=SomeValue/OU=fleet-a3d5d6f4c-819e-4159-9a42-0d6243a80ff8/CN=SomeName
+			//   /OU=SomeValue+OU=fleet-a0c039413-d0c7-4b1f-9488-b93c865351ac/CN=SomeName
+			//
+			// To handle both cases, we collect all OU values and join them with `+OU=` below.
+			// We should probably reconsider our approaches for normalization of cert data
+			// across the board.
+			// FIXME: How should this work with the edge case covered by PR 33152 (e.g., "+" separator above)?
+			ouParts = append(ouParts, strings.Trim(value, " "))
+		case "CN":
+			details.CommonName = strings.Trim(value, " ")
+		}
+	}
+	details.OrganizationalUnit = strings.Join(ouParts, "+OU=")
+
 	return &details, nil
+}
+
+// FIXME: parseWindowsDN takes a distinguished name string from a Windows host but does not parse it
+// because the format of the distinguished name as reported by osquery on Windows hosts is not
+// well-ordered. For now, it simply sets the provided string as the CommonName and leaves other fields
+// empty.
+//
+// To address this, we will likely need to modify the osquery certificates table. The issue is that
+// osquery on Windows reports only the values in a comma-separated list without corresponding keys
+// (instead of key-value pairs as on macOS, e.g., /C=US/O=Org/OU=Unit/CN=Name),  When a value is missing
+// (country, for example), the list shifts left such that the position of the values is not
+// consistent, making it very difficult to map which value is which.
+func parseWindowsDN(dn string) (*HostCertificateNameDetails, error) {
+	return &HostCertificateNameDetails{
+		CommonName:         dn,
+		Country:            "",
+		Organization:       "",
+		OrganizationalUnit: "",
+	}, nil
 }
 
 func firstOrEmpty(s []string) string {

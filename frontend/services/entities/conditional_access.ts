@@ -7,6 +7,7 @@ export type TriggerMSConditionalStatusResponse = {
 };
 export type ConfirmMSConditionalAccessResponse = {
   configuration_completed: boolean;
+  setup_error: string;
 };
 
 const conditionalAccessService = {
@@ -22,6 +23,22 @@ const conditionalAccessService = {
   },
   deleteMicrosoftConditionalAccess: () => {
     return sendRequest("DELETE", endpoints.CONDITIONAL_ACCESS_MICROSOFT);
+  },
+  getIdpAppleProfile: (): Promise<string> => {
+    return sendRequest(
+      "GET",
+      endpoints.CONDITIONAL_ACCESS_IDP_APPLE_PROFILE,
+      undefined,
+      "text"
+    );
+  },
+  getIdpSigningCert: (): Promise<Blob> => {
+    return sendRequest(
+      "GET",
+      endpoints.CONDITIONAL_ACCESS_IDP_SIGNING_CERT,
+      undefined,
+      "blob"
+    );
   },
 };
 

@@ -34,7 +34,7 @@ import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
-import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 
 import generateTitlesTableConfig from "./SoftwareTitlesTableConfig";
 import generateVersionsTableConfig from "./SoftwareVersionsTableConfig";
@@ -281,8 +281,9 @@ const SoftwareTable = ({
   };
 
   const renderCustomControls = () => {
-    // Hidden when viewing versions table
-    if (showVersions) {
+    // Hidden when viewing versions table or viewing "All teams"
+    // or Fleet Free
+    if (showVersions || teamId === undefined) {
       return null;
     }
 
@@ -316,8 +317,8 @@ const SoftwareTable = ({
         tipContent={vulnFilterDetails.tooltipText}
         disableTooltip={!hasVulnFilters}
       >
-        <Button variant="text-link" onClick={onAddFiltersClick}>
-          <Icon name="filter" color="core-fleet-blue" />
+        <Button variant="inverse" onClick={onAddFiltersClick}>
+          <Icon name="filter" />
           <span>{vulnFilterDetails.buttonText}</span>
         </Button>
       </TooltipWrapper>

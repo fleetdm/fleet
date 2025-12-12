@@ -18,10 +18,10 @@ org_settings:
     end_user_authentication:
       entity_id: dogfood-eula.fleetdm.com
       idp_name: Google Workspace
-      issuer_uri: $DOGFOOD_SSO_ISSUER_URI
       metadata: |-
         $DOGFOOD_END_USER_SSO_METADATA
       metadata_url: ""
+    end_user_license_agreement: ../it-and-security/lib/macos/misc/eula.pdf
     apple_business_manager:
     - organization_name: Fleet Device Management Inc.
       macos_team: "💻 Workstations" 
@@ -34,8 +34,9 @@ org_settings:
       - "💻🐣 Workstations (canary)"
       - "📱🏢 Company-owned mobile devices"
       - "📱🔐 Personal mobile devices"
+      - "🧪 Testing & QA"
   org_info:
-    contact_url: https://fleetdm.com/company/contact
+    contact_url: https://fleetdm.slack.com/archives/C071NNMSP2R
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: Fleet
@@ -53,13 +54,11 @@ org_settings:
     server_url: https://dogfood.fleetdm.com
   sso_settings:
     enable_jit_provisioning: true
-    enable_jit_role_sync: false
     enable_sso: true
-    enable_sso_idp_login: false
+    enable_sso_idp_login: true
     entity_id: dogfood.fleetdm.com
     idp_image_url: ""
     idp_name: Google Workspace
-    issuer_uri: $DOGFOOD_SSO_ISSUER_URI
     metadata: |-
       $DOGFOOD_SSO_METADATA
     metadata_url: ""
@@ -88,6 +87,7 @@ queries:
   - path: ./lib/all/queries/collect-operating-system-information.yml
   - path: ./lib/all/queries/collect-known-vulnerable-chrome-extensions.yml
   - path: ./lib/macos/queries/detect-apns-certificate.yml
+  - path: ./lib/macos/queries/collect-macos-compatibility-data.yml
 controls: 
   enable_disk_encryption: true
   macos_migration:
@@ -104,3 +104,11 @@ labels:
   - path: ./lib/all/labels/virtual-machines.yml
   - path: ./lib/all/labels/santa-test-devices.yml
   - path: ./lib/all/labels/x86-based-windows-hosts.yml
+  - path: ./lib/all/labels/apple-silicon-macos-hosts.yml
+  - path: ./lib/all/labels/keynote-installed.yml
+  - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
+  - path: ./lib/all/labels/team-g-mdm.yml
+  - path: ./lib/all/labels/team-g-software.yml
+  - path: ./lib/all/labels/conditional-access-test-group.yml
+  - path: ./lib/all/labels/nudge-test-devices.yml
+  - path: ./lib/all/labels/macs-with-microsoft-autoupdate-installed.yml

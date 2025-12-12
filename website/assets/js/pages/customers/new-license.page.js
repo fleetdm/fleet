@@ -44,28 +44,6 @@ parasails.registerPage('new-license', {
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
     if(window.location.hash) {
-      if(window.analytics !== undefined) {
-        if(window.location.hash === '#signup') {
-          analytics.identify(this.me.id, {
-            email: this.me.emailAddress,
-            firstName: this.me.firstName,
-            lastName: this.me.lastName,
-            company: this.me.organization,
-            primaryBuyingSituation: this.me.primaryBuyingSituation,
-            psychologicalStage: this.me.psychologicalStage,
-          });
-          analytics.track('fleet_website__sign_up');
-        } else if(window.location.hash === '#login') {
-          analytics.identify(this.me.id, {
-            email: this.me.emailAddress,
-            firstName: this.me.firstName,
-            lastName: this.me.lastName,
-            company: this.me.organization,
-            primaryBuyingSituation: this.me.primaryBuyingSituation,
-            psychologicalStage: this.me.psychologicalStage,
-          });
-        }
-      }
       window.location.hash = '';
     }
   },
@@ -107,7 +85,7 @@ parasails.registerPage('new-license', {
       this.showQuotedPrice = true;
       this.quotedPrice = quote.quotedPrice;
       this.numberOfHostsQuoted = quote.numberOfHosts;
-      if(quote.numberOfHosts < 300) {
+      if(quote.numberOfHosts < 700) {
         this.formData.quoteId = quote.id;
         this.showBillingForm = true;
       }

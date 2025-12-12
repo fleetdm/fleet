@@ -21,7 +21,7 @@ func Up_20210802135933(tx *sql.Tx) error {
 			PRIMARY KEY (id),
 			FOREIGN KEY fk_software_cve_cpe_id (cpe_id) REFERENCES software_cpe(id) ON DELETE CASCADE,
 			UNIQUE KEY unique_cpe_cve(cpe_id, cve) 
-		)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`
 	if _, err := tx.Exec(sql); err != nil {
 		return errors.Wrap(err, "create cve")

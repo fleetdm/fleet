@@ -3,5 +3,7 @@
   "slug": "zoom/darwin",
   "unique_identifier": "us.zoom.xos",
   "token": "zoom-for-it-admins",
-  "installer_format": "pkg"
+  "installer_format": "pkg",
+  "default_categories": ["Communication"],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/zoom_install.sh"
 }

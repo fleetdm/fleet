@@ -32,7 +32,10 @@ func TestTeamAuth(t *testing.T) {
 	) error {
 		return nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
+	}
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{}, nil
 	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -71,6 +74,9 @@ func TestTeamAuth(t *testing.T) {
 		default:
 			return &fleet.Team{ID: 2}, nil
 		}
+	}
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return nil, &notFoundError{}
 	}
 
 	testCases := []struct {
@@ -285,6 +291,9 @@ func TestApplyTeamSpecs(t *testing.T) {
 					act := activity.(fleet.ActivityTypeAppliedSpecTeam)
 					require.Len(t, act.Teams, 1)
 					return nil
+				}
+				ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+					return nil, &notFoundError{}
 				}
 
 				_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}}, fleet.ApplyTeamSpecOptions{})

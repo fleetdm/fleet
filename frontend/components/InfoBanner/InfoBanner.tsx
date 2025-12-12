@@ -20,7 +20,7 @@ export interface IInfoBannerProps {
   cta?: JSX.Element;
   /** closable and link are mutually exclusive */
   closable?: boolean;
-  icon?: IconNames;
+  icon?: IconNames; // TODO: This is unused but several banners have icons within children that can be refactored to use this for consistent styling
 }
 
 const InfoBanner = ({
@@ -52,7 +52,11 @@ const InfoBanner = ({
         <div className={`${baseClass}__cta`}>
           {cta}
           {closable && (
-            <Button variant="unstyled" onClick={() => setHideBanner(true)}>
+            <Button
+              variant="icon"
+              onClick={() => setHideBanner(true)}
+              iconStroke
+            >
               <Icon
                 name="close"
                 color="core-fleet-black"

@@ -7,28 +7,33 @@ import { getErrorReason } from "interfaces/errors";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import InfoBanner from "components/InfoBanner";
 
 const baseClass = "delete-software-modal";
 
 const DELETE_SW_USED_BY_POLICY_ERROR_MSG =
   "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again.";
 const DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG =
-  "Couldn't delete. This software is installed when new Macs boot. Please remove software in Controls > Setup experience and try again.";
+  "Couldn't delete. This software is installed during new host setup. Please remove software in Controls > Setup experience and try again.";
 
 interface IDeleteSoftwareModalProps {
   softwareId: number;
   teamId: number;
-  softwareInstallerName?: string;
+  softwareTitleName?: string;
+  softwareDisplayName?: string;
   onExit: () => void;
   onSuccess: () => void;
+  gitOpsModeEnabled?: boolean;
 }
 
 const DeleteSoftwareModal = ({
   softwareId,
   teamId,
-  softwareInstallerName,
+  softwareTitleName,
+  softwareDisplayName,
   onExit,
   onSuccess,
+  gitOpsModeEnabled,
 }: IDeleteSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -61,22 +66,31 @@ const DeleteSoftwareModal = ({
       isContentDisabled={isDeleting}
     >
       <>
+        {gitOpsModeEnabled && (
+          <InfoBanner className={`${baseClass}__gitops-warning`}>
+            You are currently in GitOps mode. If the package is defined in
+            GitOps, it will reappear when GitOps runs.
+          </InfoBanner>
+        )}
         <p>
-          Software won&apos;t be uninstalled from existing hosts, but any
-          pending installs and uninstalls{" "}
-          {softwareInstallerName ? (
-            <>
-              for <b> {softwareInstallerName}</b>{" "}
-            </>
-          ) : (
-            ""
-          )}
-          will be canceled.
+          Are you sure you want to delete{" "}
+          <strong>{softwareDisplayName || softwareTitleName}</strong>?
         </p>
-        <p>
-          Installs or uninstalls currently running on a host will still
-          complete, but results won&apos;t appear in Fleet.
-        </p>
+        <ul>
+          <li>
+            Software won&apos;t be uninstalled from existing hosts, but any
+            pending installs and uninstalls will be canceled.
+          </li>{" "}
+          <li>
+            Installs or uninstalls currently running on a host will still
+            complete, but results won&apos;t appear in Fleet.
+          </li>
+          <li>
+            Installed software will appear as{" "}
+            <strong>{softwareTitleName}</strong> in software inventories and
+            will use the default icon.
+          </li>
+        </ul>
         <p>You cannot undo this action.</p>
         <div className="modal-cta-wrap">
           <Button

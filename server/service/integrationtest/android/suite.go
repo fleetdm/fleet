@@ -10,27 +10,32 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
 type Suite struct {
 	integrationtest.BaseSuite
-	AndroidProxy *android_mock.Proxy
+	AndroidProxy *android_mock.Client
 }
 
 func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 	ds, redisPool, fleetCfg, fleetSvc, ctx := integrationtest.SetUpMySQLAndRedisAndService(t, uniqueTestName)
 	logger := log.NewLogfmtLogger(os.Stdout)
-	proxy := android_mock.Proxy{}
+	proxy := android_mock.Client{}
 	proxy.InitCommonMocks()
-	androidSvc, err := android_service.NewServiceWithProxy(
+	activityModule := activities.NewActivityModule(ds, logger)
+	androidSvc, err := android_service.NewServiceWithClient(
 		logger,
 		ds,
 		&proxy,
-		fleetSvc,
+		"test-private-key",
+		ds,
+		activityModule,
 	)
 	require.NoError(t, err)
+	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true
 	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierFree,

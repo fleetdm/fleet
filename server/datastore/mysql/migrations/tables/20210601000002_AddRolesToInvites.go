@@ -19,7 +19,7 @@ func Up_20210601000002(tx *sql.Tx) error {
 		PRIMARY KEY (invite_id, team_id),
 		FOREIGN KEY fk_invite_id (invite_id) REFERENCES invites (id) ON DELETE CASCADE ON UPDATE CASCADE,
 		FOREIGN KEY fk_team_id (team_id) REFERENCES teams (id) ON DELETE CASCADE ON UPDATE CASCADE
-	)`); err != nil {
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`); err != nil {
 		return errors.Wrap(err, "create invite_teams")
 	}
 

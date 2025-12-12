@@ -3,6 +3,8 @@ import { IConfig, ILicense, IMdmConfig } from "interfaces/config";
 const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_server_url: "",
   enable_disk_encryption: false,
+  windows_require_bitlocker_pin: false,
+  enable_turn_on_windows_mdm_manually: false,
   windows_enabled_and_configured: true,
   apple_bm_default_team: "Apples",
   apple_bm_enabled_and_configured: true,
@@ -27,9 +29,11 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   },
   macos_setup: {
     bootstrap_package: "",
+    manual_agent_install: false,
     enable_end_user_authentication: false,
     macos_setup_assistant: null,
     enable_release_device_manually: false,
+    require_all_software_macos: false,
   },
   macos_migration: {
     enable: false,
@@ -63,10 +67,10 @@ export const DEFAULT_LICENSE_MOCK: ILicense = {
   note: "",
   organization: "",
   managed_cloud: true,
+  allow_disable_telemetry: false,
 };
 
 const DEFAULT_CONFIG_MOCK: IConfig = {
-  android_enabled: false, // TODO: feature flag, remove when feature releases.
   org_info: {
     org_name: "fleet",
     org_logo_url: "",
@@ -112,6 +116,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   conditional_access: {
     microsoft_entra_tenant_id: "123",
     microsoft_entra_connection_configured: true,
+    okta_idp_id: "",
+    okta_assertion_consumer_service_url: "",
+    okta_audience_uri: "",
+    okta_certificate: "",
   },
   host_expiry_settings: {
     host_expiry_enabled: false,
@@ -150,7 +158,6 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     jira: [],
     zendesk: [],
     google_calendar: [],
-    ndes_scep_proxy: null,
   },
   logging: {
     debug: false,
@@ -208,7 +215,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   },
 };
 
-const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {
+export const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {
   return { ...DEFAULT_CONFIG_MOCK, ...overrides };
 };
 

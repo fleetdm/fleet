@@ -498,7 +498,7 @@ func TestScanVulnerabilities(t *testing.T) {
 	ds.DeleteSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
 		return int64(0), nil
 	}
-	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 		return nil
 	}
 	ds.OSVersionsFunc = func(
@@ -549,7 +549,7 @@ func TestScanVulnerabilities(t *testing.T) {
 		return []fleet.OperatingSystem{}, nil
 	}
 
-	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, src fleet.VulnerabilitySource, d time.Duration) error {
+	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, src fleet.VulnerabilitySource, t time.Time) error {
 		return nil
 	}
 
@@ -581,7 +581,7 @@ func TestScanVulnerabilities(t *testing.T) {
 
 	vulnPath := filepath.Join("..", "..", "server", "vulnerabilities", "testdata")
 
-	config := config.VulnerabilitiesConfig{
+	vulnsConfig := config.VulnerabilitiesConfig{
 		DatabasesPath:         vulnPath,
 		Periodicity:           10 * time.Second,
 		CurrentInstanceChecks: "auto",
@@ -589,7 +589,7 @@ func TestScanVulnerabilities(t *testing.T) {
 	}
 
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	err := scanVulnerabilities(ctx, ds, logger, &config, appConfig, vulnPath)
+	err := scanVulnerabilities(ctx, ds, logger, &vulnsConfig, appConfig, vulnPath)
 	require.NoError(t, err)
 
 	// ensure that nvd vulnerabilities are not deleted
@@ -685,7 +685,7 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 		return nil
 	}
 
-	ds.ReconcileSoftwareTitlesFunc = func(ctx context.Context) error {
+	ds.CleanupSoftwareTitlesFunc = func(ctx context.Context) error {
 		return nil
 	}
 
@@ -694,6 +694,10 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 	}
 
 	ds.UpdateHostIssuesVulnerabilitiesFunc = func(ctx context.Context) error {
+		return nil
+	}
+
+	ds.InsertKernelSoftwareMappingFunc = func(ctx context.Context) error {
 		return nil
 	}
 
@@ -1245,4 +1249,34 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 		require.True(t, ds.SetHostsDiskEncryptionKeyStatusFuncInvoked)
 		require.Equal(t, 2, calls)
 	})
+}
+
+func TestHostVitalsLabelMembershipJob(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+
+	// Make some mock labels
+	labels := []*fleet.Label{
+		{Name: "Dynamic Dave", ID: 1, Query: "query1", LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeDynamic},
+		{Name: "Manual Michel", ID: 2, LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeManual},
+		{Name: "Vital Vince", ID: 3, HostVitalsCriteria: ptr.RawMessage(json.RawMessage(`{"vital":"owl", "value":"hoot"}`)), LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeHostVitals},
+	}
+
+	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
+		return labels, nil
+	}
+
+	numCalls := 0
+	ds.UpdateLabelMembershipByHostCriteriaFunc = func(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error) {
+		label := hvl.GetLabel()
+		// Only the host vitals label should be processed.
+		require.Equal(t, label, labels[2])
+		numCalls++
+		return nil, nil
+	}
+
+	err := cronHostVitalsLabelMembership(ctx, ds)
+	require.NoError(t, err)
+	// Only one label (the host vitals label) should have been processed.
+	require.Equal(t, 1, numCalls)
 }

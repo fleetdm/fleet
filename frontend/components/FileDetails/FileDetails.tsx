@@ -20,9 +20,13 @@ interface IFileDetailsProps {
     | IFileDetailsSupportedGraphicNames[];
   fileDetails: IFileDetails;
   canEdit: boolean;
+  /** If present, will show a trash icon */
+  onDeleteFile?: () => void;
   onFileSelect?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   accept?: string;
   progress?: number;
+  /** Set to false for one instance we allow users to edit a file as it shows them the YAML */
+  gitopsCompatible?: boolean;
   gitOpsModeEnabled?: boolean;
 }
 
@@ -32,13 +36,16 @@ const FileDetails = ({
   graphicNames,
   fileDetails,
   canEdit,
+  onDeleteFile,
   onFileSelect,
   accept,
   progress,
+  gitopsCompatible = true,
   gitOpsModeEnabled = false,
 }: IFileDetailsProps) => {
   const infoClasses = classnames(`${baseClass}__info`, {
-    [`${baseClass}__info--disabled-by-gitops-mode`]: gitOpsModeEnabled,
+    [`${baseClass}__info--disabled-by-gitops-mode`]:
+      gitOpsModeEnabled && gitopsCompatible,
   });
   return (
     <div className={baseClass}>
@@ -51,38 +58,68 @@ const FileDetails = ({
         />
         <div className={`${baseClass}__content`}>
           <div className={`${baseClass}__name`}>{fileDetails.name}</div>
-          {fileDetails.platform && (
-            <div className={`${baseClass}__platform`}>
-              {fileDetails.platform}
+          {fileDetails.description && (
+            <div className={`${baseClass}__description`}>
+              {fileDetails.description}
             </div>
           )}
         </div>
       </div>
-      {!progress && canEdit && onFileSelect && (
-        <GitOpsModeTooltipWrapper
-          position="left"
-          tipOffset={-8}
-          renderChildren={(disableChildren) => (
-            <div className={`${baseClass}__edit`}>
-              <Button
-                disabled={disableChildren}
-                className={`${baseClass}__edit-button`}
-                variant="icon"
-              >
-                <label htmlFor="edit-file">
-                  <Icon name="pencil" color="ui-fleet-black-75" />
-                </label>
-              </Button>
-              <input
-                disabled={disableChildren}
-                accept={accept}
-                id="edit-file"
-                type="file"
-                onChange={onFileSelect}
-              />
-            </div>
-          )}
-        />
+      {!progress &&
+        canEdit &&
+        onFileSelect &&
+        (gitopsCompatible ? (
+          <GitOpsModeTooltipWrapper
+            position="left"
+            tipOffset={4}
+            renderChildren={(disableChildren) => (
+              <div className={`${baseClass}__edit`}>
+                <Button
+                  disabled={disableChildren}
+                  className={`${baseClass}__edit-button`}
+                  variant="icon"
+                >
+                  <label htmlFor="edit-file">
+                    <Icon name="pencil" color="ui-fleet-black-75" />
+                  </label>
+                </Button>
+                <input
+                  disabled={disableChildren}
+                  accept={accept}
+                  id="edit-file"
+                  type="file"
+                  onChange={onFileSelect}
+                />
+              </div>
+            )}
+          />
+        ) : (
+          <div className={`${baseClass}__edit`}>
+            <Button className={`${baseClass}__edit-button`} variant="icon">
+              <label htmlFor="edit-file">
+                <Icon name="pencil" color="ui-fleet-black-75" />
+              </label>
+            </Button>
+            <input
+              accept={accept}
+              id="edit-file"
+              type="file"
+              onChange={onFileSelect}
+            />
+          </div>
+        ))}
+      {!progress && onDeleteFile && (
+        <div className={`${baseClass}__delete`}>
+          <Button
+            className={`${baseClass}__delete-button`}
+            variant="icon"
+            onClick={onDeleteFile}
+          >
+            <label htmlFor="delete-file">
+              <Icon name="trash" color="ui-fleet-black-75" />
+            </label>
+          </Button>
+        </div>
       )}
       {!!progress && (
         <div className={`${baseClass}__progress-wrapper`}>

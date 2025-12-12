@@ -178,15 +178,21 @@ const WindowsTargetForm = ({
         value={gracePeriodDays}
         error={gracePeriodDaysError}
         onChange={handleGracePeriodDays}
-      />
-      <GitOpsModeTooltipWrapper
-        position="right"
-        renderChildren={(disableChildren) => (
-          <Button disabled={disableChildren} type="submit" isLoading={isSaving}>
-            Save
-          </Button>
-        )}
-      />
+      />{" "}
+      <div className="button-wrap">
+        <GitOpsModeTooltipWrapper
+          position="right"
+          renderChildren={(disableChildren) => (
+            <Button
+              disabled={disableChildren}
+              type="submit"
+              isLoading={isSaving}
+            >
+              Save
+            </Button>
+          )}
+        />
+      </div>
     </form>
   );
 };

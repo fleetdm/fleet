@@ -22,7 +22,7 @@
                         <array>
                             <array>
                                 <string>CN</string>
-                                <string>WIFI</string>
+                                <string>WIFI ${FLEET_VAR_SCEP_RENEWAL_ID}</string>
                             </array>
                         </array>
                         <array>
@@ -48,9 +48,9 @@
                 <key>PayloadContent</key>
                 <dict>
                     <key>Challenge</key>
-                    <string>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName2</string>
+                    <string>abc</string>
                     <key>URL</key>
-                    <string>${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName2}</string>
+                    <string>https://example.com</string>
                     <key>Key Type</key>
                     <string>RSA</string>
                     <key>Key Usage</key>

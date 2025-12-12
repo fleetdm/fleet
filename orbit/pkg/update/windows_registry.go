@@ -85,7 +85,7 @@ func findUninstallFleetdRegKeyRelPath() (string, error) {
 	}
 
 	if fleetdKey == "" {
-		return "", fmt.Errorf(`couldn't find a corresponding registry value for fleetd in 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall`)
+		return "", errors.New(`couldn't find a corresponding registry value for fleetd in 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall`)
 	}
 
 	return REG_UNINSTALL_REL_PATH + `\` + fleetdKey, nil

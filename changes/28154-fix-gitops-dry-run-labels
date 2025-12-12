@@ -1,1 +1,0 @@
-- Fixed issue where `fleetctl gitops --dry-run` would sometimes fail when creating and using labels in the same run

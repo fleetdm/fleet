@@ -339,11 +339,11 @@ func TestQueryAuth(t *testing.T) {
 		team2Query.ID:  team2Query,
 	}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid == team.ID {
-			return &team, nil
+			return team.ToTeamLite(), nil
 		} else if tid == team2.ID {
-			return &team2, nil
+			return team2.ToTeamLite(), nil
 		}
 		return nil, newNotFoundError()
 	}
@@ -765,7 +765,7 @@ func TestInheritedQueryReportTeamPermissions(t *testing.T) {
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(ctx, &team2.ID, []uint{hostTeam2.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{hostTeam2.ID}))
 	require.NoError(t, err)
 
 	hostTeam1, err := ds.NewHost(ctx, &fleet.Host{
@@ -783,7 +783,7 @@ func TestInheritedQueryReportTeamPermissions(t *testing.T) {
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{hostTeam1.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hostTeam1.ID}))
 	require.NoError(t, err)
 
 	globalQuery, err := ds.NewQuery(ctx, &fleet.Query{

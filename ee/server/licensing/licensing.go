@@ -78,9 +78,10 @@ func LoadLicense(licenseKey string) (*fleet.LicenseInfo, error) {
 type licenseClaims struct {
 	// jwt.StandardClaims includes validation for iat, nbf, and exp.
 	jwt.StandardClaims
-	Tier    string `json:"tier"`
-	Devices int    `json:"devices"`
-	Note    string `json:"note"`
+	Tier                  string `json:"tier"`
+	Devices               int    `json:"devices"`
+	Note                  string `json:"note"`
+	AllowDisableTelemetry bool   `json:"notel"`
 }
 
 func validate(token *jwt.Token) (*fleet.LicenseInfo, error) {
@@ -118,11 +119,12 @@ func validate(token *jwt.Token) (*fleet.LicenseInfo, error) {
 	}
 
 	return &fleet.LicenseInfo{
-		Tier:         claims.Tier,
-		Organization: claims.Subject,
-		DeviceCount:  claims.Devices,
-		Expiration:   time.Unix(claims.ExpiresAt, 0),
-		Note:         claims.Note,
+		Tier:                  claims.Tier,
+		Organization:          claims.Subject,
+		DeviceCount:           claims.Devices,
+		Expiration:            time.Unix(claims.ExpiresAt, 0),
+		Note:                  claims.Note,
+		AllowDisableTelemetry: claims.AllowDisableTelemetry,
 	}, nil
 
 }

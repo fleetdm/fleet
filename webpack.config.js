@@ -25,12 +25,7 @@ let plugins = [
     excludeWarnings: true,
   }),
   new webpack.DefinePlugin({
-    featureFlags: {
-      // e.g.: allowGitOpsMode: JSON.stringify(process.env.ALLOW_GITOPS_MODE),
-      allowConditionalAccess: JSON.stringify(
-        process.env.ALLOW_CONDITIONAL_ACCESS
-      ),
-    },
+    featureFlags: {},
   }),
 ];
 

@@ -35,7 +35,7 @@
 
     .Select-control {
       min-height: 48px;
-      background-color: $ui-light-grey;
+      background-color: $core-fleet-white;
     }
 
     .Select-arrow {
@@ -70,13 +70,12 @@
       > input {
         line-height: 53px;
         color: $core-fleet-black;
-        font-size: $small;
+        font-size: $x-small;
       }
     }
 
     .Select-placeholder {
       line-height: 53px;
-      font-size: $small;
       color: $ui-fleet-black-50;
     }
 
@@ -86,7 +85,7 @@
 
         &.is-disabled {
           &.is-focused {
-            background-color: $ui-vibrant-blue-10;
+            background-color: $ui-fleet-black-10;
             border-radius: 8px;
           }
         }
@@ -132,7 +131,7 @@
 
   .Select-value {
     border-radius: $border-radius;
-    background-color: $core-white;
+    background-color: $core-fleet-white;
 
     .Select-value-icon {
       height: 100%;
@@ -153,7 +152,7 @@
     }
 
     .Select-value-label {
-      font-size: $small;
+      font-size: $x-small;
       color: $ui-fleet-black-75;
       font-size: $x-small;
       padding: 0 0 0 $pad-medium;

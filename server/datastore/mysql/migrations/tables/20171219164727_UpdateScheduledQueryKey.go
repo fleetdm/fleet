@@ -60,8 +60,8 @@ func Up_20171219164727(tx *sql.Tx) error {
 
 	query = `
 ALTER TABLE scheduled_queries
-ADD COLUMN name varchar(255),
-ADD COLUMN description varchar(255)
+ADD COLUMN name varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+ADD COLUMN description varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 `
 	if _, err := tx.Exec(query); err != nil {
 		return errors.Wrap(err, "adding name to scheduled_queries")

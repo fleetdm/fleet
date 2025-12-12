@@ -1,11 +1,10 @@
 import React, { FormEvent, useEffect, useState } from "react";
-import { Link } from "react-router";
 import { size } from "lodash";
 import classnames from "classnames";
 import { ILoginUserData } from "interfaces/user";
 
+import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";
-import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
@@ -85,28 +84,28 @@ const LoginForm = ({
 
   const showLegendWithImage = () => {
     let legend = "Single sign-on";
-    if (idpName !== "") {
-      legend = `Sign on with ${idpName}`;
+    if (idpName) {
+      legend = `Sign in with ${idpName}`;
     }
 
     return (
-      <div>
+      <>
         <img
           src={imageURL}
           alt={idpName}
           className={`${baseClass}__sso-image`}
         />
         <span className={`${baseClass}__sso-legend`}>{legend}</span>
-      </div>
+      </>
     );
   };
 
   const renderSingleSignOnButton = () => {
     let legend: string | JSX.Element = "Single sign-on";
-    if (idpName !== "") {
-      legend = `Sign on with ${idpName}`;
+    if (idpName) {
+      legend = `Sign in with ${idpName}`;
     }
-    if (imageURL !== "") {
+    if (imageURL) {
       legend = showLegendWithImage();
     }
 
@@ -117,8 +116,9 @@ const LoginForm = ({
         title="Single sign-on"
         variant="inverse"
         onClick={handleSSOSignOn}
+        tabIndex={0}
       >
-        <div>{legend}</div>
+        {legend}
       </Button>
     );
   };
@@ -135,14 +135,14 @@ const LoginForm = ({
 
   if (showPendingEmail) {
     return (
-      <StackedWhiteBoxes className="two-factor-check-email">
+      <div className="two-factor-check-email">
         <>
           <Button
             onClick={() => setShowPendingEmail(false)}
-            variant="text-icon"
+            variant="inverse"
             className="back-link"
           >
-            <Icon name="chevron-left" color="core-fleet-blue" />
+            <Icon name="chevron-left" color="ui-fleet-black-75" />
             Back to login
           </Button>
           <h1>Check your email</h1>
@@ -151,45 +151,50 @@ const LoginForm = ({
             Please click the magic link in the email to sign in.
           </p>
         </>
-      </StackedWhiteBoxes>
+      </div>
     );
   }
 
   return (
-    <form onSubmit={onFormSubmit} className={loginFormClass}>
+    <form onSubmit={onFormSubmit} className={loginFormClass} noValidate>
       {baseError && <div className="form__base-error">{baseError}</div>}
-      <InputFieldWithIcon
-        error={errors.email}
-        autofocus
-        label="Email"
-        placeholder="Email"
-        value={formData.email}
-        onChange={onInputChange("email")}
-      />
-      <InputFieldWithIcon
-        error={errors.password}
-        label="Password"
-        placeholder="Password"
-        type="password"
-        value={formData.password}
-        onChange={onInputChange("password")}
-      />
+      <div className={`${baseClass}__form`}>
+        <InputFieldWithIcon
+          error={errors.email}
+          autofocus
+          type="email"
+          label="Email"
+          placeholder="Email"
+          value={formData.email}
+          onChange={onInputChange("email")}
+        />
+        <InputFieldWithIcon
+          error={errors.password}
+          label="Password"
+          placeholder="Password"
+          type="password"
+          value={formData.password}
+          onChange={onInputChange("password")}
+        />
+      </div>
       {/* Actions displayed using CSS column-reverse to preserve tab order */}
       <div className={`${baseClass}__actions`}>
         <div className={`${baseClass}__login-actions`}>
-          <Button className="login-btn" isLoading={isSubmitting} type="submit">
+          <Button
+            className={`${baseClass}__login-btn`}
+            isLoading={isSubmitting}
+            type="submit"
+            tabIndex={0}
+          >
             Log in
           </Button>
           {ssoEnabled && renderSingleSignOnButton()}
         </div>
-        <div className={`${baseClass}__forgot-wrap`}>
-          <Link
-            className={`${baseClass}__forgot-link`}
-            to={paths.FORGOT_PASSWORD}
-          >
-            Forgot password?
-          </Link>
-        </div>
+        <CustomLink
+          className={`${baseClass}__forgot-link`}
+          url={paths.FORGOT_PASSWORD}
+          text="Forgot password?"
+        />
       </div>
     </form>
   );

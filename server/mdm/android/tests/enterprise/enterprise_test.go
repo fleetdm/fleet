@@ -12,9 +12,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/tests"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 func TestServiceEnterprise(t *testing.T) {
@@ -35,6 +35,10 @@ func (s *enterpriseTestSuite) SetupSuite() {
 func (s *enterpriseTestSuite) SetupTest() {
 	s.AppConfig.MDM.AndroidEnabledAndConfigured = false
 	s.CreateCommonDSMocks()
+	// Override EnterprisesListFunc to return empty list initially (no enterprises exist)
+	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{}, nil
+	}
 }
 
 func (s *enterpriseTestSuite) TearDownSuite() {
@@ -54,15 +58,20 @@ func (s *enterpriseTestSuite) TestEnterprise() {
 	assert.Equal(s.T(), tests.EnterpriseSignupURL, signupResp.Url)
 	s.T().Logf("callbackURL: %s", s.ProxyCallbackURL)
 
-	s.FleetSvc.On("NewActivity", mock.Anything, mock.Anything, mock.AnythingOfType("fleet.ActivityTypeEnabledAndroidMDM")).Return(nil)
 	const enterpriseToken = "enterpriseToken"
 	res := s.Do("GET", s.ProxyCallbackURL, nil, http.StatusOK, "enterpriseToken", enterpriseToken)
-	s.FleetSvc.AssertNumberOfCalls(s.T(), "NewActivity", 1)
 	body, err := io.ReadAll(res.Body)
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), "text/html; charset=UTF-8", res.Header.Get("Content-Type"))
 	assert.Contains(s.T(), string(body), "If this page does not close automatically, please close it manually.")
 	assert.Contains(s.T(), string(body), "window.close()")
+
+	// Update the LIST mock to return the enterprise after "creation"
+	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{
+			{Name: "enterprises/" + tests.EnterpriseID},
+		}, nil
+	}
 
 	// Now enterprise exists and we can retrieve it.
 	resp = android.GetEnterpriseResponse{}
@@ -70,9 +79,13 @@ func (s *enterpriseTestSuite) TestEnterprise() {
 	assert.Equal(s.T(), tests.EnterpriseID, resp.EnterpriseID)
 
 	// Delete enterprise and make sure we can't find it.
-	s.FleetSvc.On("NewActivity", mock.Anything, mock.Anything, mock.AnythingOfType("fleet.ActivityTypeDisabledAndroidMDM")).Return(nil)
 	s.Do("DELETE", "/api/v1/fleet/android_enterprise", nil, http.StatusOK)
-	s.FleetSvc.AssertNumberOfCalls(s.T(), "NewActivity", 2)
+
+	// Reset LIST mock to empty after deletion
+	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{}, nil
+	}
+
 	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusNotFound, &resp)
 }
 

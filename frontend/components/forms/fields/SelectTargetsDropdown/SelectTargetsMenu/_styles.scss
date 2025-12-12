@@ -25,7 +25,7 @@
     max-height: 100%;
     padding: 0 $pad-large;
     border-right: 1px solid $ui-fleet-black-10;
-    background-color: $core-white;
+    background-color: $core-fleet-white;
   }
 
   &__option-details {
@@ -42,7 +42,7 @@
 
   &__no-hosts-heading {
     font-weight: $bold;
-    font-size: $small;
+    font-size: $x-small;
     padding-bottom: $pad-medium;
   }
 
@@ -50,7 +50,7 @@
     width: 50%;
     float: right;
     overflow-y: auto;
-    background-color: $core-white;
+    background-color: $core-fleet-white;
     min-height: 450px;
     padding-top: $pad-large;
     position: relative;

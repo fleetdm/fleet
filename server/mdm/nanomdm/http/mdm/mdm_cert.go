@@ -214,7 +214,8 @@ type HashFn func(*x509.Certificate) string
 // enforce is true. This way next is able to use the existence of the ID on
 // the context to make its own decisions.
 func CertWithEnrollmentIDMiddleware(next http.Handler, hasher HashFn, store storage.CertAuthRetriever, enforce bool,
-	logger log.Logger) http.HandlerFunc {
+	logger log.Logger,
+) http.HandlerFunc {
 	if store == nil || hasher == nil {
 		panic("store and hasher must not be nil")
 	}

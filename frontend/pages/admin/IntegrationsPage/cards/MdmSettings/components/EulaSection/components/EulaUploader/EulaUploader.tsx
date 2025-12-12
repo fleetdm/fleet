@@ -53,7 +53,7 @@ const EulaUploader = ({ onUpload }: IEulaUploaderProps) => {
   return (
     <div className={baseClass}>
       <p>
-        Require end users to agree to a EULA when they first setup their new
+        Require end users to agree to a EULA when they first set up their new
         macOS hosts.{" "}
         <CustomLink
           url="https://fleetdm.com/learn-more-about/end-user-license-agreement"
@@ -67,6 +67,7 @@ const EulaUploader = ({ onUpload }: IEulaUploaderProps) => {
         onFileUpload={onUploadFile}
         accept=".pdf"
         isLoading={showLoading}
+        gitopsCompatible
       />
     </div>
   );

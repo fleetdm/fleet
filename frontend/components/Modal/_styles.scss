@@ -25,6 +25,7 @@
   &__content-wrapper {
     margin-top: $pad-large;
     font-size: $x-small;
+    line-height: 1.5;
 
     .input-field {
       width: 100%;
@@ -38,21 +39,7 @@
   }
 
   &__ex {
-    text-decoration: none;
-
-    &:hover {
-      .icon {
-        svg {
-          path {
-            stroke: $core-vibrant-blue;
-          }
-        }
-      }
-    }
-
-    .button {
-      padding: $pad-small;
-    }
+    height: 32px;
   }
 
   &__header {
@@ -63,6 +50,7 @@
     border-bottom: 1px solid $ui-fleet-black-10;
     display: flex;
     justify-content: space-between;
+    min-height: 37px;
 
     span {
       overflow: hidden;
@@ -74,7 +62,7 @@
   &__modal_container {
     @include position(absolute, 22px null null null);
     box-sizing: border-box;
-    background-color: $core-white;
+    background-color: $core-fleet-white;
     padding: $pad-xxlarge;
     border-radius: 8px;
     animation: scale-up 150ms ease-out;

@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"encoding/pem"
 	"net/http"
 	"net/url"
@@ -65,8 +66,7 @@ func WithLogger(logger kitlog.Logger) Opt {
 	}
 }
 
-func (s *Service) VerifyProfileID(ctx context.Context, config fleet.DigiCertIntegration) error {
-
+func (s *Service) VerifyProfileID(ctx context.Context, config fleet.DigiCertCA) error {
 	client := fleethttp.NewClient(fleethttp.WithTimeout(s.timeout))
 
 	config.URL = strings.TrimRight(config.URL, "/")
@@ -123,7 +123,7 @@ func (s *Service) populateOpts(opts []Opt) {
 	}
 }
 
-func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertIntegration) (*fleet.DigiCertCertificate, error) {
+func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertCA) (*fleet.DigiCertCertificate, error) {
 	client := fleethttp.NewClient(fleethttp.WithTimeout(s.timeout))
 
 	// Generate a CSR (Certificate Signing Request).
@@ -251,6 +251,13 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertInteg
 		return nil, ctxerr.Errorf(ctx, "unexpected DigiCert delivery format: %s", certResp.DeliveryFormat)
 	}
 
+	// Serial number is an up to 20-byte(40 char) hex string
+	_, err = hex.DecodeString(certResp.SerialNumber)
+	if err != nil || certResp.SerialNumber == "" || len(certResp.SerialNumber) > 40 {
+		level.Error(s.logger).Log("msg", "DigiCert certificate returned with invalid serial number", "serial_number", certResp.SerialNumber, "decode_err", err)
+		return nil, ctxerr.Errorf(ctx, "invalid DigiCert serial number: %s", certResp.SerialNumber)
+	}
+
 	if len(certResp.Certificate) == 0 {
 		return nil, ctxerr.Errorf(ctx, "did not receive DigiCert certificate")
 	}
@@ -279,8 +286,10 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertInteg
 	}
 
 	return &fleet.DigiCertCertificate{
-		PfxData:       pkcs12Data,
-		Password:      password,
-		NotValidAfter: cert.NotAfter,
+		PfxData:        pkcs12Data,
+		Password:       password,
+		NotValidBefore: cert.NotBefore,
+		NotValidAfter:  cert.NotAfter,
+		SerialNumber:   certResp.SerialNumber,
 	}, nil
 }

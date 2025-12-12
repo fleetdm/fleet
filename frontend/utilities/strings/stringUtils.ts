@@ -94,6 +94,15 @@ export const isIncompleteQuoteQuery = (str: string) => {
   return pattern.test(str);
 };
 
+/**
+ * Hyphenates the words of the string passed in.
+ * e.g. The name of an app to be used in a file name
+ * @param str un-capitalized string
+ */
+export const hyphenateString = (str: string): string => {
+  return str.trim().toLowerCase().replace(/\s+/g, "-");
+};
+
 export default {
   capitalize,
   capitalizeRole,

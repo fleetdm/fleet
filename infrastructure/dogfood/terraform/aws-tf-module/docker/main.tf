@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = ">= 5.68.0"
     }
     docker = {
       source  = "kreuzwerker/docker"
@@ -39,7 +39,7 @@ resource "null_resource" "build_osquery" {
     osquery_tags_changed    = sha256(jsonencode(var.osquery_tags))
   }
   provisioner "local-exec" {
-    working_dir = "${path.module}"
+    working_dir = path.module
     command     = <<-EOT
       mkdir -p osquery
       cd osquery

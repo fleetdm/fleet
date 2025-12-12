@@ -1,18 +1,25 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useRef, useState } from "react";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import {
+  FLEET_WEBSITE_URL,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Slider from "components/forms/fields/Slider";
 import { AppContext } from "context/app";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { IPaginatedListHandle } from "components/PaginatedList";
+import PoliciesPaginatedList, {
+  IFormPolicy,
+} from "../PoliciesPaginatedList/PoliciesPaginatedList";
 
 const baseClass = "conditional-access-modal";
 
 export interface IConditionalAccessFormData {
   enabled: boolean;
+  changedPolicies: IFormPolicy[];
 }
 
 interface IConditionalAccessModal {
@@ -22,6 +29,7 @@ interface IConditionalAccessModal {
   enabled: boolean;
   isUpdating: boolean;
   gitOpsModeEnabled?: boolean;
+  teamId: number;
 }
 
 const ConditionalAccessModal = ({
@@ -31,11 +39,14 @@ const ConditionalAccessModal = ({
   enabled,
   isUpdating,
   gitOpsModeEnabled = false,
+  teamId,
 }: IConditionalAccessModal) => {
   const [formData, setFormData] = useState<IConditionalAccessFormData>({
     enabled,
+    changedPolicies: [],
   });
 
+  const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
   const { isGlobalAdmin, isTeamAdmin } = useContext(AppContext);
   const isAdmin = isGlobalAdmin || isTeamAdmin;
 
@@ -44,11 +55,18 @@ const ConditionalAccessModal = ({
     setFormData({ ...formData, enabled: !formData.enabled });
   };
 
-  const handleSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
-    evt.preventDefault();
-    // no validation needed, just a flag
-    onSubmit(formData);
+  const handleSubmit = () => {
+    if (paginatedListRef.current) {
+      const changedPolicies = paginatedListRef.current.getDirtyItems();
+      onSubmit({ ...formData, changedPolicies });
+    }
   };
+
+  const getPolicyDisabled = (policy: IFormPolicy) =>
+    !policy.platform.includes("darwin");
+
+  const getPolicyTooltipContent = (policy: IFormPolicy) =>
+    !policy.platform.includes("darwin") ? "Policy does not target macOS" : null;
 
   const learnMoreLink = (
     <CustomLink
@@ -61,32 +79,50 @@ const ConditionalAccessModal = ({
   const renderConfigured = () => {
     return (
       <>
-        <p>
-          If enabled, single sign-on will be blocked for end users whose hosts
-          fail any policies. {learnMoreLink}
-        </p>
-        <form onSubmit={handleSubmit} autoComplete="off">
-          <Slider
-            value={formData.enabled}
-            onChange={onChangeEnabled}
-            inactiveText="Disabled"
-            activeText="Enabled"
-            disabled={gitOpsModeEnabled || !isAdmin}
+        <div className="form">
+          <span className="header">
+            <Slider
+              value={formData.enabled}
+              onChange={onChangeEnabled}
+              inactiveText="Disabled"
+              activeText="Enabled"
+              disabled={gitOpsModeEnabled || !isAdmin}
+            />
+            <CustomLink
+              text="Preview end user experience"
+              newTab
+              multiline={false}
+              url={`${FLEET_WEBSITE_URL}/microsoft-compliance-partner/remediate`}
+            />
+          </span>
+          <PoliciesPaginatedList
+            ref={paginatedListRef}
+            isSelected="conditional_access_enabled"
+            getPolicyDisabled={getPolicyDisabled}
+            getPolicyTooltipContent={getPolicyTooltipContent}
+            onToggleItem={(item: IFormPolicy) => {
+              item.conditional_access_enabled = !item.conditional_access_enabled;
+              return item;
+            }}
+            helpText={
+              <>
+                Single sign-on will be blocked for end users whose hosts fail
+                any of these policies.{" "}
+                <CustomLink
+                  url={`${LEARN_MORE_ABOUT_BASE_LINK}/conditional-access`}
+                  text="Learn more"
+                  newTab
+                  disableKeyboardNavigation={!formData.enabled}
+                />
+              </>
+            }
+            isUpdating={isUpdating}
+            onSubmit={handleSubmit}
+            onCancel={onExit}
+            teamId={teamId}
+            disableList={!formData.enabled}
           />
-          <GitOpsModeTooltipWrapper
-            tipOffset={-8}
-            renderChildren={(disableChildren) => (
-              <Button
-                type="submit"
-                disabled={disableChildren || !isAdmin}
-                className="button-wrap"
-                isLoading={isUpdating}
-              >
-                Save
-              </Button>
-            )}
-          />
-        </form>
+        </div>
       </>
     );
   };

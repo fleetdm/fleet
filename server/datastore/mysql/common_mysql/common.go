@@ -3,6 +3,7 @@ package common_mysql
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"net/url"
 	"time"
@@ -15,6 +16,18 @@ import (
 	"github.com/ngrok/sqlmw"
 )
 
+// ConnectorFactory creates a driver.Connector for custom database authentication.
+// This allows injecting authentication mechanisms (like AWS IAM) without adding
+// dependencies to this package.
+type ConnectorFactory func(dsn string, logger log.Logger) (driver.Connector, error)
+
+// TestSQLMode combines ANSI mode components with MySQL 8 default strict modes for testing
+// ANSI mode includes: REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, ONLY_FULL_GROUP_BY
+// We add all MySQL 8.0 default strict modes to match production behavior
+// Note: The value needs to be wrapped in single quotes when passed to MySQL DSN due to comma separation
+// Reference: https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html
+const TestSQLMode = "'REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'"
+
 type DBOptions struct {
 	// MaxAttempts configures the number of retries to connect to the DB
 	MaxAttempts         int
@@ -25,10 +38,14 @@ type DBOptions struct {
 	MinLastOpenedAtDiff time.Duration
 	SqlMode             string
 	PrivateKey          string
+	// ConnectorFactory is an optional factory for creating custom database connectors.
+	// When set, it's used instead of the standard connection method.
+	ConnectorFactory ConnectorFactory
 }
 
 func NewDB(conf *config.MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB, error) {
 	driverName := "mysql"
+
 	if opts.TracingConfig != nil && opts.TracingConfig.TracingEnabled {
 		if opts.TracingConfig.TracingType == "opentelemetry" {
 			driverName = otelDriverName
@@ -45,9 +62,20 @@ func NewDB(conf *config.MysqlConfig, opts *DBOptions, otelDriverName string) (*s
 	}
 
 	dsn := generateMysqlConnectionString(*conf)
-	db, err := sqlx.Open(driverName, dsn)
-	if err != nil {
-		return nil, err
+
+	var db *sqlx.DB
+	if opts.ConnectorFactory != nil {
+		connector, err := opts.ConnectorFactory(dsn, opts.Logger)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create connector: %w", err)
+		}
+		db = sqlx.NewDb(sql.OpenDB(connector), driverName)
+	} else {
+		var err error
+		db, err = sqlx.Open(driverName, dsn)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	db.SetMaxIdleConns(conf.MaxIdleConns)
@@ -90,7 +118,12 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 		"group_concat_max_len": []string{"4194304"},
 		"multiStatements":      []string{"true"},
 	}
-	if conf.TLSConfig != "" {
+	if conf.Password == "" && conf.PasswordPath == "" && conf.Region != "" {
+		params.Set("allowCleartextPasswords", "true")
+		if conf.TLSConfig == "" {
+			params.Set("tls", "rdsmysql")
+		}
+	} else if conf.TLSConfig != "" {
 		params.Set("tls", conf.TLSConfig)
 	}
 	if conf.SQLMode != "" {
@@ -135,6 +168,40 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error
 
 	if err := tx.Commit(); err != nil {
 		return ctxerr.Wrap(ctx, err, "commit transaction")
+	}
+
+	return nil
+}
+
+// WithReadOnlyTxx executes fn within an isolated, read-only transaction
+func WithReadOnlyTxx(ctx context.Context, reader *sqlx.DB, fn ReadTxFn, logger log.Logger) error {
+	tx, err := reader.BeginTxx(ctx, &sql.TxOptions{
+		ReadOnly:  true,
+		Isolation: sql.LevelRepeatableRead,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "create read-only transaction")
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			if err := tx.Rollback(); err != nil {
+				logger.Log("err", err, "msg", "error encountered during read-only transaction panic rollback")
+			}
+			panic(p)
+		}
+	}()
+
+	if err := fn(tx); err != nil {
+		rbErr := tx.Rollback()
+		if rbErr != nil && rbErr != sql.ErrTxDone {
+			return ctxerr.Wrapf(ctx, err, "got err '%s' rolling back read-only transaction after err", rbErr.Error())
+		}
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return ctxerr.Wrap(ctx, err, "commit read-only transaction")
 	}
 
 	return nil

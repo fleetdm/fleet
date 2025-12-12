@@ -4,7 +4,6 @@ import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import { IConfig } from "interfaces/config";
 import { ApplePlatform } from "interfaces/platform";
 
-import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 
 import WindowsTargetForm from "../WindowsTargetForm";
@@ -18,6 +17,27 @@ type GetDefaultFnParams = {
   currentTeamId: number;
   appConfig: IConfig;
   teamConfig?: ITeamConfig;
+};
+
+const getDefaultUpdateNewHosts = ({
+  osType,
+  currentTeamId,
+  appConfig,
+  teamConfig,
+}: GetDefaultFnParams) => {
+  const mdmData =
+    currentTeamId === API_NO_TEAM_ID ? appConfig?.mdm : teamConfig?.mdm;
+
+  switch (osType) {
+    case "darwin":
+      return !!mdmData?.macos_updates.update_new_hosts;
+    case "ios":
+      return !!mdmData?.ios_updates.update_new_hosts;
+    case "ipados":
+      return !!mdmData?.ipados_updates.update_new_hosts;
+    default:
+      return false;
+  }
 };
 
 const getDefaultOSVersion = ({
@@ -150,6 +170,12 @@ const TargetSection = ({
     appConfig,
     teamConfig,
   });
+  const defaultMacOSUpdateNewHosts = getDefaultUpdateNewHosts({
+    osType: "darwin",
+    currentTeamId,
+    appConfig,
+    teamConfig,
+  });
 
   const defaultWindowsDeadlineDays = getDefaultWindowsDeadlineDays({
     currentTeamId,
@@ -185,6 +211,7 @@ const TargetSection = ({
         defaultIPadOSDeadline={defaultIPadOSDeadline}
         defaultWindowsDeadlineDays={defaultWindowsDeadlineDays}
         defaultWindowsGracePeriodDays={defaultWindowsGracePeriodDays}
+        defaultMacOSUpdateNewHosts={defaultMacOSUpdateNewHosts}
         selectedPlatform={selectedPlatform}
         onSelectPlatform={onSelectPlatform}
         refetchAppConfig={refetchAppConfig}
@@ -195,15 +222,7 @@ const TargetSection = ({
     );
   };
 
-  return (
-    <div className={baseClass}>
-      <SectionHeader
-        title="Target"
-        wrapperCustomClass={`${baseClass}__header`}
-      />
-      {renderTargetForms()}
-    </div>
-  );
+  return <div className={baseClass}>{renderTargetForms()}</div>;
 };
 
 export default TargetSection;

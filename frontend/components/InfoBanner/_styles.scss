@@ -2,19 +2,23 @@
   display: flex;
   justify-content: space-between;
   padding: $pad-medium;
+  gap: $pad-large; // Between text and CTA
   font-size: $x-small;
   font-weight: $regular;
   color: $core-fleet-black;
+  line-height: $line-height;
 
   &__page-banner {
     padding: $pad-large $pad-xlarge;
-    margin-bottom: $pad-large;
     width: auto;
+    gap: $pad-small;
   }
 
   &__info {
+    // Do not use display flex as it will have adverse effects on spacing around HTML tags
+    align-content: center;
     p {
-      margin: $pad-small 0 0 0;
+      margin: $pad-small 0 0 0; // TOFIX: this causes weird top margin noticed in #28110
     }
   }
 
@@ -33,15 +37,6 @@
   }
 
   &__close {
-    padding: $pad-small;
-    margin: -$pad-small; // Offset clickable padding from making banner taller
-
-    &:hover {
-      cursor: pointer;
-
-      svg path {
-        stroke: $core-vibrant-blue;
-      }
-    }
+    margin: -$pad-medium; // Offset clickable padding from making banner taller
   }
 }

@@ -21,7 +21,7 @@ func Up_20171116163618(tx *sql.Tx) error {
 		"`override_identifier` VARCHAR(255) NOT NULL DEFAULT ''," +
 		"`options` JSON NOT NULL," +
 		"PRIMARY KEY (`id`)" +
-		") ENGINE=InnoDB DEFAULT CHARSET=utf8;"
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
 	_, err := tx.Exec(sqlStatement)
 	if err != nil {
 		return errors.Wrap(err, "create table osquery_options")

@@ -10,6 +10,7 @@ import { ApplePlatform } from "interfaces/platform";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
+import Checkbox from "components/forms/fields/Checkbox";
 import validatePresence from "components/forms/validators/validate_presence";
 import CustomLink from "components/CustomLink";
 import { AppContext } from "context/app";
@@ -87,13 +88,18 @@ interface IAppleUpdatesMdmConfigData {
 const createAppleOSUpdatesData = (
   applePlatform: ApplePlatform,
   minOsVersion: string,
-  deadline: string
+  deadline: string,
+  updateNewHosts?: boolean
 ): IAppleUpdatesMdmConfigData => {
   return {
     mdm: {
       [APPLE_PLATFORMS_TO_CONFIG_FIELDS[applePlatform]]: {
         minimum_version: minOsVersion,
         deadline,
+        // Add update_new_hosts only for macOS right now.
+        ...(applePlatform === "darwin"
+          ? { update_new_hosts: updateNewHosts }
+          : {}),
       },
     },
   };
@@ -104,6 +110,7 @@ interface IAppleOSTargetFormProps {
   applePlatform: ApplePlatform;
   defaultMinOsVersion: string;
   defaultDeadline: string;
+  defaultUpdateNewHosts?: boolean;
   refetchAppConfig: () => void;
   refetchTeamConfig: () => void;
 }
@@ -113,6 +120,7 @@ const AppleOSTargetForm = ({
   applePlatform,
   defaultMinOsVersion,
   defaultDeadline,
+  defaultUpdateNewHosts,
   refetchAppConfig,
   refetchTeamConfig,
 }: IAppleOSTargetFormProps) => {
@@ -126,6 +134,9 @@ const AppleOSTargetForm = ({
   const [minOsVersionError, setMinOsVersionError] = useState<
     string | undefined
   >();
+  const [updateNewHosts, setUpdateNewHosts] = useState<boolean>(
+    defaultUpdateNewHosts || false
+  );
   const [deadlineError, setDeadlineError] = useState<string | undefined>();
 
   // FIXME: This behaves unexpectedly when a user switches tabs or changes the teams dropdown while the form is
@@ -145,13 +156,14 @@ const AppleOSTargetForm = ({
       const updateData = createAppleOSUpdatesData(
         applePlatform,
         minOsVersion,
-        deadline
+        deadline,
+        updateNewHosts
       );
       try {
         currentTeamId === APP_CONTEXT_NO_TEAM_ID
           ? await configAPI.update(updateData)
           : await teamsAPI.update(updateData, currentTeamId);
-        renderFlash("success", "Successfully updated minimum version!");
+        renderFlash("success", "Successfully updated.");
       } catch {
         renderFlash("error", "Couldn’t update. Please try again.");
       } finally {
@@ -172,32 +184,23 @@ const AppleOSTargetForm = ({
   };
 
   const getMinimumVersionTooltip = () => {
-    return (
-      <>
-        If an already enrolled host is below the minimum version,
-        <br /> the host is updated to exactly the minimum version if it&apos;s
-        <br /> available from Apple.
-        <br />
-        <br /> If a new or wiped host is below the minimum version and
-        <br /> automatically enrolls (ADE), the host is updated to Apple&apos;s
-        <br /> lastest version during Setup Assistant.
-      </>
-    );
+    return <>Enrolled hosts are updated to exactly this version.</>;
   };
 
   return (
     <form className={baseClass} onSubmit={handleSubmit}>
       <InputField
         label="Minimum version"
+        name="minimum_version"
         disabled={gitOpsModeEnabled}
         tooltip={getMinimumVersionTooltip()}
         helpText={
           <>
-            Use only versions available from Apple.{" "}
+            Use only versions{" "}
             <CustomLink
-              text="Learn more"
+              text="available from Apple."
               newTab
-              url="https://fleetdm.com/learn-more-about/available-os-update-versions"
+              url="https://fleetdm.com/learn-more-about/apple-available-os-updates"
             />
           </>
         }
@@ -207,6 +210,7 @@ const AppleOSTargetForm = ({
       />
       <InputField
         disabled={gitOpsModeEnabled}
+        name="deadline"
         label="Deadline"
         tooltip="The end user can't dismiss the OS update once they reach this deadline. Deadline is 12:00 (Noon), the host's local time."
         helpText="YYYY-MM-DD format only (e.g., “2024-07-01”)."
@@ -214,14 +218,34 @@ const AppleOSTargetForm = ({
         error={deadlineError}
         onChange={handleDeadlineChange}
       />
-      <GitOpsModeTooltipWrapper
-        position="right"
-        renderChildren={(disableChildren) => (
-          <Button disabled={disableChildren} type="submit" isLoading={isSaving}>
-            Save
-          </Button>
-        )}
-      />
+      {applePlatform === "darwin" && (
+        <Checkbox
+          name="update_new_hosts"
+          disabled={gitOpsModeEnabled}
+          onChange={setUpdateNewHosts}
+          value={updateNewHosts}
+          className={`${baseClass}__checkbox`}
+          labelTooltipContent={
+            "Hosts that automatically enroll (ADE) are updated to Apple's latest version during macOS Setup Assistant."
+          }
+        >
+          Update new hosts to latest
+        </Checkbox>
+      )}
+      <div className="button-wrap">
+        <GitOpsModeTooltipWrapper
+          position="right"
+          renderChildren={(disableChildren) => (
+            <Button
+              disabled={disableChildren}
+              type="submit"
+              isLoading={isSaving}
+            >
+              Save
+            </Button>
+          )}
+        />
+      </div>
     </form>
   );
 };

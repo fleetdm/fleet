@@ -24,6 +24,10 @@ type TestWindowsMDMClient struct {
 	DeviceID string
 	// HardwareID identifies a device.
 	HardwareID string
+	// NotInOOBE indicates whether the enrollment is happening outside of the OOBE(Out Of Box Experience).
+	// NotInOOBE true basically means the enrollment happened post-setup(i.e. settings->Work or School Account)
+	// False means the enrollment is happening during OOBE/autopilot.
+	notInOOBE bool
 	// fleetServerURL is the URL of the Fleet server, used to ping the MDM endpoints.
 	fleetServerURL string
 	// debug enables debug logging of request/responses.
@@ -40,6 +44,9 @@ type TestWindowsMDMClient struct {
 	queuedCommandResponses map[string]fleet.SyncMLCmd
 }
 
+// This is a test-only enrollment type to force erroneous behavior.
+const WindowsMDMEmptyBinarySecurityTokenEnrollmentType fleet.WindowsMDMEnrollmentType = -1
+
 // TestWindowsMDMClientOption allows configuring a
 // TestWindowsMDMClient.
 type TestWindowsMDMClientOption func(*TestWindowsMDMClient)
@@ -52,26 +59,30 @@ func TestWindowsMDMClientDebug() TestWindowsMDMClientOption {
 	}
 }
 
+func TestWindowsMDMClientNotInOOBE() TestWindowsMDMClientOption {
+	return func(c *TestWindowsMDMClient) {
+		c.notInOOBE = true
+	}
+}
+
 func NewTestMDMClientWindowsProgramatic(serverURL string, orbitNodeKey string, opts ...TestWindowsMDMClientOption) *TestWindowsMDMClient {
-	c := TestWindowsMDMClient{
-		fleetServerURL:  serverURL,
-		DeviceID:        uuid.NewString(),
-		enrollmentType:  fleet.WindowsMDMProgrammaticEnrollmentType,
-		TokenIdentifier: orbitNodeKey,
-		HardwareID:      uuid.NewString(),
-	}
-	for _, fn := range opts {
-		fn(&c)
-	}
-	return &c
+	return newTestMDMClient(serverURL, fleet.WindowsMDMProgrammaticEnrollmentType, orbitNodeKey, opts...)
+}
+
+func NewTestMDMClientWindowsEmptyBinarySecurityToken(serverURL string, orbitNodeKey string, opts ...TestWindowsMDMClientOption) *TestWindowsMDMClient {
+	return newTestMDMClient(serverURL, WindowsMDMEmptyBinarySecurityTokenEnrollmentType, orbitNodeKey, opts...)
 }
 
 func NewTestMDMClientWindowsAutomatic(serverURL string, email string, opts ...TestWindowsMDMClientOption) *TestWindowsMDMClient {
+	return newTestMDMClient(serverURL, fleet.WindowsMDMAutomaticEnrollmentType, email, opts...)
+}
+
+func newTestMDMClient(serverURL string, enrollmentType fleet.WindowsMDMEnrollmentType, tokenIdentifier string, opts ...TestWindowsMDMClientOption) *TestWindowsMDMClient {
 	c := TestWindowsMDMClient{
 		fleetServerURL:  serverURL,
 		DeviceID:        uuid.NewString(),
-		enrollmentType:  fleet.WindowsMDMAutomaticEnrollmentType,
-		TokenIdentifier: email,
+		enrollmentType:  enrollmentType,
+		TokenIdentifier: tokenIdentifier,
 		HardwareID:      uuid.NewString(),
 	}
 	for _, fn := range opts {
@@ -352,7 +363,7 @@ YioVozr1IWYySwWVzMf/SUwKZkKJCAJmSVcixE+4kxPkyPGyauIrN3wWC0zb+mjF
                     <ac:Value>10.0.22598.1</ac:Value>
                 </ac:ContextItem>
                 <ac:ContextItem Name="NotInOobe">
-                    <ac:Value>false</ac:Value>
+                    <ac:Value>` + fmt.Sprintf("%t", c.notInOOBE) + `</ac:Value>
                 </ac:ContextItem>
                 <ac:ContextItem Name="RequestVersion">
                     <ac:Value>5.0</ac:Value>
@@ -501,6 +512,7 @@ func (c *TestWindowsMDMClient) getToken() (binarySecToken string, tokenValueType
 
 		tokenValueType = syncml.BinarySecurityAzureEnroll
 		binarySecToken = base64.URLEncoding.EncodeToString([]byte(tokenString))
+
 	case fleet.WindowsMDMProgrammaticEnrollmentType:
 		var err error
 		tokenValueType = syncml.BinarySecurityDeviceEnroll
@@ -508,6 +520,10 @@ func (c *TestWindowsMDMClient) getToken() (binarySecToken string, tokenValueType
 		if err != nil {
 			return "", "", fmt.Errorf("generating encoded security token: %w", err)
 		}
+
+	case WindowsMDMEmptyBinarySecurityTokenEnrollmentType:
+		tokenValueType = syncml.BinarySecurityAzureEnroll
+		binarySecToken = ""
 	}
 
 	return binarySecToken, tokenValueType, nil

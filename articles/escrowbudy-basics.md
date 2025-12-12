@@ -15,17 +15,17 @@ With EscrowBuddy, the generation and escrowing of FileVault recovery keys happen
 ## How do I set up EscrowBuddy with Fleet?
 To escrow FileVault recovery keys in Fleet, the only thing admins need to do is enable disk encryption on the teams for which disk encryption is required. To do this, in the Fleet UI, select your desired team and navigate to **Controls > OS settings > Disk encryption** then check the box next to **Turn on disk encryption**.
 
-![Turn on disk encryption](../website/assets/images/articles/escrowbuddy-basics-turn-on-disk-encryption.png)
+![Turn on disk encryption](../website/assets/images/articles/escrowbuddy-basics-turn-on-disk-encryption-975x553@2x.png)
 
 Fleet will send a configuration profile to all macOS hosts on that team to enable disk encryption and silently deploy EscrowBuddy.
 
 When the disk encryption profile is delivered to a host, but a key is not yet escrowed, Fleet will show the profile as Action required (pending). The next time the user logs in to their Mac, EscrowBuddy generates a new recovery key on the host and Fleet will collect it.
-![Acation needed](../website/assets/images/articles/escrowbuddy-basics-action-needed.png)
+![Acation needed](../website/assets/images/articles/escrowbuddy-basics-action-needed-535x102@2x.png)
 
 ## What’s going on behind the scenes?
 Behind the scenes, EscrowBuddy runs as a [macOS authorization plugin](https://developer.apple.com/documentation/security/authorization-plug-ins). It works in conjunction with the FileVault profile that Fleet deploys to hosts to enforce disk encryption.
 
-At the login event following deployment, EscrowBuddy generates a new recovery key, which is encrypted, wrapped in a CMS envelope, and saved at /var/db/FileVaultPRK.dat. Fleet collects this data from the host with the [vitals query](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Understanding-host-vitals.md#mdm_disk_encryption_key_file_darwin) that uses the [filevault_prk](https://fleetdm.com/tables/filevault_prk#apple) table to collect and escrow the key the next time the host is scheduled to refetch host details. 
+At the login event following deployment, EscrowBuddy generates a new recovery key, which is encrypted, wrapped in a CMS envelope, and saved at /var/db/FileVaultPRK.dat. Fleet collects this data from the host with the [vitals query](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md#mdm_disk_encryption_key_file_darwin) that uses the [filevault_prk](https://fleetdm.com/tables/filevault_prk#apple) table to collect and escrow the key the next time the host is scheduled to refetch host details. 
 
 How can I learn more about EscrowBuddy’s technical details?
 Like Fleet, EscrowBuddy is an open source project, so the full source code can be inspected to learn more about what’s going on behind the scenes. Take a look at the [EscrowBuddy repo on GitHub](https://github.com/macadmins/escrow-buddy) to learn more.

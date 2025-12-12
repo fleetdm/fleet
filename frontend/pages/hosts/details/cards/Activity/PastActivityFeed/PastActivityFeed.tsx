@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useContext } from "react";
 
 import { IHostPastActivity } from "interfaces/activity";
 import { IHostPastActivitiesResponse } from "services/entities/activities";
 
+import { AppContext } from "context/app";
 import DataError from "components/DataError";
 import Pagination from "components/Pagination";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
@@ -28,8 +29,10 @@ const PastActivityFeed = ({
   onNextPage,
   onPreviousPage,
 }: IPastActivityFeedProps) => {
+  const { isPremiumTier } = useContext(AppContext);
+
   if (isError) {
-    return <DataError className={`${baseClass}__error`} />;
+    return <DataError verticalPaddingSize="pad-large" />;
   }
 
   if (!activities) {
@@ -42,7 +45,11 @@ const PastActivityFeed = ({
     return (
       <EmptyFeed
         title="No activity"
-        message="Completed actions will appear here (scripts, software, lock, and wipe)."
+        message={
+          isPremiumTier
+            ? "Completed actions will appear here (scripts, software, lock, and wipe)."
+            : "Completed script runs will appear here."
+        }
         className={`${baseClass}__empty-feed`}
       />
     );

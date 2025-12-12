@@ -6,7 +6,7 @@ import { AxiosError } from "axios";
 import PATHS from "router/paths";
 import labelsAPI, {
   IGetHostsInLabelResponse,
-  IGetLabelResonse,
+  IGetLabelResponse,
 } from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { ILabel } from "interfaces/label";
@@ -42,12 +42,22 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     data: label,
     isLoading: isLoadingLabel,
     isError: isErrorLabel,
-  } = useQuery<IGetLabelResonse, AxiosError, ILabel>(
+  } = useQuery<IGetLabelResponse, AxiosError, ILabel>(
     ["label", labelId],
     () => labelsAPI.getLabel(labelId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (data) => data.label,
+      onSuccess: (data) => {
+        // can't edit host_vitals labels yet
+        if (data.label_membership_type === "host_vitals") {
+          renderFlash(
+            "error",
+            "Host vitals labels are not editable. Delete the label and re-add it to make changes."
+          );
+          router.replace(PATHS.MANAGE_LABELS);
+        }
+      },
     }
   );
 
@@ -75,8 +85,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     formData: IDynamicLabelFormData | IManualLabelFormData
   ) => {
     try {
-      const res = await labelsAPI.update(labelId, formData);
-      router.push(PATHS.MANAGE_HOSTS_LABEL(res.label.id));
+      await labelsAPI.update(labelId, formData);
       renderFlash("success", "Label updated successfully.");
     } catch {
       renderFlash("error", "Couldn't edit label. Please try again.");
@@ -128,7 +137,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
   return (
     <>
       <MainContent className={baseClass}>
-        <h1>Edit label</h1>
+        <h1 className="page-header">Edit label</h1>
         {renderContent()}
       </MainContent>
     </>

@@ -18,7 +18,7 @@ func Up_20161118212641(tx *sql.Tx) error {
 			"`user_id` int(10) unsigned NOT NULL," +
 			"`token` varchar(1024) NOT NULL," +
 			"PRIMARY KEY (`id`)" +
-			") ENGINE=InnoDB DEFAULT CHARSET=utf8;",
+			") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
 	)
 	return err
 }

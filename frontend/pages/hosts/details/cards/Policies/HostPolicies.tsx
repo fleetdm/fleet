@@ -7,7 +7,6 @@ import { IHostPolicy } from "interfaces/policy";
 import { SUPPORT_LINK } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
-import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
 
@@ -17,7 +16,7 @@ import {
 } from "./HostPoliciesTable/HostPoliciesTableConfig";
 import PolicyFailingCount from "./HostPoliciesTable/PolicyFailingCount";
 
-const baseClass = "policies-card";
+const baseClass = "host-policies-card";
 
 interface IPoliciesProps {
   policies: IHostPolicy[];
@@ -42,10 +41,7 @@ const Policies = ({
   router,
   currentTeamId,
 }: IPoliciesProps): JSX.Element => {
-  const tableHeaders = generatePolicyTableHeaders(
-    togglePolicyDetailsModal,
-    currentTeamId
-  );
+  const tableHeaders = generatePolicyTableHeaders(currentTeamId);
   if (deviceUser) {
     // Remove view all hosts link
     tableHeaders.pop();
@@ -119,8 +115,7 @@ const Policies = ({
           columnConfigs={tableHeaders}
           data={generatePolicyDataSet(policies)}
           isLoading={isLoading}
-          defaultSortHeader="response"
-          defaultSortDirection="asc"
+          defaultSortHeader="status"
           resultsTitle="policies"
           emptyComponent={() => <></>}
           showMarkAllPages={false}
@@ -136,15 +131,10 @@ const Policies = ({
   };
 
   return (
-    <Card
-      className={baseClass}
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-      includeShadow
-    >
+    <div className={baseClass}>
       <CardHeader header="Policies" />
       {renderHostPolicies()}
-    </Card>
+    </div>
   );
 };
 

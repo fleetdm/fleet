@@ -27,7 +27,7 @@ describe("Dashboard software card", () => {
           name: vulnSwInfo.name,
           version: vulnSwInfo.version,
           source: "vscode_extensions",
-          browser: "",
+          extension_for: "vscode",
           vendor: "Microsoft",
           generated_cpe:
             "cpe:2.3:a:microsoft:jupyter:2023.10.10:*:*:*:*:visual_studio_code:*:*",
@@ -46,16 +46,18 @@ describe("Dashboard software card", () => {
             },
           ],
           hosts_count: vulnSwInfo.hostsCount,
+          icon_url: null,
         },
         {
           id: 758,
           name: noVulnSwInfo.name,
           version: noVulnSwInfo.version,
           source: "vscode_extensions",
-          browser: "",
+          extension_for: "cursor",
           generated_cpe: "",
           vulnerabilities: null,
           hosts_count: noVulnSwInfo.hostsCount,
+          icon_url: null,
         },
       ],
     };
@@ -95,7 +97,7 @@ describe("Dashboard software card", () => {
           name: vulnSwInfo.name,
           version: vulnSwInfo.version,
           source: "vscode_extensions",
-          browser: "",
+          extension_for: "vscode",
           vendor: "Microsoft",
           generated_cpe:
             "cpe:2.3:a:microsoft:jupyter:2023.10.10:*:*:*:*:visual_studio_code:*:*",
@@ -114,6 +116,7 @@ describe("Dashboard software card", () => {
             },
           ],
           hosts_count: vulnSwInfo.hostsCount,
+          icon_url: null,
         },
       ],
     };

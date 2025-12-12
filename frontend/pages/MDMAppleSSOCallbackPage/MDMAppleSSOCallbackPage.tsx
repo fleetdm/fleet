@@ -7,6 +7,8 @@ import Spinner from "components/Spinner/Spinner";
 import SSOError from "components/MDM/SSOError";
 import Button from "components/buttons/Button";
 
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+
 const baseClass = "mdm-apple-sso-callback-page";
 
 const RedirectTo = ({ url }: { url: string }) => {
@@ -18,6 +20,7 @@ interface IEnrollmentGateProps {
   profileToken?: string;
   eulaToken?: string;
   enrollmentReference?: string;
+  initiator?: string;
   error?: boolean;
 }
 
@@ -25,12 +28,25 @@ const EnrollmentGate = ({
   profileToken,
   eulaToken,
   enrollmentReference,
+  initiator,
   error,
 }: IEnrollmentGateProps) => {
   const [showEULA, setShowEULA] = useState(Boolean(eulaToken));
 
-  if (!profileToken || error) {
+  const deviceinfo = localStorage.getItem("deviceinfo") || "";
+
+  if ((!profileToken && initiator !== "setup_experience") || error) {
     return <SSOError />;
+  }
+
+  if (initiator === "setup_experience") {
+    return (
+      <AuthenticationFormWrapper header="Authentication complete">
+        <div className={`${baseClass} form`}>
+          <p>You’re done! You may now close this window.</p>
+        </div>
+      </AuthenticationFormWrapper>
+    );
   }
 
   if (showEULA && eulaToken) {
@@ -38,7 +54,7 @@ const EnrollmentGate = ({
       <div className={`${baseClass}__eula-wrapper`}>
         <h3>Terms and conditions</h3>
         <iframe
-          src={`/api/${endpoints.MDM_EULA(eulaToken)}`}
+          src={`/api${endpoints.MDM_EULA(eulaToken)}`}
           width="100%"
           title="eula"
         />
@@ -56,8 +72,9 @@ const EnrollmentGate = ({
   return (
     <RedirectTo
       url={endpoints.MDM_APPLE_ENROLLMENT_PROFILE(
-        profileToken,
-        enrollmentReference
+        profileToken as string,
+        enrollmentReference,
+        deviceinfo
       )}
     />
   );
@@ -67,6 +84,7 @@ interface IMDMSSOCallbackQuery {
   eula_token?: string;
   profile_token?: string;
   enrollment_reference?: string;
+  initiator?: string;
   error?: boolean;
 }
 
@@ -77,6 +95,7 @@ const MDMAppleSSOCallbackPage = (
     eula_token,
     profile_token,
     enrollment_reference,
+    initiator,
     error,
   } = props.location.query;
   return (
@@ -85,6 +104,7 @@ const MDMAppleSSOCallbackPage = (
         eulaToken={eula_token}
         profileToken={profile_token}
         enrollmentReference={enrollment_reference}
+        initiator={initiator}
         error={error}
       />
     </div>

@@ -123,8 +123,9 @@ const NoResults = ({
       return [
         "Nothing to report",
         <>
-          This query does not collect data on a schedule. Add <br />a{" "}
-          <strong>frequency</strong> or run this as a live query to see results.
+          This query does not collect data on a schedule. Add <br />
+          an <strong>interval</strong> or run this as a live query to see
+          results.
         </>,
       ];
     }

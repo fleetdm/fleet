@@ -24,7 +24,7 @@ func Up_20230202224725(tx *sql.Tx) error {
 
 	    PRIMARY KEY (host_id),
 	    KEY idx_host_disk_encryption_keys_decryptable (decryptable)
-	 )`)
+	 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`)
 	return err
 }
 

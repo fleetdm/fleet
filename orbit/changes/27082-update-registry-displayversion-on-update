@@ -1,2 +1,0 @@
-- When fleetd on a Windows host installs an update it detects from TUF, also update the
-  corresponding `DisplayVersion` in the Registry

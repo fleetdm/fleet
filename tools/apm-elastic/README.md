@@ -13,7 +13,7 @@ Give it a few seconds to complete setup, and then you should be able to view the
 
 ## Configuring local Fleet
 
-Make sure Fleet is ready to run locally (docker services are started, binary is built, etc., see [Testing and local development](../../docs/Contributing/Testing-and-local-development.md)).
+Make sure Fleet is ready to run locally (docker services are started, binary is built, etc., see [Testing and local development](../../docs/Contributing/getting-started/testing-and-local-development.md)).
 
 Start the locally-built Fleet (`fleet serve`) and provide the `--logging_tracing_enabled --logging_tracing_type=elasticapm` flags (note that sending those options using environment variables does not seem to work).
 

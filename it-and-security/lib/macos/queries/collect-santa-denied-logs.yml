@@ -1,0 +1,11 @@
+- name: Collect Santa denied logs
+  automations_enabled: true
+  description: Collects all Santa denied logs from macOS hosts.
+  discard_data: false
+  interval: 300
+  logging: differential
+  observer_can_run: true
+  platform: "darwin"
+  query: SELECT * FROM santa_denied;
+  labels_include_any:
+    - Santa test devices

@@ -166,7 +166,6 @@ func deleteGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc 
 	return deleteGlobalScheduleResponse{}, nil
 }
 
-// TODO(lucas): Document new behavior.
 func (svc *Service) DeleteGlobalScheduledQueries(ctx context.Context, id uint) error {
 	return svc.DeleteQueryByID(ctx, id)
 }

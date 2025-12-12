@@ -63,17 +63,24 @@ const createLoadingVariant = (variant: ButtonVariant): Story => ({
 
 // Variants with loading state
 export const DefaultVariant = createLoadingVariant("default");
-export const SuccessVariant = createLoadingVariant("success");
 export const AlertVariant = createLoadingVariant("alert");
 export const InverseVariant = Template("inverse");
 export const InverseAlertVariant = Template("inverse-alert");
 
 export const PillVariant = Template("pill");
 export const TextLinkVariant = Template("text-link");
+export const TextLinkDarkVariant = Template("text-link-dark");
 export const TextIconVariant = Template(
   "text-icon",
   <>
     Button text <Icon name="plus" size="small" />
+  </>
+);
+export const BrandInverseIconVariant = Template(
+  "brand-inverse-icon",
+  <>
+    <Icon name="plus" size="small" />
+    Button text
   </>
 );
 export const IconVariant = Template("text-icon", <Icon name="trash" />);

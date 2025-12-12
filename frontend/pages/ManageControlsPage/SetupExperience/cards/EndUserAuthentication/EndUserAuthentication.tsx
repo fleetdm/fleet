@@ -1,5 +1,4 @@
 import React from "react";
-import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 import { useQuery } from "react-query";
 
@@ -10,10 +9,13 @@ import { ITeamConfig } from "interfaces/team";
 
 import SectionHeader from "components/SectionHeader/SectionHeader";
 import Spinner from "components/Spinner";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import CustomLink from "components/CustomLink";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import RequireEndUserAuth from "./components/RequireEndUserAuth/RequireEndUserAuth";
 import EndUserAuthForm from "./components/EndUserAuthForm/EndUserAuthForm";
-import EndUserExperiencePreview from "./components/EndUserExperiencePreview";
+import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
+import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 
 const baseClass = "end-user-authentication";
 
@@ -44,15 +46,10 @@ const isIdPConfigured = ({
   );
 };
 
-interface IEndUserAuthenticationProps {
-  currentTeamId: number;
-  router: InjectedRouter;
-}
-
 const EndUserAuthentication = ({
   currentTeamId,
   router,
-}: IEndUserAuthenticationProps) => {
+}: ISetupExperienceCardProps) => {
   const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
     IConfig,
     Error
@@ -78,29 +75,45 @@ const EndUserAuthentication = ({
     teamConfig
   );
 
-  const onClickConnect = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+  const renderContent = () => {
+    if (!globalConfig || isLoadingGlobalConfig || isLoadingTeamConfig) {
+      return <Spinner />;
+    }
+    const mdmConfig = globalConfig.mdm;
+    return (
+      <SetupExperienceContentContainer>
+        {!isIdPConfigured(mdmConfig) ? (
+          <GenericMsgWithNavButton
+            header="Require end user authentication during setup"
+            info="Connect Fleet to your identity provider (IdP) to get started."
+            buttonText="Connect"
+            router={router}
+            path={PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER}
+          />
+        ) : (
+          <EndUserAuthForm
+            currentTeamId={currentTeamId}
+            defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
+          />
+        )}
+      </SetupExperienceContentContainer>
+    );
   };
 
   return (
-    <div className={baseClass}>
-      <SectionHeader title="End user authentication" />
-      {isLoadingGlobalConfig || isLoadingTeamConfig ? (
-        <Spinner />
-      ) : (
-        <div className={`${baseClass}__content`}>
-          {!globalConfig || !isIdPConfigured(globalConfig.mdm) ? (
-            <RequireEndUserAuth onClickConnect={onClickConnect} />
-          ) : (
-            <EndUserAuthForm
-              currentTeamId={currentTeamId}
-              defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
-            />
-          )}
-          <EndUserExperiencePreview />
-        </div>
-      )}
-    </div>
+    <section className={baseClass}>
+      <SectionHeader
+        title="End user authentication"
+        details={
+          <CustomLink
+            newTab
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-experience/end-user-authentication`}
+            text="Preview end user experience"
+          />
+        }
+      />
+      {renderContent()}
+    </section>
   );
 };
 

@@ -22,10 +22,12 @@
     }
   }
 
+  // Future iteration: New styling as this is a weird internal link with an arrow
+  // Either convert to button or use CustomLink and its styling
   .external-link {
     display: flex;
     font-size: $x-small;
-    color: $core-vibrant-blue;
+    color: $ui-fleet-black-75;
     font-weight: $bold;
     text-decoration: none !important;
 
@@ -110,9 +112,9 @@
       margin-right: $pad-small;
 
       &.refetch-spinner {
-        color: $core-white;
+        color: $core-fleet-white;
         font-size: $x-small;
-        height: 38px;
+        height: 36px;
 
         .icon {
           margin-right: 6px;

@@ -1,9 +1,14 @@
+locals {
+  hosts_per_container = 500
+}
+
 resource "aws_ecs_service" "loadtest" {
-  name                               = "loadtest"
+  count                              = var.loadtest_containers
+  name                               = "loadtest-${count.index}"
   launch_type                        = "FARGATE"
   cluster                            = aws_ecs_cluster.fleet.id
-  task_definition                    = aws_ecs_task_definition.loadtest.arn
-  desired_count                      = var.loadtest_containers
+  task_definition                    = aws_ecs_task_definition.loadtest[count.index].arn
+  desired_count                      = 1
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
 
@@ -14,20 +19,21 @@ resource "aws_ecs_service" "loadtest" {
 }
 
 resource "aws_ecs_task_definition" "loadtest" {
-  family                   = "${local.prefix}-loadtest"
+  count                    = var.loadtest_containers
+  family                   = "loadtest-${local.prefix}-${count.index}"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  cpu                      = 256
-  memory                   = 512
+  cpu                      = 512
+  memory                   = 1024
   container_definitions = jsonencode(
     [
       {
         name        = "loadtest"
         image       = docker_registry_image.loadtest.name
-        cpu         = 256
-        memory      = 512
+        cpu         = 512
+        memory      = 1024
         mountPoints = []
         volumesFrom = []
         essential   = true
@@ -44,14 +50,17 @@ resource "aws_ecs_task_definition" "loadtest" {
           options = {
             awslogs-group         = aws_cloudwatch_log_group.backend.name
             awslogs-region        = data.aws_region.current.name
-            awslogs-stream-prefix = "loadtest"
+            awslogs-stream-prefix = "loadtest-${count.index}"
           }
         },
         workingDirectory = "/go",
         command = [
           "/go/osquery-perf",
           "-enroll_secret", data.aws_secretsmanager_secret_version.enroll_secret.secret_string,
-          "-host_count", "500",
+          "-host_count", tostring(local.hosts_per_container),
+          # If you would like to run distributed mode, uncomment these two lines
+          # "-total_host_count", tostring(var.loadtest_containers * local.hosts_per_container),
+          # "-host_index_offset", tostring(count.index * local.hosts_per_container),
           "-server_url", "http://${aws_lb.internal.dns_name}",
           "--policy_pass_prob", "0.5",
           "--start_period", "5m",

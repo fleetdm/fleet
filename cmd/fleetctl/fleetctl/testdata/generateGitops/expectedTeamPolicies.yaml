@@ -1,0 +1,9 @@
+- calendar_events_enabled: false
+  critical: false
+  description: This is a team policy
+  name: Team Policy
+  platform: linux,windows
+  query: SELECT * FROM team_policy WHERE id = 1
+  resolution: Do a team thing
+  run_script:
+    path: /path/to/script1.sh

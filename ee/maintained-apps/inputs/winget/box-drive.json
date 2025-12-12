@@ -5,5 +5,6 @@
   "unique_identifier": "Box",
   "installer_arch": "x64",
   "installer_type": "msi",
-  "installer_scope": "machine"
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
 }

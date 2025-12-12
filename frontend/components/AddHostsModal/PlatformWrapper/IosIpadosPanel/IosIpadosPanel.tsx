@@ -1,6 +1,6 @@
 import React, { useContext } from "react";
-import { Link } from "react-router";
 
+import CustomLink from "components/CustomLink";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 
@@ -32,7 +32,10 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
   if (!isMacMdmEnabledAndConfigured) {
     return (
       <p>
-        <Link to={PATHS.ADMIN_INTEGRATIONS_MDM_APPLE}>Turn on Apple MDM</Link>{" "}
+        <CustomLink
+          url={PATHS.ADMIN_INTEGRATIONS_MDM_APPLE}
+          text="Turn on Apple MDM"
+        />{" "}
         to enroll iOS & iPadOS hosts.
       </p>
     );
@@ -45,7 +48,6 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
       <InputField
         label="Send this to your end users:"
         enableCopy
-        copyButtonPosition="inside"
         readOnly
         inputWrapperClass
         name="enroll-link"

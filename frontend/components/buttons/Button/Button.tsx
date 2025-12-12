@@ -6,16 +6,16 @@ const baseClass = "button";
 
 export type ButtonVariant =
   | "default"
-  | "success"
   | "alert"
   | "pill"
   | "text-link" // Underlines on hover
+  | "text-link-dark" // underline on hover, dark text
+  | "brand-inverse-icon" // Green icon with text, no underline on hover
   | "text-icon"
   | "icon" // Buttons without text
-  | "small-icon" // Buttons without text
   | "inverse"
   | "inverse-alert"
-  | "unstyled"
+  | "unstyled" // Avoid as much as possible (used in registration breadcrumbs, 404/500, an old button dropdown)
   | "unstyled-modal-query"
   | "oversized";
 
@@ -39,6 +39,20 @@ export interface IButtonProps {
       ) => void);
   isLoading?: boolean;
   customOnKeyDown?: (e: React.KeyboardEvent) => void;
+  /** Required for buttons that contain SVG icons using`stroke` instead of`fill` for proper hover styling */
+  iconStroke?: boolean;
+  ariaHasPopup?:
+    | boolean
+    | "false"
+    | "true"
+    | "menu"
+    | "listbox"
+    | "tree"
+    | "grid"
+    | "dialog";
+  ariaExpanded?: boolean;
+  /** Small: 1/2 the padding */
+  size?: "small" | "default";
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -109,18 +123,25 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       variant,
       isLoading,
       customOnKeyDown,
+      iconStroke,
+      ariaHasPopup,
+      ariaExpanded,
+      size,
     } = this.props;
     const fullClassName = classnames(
       baseClass,
       `${baseClass}--${variant}`,
       className,
       {
+        [`${baseClass}--${variant}__small`]: size === "small",
         [`${baseClass}--disabled`]: disabled,
+        [`${baseClass}--icon-stroke`]: iconStroke,
       }
     );
     const onWhite =
       variant === "text-link" ||
       variant === "inverse" ||
+      variant === "brand-inverse-icon" ||
       variant === "text-icon" ||
       variant === "pill";
 
@@ -134,6 +155,8 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         type={type}
         title={title}
         ref={setRef}
+        aria-haspopup={ariaHasPopup}
+        aria-expanded={ariaExpanded}
       >
         <div className={isLoading ? "transparent-text" : "children-wrapper"}>
           {children}

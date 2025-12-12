@@ -1,12 +1,13 @@
 package fleet
 
 import (
+	"context"
 	"errors"
 	"regexp"
 	"time"
 )
 
-var ErrPasswordResetNotConfigured = errors.New("Cannot send password reset. SMTP or SES Is not configured.")
+var ErrPasswordResetNotConfigured = errors.New("Cannot send password reset. Requires that SMTP or SES (email) is configured.")
 
 // Mailer is an email campaign
 // Types which implement the Campaign interface
@@ -24,7 +25,7 @@ type Email struct {
 }
 
 type MailService interface {
-	SendEmail(e Email) error
+	SendEmail(ctx context.Context, e Email) error
 	CanSendEmail(smtpSettings SMTPSettings) bool
 }
 

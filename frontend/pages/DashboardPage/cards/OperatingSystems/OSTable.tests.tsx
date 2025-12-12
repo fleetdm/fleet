@@ -16,6 +16,7 @@ describe("Dashboard OS table", () => {
             name_only: "Microsoft Windows 11 Enterprise 22H2",
             version: "1.2.3",
             platform: "windows",
+            kernels: [],
             vulnerabilities: [],
           },
           {
@@ -25,6 +26,7 @@ describe("Dashboard OS table", () => {
             name_only: "Microsoft Windows 11 Pro 22H2",
             version: "4.5.6",
             platform: "windows",
+            kernels: [],
             vulnerabilities: [
               {
                 cve: "CVE-2022-2601",

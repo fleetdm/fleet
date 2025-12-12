@@ -1,14 +1,14 @@
 .input-field {
   line-height: 1.5;
-  background-color: $ui-light-grey;
+  background-color: $core-fleet-white;
   border: solid 1px $ui-fleet-black-10;
   border-radius: $border-radius;
-  font-size: $small;
+  font-size: $x-small;
   padding: $pad-small $pad-medium;
   color: $core-fleet-blue;
   font-family: "Inter", sans-serif;
   box-sizing: border-box;
-  height: 40px;
+  height: 36px;
   transition: border-color 100ms;
   width: 100%;
 
@@ -18,7 +18,7 @@
 
   &:hover:not(.input-field--read-only) {
     box-shadow: none;
-    border: 1px solid $core-vibrant-blue-over;
+    border: 1px solid $ui-fleet-black-75-over;
   }
 
   &:active:not(.input-field--read-only),
@@ -26,7 +26,7 @@
   &:focus-visible:not(.input-field--read-only) {
     box-shadow: none;
     outline: 0;
-    border: 1px solid $core-vibrant-blue-down;
+    border: 1px solid $ui-fleet-black-75-down;
   }
 
   &--disabled {
@@ -46,7 +46,7 @@
 
     &:focus {
       border-color: $ui-error;
-      background-color: $core-white;
+      background-color: $core-fleet-white;
       color: $core-fleet-black;
     }
   }
@@ -89,46 +89,31 @@
     }
   }
 
-  &__copy-wrapper-outside {
-    position: relative;
-  }
-
-  &__copy-wrapper-inside {
+  &__copy-wrapper {
+    display: flex;
+    align-items: center;
+    gap: $pad-xxsmall;
     position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    right: 12px;
+    top: 6px; // vertically center
+    right: 0;
+    margin: 1px 4px;
+    background-color: $core-fleet-white;
   }
 
   &__input-container.copy-enabled {
-    &.copy-outside {
-      display: flex;
-      align-items: center;
-      gap: $pad-medium;
-    }
+    position: relative;
 
-    &.copy-inside {
-      position: relative;
+    .input-field {
+      padding-right: 35px; // horizontal scroll of long inputs will not be hidden by copy button
     }
   }
 
   &__copied-confirmation {
-    font-size: $x-small;
-    position: absolute;
-    background-color: $ui-light-grey;
-    border: solid 1px $ui-fleet-black-10;
-    border-radius: $border-radius-xlarge;
-    padding: $pad-xxsmall 6px;
-    top: 50%;
-    transform: translateY(-50%);
-  }
-
-  &__copied-confirmation-inside {
-    right: 24px;
+    @include copy-message;
   }
 
   &__copied-confirmation-outside {
-    left: -90px;
+    margin-left: -88px;
   }
 }
 

@@ -1,0 +1,8 @@
+{
+  "name": "MongoDB Compass",
+  "unique_identifier": "com.mongodb.compass",
+  "token": "mongodb-compass",
+  "installer_format": "dmg",
+  "slug": "mongodb-compass/darwin",
+  "default_categories": ["Developer tools"]
+}

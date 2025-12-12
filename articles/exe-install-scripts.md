@@ -166,8 +166,7 @@ $exeFilePath = "${env:PUBLIC}\$exeFilename"
 $action = New-ScheduledTaskAction -Execute "$exeFilePath" `
     -Argument "$installArgs"
 $trigger = New-ScheduledTaskTrigger -AtLogOn
-$userName = Get-CimInstance -ClassName Win32_ComputerSystem |
-        Select-Object -expand UserName
+$userName = (Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' | Invoke-CimMethod -MethodName getowner).User
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
 
 # Create a task object with the properties defined above
@@ -345,8 +344,7 @@ try {
     $action = New-ScheduledTaskAction -Execute "PowerShell.exe" `
         -Argument "$uninstallScriptPath"
     $trigger = New-ScheduledTaskTrigger -AtLogOn
-    $userName = Get-CimInstance -ClassName Win32_ComputerSystem |
-            Select-Object -expand UserName
+    $userName = (Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' | Invoke-CimMethod -MethodName getowner).User
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
     
     # Create a task object with the properties defined above

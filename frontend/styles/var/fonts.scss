@@ -5,8 +5,10 @@ $x-small: px-to-rem(14);
 $small: px-to-rem(16);
 $medium: px-to-rem(20);
 $large: px-to-rem(24);
-$x-large: px-to-rem(28);
 
 // Font weights
 $regular: 400;
-$bold: 700;
+$bold: 600;
+
+$line-height: 1.5;
+$line-height-large: 1.75;

@@ -2,6 +2,8 @@ import React, { useContext, useState } from "react";
 import { AppContext } from "context/app";
 
 import { ILabelSummary } from "interfaces/label";
+import { SoftwareCategory } from "interfaces/software";
+
 import {
   CUSTOM_TARGET_OPTIONS,
   generateHelpText,
@@ -12,11 +14,11 @@ import paths from "router/paths";
 import RevealButton from "components/buttons/RevealButton";
 import Button from "components/buttons/Button";
 import Card from "components/Card";
-import SoftwareOptionsSelector from "components/SoftwareOptionsSelector";
+import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 import TargetLabelSelector from "components/TargetLabelSelector";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
-import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
+import AdvancedOptionsFields from "pages/SoftwarePage/components/forms/AdvancedOptionsFields";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { generateFormValidation } from "./helpers";
@@ -57,6 +59,7 @@ export interface IFleetMaintainedAppFormData {
   targetType: string;
   customTarget: string;
   labelTargets: Record<string, boolean>;
+  categories: string[];
 }
 
 export interface IFormValidation {
@@ -67,6 +70,7 @@ export interface IFormValidation {
 
 interface IFleetAppDetailsFormProps {
   labels: ILabelSummary[] | null;
+  categories?: SoftwareCategory[];
   name: string;
   defaultInstallScript: string;
   defaultPostInstallScript: string;
@@ -74,6 +78,7 @@ interface IFleetAppDetailsFormProps {
   teamId?: string;
   showSchemaButton: boolean;
   onClickShowSchema: () => void;
+  onClickPreviewEndUserExperience: () => void;
   onCancel: () => void;
   onSubmit: (formData: IFleetMaintainedAppFormData) => void;
   softwareTitleId?: number;
@@ -81,6 +86,7 @@ interface IFleetAppDetailsFormProps {
 
 const FleetAppDetailsForm = ({
   labels,
+  categories,
   name: appName,
   defaultInstallScript,
   defaultPostInstallScript,
@@ -88,6 +94,7 @@ const FleetAppDetailsForm = ({
   teamId,
   showSchemaButton,
   onClickShowSchema,
+  onClickPreviewEndUserExperience,
   onCancel,
   onSubmit,
   softwareTitleId,
@@ -107,6 +114,7 @@ const FleetAppDetailsForm = ({
     targetType: "All hosts",
     customTarget: "labelsIncludeAny",
     labelTargets: {},
+    categories: categories || [],
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: true,
@@ -168,6 +176,34 @@ const FleetAppDetailsForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
+  const onSelectCategory = ({
+    name,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => {
+    let newCategories: string[];
+
+    if (value) {
+      // Add the name if not already present
+      newCategories = formData.categories.includes(name)
+        ? formData.categories
+        : [...formData.categories, name];
+    } else {
+      // Remove the name if present
+      newCategories = formData.categories.filter((cat) => cat !== name);
+    }
+
+    const newData = {
+      ...formData,
+      categories: newCategories,
+    };
+
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
   const onSubmitForm = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
     onSubmit(formData);
@@ -187,7 +223,9 @@ const FleetAppDetailsForm = ({
             formData={formData}
             onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
             onToggleSelfService={onToggleSelfServiceCheckbox}
+            onSelectCategory={onSelectCategory}
             disableOptions={isSoftwareAlreadyAdded}
+            onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
           />
         </Card>
         <Card paddingSize="medium" borderRadiusSize="large">

@@ -1,0 +1,128 @@
+---
+apiVersion: v1
+kind: host
+spec:
+  additional:
+    query1:
+      - col1: val
+        col2: 42
+  build: ""
+  code_name: ""
+  computer_name: test_host
+  display_name: test_host
+  config_tls_refresh: 0
+  cpu_brand: ""
+  cpu_logical_cores: 0
+  cpu_physical_cores: 0
+  cpu_subtype: ""
+  cpu_type: ""
+  created_at: "0001-01-01T00:00:00Z"
+  detail_updated_at: "0001-01-01T00:00:00Z"
+  display_text: test_host
+  distributed_interval: 0
+  fleet_desktop_version: null
+  gigs_disk_space_available: 0
+  gigs_total_disk_space: 0
+  gigs_all_disk_space: null
+  hardware_model: ""
+  hardware_serial: ""
+  hardware_vendor: ""
+  hardware_version: ""
+  hostname: test_host
+  id: 0
+  issues:
+    failing_policies_count: 0
+    total_issues_count: 0
+  label_updated_at: "0001-01-01T00:00:00Z"
+  last_enrolled_at: "0001-01-01T00:00:00Z"
+  last_restarted_at: "0001-01-01T00:00:00Z"
+  logger_tls_period: 0
+  mdm:
+    dep_profile_error: false
+    encryption_key_available: false
+    enrollment_status: null
+    name: ""
+    server_url: null
+    connected_to_fleet: null
+  memory: 0
+  orbit_version: null
+  os_version: ""
+  osquery_version: ""
+  pack_stats: null
+  percent_disk_space_available: 0
+  platform: ""
+  platform_like: ""
+  policy_updated_at: "0001-01-01T00:00:00Z"
+  public_ip: ""
+  primary_ip: ""
+  primary_mac: ""
+  refetch_requested: false
+  refetch_critical_queries_until: null
+  scripts_enabled: null
+  seen_time: "0001-01-01T00:00:00Z"
+  software: []
+  software_updated_at: "0001-01-01T00:00:00Z"
+  status: offline
+  team_id: null
+  team_name: null
+  updated_at: "0001-01-01T00:00:00Z"
+  uptime: 0
+  uuid: ""
+---
+apiVersion: v1
+kind: host
+spec:
+  build: ""
+  code_name: ""
+  computer_name: test_host2
+  config_tls_refresh: 0
+  cpu_brand: ""
+  cpu_logical_cores: 0
+  cpu_physical_cores: 0
+  cpu_subtype: ""
+  cpu_type: ""
+  created_at: "0001-01-01T00:00:00Z"
+  detail_updated_at: "0001-01-01T00:00:00Z"
+  display_text: test_host2
+  distributed_interval: 0
+  gigs_disk_space_available: 0
+  hardware_model: ""
+  hardware_serial: ""
+  hardware_vendor: ""
+  hardware_version: ""
+  hostname: test_host2
+  id: 0
+  issues:
+    failing_policies_count: 0
+    total_issues_count: 0
+  label_updated_at: "0001-01-01T00:00:00Z"
+  last_enrolled_at: "0001-01-01T00:00:00Z"
+  last_restarted_at: "0001-01-01T00:00:00Z"
+  logger_tls_period: 0
+  mdm:
+    dep_profile_error: false
+    encryption_key_available: false
+    enrollment_status: null
+    server_url: null
+    connected_to_fleet: null
+  memory: 0
+  os_version: ""
+  osquery_version: ""
+  pack_stats: null
+  percent_disk_space_available: 0
+  platform: ""
+  platform_like: ""
+  policy_updated_at: "0001-01-01T00:00:00Z"
+  public_ip: ""
+  primary_ip: ""
+  primary_mac: ""
+  refetch_requested: false
+  seen_time: "0001-01-01T00:00:00Z"
+  software: []
+  software_updated_at: "0001-01-01T00:00:00Z"
+  status: offline
+  team_id: null
+  team_name: null
+  updated_at: "0001-01-01T00:00:00Z"
+  uptime: 0
+  uuid: ""

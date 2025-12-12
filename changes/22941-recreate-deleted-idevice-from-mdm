@@ -1,1 +1,0 @@
-* Fixed a bug where BYOD iDevices deleted in Fleet but still enrolled in MDM were not re-created on the next MDM checkin.

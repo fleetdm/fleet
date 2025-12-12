@@ -14,7 +14,7 @@
     align-self: stretch;
     border-radius: 16px;
     border: 1px solid $ui-fleet-black-10;
-    background: $core-white;
+    background: $core-fleet-white;
   }
 
   &__preview-header {
@@ -61,7 +61,16 @@
     align-self: stretch;
 
     &__text__user-text {
-        white-space: pre-wrap;
+      ul {
+        padding-left: 20px;
+        margin-top: $pad-xxsmall;
+      }
+      a {
+        color: $core-fleet-black;
+        font-weight: normal;
+        text-decoration: underline;
+      }
+      white-space: pre-wrap;
     }
   }
 

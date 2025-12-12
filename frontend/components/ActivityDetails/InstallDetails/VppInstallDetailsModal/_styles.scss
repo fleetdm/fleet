@@ -1,0 +1,16 @@
+.vpp-install-details-modal {
+  overflow-wrap: anywhere; // Prevent long software name overflow
+
+  &__modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  .data-set__horizontal {
+    flex-direction: row;
+  }
+  .reveal-button {
+    width: min-content;
+  }
+}

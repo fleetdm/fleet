@@ -1,13 +1,17 @@
 .bootstrap-package-table {
-  padding: $pad-xxlarge;
-  border: 1px solid $ui-fleet-black-10;
-  border-radius: $border-radius;
   // keep a minimum height to prevent UI jumping when the table data is done
   // loading.
   min-height: 191px;
 
-  .data-table-block .data-table tbody td .w250 {
-    min-width: auto;
+  // some data table overrides to display the table correctly
+  .data-table-block .data-table {
+    tbody td .w250 {
+      min-width: auto;
+    }
+
+    &__wrapper {
+      margin-top: 0;
+    }
   }
 
   @media (max-width: $break-lg) {

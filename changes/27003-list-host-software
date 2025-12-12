@@ -1,1 +1,0 @@
-* Added CVE ID as matching criteria for host software queries, in addition to software name. Also rebuild host software querying for better maintainability.

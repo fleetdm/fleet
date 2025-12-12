@@ -26,6 +26,7 @@ module.exports = {
 
     // Filter the testimonials by product category
     let testimonialOrderForMdm = [
+      'Bart Reardon',
       'Scott MacVicar',
       'Mike Meyer',
       'Tom Larkin',
@@ -36,7 +37,12 @@ module.exports = {
       'Matt Carr',
       'Nico Waisman',
       'Dan Grzelak',
+      'Philip Chotipradit',
+      'Roger Cantrell',
+      'Chayce O\'Neal',
       'u/Heteronymous',
+      'David Bodmer',
+      'Fiona Skelton',
     ];
     let testimonialsForMdm = _.filter(testimonials, (testimonial)=>{
       return _.contains(testimonial.productCategories, 'Device management') && _.contains(testimonialOrderForMdm, testimonial.quoteAuthorName);

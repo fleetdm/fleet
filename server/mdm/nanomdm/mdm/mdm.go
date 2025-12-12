@@ -18,6 +18,16 @@ type Enrollment struct {
 	EnrollmentUserID      string `plist:",omitempty"`
 }
 
+// Identifier returns the unique identifier for the device for a given enrollment. UDID
+// should be preferred if it exists however for User (Device) enrollments we will never
+// have the UDID and must use the randomly generated EnrollmentID.
+func (e Enrollment) Identifier() string {
+	if e.UDID != "" {
+		return e.UDID
+	}
+	return e.EnrollmentID
+}
+
 // EnrollID contains the custom enrollment IDs derived from enrollment
 // data. It's populated by services. Usually this is the main/core
 // service so that middleware or storage layers that use the Request
@@ -52,6 +62,9 @@ type Request struct {
 	Certificate *x509.Certificate
 	Context     context.Context
 	Params      map[string]string
+	// Authorization header value, if any. Note that this is an optional value used only for
+	// certain enrollment types like User (Device) enrollment.
+	Authorization string
 }
 
 // Clone returns a shallow copy of r
