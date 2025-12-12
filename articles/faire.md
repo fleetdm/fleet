@@ -37,7 +37,7 @@ Fleet also gives Faire more flexibility for managing Macs and iPads. They use cu
 
 In addition, Fleet helps Faire monitor Macs against CIS benchmarks. This improves their device security posture and gives IT the ability to take remediation actions when they find issues.
 
-Fleet’s reputation in the Mac Admins community also matters to Faire. The team and product are well regarded by industry experts, and Fleet’s open-source foundation gives Faire confidence that the underlying IP will always remain available.
+Fleet’s reputation in the Mac Admins community also matters to Faire. Industry experts highly regard the team and product, and Fleet’s open-source foundation gives Faire confidence that the underlying IP will always remain available.
 
 <div purpose="attribution-quote">
 
