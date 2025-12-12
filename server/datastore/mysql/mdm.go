@@ -93,7 +93,7 @@ func (ds *Datastore) ListMDMCommands(
 	ctx context.Context,
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
-) ([]*fleet.MDMCommand, error) {
+) ([]*fleet.MDMCommand, *int64, error) {
 	if listOpts != nil && listOpts.Filters.HostIdentifier != "" {
 		// separate codepath for more performant query by host identifier
 		return ds.listMDMCommandsByHostIdentifier(ctx, tmFilter, listOpts)
@@ -105,9 +105,9 @@ func (ds *Datastore) ListMDMCommands(
 	jointStmt, params = appendListOptionsWithCursorToSQL(jointStmt, params, &listOpts.ListOptions)
 	var results []*fleet.MDMCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, jointStmt, params...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list commands")
+		return nil, nil, ctxerr.Wrap(ctx, err, "list commands")
 	}
-	return results, nil
+	return results, nil, nil
 }
 
 // listMDMCommandsByHostIdentifier retrieves MDM commands by host identifier. It is implemented as a
@@ -122,9 +122,9 @@ func (ds *Datastore) listMDMCommandsByHostIdentifier(
 	ctx context.Context,
 	teamFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
-) ([]*fleet.MDMCommand, error) {
+) ([]*fleet.MDMCommand, *int64, error) {
 	if listOpts == nil || listOpts.Filters.HostIdentifier == "" {
-		return nil, ctxerr.Wrap(ctx, errors.New("listMDMCommandsByHostIdentifier requires non-empty listOpts.Filters.HostIdentifier"))
+		return nil, nil, ctxerr.Wrap(ctx, errors.New("listMDMCommandsByHostIdentifier requires non-empty listOpts.Filters.HostIdentifier"))
 	}
 
 	// First, search for host by identifier (hostname, uuid, or hardware_serial).
@@ -161,15 +161,21 @@ WHERE ` + whereTeam
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...)
 	switch {
 	case err != nil:
-		return nil, ctxerr.Wrap(ctx, err, "get host by identifier for mdm")
+		return nil, nil, ctxerr.Wrap(ctx, err, "get host by identifier for mdm")
 	case len(dest) == 0:
 		// TODO: should we return an empty slice or an error?
-		return []*fleet.MDMCommand{}, nil
+		return []*fleet.MDMCommand{}, nil, nil
 	case len(dest) > 1:
 		// TODO: how should we handle this unexpected case?
 		level.Debug(ds.logger).Log("msg", "list mdm commands: multiple hosts found for identifier",
 			"identifier", identifier, "count", len(dest),
 		)
+	}
+
+	if dest[0].Platform == "windows" && len(listOpts.Filters.CommandStatuses) > 0 {
+		return nil, nil, &fleet.BadRequestError{
+			Message: `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`,
+		}
 	}
 
 	// Next, build the query to list MDM commands. If the found host(s) are on the same platform,
@@ -205,6 +211,12 @@ SELECT
 	nc.command_uuid,
 	COALESCE(ncr.updated_at, nc.created_at) AS updated_at,
 	COALESCE(NULLIF(ncr.status, ''), 'Pending') AS status,
+	CASE
+        WHEN COALESCE(NULLIF(ncr.status, ''), 'Pending') IN ('Pending', 'NotNow') THEN 'pending'
+        WHEN COALESCE(NULLIF(ncr.status, ''), 'Pending') = 'Acknowledged' THEN 'ran'
+        WHEN COALESCE(NULLIF(ncr.status, ''), 'Pending') = 'Error' THEN 'failed'
+        ELSE 'pending'
+    END AS command_status,
 	request_type
 FROM
 	nano_enrollment_queue nq
@@ -215,9 +227,10 @@ WHERE
 	nq.id IN(?) AND nq.active = 1`
 
 		appleStmt, appleParams = addRequestTypeFilter(appleStmt, &listOpts.Filters, appleParams)
+		appleStmt, appleParams = addAppleCommandStatusFilter(appleStmt, &listOpts.Filters, appleParams)
 		appleStmt, appleParams, err = sqlx.In(appleStmt, appleParams...)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Apple devices")
+			return nil, nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Apple devices")
 		}
 	}
 
@@ -229,6 +242,24 @@ SELECT
 	wq.command_uuid,
 	COALESCE(wcr.updated_at, wc.created_at) AS updated_at,
 	COALESCE(NULLIF(wcr.status_code, ''), '101') AS status,
+	CASE
+        WHEN COALESCE(
+            NULLIF(wcr.status_code, ''),
+            '101'
+        ) = '101' THEN 'pending'
+        WHEN CAST(
+            COALESCE(
+                NULLIF(wcr.status_code, ''),
+                '101'
+            ) AS UNSIGNED
+        ) BETWEEN 200 AND 399  THEN 'ran'
+        WHEN CAST(
+            COALESCE(
+                NULLIF(wcr.status_code, ''),
+                '101'
+            ) AS UNSIGNED
+        ) >= 400 THEN 'failed'
+    END AS command_status,
 	wc.target_loc_uri AS request_type
 FROM
 	windows_mdm_command_queue wq
@@ -242,23 +273,26 @@ WHERE
 		winStmt, winParams = addRequestTypeFilter(winStmt, &listOpts.Filters, winParams)
 		winStmt, winParams, err = sqlx.In(winStmt, winParams...)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Windows devices")
+			return nil, nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Windows devices")
 		}
 	}
 
-	var listStmt string
+	var listStmt, countStmt string
 	var params []any
 	switch {
 	case len(appleUUIDs) > 0 && len(winUUIDs) > 0:
 		listStmt = fmt.Sprintf(`SELECT * FROM ((%s) UNION ALL (%s)) u`,
 			appleStmt, winStmt)
+		countStmt = fmt.Sprintf(`SELECT COUNT(1) FROM ((%s) UNION ALL (%s)) u`, appleStmt, winStmt)
 		params = append(params, appleParams...)
 		params = append(params, winParams...)
 	case len(appleUUIDs) > 0:
 		listStmt = appleStmt
+		countStmt = `SELECT COUNT(1) FROM (` + appleStmt + `) u`
 		params = appleParams
 	case len(winUUIDs) > 0:
 		listStmt = winStmt
+		countStmt = `SELECT COUNT(1) FROM (` + winStmt + `) u`
 		params = winParams
 	}
 
@@ -283,7 +317,15 @@ WHERE
 
 	var results []*fleet.MDMCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, params...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list commands")
+		return nil, nil, ctxerr.Wrap(ctx, err, "list commands")
+	}
+
+	var total *int64
+	if len(listOpts.Filters.CommandStatuses) == 1 && listOpts.Filters.CommandStatuses[0] == fleet.MDMCommandStatusFilterPending {
+		// Only get count if we only filter by pending
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &total, countStmt, params...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "count commands")
+		}
 	}
 
 	// Add hostname and team info to the results based on the host UUIDs.
@@ -294,7 +336,7 @@ WHERE
 		}
 	}
 
-	return results, nil
+	return results, total, nil
 }
 
 func addRequestTypeFilter(stmt string, filter *fleet.MDMCommandFilters, params []interface{}) (string, []interface{}) {
@@ -303,6 +345,28 @@ func addRequestTypeFilter(stmt string, filter *fleet.MDMCommandFilters, params [
 		params = append(params, filter.RequestType)
 	}
 
+	return stmt, params
+}
+
+func addAppleCommandStatusFilter(stmt string, filter *fleet.MDMCommandFilters, params []any) (string, []any) {
+	if len(filter.CommandStatuses) > 0 {
+		stmt += " AND ("
+		for i, status := range filter.CommandStatuses {
+			if i > 0 {
+				stmt += " OR "
+			}
+			switch status {
+			case fleet.MDMCommandStatusFilterPending:
+				stmt += " COALESCE(NULLIF(ncr.status, ''), 'Pending') IN ('Pending', 'NotNow')"
+			case fleet.MDMCommandStatusFilterRan:
+				stmt += " COALESCE(NULLIF(ncr.status, ''), 'Pending') = 'Acknowledged'"
+			case fleet.MDMCommandStatusFilterFailed:
+				stmt += " COALESCE(NULLIF(ncr.status, ''), 'Pending') = 'Error'"
+			}
+
+		}
+		stmt += ")"
+	}
 	return stmt, params
 }
 
