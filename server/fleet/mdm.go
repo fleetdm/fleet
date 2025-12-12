@@ -438,7 +438,6 @@ func (mdmPS *MDMProfilesSummary) Add(other *MDMProfilesSummary) *MDMProfilesSumm
 		Pending:   s1.Pending + s2.Pending,
 		Failed:    s1.Failed + s2.Failed,
 	}
-
 }
 
 // HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either
@@ -1192,3 +1191,12 @@ type MDMCommandResults interface {
 }
 
 type MDMCommandResultsHandler func(ctx context.Context, results MDMCommandResults) error
+
+type HostMDMIdentifiers struct {
+	ID             uint   `db:"id"`
+	UUID           string `db:"uuid"`
+	HardwareSerial string `db:"hardware_serial"`
+	Hostname       string `db:"hostname"`
+	Platform       string `db:"platform"`
+	TeamID         *uint  `db:"team_id"`
+}

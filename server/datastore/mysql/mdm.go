@@ -2666,3 +2666,44 @@ func (ds *Datastore) ListHostMDMManagedCertificates(ctx context.Context, hostUUI
 	`, hostUUID)
 	return hostCertsToRenew, ctxerr.Wrap(ctx, err, "get mdm managed certificates for host")
 }
+
+// GetHostMDMIdentifiers searches for a host by identifier (hostname, uuid, or hardware_serial).
+//
+// NOTE: We're not using existing methods like ds.whereFilterHostsByIdentifier,
+// ds.HostIDsByIdentifier, ds.HostLiteByIdentifier because those methods are poorly
+// optimized for the indexes we currently have on the hosts table.
+// They filter with disjunctive conditions like `hostname = ? OR uuid = ?` as well as
+// `? IN(hostname, uuid)`. These existing queries aren't really suited for either composite
+// indexes or indexes on individual columns, and the optimizer ends up with executions that
+// resort full table scans or minimally filtered results (when the optimizer is using
+// indexes on team id and the like. Full-text indexes might be an option, but we've had
+// difficulties managing those for the hosts table in the past.
+//
+// So we're writing a custom query here that uses a UNION with three subqueries, each targeting
+// a specific column index: hostname, uuid, and hardware
+func (ds *Datastore) GetHostMDMIdentifiers(ctx context.Context, identifier string, teamFilter fleet.TeamFilter) ([]*fleet.HostMDMIdentifiers, error) {
+	whereTeam := ds.whereFilterHostsByTeams(teamFilter, "h")
+	columns := "id, uuid, hardware_serial, hostname, platform, team_id"
+
+	// TODO: Add index for `hostname` or remove query? If removing, we'd need to update API
+	// documentation? Breaking change? For now, adding a secondary team filter inside hostname part
+	// of the union subquery to narrow the scope somewhat
+	stmt := `
+SELECT ` + columns + ` FROM (
+	SELECT ` + columns + ` FROM hosts h WHERE hostname = ? AND ` + whereTeam + `
+	UNION SELECT ` + columns + ` FROM hosts WHERE uuid = ?
+	UNION SELECT ` + columns + ` FROM hosts WHERE hardware_serial = ? ) h
+WHERE ` + whereTeam
+
+	var dest []*fleet.HostMDMIdentifiers
+	args := []any{identifier, identifier, identifier}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...)
+	switch {
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "get host by identifier for mdm")
+	case len(dest) == 0:
+		return nil, notFound("Host").WithName(identifier)
+	default:
+		return dest, nil
+	}
+}
