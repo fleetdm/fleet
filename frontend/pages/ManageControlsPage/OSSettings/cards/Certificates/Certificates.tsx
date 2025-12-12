@@ -30,12 +30,14 @@ import {
 } from "utilities/constants";
 
 import certAPI, {
+  ICertTemplate,
   IGetCertTemplatesResponse,
   IQueryKeyGetCerts,
 } from "services/entities/certificates";
 
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 import AddCertificateCard from "./components/AddCertificateCard/AddCertificateCard";
+import DeleteCertTemplateModal from "./components/DeleteCertTemplateModal";
 
 const baseClass = "certificates";
 
@@ -50,7 +52,10 @@ const Certificates = ({
   onMutation,
 }: ICertificatesProps) => {
   const [showAddCertModal, setShowAddCertModal] = useState(false);
-  const [certIdToDelete, setCertIdToDelete] = useState<null | number>(null);
+  const [
+    certTemplateToDelete,
+    setCertTemplateToDelete,
+  ] = useState<null | ICertTemplate>(null);
   const { config, isPremiumTier } = useContext(AppContext);
 
   // const androidMdmEnabled = !!config?.mdm.android_enabled_and_configured;
@@ -169,7 +174,6 @@ const Certificates = ({
           )}
           ListItemComponent={({ listItem }) => {
             const {
-              id,
               name,
               certificate_authority_name: caName,
               created_at,
@@ -193,7 +197,7 @@ const Certificates = ({
                         disabled={disableChildren}
                         className={`${baseClass}__delete-button`}
                         variant="icon"
-                        onClick={() => setCertIdToDelete(id)}
+                        onClick={() => setCertTemplateToDelete(listItem)}
                       >
                         <Icon name="trash" />
                       </Button>
@@ -235,7 +239,12 @@ const Certificates = ({
       />
       {renderContent()}
       {showAddCertModal && <>TODO - Add Cert Modal</>}
-      {certIdToDelete && <>TODO - Delete Cert Modal</>}
+      {certTemplateToDelete && (
+        <DeleteCertTemplateModal
+          cT={certTemplateToDelete}
+          onExit={() => setCertTemplateToDelete(null)}
+        />
+      )}
     </div>
   );
 };
