@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"net/http"
 	"sort"
 	"strings"
@@ -204,6 +205,51 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 	hosts, err := svc.ds.ListHosts(ctx, filter, opt)
 	if err != nil {
 		return nil, err
+	}
+
+	// Create an iterator to return one host at a time, hydrated with extra details as needed.
+	hostIterator := func() iter.Seq2[*fleet.Host, error] {
+		return func(yield func(*fleet.Host, error) bool) {
+			for _, host := range hosts {
+
+				if !opt.DisableIssues && !premiumLicense {
+					host.HostIssues.CriticalVulnerabilitiesCount = nil
+				} else if opt.DisableIssues && premiumLicense {
+					var zero uint64
+					host.HostIssues.CriticalVulnerabilitiesCount = &zero
+				}
+
+				if opt.PopulateSoftware {
+					if err = svc.ds.LoadHostSoftware(ctx, host, opt.PopulateSoftwareVulnerabilityDetails); err != nil {
+						yield(nil, err)
+						return
+					}
+				}
+
+				if opt.PopulatePolicies {
+					hp, err := svc.ds.ListPoliciesForHost(ctx, host)
+					if err != nil {
+						yield(nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get policies for host %d", host.ID)))
+						return
+					}
+					host.Policies = &hp
+				}
+
+				if opt.PopulateUsers {
+					hu, err := svc.ds.ListHostUsers(ctx, host.ID)
+					if err != nil {
+						yield(nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get users for host %d", host.ID)))
+						return
+					}
+					host.Users = hu
+
+				}
+
+				if !yield(host, nil) {
+					return // consumer wants us to stop
+				}
+			}
+		}
 	}
 
 	// If issues are enabled, we need to remove the critical vulnerabilities count for non-premium license.
