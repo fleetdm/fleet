@@ -70,7 +70,7 @@ interface IAddInstallSoftwareProps {
   softwareTitles: ISoftwareTitle[] | null;
   onAddSoftware: () => void;
   platform: SetupExperiencePlatform;
-  savedRequireAllSoftwareMacOS?: boolean;
+  savedRequireAllSoftwareMacOS?: boolean | null;
 }
 
 const AddInstallSoftware = ({
@@ -112,7 +112,7 @@ const AddInstallSoftware = ({
   const renderAddedText = () => {
     if (noSoftwareUploaded) {
       return (
-        <span className={`${baseClass}__added-text`}>
+        <>
           No {getPlatformLabel(platform)} software available. You can add
           software on the{" "}
           <CustomLink
@@ -120,7 +120,7 @@ const AddInstallSoftware = ({
             text="Software page"
           />
           .
-        </span>
+        </>
       );
     }
 
@@ -158,7 +158,7 @@ const AddInstallSoftware = ({
           Install software on hosts that automatically enroll to Fleet.
         </p>
       </div>
-      {renderAddedText()}
+      <span className={`${baseClass}__added-text`}>{renderAddedText()}</span>
       {!noSoftwareUploaded && (
         <div>
           <GitOpsModeTooltipWrapper
