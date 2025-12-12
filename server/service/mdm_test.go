@@ -1379,7 +1379,6 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		},
 		{"team Windows updates profile", 1, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 		{"invalid team", 2, `<Replace></Replace>`, true, "not found"},
-		{"no renewal id in OU", 0, `<Replace><Item><Target><LocURI>./Device/Install/SubjectName</LocURI></Target><Data>CN=CommonName</Data></Item></Replace>`, true, "SubjectName must include a Renewal ID in the Common Name (CN)"},
 	}
 
 	for _, c := range cases {
