@@ -125,6 +125,8 @@ To sign the package we need a valid Developer ID Installer certificate:
 
 You can install software during first time macOS, iOS, iPadOS and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience). Android support is coming soon.
 
+Currently, for macOS hosts, software is only installed on hosts that automatically enroll to Fleet via Apple Business Manager (ABM). For iOS and iPadOS hosts, software is only installed on hosts that enroll via ABM and hosts that manually enroll via the `/enroll` link (profile-based device enrollment).
+
 Add setup experience software:
 
 1. Click on the **Controls** tab in the main navigation bar,  then **Setup experience** > **4. Install software**.
@@ -132,19 +134,21 @@ Add setup experience software:
 2. Click **Add software**, then select or search for the software you want installed during the setup experience.
 3. Press **Save** to save your selection.
 
+To see the end user experience on iOS/iPadOS, check out the [iOS video](https://www.youtube.com/shorts/_XXNGrQPqys) and [iPadOS video](https://www.youtube.com/shorts/IIzo4NyUolM).
+
 ### Retries
 
 For macOS, Windows, and Linux hosts, software installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. When Fleet retries, IT admins can see error messages for all attempts in the **Host details > Activity** card. The end user only sees an error message if the third, and final, attempt fails.
 
 Retries only happen for custom packages and Fleet-maintained apps. For App Store (VPP) apps, the MDM command to install the app is sent once and either succeeds or fails.
 
-#### Blocking setup on failed software installs
+#### Stop setup on failed software installs
 
-You may additionally configure the setup experience to halt immediately if any software item fails to install. To enable this feature:
+For macOS hosts, you can configure the setup experience to stop if any software item fails to install:
 
-1. Click **Show advanced options** on the Install Software screen.
-2. Check the "Cancel setup if software install fails" checkbox.
-3. Press **Save**. 
+1. In **Controls > Setup experience > Install software > macOS**, select **Show advanced options**.
+2. Check the **Cancel setup if software install fails** checkbox.
+3. Select **Save**. 
 
 When this feature is enabled, any failed software will immediately end the setup experience and display a screen similar to this one, allowing the user to view details of the failure for troubleshooting purposes:
 
