@@ -812,10 +812,12 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 		if err != nil {
 			level.Debug(svc.logger).Log("msg", "failed to check if VPP app is installed", "err", err, "command_uuid", commandUUID)
 		} else {
-			// Populate install status for all InstallApplication results
 			for _, res := range results {
 				if res.RequestType == "InstallApplication" {
-					res.SoftwareInstalled = &installed
+					if res.ResultsMetadata == nil {
+						res.ResultsMetadata = make(map[string]any)
+					}
+					res.ResultsMetadata["software_installed"] = installed
 				}
 			}
 		}
