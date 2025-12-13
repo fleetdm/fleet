@@ -587,10 +587,12 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 ## Certificates
 
 - [Connect certificate authority (CA)](#connect-certificate-authority-ca)
+- [Add certificate template](#add-certificate-template)
 - [Update certificate authority (CA)](#update-certificate-authority-ca)
 - [List certificate authorities (CAs)](#list-certificate-authorities-cas)
 - [Get certificate authority (CA)](#get-certificate-authority-ca)
 - [Delete certificate authority (CA)](#delete-certificate-authority-ca)
+- [Delete certificate template](#delete-certificate-template)
 - [Request certificate](#request-certificate)
 
 ### Connect certificate authority (CA)
@@ -713,6 +715,49 @@ Object with the following structure:
   "id": 1,
   "name": "WIFI_CERTIFICATE",
   "type": "digicert"
+}
+```
+
+### Add certificate template
+
+Add a certificate template to deploy a certificate to all hosts on the team. Fleet currently supports adding certificates for Android that are issued from a custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) certificate authority.
+
+`POST /api/v1/fleet/certificates`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                 |
+| -------- | ------- | ---- | ------------------------------------------- |
+| name   | string | body | **Required.** The name of the certificate. Name can be used as certificate alias to reference in configuration profiles. |
+| team_id      | string  | query | _Available in Fleet Premium_. The ID of the team to add profiles to. |
+| certificate_authority_id   | integer | body | **Required.** The certificate authority (CA) ID to issue certificate from. Currently, only custom SCEP CA is supported. To get ID use [List certificate authorities](#list-certificate-authorities-cas). |
+| subject_name       | string | body |**Required** The certificate's subject name (SN). Separate subject fields by a "/". For example: "/CN=john@example.com/O=Acme Inc.".    |
+
+#### Example
+
+`POST /api/v1/fleet/certificates`
+
+##### Request body
+
+```json
+{
+  "name": "wifi-certificate",
+  "team_id": 1,
+  "certificate_authority_id": 1,
+  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificate_authority_id": 1,
+  "id": 1,
+  "name": "wifi-certificate",
+  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
 }
 ```
 
@@ -867,6 +912,26 @@ When the CA is deleted, the issued certificates will remain on existing hosts.
 #### Example
 
 `DELETE /api/v1/fleet/certificate_authorities/1`
+
+##### Default response
+
+`Status: 204`
+
+### Delete certificate template
+
+Deletes the certificate template added to Fleet. When a certificate template is deleted from Fleet, the certificate will be uninstalled from the hosts.
+
+`DELETE /api/v1/fleet/certificates/:id`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                 |
+|---------------- |-------- |------|-------------------------------------------------------------|
+| id   | integer  | path    | **Required.** The certificate ID in Fleet. You can see your certificate IDs using the [List certificate templates endpoint](#list-certificate-templates). |
+
+#### Example
+
+`DELETE /api/v1/fleet/certificates/1`
 
 ##### Default response
 
@@ -1275,7 +1340,8 @@ None.
     "windows_require_bitlocker_pin": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
-      "deadline": "2022-01-01"
+      "deadline": "2022-01-01",
+      "update_new_hosts": true
     },
     "ios_updates": {
       "minimum_version": "17.0.1",
@@ -1584,7 +1650,8 @@ Modifies the Fleet's configuration with the supplied information.
     "windows_require_bitlocker_pin": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
-      "deadline": "2022-01-01"
+      "deadline": "2022-01-01",
+      "update_new_hosts": true
     },
     "ios_updates": {
       "minimum_version": "17.0.1",
@@ -2159,6 +2226,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be prompted to update when their OS is below this version. |
 | deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (noon local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions). |
+| update_new_hosts                          | string  | macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`. |
 
 <br/>
 
@@ -2270,7 +2338,8 @@ _Available in Fleet Premium._
     "windows_require_bitlocker_pin": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
-      "deadline": "2022-01-01"
+      "deadline": "2022-01-01",
+      "update_new_hosts": true
     },
     "windows_updates": {
       "deadline_days": 5,
@@ -4764,7 +4833,9 @@ _Available in Fleet Premium_
 
 Sends a command to lock the specified macOS, iOS, iPadOS, Linux, or Windows host. The host is locked once it comes online.
 
-To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). For iOS and iPadOS, this enables Lost Mode.
+To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). 
+
+For iOS and iPadOS, this enables [Lost Mode](https://developer.apple.com/documentation/devicemanagement/enable-lost-mode-command) and sends a [Device Location](https://developer.apple.com/documentation/devicemanagement/device-location-command) MDM command. To see location, use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint.
 
 `POST /api/v1/fleet/hosts/:id/lock`
 
@@ -7164,8 +7235,9 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | per_page                  | integer | query | Results per page.                                                         |
 | order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. |
-| request_type              | string  | query | The request type to filter commands by. |
+| host_identifier           | string  | body | The host's `hostname`, `uuid`, or `hardware_serial`. |
+| request_type              | string  | body | The request type to filter commands by. |
+| command_status            | string | body | Valid options are 'ran', 'pending', or 'failed'. Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Windows commands have a '200' and 'Pending' `status` respectively. Apple commands that 'failed' have a 'Failed' `status`. Windows commands that 'failed' have any `status` other than 'Pending' or '200' ('ran').|
 
 #### Example
 
@@ -7177,11 +7249,13 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 ```json
 {
+  "count": 2,
   "results": [
     {
       "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
       "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
       "status": "Acknowledged",
+      "command_status": "ran",
       "updated_at": "2023-04-04:00:00Z",
       "request_type": "ProfileList",
       "hostname": "mycomputer"
@@ -7190,6 +7264,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
       "host_uuid": "322vghee-12c7-8976-83a1-e2118a927342",
       "command_uuid": "d76d69b7-d806-45a9-8e49-9d6dc533485c",
       "status": "200",
+      "command_status": "ran",
       "updated_at": "2023-05-04:00:00Z",
       "request_type": "./Device/Vendor/MSFT/Reboot/RebootNow",
       "hostname": "myhost"
@@ -11671,7 +11746,8 @@ _Available in Fleet Premium_
       "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
-        "deadline": "2022-01-01"
+        "deadline": "2022-01-01",
+        "update_new_hosts": true
       },
       "windows_updates": {
         "deadline_days": 5,
@@ -11999,6 +12075,7 @@ _Available in Fleet Premium_
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                 | string  | Hosts that belong to this team and are enrolled into Fleet's MDM will be prompted to update when their OS is below this version.                                                                           |
 | deadline                        | string  | Hosts that belong to this team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (noon local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions).                                                                    |
+| update_new_hosts                          | string  | macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`. |
 
 <br/>
 
@@ -12079,7 +12156,8 @@ _Available in Fleet Premium_
   "mdm": {
     "macos_updates": {
       "minimum_version": "12.3.1",
-      "deadline": "2025-04-01"
+      "deadline": "2025-04-01",
+      "update_new_hosts": true
     },
     "ios_updates": {
       "minimum_version": "18.3.1",
@@ -12218,7 +12296,8 @@ _Available in Fleet Premium_
       "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
-        "deadline": "2022-01-01"
+        "deadline": "2022-01-01",
+        "update_new_hosts": true
       },
       "windows_updates": {
         "deadline_days": 5,
