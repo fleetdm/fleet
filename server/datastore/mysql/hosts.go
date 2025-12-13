@@ -3863,7 +3863,7 @@ func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID
 			return ctxerr.Wrap(ctx, err, "delete existing MDM IDP device mappings")
 		}
 
-		if _, err := tx.ExecContext(ctx, insStmt, email, hostID, fleet.DeviceMappingIDP); err != nil {
+		if _, err := tx.ExecContext(ctx, insStmt, email, hostID, fleet.DeviceMappingMDMIdpAccounts); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert IDP device mapping")
 		}
 
