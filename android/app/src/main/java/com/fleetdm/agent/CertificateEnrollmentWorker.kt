@@ -28,11 +28,33 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
 
         val certificateIds = CertificateOrchestrator.getCertificateIDs(applicationContext)
 
+        // STEP 1: Cleanup removed certificates BEFORE enrolling new ones
+        // This runs even if certificateIds is empty to clean up any orphaned certificates
+        val currentIds = certificateIds ?: emptyList()
+        val cleanupResults = CertificateOrchestrator.cleanupRemovedCertificates(
+            context = applicationContext,
+            currentCertificateIds = currentIds,
+        )
+
+        // Log cleanup results
+        cleanupResults.forEach { (certId, result) ->
+            when (result) {
+                is CleanupResult.Success ->
+                    Log.i(TAG, "Cleaned up certificate $certId (alias: ${result.alias})")
+                is CleanupResult.AlreadyRemoved ->
+                    Log.i(TAG, "Certificate $certId already removed (alias: ${result.alias})")
+                is CleanupResult.Failure ->
+                    Log.e(TAG, "Failed to cleanup certificate $certId: ${result.reason}", result.exception)
+            }
+        }
+
+        // STEP 2: If no certificates to enroll, we're done
         if (certificateIds.isNullOrEmpty()) {
             Log.d(TAG, "No certificates to enroll")
             return Result.success()
         }
 
+        // STEP 3: Enroll new/updated certificates
         Log.i(TAG, "Enrolling ${certificateIds.size} certificate(s)")
 
         val results = CertificateOrchestrator.enrollCertificates(
