@@ -2124,23 +2124,57 @@ func (svc *Service) needsOSUpdateForDEPEnrollment(ctx context.Context, m fleet.M
 	// some cross-check against the machine info to ensure that the platform of the host aligns with
 	// what we expect from the machine info. But that would involve work to derive the platform from
 	// the machine info (presumably from the product name, but that's not a 1:1 mapping).
-	settings, err := svc.ds.GetMDMAppleOSUpdatesSettingsByHostSerial(ctx, m.Serial)
+	platform, settings, err := svc.ds.GetMDMAppleOSUpdatesSettingsByHostSerial(ctx, m.Serial)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			level.Info(svc.logger).Log("msg", "checking os updates settings, settings not found", "serial", m.Serial)
+			level.Info(svc.logger).Log(
+				"msg", "checking os updates settings, settings not found",
+				"serial", m.Serial,
+			)
 			return false, nil
 		}
 		return false, err
 	}
-	// TODO: confirm what this check should do
-	if !settings.MinimumVersion.Set || !settings.MinimumVersion.Valid || settings.MinimumVersion.Value == "" {
-		level.Info(svc.logger).Log("msg", "checking os updates settings, minimum version not set", "serial", m.Serial, "current_version", m.OSVersion, "minimum_version", settings.MinimumVersion.Value)
-		return false, nil
+
+	minVersion := settings.MinimumVersion.Value
+	hasMinVersion := settings.MinimumVersion.Set && settings.MinimumVersion.Valid && minVersion != ""
+	updateNewHosts := settings.UpdateNewHosts.Set && settings.UpdateNewHosts.Valid && settings.UpdateNewHosts.Value
+	isMacOS := platform == "darwin"
+
+	if isMacOS {
+		// If "Update New Hosts" is unchecked on macOS, we never update.
+		if !updateNewHosts {
+			return false, nil
+		}
+
+		// If "Update New Hosts" is checked but no version is set, we force an update
+		if !hasMinVersion {
+			level.Info(svc.logger).Log(
+				"msg", "checking os updates settings, minimum version not set, forcing macos update",
+				"serial", m.Serial,
+			)
+			return true, nil
+		}
 	}
 
-	needsUpdate, err := apple_mdm.IsLessThanVersion(m.OSVersion, settings.MinimumVersion.Value)
+	// TODO: confirm what this check should do
+	if !hasMinVersion {
+		level.Info(svc.logger).Log(
+			"msg", "checking os updates settings, minimum version not set",
+			"serial", m.Serial,
+			"current_version", m.OSVersion,
+			"minimum_version", minVersion,
+		)
+	}
+
+	needsUpdate, err := apple_mdm.IsLessThanVersion(m.OSVersion, minVersion)
 	if err != nil {
-		level.Info(svc.logger).Log("msg", "checking os updates settings, cannot compare versions", "serial", m.Serial, "current_version", m.OSVersion, "minimum_version", settings.MinimumVersion.Value)
+		level.Info(svc.logger).Log(
+			"msg", "checking os updates settings, cannot compare versions",
+			"serial", m.Serial,
+			"current_version", m.OSVersion,
+			"minimum_version", minVersion,
+		)
 		return false, nil
 	}
 
