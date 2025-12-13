@@ -37,7 +37,9 @@ describe("SoftwareTitleDetailsPage helpers", () => {
       };
       const packageCardInfo = getInstallerCardInfo(softwareTitle);
       expect(packageCardInfo).toEqual({
-        softwarePackage: softwareTitle.software_package,
+        softwareInstaller: softwareTitle.software_package,
+        displayName: undefined,
+        iconUrl: "https://example.com/icon.png",
         name: "TestPackage.pkg", // packages should display the package name not the software title name
         softwareDisplayName: "Test Software",
         version: "1.0.0",
@@ -83,9 +85,11 @@ describe("SoftwareTitleDetailsPage helpers", () => {
       };
       const packageCardInfo = getInstallerCardInfo(softwareTitle);
       expect(packageCardInfo).toEqual({
-        softwarePackage: softwareTitle.app_store_app,
+        softwareInstaller: softwareTitle.app_store_app,
         name: "Test Software", // apps should display the software title name (backend should ensure the app name and software title name match)
         softwareDisplayName: "Test App",
+        displayName: "Test App",
+        iconUrl: "https://example.com/icon.png",
         version: "1.0.1",
         addedTimestamp: "2020-01-01T00:00:00.000Z",
         softwareTitleName: "Test Software",

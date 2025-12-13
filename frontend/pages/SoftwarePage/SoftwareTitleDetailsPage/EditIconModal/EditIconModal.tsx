@@ -5,6 +5,7 @@ import {
   IAppStoreApp,
   isIpadOrIphoneSoftwareSource,
   ISoftwarePackage,
+  InstallerType,
 } from "interfaces/software";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
@@ -124,7 +125,7 @@ interface IEditIconModalProps {
   iconUploadedAt: string;
   /** Updates the icon upload timestamp, triggering UI refetches to ensure a new custom icon appears called after successful icon update. */
   setIconUploadedAt: (timestamp: string) => void;
-  installerType: "package" | "vpp";
+  installerType: InstallerType;
   previewInfo: {
     type?: string;
     versions?: number;

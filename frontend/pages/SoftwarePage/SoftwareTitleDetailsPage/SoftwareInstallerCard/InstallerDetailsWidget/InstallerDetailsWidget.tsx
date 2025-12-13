@@ -9,6 +9,7 @@ import { internationalTimeFormat } from "utilities/helpers";
 import { addedFromNow } from "utilities/date_format";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
+import { InstallerType } from "interfaces/software";
 
 import Graphic from "components/Graphic";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
@@ -60,13 +61,14 @@ const renderInstallerDisplayText = (
 interface IInstallerDetailsWidgetProps {
   className?: string;
   softwareName: string;
-  installerType: "package" | "app-store";
+  installerType: InstallerType;
   addedTimestamp?: string;
   version?: string | null;
   sha256?: string | null;
   isFma: boolean;
   isScriptPackage: boolean;
   androidPlayStoreId?: string;
+  customDetails?: string;
 }
 
 const InstallerDetailsWidget = ({
@@ -79,6 +81,7 @@ const InstallerDetailsWidget = ({
   isFma,
   isScriptPackage,
   androidPlayStoreId,
+  customDetails,
 }: IInstallerDetailsWidgetProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -108,6 +111,10 @@ const InstallerDetailsWidget = ({
   };
 
   const renderDetails = () => {
+    if (customDetails) {
+      return <>{customDetails}</>;
+    }
+
     const renderVersionInfo = () => {
       if (isScriptPackage) {
         return null;
