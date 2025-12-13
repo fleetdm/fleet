@@ -146,13 +146,13 @@ type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, 
 
 type NewLabelFunc func(ctx context.Context, p fleet.LabelPayload) (label *fleet.Label, hostIDs []uint, err error)
 
-type ModifyLabelFunc func(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.Label, []uint, error)
+type ModifyLabelFunc func(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.LabelWithTeamName, []uint, error)
 
 type ListLabelsFunc func(ctx context.Context, opt fleet.ListOptions, includeHostCounts bool) (labels []*fleet.Label, err error)
 
 type LabelsSummaryFunc func(ctx context.Context) (labels []*fleet.LabelSummary, err error)
 
-type GetLabelFunc func(ctx context.Context, id uint) (label *fleet.Label, hostIDs []uint, err error)
+type GetLabelFunc func(ctx context.Context, id uint) (label *fleet.LabelWithTeamName, hostIDs []uint, err error)
 
 type DeleteLabelFunc func(ctx context.Context, name string) (err error)
 
@@ -2595,7 +2595,7 @@ func (s *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (label *fl
 	return s.NewLabelFunc(ctx, p)
 }
 
-func (s *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.Label, []uint, error) {
+func (s *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.LabelWithTeamName, []uint, error) {
 	s.mu.Lock()
 	s.ModifyLabelFuncInvoked = true
 	s.mu.Unlock()
@@ -2616,7 +2616,7 @@ func (s *Service) LabelsSummary(ctx context.Context) (labels []*fleet.LabelSumma
 	return s.LabelsSummaryFunc(ctx)
 }
 
-func (s *Service) GetLabel(ctx context.Context, id uint) (label *fleet.Label, hostIDs []uint, err error) {
+func (s *Service) GetLabel(ctx context.Context, id uint) (label *fleet.LabelWithTeamName, hostIDs []uint, err error) {
 	s.mu.Lock()
 	s.GetLabelFuncInvoked = true
 	s.mu.Unlock()

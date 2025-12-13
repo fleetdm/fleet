@@ -264,12 +264,12 @@ func testLabelsSearch(t *testing.T, db *Datastore) {
 	labels, err := db.SearchLabels(context.Background(), filter, "")
 	require.Nil(t, err)
 	assert.Len(t, labels, 12)
-	assert.Contains(t, labels, all)
+	assert.Contains(t, labels, &all.Label)
 
 	labels, err = db.SearchLabels(context.Background(), filter, "foo")
 	require.Nil(t, err)
 	assert.Len(t, labels, 3)
-	assert.Contains(t, labels, all)
+	assert.Contains(t, labels, &all.Label)
 
 	labels, err = db.SearchLabels(context.Background(), filter, "foo", all.ID, l3.ID)
 	require.Nil(t, err)
@@ -279,7 +279,7 @@ func testLabelsSearch(t *testing.T, db *Datastore) {
 	labels, err = db.SearchLabels(context.Background(), filter, "xxx")
 	require.Nil(t, err)
 	assert.Len(t, labels, 1)
-	assert.Contains(t, labels, all)
+	assert.Contains(t, labels, &all.Label)
 }
 
 func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
@@ -730,7 +730,7 @@ func testLabelsChangeDetails(t *testing.T, db *Datastore) {
 	label.Name = "changed name"
 	// ApplyLabelSpecs can't update the name -- it simply creates a new label, so we need to call SaveLabel.
 	saved.Name = label.Name
-	saved2, _, err := db.SaveLabel(context.Background(), saved, filter)
+	saved2, _, err := db.SaveLabel(context.Background(), &saved.Label, filter)
 	require.NoError(t, err)
 	assert.Equal(t, label.Name, saved2.Name)
 	assert.Equal(t, label.Description, saved2.Description)
@@ -2206,10 +2206,10 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 	// Add users to the hosts
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
-		INSERT INTO host_users (host_id, uid, username) VALUES 
-		(?, ?, ?), 
-		(?, ?, ?), 
-		(?, ?, ?), 
+		INSERT INTO host_users (host_id, uid, username) VALUES
+		(?, ?, ?),
+		(?, ?, ?),
+		(?, ?, ?),
 		(?, ?, ?),
 		(?, ?, ?)`,
 			hosts[0].ID, 1, "user1",
@@ -2267,8 +2267,8 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 	// Update host users.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
-		INSERT INTO host_users (host_id, uid, username) VALUES 
-		(?, ?, ?), 
+		INSERT INTO host_users (host_id, uid, username) VALUES
+		(?, ?, ?),
 		(?, ?, ?),
 		(?, ?, ?) ON DUPLICATE KEY UPDATE username = VALUES(username), uid = VALUES(uid)`,
 			hosts[0].ID, 2, "user2",
