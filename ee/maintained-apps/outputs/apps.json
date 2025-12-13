@@ -870,6 +870,13 @@
       "description": "Microsoft Edge is a secure, fast, and modern web browser built for productivity and compatibility."
     },
     {
+      "name": "Microsoft Edge",
+      "slug": "microsoft-edge/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Edge",
+      "description": "Microsoft Edge is a secure, fast, and modern web browser built for productivity and compatibility."
+    },
+    {
       "name": "Microsoft Excel",
       "slug": "microsoft-excel/darwin",
       "platform": "darwin",
