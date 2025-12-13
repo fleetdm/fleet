@@ -68,7 +68,7 @@ export const generateFormValidations = (
         {
           name: "required",
           isValid: (formData: IAddCTFormData) => {
-            return formData.certAuthorityId !== null;
+            return formData.certAuthorityId !== "";
           },
           // no error message specified
         },
