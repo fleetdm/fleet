@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -1633,7 +1634,7 @@ WHERE
 }
 
 // HasAndroidAppConfigurationChanged checks if the new configuration for an Android app
-// identified by adam_id and global_or_team_id is different from the existing one. This
+// identified by application_id and global_or_team_id is different from the existing one. This
 // is a datastore method so that we rely on mysql's canonicalisation of JSON for comparison.
 func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error) {
 	const stmt = `
@@ -1822,16 +1823,6 @@ func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sql
 		return ctxerr.Wrap(ctx, err, "validating android app configuration")
 	}
 
-	var tid *uint
-	var globalOrTeamID uint
-	if teamID != nil {
-		globalOrTeamID = *teamID
-
-		if *teamID > 0 {
-			tid = teamID
-		}
-	}
-
 	stmt := `
 		INSERT INTO
 			android_app_configurations (application_id, team_id, global_or_team_id, configuration)
@@ -1840,7 +1831,7 @@ func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sql
 			configuration = VALUES(configuration)
 	`
 
-	_, err = tx.ExecContext(ctx, stmt, appID, tid, globalOrTeamID, config)
+	_, err = tx.ExecContext(ctx, stmt, appID, teamID, ptr.ValOrZero(teamID), config)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updateAndroidAppConfiguration")
 	}

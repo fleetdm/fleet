@@ -268,10 +268,12 @@ type TeamSpecAppStoreApp struct {
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
 	Platform           string                `json:"platform"`
 	DisplayName        string                `json:"display_name,omitempty"`
+	Configuration      TeamSpecSoftwareAsset `json:"configuration"`
 }
 
 func (spec TeamSpecAppStoreApp) ResolvePaths(baseDir string) TeamSpecAppStoreApp {
 	spec.Icon.Path = resolveApplyRelativePath(baseDir, spec.Icon.Path)
+	spec.Configuration.Path = resolveApplyRelativePath(baseDir, spec.Configuration.Path)
 
 	return spec
 }
