@@ -350,6 +350,9 @@ type MDMCommandResult struct {
 	Hostname string `json:"hostname" db:"-"`
 	// Payload is the contents of the command
 	Payload []byte `json:"payload" db:"payload"`
+	// ResultsMetadata contains command-specific metadata.
+	// VPP install commands includes a "software_installed" boolean.
+	ResultsMetadata map[string]any `json:"results_metadata,omitempty" db:"-"`
 }
 
 // MDMCommand represents an MDM command that has been enqueued for

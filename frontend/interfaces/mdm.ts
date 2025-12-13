@@ -277,6 +277,9 @@ export interface IMdmCommandResult {
   payload: string;
   /** Result is a base64-enconded string containing the MDM command response */
   result: string;
+  /** ResultsMetadata contains command-specific metadata.
+   * VPP install commands includes a "software_installed" boolean. */
+  results_metadata?: Record<string, unknown>;
 }
 
 export const isEnrolledInMdm = (

@@ -46,7 +46,7 @@ describe("getStatusMessage helper function", () => {
     expect(screen.getByText(/Refetch/i)).toBeInTheDocument();
   });
 
-  it("shows failed_install message", () => {
+  it("shows failed_install message for non-Apple platform when MDM command fails", () => {
     render(
       getStatusMessage({
         displayStatus: "failed_install",
@@ -55,14 +55,84 @@ describe("getStatusMessage helper function", () => {
         appName: "Logic Pro",
         hostDisplayName: "Marko's MacBook Pro",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "windows",
       })
     );
+    expect(
+      screen.getByText(/The MDM command \(request\) to install/i)
+    ).toBeInTheDocument();
     expect(
       screen.getByText(/Please re-attempt this installation/i)
     ).toBeInTheDocument();
   });
 
-  it("shows failed verification message", () => {
+  it("shows Apple-specific message when MDM command fails on macOS", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "darwin",
+      })
+    );
+    expect(screen.getByText(/The MDM command to install/i)).toBeInTheDocument();
+    expect(screen.getByText(/Logic Pro/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/failed\. Please try again\./i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Please re-attempt this installation/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows Apple-specific message when MDM command fails on iOS", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Slack",
+        hostDisplayName: "Marko's iPhone",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "ios",
+      })
+    );
+    expect(screen.getByText(/The MDM command to install/i)).toBeInTheDocument();
+    expect(screen.getByText(/Slack/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/failed\. Please try again\./i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Please re-attempt this installation/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows Apple-specific message when MDM command fails on iPadOS", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Pages",
+        hostDisplayName: "Marko's iPad",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "ipados",
+      })
+    );
+    expect(screen.getByText(/The MDM command to install/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pages/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/failed\. Please try again\./i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Please re-attempt this installation/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows failed verification message for non-Apple platforms", () => {
     render(
       getStatusMessage({
         displayStatus: "failed_install",
@@ -71,6 +141,7 @@ describe("getStatusMessage helper function", () => {
         appName: "Logic Pro",
         hostDisplayName: "Marko's MacBook Pro",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "windows",
       })
     );
     expect(
@@ -78,6 +149,153 @@ describe("getStatusMessage helper function", () => {
         /but the installation has not been verified. Please re-attempt this installation/i
       )
     ).toBeInTheDocument();
+  });
+
+  it("shows Apple-specific failed verification message for macOS", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: true,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "darwin",
+      })
+    );
+    expect(
+      screen.getByText(/The host acknowledged the MDM command to install/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/but the app failed to install/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/but the installation has not been verified/i)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/If you're updating the app and the app is open/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows Apple-specific failed verification message for iOS", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: true,
+        appName: "Slack",
+        hostDisplayName: "Marko's iPhone",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "ios",
+      })
+    );
+    expect(
+      screen.getByText(/The host acknowledged the MDM command to install/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/but the app failed to install/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/but the installation has not been verified/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows Apple-specific failed verification message for iPadOS", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: true,
+        appName: "Pages",
+        hostDisplayName: "Marko's iPad",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "ipados",
+      })
+    );
+    expect(
+      screen.getByText(/The host acknowledged the MDM command to install/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/but the app failed to install/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/but the installation has not been verified/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows macOS update tip when app is already installed", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: true,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "darwin",
+        hasInstalledVersions: true,
+      })
+    );
+    expect(
+      screen.getByText(/The host acknowledged the MDM command to install/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/but the app failed to install/i)
+    ).toBeInTheDocument();
+    // Text is split by TooltipWrapper, so check for the parts separately
+    expect(
+      screen.getByText(/If you're updating the app and the app is open,/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/close it/i)).toBeInTheDocument();
+    expect(screen.getByText(/and try again\./i)).toBeInTheDocument();
+  });
+
+  it("doesn't show update tip when app is already installed on iOS", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: true,
+        appName: "Slack",
+        hostDisplayName: "Marko's iPhone",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "ios",
+        hasInstalledVersions: true,
+      })
+    );
+    expect(
+      screen.getByText(/The host acknowledged the MDM command to install/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/but the app failed to install/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/If you're updating the app and the app is open/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("doesn't show update tip when app is already installed on iPadOS", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: true,
+        appName: "Slack",
+        hostDisplayName: "Marko's iPad",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "ipados",
+        hasInstalledVersions: true,
+      })
+    );
+    expect(
+      screen.getByText(/The host acknowledged the MDM command to install/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/but the app failed to install/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/If you're updating the app and the app is open/i)
+    ).not.toBeInTheDocument();
   });
 
   it("shows pending install on host when it comes online", () => {

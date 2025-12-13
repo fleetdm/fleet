@@ -258,7 +258,7 @@ const ActivityFeed = ({
         });
         break;
       case ActivityType.InstalledAppStoreApp:
-        isAndroid(details?.platform || "")
+        isAndroid(details?.host_platform || "")
           ? setPackageInstallDetails({ ...details }) // Android Play Store installs
           : setVppInstallDetails({ ...details }); // Apple VPP installs
         break;
@@ -415,6 +415,7 @@ const ActivityFeed = ({
               "pending_install") as SoftwareInstallUninstallStatus,
             hostDisplayName: vppInstallDetails.host_display_name || "",
             commandUuid: vppInstallDetails.command_uuid || "",
+            platform: vppInstallDetails.host_platform,
           }}
           onCancel={() => setVppInstallDetails(null)}
         />

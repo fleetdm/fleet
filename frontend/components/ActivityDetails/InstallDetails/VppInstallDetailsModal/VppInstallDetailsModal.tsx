@@ -17,6 +17,7 @@ import {
   SoftwareInstallUninstallStatus,
 } from "interfaces/software";
 import { IMdmCommandResult } from "interfaces/mdm";
+import { isAppleDevice, isMacOS } from "interfaces/platform";
 
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 
@@ -28,6 +29,7 @@ import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import DeviceUserError from "components/DeviceUserError";
 import Spinner from "components/Spinner/Spinner";
+import TooltipWrapper from "components/TooltipWrapper";
 import RevealButton from "components/buttons/RevealButton";
 
 import {
@@ -45,6 +47,8 @@ interface IGetStatusMessageProps {
   appName: string;
   hostDisplayName: string;
   commandUpdatedAt: string;
+  platform?: string;
+  hasInstalledVersions?: boolean;
 }
 
 export const getStatusMessage = ({
@@ -55,6 +59,8 @@ export const getStatusMessage = ({
   appName,
   hostDisplayName,
   commandUpdatedAt,
+  platform,
+  hasInstalledVersions = false,
 }: IGetStatusMessageProps) => {
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
   const displayTimeStamp =
@@ -114,9 +120,34 @@ export const getStatusMessage = ({
   if (displayStatus === "failed_install" && isMDMStatusAcknowledged) {
     return (
       <>
-        The MDM command (request) to install <b>{appName}</b>
-        {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but the
-        installation has not been verified. Please re-attempt this installation.
+        {isAppleDevice(platform) ? (
+          <>
+            <div>
+              The host acknowledged the MDM command to install <b>{appName}</b>
+              {!isMyDevicePage && <> on {formattedHost}</>}, but the app failed
+              to install.
+            </div>
+            {platform && isMacOS(platform) && hasInstalledVersions && (
+              <div className="vpp-install-details-modal__update-tip">
+                If you&apos;re updating the app and the app is open,{" "}
+                <TooltipWrapper
+                  tipContent="For updates, App Store (VPP) apps on macOS need to be closed."
+                  position="top"
+                >
+                  close it
+                </TooltipWrapper>{" "}
+                and try again.
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            The MDM command (request) to install <b>{appName}</b>
+            {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but
+            the installation has not been verified. Please re-attempt this
+            installation.
+          </>
+        )}
       </>
     );
   }
@@ -125,10 +156,20 @@ export const getStatusMessage = ({
   if (displayStatus === "failed_install") {
     return (
       <>
-        The MDM command (request) to install <b>{appName}</b>
-        {!isMyDevicePage && <> on {formattedHost}</>} failed
-        {displayTimeStamp && <> {displayTimeStamp}</>}. Please re-attempt this
-        installation.
+        {isAppleDevice(platform) ? (
+          <>
+            The MDM command to install <b>{appName}</b>
+            {!isMyDevicePage && <> on {formattedHost}</>} failed. Please try
+            again.
+          </>
+        ) : (
+          <>
+            The MDM command (request) to install <b>{appName}</b>
+            {!isMyDevicePage && <> on {formattedHost}</>} failed
+            {displayTimeStamp && <> {displayTimeStamp}</>}. Please re-attempt
+            this installation.
+          </>
+        )}
       </>
     );
   }
@@ -207,6 +248,7 @@ export type IVppInstallDetails = {
   hostDisplayName: string;
   appName: string;
   commandUuid?: string;
+  platform?: string;
 };
 
 interface IVPPInstallDetailsModalProps {
@@ -231,6 +273,7 @@ export const VppInstallDetailsModal = ({
     commandUuid = "",
     hostDisplayName = "",
     appName = "",
+    platform: detailsPlatform,
   } = details;
 
   const [showInstallDetails, setShowInstallDetails] = useState(false);
@@ -313,6 +356,10 @@ export const VppInstallDetailsModal = ({
     appName,
     hostDisplayName,
     commandUpdatedAt: vppCommandResult?.updated_at || "",
+    platform: hostSoftware?.app_store_app?.platform || detailsPlatform,
+    hasInstalledVersions:
+      (vppCommandResult?.results_metadata?.software_installed as boolean) ??
+      !!hostSoftware?.installed_versions?.length,
   });
 
   const renderInventoryVersionsSection = () => {
