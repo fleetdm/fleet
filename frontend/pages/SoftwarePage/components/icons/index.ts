@@ -487,9 +487,7 @@ const matchLoosePrefixToKey = <T extends Record<string, unknown>>(
   }
   // Sort keys by length (longest first) to prioritize more specific matches
   const sortedKeys = Object.keys(dict).sort((a, b) => b.length - a.length);
-  const match = sortedKeys.find((k) =>
-    s.startsWith(k.trim().toLowerCase())
-  );
+  const match = sortedKeys.find((k) => s.startsWith(k.trim().toLowerCase()));
 
   return match ? (match as keyof T) : undefined;
 };
