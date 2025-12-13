@@ -965,13 +965,20 @@
       "slug": "notion-calendar/darwin",
       "platform": "darwin",
       "unique_identifier": "com.cron.electron",
-      "description": "Manage your time and work, together."
+      "description": "Notion Calendar is an app to manage your time and work, together."
     },
     {
       "name": "Notion",
       "slug": "notion/darwin",
       "platform": "darwin",
       "unique_identifier": "notion.id",
+      "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
+    },
+    {
+      "name": "Notion",
+      "slug": "notion/windows",
+      "platform": "windows",
+      "unique_identifier": "Notion 6.1.0",
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
