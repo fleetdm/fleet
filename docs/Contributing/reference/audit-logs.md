@@ -1352,6 +1352,23 @@ This activity contains the following fields:
 }
 ```
 
+## edited_android_certificate
+
+Generated when a user adds or removes Android certificate templates of a team (or no team) via the fleetctl CLI.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the certificate templates apply to, `null` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the certificate templates apply to, `null` if they apply to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ## resent_configuration_profile
 
 Generated when a user resends a configuration profile to a host.

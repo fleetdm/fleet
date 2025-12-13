@@ -3804,20 +3804,22 @@ func TestGitOpsAndroidCertificatesAdd(t *testing.T) {
 	// Track certificate templates that are created
 	var createdCertificates []fleet.CertificateTemplate
 
-	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) error {
+	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) ([]uint, error) {
 		createdCertificates = nil
+		createdMap := make([]uint, 0, len(certificates))
 		for _, cert := range certificates {
 			createdCertificates = append(createdCertificates, *cert)
+			createdMap = append(createdMap, cert.TeamID)
 		}
-		return nil
+		return createdMap, nil
 	}
 
 	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
 	}
 
-	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) error {
-		return nil
+	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) (bool, error) {
+		return false, nil
 	}
 
 	// Create team config
@@ -3891,12 +3893,14 @@ func TestGitOpsAndroidCertificatesChange(t *testing.T) {
 	var updatedCertificates []fleet.CertificateTemplate
 	var deletedCertificateIDs []uint
 
-	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) error {
+	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) ([]uint, error) {
 		updatedCertificates = nil
+		createdMap := make([]uint, 0, len(certificates))
 		for _, cert := range certificates {
 			updatedCertificates = append(updatedCertificates, *cert)
+			createdMap = append(createdMap, cert.TeamID)
 		}
-		return nil
+		return createdMap, nil
 	}
 
 	// Simulate existing certificates
@@ -3918,9 +3922,9 @@ func TestGitOpsAndroidCertificatesChange(t *testing.T) {
 		return existing, &fleet.PaginationMetadata{}, nil
 	}
 
-	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) error {
+	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) (bool, error) {
 		deletedCertificateIDs = append(deletedCertificateIDs, ids...)
-		return nil
+		return true, nil
 	}
 
 	// Create team config with modified subjectNames
@@ -4112,17 +4116,19 @@ func TestGitOpsAndroidCertificatesDeleteOne(t *testing.T) {
 	var deletedCertificateIDs []uint
 	var remainingCertificates []fleet.CertificateTemplate
 
-	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) error {
+	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) (bool, error) {
 		deletedCertificateIDs = ids
-		return nil
+		return true, nil
 	}
 
-	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) error {
+	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) ([]uint, error) {
 		remainingCertificates = nil
+		createdMap := make([]uint, 0, len(certificates))
 		for _, cert := range certificates {
 			remainingCertificates = append(remainingCertificates, *cert)
+			createdMap = append(createdMap, cert.TeamID)
 		}
-		return nil
+		return createdMap, nil
 	}
 
 	// Simulate existing certificates
@@ -4214,9 +4220,9 @@ func TestGitOpsAndroidCertificatesDeleteAll(t *testing.T) {
 	// Track what was deleted
 	var deletedCertificateIDs []uint
 
-	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) error {
+	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) (bool, error) {
 		deletedCertificateIDs = ids
-		return nil
+		return true, nil
 	}
 
 	// Simulate existing certificates
