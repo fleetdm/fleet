@@ -690,9 +690,9 @@ type GetMDMWindowsTOSContentFunc func(ctx context.Context, redirectUri string, r
 
 type RunMDMCommandFunc func(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error)
 
-type GetMDMCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
+type GetMDMCommandResultsFunc func(ctx context.Context, commandUUID string, hostIdentifier string) ([]*fleet.MDMCommandResult, error)
 
-type ListMDMCommandsFunc func(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error)
+type ListMDMCommandsFunc func(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, error)
 
 type SetOrUpdateDiskEncryptionKeyFunc func(ctx context.Context, encryptionKey string, clientError string) error
 
@@ -4499,14 +4499,14 @@ func (s *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, device
 	return s.RunMDMCommandFunc(ctx, rawBase64Cmd, deviceIDs)
 }
 
-func (s *Service) GetMDMCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+func (s *Service) GetMDMCommandResults(ctx context.Context, commandUUID string, hostIdentifier string) ([]*fleet.MDMCommandResult, error) {
 	s.mu.Lock()
 	s.GetMDMCommandResultsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMCommandResultsFunc(ctx, commandUUID)
+	return s.GetMDMCommandResultsFunc(ctx, commandUUID, hostIdentifier)
 }
 
-func (s *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
+func (s *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, error) {
 	s.mu.Lock()
 	s.ListMDMCommandsFuncInvoked = true
 	s.mu.Unlock()

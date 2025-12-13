@@ -137,6 +137,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEditedIOSMinVersion{},
 	ActivityTypeEditedIPadOSMinVersion{},
 	ActivityTypeEditedWindowsUpdates{},
+	ActivityTypeEnabledMacosUpdateNewHosts{},
+	ActivityTypeDisabledMacosUpdateNewHosts{},
 
 	ActivityTypeReadHostDiskEncryptionKey{},
 
@@ -1114,6 +1116,44 @@ func (a ActivityTypeEditedMacOSMinVersion) Documentation() (activity string, det
   "team_name": "Workstations",
   "minimum_version": "13.0.1",
   "deadline": "2023-06-01"
+}`
+}
+
+type ActivityTypeEnabledMacosUpdateNewHosts struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEnabledMacosUpdateNewHosts) ActivityName() string {
+	return "enabled_macos_update_new_hosts"
+}
+
+func (a ActivityTypeEnabledMacosUpdateNewHosts) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user turns on updates during macOS Setup Assistant for hosts that automatically enroll (ADE).`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the setting applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the setting applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDisabledMacosUpdateNewHosts struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeDisabledMacosUpdateNewHosts) ActivityName() string {
+	return "disabled_macos_update_new_hosts"
+}
+
+func (a ActivityTypeDisabledMacosUpdateNewHosts) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user turns off updates during macOS Setup Assistant for hosts that automatically enroll (ADE).`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the setting applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the setting applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
 }`
 }
 

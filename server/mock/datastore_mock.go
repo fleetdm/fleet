@@ -283,6 +283,8 @@ type GetHostMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, erro
 
 type GetHostMDMCheckinInfoFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error)
 
+type GetHostMDMIdentifiersFunc func(ctx context.Context, identifer string, teamFilter fleet.TeamFilter) ([]*fleet.HostMDMIdentifiers, error)
+
 type ListIOSAndIPadOSToRefetchFunc func(ctx context.Context, refetchInterval time.Duration) (devices []fleet.AppleDevicesToRefetch, err error)
 
 type AddHostMDMCommandsFunc func(ctx context.Context, commands []fleet.HostMDMCommand) error
@@ -879,7 +881,7 @@ type GetMDMAppleEnrollmentProfileByTypeFunc func(ctx context.Context, typ fleet.
 
 type ListMDMAppleEnrollmentProfilesFunc func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error)
 
-type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
+type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
 
 type GetVPPCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
 
@@ -1133,9 +1135,9 @@ type MDMWindowsInsertCommandForHostsFunc func(ctx context.Context, hostUUIDs []s
 
 type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error)
 
-type MDMWindowsSaveResponseFunc func(ctx context.Context, deviceID string, enrichedSyncML fleet.EnrichedSyncML) error
+type MDMWindowsSaveResponseFunc func(ctx context.Context, deviceID string, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) error
 
-type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
+type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
 
 type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
 
@@ -1161,7 +1163,7 @@ type GetLinuxDiskEncryptionSummaryFunc func(ctx context.Context, teamID *uint) (
 
 type GetMDMCommandPlatformFunc func(ctx context.Context, commandUUID string) (string, error)
 
-type ListMDMCommandsFunc func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error)
+type ListMDMCommandsFunc func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, error)
 
 type GetMDMWindowsBitLockerSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error)
 
@@ -1673,6 +1675,10 @@ type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
 type UpdateOrDeleteHostMDMWindowsProfileFunc func(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error
 
+type GetWindowsMDMCommandsForResendingFunc func(ctx context.Context, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error)
+
+type ResendWindowsMDMCommandFunc func(ctx context.Context, mdmDeviceId string, newCmd *fleet.MDMWindowsCommand, oldCmd *fleet.MDMWindowsCommand) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2063,6 +2069,9 @@ type DataStore struct {
 
 	GetHostMDMCheckinInfoFunc        GetHostMDMCheckinInfoFunc
 	GetHostMDMCheckinInfoFuncInvoked bool
+
+	GetHostMDMIdentifiersFunc        GetHostMDMIdentifiersFunc
+	GetHostMDMIdentifiersFuncInvoked bool
 
 	ListIOSAndIPadOSToRefetchFunc        ListIOSAndIPadOSToRefetchFunc
 	ListIOSAndIPadOSToRefetchFuncInvoked bool
@@ -4149,6 +4158,12 @@ type DataStore struct {
 	UpdateOrDeleteHostMDMWindowsProfileFunc        UpdateOrDeleteHostMDMWindowsProfileFunc
 	UpdateOrDeleteHostMDMWindowsProfileFuncInvoked bool
 
+	GetWindowsMDMCommandsForResendingFunc        GetWindowsMDMCommandsForResendingFunc
+	GetWindowsMDMCommandsForResendingFuncInvoked bool
+
+	ResendWindowsMDMCommandFunc        ResendWindowsMDMCommandFunc
+	ResendWindowsMDMCommandFuncInvoked bool
+
 	mu sync.Mutex
 }
 
@@ -5060,6 +5075,13 @@ func (s *DataStore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) 
 	s.GetHostMDMCheckinInfoFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostMDMCheckinInfoFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetHostMDMIdentifiers(ctx context.Context, identifer string, teamFilter fleet.TeamFilter) ([]*fleet.HostMDMIdentifiers, error) {
+	s.mu.Lock()
+	s.GetHostMDMIdentifiersFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMIdentifiersFunc(ctx, identifer, teamFilter)
 }
 
 func (s *DataStore) ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (devices []fleet.AppleDevicesToRefetch, err error) {
@@ -7148,11 +7170,11 @@ func (s *DataStore) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*flee
 	return s.ListMDMAppleEnrollmentProfilesFunc(ctx)
 }
 
-func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 	s.mu.Lock()
 	s.GetMDMAppleCommandResultsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMAppleCommandResultsFunc(ctx, commandUUID)
+	return s.GetMDMAppleCommandResultsFunc(ctx, commandUUID, hostUUID)
 }
 
 func (s *DataStore) GetVPPCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
@@ -8037,18 +8059,18 @@ func (s *DataStore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID s
 	return s.MDMWindowsGetPendingCommandsFunc(ctx, deviceID)
 }
 
-func (s *DataStore) MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML fleet.EnrichedSyncML) error {
+func (s *DataStore) MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) error {
 	s.mu.Lock()
 	s.MDMWindowsSaveResponseFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMWindowsSaveResponseFunc(ctx, deviceID, enrichedSyncML)
+	return s.MDMWindowsSaveResponseFunc(ctx, deviceID, enrichedSyncML, commandIDsBeingResent)
 }
 
-func (s *DataStore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+func (s *DataStore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 	s.mu.Lock()
 	s.GetMDMWindowsCommandResultsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMWindowsCommandResultsFunc(ctx, commandUUID)
+	return s.GetMDMWindowsCommandResultsFunc(ctx, commandUUID, hostUUID)
 }
 
 func (s *DataStore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error) {
@@ -8135,7 +8157,7 @@ func (s *DataStore) GetMDMCommandPlatform(ctx context.Context, commandUUID strin
 	return s.GetMDMCommandPlatformFunc(ctx, commandUUID)
 }
 
-func (s *DataStore) ListMDMCommands(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
+func (s *DataStore) ListMDMCommands(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, error) {
 	s.mu.Lock()
 	s.ListMDMCommandsFuncInvoked = true
 	s.mu.Unlock()
@@ -9925,4 +9947,18 @@ func (s *DataStore) UpdateOrDeleteHostMDMWindowsProfile(ctx context.Context, pro
 	s.UpdateOrDeleteHostMDMWindowsProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateOrDeleteHostMDMWindowsProfileFunc(ctx, profile)
+}
+
+func (s *DataStore) GetWindowsMDMCommandsForResending(ctx context.Context, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error) {
+	s.mu.Lock()
+	s.GetWindowsMDMCommandsForResendingFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetWindowsMDMCommandsForResendingFunc(ctx, failedCommandIds)
+}
+
+func (s *DataStore) ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId string, newCmd *fleet.MDMWindowsCommand, oldCmd *fleet.MDMWindowsCommand) error {
+	s.mu.Lock()
+	s.ResendWindowsMDMCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResendWindowsMDMCommandFunc(ctx, mdmDeviceId, newCmd, oldCmd)
 }

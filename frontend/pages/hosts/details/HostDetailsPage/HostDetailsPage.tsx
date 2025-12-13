@@ -55,7 +55,14 @@ import {
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 
-import { isAndroid, isIPadOrIPhone, isLinuxLike } from "interfaces/platform";
+import {
+  isAppleDevice,
+  isMacOS,
+  isAndroid,
+  isIPadOrIPhone,
+  isLinuxLike,
+  isWindows,
+} from "interfaces/platform";
 
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
@@ -1020,12 +1027,13 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
-  const isDarwinHost = host.platform === "darwin";
+  const isMacOSHost = isMacOS(host.platform);
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
+  const isWindowsHost = isWindows(host.platform);
 
   const canResendProfiles =
-    isDarwinHost &&
+    (isMacOSHost || isWindowsHost) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
       isHostTeamAdmin ||
@@ -1037,8 +1045,7 @@ const HostDetailsPage = ({
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showCertificatesCard =
-    (isIosOrIpadosHost || isDarwinHost) &&
-    !!hostCertificates?.certificates.length;
+    isAppleDevice(host.platform) && !!hostCertificates?.certificates.length;
 
   const renderSoftwareCard = () => {
     return (
@@ -1071,7 +1078,7 @@ const HostDetailsPage = ({
                 hostTeamId={host.team_id || 0}
                 hostMdmEnrollmentStatus={host.mdm.enrollment_status}
               />
-              {isDarwinHost && macadmins?.munki?.version && (
+              {isMacOSHost && macadmins?.munki?.version && (
                 <MunkiIssuesCard
                   isLoading={isLoadingHost}
                   munkiIssues={macadmins.munki_issues}
@@ -1145,7 +1152,7 @@ const HostDetailsPage = ({
               onShowInventoryVersions={onSetSelectedHostSWForInventoryVersions}
               hostTeamId={host.team_id || 0}
             />
-            {isDarwinHost && macadmins?.munki?.version && (
+            {isMacOSHost && macadmins?.munki?.version && (
               <MunkiIssuesCard
                 isLoading={isLoadingHost}
                 munkiIssues={macadmins.munki_issues}
@@ -1400,6 +1407,7 @@ const HostDetailsPage = ({
               teams={teams || []}
               isGlobalAdmin={isGlobalAdmin as boolean}
               isUpdating={isUpdating}
+              hostsTeamId={host.team_id}
             />
           )}
           {!!host && showPolicyDetailsModal && (
