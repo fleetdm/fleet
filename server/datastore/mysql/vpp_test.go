@@ -680,6 +680,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		"command_uuid":"a",
 		"host_display_name":"%s",
 		"host_id":%d,
+		"host_platform":"darwin",
 		"self_service":false,
 		"software_title":"foo",
 		"status":"pending_install"
@@ -695,6 +696,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		"command_uuid":"c",
 		"host_display_name":"%s",
 		"host_id":%d,
+		"host_platform":"darwin",
 		"self_service":true,
 		"software_title":"vpp_app_2",
 		"status":"pending_install"

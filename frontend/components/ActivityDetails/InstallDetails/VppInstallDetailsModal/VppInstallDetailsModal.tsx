@@ -17,6 +17,7 @@ import {
   SoftwareInstallUninstallStatus,
 } from "interfaces/software";
 import { IMdmCommandResult } from "interfaces/mdm";
+import { isAppleDevice, isMacOS } from "interfaces/platform";
 
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 
@@ -117,21 +118,16 @@ export const getStatusMessage = ({
 
   // Verification failed (timeout)
   if (displayStatus === "failed_install" && isMDMStatusAcknowledged) {
-    const isMacOS = platform === "darwin";
-    const isApplePlatform = ["darwin", "ios", "ipados"].includes(
-      platform || ""
-    );
-
     return (
       <>
-        {isApplePlatform ? (
+        {isAppleDevice(platform) ? (
           <>
             <div>
               The host acknowledged the MDM command to install <b>{appName}</b>
               {!isMyDevicePage && <> on {formattedHost}</>}, but the app failed
               to install.
             </div>
-            {isMacOS && hasInstalledVersions && (
+            {platform && isMacOS(platform) && hasInstalledVersions && (
               <div className="vpp-install-details-modal__update-tip">
                 If you&apos;re updating the app and the app is open,{" "}
                 <TooltipWrapper
@@ -158,13 +154,9 @@ export const getStatusMessage = ({
 
   // Install command failed
   if (displayStatus === "failed_install") {
-    const isApplePlatform = ["darwin", "ios", "ipados"].includes(
-      platform || ""
-    );
-
     return (
       <>
-        {isApplePlatform ? (
+        {isAppleDevice(platform) ? (
           <>
             The MDM command to install <b>{appName}</b>
             {!isMyDevicePage && <> on {formattedHost}</>} failed. Please try
