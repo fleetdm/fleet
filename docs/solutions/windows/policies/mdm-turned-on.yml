@@ -10,4 +10,4 @@
   platform: windows
   critical: true
   run_script:
-    path: ../scripts/enable-mdm-notification.ps1
+    path: ../scripts/turn-on-mdm-notification.ps1
