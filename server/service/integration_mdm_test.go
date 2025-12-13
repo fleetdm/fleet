@@ -11719,7 +11719,6 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 			return nil
 		})
-
 	}
 
 	// Run worker to set apps available to device
@@ -11804,7 +11803,6 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 	setDisplayNames("VPPAppUpdatedName2", "DriveUpdatedName2")
 	setDisplayNames("", "")
-
 }
 
 func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {
@@ -13940,7 +13938,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.JSONEq(
 		t,
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			macOSApp.Name,
@@ -13948,6 +13946,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			cmdUUID,
 			fleet.SoftwareInstallPending,
 			false,
+			mdmHost.Platform,
 		),
 		string(*hostActivitiesResp.Activities[0].Details),
 	)
@@ -13985,7 +13984,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.lastActivityMatchesExtended(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": %d, "policy_name": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": %d, "policy_name": "%s", "host_platform": "%s"}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			macOSApp.Name,
@@ -13995,6 +13994,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			false,
 			policy1Team1.ID,
 			policy1Team1.Name,
+			mdmHost.Platform,
 		),
 		0,
 		ptr.Bool(true),
@@ -14059,7 +14059,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.JSONEq(
 		t,
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
 			macOSApp.Name,
@@ -14067,6 +14067,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			cmdUUID,
 			fleet.SoftwareInstallPending,
 			false,
+			mdmHost2.Platform,
 		),
 		string(*hostActivitiesResp.Activities[0].Details),
 	)
