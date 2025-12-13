@@ -494,6 +494,8 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		switch {
 		case fleetVar == string(fleet.FleetVarSCEPWindowsCertificateID):
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarSCEPWindowsCertificateIDRegexp, result, params.ProfileUUID)
+		case fleetVar == string(fleet.FleetVarSCEPRenewalID):
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarSCEPRenewalIDRegexp, result, "fleet-"+params.ProfileUUID)
 		case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)):
 			caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix))
 			err := profiles.IsCustomSCEPConfigured(deps.Context, deps.CustomSCEPCAs, caName, fleetVar, func(errMsg string) error {
