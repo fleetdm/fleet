@@ -16,12 +16,20 @@ Start-Transcript -Path `$logFile -Append
 try {
     `$exeFilename = Split-Path `$exeFilePath -leaf
     `$exePath = "`${env:PUBLIC}\`$exeFilename"
-    & `$exePath `$arguments
+    `$processOptions = @{
+        FilePath = `$exePath
+        ArgumentList = `$arguments
+        PassThru = `$true
+        Wait = `$true
+    }
+    `$process = Start-Process @processOptions
+    `$exitCode = `$process.ExitCode
+    Write-Host "Install exit code: `$exitCode"
 } catch {
     Write-Host "Error: `$_.Exception.Message"
     `$exitCode = 1
 } finally {
-    Set-Content -Path `$exitCodeFile -Value `$
+    Set-Content -Path `$exitCodeFile -Value `$exitCode
 }
 Stop-Transcript
 Exit `$exitCode
@@ -107,6 +115,10 @@ try {
     Remove-Item -Path $scriptPath -Force -ErrorAction SilentlyContinue
     Remove-Item -Path $logFile -Force -ErrorAction SilentlyContinue
     Remove-Item -Path $exitCodeFile -Force -ErrorAction SilentlyContinue
+    # Remove installer file from public folder
+    if (Test-Path $exeFilePath) {
+        Remove-Item -Path $exeFilePath -Force -ErrorAction SilentlyContinue
+    }
 }
 
 Exit $exitCode
