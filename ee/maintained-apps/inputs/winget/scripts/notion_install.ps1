@@ -101,8 +101,43 @@ try {
     }
 
     if (Test-Path $exitCodeFile) {
-        $exitCode = Get-Content $exitCodeFile
+        $exitCode = [int](Get-Content $exitCodeFile)
         Write-Host "`nScheduled task exit code: $exitCode"
+        
+        # If installation succeeded, wait for registry to be updated
+        if ($exitCode -eq 0) {
+            Write-Host "Installation completed successfully. Waiting for registry update..."
+            $registryUpdated = $false
+            $waitStartDate = Get-Date
+            $maxWaitSeconds = 60
+            
+            while (-not $registryUpdated) {
+                $elapsed = (New-Timespan -Start $waitStartDate).TotalSeconds
+                if ($elapsed -gt $maxWaitSeconds) {
+                    Write-Host "Timeout waiting for registry update after $maxWaitSeconds seconds"
+                    break
+                }
+                
+                # Check HKCU registry for Notion installation
+                $userKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\661f0cc6-343a-59cb-a5e8-8f6324cc6998"
+                if (Test-Path $userKey) {
+                    $key = Get-ItemProperty -Path $userKey -ErrorAction SilentlyContinue
+                    if ($key -and $key.DisplayName -like "*Notion*") {
+                        Write-Host "Notion installation detected in registry: $($key.DisplayName)"
+                        $registryUpdated = $true
+                        break
+                    }
+                }
+                
+                Start-Sleep -Seconds 2
+            }
+            
+            if (-not $registryUpdated) {
+                Write-Host "Warning: Registry update not detected, but installer completed successfully"
+            }
+        }
+    } else {
+        $exitCode = 1
     }
 
 } catch {
