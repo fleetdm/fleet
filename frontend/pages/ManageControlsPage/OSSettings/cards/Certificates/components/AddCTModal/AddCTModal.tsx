@@ -1,10 +1,12 @@
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import { useQuery } from "react-query";
 
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+
+import paths from "router/paths";
+
 import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
 import certificatesAPI, { ICertTemplate } from "services/entities/certificates";
-import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -13,27 +15,40 @@ import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import TooltipWrapper from "components/TooltipWrapper";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
+import CustomLink from "components/CustomLink";
 
 import {
   validateFormData,
   generateFormValidations,
-  IAddCTFormData,
   IAddCTFormValidation,
 } from "./helpers";
 
 const baseClass = "add-ct-modal";
 
+export interface IAddCTFormData {
+  name: string;
+  certAuthorityId: string;
+  subjectName: string;
+}
+
 interface IAddCTModalProps {
   existingCTs: ICertTemplate[];
   onExit: () => void;
-  onSuccess?: () => void;
+  onSuccess: () => void;
+  currentTeamId?: number;
 }
 
-const AddCTModal = ({ existingCTs, onExit, onSuccess }: IAddCTModalProps) => {
+const AddCTModal = ({
+  existingCTs,
+  onExit,
+  onSuccess,
+  currentTeamId,
+}: IAddCTModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { currentTeam } = useContext(AppContext);
 
-  const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [formData, setFormData] = useState<IAddCTFormData>({
     name: "",
     certAuthorityId: "",
@@ -49,29 +64,30 @@ const AddCTModal = ({ existingCTs, onExit, onSuccess }: IAddCTModalProps) => {
     () => validateFormData(formData, validations)
   );
 
-  // Fetch certificate authorities
   const {
-    data: certAuthoritiesResp,
+    data: cAResp,
     isLoading: isLoadingCAs,
     isError: isErrorCAs,
-  } = useQuery<{ certificate_authorities: ICertificateAuthorityPartial[] }>(
-    ["certificate_authorities"],
-    () => certificatesAPI.getCertificateAuthoritiesList(),
+  } = useQuery(
+    "certAuthorities",
+    () => {
+      return certificatesAPI.getCertificateAuthoritiesList();
+    },
     {
-      retry: false,
-      refetchOnWindowFocus: false,
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      select: (data) => data.certificate_authorities,
     }
   );
+  const caPartials = cAResp ?? [];
 
-  const certAuthorities = certAuthoritiesResp?.certificate_authorities || [];
-
-  // Generate dropdown options from certificate authorities
-  const caDropdownOptions = useMemo(() => {
-    return certAuthorities.map((ca) => ({
-      value: ca.id.toString(),
-      label: ca.name,
-    }));
-  }, [certAuthorities]);
+  const caDropdownOptions = useMemo(
+    () =>
+      caPartials.map((cAP) => ({
+        value: cAP.id.toString(),
+        label: cAP.name,
+      })),
+    [caPartials]
+  );
 
   const onInputChange = (update: { name: string; value: string }) => {
     const updatedFormData = { ...formData, [update.name]: update.value };
@@ -79,7 +95,7 @@ const AddCTModal = ({ existingCTs, onExit, onSuccess }: IAddCTModalProps) => {
     setFormValidation(validateFormData(updatedFormData, validations));
   };
 
-  const onDropdownChange = (value: string) => {
+  const onChangeCA = (value: string) => {
     const updatedFormData = { ...formData, certAuthorityId: value };
     setFormData(updatedFormData);
     setFormValidation(validateFormData(updatedFormData, validations));
@@ -88,18 +104,16 @@ const AddCTModal = ({ existingCTs, onExit, onSuccess }: IAddCTModalProps) => {
   const onSubmitForm = async (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    setIsCreating(true);
+    setIsUpdating(true);
     try {
       await certificatesAPI.createCertTemplate({
         name: formData.name,
         certAuthorityId: parseInt(formData.certAuthorityId, 10),
         subjectName: formData.subjectName,
-        teamId: currentTeam?.id,
+        teamId: currentTeamId,
       });
       renderFlash("success", "Successfully added your certificate template.");
-      if (onSuccess) {
-        onSuccess();
-      }
+      onSuccess();
       onExit();
     } catch (e) {
       renderFlash(
@@ -107,24 +121,21 @@ const AddCTModal = ({ existingCTs, onExit, onSuccess }: IAddCTModalProps) => {
         "Couldn't add certificate template. Please try again."
       );
     } finally {
-      setIsCreating(false);
+      setIsUpdating(false);
     }
   };
 
   const renderForm = () => {
     if (isLoadingCAs) {
-      return <div>Loading certificate authorities...</div>;
+      return <Spinner />;
     }
 
-    if (isErrorCAs || certAuthorities.length === 0) {
-      return (
-        <div>
-          No certificate authorities available. Please add a certificate
-          authority first.
-        </div>
-      );
+    if (isErrorCAs) {
+      return <DataError />;
     }
-
+    if (caPartials.length === 0) {
+      return <>TODO - add some CAs</>;
+    }
     return (
       <form className={baseClass} onSubmit={onSubmitForm}>
         <InputField
@@ -141,9 +152,19 @@ const AddCTModal = ({ existingCTs, onExit, onSuccess }: IAddCTModalProps) => {
           label="Certificate authority (CA)"
           options={caDropdownOptions}
           value={formData.certAuthorityId}
-          onChange={onDropdownChange}
+          onChange={onChangeCA}
           placeholder="Select certificate authority"
-          helpText="Certificate will be issued from this CA. Currently, only custom SCEP CA is supported. You can add CAs on the Certificate authorities page."
+          helpText={
+            <>
+              Certificate will be issued from this CA. Currently, only custom
+              SCEP CA is supported. You can add CAs on the
+              <CustomLink
+                url={paths.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES}
+                text="Certificate authorities"
+              />
+              page.
+            </>
+          }
           searchable={false}
           error={formValidation.certAuthorityId?.message}
         />
@@ -167,8 +188,8 @@ const AddCTModal = ({ existingCTs, onExit, onSuccess }: IAddCTModalProps) => {
             showArrow
           >
             <Button
-              isLoading={isCreating}
-              disabled={!formValidation.isValid || isCreating}
+              isLoading={isUpdating}
+              disabled={!formValidation.isValid || isUpdating}
               type="submit"
             >
               Create
@@ -188,7 +209,7 @@ const AddCTModal = ({ existingCTs, onExit, onSuccess }: IAddCTModalProps) => {
       title="Add certificate template"
       width="large"
       onExit={onExit}
-      isContentDisabled={isCreating}
+      isContentDisabled={isUpdating}
     >
       {renderForm()}
     </Modal>
