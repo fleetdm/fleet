@@ -101,7 +101,7 @@ const Certificates = ({
   const { has_next_results: hasNext, has_previous_results: hasPrev } =
     cTsResp?.meta || {};
 
-  const onAddCert = () => {
+  const onAddSuccess = () => {
     refetchCTs();
     onMutation();
   };
@@ -243,7 +243,8 @@ const Certificates = ({
         <AddCTModal
           existingCTs={cTs}
           onExit={() => setShowAddCTModal(false)}
-          onSuccess={onAddCert}
+          onSuccess={onAddSuccess}
+          currentTeamId={currentTeamId}
         />
       )}
       {certTemplateToDelete && (

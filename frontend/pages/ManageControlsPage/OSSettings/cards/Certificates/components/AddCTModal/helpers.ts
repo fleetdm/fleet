@@ -1,10 +1,5 @@
 import { ICertTemplate } from "services/entities/certificates";
-
-export interface IAddCTFormData {
-  name: string;
-  certAuthorityId: string;
-  subjectName: string;
-}
+import { IAddCTFormData } from "./AddCTModal";
 
 export interface IAddCTFormValidation {
   isValid: boolean;
@@ -73,8 +68,9 @@ export const generateFormValidations = (
         {
           name: "required",
           isValid: (formData: IAddCTFormData) => {
-            return formData.certAuthorityId.length > 0;
+            return formData.certAuthorityId !== null;
           },
+          // no error message specified
         },
       ],
     },
@@ -86,6 +82,7 @@ export const generateFormValidations = (
             return formData.subjectName.length > 0;
           },
         },
+        // accept any value, let the serve handle any errors
       ],
     },
   };
