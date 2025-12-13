@@ -304,6 +304,12 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
+	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+		return nil
+	}
+	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
+		return nil
+	}
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}

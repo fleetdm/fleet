@@ -181,6 +181,14 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
 
+	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+		return nil
+	}
+
+	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
+		return nil
+	}
+
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {

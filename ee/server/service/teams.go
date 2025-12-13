@@ -1301,8 +1301,10 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.IPadOSUpdates = spec.MDM.IPadOSUpdates
 		mdmIPadOSUpdatesEdited = true
 	}
+	var mdmWindowsUpdatesEdited bool
 	if spec.MDM.WindowsUpdates.DeadlineDays.Set || spec.MDM.WindowsUpdates.GracePeriodDays.Set {
 		team.Config.MDM.WindowsUpdates = spec.MDM.WindowsUpdates
+		mdmWindowsUpdatesEdited = true
 	}
 
 	oldEnableDiskEncryption := team.Config.MDM.EnableDiskEncryption
@@ -1587,6 +1589,17 @@ func (svc *Service) editTeamFromSpec(
 	if mdmIPadOSUpdatesEdited {
 		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.IPadOS, team.Config.MDM.IPadOSUpdates); err != nil {
 			return err
+		}
+	}
+	if mdmWindowsUpdatesEdited {
+		if team.Config.MDM.WindowsUpdates.DeadlineDays.Valid {
+			if err := svc.mdmWindowsEnableOSUpdates(ctx, &team.ID, team.Config.MDM.WindowsUpdates); err != nil {
+				return ctxerr.Wrap(ctx, err, "enable team windows OS updates")
+			}
+		} else {
+			if err := svc.mdmWindowsDisableOSUpdates(ctx, &team.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "disable team windows OS updates")
+			}
 		}
 	}
 
