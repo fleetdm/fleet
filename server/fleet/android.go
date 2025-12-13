@@ -122,7 +122,7 @@ func (p HostMDMAndroidProfile) ToHostMDMProfile() HostMDMProfile {
 		ProfileUUID:   p.ProfileUUID,
 		Name:          p.Name,
 		Identifier:    "",
-		Status:        p.Status,
+		Status:        p.Status.StringPtr(),
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
 		Platform:      "android",

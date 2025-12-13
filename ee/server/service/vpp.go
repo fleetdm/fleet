@@ -1047,6 +1047,10 @@ func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamI
 
 	tok, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, teamIDs)
 	if err != nil {
+		var errTokConstraint fleet.ErrVPPTokenTeamConstraint
+		if errors.As(err, &errTokConstraint) {
+			return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(errTokConstraint, http.StatusConflict))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "updating vpp token team")
 	}
 
