@@ -592,7 +592,7 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 		return "deb_packages", nil
 	case "rpm":
 		return "rpm_packages", nil
-	case "exe", "msi":
+	case "exe", "msi", "zip":
 		return "programs", nil
 	case "pkg":
 		if filepath.Ext(name) == ".app" {
@@ -617,7 +617,7 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 	switch ext {
 	case "deb", "rpm", "tar.gz", "sh":
 		return "linux", nil
-	case "exe", "msi", "ps1":
+	case "exe", "msi", "ps1", "zip":
 		return "windows", nil
 	case "pkg":
 		return "darwin", nil
