@@ -2920,6 +2920,7 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	macOSUpdates := &fleet.AppleOSUpdateSettings{
 		MinimumVersion: optjson.SetString("10.15.0"),
 		Deadline:       optjson.SetString("2021-01-01"),
+		UpdateNewHosts: optjson.SetBool(true),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
@@ -2928,7 +2929,18 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	}, http.StatusOK, &tmResp)
 	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2021-01-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
-	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2021-01-01"}`, team.ID, team.Name), 0)
+	require.Equal(t, true, tmResp.Team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2021-01-01"}`, team.ID, team.Name), 0)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEnabledMacosUpdateNewHosts{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`,
+			team.ID,
+			team.Name,
+		), 0)
 
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetMacOSUpdatesProfileName, macOSUpdates)
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIOSUpdatesProfileName, nil)
@@ -2938,11 +2950,14 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	iOSUpdates := &fleet.AppleOSUpdateSettings{
 		MinimumVersion: optjson.SetString("11.11.11"),
 		Deadline:       optjson.SetString("2022-02-02"),
+		UpdateNewHosts: optjson.SetBool(true),
 	}
 	iPadOSUpdates := &fleet.AppleOSUpdateSettings{
 		MinimumVersion: optjson.SetString("12.12.12"),
 		Deadline:       optjson.SetString("2023-03-03"),
+		UpdateNewHosts: optjson.SetBool(true),
 	}
+	fmt.Printf("%+v\n", iOSUpdates)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
 			"ios_updates":    iOSUpdates,
@@ -2951,10 +2966,18 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	}, http.StatusOK, &tmResp)
 	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2021-01-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
+	require.Equal(t, true, tmResp.Team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
+
 	require.Equal(t, "11.11.11", tmResp.Team.Config.MDM.IOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2022-02-02", tmResp.Team.Config.MDM.IOSUpdates.Deadline.Value)
+	// UpdateNewHosts values are ignored for iOS
+	require.False(t, tmResp.Team.Config.MDM.IOSUpdates.UpdateNewHosts.Value)
+
 	require.Equal(t, "12.12.12", tmResp.Team.Config.MDM.IPadOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2023-03-03", tmResp.Team.Config.MDM.IPadOSUpdates.Deadline.Value)
+	// UpdateNewHosts values are ignored for iPadOS
+	require.False(t, tmResp.Team.Config.MDM.IPadOSUpdates.UpdateNewHosts.Value)
+
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2021-01-01"}`, team.ID, team.Name), 0)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "11.11.11", "deadline": "2022-02-02"}`, team.ID, team.Name), 0)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "12.12.12", "deadline": "2023-03-03"}`, team.ID, team.Name), 0)
@@ -2967,6 +2990,7 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	macOSUpdates = &fleet.AppleOSUpdateSettings{
 		MinimumVersion: optjson.SetString("10.15.0"),
 		Deadline:       optjson.SetString("2025-10-01"),
+		UpdateNewHosts: optjson.SetBool(true),
 	}
 	iOSUpdates = &fleet.AppleOSUpdateSettings{
 		MinimumVersion: optjson.SetString("11.11.11"),
@@ -2985,10 +3009,16 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	}, http.StatusOK, &tmResp)
 	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
+	require.Equal(t, true, tmResp.Team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
+
 	require.Equal(t, "11.11.11", tmResp.Team.Config.MDM.IOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2024-02-02", tmResp.Team.Config.MDM.IOSUpdates.Deadline.Value)
+	require.False(t, tmResp.Team.Config.MDM.IOSUpdates.UpdateNewHosts.Value)
+
 	require.Equal(t, "12.12.12", tmResp.Team.Config.MDM.IPadOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2024-03-03", tmResp.Team.Config.MDM.IPadOSUpdates.Deadline.Value)
+	require.False(t, tmResp.Team.Config.MDM.IPadOSUpdates.UpdateNewHosts.Value)
+
 	macOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2025-10-01"}`, team.ID, team.Name), 0)
 	iOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "11.11.11", "deadline": "2024-02-02"}`, team.ID, team.Name), 0)
 	iPadOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "12.12.12", "deadline": "2024-03-03"}`, team.ID, team.Name), 0)
@@ -2996,6 +3026,35 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetMacOSUpdatesProfileName, macOSUpdates)
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIOSUpdatesProfileName, iOSUpdates)
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIPadOSUpdatesProfileName, iPadOSUpdates)
+
+	// Unchecking the UpdateNewHosts flag should register as an activity
+	macOSUpdates = &fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("10.15.0"),
+		Deadline:       optjson.SetString("2025-10-01"),
+		UpdateNewHosts: optjson.SetBool(false),
+	}
+	iOSUpdates = &fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("11.11.11"),
+		Deadline:       optjson.SetString("2024-02-02"),
+	}
+	iPadOSUpdates = &fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("12.12.12"),
+		Deadline:       optjson.SetString("2024-03-03"),
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"macos_updates":  macOSUpdates,
+			"ios_updates":    iOSUpdates,
+			"ipados_updates": iPadOSUpdates,
+		},
+	}, http.StatusOK, &tmResp)
+	require.Equal(t, false, tmResp.Team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledMacosUpdateNewHosts{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`,
+			team.ID,
+			team.Name,
+		), 0)
 
 	// setting the windows updates doesn't alter the apple updates
 	tmResp = teamResponse{}
