@@ -118,6 +118,7 @@ import MacOS from "./MacOS";
 import Mattermost from "./Mattermost";
 import Messenger from "./Messenger";
 import MicrosoftAutoUpdate from "./MicrosoftAutoUpdate";
+import MicrosoftEdge from "./MicrosoftEdge";
 import MicrosoftOneNote from "./MicrosoftOneNote";
 import MicrosoftOutlook from "./MicrosoftOutlook";
 import MicrosoftPowerPoint from "./MicrosoftPowerPoint";
@@ -282,6 +283,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "draw.io": Drawio,
   dropbox: Dropbox,
   eclipse: Eclipse,
+  edge: MicrosoftEdge,
   egnyte: Egnyte,
   "elgato control center": ElgatoControlCenter,
   evernote: Evernote,
