@@ -277,7 +277,7 @@ All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. W
 
 ### Communicate feedback on prioritized customer requests
 
-When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) adds the `~customer request` label to the feature request issue and files a user story that's brought through [drafting](https://fleetdm.com/handbook/product-design#drafting).
+When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) files a user story that's brought through [drafting](https://fleetdm.com/handbook/product-design#drafting).
 
 After the user story is released, the PD will ask the appropriate Customer Success Manager (CSM) to bring the released improvements to the customer for feedback. When this happens, PD assigns the CSM and adds the `#g-unicorns` label.
 
