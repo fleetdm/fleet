@@ -359,6 +359,7 @@ const SoftwareInstallerCard = ({
       <div className={`${baseClass}__installer-status-table`}>
         <InstallerStatusTable
           isScriptPackage={isScriptPackage}
+          isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           softwareId={softwareId}
           teamId={teamId}
           status={status}
