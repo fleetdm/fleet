@@ -781,7 +781,7 @@ func TestValidateIdentifier(t *testing.T) {
 			}, nil
 		}
 
-		pendingStatus := fleet.MDMDeliveryPending
+		deliveredStatus := fleet.CertificateTemplateDelivered
 		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
 			assert.Equal(t, "host-uuid", hostUUID)
 			assert.Equal(t, uint(1), certificateTemplateID)
@@ -789,7 +789,7 @@ func TestValidateIdentifier(t *testing.T) {
 				HostUUID:              "host-uuid",
 				CertificateTemplateID: 1,
 				FleetChallenge:        ptr.String("test-challenge"),
-				Status:                &pendingStatus,
+				Status:                &deliveredStatus,
 				CAType:                fleet.CAConfigCustomSCEPProxy,
 				CAName:                "android-ca",
 			}, nil
@@ -843,7 +843,7 @@ func TestValidateIdentifier(t *testing.T) {
 				},
 			}, nil
 		}
-		verifiedStatus := fleet.MDMDeliveryVerified
+		verifiedStatus := fleet.CertificateTemplateVerified
 		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
 			return &fleet.CertificateTemplateForHost{
 				HostUUID:              "host-uuid",
@@ -869,13 +869,13 @@ func TestValidateIdentifier(t *testing.T) {
 				CustomScepProxy: []fleet.CustomSCEPProxyCA{}, // Empty - no CAs configured
 			}, nil
 		}
-		pendingStatus := fleet.MDMDeliveryPending
+		deliveredStatus := fleet.CertificateTemplateDelivered
 		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
 			return &fleet.CertificateTemplateForHost{
 				HostUUID:              "host-uuid",
 				CertificateTemplateID: 1,
 				FleetChallenge:        ptr.String("test-challenge"),
-				Status:                &pendingStatus,
+				Status:                &deliveredStatus,
 				CAType:                fleet.CAConfigCustomSCEPProxy,
 				CAName:                "android-ca",
 			}, nil
@@ -897,13 +897,13 @@ func TestValidateIdentifier(t *testing.T) {
 				},
 			}, nil
 		}
-		pendingStatus := fleet.MDMDeliveryPending
+		deliveredStatus := fleet.CertificateTemplateDelivered
 		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
 			return &fleet.CertificateTemplateForHost{
 				HostUUID:              "host-uuid",
 				CertificateTemplateID: 1,
 				FleetChallenge:        ptr.String("test-challenge"),
-				Status:                &pendingStatus,
+				Status:                &deliveredStatus,
 				CAType:                fleet.CAConfigCustomSCEPProxy,
 				CAName:                "android-ca", // This CA is not configured
 			}, nil
@@ -925,13 +925,13 @@ func TestValidateIdentifier(t *testing.T) {
 				},
 			}, nil
 		}
-		pendingStatus := fleet.MDMDeliveryPending
+		deliveredStatus := fleet.CertificateTemplateDelivered
 		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
 			return &fleet.CertificateTemplateForHost{
 				HostUUID:              "host-uuid",
 				CertificateTemplateID: 1,
 				FleetChallenge:        ptr.String("valid-challenge"),
-				Status:                &pendingStatus,
+				Status:                &deliveredStatus,
 				CAType:                fleet.CAConfigCustomSCEPProxy,
 				CAName:                "android-ca",
 			}, nil
@@ -959,13 +959,13 @@ func TestValidateIdentifier(t *testing.T) {
 				},
 			}, nil
 		}
-		pendingStatus := fleet.MDMDeliveryPending
+		deliveredStatus := fleet.CertificateTemplateDelivered
 		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
 			return &fleet.CertificateTemplateForHost{
 				HostUUID:              "host-uuid",
 				CertificateTemplateID: 1,
 				FleetChallenge:        ptr.String("valid-challenge"),
-				Status:                &pendingStatus,
+				Status:                &deliveredStatus,
 				CAType:                fleet.CAConfigCustomSCEPProxy,
 				CAName:                "android-ca",
 			}, nil
@@ -1015,13 +1015,13 @@ func TestValidateIdentifier(t *testing.T) {
 				},
 			}, nil
 		}
-		pendingStatus := fleet.MDMDeliveryPending
+		deliveredStatus := fleet.CertificateTemplateDelivered
 		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
 			return &fleet.CertificateTemplateForHost{
 				HostUUID:              "host-uuid",
 				CertificateTemplateID: 1,
 				FleetChallenge:        ptr.String("template-challenge"), // Challenge from template
-				Status:                &pendingStatus,
+				Status:                &deliveredStatus,
 				CAType:                fleet.CAConfigCustomSCEPProxy,
 				CAName:                "android-ca",
 			}, nil

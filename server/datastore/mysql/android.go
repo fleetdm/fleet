@@ -220,6 +220,18 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, false, true, host.Host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "update Android host MDM info")
 			}
+
+			// Create pending certificate template records for re-enrolling host.
+			// This ensures hosts that were unenrolled and re-enrolled get any certificate
+			// templates that were added while they were unenrolled.
+			// Uses ON DUPLICATE KEY UPDATE so it's safe to call even if records already exist.
+			teamID := uint(0)
+			if host.TeamID != nil {
+				teamID = *host.TeamID
+			}
+			if _, err := ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, teamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "create pending certificate templates for re-enrolling host")
+			}
 		}
 
 		err = ds.UpdateDeviceTx(ctx, tx, host.Device)
