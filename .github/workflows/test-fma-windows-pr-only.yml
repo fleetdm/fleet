@@ -7,13 +7,6 @@ on:
       - ee/maintained-apps/inputs/**
       - ee/maintained-apps/outputs/**
       - cmd/maintained-apps/validate/**
-  push:
-    branches:
-      - allenhouchins-add-7zip-fma
-    paths:
-      - ee/maintained-apps/inputs/**
-      - ee/maintained-apps/outputs/**
-      - cmd/maintained-apps/validate/**
   workflow_dispatch: # Manual trigger
     inputs:
       log_level:
