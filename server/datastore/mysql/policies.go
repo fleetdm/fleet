@@ -1458,6 +1458,21 @@ func cleanupPolicyMembershipOnTeamChange(ctx context.Context, tx sqlx.ExtContext
 	return nil
 }
 
+func cleanupLabelMembershipOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	// Similar to cleanupPolicyMembershipOnTeamChange, hosts can only be in one team, so if there's a label
+	// that has a team id and a result from one of our hosts it can only be from the previous team they are
+	// being transferred from.
+	query, args, err := sqlx.In(`DELETE FROM label_membership
+					WHERE label_id IN (SELECT id FROM labels WHERE team_id IS NOT NULL) AND host_id IN (?)`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "clean old label memberships sqlx in")
+	}
+	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "exec clean old label memberships")
+	}
+	return nil
+}
+
 func cleanupQueryResultsOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
 	// Similar to cleanupPolicyMembershipOnTeamChange, hosts can belong to one team only, so we just delete all
 	// the query results of the hosts that belong to queries that are not global.

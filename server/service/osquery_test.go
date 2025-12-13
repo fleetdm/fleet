@@ -1475,9 +1475,9 @@ func TestLabelQueries(t *testing.T) {
 
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{
-			"label1": "query1",
-			"label2": "query2",
-			"label3": "query3",
+			"1": "query1",
+			"2": "query2",
+			"3": "query3",
 		}, nil
 	}
 
@@ -3037,6 +3037,9 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	}
 	ds.SaveHostAdditionalFunc = func(ctx context.Context, hostID uint, additional *json.RawMessage) error {
 		return errors.New("something went wrong")
+	}
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{"1": "SELECT 1;"}, nil
 	}
 
 	lCtx := &fleetLogging.LoggingContext{}
