@@ -42,6 +42,15 @@ type DBOptions struct {
 	ConnectorFactory ConnectorFactory
 }
 
+// DBConnections holds the database connections and options that can be shared across datastores.
+// This allows bounded contexts to create their own datastores using the same
+// underlying database connections and configuration.
+type DBConnections struct {
+	Primary *sqlx.DB
+	Replica *sqlx.DB
+	Options *DBOptions
+}
+
 func NewDB(conf *MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB, error) {
 	driverName := "mysql"
 

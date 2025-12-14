@@ -15,9 +15,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/activity"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
@@ -507,6 +510,12 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 	// Referer.
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 }
+
+type HandlerFunc func(ctx context.Context, request any, svc fleet.Service) (platform_http.Errorer, error)
+
+type AndroidFunc func(ctx context.Context, request any, svc android.Service) platform_http.Errorer
+
+type ActivityFunc func(ctx context.Context, request any, svc activity.Service) platform_http.Errorer
 
 type CommonEndpointer[H any] struct {
 	EP            Endpointer[H]

@@ -89,30 +89,27 @@ func isBodyDecoder(v reflect.Value) bool {
 	return ok
 }
 
-// handlerFunc is the handler function type for the main Fleet service endpoints.
-type handlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error)
-
 // Compile-time check to ensure that endpointer implements Endpointer.
-var _ eu.Endpointer[handlerFunc] = &endpointer{}
+var _ eu.Endpointer[eu.HandlerFunc] = &endpointer{}
 
 type endpointer struct {
 	svc fleet.Service
 }
 
-func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request interface{},
-	svc interface{},
+func (e *endpointer) CallHandlerFunc(f eu.HandlerFunc, ctx context.Context, request any,
+	svc any,
 ) (platform_http.Errorer, error) {
 	return f(ctx, request, svc.(fleet.Service))
 }
 
-func (e *endpointer) Service() interface{} {
+func (e *endpointer) Service() any {
 	return e.svc
 }
 
 func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
-) *eu.CommonEndpointer[handlerFunc] {
-	return &eu.CommonEndpointer[handlerFunc]{
+) *eu.CommonEndpointer[eu.HandlerFunc] {
+	return &eu.CommonEndpointer[eu.HandlerFunc]{
 		EP: &endpointer{
 			svc: svc,
 		},
@@ -129,8 +126,8 @@ func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOpti
 
 func newNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
-) *eu.CommonEndpointer[handlerFunc] {
-	return &eu.CommonEndpointer[handlerFunc]{
+) *eu.CommonEndpointer[eu.HandlerFunc] {
+	return &eu.CommonEndpointer[eu.HandlerFunc]{
 		EP: &endpointer{
 			svc: svc,
 		},
@@ -147,11 +144,11 @@ func newNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.
 
 func newOrbitNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
-) *eu.CommonEndpointer[handlerFunc] {
+) *eu.CommonEndpointer[eu.HandlerFunc] {
 	// Add the capabilities reported by Orbit to the request context
 	opts = append(opts, capabilitiesContextFunc())
 
-	return &eu.CommonEndpointer[handlerFunc]{
+	return &eu.CommonEndpointer[eu.HandlerFunc]{
 		EP: &endpointer{
 			svc: svc,
 		},
@@ -178,7 +175,7 @@ func badRequestf(format string, a ...any) error {
 
 func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
-) *eu.CommonEndpointer[handlerFunc] {
+) *eu.CommonEndpointer[eu.HandlerFunc] {
 	// Extract certificate serial from X-Client-Cert-Serial header for certificate-based auth
 	opts = append(opts, kithttp.ServerBefore(extractCertSerialFromHeader))
 	// Inject the fleet.CapabilitiesHeader header to the response for device endpoints
@@ -186,7 +183,7 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts
 	// Add the capabilities reported by the device to the request context
 	opts = append(opts, capabilitiesContextFunc())
 
-	return &eu.CommonEndpointer[handlerFunc]{
+	return &eu.CommonEndpointer[eu.HandlerFunc]{
 		EP: &endpointer{
 			svc: svc,
 		},
@@ -203,8 +200,8 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts
 
 func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
-) *eu.CommonEndpointer[handlerFunc] {
-	return &eu.CommonEndpointer[handlerFunc]{
+) *eu.CommonEndpointer[eu.HandlerFunc] {
+	return &eu.CommonEndpointer[eu.HandlerFunc]{
 		EP: &endpointer{
 			svc: svc,
 		},
@@ -225,13 +222,13 @@ func androidAuthenticatedEndpointer(
 	opts []kithttp.ServerOption,
 	r *mux.Router,
 	versions ...string,
-) *eu.CommonEndpointer[handlerFunc] {
+) *eu.CommonEndpointer[eu.HandlerFunc] {
 	// Inject the fleet.Capabilities header to the response for Orbit hosts
 	opts = append(opts, capabilitiesResponseFunc(fleet.GetServerOrbitCapabilities()))
 	// Add the capabilities reported by Orbit to the request context
 	opts = append(opts, capabilitiesContextFunc())
 
-	return &eu.CommonEndpointer[handlerFunc]{
+	return &eu.CommonEndpointer[eu.HandlerFunc]{
 		EP: &endpointer{
 			svc: svc,
 		},
@@ -248,13 +245,13 @@ func androidAuthenticatedEndpointer(
 
 func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
-) *eu.CommonEndpointer[handlerFunc] {
+) *eu.CommonEndpointer[eu.HandlerFunc] {
 	// Inject the fleet.Capabilities header to the response for Orbit hosts
 	opts = append(opts, capabilitiesResponseFunc(fleet.GetServerOrbitCapabilities()))
 	// Add the capabilities reported by Orbit to the request context
 	opts = append(opts, capabilitiesContextFunc())
 
-	return &eu.CommonEndpointer[handlerFunc]{
+	return &eu.CommonEndpointer[eu.HandlerFunc]{
 		EP: &endpointer{
 			svc: svc,
 		},

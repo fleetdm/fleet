@@ -231,8 +231,10 @@ func (ds *Datastore) withReadTx(ctx context.Context, fn common_mysql.ReadTxFn) (
 	return common_mysql.WithReadOnlyTxx(ctx, readerDB, fn, ds.logger)
 }
 
-// New creates an MySQL datastore.
-func New(conf config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
+// NewDBConnections creates database connections from config.
+// The returned connections can be used to create multiple datastores
+// that share the same underlying database connections.
+func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.DBConnections, error) {
 	options := &common_mysql.DBOptions{
 		MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 		MaxAttempts:         defaultMaxAttempts,
@@ -247,7 +249,7 @@ func New(conf config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, 
 		}
 	}
 
-	if err := checkConfig(&conf); err != nil {
+	if err := checkConfig(&cfg); err != nil {
 		return nil, err
 	}
 	if options.ReplicaConfig != nil {
@@ -258,11 +260,11 @@ func New(conf config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, 
 	}
 
 	// Set up IAM authentication connector factory if needed
-	if err := setupIAMAuthIfNeeded(&conf, options); err != nil {
+	if err := setupIAMAuthIfNeeded(&cfg, options); err != nil {
 		return nil, err
 	}
 
-	dbWriter, err := NewDB(&conf, options)
+	dbWriter, err := NewDB(&cfg, options)
 	if err != nil {
 		return nil, err
 	}
@@ -282,23 +284,38 @@ func New(conf config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, 
 		}
 	}
 
+	return &common_mysql.DBConnections{Primary: dbWriter, Replica: dbReader, Options: options}, nil
+}
+
+// NewDatastore creates a Datastore using existing database connections.
+// Use this when you need to share database connections with other bounded context datastores.
+func NewDatastore(conns *common_mysql.DBConnections, cfg config.MysqlConfig, c clock.Clock) (*Datastore, error) {
 	ds := &Datastore{
-		primary:             dbWriter,
-		replica:             dbReader,
-		logger:              options.Logger,
+		primary:             conns.Primary,
+		replica:             conns.Replica,
+		logger:              conns.Options.Logger,
 		clock:               c,
-		config:              conf,
-		readReplicaConfig:   options.ReplicaConfig,
+		config:              cfg,
+		readReplicaConfig:   conns.Options.ReplicaConfig,
 		writeCh:             make(chan itemToWrite),
 		stmtCache:           make(map[string]*sqlx.Stmt),
-		minLastOpenedAtDiff: options.MinLastOpenedAtDiff,
-		serverPrivateKey:    options.PrivateKey,
-		Datastore:           NewAndroidDatastore(options.Logger, dbWriter, dbReader),
+		minLastOpenedAtDiff: conns.Options.MinLastOpenedAtDiff,
+		serverPrivateKey:    conns.Options.PrivateKey,
+		Datastore:           NewAndroidDatastore(conns.Options.Logger, conns.Primary, conns.Replica),
 	}
 
 	go ds.writeChanLoop()
 
 	return ds, nil
+}
+
+// New creates a MySQL datastore.
+func New(cfg config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
+	conns, err := NewDBConnections(cfg, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return NewDatastore(conns, cfg, c)
 }
 
 type itemToWrite struct {
