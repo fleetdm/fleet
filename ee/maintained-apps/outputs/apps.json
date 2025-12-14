@@ -79,6 +79,13 @@
       "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
     },
     {
+      "name": "Adobe Creative Cloud",
+      "slug": "adobe-creative-cloud/windows",
+      "platform": "windows",
+      "unique_identifier": "Adobe Creative Cloud",
+      "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
+    },
+    {
       "name": "Adobe Digital Editions",
       "slug": "adobe-digital-editions/darwin",
       "platform": "darwin",
