@@ -21,6 +21,16 @@ try {
     $exitCode = $process.ExitCode
     
     Write-Host "Install exit code: $exitCode"
+    
+    # Adobe Creative Cloud installer may return exit code 1 even on successful installation
+    # Verify installation by checking for the executable file
+    if ($exitCode -eq 1) {
+        $creativeCloudExe = Join-Path $env:ProgramFiles "Adobe\Adobe Creative Cloud\ACC\Creative Cloud.exe"
+        if (Test-Path $creativeCloudExe) {
+            Write-Host "Adobe Creative Cloud executable found at $creativeCloudExe. Treating exit code 1 as success."
+            $exitCode = 0
+        }
+    }
 
 } catch {
     Write-Host "Error: $_"
