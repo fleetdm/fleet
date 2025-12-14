@@ -96,6 +96,18 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion
 		}
 	}
 
+	// Adobe Creative Cloud may not appear in programs table immediately after installation
+	// or version may not match. If appPath was detected, verify the actual executable exists
+	if appName == "Adobe Creative Cloud" && appPath != "" {
+		// Check for the actual Creative Cloud executable
+		creativeCloudExe := filepath.Join(appPath, "Adobe Creative Cloud", "ACC", "Creative Cloud.exe")
+		if _, err := os.Stat(creativeCloudExe); err == nil {
+			level.Info(logger).Log("msg", fmt.Sprintf("Adobe Creative Cloud executable found at %s - considering installation successful", creativeCloudExe))
+			return true, nil
+		}
+		level.Info(logger).Log("msg", fmt.Sprintf("Adobe Creative Cloud directory detected but executable not found at %s", creativeCloudExe))
+	}
+
 	return false, nil
 }
 
