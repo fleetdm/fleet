@@ -75,7 +75,7 @@ type Datastore struct {
 	android.Datastore
 
 	// nil if no read replica
-	readReplicaConfig *config.MysqlConfig
+	readReplicaConfig *common_mysql.MysqlConfig
 
 	// minimum interval between software last_opened_at timestamp to update the
 	// database (see file software.go).
@@ -251,7 +251,8 @@ func New(conf config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, 
 		return nil, err
 	}
 	if options.ReplicaConfig != nil {
-		if err := checkConfig(options.ReplicaConfig); err != nil {
+		replicaConf := fromCommonMysqlConfig(options.ReplicaConfig)
+		if err := checkConfig(replicaConf); err != nil {
 			return nil, fmt.Errorf("replica: %w", err)
 		}
 	}
@@ -271,10 +272,11 @@ func New(conf config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, 
 		replicaOptions := *options
 		// Reset ConnectorFactory - replica may have different auth requirements than primary
 		replicaOptions.ConnectorFactory = nil
-		if err := setupIAMAuthIfNeeded(options.ReplicaConfig, &replicaOptions); err != nil {
+		replicaConf := fromCommonMysqlConfig(options.ReplicaConfig)
+		if err := setupIAMAuthIfNeeded(replicaConf, &replicaOptions); err != nil {
 			return nil, fmt.Errorf("replica: %w", err)
 		}
-		dbReader, err = NewDB(options.ReplicaConfig, &replicaOptions)
+		dbReader, err = NewDB(replicaConf, &replicaOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -366,7 +368,65 @@ func init() {
 }
 
 func NewDB(conf *config.MysqlConfig, opts *common_mysql.DBOptions) (*sqlx.DB, error) {
-	return common_mysql.NewDB(conf, opts, otelTracedDriverName)
+	return common_mysql.NewDB(toCommonMysqlConfig(conf), opts, otelTracedDriverName)
+}
+
+// toCommonMysqlConfig converts a config.MysqlConfig to common_mysql.MysqlConfig.
+func toCommonMysqlConfig(conf *config.MysqlConfig) *common_mysql.MysqlConfig {
+	return &common_mysql.MysqlConfig{
+		Protocol:        conf.Protocol,
+		Address:         conf.Address,
+		Username:        conf.Username,
+		Password:        conf.Password,
+		PasswordPath:    conf.PasswordPath,
+		Database:        conf.Database,
+		TLSCert:         conf.TLSCert,
+		TLSKey:          conf.TLSKey,
+		TLSCA:           conf.TLSCA,
+		TLSServerName:   conf.TLSServerName,
+		TLSConfig:       conf.TLSConfig,
+		MaxOpenConns:    conf.MaxOpenConns,
+		MaxIdleConns:    conf.MaxIdleConns,
+		ConnMaxLifetime: conf.ConnMaxLifetime,
+		SQLMode:         conf.SQLMode,
+		Region:          conf.Region,
+	}
+}
+
+// toCommonLoggingConfig converts a config.LoggingConfig to common_mysql.LoggingConfig.
+func toCommonLoggingConfig(conf *config.LoggingConfig) *common_mysql.LoggingConfig {
+	if conf == nil {
+		return nil
+	}
+	return &common_mysql.LoggingConfig{
+		TracingEnabled: conf.TracingEnabled,
+		TracingType:    conf.TracingType,
+	}
+}
+
+// fromCommonMysqlConfig converts a common_mysql.MysqlConfig to config.MysqlConfig.
+func fromCommonMysqlConfig(conf *common_mysql.MysqlConfig) *config.MysqlConfig {
+	if conf == nil {
+		return nil
+	}
+	return &config.MysqlConfig{
+		Protocol:        conf.Protocol,
+		Address:         conf.Address,
+		Username:        conf.Username,
+		Password:        conf.Password,
+		PasswordPath:    conf.PasswordPath,
+		Database:        conf.Database,
+		TLSCert:         conf.TLSCert,
+		TLSKey:          conf.TLSKey,
+		TLSCA:           conf.TLSCA,
+		TLSServerName:   conf.TLSServerName,
+		TLSConfig:       conf.TLSConfig,
+		MaxOpenConns:    conf.MaxOpenConns,
+		MaxIdleConns:    conf.MaxIdleConns,
+		ConnMaxLifetime: conf.ConnMaxLifetime,
+		SQLMode:         conf.SQLMode,
+		Region:          conf.Region,
+	}
 }
 
 func checkConfig(conf *config.MysqlConfig) error {
