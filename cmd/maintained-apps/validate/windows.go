@@ -84,6 +84,15 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion
 				return true, nil
 			}
 
+			// Adobe DNG Converter's version format may include build numbers or additional suffixes
+			// Check if the version starts with the expected version to handle formats like "18.0.0" or "18.0 (build)"
+			if appName == "Adobe DNG Converter" {
+				if strings.HasPrefix(result.Version, appVersion) {
+					level.Info(logger).Log("msg", "Adobe DNG Converter detected - version matches with prefix check")
+					return true, nil
+				}
+			}
+
 			// Check exact match first
 			if result.Version == appVersion {
 				return true, nil
