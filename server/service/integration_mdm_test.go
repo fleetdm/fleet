@@ -11975,7 +11975,6 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 			SelfService: true,
 			DisplayName: "",
 		})
-
 }
 
 func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {
@@ -19035,4 +19034,191 @@ func (s *integrationMDMTestSuite) TestAndroidEnterpriseDeletedDetection() {
 		// Attempt to get enterprise - should now return 404 since cron detected deletion
 		s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusNotFound, &getResp)
 	})
+}
+
+func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
+	t := s.T()
+
+	test.CreateInsertGlobalVPPToken(t, s.ds)
+
+	t1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "t1",
+	})
+	require.NoError(t, err)
+	t2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "t2",
+	})
+	require.NoError(t, err)
+
+	newHost := func(name string, platform string, teamID *uint) *fleet.Host {
+		h, err := s.ds.NewHost(t.Context(), &fleet.Host{
+			OsqueryHostID: ptr.String(t.Name() + name),
+			NodeKey:       ptr.String(t.Name() + name),
+			UUID:          uuid.New().String(),
+			Hostname:      fmt.Sprintf("%s.%s.local", name, t.Name()),
+			Platform:      platform,
+			TeamID:        teamID,
+
+			LabelUpdatedAt: time.Now().Add(-2 * time.Hour),
+		})
+		require.NoError(t, err)
+		return h
+	}
+	// Create host on team t1.
+	macOST1 := newHost("macOST1", "darwin", &t1.ID)
+	// Create host on team t2.
+	macOST2 := newHost("macOST2", "darwin", &t2.ID)
+	// Create host on "No team".
+	ubuntuHostNoTeam := newHost("linuxHostNoTeam", "ubuntu", nil)
+
+	// Mock live queries.
+	s.lq.On("QueriesForHost", macOST1.ID).Return(map[string]string{}, nil)
+	s.lq.On("QueriesForHost", macOST2.ID).Return(map[string]string{}, nil)
+	s.lq.On("QueriesForHost", ubuntuHostNoTeam.ID).Return(map[string]string{}, nil)
+
+	// Create label on team t1.
+	l1t1, err := s.ds.NewLabel(t.Context(), &fleet.Label{
+		Name:   "l1t1",
+		Query:  "SELECT t1;",
+		TeamID: &t1.ID,
+	})
+	require.NoError(t, err)
+	// Create two labels on team t2.
+	l2t2, err := s.ds.NewLabel(t.Context(), &fleet.Label{
+		Name:   "l2t2",
+		Query:  "SELECT t2;",
+		TeamID: &t2.ID,
+	})
+	require.NoError(t, err)
+	// Create global label.
+	globalLabel, err := s.ds.NewLabel(t.Context(), &fleet.Label{
+		Name:   "global",
+		Query:  "SELECT global;",
+		TeamID: nil,
+	})
+	require.NoError(t, err)
+
+	// Set label membership for l2t2.
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithLabelResults(macOST2, map[uint]*bool{
+		l2t2.ID:        ptr.Bool(true),
+		globalLabel.ID: ptr.Bool(true),
+	}), http.StatusOK, &distributedResp)
+
+	// Set label membership for l1t1.
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithLabelResults(macOST1, map[uint]*bool{
+		l1t1.ID:        ptr.Bool(true),
+		globalLabel.ID: ptr.Bool(true),
+	}), http.StatusOK, &distributedResp)
+
+	// Create an installer on t1 that references l1t1.
+	payloadRubyTm1 := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "install",
+		Filename:         "ruby.deb",
+		SelfService:      false,
+		TeamID:           &t1.ID,
+		LabelsIncludeAny: []string{l1t1.Name},
+		Platform:         "linux",
+	}
+	s.uploadSoftwareInstaller(t, payloadRubyTm1, http.StatusOK, "")
+
+	// Create a VPP app on t1 that references l1t1.
+	_, err = s.ds.InsertVPPAppWithTeam(t.Context(), &fleet.VPPApp{
+		Name:             "App123 " + t.Name(),
+		BundleIdentifier: "bid_" + t.Name(),
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "adam_test_vpp2",
+				Platform: fleet.MacOSPlatform,
+			},
+			ValidatedLabels: &fleet.LabelIdentsWithScope{
+				LabelScope: fleet.LabelScopeIncludeAny,
+				ByName: map[string]fleet.LabelIdent{
+					l1t1.Name: {
+						LabelID:   l1t1.ID,
+						LabelName: l1t1.Name,
+					},
+				},
+			},
+		},
+	}, &t1.ID)
+	require.NoError(t, err)
+
+	// Create an Apple configuration profile, a Windows profile and a declaration on t1 that references l1t1.
+	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+		ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
+			{DisplayName: "N1", Profile: mobileconfigForTestWithContent("N1", "I1", "com.test.profile.content", "test inner type", "test inner name"), LabelsIncludeAll: []string{l1t1.Name}},
+			{DisplayName: "N2", Profile: syncMLForTest("./Foo/Bar"), LabelsIncludeAll: []string{l1t1.Name}},
+			{DisplayName: "N3", Profile: declarationForTest("D1"), LabelsIncludeAll: []string{l1t1.Name}},
+		},
+	}, http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
+
+	// Create in-house app in team t1 that references l1t1.
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &t1.ID,
+		Filename:         "ipa_test2.ipa",
+		Version:          "1.0.0",
+		StorageID:        uuid.New().String(),
+		SelfService:      true,
+		LabelsIncludeAny: []string{l1t1.Name},
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+	// Create a policy in t1 that references l1t1.
+	_, err = s.ds.NewTeamPolicy(t.Context(), t1.ID, nil, fleet.PolicyPayload{
+		Name:             "p1t1",
+		Query:            "SELECT 1;",
+		Platform:         "darwin",
+		LabelsIncludeAny: []string{l1t1.Name},
+	})
+	require.NoError(t, err)
+
+	// Create a query in t1 that references l1t1.
+	_, err = s.ds.NewQuery(
+		t.Context(),
+		&fleet.Query{
+			Name:    "TestQueryTeamPolicy",
+			Query:   "SELECT 2;",
+			Saved:   true,
+			Logging: fleet.LoggingSnapshot,
+			TeamID:  &t1.ID,
+			LabelsIncludeAny: []fleet.LabelIdent{
+				{
+					LabelID:   l1t1.ID,
+					LabelName: l1t1.Name,
+				},
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	// Delete team t1.
+	delResp := deleteTeamResponse{}
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), nil, http.StatusOK, &delResp)
+
+	// Check label l1t1 on t1 has been removed.
+	_, _, err = s.ds.Label(t.Context(), l1t1.ID, fleet.TeamFilter{})
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Make sure l2t2 in t2 is unaffected.
+	_, _, err = s.ds.Label(t.Context(), l2t2.ID, fleet.TeamFilter{})
+	require.NoError(t, err)
+
+	// Make sure label membership for l1t1 is gone.
+	hostLabels, err := s.ds.ListLabelsForHost(t.Context(), macOST1.ID)
+	require.NoError(t, err)
+	require.Len(t, hostLabels, 1)
+	require.Equal(t, globalLabel.ID, hostLabels[0].ID)
+
+	// Make sure label membership of macOST2 is unaffected.
+	hostLabels, err = s.ds.ListLabelsForHost(t.Context(), macOST2.ID)
+	require.NoError(t, err)
+	require.Len(t, hostLabels, 2)
+	sort.Slice(hostLabels, func(i, j int) bool {
+		return hostLabels[i].ID < hostLabels[j].ID
+	})
+	require.Equal(t, l2t2.ID, hostLabels[0].ID)
+	require.Equal(t, globalLabel.ID, hostLabels[1].ID)
 }
