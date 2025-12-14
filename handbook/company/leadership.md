@@ -70,7 +70,7 @@ Changes to departmental pages can be merged when the change results in a page co
 <blockquote purpose="large-quote">
 Biggest learning is that we federated carte blanche edit permissions a bit too early back in 2021, and it’s resulted in the need for a lot of cleanup as different people have had their hands in the content prior to introducing a framework for organizing that content.  
 
-For reference, Sid at Gitlab didn’t delegate ownership over pages away from a single individual (him) until they were close to 100 employees, whereas at Fleet we did it in the 15 employee stage, and are dealing with the consequences.
+For reference, Sid at Gitlab didn’t delegate ownership over pages away from a single individual (him) until they were close to 100 employees, whereas at Fleet we did it in the 15 employee stage, and were dealing with the consequences.
 It meant that until late 2023, about 1/3 of the Fleet handbook was completely wrong, duplicated, or out of date.  (We’re now close to 100% accurate.)
 
 The audience for the “Communications” page is every Fleetie.
@@ -78,7 +78,7 @@ The audience for the “Communications” page is every Fleetie.
 The audience for the “Leadership” page is every manager.
 
 The audience for individual department pages are the people working with and within that department (in that order, with “Contact us” and other generally useful information and intake channels listed first).
-This pass through the handbook has also eliminated several pages in favor of getting more onto single pages.  This is because there is still a lot of duplication, and it’s easier to deal with when everything is on a single page.
+This pass through the handbook has also eliminated several pages in favor of getting more onto single pages.  This is because there was still a lot of duplication, and it’s easier to deal with when everything is on a single page.
 
 
 If you have any questions or feedback, please make a pull request.
@@ -173,11 +173,11 @@ Fleet uses [certain email templates](https://docs.google.com/document/d/1VAMWIH8
 
 ### Communicating with applicants 
 
-At Fleet, we use the contact form and email to communicate with future team members. Community members will often inquire about positions that aren't currently being hired for.  The DRI for receiving applications is Fleet's VP of Customer Success, whose team uses a set of template responses and updates Fleet's HRIS with new applicants.  Fleet's SLA for responding to applicants is 1 business day, though this doesn't necessarily mean that the hiring manager has bandwidth to take further action after that initial reply.  In that initial reply, candidates are encouraged to apply for future positions if they don't hear back further within a few days.
+At Fleet, we use the contact form and email to communicate with future team members. Community members will often inquire about positions that aren't currently being hired for.  The DRI for receiving applications is Fleet's Head of People, whose team uses a set of template responses and updates Fleet's HRIS with new applicants.  Fleet's SLA for responding to applicants is 1 business day, though this doesn't necessarily mean that the hiring manager has bandwidth to take further action after that initial reply.  In that initial reply, candidates are encouraged to apply for future positions if they don't hear back further within a few days.
 
 > **Recommending someone for an [open position](https://fleetdm.com/handbook/company#open-positions) at Fleet?**
 >
-> [Add their info to the spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) and leave a Google Doc comment @-mentioning the hiring manager or [Head of People](https://fleetdm.com/handbook/people#team). 
+> [Add their info to the spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) and leave a Google Doc comment @-mentioning the hiring manager and [Head of People](https://fleetdm.com/handbook/people#team). 
 
 Department-specific interviewing instructions:
 - [Engineering](https://fleetdm.com/handbook/engineering#interview-a-developer-candidate)
@@ -348,8 +348,14 @@ Although it's sad to see someone go, Fleet understands that not everything is me
 From time to time, someone's job title changes. The hiring manager can use the following steps to change someone's position:
 
 1. Create Slack channel: Create a private "#YYYY-change-title-for-xxxxxx" Slack channel (replace "xxxxxx" with the Fleetie's name and YYYY with current year) for discussion and invite the CEO and Head of People.
-2. `@`mention the Head of People in the new channel with any context regarding the title change and share any related documents. 
-3. After review and approval, the [Head of People](https://fleetdm.com/handbook/people#team) will take the necessary steps to [change the fleetie's job title](https://fleetdm.com/handbook/people#change-a-fleeties-role).
+2. `@`mention the Head of People in the new channel and provide the following:
+- A proposed job description, including where the role reports to. 
+- Why it's in the best interests of the company to create this role and/or move a teammate into the role.
+- Whether any workspace changes are required (e.g., do we need to create new Kanban boards, Slack channels, etc.)
+3. If further review is required, the Head of People will bring the proposed change to the E-group for discussion. 
+4. After review and approval, the [Head of People](https://fleetdm.com/handbook/people#team) will take the necessary steps to [change the Fleetie's job title](https://fleetdm.com/handbook/people#change-a-fleeties-role).
+
+> Note: As a first step, managers should loop in the Head of People before communicating any potential or confirmed role changes.
 
 
 ## Delivering performance feedback

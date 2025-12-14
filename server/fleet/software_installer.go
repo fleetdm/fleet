@@ -195,6 +195,7 @@ type VPPAppResponse struct {
 	LocalIconHash string `json:"-" db:"-"`
 	// LocalIconPath is the path to the icon specified in YAML
 	LocalIconPath string `json:"-" db:"-"`
+	AppTeamID     uint   `json:"-" db:"app_team_id"`
 }
 
 func (v VPPAppResponse) GetTeamID() uint {
@@ -706,6 +707,14 @@ type SoftwarePackageOrApp struct {
 	InstallDuringSetup   *bool    `json:"install_during_setup,omitempty" db:"install_during_setup"`
 	FleetMaintainedAppID *uint    `json:"fleet_maintained_app_id,omitempty" db:"fleet_maintained_app_id"`
 	Categories           []string `json:"categories,omitempty"`
+}
+
+func (s *SoftwarePackageOrApp) GetPlatform() string {
+	return s.Platform
+}
+
+func (s *SoftwarePackageOrApp) GetAppStoreID() string {
+	return s.AppStoreID
 }
 
 type SoftwarePackageSpec struct {

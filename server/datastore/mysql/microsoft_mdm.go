@@ -309,7 +309,7 @@ WHERE
 	return commands, nil
 }
 
-func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML fleet.EnrichedSyncML) error {
+func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) error {
 	if len(enrichedSyncML.Raw) == 0 {
 		return ctxerr.New(ctx, "empty raw response")
 	}
@@ -329,8 +329,18 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 		responseID, _ := sqlResult.LastInsertId()
 
 		// find commands we sent that match the UUID responses we've got
-		const findCommandsStmt = `SELECT command_uuid, raw_command, target_loc_uri FROM windows_mdm_commands WHERE command_uuid IN (?)`
+		findCommandsStmt := `SELECT command_uuid, raw_command, target_loc_uri FROM windows_mdm_commands WHERE command_uuid IN (?)`
 		stmt, params, err := sqlx.In(findCommandsStmt, enrichedSyncML.CmdRefUUIDs)
+		if len(commandIDsBeingResent) > 0 {
+			// If we're resending any commands, avoid selecting them here
+			placeholders := make([]string, len(commandIDsBeingResent))
+			for i, id := range commandIDsBeingResent {
+				placeholders[i] = "?"
+				params = append(params, id)
+			}
+			stmt += fmt.Sprintf(" AND command_uuid NOT IN (%s)", strings.Join(placeholders, ","))
+
+		}
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building IN to search matching commands")
 		}
@@ -341,8 +351,11 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 		}
 
 		if len(matchingCmds) == 0 {
-			level.Warn(ds.logger).Log("msg", "unmatched Windows MDM commands", "uuids", enrichedSyncML.CmdRefUUIDs, "mdm_device_id",
-				deviceID)
+			if len(commandIDsBeingResent) == 0 {
+				// Only log if not resending commands as we then can expect no matching commands
+				level.Warn(ds.logger).Log("msg", "unmatched Windows MDM commands", "uuids", strings.Join(enrichedSyncML.CmdRefUUIDs, ","), "mdm_device_id",
+					deviceID)
+			}
 			return nil
 		}
 
@@ -535,7 +548,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	return ctxerr.Wrap(ctx, err, "updating host profiles")
 }
 
-func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 	query := `SELECT
     mwe.host_uuid,
     wmc.command_uuid,
@@ -551,7 +564,7 @@ FROM
     windows_mdm_commands wmc
     LEFT JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = wmc.command_uuid
     LEFT JOIN windows_mdm_responses wmr ON wmr.id = wmcr.response_id
-    LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid
+    LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid AND wmcr.command_uuid IS NULL
     LEFT JOIN mdm_windows_enrollments mwe ON mwe.id = COALESCE(
         wmcr.enrollment_id,
         wmcq.enrollment_id
@@ -559,13 +572,19 @@ FROM
 WHERE
     wmc.command_uuid = ?`
 
+	args := []any{commandUUID}
+	if hostUUID != "" {
+		query += " AND mwe.host_uuid = ?"
+		args = append(args, hostUUID)
+	}
+
 	var results []*fleet.MDMCommandResult
 	err := sqlx.SelectContext(
 		ctx,
 		ds.reader(ctx),
 		&results,
 		query,
-		commandUUID,
+		args...,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
@@ -2331,7 +2350,8 @@ SELECT
 	-- aggregation functions.
 	COALESCE(status, '%s') AS status,
 	COALESCE(operation_type, '') AS operation_type,
-	COALESCE(detail, '') AS detail
+	COALESCE(detail, '') AS detail,
+	command_uuid
 FROM
 	host_mdm_windows_profiles
 WHERE
@@ -2440,4 +2460,64 @@ func (ds *Datastore) GetWindowsHostMDMCertificateProfile(ctx context.Context, ho
 		return nil, err
 	}
 	return &profile, nil
+}
+
+func (ds *Datastore) GetWindowsMDMCommandsForResending(ctx context.Context, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error) {
+	if len(failedCommandIds) == 0 {
+		return []*fleet.MDMWindowsCommand{}, nil
+	}
+
+	stmt := `SELECT command_uuid, raw_command, target_loc_uri, created_at, updated_at 
+		FROM windows_mdm_commands WHERE`
+
+	args := []any{}
+	for idx, commandId := range failedCommandIds {
+		stmt += " raw_command LIKE ? OR "
+		args = append(args, "%"+commandId+"%")
+		if idx == len(failedCommandIds)-1 {
+			stmt = strings.TrimSuffix(stmt, " OR ")
+		}
+	}
+
+	stmt += fmt.Sprintf(" ORDER BY created_at DESC LIMIT %d", len(failedCommandIds))
+
+	var commands []*fleet.MDMWindowsCommand
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting windows mdm commands for resending")
+	}
+
+	return commands, nil
+}
+
+func (ds *Datastore) ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId string, newCmd *fleet.MDMWindowsCommand, oldCmd *fleet.MDMWindowsCommand) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// First clear out any existing command queue references for the host
+		_, err := tx.ExecContext(ctx, `
+			DELETE FROM windows_mdm_command_queue WHERE enrollment_id = (
+				SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ?
+			) AND command_uuid = ?`, mdmDeviceId, oldCmd.CommandUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting existing command queue entries for old command")
+		}
+
+		if err := ds.mdmWindowsInsertCommandForHostsDB(ctx, tx, []string{mdmDeviceId}, newCmd); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting new windows mdm command for hosts")
+		}
+
+		updateStmt := fmt.Sprintf(`
+			UPDATE host_mdm_windows_profiles
+			SET command_uuid = ?,
+			status = '%s',
+			retries = retries, -- Keep retries the same to avoid endlessly resending.
+			detail = ''
+			WHERE host_uuid = (SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_device_id = ?) AND command_uuid = ?`, fleet.MDMDeliveryPending)
+		// Keep the profile in pending while we resend with Replace.
+
+		_, err = tx.ExecContext(ctx, updateStmt, newCmd.CommandUUID, mdmDeviceId, oldCmd.CommandUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating host_mdm_windows_profiles with new command uuid")
+		}
+
+		return nil
+	})
 }

@@ -31,17 +31,17 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	}, nil, nil, nil)
 }
 
-// androidFunc is the handler function type for Android service endpoints.
-type androidFunc func(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer
+// handlerFunc is the handler function type for Android service endpoints.
+type handlerFunc func(ctx context.Context, request any, svc android.Service) fleet.Errorer
 
 // Compile-time check to ensure that endpointer implements Endpointer.
-var _ eu.Endpointer[androidFunc] = &endpointer{}
+var _ eu.Endpointer[handlerFunc] = &endpointer{}
 
 type endpointer struct {
 	svc android.Service
 }
 
-func (e *endpointer) CallHandlerFunc(f androidFunc, ctx context.Context, request interface{},
+func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request interface{},
 	svc interface{}) (platform_http.Errorer, error) {
 	return f(ctx, request, svc.(android.Service)), nil
 }
@@ -51,8 +51,8 @@ func (e *endpointer) Service() interface{} {
 }
 
 func newUserAuthenticatedEndpointer(fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *eu.CommonEndpointer[androidFunc] {
-	return &eu.CommonEndpointer[androidFunc]{
+	versions ...string) *eu.CommonEndpointer[handlerFunc] {
+	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &endpointer{
 			svc: svc,
 		},
@@ -68,8 +68,8 @@ func newUserAuthenticatedEndpointer(fleetSvc fleet.Service, svc android.Service,
 }
 
 func newNoAuthEndpointer(fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *eu.CommonEndpointer[androidFunc] {
-	return &eu.CommonEndpointer[androidFunc]{
+	versions ...string) *eu.CommonEndpointer[handlerFunc] {
+	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &endpointer{
 			svc: svc,
 		},

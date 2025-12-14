@@ -102,6 +102,7 @@ export const generateSoftwareTableHeaders = ({
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetails"
+            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );

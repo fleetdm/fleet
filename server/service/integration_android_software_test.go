@@ -445,7 +445,7 @@ func (s *integrationMDMTestSuite) enableAndroidMDM(t *testing.T) string {
 		}, nil
 	}
 
-	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, _ *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, _ *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		assert.Contains(t, policyName, enterpriseID)
 		return &androidmanagement.Policy{}, nil
 	}

@@ -167,6 +167,10 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 			resp.TeamName = nil
 			resp.MDM.Profiles = nil
 			resp.Labels = nil
+			resp.Hostname = ""
+			resp.ComputerName = ""
+			resp.DisplayText = ""
+			resp.DisplayName = ""
 
 			// Scrub sensitive data from the license response
 			scrubbedLicense := *license
@@ -535,7 +539,7 @@ func getDeviceMDMCommandResultsEndpoint(ctx context.Context, request interface{}
 	}
 
 	req := request.(*getDeviceMDMCommandResultsRequest)
-	results, err := svc.GetMDMCommandResults(ctx, req.CommandUUID)
+	results, err := svc.GetMDMCommandResults(ctx, req.CommandUUID, "")
 	if err != nil {
 		return getMDMCommandResultsResponse{
 			Err: err,

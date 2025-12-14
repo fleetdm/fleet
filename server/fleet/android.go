@@ -122,7 +122,7 @@ func (p HostMDMAndroidProfile) ToHostMDMProfile() HostMDMProfile {
 		ProfileUUID:   p.ProfileUUID,
 		Name:          p.Name,
 		Identifier:    "",
-		Status:        p.Status,
+		Status:        p.Status.StringPtr(),
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
 		Platform:      "android",
@@ -193,7 +193,7 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 
 	type androidAppConfig struct {
 		ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
-		WorkProfileWidgets   json.RawMessage `json:"workProfileWidgets"`
+		WorkProfileWidgets   string          `json:"workProfileWidgets"`
 	}
 
 	var cfg androidAppConfig
