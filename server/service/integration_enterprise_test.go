@@ -3966,29 +3966,41 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 			"mdm": {
 				"macos_updates": {
 					"minimum_version": "12.3.1",
-					"deadline": "2022-01-01"
+					"deadline": "2022-01-01",
+					"update_new_hosts": true
 				},
 				"ios_updates": {
 					"minimum_version": "13.13.13",
-					"deadline": "2023-03-03"
+					"deadline": "2023-03-03",
+					"update_new_hosts": true
 				},
 				"ipados_updates": {
 					"minimum_version": "14.14.14",
-					"deadline": "2024-04-04"
+					"deadline": "2024-04-04",
+					"update_new_hosts": true
 				}
 			}
 		}`), http.StatusOK, &acResp)
 	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2022-01-01", acResp.MDM.MacOSUpdates.Deadline.Value)
+	require.Equal(t, true, acResp.MDM.MacOSUpdates.UpdateNewHosts.Value)
+
 	require.Equal(t, "13.13.13", acResp.MDM.IOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2023-03-03", acResp.MDM.IOSUpdates.Deadline.Value)
+	require.Equal(t, false, acResp.MDM.IOSUpdates.UpdateNewHosts.Value) // posted value is ignored for iOS
+
 	require.Equal(t, "14.14.14", acResp.MDM.IPadOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2024-04-04", acResp.MDM.IPadOSUpdates.Deadline.Value)
+	require.Equal(t, false, acResp.MDM.IPadOSUpdates.UpdateNewHosts.Value) // posted value is ignored for iOS
 
 	// edited macos min version activity got created
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2022-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), `{"deadline":"2023-03-03", "minimum_version":"13.13.13", "team_id": null, "team_name": null}`, 0)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), `{"deadline":"2024-04-04", "minimum_version":"14.14.14", "team_id": null, "team_name": null}`, 0)
+
+	// Activity for 'Update New Hosts checked' got created
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosUpdateNewHosts{}.ActivityName(), "", 0)
+
 	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetMacOSUpdatesProfileName, &fleet.AppleOSUpdateSettings{
 		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2022-01-01"),
 	})
@@ -4004,18 +4016,24 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2022-01-01", acResp.MDM.MacOSUpdates.Deadline.Value)
+	require.Equal(t, true, acResp.MDM.MacOSUpdates.UpdateNewHosts.Value)
+
 	require.Equal(t, "13.13.13", acResp.MDM.IOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2023-03-03", acResp.MDM.IOSUpdates.Deadline.Value)
+	require.Equal(t, false, acResp.MDM.IOSUpdates.UpdateNewHosts.Value)
+
 	require.Equal(t, "14.14.14", acResp.MDM.IPadOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2024-04-04", acResp.MDM.IPadOSUpdates.Deadline.Value)
+	require.Equal(t, false, acResp.MDM.IOSUpdates.UpdateNewHosts.Value)
 
-	// update the deadline
+	// update the deadline and the update_new_hosts flag
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
 				"macos_updates": {
 					"minimum_version": "12.3.1",
-					"deadline": "2024-01-01"
+					"deadline": "2024-01-01",
+					"update_new_hosts": false
 				},
 				"ios_updates": {
 					"minimum_version": "13.13.13",
@@ -4029,12 +4047,18 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 		}`), http.StatusOK, &acResp)
 	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2024-01-01", acResp.MDM.MacOSUpdates.Deadline.Value)
+	require.Equal(t, false, acResp.MDM.MacOSUpdates.UpdateNewHosts.Value)
+
 	require.Equal(t, "13.13.13", acResp.MDM.IOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2025-05-05", acResp.MDM.IOSUpdates.Deadline.Value)
+	require.Equal(t, false, acResp.MDM.IOSUpdates.UpdateNewHosts.Value)
+
 	require.Equal(t, "14.14.14", acResp.MDM.IPadOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2026-06-06", acResp.MDM.IPadOSUpdates.Deadline.Value)
+	require.Equal(t, false, acResp.MDM.IPadOSUpdates.UpdateNewHosts.Value)
 
 	// another edited macos min version activity got created
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosUpdateNewHosts{}.ActivityName(), "", 0)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2024-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), `{"deadline":"2025-05-05", "minimum_version":"13.13.13", "team_id": null, "team_name": null}`, 0)
 	lastActivity = s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), `{"deadline":"2026-06-06", "minimum_version":"14.14.14", "team_id": null, "team_name": null}`, 0)
