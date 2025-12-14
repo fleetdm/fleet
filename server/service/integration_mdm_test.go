@@ -106,9 +106,11 @@ type integrationMDMTestSuite struct {
 	pushProvider               *mock.APNSPushProvider
 	depStorage                 nanodep_storage.AllDEPStorage
 	profileSchedule            *schedule.Schedule
+	androidProfileSchedule     *schedule.Schedule
 	integrationsSchedule       *schedule.Schedule
 	cleanupsSchedule           *schedule.Schedule
 	onProfileJobDone           func() // function called when profileSchedule.Trigger() job completed
+	onAndroidProfileJobDone    func() // function called when androidProfileSchedule.Trigger() job completed
 	onIntegrationsScheduleDone func() // function called when integrationsSchedule.Trigger() job completed
 	onCleanupScheduleDone      func() // function called when cleanupsSchedule.Trigger() job completed
 	mdmStorage                 *mysql.NanoMDMStorage
@@ -126,6 +128,7 @@ type integrationMDMTestSuite struct {
 	mockedDownloadFleetdmMeta fleetdbase.Metadata
 	scepConfig                *eeservice.SCEPConfigService
 	androidAPIClient          *android_mock.Client
+	androidSvc                android.Service
 	proxyCallbackURL          string
 }
 
@@ -214,6 +217,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		panic(err)
 	}
 	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true
+	s.androidSvc = androidSvc
 
 	macosJob := &worker.MacosSetupAssistant{
 		Datastore:  s.ds,
@@ -251,6 +255,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	var integrationsSchedule *schedule.Schedule
 	var profileSchedule *schedule.Schedule
 	var cleanupsSchedule *schedule.Schedule
+	var androidProfileSchedule *schedule.Schedule
 	cronLog := kitlog.NewJSONLogger(os.Stdout)
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		cronLog = kitlog.NewNopLogger()
@@ -386,6 +391,30 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			},
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
+					const name = string(fleet.CronMDMAndroidProfileManager)
+					logger := cronLog
+					androidProfileSchedule = schedule.New(
+						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
+						schedule.WithLogger(logger),
+						schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
+							logger.Log("msg", "Starting manage_android_profiles job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
+							if s.onAndroidProfileJobDone != nil {
+								defer func() {
+									logger.Log("msg", "Completing manage_android_profiles job", "test", s.T().Name(), "time",
+										time.Now().Format(time.RFC3339))
+									s.onAndroidProfileJobDone()
+								}()
+							}
+							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger, "", androidMockClient)
+							require.NoError(s.T(), err)
+							return err
+						}),
+					)
+					return androidProfileSchedule, nil
+				}
+			},
+			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
+				return func() (fleet.CronSchedule, error) {
 					const name = string(fleet.CronAppleMDMIPhoneIPadRefetcher)
 					logger := cronLog
 					refetcherSchedule := schedule.New(
@@ -432,6 +461,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.integrationsSchedule = integrationsSchedule
 	s.profileSchedule = profileSchedule
 	s.cleanupsSchedule = cleanupsSchedule
+	s.androidProfileSchedule = androidProfileSchedule
 	s.mdmStorage = mdmStorage
 	s.mdmCommander = mdmCommander
 	s.logger = serverLogger
@@ -751,6 +781,16 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		return err
 	})
 
+	// Delete certificate templates
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM host_certificate_templates")
+		return err
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM certificate_templates")
+		return err
+	})
+
 	// Delete any CAs
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM certificate_authorities")
@@ -858,6 +898,29 @@ func (s *integrationMDMTestSuite) awaitTriggerProfileSchedule(t *testing.T) {
 		t.Logf("[awaitTriggerProfileSchedule] All jobs completed successfully at %s", time.Now().Format(time.RFC3339))
 	case <-time.After(5 * time.Minute):
 		t.Fatalf("Profile schedule jobs timed out after 5 minutes")
+	}
+}
+
+func (s *integrationMDMTestSuite) awaitTriggerAndroidProfileSchedule(t *testing.T) {
+	t.Logf("[awaitTriggerAndroidProfileSchedule] Starting Android profile schedule trigger at %s", time.Now().Format(time.RFC3339))
+	var wg sync.WaitGroup
+	wg.Add(1)
+	s.onAndroidProfileJobDone = wg.Done
+	t.Logf("[awaitTriggerAndroidProfileSchedule] Triggering Android profile schedule...")
+	_, err := s.androidProfileSchedule.Trigger()
+	require.NoError(t, err)
+	t.Logf("[awaitTriggerAndroidProfileSchedule] Waiting for job to complete...")
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		t.Logf("[awaitTriggerAndroidProfileSchedule] Job completed successfully at %s", time.Now().Format(time.RFC3339))
+	case <-time.After(5 * time.Minute):
+		t.Fatalf("Android profile schedule job timed out after 5 minutes")
 	}
 }
 
@@ -6236,11 +6299,11 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 		case "N1": // profile with username
 			expectedCount++
 			require.NotNil(t, prof.Status)
-			require.Equal(t, fleet.MDMDeliveryVerifying, *prof.Status)
+			require.EqualValues(t, fleet.MDMDeliveryVerifying, *prof.Status)
 		case "N2": // profile with group
 			expectedCount++
 			require.NotNil(t, prof.Status)
-			require.Equal(t, fleet.MDMDeliveryFailed, *prof.Status)
+			require.EqualValues(t, fleet.MDMDeliveryFailed, *prof.Status)
 		}
 	}
 	require.Equal(t, 2, expectedCount)
@@ -6268,11 +6331,11 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 		case "N1": // profile with username
 			expectedCount++
 			require.NotNil(t, prof.Status)
-			require.Equal(t, fleet.MDMDeliveryVerifying, *prof.Status)
+			require.EqualValues(t, fleet.MDMDeliveryVerifying, *prof.Status)
 		case "N2": // profile with group
 			expectedCount++
 			require.NotNil(t, prof.Status)
-			require.Equal(t, fleet.MDMDeliveryPending, *prof.Status)
+			require.EqualValues(t, fleet.MDMDeliveryPending, *prof.Status)
 		}
 	}
 	require.Equal(t, 2, expectedCount)
@@ -6308,11 +6371,11 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 		case "N1": // profile with username
 			expectedCount++
 			require.NotNil(t, prof.Status)
-			require.Equal(t, fleet.MDMDeliveryVerifying, *prof.Status)
+			require.EqualValues(t, fleet.MDMDeliveryVerifying, *prof.Status)
 		case "N2": // profile with group
 			expectedCount++
 			require.NotNil(t, prof.Status)
-			require.Equal(t, fleet.MDMDeliveryVerifying, *prof.Status)
+			require.EqualValues(t, fleet.MDMDeliveryVerifying, *prof.Status)
 		}
 	}
 	require.Equal(t, 2, expectedCount)
@@ -10444,7 +10507,7 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.Profiles)
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
-		require.Equal(t, fleet.MDMDeliveryVerified, *hm.Status)
+		require.EqualValues(t, fleet.MDMDeliveryVerified, *hm.Status)
 	}
 
 	// remove the profiles
@@ -10482,11 +10545,11 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
 		if wantErr, ok := expectedErrs[hm.Name]; ok {
-			require.Equal(t, fleet.MDMDeliveryFailed, *hm.Status)
+			require.EqualValues(t, fleet.MDMDeliveryFailed, *hm.Status)
 			require.Equal(t, wantErr, hm.Detail)
 			continue
 		}
-		require.Equal(t, fleet.MDMDeliveryVerified, *hm.Status)
+		require.EqualValues(t, fleet.MDMDeliveryVerified, *hm.Status)
 	}
 }
 
@@ -10642,11 +10705,11 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	require.Len(t, *getHostResp.Host.MDM.Profiles, 4)
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
 		if hm.Name == "N1" {
-			require.Equal(t, fleet.MDMDeliveryFailed, *hm.Status)
+			require.EqualValues(t, fleet.MDMDeliveryFailed, *hm.Status)
 			continue
 		}
 
-		require.Equal(t, fleet.MDMDeliveryVerified, *hm.Status)
+		require.EqualValues(t, fleet.MDMDeliveryVerified, *hm.Status)
 	}
 
 	// transfer host to a team without the failed profile
@@ -10679,7 +10742,7 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	require.Len(t, *getHostResp.Host.MDM.Profiles, 3)
 	var profUUID string
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
-		require.Equal(t, fleet.MDMDeliveryPending, *hm.Status)
+		require.EqualValues(t, fleet.MDMDeliveryPending, *hm.Status)
 		if hm.Name == "N3" {
 			profUUID = hm.ProfileUUID
 		}
@@ -10695,7 +10758,7 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	// Since Fleet doesn't know for sure whether profile was installed or not, it sends a remove command just in case.
 	require.Len(t, *getHostResp.Host.MDM.Profiles, 3)
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
-		require.Equal(t, fleet.MDMDeliveryPending, *hm.Status)
+		require.EqualValues(t, fleet.MDMDeliveryPending, *hm.Status)
 		if hm.Name == "N3" {
 			assert.Equal(t, fleet.MDMOperationTypeRemove, hm.OperationType)
 		}
@@ -12580,9 +12643,9 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		}
 	})
 
-	// Create a team
+	// Create a team with unique name to avoid conflicts with other tests
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("VPPApps Test Team " + t.Name())}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Associate team to the VPP token.
@@ -12956,7 +13019,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	var vppRes uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSONBad))), http.StatusAccepted, "", &vppRes)
 
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, 99}}, http.StatusUnprocessableEntity, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, 99999}}, http.StatusUnprocessableEntity, &resPatchVPP)
 
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
@@ -15701,13 +15764,13 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	for _, prof := range *getHostResp.Host.MDM.Profiles {
 		if prof.Name == "N2" {
 			foundGood = true
-			assert.Equal(t, fleet.MDMDeliveryVerifying, *prof.Status)
+			assert.EqualValues(t, fleet.MDMDeliveryVerifying, *prof.Status)
 			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
 			continue
 		}
 		if prof.Name == "N3" {
 			foundFailed = true
-			assert.Equal(t, fleet.MDMDeliveryFailed, *prof.Status)
+			assert.EqualValues(t, fleet.MDMDeliveryFailed, *prof.Status)
 			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
 			assert.Contains(t, prof.Detail, "Expected Fail")
 			continue
@@ -15765,7 +15828,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	for _, prof := range *getHostResp.Host.MDM.Profiles {
 		if prof.Name == "N4" {
 			found = true
-			assert.Equal(t, fleet.MDMDeliveryPending, *prof.Status)
+			assert.EqualValues(t, fleet.MDMDeliveryPending, *prof.Status)
 			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
 			assert.Empty(t, prof.Detail)
 			continue
@@ -15995,7 +16058,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegrationWithHostPlatform() {
 	for _, prof := range *getHostResp.Host.MDM.Profiles {
 		if prof.Name == "N5" {
 			found = true
-			assert.Equal(t, fleet.MDMDeliveryPending, *prof.Status)
+			assert.EqualValues(t, fleet.MDMDeliveryPending, *prof.Status)
 			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
 			assert.Empty(t, prof.Detail)
 			continue
@@ -16454,7 +16517,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 		for _, prof := range *hostResp.Host.MDM.Profiles {
 			if prof.Name == profileName {
 				found = true
-				require.Equal(t, wantStatus, *prof.Status)
+				require.EqualValues(t, wantStatus, *prof.Status)
 				require.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
 				require.Contains(t, prof.Detail, wantDetail)
 				profileUUID = prof.ProfileUUID
@@ -16476,7 +16539,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 		require.NotNil(t, prof)
 		require.Equal(t, wantCAName, prof.CAName)
 		require.Equal(t, fleet.CAConfigCustomSCEPProxy, prof.Type)
-		require.Equal(t, fleet.MDMDeliveryVerified, *prof.Status)
+		require.EqualValues(t, fleet.MDMDeliveryVerified, *prof.Status)
 	}
 
 	// Create a host and then enroll to MDM.

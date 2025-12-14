@@ -358,6 +358,16 @@ In Figma:
   - Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
 
+#### Clearing cached images
+
+When replacing an existing image on the Fleet website, if the new version has the same filename as the old version, the image must be purged from the Cloudflare cache for the latest version to be visible to users.
+
+To purge an image from the Cloudflare cache:
+1. Copy the URL of the image hosted on fleetdm.com.
+2. Log into Cloudflare and select the Fleet account, then select fleetdm.com.
+3. Select **Caching** » **Configuration** in the navigation sidebar, and click the "Custom Purge" option.
+4. Select the option to purge by URL, paste the URL of the image, and select purge. After a few moments, Cloudflare will serve the new version of the image to users.
+
 
 ## Change management
 

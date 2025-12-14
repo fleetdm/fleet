@@ -1535,6 +1535,12 @@ type GetMDMProfileSummaryFromHostCertificateTemplatesFunc func(ctx context.Conte
 
 type GetHostCertificateTemplatesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error)
 
+type CreatePendingCertificateTemplatesForExistingHostsFunc func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error)
+
+type CreatePendingCertificateTemplatesForNewHostFunc func(ctx context.Context, hostUUID string, teamID uint) (int64, error)
+
+type RevertStaleCertificateTemplatesFunc func(ctx context.Context, staleDuration time.Duration) (int64, error)
+
 type GetHostMDMAndroidProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAndroidProfile, error)
 
 type NewAndroidPolicyRequestFunc func(ctx context.Context, req *android.MDMAndroidPolicyRequest) error
@@ -1651,13 +1657,17 @@ type BatchUpsertCertificateTemplatesFunc func(ctx context.Context, certificates 
 
 type BatchDeleteCertificateTemplatesFunc func(ctx context.Context, certificateTemplateIDs []uint) error
 
-type CreateCertificateTemplateFunc func(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponseFull, error)
+type CreateCertificateTemplateFunc func(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponse, error)
 
 type DeleteCertificateTemplateFunc func(ctx context.Context, id uint) error
 
-type GetCertificateTemplateByIdFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error)
+type GetCertificateTemplateByIdFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error)
+
+type GetCertificateTemplateByIdForHostFunc func(ctx context.Context, id uint, hostUUID string) (*fleet.CertificateTemplateResponseForHost, error)
 
 type GetCertificateTemplatesByTeamIDFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
+
+type GetCertificateTemplateByTeamIDAndNameFunc func(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error)
 
 type ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
 
@@ -1668,6 +1678,14 @@ type GetCertificateTemplateForHostFunc func(ctx context.Context, hostUUID string
 type BulkInsertHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
 
 type DeleteHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
+
+type ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
+
+type TransitionCertificateTemplatesToDeliveringFunc func(ctx context.Context, hostUUID string) ([]uint, error)
+
+type TransitionCertificateTemplatesToDeliveredFunc func(ctx context.Context, hostUUID string, challenges map[uint]string) error
+
+type RevertHostCertificateTemplatesToPendingFunc func(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error
 
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
@@ -3946,6 +3964,15 @@ type DataStore struct {
 	GetHostCertificateTemplatesFunc        GetHostCertificateTemplatesFunc
 	GetHostCertificateTemplatesFuncInvoked bool
 
+	CreatePendingCertificateTemplatesForExistingHostsFunc        CreatePendingCertificateTemplatesForExistingHostsFunc
+	CreatePendingCertificateTemplatesForExistingHostsFuncInvoked bool
+
+	CreatePendingCertificateTemplatesForNewHostFunc        CreatePendingCertificateTemplatesForNewHostFunc
+	CreatePendingCertificateTemplatesForNewHostFuncInvoked bool
+
+	RevertStaleCertificateTemplatesFunc        RevertStaleCertificateTemplatesFunc
+	RevertStaleCertificateTemplatesFuncInvoked bool
+
 	GetHostMDMAndroidProfilesFunc        GetHostMDMAndroidProfilesFunc
 	GetHostMDMAndroidProfilesFuncInvoked bool
 
@@ -4129,8 +4156,14 @@ type DataStore struct {
 	GetCertificateTemplateByIdFunc        GetCertificateTemplateByIdFunc
 	GetCertificateTemplateByIdFuncInvoked bool
 
+	GetCertificateTemplateByIdForHostFunc        GetCertificateTemplateByIdForHostFunc
+	GetCertificateTemplateByIdForHostFuncInvoked bool
+
 	GetCertificateTemplatesByTeamIDFunc        GetCertificateTemplatesByTeamIDFunc
 	GetCertificateTemplatesByTeamIDFuncInvoked bool
+
+	GetCertificateTemplateByTeamIDAndNameFunc        GetCertificateTemplateByTeamIDAndNameFunc
+	GetCertificateTemplateByTeamIDAndNameFuncInvoked bool
 
 	ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc        ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc
 	ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFuncInvoked bool
@@ -4146,6 +4179,18 @@ type DataStore struct {
 
 	DeleteHostCertificateTemplatesFunc        DeleteHostCertificateTemplatesFunc
 	DeleteHostCertificateTemplatesFuncInvoked bool
+
+	ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc        ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc
+	ListAndroidHostUUIDsWithPendingCertificateTemplatesFuncInvoked bool
+
+	TransitionCertificateTemplatesToDeliveringFunc        TransitionCertificateTemplatesToDeliveringFunc
+	TransitionCertificateTemplatesToDeliveringFuncInvoked bool
+
+	TransitionCertificateTemplatesToDeliveredFunc        TransitionCertificateTemplatesToDeliveredFunc
+	TransitionCertificateTemplatesToDeliveredFuncInvoked bool
+
+	RevertHostCertificateTemplatesToPendingFunc        RevertHostCertificateTemplatesToPendingFunc
+	RevertHostCertificateTemplatesToPendingFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -9454,6 +9499,27 @@ func (s *DataStore) GetHostCertificateTemplates(ctx context.Context, hostUUID st
 	return s.GetHostCertificateTemplatesFunc(ctx, hostUUID)
 }
 
+func (s *DataStore) CreatePendingCertificateTemplatesForExistingHosts(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
+	s.mu.Lock()
+	s.CreatePendingCertificateTemplatesForExistingHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreatePendingCertificateTemplatesForExistingHostsFunc(ctx, certificateTemplateID, teamID)
+}
+
+func (s *DataStore) CreatePendingCertificateTemplatesForNewHost(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
+	s.mu.Lock()
+	s.CreatePendingCertificateTemplatesForNewHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreatePendingCertificateTemplatesForNewHostFunc(ctx, hostUUID, teamID)
+}
+
+func (s *DataStore) RevertStaleCertificateTemplates(ctx context.Context, staleDuration time.Duration) (int64, error) {
+	s.mu.Lock()
+	s.RevertStaleCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.RevertStaleCertificateTemplatesFunc(ctx, staleDuration)
+}
+
 func (s *DataStore) GetHostMDMAndroidProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAndroidProfile, error) {
 	s.mu.Lock()
 	s.GetHostMDMAndroidProfilesFuncInvoked = true
@@ -9860,7 +9926,7 @@ func (s *DataStore) BatchDeleteCertificateTemplates(ctx context.Context, certifi
 	return s.BatchDeleteCertificateTemplatesFunc(ctx, certificateTemplateIDs)
 }
 
-func (s *DataStore) CreateCertificateTemplate(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponseFull, error) {
+func (s *DataStore) CreateCertificateTemplate(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponse, error) {
 	s.mu.Lock()
 	s.CreateCertificateTemplateFuncInvoked = true
 	s.mu.Unlock()
@@ -9874,11 +9940,18 @@ func (s *DataStore) DeleteCertificateTemplate(ctx context.Context, id uint) erro
 	return s.DeleteCertificateTemplateFunc(ctx, id)
 }
 
-func (s *DataStore) GetCertificateTemplateById(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
+func (s *DataStore) GetCertificateTemplateById(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error) {
 	s.mu.Lock()
 	s.GetCertificateTemplateByIdFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCertificateTemplateByIdFunc(ctx, id)
+}
+
+func (s *DataStore) GetCertificateTemplateByIdForHost(ctx context.Context, id uint, hostUUID string) (*fleet.CertificateTemplateResponseForHost, error) {
+	s.mu.Lock()
+	s.GetCertificateTemplateByIdForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCertificateTemplateByIdForHostFunc(ctx, id, hostUUID)
 }
 
 func (s *DataStore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
@@ -9886,6 +9959,13 @@ func (s *DataStore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID 
 	s.GetCertificateTemplatesByTeamIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCertificateTemplatesByTeamIDFunc(ctx, teamID, opts)
+}
+
+func (s *DataStore) GetCertificateTemplateByTeamIDAndName(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error) {
+	s.mu.Lock()
+	s.GetCertificateTemplateByTeamIDAndNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCertificateTemplateByTeamIDAndNameFunc(ctx, teamID, name)
 }
 
 func (s *DataStore) ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {
@@ -9921,6 +10001,34 @@ func (s *DataStore) DeleteHostCertificateTemplates(ctx context.Context, hostCert
 	s.DeleteHostCertificateTemplatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostCertificateTemplatesFunc(ctx, hostCertTemplates)
+}
+
+func (s *DataStore) ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {
+	s.mu.Lock()
+	s.ListAndroidHostUUIDsWithPendingCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc(ctx, offset, limit)
+}
+
+func (s *DataStore) TransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) ([]uint, error) {
+	s.mu.Lock()
+	s.TransitionCertificateTemplatesToDeliveringFuncInvoked = true
+	s.mu.Unlock()
+	return s.TransitionCertificateTemplatesToDeliveringFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) TransitionCertificateTemplatesToDelivered(ctx context.Context, hostUUID string, challenges map[uint]string) error {
+	s.mu.Lock()
+	s.TransitionCertificateTemplatesToDeliveredFuncInvoked = true
+	s.mu.Unlock()
+	return s.TransitionCertificateTemplatesToDeliveredFunc(ctx, hostUUID, challenges)
+}
+
+func (s *DataStore) RevertHostCertificateTemplatesToPending(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error {
+	s.mu.Lock()
+	s.RevertHostCertificateTemplatesToPendingFuncInvoked = true
+	s.mu.Unlock()
+	return s.RevertHostCertificateTemplatesToPendingFunc(ctx, hostUUID, certificateTemplateIDs)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {

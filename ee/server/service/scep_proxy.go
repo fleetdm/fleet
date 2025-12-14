@@ -94,7 +94,7 @@ func (a *certificateTemplateForHostAdapter) GetStatus() fleet.MDMDeliveryStatus 
 	if a.template.Status == nil {
 		return ""
 	}
-	return *a.template.Status
+	return fleet.CertificateTemplateStatusToMDMDeliveryStatus(*a.template.Status)
 }
 
 func (a *certificateTemplateForHostAdapter) GetChallengeRetrievedAt() *time.Time {

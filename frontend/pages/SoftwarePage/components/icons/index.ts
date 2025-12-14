@@ -118,6 +118,7 @@ import MacOS from "./MacOS";
 import Mattermost from "./Mattermost";
 import Messenger from "./Messenger";
 import MicrosoftAutoUpdate from "./MicrosoftAutoUpdate";
+import MicrosoftEdge from "./MicrosoftEdge";
 import MicrosoftOneNote from "./MicrosoftOneNote";
 import MicrosoftOutlook from "./MicrosoftOutlook";
 import MicrosoftPowerPoint from "./MicrosoftPowerPoint";
@@ -282,6 +283,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "draw.io": Drawio,
   dropbox: Dropbox,
   eclipse: Eclipse,
+  edge: MicrosoftEdge,
   egnyte: Egnyte,
   "elgato control center": ElgatoControlCenter,
   evernote: Evernote,
@@ -472,7 +474,8 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
 
 /**
  * This attempts to loosely match the provided string to a key in a provided dictionary, returning the key if the
- * provided string starts with the key or undefined otherwise.
+ * provided string starts with the key or undefined otherwise. Keys are sorted by length (longest first) to ensure
+ * more specific matches are checked before shorter, more general ones (e.g., "archaeology" before "arc").
  */
 const matchLoosePrefixToKey = <T extends Record<string, unknown>>(
   dict: T,
@@ -482,9 +485,9 @@ const matchLoosePrefixToKey = <T extends Record<string, unknown>>(
   if (!s) {
     return undefined;
   }
-  const match = Object.keys(dict).find((k) =>
-    s.startsWith(k.trim().toLowerCase())
-  );
+  // Sort keys by length (longest first) to prioritize more specific matches
+  const sortedKeys = Object.keys(dict).sort((a, b) => b.length - a.length);
+  const match = sortedKeys.find((k) => s.startsWith(k.trim().toLowerCase()));
 
   return match ? (match as keyof T) : undefined;
 };

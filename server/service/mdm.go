@@ -1060,7 +1060,6 @@ func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandL
 			return nil, nil, fleet.NewInvalidArgumentError("Invalid Host", fleet.HostIdentiferNotFound).WithStatus(http.StatusNotFound)
 		}
 	}
-
 	return results, total, nil
 }
 
