@@ -38,7 +38,7 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion
 
 	level.Info(logger).Log("msg", fmt.Sprintf("Looking for app: %s, version: %s", appName, appVersion))
 	query := `
-		SELECT name, install_location, version 
+		SELECT name, install_location, version, publisher
 		FROM programs
 		WHERE
 		LOWER(name) LIKE LOWER('%` + appName + `%')
@@ -46,62 +46,86 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion
 	if appPath != "" {
 		query += fmt.Sprintf(" OR install_location LIKE '%%%s%%'", appPath)
 	}
-	cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("osquery output: %s", string(output)))
-		return false, fmt.Errorf("executing osquery command: %w", err)
-	}
-
-	type AppResult struct {
-		Name            string `json:"name"`
-		InstallLocation string `json:"install_location"`
-		Version         string `json:"version"`
-	}
-	var results []AppResult
-	if err := json.Unmarshal(output, &results); err != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("osquery output: %s", string(output)))
-		return false, fmt.Errorf("parsing osquery JSON output: %w", err)
-	}
-
-	if len(results) > 0 {
-		for _, result := range results {
-			software := &fleet.Software{
-				Name:    result.Name,
-				Version: result.Version,
-				Source:  "programs",
+	
+	// Retry loop to wait for registry entry to appear (some installers take time to write registry)
+	maxRetries := 5
+	retryDelay := 2 * time.Second
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			level.Info(logger).Log("msg", fmt.Sprintf("Retrying osquery check (attempt %d/%d)...", attempt+1, maxRetries))
+			time.Sleep(retryDelay)
+		}
+		
+		cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			level.Error(logger).Log("msg", fmt.Sprintf("osquery output: %s", string(output)))
+			if attempt < maxRetries-1 {
+				continue // Retry on error
 			}
-			queries.MutateSoftwareOnIngestion(software, logger)
-			result.Version = software.Version
-			result.Name = software.Name
+			return false, fmt.Errorf("executing osquery command: %w", err)
+		}
 
-			level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s", result.Name, result.InstallLocation, result.Version))
-
-			// Sublime Text's Inno Setup installer may not write version to registry properly
-			// If app is found but version is empty, check if it's Sublime Text and skip version check
-			if appName == "Sublime Text" && result.Version == "" {
-				level.Info(logger).Log("msg", "Sublime Text detected with empty version - skipping version check (installer may not write version to registry)")
-				return true, nil
+		type AppResult struct {
+			Name            string `json:"name"`
+			InstallLocation string `json:"install_location"`
+			Version         string `json:"version"`
+			Publisher       string `json:"publisher"`
+		}
+		var results []AppResult
+		if err := json.Unmarshal(output, &results); err != nil {
+			level.Error(logger).Log("msg", fmt.Sprintf("osquery output: %s", string(output)))
+			if attempt < maxRetries-1 {
+				continue // Retry on parse error
 			}
+			return false, fmt.Errorf("parsing osquery JSON output: %w", err)
+		}
 
-			// Adobe DNG Converter's version format may include build numbers or additional suffixes
-			// Check if the version starts with the expected version to handle formats like "18.0.0" or "18.0 (build)"
-			if appName == "Adobe DNG Converter" {
-				if strings.HasPrefix(result.Version, appVersion) {
-					level.Info(logger).Log("msg", "Adobe DNG Converter detected - version matches with prefix check")
+		// Log all results for debugging
+		if len(results) > 0 {
+			level.Info(logger).Log("msg", fmt.Sprintf("Found %d program(s) matching query", len(results)))
+			for _, result := range results {
+				level.Info(logger).Log("msg", fmt.Sprintf("  - Name: '%s', Version: '%s', Publisher: '%s', Location: '%s'", result.Name, result.Version, result.Publisher, result.InstallLocation))
+			}
+		} else {
+			level.Info(logger).Log("msg", "No programs found matching query")
+		}
+
+		if len(results) > 0 {
+			for _, result := range results {
+				software := &fleet.Software{
+					Name:    result.Name,
+					Version: result.Version,
+					Source:  "programs",
+				}
+				queries.MutateSoftwareOnIngestion(software, logger)
+				result.Version = software.Version
+				result.Name = software.Name
+
+				level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s", result.Name, result.InstallLocation, result.Version))
+
+				// Sublime Text's Inno Setup installer may not write version to registry properly
+				// If app is found but version is empty, check if it's Sublime Text and skip version check
+				if appName == "Sublime Text" && result.Version == "" {
+					level.Info(logger).Log("msg", "Sublime Text detected with empty version - skipping version check (installer may not write version to registry)")
+					return true, nil
+				}
+
+				// Check exact match first
+				if result.Version == appVersion {
+					return true, nil
+				}
+				// Check if found version starts with expected version (handles suffixes like ".0")
+				// This handles cases where the app version is "3.5.4.0" but expected is "3.5.4"
+				if strings.HasPrefix(result.Version, appVersion+".") {
 					return true, nil
 				}
 			}
-
-			// Check exact match first
-			if result.Version == appVersion {
-				return true, nil
-			}
-			// Check if found version starts with expected version (handles suffixes like ".0")
-			// This handles cases where the app version is "3.5.4.0" but expected is "3.5.4"
-			if strings.HasPrefix(result.Version, appVersion+".") {
-				return true, nil
-			}
+		}
+		
+		// If we found results but none matched, don't retry
+		if len(results) > 0 {
+			break
 		}
 	}
 

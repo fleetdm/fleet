@@ -93,13 +93,6 @@
       "description": "Adobe DNG Conver is a DNG file converter."
     },
     {
-      "name": "Adobe DNG Converter",
-      "slug": "adobe-dng-converter/windows",
-      "platform": "windows",
-      "unique_identifier": "Adobe DNG Converter",
-      "description": ""
-    },
-    {
       "name": "Aircall",
       "slug": "aircall/darwin",
       "platform": "darwin",
