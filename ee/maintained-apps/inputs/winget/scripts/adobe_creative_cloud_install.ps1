@@ -6,12 +6,12 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 $exitCode = 0
 
 try {
-    Write-Host "Starting Adobe Creative Cloud installation (EXE installer with --silent flag)..."
+    Write-Host "Starting Adobe Creative Cloud installation (EXE installer with --mode=stub flag)..."
     
-    # Adobe Creative Cloud uses --silent for silent installation
+    # Adobe Creative Cloud uses --mode=stub for silent installation
     $processOptions = @{
         FilePath = $exeFilePath
-        ArgumentList = "--silent"
+        ArgumentList = "--mode=stub"
         PassThru = $true
         Wait = $true
         NoNewWindow = $true
