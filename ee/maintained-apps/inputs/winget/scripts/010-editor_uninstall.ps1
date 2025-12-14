@@ -1,6 +1,7 @@
 # Fleet extracts name from installer (EXE) and saves it to PACKAGE_ID
 # variable
-$softwareName = $PACKAGE_ID
+# For 010 Editor, we match against DisplayName "010 Editor" which appears in registry
+$softwareName = "010 Editor"
 
 # It is recommended to use exact software name here if possible to avoid
 # uninstalling unintended software.
