@@ -510,7 +510,7 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 
 type CommonEndpointer[H any] struct {
 	EP            Endpointer[H]
-	MakeDecoderFn func(iface interface{}) kithttp.DecodeRequestFunc
+	MakeDecoderFn func(iface any) kithttp.DecodeRequestFunc
 	EncodeFn      kithttp.EncodeResponseFunc
 	Opts          []kithttp.ServerOption
 	Router        *mux.Router
@@ -531,8 +531,8 @@ type CommonEndpointer[H any] struct {
 }
 
 type Endpointer[H any] interface {
-	CallHandlerFunc(f H, ctx context.Context, request interface{}, svc interface{}) (platform_http.Errorer, error)
-	Service() interface{}
+	CallHandlerFunc(f H, ctx context.Context, request any, svc any) (platform_http.Errorer, error)
+	Service() any
 }
 
 func (e *CommonEndpointer[H]) POST(path string, f H, v interface{}) {

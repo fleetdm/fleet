@@ -374,9 +374,7 @@ func Handle(ctx context.Context, err error) {
 func collectTelemetryAttributes(ctx context.Context) map[string]any {
 	attrs := make(map[string]any)
 	for _, provider := range getTelemetryProviders(ctx) {
-		for k, v := range provider.GetTelemetryAttributes() {
-			attrs[k] = v
-		}
+		maps.Copy(attrs, provider.GetTelemetryAttributes())
 	}
 	return attrs
 }

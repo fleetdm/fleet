@@ -1,11 +1,6 @@
 package common_mysql
 
-import "github.com/jmoiron/sqlx"
+import "github.com/fleetdm/fleet/v4/server/platform/db"
 
-// DBReadTx provides a minimal interface for read-only transactions.
-type DBReadTx interface {
-	sqlx.QueryerContext
-	sqlx.PreparerContext
-
-	Rebind(string) string
-}
+// DBReadTx is an alias for db.DBReadTx.
+type DBReadTx = db.DBReadTx

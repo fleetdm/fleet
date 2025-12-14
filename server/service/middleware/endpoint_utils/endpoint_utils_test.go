@@ -116,10 +116,10 @@ func (n nopResponse) Error() error {
 
 type nopEP struct{}
 
-func (n nopEP) CallHandlerFunc(f testHandlerFunc, ctx context.Context, request interface{}, svc interface{}) (platform_http.Errorer, error) {
+func (n nopEP) CallHandlerFunc(f testHandlerFunc, ctx context.Context, request any, svc any) (platform_http.Errorer, error) {
 	return f(ctx, request)
 }
 
-func (n nopEP) Service() interface{} {
+func (n nopEP) Service() any {
 	return nil
 }
