@@ -37,6 +37,13 @@
       "description": "8x8 Work is a communications application with voice, video, chat, and web conferencing."
     },
     {
+      "name": "8x8 Work",
+      "slug": "8x8-work/windows",
+      "platform": "windows",
+      "unique_identifier": "8x8 Work",
+      "description": "8x8 Work is a communications application with voice, video, chat, and web conferencing."
+    },
+    {
       "name": "Abstract",
       "slug": "abstract/darwin",
       "platform": "darwin",
