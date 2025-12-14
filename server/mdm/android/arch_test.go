@@ -20,15 +20,19 @@ func TestAllAndroidPackageDependencies(t *testing.T) {
 		// WithTests().
 		IgnoreXTests("github.com/fleetdm/fleet/v4/server/fleet"). // ignore fleet_test package
 		IgnorePackages(
-			"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql...",
 			"github.com/fleetdm/fleet/v4/server/service/externalsvc", // dependency on Jira and Zendesk
 			"github.com/fleetdm/fleet/v4/server/service/middleware/auth",
 			"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck",
 			"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils",
 			"github.com/fleetdm/fleet/v4/server/service/middleware/log",
 			"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit",
-			"github.com/fleetdm/fleet/v4/server/mdm/android/tests...", // Android functionality moved to main datastore
-			"github.com/fleetdm/fleet/v4/server/mdm/android/service",  // Activities module
+			"github.com/fleetdm/fleet/v4/server/service/modules/activities",
+			"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql...",
+			// Note: these mysql transitive dependencies should not be necessary. This was a miss in the original implementation.
+			"github.com/fleetdm/fleet/v4/server/datastore/mysql",
+			"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data",
+			"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables",
+			"github.com/fleetdm/fleet/v4/server/datastore/mysql/rdsauth",
 		).
 		ShouldNotDependOn(
 			"github.com/fleetdm/fleet/v4/server/service...",

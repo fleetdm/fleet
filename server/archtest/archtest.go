@@ -136,12 +136,17 @@ func (pt *PackageTest) read(pChan chan<- *packageDependency, topDependency *pack
 		queue.Remove(front)
 		dep, _ := (front.Value).(*packageDependency)
 
-		if pt.skip(cache, dep) {
+		if pt.shouldSkipEntirely(cache, dep) {
 			continue
 		}
 
 		cache[dep.name] = struct{}{}
-		pChan <- dep
+
+		// Only send non-ignored packages to the channel for violation checking.
+		// Ignored packages are allowed, but we still traverse their imports below.
+		if !pt.isIgnored(dep) {
+			pChan <- dep
+		}
 
 		pkg, err := build.Default.Import(dep.name, ".", build.ImportMode(0))
 		if err != nil {
@@ -172,12 +177,14 @@ func (pt *PackageTest) read(pChan chan<- *packageDependency, topDependency *pack
 	}
 }
 
-func (pt *PackageTest) skip(cache map[string]struct{}, dep *packageDependency) bool {
+// shouldSkipEntirely returns true if the package should be completely skipped (no traversal of its imports).
+// This is for packages that are already seen, special packages like "C", or filtered out by includeRegex.
+func (pt *PackageTest) shouldSkipEntirely(cache map[string]struct{}, dep *packageDependency) bool {
 	if _, seen := cache[dep.name]; seen {
 		return true
 	}
 
-	if _, ignore := pt.ignorePkgs[dep.name]; ignore || dep.name == "C" || dep.name == thisPackage {
+	if dep.name == "C" || dep.name == thisPackage {
 		return true
 	}
 
@@ -185,6 +192,13 @@ func (pt *PackageTest) skip(cache map[string]struct{}, dep *packageDependency) b
 		return true
 	}
 	return false
+}
+
+// isIgnored returns true if the package is in the ignore list.
+// Ignored packages are allowed as dependencies but their transitive dependencies are still analyzed.
+func (pt *PackageTest) isIgnored(dep *packageDependency) bool {
+	_, ignored := pt.ignorePkgs[dep.name]
+	return ignored
 }
 
 func (pt PackageTest) expandPackages(pkgs []string) []string {

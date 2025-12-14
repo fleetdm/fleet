@@ -114,16 +114,29 @@ func TestPackage_ShouldNotDependOn(t *testing.T) {
 	t.Run("Supports Ignoring packages", func(t *testing.T) {
 		mockT := new(testingT)
 
+		// testpackage/nested/dep -> nesteddependency
+		// When starting package is ignored, it won't be reported as a violation itself
+		NewPackageTest(mockT, packagePrefix+"testpackage/nested/dep").
+			IgnorePackages(packagePrefix + "testpackage/nested/dep").
+			ShouldNotDependOn(packagePrefix + "testpackage/nested/dep")
+
+		assertNoError(t, mockT)
+
+		// But transitive dependencies are still analyzed
+		mockT = new(testingT)
 		NewPackageTest(mockT, packagePrefix+"testpackage/nested/dep").
 			IgnorePackages(packagePrefix + "testpackage/nested/dep").
 			ShouldNotDependOn(packagePrefix + "nesteddependency")
 
-		assertNoError(t, mockT)
+		assertError(t, mockT,
+			packagePrefix+"testpackage/nested/dep",
+			packagePrefix+"nesteddependency")
 	})
 
-	t.Run("Ignored packages ignore ignored transitive packages", func(t *testing.T) {
+	t.Run("Multiple ignored packages with chaining", func(t *testing.T) {
 		mockT := new(testingT)
 
+		// When ALL packages in the chain are ignored, no violations should be reported
 		NewPackageTest(mockT, packagePrefix+"testpackage").
 			IgnorePackages("github.com/this/is/verifying/multiple/exclusions", packagePrefix+"...").
 			IgnorePackages("github.com/this/is/verifying/chaining").
