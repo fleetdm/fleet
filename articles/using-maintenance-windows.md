@@ -25,7 +25,10 @@ You can customize these flows with a webhook (e.g. Tines) to run scripts, use th
 ### End user experience
 
 * If a user owns multiple failing hosts, only one host is scheduled at a time. Once it's fixed, Fleet schedules the next.
-* If a host has multiple users, Fleet chooses one user to receive the event.
+* If a host has multiple users, Fleet chooses one user to receive the event based on email priority:
+  * First priority: IdP Username email address (from MDM IdP accounts or manually set IdP email)
+  * Second priority: Google Chrome profile email address
+  * If multiple emails exist at the same priority level, Fleet selects the first one alphabetically
 * Users can reschedule the event on their calendar—Fleet will run remediation at the new time.
 * If a user moves the event to before the current time, Fleet shifts it to the next day.
 * If a user deletes the event, Fleet automatically reschedules it for the next day.

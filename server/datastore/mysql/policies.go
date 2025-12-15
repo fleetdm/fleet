@@ -2107,10 +2107,36 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 		GROUP BY host_id
 	) pm ON h.id = pm.host_id
 	LEFT JOIN (
-		SELECT host_id, MIN(email) AS email
-		FROM host_emails
-		JOIN hosts ON host_emails.host_id=hosts.id
-		WHERE email LIKE CONCAT('%@', ?) AND team_id = ?
+		SELECT 
+			host_id,
+			MIN(email) AS email
+		FROM (
+			SELECT 
+				he.host_id,
+				he.email,
+				CASE 
+					WHEN he.source IN (?, ?) THEN 1  -- IdP sources (mdm_idp_accounts, idp) have priority 1
+					WHEN he.source = ? THEN 2         -- Google Chrome profiles have priority 2
+					ELSE 3                             -- Other sources have lower priority
+				END AS priority
+			FROM host_emails he
+			JOIN hosts h_email ON he.host_id = h_email.id
+			WHERE he.email LIKE CONCAT('%@', ?) AND h_email.team_id = ?
+		) prioritized_emails
+		WHERE priority = (
+			SELECT MIN(
+				CASE 
+					WHEN he2.source IN (?, ?) THEN 1
+					WHEN he2.source = ? THEN 2
+					ELSE 3
+				END
+			)
+			FROM host_emails he2
+			JOIN hosts h2 ON he2.host_id = h2.id
+			WHERE he2.host_id = prioritized_emails.host_id
+				AND he2.email LIKE CONCAT('%@', ?)
+				AND h2.team_id = ?
+		)
 		GROUP BY host_id
 	) sh ON h.id = sh.host_id
 	LEFT JOIN host_display_names hdn ON h.id = hdn.host_id
@@ -2118,7 +2144,15 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	WHERE h.team_id = ? AND ((pm.passing IS NOT NULL AND NOT pm.passing) OR (COALESCE(pm.passing, 1) AND hce.host_id IS NOT NULL))
 `
 
-	query, args, err := sqlx.In(query, policyIDs, domain, teamID, teamID)
+	query, args, err := sqlx.In(query, 
+		policyIDs, 
+		fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP, // IdP sources for first CASE
+		fleet.DeviceMappingGoogleChromeProfiles, // Chrome profiles for first CASE
+		domain, teamID, // domain and team_id for first WHERE
+		fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP, // IdP sources for second CASE
+		fleet.DeviceMappingGoogleChromeProfiles, // Chrome profiles for second CASE
+		domain, teamID, // domain and team_id for second WHERE
+		teamID) // h.team_id in main WHERE
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "build select get team hosts policy memberships query")
 	}
