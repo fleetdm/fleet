@@ -1084,7 +1084,6 @@ func TestStreamHosts(t *testing.T) {
 		}
 		rr := httptest.NewRecorder()
 		resp.HijackRender(context.Background(), rr)
-		// Assert that the output contains the error message
 		require.Equal(t, rr.Code, 200)
 		// Get the body into a string.
 		body := rr.Body.String()
@@ -1110,6 +1109,9 @@ func TestStreamHosts(t *testing.T) {
 			hostMap := host.(map[string]interface{})
 			require.Equal(t, float64(i+1), hostMap["id"])
 		}
+		// Assert that the output contains no error message
+		_, exists := results["error"]
+		require.False(t, exists)
 	})
 	errorTestCases := []struct {
 		Name          string
