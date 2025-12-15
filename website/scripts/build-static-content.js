@@ -651,7 +651,7 @@ module.exports = {
                   throw new Error(`Failed compiling markdown content: An article page is missing a category meta tag (<meta name="category" value="guides">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the category of the article`);
                 } else {
                   // Throwing an error if the article has an invalid category.
-                  let validArticleCategories = ['deploy', 'articles', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases', 'podcasts', 'report' ];
+                  let validArticleCategories = ['deploy', 'articles', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases', 'podcasts', 'report', 'case study' ];
                   if(!validArticleCategories.includes(embeddedMetadata.category)) {
                     throw new Error(`Failed compiling markdown content: An article page has an invalid category meta tag (<meta name="category" value="${embeddedMetadata.category}">) at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, change the meta tag to a valid category, one of: ${validArticleCategories}`);
                   }
@@ -691,11 +691,57 @@ module.exports = {
                     throw new Error(`Failed compiling markdown content: An article page has an invalid showOnTestimonialsPageWithEmoji meta tag (<meta name="showOnTestimonialsPageWithEmoji" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be one of 🥀, 🔌, 🚪, or 🪟 and try running this script again.`);
                   }
                 }
+                if(embeddedMetadata.category === 'case study') {
+                  // Note: Case study articles use a page template that requires additional meta tags.
+                  if(!embeddedMetadata.summaryChallenge){
+                    throw new Error(`Failed compiling markdown content: A case study article is missing a "summaryChallenge" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a summaryChallenge meta tag and try running this script again.`);
+                  }
+
+                  if(!embeddedMetadata.summarySolution){
+                    throw new Error(`Failed compiling markdown content: A case study article is missing a "summarySolution" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a summarySolution meta tag and try running this script again.`);
+                  }
+
+                  if(!embeddedMetadata.summaryKeyResults){
+                    throw new Error(`Failed compiling markdown content: A case study article is missing a "summaryKeyResults" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a summaryKeyResults meta tag and try running this script again.`);
+                  } else if(embeddedMetadata.summaryKeyResults.split(';').length === 1) {
+                    // Make sure that summaryKeyResults meta tag values are semicolon-separated lists.
+                    throw new Error(`Failed compiling markdown content: A case study article has an invalid "summaryKeyResults" meta tag value at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, change the summaryKeyResults meta tag value to be a list of results separated by semi-colons (e.g., "Cut endpoint maintenance effort by 50%; Reduced licensing costs by 21%;") and try running this script again.`);
+                  }
+
+                  // If a companyLogoFilename meta tag is provided, make sure the image exists in the website/assets/images folder.
+                  if(embeddedMetadata.companyLogoFilename) {
+                    let companyLogoImageExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.companyLogoFilename));
+                    if(!companyLogoImageExists){
+                      throw new Error(`Failed compiling markdown content: A case study article (${path.join(topLvlRepoPath, pageSourcePath)}) has a "companyLogoFilename" meta tag value that references an image that is not in the website/assets/images folder (${path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.companyLogoFilename)}). Was it moved?`);
+                    }
+                  }
+
+                  if(embeddedMetadata.quoteContent) {
+                    // If a quoteContent meta tag is provided, make sure that the article has quoteAuthorName, quoteAuthorJobTitle, and quoteAuthorImageFilename meta tags.
+                    if(!embeddedMetadata.quoteAuthorName) {
+                      throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorName" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorName meta tag and try running this script again.`);
+                    }
+
+                    if(!embeddedMetadata.quoteAuthorJobTitle) {
+                      throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorJobTitle" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorJobTitle meta tag and try running this script again.`);
+                    }
+
+                    if(!embeddedMetadata.quoteAuthorImageFilename) {
+                      throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorImageFilename" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorImageFilename meta tag and try running this script again.`);
+                    } else {
+                      // If a quoteAuthorImageFilename meta tag is provided, make sure the file exists.
+                      let quoteAuthorImageExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.quoteAuthorImageFilename));
+                      if(!quoteAuthorImageExists){
+                        throw new Error(`Failed compiling markdown content: A case study article (${path.join(topLvlRepoPath, pageSourcePath)}) has a "quoteAuthorImageFilename" meta tag value that references an image that is not in the website/assets/images folder (${path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.quoteAuthorImageFilename)}). Was it moved?`);
+                      }
+                    }
+                  }
+                }
                 // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
                 // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
                 rootRelativeUrlPath = (
                   '/' +
-                  (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'success-stories' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category)) + '/' +
+                  (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'success-stories' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category === 'case study' ? 'case-study' : embeddedMetadata.category)) + '/' +
                   (pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,'').replace(/\./g, '-'))).join('/'))
                 );
               }

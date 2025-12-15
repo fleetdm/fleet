@@ -389,7 +389,7 @@ func (ds *Datastore) getVPPAppTeamCategoryIDs(ctx context.Context, vppAppTeamID 
 	return ids, nil
 }
 
-func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingApps []fleet.VPPAppTeam) error {
+func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingApps []fleet.VPPAppTeam, appStoreAppIDsToTitleIDs map[string]uint) error {
 	existingApps, err := ds.GetAssignedVPPApps(ctx, teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "SetTeamVPPApps getting list of existing apps")
@@ -433,7 +433,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 		// upsert it if it does not exist or labels or SelfService or InstallDuringSetup flags are changed
 		existingApp, isExistingApp := existingApps[incomingApp.VPPAppID]
 		incomingApp.AppTeamID = existingApp.AppTeamID
-		var labelsChanged, categoriesChanged bool
+		var labelsChanged, categoriesChanged, displayNameChanged bool
 		if isExistingApp {
 			existingLabels, err := ds.getExistingLabels(ctx, incomingApp.AppTeamID)
 			if err != nil {
@@ -448,6 +448,10 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			}
 
 			categoriesChanged = !slices.Equal(existingCatIDs, incomingApp.CategoryIDs)
+
+			existingDisplayName := ptr.ValOrZero(existingApp.DisplayName)
+			incomingDisplayName := ptr.ValOrZero(incomingApp.DisplayName)
+			displayNameChanged = existingDisplayName != incomingDisplayName
 
 		}
 
@@ -465,6 +469,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			existingApp.SelfService != incomingApp.SelfService ||
 			labelsChanged ||
 			categoriesChanged ||
+			displayNameChanged ||
 			incomingApp.InstallDuringSetup != nil &&
 				existingApp.InstallDuringSetup != nil &&
 				*incomingApp.InstallDuringSetup != *existingApp.InstallDuringSetup {
@@ -527,6 +532,12 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			if toAdd.CategoryIDs != nil {
 				if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, vppAppTeamID, toAdd.CategoryIDs, softwareTypeVPP); err != nil {
 					return ctxerr.Wrap(ctx, err, "failed to update categories on vpp apps batch operation")
+				}
+			}
+
+			if toAdd.DisplayName != nil {
+				if err := updateSoftwareTitleDisplayName(ctx, tx, teamID, appStoreAppIDsToTitleIDs[toAdd.AdamID], *toAdd.DisplayName); err != nil {
+					return ctxerr.Wrap(ctx, err, "setting software title display name for vpp app")
 				}
 			}
 
