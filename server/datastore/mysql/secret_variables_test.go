@@ -162,7 +162,7 @@ This document contains a secret not stored in the database.
 Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 `
 
-	xmlValidSecret := `<?xml>${FLEET_SECRET_VALID_XML}</xml>`
+	xmlValidSecret := `<?xml>${FLEET_SECRET_VALID_XML}</xml>` //nolint:gosec // G101: test fixture, not a credential
 
 	ctx := t.Context()
 
