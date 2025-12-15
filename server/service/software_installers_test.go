@@ -244,6 +244,21 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			}
 			return res, nil
 		}
+		ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+			res := make(map[string]*fleet.Label)
+			if names == nil {
+				return res, nil
+			}
+			for _, name := range names {
+				if id, ok := mockLabels[name]; ok {
+					res[name] = &fleet.Label{
+						ID:   id,
+						Name: name,
+					}
+				}
+			}
+			return res, nil
+		}
 
 		testCases := []struct {
 			name              string
