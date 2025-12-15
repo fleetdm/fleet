@@ -51,7 +51,7 @@ Below is an explanation of what each of the macOS CrowdStrike Falcon payloads do
 
 To upload Configuration Profiles to your Fleet instance: go to **Controls > OS Settings > Custom settings** then click **Add Profile**.
 
-![Manage configuration profiles](../website/assets/images/articles/fleet-crowdstrike-add-profile-800x450@2x.png)
+![Manage configuration profiles](../website/assets/images/articles/fleet-crowdstrike-add-profile-800x450@2x)
 
 ### 2. Create a post-install script
 
@@ -93,7 +93,7 @@ To activate a host in the CrowdStrike tenant, a script must be excuted after Cro
 CUSTOMER_ID="YOUR-CUSTOMER-ID-HERE"
 
 # Set the Customer ID
-sudo /opt/crowdstrike/falconctl -s --cid="$CUSTOMER_ID"
+sudo /opt/CrowdStrike/falconctl -s --cid="$CUSTOMER_ID"
 
 if [ $? -eq 0 ]; then
     echo "Activation completed"
