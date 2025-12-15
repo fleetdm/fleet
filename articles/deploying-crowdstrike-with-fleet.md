@@ -21,7 +21,7 @@ This guide will cover how to deploy CrowdStrike Falcon on macOS, Linux and Windo
 
 #### Dedicated CrowdStrike osquery table
 
->Starting with fleetd version 1.50, you can use the [`crowdstrike_falcon`](https://fleetdm.com/tables/CrowdStrike_falcon) osquery table to check the status of a CrowdStrike Falcon installation on macOS and Linux.
+>Starting with fleetd version 1.50, you can use the [`crowdstrike_falcon`](https://fleetdm.com/tables/crowdstrike_falcon) osquery table to check the status of a CrowdStrike Falcon installation on macOS and Linux.
 
 ## Download the Falcon installer
 
@@ -41,7 +41,7 @@ The payloads can be combined and delivered as a single Configuration Profile, or
 
 Below is an explanation of what each of the macOS CrowdStrike Falcon payloads does:
 
-- `CrowdStrike-service-management.mobileconfig` - Configure CrowdStrike Falcon as a managed login item so its services can't be stopped by end users.
+- `-service-management.mobileconfig` - Configure  Falcon as a managed login item so its services can't be stopped by end users.
 - `CrowdStrike-notification.mobileconfig` - Suppress notifications to reduce end user notification fatigue. (This is a best practice for many fully-managed applications.)
 - `CrowdStrike-system-extension` - Install the CrowdStrike Falcon System Extension to allow all necessary application entitlements and access to the macOS kernel.
 - `CrowdStrike-web-filter.mobileconfig` - Enable web filtering to monitor network traffic at the socket level.
@@ -51,7 +51,7 @@ Below is an explanation of what each of the macOS CrowdStrike Falcon payloads do
 
 To upload Configuration Profiles to your Fleet instance: go to **Controls > OS Settings > Custom settings** then click **Add Profile**.
 
-![Manage configuration profiles](../website/assets/images/articles/fleet-CrowdStrike-add-profile-800x450@2x.png)
+![Manage configuration profiles](../website/assets/images/articles/fleet-crowdstrike-add-profile-800x450@2x.png)
 
 ### 2. Create a post-install script
 
@@ -78,7 +78,7 @@ fi
 1. In Fleet, go to **Software > Add software > Custom package** to upload the Falcon Sensor installer.
 2. Click **Advanced options**, then paste the activation script from the previous step into **Post-install script**, making sure to set the `CUSTOMER_ID` variable.
 
-![Add software advanced options](../website/assets/images/articles/fleet-CrowdStrike-post-install-script-800x450@2x.png)
+![Add software advanced options](../website/assets/images/articles/fleet-crowdstrike-post-install-script-800x450@2x.png)
 
 3. Click **Add software**.
 
@@ -93,7 +93,7 @@ To activate a host in the CrowdStrike tenant, a script must be excuted after Cro
 CUSTOMER_ID="YOUR-CUSTOMER-ID-HERE"
 
 # Set the Customer ID
-sudo /opt/CrowdStrike/falconctl -s --cid="$CUSTOMER_ID"
+sudo /opt/crowdstrike/falconctl -s --cid="$CUSTOMER_ID"
 
 if [ $? -eq 0 ]; then
     echo "Activation completed"
@@ -103,7 +103,7 @@ else
 fi
 ```
 
-CrowdStrike provides [documentation for additional flags](https://github.com/CrowdStrike/falcon-scripts/tree/main/bash/install) you can use here.
+CrowdStrike provides [documentation for additional flags](https://github.com/crowdstrike/falcon-scripts/tree/main/bash/install) you can use here.
 
 ### 2. Add the Falcon Sensor to your software library
 
@@ -137,7 +137,7 @@ Exit $installProcess.ExitCode
 }
 ```
 
-CrowdStrike provides [documentation for additional flags](https://github.com/CrowdStrike/falcon-scripts/tree/main/powershell/install) you can use here.
+CrowdStrike provides [documentation for additional flags](https://github.com/crowdstrike/falcon-scripts/tree/main/powershell/install) you can use here.
 
 ### 2. Add the Falcon Sensor to your software library
 
@@ -155,4 +155,4 @@ Fleet offers admins a straight-forward approach to deploying the CrowdStrike Fal
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-11-05">
 <meta name="description" value="Deploy CrowdStrike with Fleet">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-CrowdStrike-cover-800x450@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-crowdstrike-cover-800x450@2x.png">
