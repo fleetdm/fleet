@@ -16,7 +16,7 @@ In the next 3 months, Fleet will ship...
 - 🧪 Deploy your proprietary in-house iOS apps to the entire company
 - ~~🛡️ Integration with Okta for conditional access on macOS~~ †
 - 👨‍💻 More Windows Fleet-maintained apps: Mozilla Firefox, Slack, and Zoom
-- ⬇️ Download signed installers in one click with no Terminal or certificates required
+- ~~⬇️ Download signed installers in one click with no Terminal or certificates required~~
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 
