@@ -800,6 +800,7 @@ software:
 
 	assert.Equal(t, "2025-10-10", savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
 	assert.Equal(t, "18.0", savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	// To keep things backwards compatible if MinimumVersion & Deadline are set, then UpdateNewHosts should be set to true
 	assert.Equal(t, true, savedTeam.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
 
 	// The previous run created the team, so let's rerun with an existing team
