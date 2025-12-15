@@ -8,8 +8,10 @@ import {
   IAppStoreApp,
   ISoftwarePackage,
   isSoftwarePackage,
+  InstallerType,
 } from "interfaces/software";
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 import softwareAPI, {
   MAX_FILE_SIZE_BYTES,
   MAX_FILE_SIZE_MB,
@@ -46,12 +48,11 @@ export type IEditPackageFormData = Omit<IPackageFormData, "installType">;
 interface IEditSoftwareModalProps {
   softwareId: number;
   teamId: number;
-  software: ISoftwarePackage | IAppStoreApp;
+  softwareInstaller: ISoftwarePackage | IAppStoreApp;
   refetchSoftwareTitle: () => void;
   onExit: () => void;
-  installerType: "package" | "app-store";
+  installerType: InstallerType;
   router: InjectedRouter;
-  gitOpsModeEnabled?: boolean;
   openViewYamlModal: () => void;
   isIosOrIpadosApp?: boolean;
 }
@@ -59,16 +60,18 @@ interface IEditSoftwareModalProps {
 const EditSoftwareModal = ({
   softwareId,
   teamId,
-  software,
+  softwareInstaller,
   onExit,
   refetchSoftwareTitle,
   installerType,
   router,
-  gitOpsModeEnabled = false,
   openViewYamlModal,
   isIosOrIpadosApp = false,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const { config } = useContext(AppContext);
+
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled || false;
 
   const [editSoftwareModalClasses, setEditSoftwareModalClasses] = useState(
     baseClass
@@ -180,7 +183,7 @@ const EditSoftwareModal = ({
     try {
       await softwareAPI.editSoftwarePackage({
         data: formData,
-        orignalPackage: software as ISoftwarePackage,
+        orignalPackage: softwareInstaller as ISoftwarePackage,
         softwareId,
         teamId,
         onUploadProgress: (progressEvent) => {
@@ -192,8 +195,8 @@ const EditSoftwareModal = ({
       });
 
       if (
-        isSoftwarePackage(software) &&
-        software.title_id &&
+        isSoftwarePackage(softwareInstaller) &&
+        softwareInstaller.title_id &&
         gitOpsModeEnabled
       ) {
         // No longer flash message, we open YAML modal if editing with gitOpsModeEnabled
@@ -212,7 +215,10 @@ const EditSoftwareModal = ({
       refetchSoftwareTitle();
       onExit();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e, software as IAppStoreApp));
+      renderFlash(
+        "error",
+        getErrorMessage(e, softwareInstaller as IAppStoreApp)
+      );
     }
     setIsUpdatingSoftware(false);
   };
@@ -222,7 +228,7 @@ const EditSoftwareModal = ({
   };
 
   const onClickSavePackage = (formData: IPackageFormData) => {
-    const softwarePackage = software as ISoftwarePackage;
+    const softwarePackage = softwareInstaller as ISoftwarePackage;
 
     const currentData = {
       software: null,
@@ -241,6 +247,13 @@ const EditSoftwareModal = ({
 
     const updates = deepDifference(formData, currentData);
 
+    // Send an array with an empty string when all categories are unchecked
+    // so that the "categories" key is included in the multipart form data and
+    // will be deleted rather than ignored (an empty array would skip the field)
+    if (!formData.categories?.length) {
+      formData.categories = [""];
+    }
+
     if (isOnlySelfServiceUpdated(updates)) {
       onEditPackage(formData);
     } else {
@@ -258,7 +271,7 @@ const EditSoftwareModal = ({
       renderFlash(
         "success",
         <>
-          Successfully edited <b>{software.name}</b>.
+          Successfully edited <b>{softwareInstaller.name}</b>.
           {formData.selfService
             ? " The end user can install from Fleet Desktop."
             : ""}
@@ -267,18 +280,21 @@ const EditSoftwareModal = ({
       onExit();
       refetchSoftwareTitle();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e, software as IAppStoreApp));
+      renderFlash(
+        "error",
+        getErrorMessage(e, softwareInstaller as IAppStoreApp)
+      );
     }
     setIsUpdatingSoftware(false);
   };
 
   const onClickSaveVpp = async (formData: ISoftwareVppFormData) => {
     const currentData = {
-      selfService: software.self_service || false,
-      automaticInstall: software.automatic_install || false,
-      targetType: getTargetType(software),
-      customTarget: getCustomTarget(software),
-      labelTargets: generateSelectedLabels(software),
+      selfService: softwareInstaller.self_service || false,
+      automaticInstall: softwareInstaller.automatic_install || false,
+      targetType: getTargetType(softwareInstaller),
+      customTarget: getCustomTarget(softwareInstaller),
+      labelTargets: generateSelectedLabels(softwareInstaller),
     };
 
     setPendingVppUpdates(formData);
@@ -302,7 +318,7 @@ const EditSoftwareModal = ({
 
   const renderForm = () => {
     if (installerType === "package") {
-      const softwarePackage = software as ISoftwarePackage;
+      const softwarePackage = softwareInstaller as ISoftwarePackage;
       return (
         <PackageForm
           labels={labels || []}
@@ -311,7 +327,7 @@ const EditSoftwareModal = ({
           onCancel={onExit}
           onSubmit={onClickSavePackage}
           onClickPreviewEndUserExperience={togglePreviewEndUserExperienceModal}
-          defaultSoftware={software}
+          defaultSoftware={softwareInstaller}
           defaultInstallScript={softwarePackage.install_script}
           defaultPreInstallQuery={softwarePackage.pre_install_query}
           defaultPostInstallScript={softwarePackage.post_install_script}
@@ -325,7 +341,7 @@ const EditSoftwareModal = ({
     return (
       <SoftwareVppForm
         labels={labels || []}
-        softwareVppForEdit={software as IAppStoreApp}
+        softwareVppForEdit={softwareInstaller as IAppStoreApp}
         onSubmit={onClickSaveVpp}
         onCancel={onExit}
         isLoading={isUpdatingSoftware}
@@ -338,7 +354,9 @@ const EditSoftwareModal = ({
     <>
       <Modal
         className={editSoftwareModalClasses}
-        title={isSoftwarePackage(software) ? "Edit package" : "Edit app"}
+        title={
+          isSoftwarePackage(softwareInstaller) ? "Edit package" : "Edit app"
+        }
         onExit={onExit}
         width="large"
       >
@@ -347,7 +365,7 @@ const EditSoftwareModal = ({
       {showConfirmSaveChangesModal && (
         <ConfirmSaveChangesModal
           onClose={toggleConfirmSaveChangesModal}
-          softwareInstallerName={software?.name}
+          softwareInstallerName={softwareInstaller?.name}
           installerType={installerType}
           onSaveChanges={onClickConfirmChanges}
         />

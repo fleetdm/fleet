@@ -15,6 +15,8 @@ on:
       - 'tools/osquery/in-a-box/osquery/docker-compose.yml'
       - 'server/authz/policy.rego'
       - 'docker-compose.yml'
+      - 'frontend/templates/enroll-ota.html'
+      - 'frontend/templates/windowsTOS.html'
   pull_request:
     paths:
       - '**.go'
@@ -25,6 +27,8 @@ on:
       - 'tools/osquery/in-a-box/osquery/docker-compose.yml'
       - 'server/authz/policy.rego'
       - 'docker-compose.yml'
+      - 'frontend/templates/enroll-ota.html'
+      - 'frontend/templates/windowsTOS.html'
   workflow_dispatch: # Manual
   schedule:
     - cron: '0 4 * * *'
@@ -77,7 +81,7 @@ jobs:
     env:
       RACE_ENABLED: false
       GO_TEST_TIMEOUT: 20m
-      DOCKER_COMMAND: docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test
+      DOCKER_COMMAND: docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup s3 saml_idp mailhog mailpit smtp4dev_test
 
     steps:
     - name: Harden Runner
@@ -256,7 +260,7 @@ jobs:
           REDIS_TEST=1 \
           MYSQL_TEST=1 \
           MYSQL_REPLICA_TEST=1 \
-          MINIO_STORAGE_TEST=1 \
+          S3_STORAGE_TEST=1 \
           SAML_IDP_TEST=1 \
           MAIL_TEST=1 \
           AWS_ENDPOINT_URL="http://localhost:4566" \

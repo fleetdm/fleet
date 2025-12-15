@@ -6,11 +6,15 @@ Fleet's schema tables live in the `tables/` folder. Each osquery table with Flee
 
 The existing documentation data lives in the osquery repo at: https://github.com/osquery/osquery-site/tree/source/src/data/osquery_schema_versions.
 
-You can open PRs against a table's YAML file in the `tables/` folder or the osquery schema file. Just note that the data in a table's YAML file overwrites the osquery data whenever there is a conflict.
+You can open PRs against a table's YAML file in the `tables/` folder or the osquery schema file. Just note that the data in a table's YAML file overwrites the osquery data whenever there is a conflict:
 
-After adding or modifying the table's YAML file, move to the `website` directory in the project root and run `node ./node_modules/sails/bin/sails run generate-merged-schema` to generate the merged JSON schema.
+1. Clone the fleetdm/fleet repository.
 
-When adding a new YAML override to Fleet's osquery schema you can use this template:
+2. Add or modify the table's YAML file, move to the `website` directory in the project root and run `node ./node_modules/sails/bin/sails run generate-merged-schema` to generate the merged JSON schema.
+
+Alternatively, you can find the table's page on the [Fleet website](https://fleetdm.com/tables) and click the "edit page" button.
+
+When adding a new table or overriding an existing table use this template:
 
 ```yaml
 name: # (required) string - The name of the table.
@@ -30,5 +34,3 @@ columns: # (required) array - An array of columns in this table
     required: # (required) boolean - whether or not this column is required to query this table.
     platforms: # (optional) array - List of supported platforms, used to clarify when a column isn't available on every platform its table supports (any of: `darwin`, `windows`, `linux`, `chrome`)
 ```
-
-Alternatively, if you want to add documentation about an osquery table for which we don't have a YAML override, you can find the table's page on the [Fleet website](https://fleetdm.com/tables) and click the "edit page" button. Clicking this button will take you to the GitHub web editor with the template pre-filled. After you add information about the table and its columns, you can open a new pull request to add the new YAML file to Fleet's overrides.

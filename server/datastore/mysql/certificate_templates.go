@@ -12,9 +12,55 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
-	var template fleet.CertificateTemplateResponseFull
+func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error) {
+	var template fleet.CertificateTemplateResponse
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, `
+		SELECT
+			certificate_templates.id,
+			certificate_templates.name,
+			certificate_templates.team_id,
+			certificate_templates.subject_name,
+			certificate_templates.created_at,
+			certificate_authorities.id AS certificate_authority_id,
+			certificate_authorities.name AS certificate_authority_name,
+			certificate_authorities.type AS certificate_authority_type
+		FROM certificate_templates
+		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+		WHERE certificate_templates.id = ?
+	`, id); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id")
+	}
+
+	return &template, nil
+}
+
+func (ds *Datastore) GetCertificateTemplateByTeamIDAndName(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error) {
+	var template fleet.CertificateTemplateResponse
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, `
+		SELECT
+			certificate_templates.id,
+			certificate_templates.name,
+			certificate_templates.team_id,
+			certificate_templates.subject_name,
+			certificate_templates.created_at,
+			certificate_authorities.id AS certificate_authority_id,
+			certificate_authorities.name AS certificate_authority_name,
+			certificate_authorities.type AS certificate_authority_type
+		FROM certificate_templates
+		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+		WHERE certificate_templates.team_id = ? AND certificate_templates.name = ?
+	`, teamID, name); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by team id and name")
+	}
+
+	return &template, nil
+}
+
+// GetCertificateTemplateByIdForHost gets a certificate template by ID with host-specific status and challenge.
+// This is used when a host (fleetd/Android agent) requests its certificate.
+func (ds *Datastore) GetCertificateTemplateByIdForHost(ctx context.Context, id uint, hostUUID string) (*fleet.CertificateTemplateResponseForHost, error) {
+	var template fleet.CertificateTemplateResponseForHost
+	stmt := fmt.Sprintf(`
 		SELECT
 			certificate_templates.id,
 			certificate_templates.name,
@@ -29,14 +75,18 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 			host_certificate_templates.fleet_challenge AS fleet_challenge
 		FROM certificate_templates
 		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
-		LEFT JOIN host_certificate_templates
+		INNER JOIN host_certificate_templates
 			ON host_certificate_templates.certificate_template_id = certificate_templates.id
+			AND host_certificate_templates.host_uuid = ?
+			AND host_certificate_templates.operation_type = '%s'
 		WHERE certificate_templates.id = ?
-	`, id); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id")
+	`, fleet.MDMOperationTypeInstall)
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, stmt, hostUUID, id); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id for host")
 	}
 
-	if template.Status != nil && *template.Status == fleet.MDMDeliveryPending {
+	// Only include challenges if status is "delivered"
+	if template.Status == fleet.CertificateTemplateDelivered {
 		if template.SCEPChallengeEncrypted != nil {
 			decryptedChallenge, err := decrypt(template.SCEPChallengeEncrypted, ds.serverPrivateKey)
 			if err != nil {
@@ -45,7 +95,7 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 			template.SCEPChallenge = ptr.String(string(decryptedChallenge))
 		}
 	} else {
-		// Ensure challenges are nil if not in pending status
+		// Ensure challenges are nil if not in delivered status
 		template.SCEPChallenge = nil
 		template.FleetChallenge = nil
 	}
@@ -68,6 +118,7 @@ func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID
 		SELECT
 			certificate_templates.id,
 			certificate_templates.name,
+			certificate_templates.subject_name,
 			certificate_templates.certificate_authority_id,
 			certificate_authorities.name AS certificate_authority_name,
 			certificate_templates.created_at
@@ -97,7 +148,7 @@ func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID
 	return templates, metaData, nil
 }
 
-func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponseFull, error) {
+func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponse, error) {
 	result, err := ds.writer(ctx).ExecContext(ctx, `
 		INSERT INTO certificate_templates (
 			name,
@@ -115,14 +166,14 @@ func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateT
 		return nil, ctxerr.Wrap(ctx, err, "getting last insert id for certificate_template")
 	}
 
-	return &fleet.CertificateTemplateResponseFull{
+	return &fleet.CertificateTemplateResponse{
 		CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
 			ID:                     uint(id), //nolint:gosec
 			Name:                   certificateTemplate.Name,
+			SubjectName:            certificateTemplate.SubjectName,
 			CertificateAuthorityId: certificateTemplate.CertificateAuthorityID,
 		},
-		SubjectName: certificateTemplate.SubjectName,
-		TeamID:      certificateTemplate.TeamID,
+		TeamID: certificateTemplate.TeamID,
 	}, nil
 }
 
@@ -230,6 +281,74 @@ WHERE hct.host_uuid = ?`
 	return hTemplates, nil
 }
 
+// CreatePendingCertificateTemplatesForExistingHosts creates pending certificate template records
+// for all enrolled Android hosts in the team when a new certificate template is added.
+// Note: teamID = 0 means "no team", which corresponds to hosts.team_id IS NULL.
+func (ds *Datastore) CreatePendingCertificateTemplatesForExistingHosts(
+	ctx context.Context,
+	certificateTemplateID uint,
+	teamID uint,
+) (int64, error) {
+	stmt := fmt.Sprintf(`
+		INSERT INTO host_certificate_templates (
+			host_uuid,
+			certificate_template_id,
+			fleet_challenge,
+			status,
+			operation_type
+		)
+		SELECT
+			hosts.uuid,
+			?,
+			NULL,
+			'%s',
+			'%s'
+		FROM hosts
+		INNER JOIN host_mdm ON host_mdm.host_id = hosts.id
+		WHERE
+			(hosts.team_id = ? OR (? = 0 AND hosts.team_id IS NULL)) AND
+			hosts.platform = '%s' AND
+			host_mdm.enrolled = 1
+		ON DUPLICATE KEY UPDATE host_uuid = host_uuid
+	`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall, fleet.AndroidPlatform)
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, certificateTemplateID, teamID, teamID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "create pending certificate templates for hosts")
+	}
+	return result.RowsAffected()
+}
+
+// CreatePendingCertificateTemplatesForNewHost creates pending certificate template records
+// for a newly enrolled Android host based on their team's certificate templates.
+// This is called during Android enrollment when the host is assigned to a team.
+func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
+	ctx context.Context,
+	hostUUID string,
+	teamID uint,
+) (int64, error) {
+	stmt := fmt.Sprintf(`
+		INSERT INTO host_certificate_templates (
+			host_uuid,
+			certificate_template_id,
+			status,
+			operation_type
+		)
+		SELECT
+			?,
+			id,
+			'%s',
+			'%s'
+		FROM certificate_templates
+		WHERE team_id = ?
+		ON DUPLICATE KEY UPDATE host_uuid = host_uuid
+	`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, teamID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "create pending certificate templates for new host")
+	}
+	return result.RowsAffected()
+}
+
 func (ds *Datastore) GetMDMProfileSummaryFromHostCertificateTemplates(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
 	var stmt string
 	var args []interface{}
@@ -272,14 +391,13 @@ GROUP BY hct.status`
 
 	var res fleet.MDMProfilesSummary
 	for s, c := range byStatus {
-		switch fleet.MDMDeliveryStatus(s) {
-		case fleet.MDMDeliveryFailed:
+		switch fleet.CertificateTemplateStatus(s) {
+		case fleet.CertificateTemplateFailed:
 			res.Failed = c
-		case fleet.MDMDeliveryPending:
-			res.Pending = c
-		case fleet.MDMDeliveryVerifying:
-			res.Verifying = c
-		case fleet.MDMDeliveryVerified:
+		case fleet.CertificateTemplatePending, fleet.CertificateTemplateDelivering, fleet.CertificateTemplateDelivered:
+			// All in-progress states count as pending
+			res.Pending += c
+		case fleet.CertificateTemplateVerified:
 			res.Verified = c
 		default:
 			return nil, fmt.Errorf("unknown status %s", s)

@@ -4,7 +4,7 @@ You can enroll macOS, Windows, Linux, iOS, iPadOS, Android, and ChromeOS hosts t
 
 To manually enroll macOS, Windows, and Linux hosts, install Fleet’s agent (fleetd). You can generate fleetd via the [UI](#ui) or [CLI](#cli). 
 
-For iOS, iPadOS, and Android hosts, share the enrollment link from the [Fleet UI](#ui) with your end users.
+For iOS, iPadOS, and Android hosts, share the enrollment link from the [Fleet UI](#ui) with your end users. End users with Apple's [Stolen Device Protection](https://support.apple.com/en-us/120340) enabled may have to wait 1 hour before they can enroll, depending on their current location.
 
 You can also automatically enroll macOS, Windows, iOS, and iPadOS hosts. To automatically enroll Apple (macOS, iOS, and iPadOS) hosts, [connect Fleet to Apple Business Manager (ABM)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm). To automatically enroll Windows hosts, [connect Fleet to Microsoft Entra](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment).
 
@@ -153,7 +153,7 @@ You can unenroll a macOS, Windows, or Linux host from Fleet (iOS, iPadOS, and An
 ## Advanced
 
 - [Supported osquery versions](#supported-osquery-versions)
-- [Best practice for dual-boot workstations](#best-partice-for-dual-boot-workstations)
+- [Best practice for dual-boot workstations](#best-practice-for-dual-boot-workstations)
 - [Fleet agent (fleetd) components](#fleetd-components)
 - [Signing fleetd](#signing-fleetd)
 - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 

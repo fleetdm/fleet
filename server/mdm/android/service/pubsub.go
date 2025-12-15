@@ -453,6 +453,17 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	}
 
 	if fromEnroll {
+		// Create pending certificate templates for this re-enrolled host.
+		// Use teamID = 0 for hosts with no team (certificate_templates uses team_id = 0 for "no team").
+		teamID := uint(0)
+		if host.Host.TeamID != nil {
+			teamID = *host.Host.TeamID
+		}
+		if _, err := svc.fleetDS.CreatePendingCertificateTemplatesForNewHost(ctx, host.Host.UUID, teamID); err != nil {
+			level.Error(svc.logger).Log("msg", "failed to create pending certificate templates for re-enrolled host", "host_uuid", host.Host.UUID, "err", err)
+			return ctxerr.Wrap(ctx, err, "creating pending certificate templates for re-enrolled host")
+		}
+
 		enterprise, err := svc.ds.GetEnterprise(ctx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get android enterprise")
@@ -539,6 +550,17 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "associating host with idp account")
 		}
+	}
+
+	// Create pending certificate templates for this newly enrolled host.
+	// Use teamID = 0 for hosts with no team (certificate_templates uses team_id = 0 for "no team").
+	teamID := uint(0)
+	if enrollSecret.GetTeamID() != nil {
+		teamID = *enrollSecret.GetTeamID()
+	}
+	if _, err := svc.fleetDS.CreatePendingCertificateTemplatesForNewHost(ctx, fleetHost.Host.UUID, teamID); err != nil {
+		level.Error(svc.logger).Log("msg", "failed to create pending certificate templates for new host", "host_uuid", fleetHost.Host.UUID, "err", err)
+		return ctxerr.Wrap(ctx, err, "creating pending certificate templates for new host")
 	}
 
 	enterprise, err := svc.ds.GetEnterprise(ctx)
