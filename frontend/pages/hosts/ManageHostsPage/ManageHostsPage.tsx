@@ -407,10 +407,14 @@ const ManageHostsPage = ({
     ILabelsResponse,
     Error,
     ILabel[]
-  >(["labels"], () => labelsAPI.loadAll(), {
-    enabled: isRouteOk,
-    select: (data: ILabelsResponse) => data.labels,
-  });
+  >(
+    ["labels", currentTeamId],
+    () => labelsAPI.loadAll(currentTeamId),
+    {
+      enabled: isRouteOk,
+      select: (data: ILabelsResponse) => data.labels,
+    }
+  );
 
   const {
     isLoading: isGlobalSecretsLoading,
