@@ -155,7 +155,7 @@ func TestMigrations(t *testing.T) {
 	require.NoError(t, ds.MigrateTables(context.Background()))
 
 	// Make sure labels in _future_ migrations have "platform" unset.
-	// See comments in Up_20251009091733 for more information on why.
+	// See comments in Up_20251015103800 for more information on why.
 	// If there's a reason for one of these to have a "platform" set,
 	// please add the exception here.
 	var count int

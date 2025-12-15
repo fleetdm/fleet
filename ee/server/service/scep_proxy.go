@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,8 +37,83 @@ const (
 	ndesInsufficientPermissions    = "You do not have sufficient permission to enroll with SCEP."
 	MessageSCEPProxyNotConfigured  = "SCEP proxy is not configured"
 	NDESChallengeInvalidAfter      = 57 * time.Minute
-	SmallstepChallengeInvalidAfter = 57 * time.Minute // TODO(sca): confirm expected expiration time for smallstep
+	SmallstepChallengeInvalidAfter = 4 * time.Minute
 )
+
+// scepCertificateRequest abstracts the common operations needed for SCEP certificate
+// requests across different platforms (Apple, Windows, Android).
+type scepCertificateRequest interface {
+	// GetStatus returns the delivery status of the certificate request.
+	// Returns empty string if status is not set.
+	GetStatus() fleet.MDMDeliveryStatus
+	// GetChallengeRetrievedAt returns when the challenge was retrieved (for expiration checks).
+	GetChallengeRetrievedAt() *time.Time
+	// GetCAType returns the certificate authority type (NDES, Smallstep, CustomSCEPProxy).
+	GetCAType() fleet.CAConfigAssetType
+	// GetCAName returns the name of the certificate authority.
+	GetCAName() string
+	// GetProfileUUID returns the profile/template UUID.
+	GetProfileUUID() string
+}
+
+// hostMDMCertificateProfileAdapter adapts HostMDMCertificateProfile to scepCertificateRequest.
+type hostMDMCertificateProfileAdapter struct {
+	profile *fleet.HostMDMCertificateProfile
+}
+
+func (a *hostMDMCertificateProfileAdapter) GetStatus() fleet.MDMDeliveryStatus {
+	if a.profile.Status == nil {
+		return ""
+	}
+	return *a.profile.Status
+}
+
+func (a *hostMDMCertificateProfileAdapter) GetChallengeRetrievedAt() *time.Time {
+	return a.profile.ChallengeRetrievedAt
+}
+
+func (a *hostMDMCertificateProfileAdapter) GetCAType() fleet.CAConfigAssetType {
+	return a.profile.Type
+}
+
+func (a *hostMDMCertificateProfileAdapter) GetCAName() string {
+	return a.profile.CAName
+}
+
+func (a *hostMDMCertificateProfileAdapter) GetProfileUUID() string {
+	return a.profile.ProfileUUID
+}
+
+// certificateTemplateForHostAdapter adapts CertificateTemplateForHost to scepCertificateRequest.
+type certificateTemplateForHostAdapter struct {
+	template    *fleet.CertificateTemplateForHost
+	profileUUID string
+}
+
+func (a *certificateTemplateForHostAdapter) GetStatus() fleet.MDMDeliveryStatus {
+	if a.template.Status == nil {
+		return ""
+	}
+	return *a.template.Status
+}
+
+func (a *certificateTemplateForHostAdapter) GetChallengeRetrievedAt() *time.Time {
+	// Android certificate templates don't track challenge retrieval time;
+	// they use one-time fleet challenges validated via ConsumeChallenge.
+	return nil
+}
+
+func (a *certificateTemplateForHostAdapter) GetCAType() fleet.CAConfigAssetType {
+	return a.template.CAType
+}
+
+func (a *certificateTemplateForHostAdapter) GetCAName() string {
+	return a.template.CAName
+}
+
+func (a *certificateTemplateForHostAdapter) GetProfileUUID() string {
+	return a.profileUUID
+}
 
 type scepProxyService struct {
 	ds fleet.Datastore
@@ -145,41 +221,89 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 	if len(parsedIDs) > 3 {
 		fleetChallenge = parsedIDs[3]
 	}
-	if !strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
-		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("invalid profile UUID (only Apple config profiles are supported): %s",
+
+	if !strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) &&
+		!strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) &&
+		!strings.HasPrefix(profileUUID, fleet.MDMAndroidProfileUUIDPrefix) {
+		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("invalid profile UUID (only Apple, Windows, and Android config profiles are supported): %s",
 			profileUUID)}
 	}
-	profile, err := svc.ds.GetHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "getting host MDM profile")
+
+	var certReq scepCertificateRequest
+
+	switch {
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
+		profile, err := svc.ds.GetAppleHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "getting host MDM profile")
+		}
+		if profile != nil {
+			certReq = &hostMDMCertificateProfileAdapter{profile: profile}
+		}
+
+	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
+		profile, err := svc.ds.GetWindowsHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "getting host MDM profile")
+		}
+		if profile != nil {
+			certReq = &hostMDMCertificateProfileAdapter{profile: profile}
+		}
+
+	case strings.HasPrefix(profileUUID, fleet.MDMAndroidProfileUUIDPrefix):
+		// Android identifier format: {hostUUID},g{certificateTemplateID},{caType},{challenge}
+		// Parse the certificate template ID from the profileUUID (e.g., "g123" -> 123)
+		certTemplateIDStr := strings.TrimPrefix(profileUUID, fleet.MDMAndroidProfileUUIDPrefix)
+		certTemplateID, err := strconv.ParseUint(certTemplateIDStr, 10, 32)
+		if err != nil {
+			return "", &scepserver.BadRequestError{Message: fmt.Sprintf("invalid Android certificate template ID: %s", certTemplateIDStr)}
+		}
+
+		template, err := svc.ds.GetCertificateTemplateForHost(ctx, hostUUID, uint(certTemplateID))
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "getting Android certificate template")
+		}
+		certReq = &certificateTemplateForHostAdapter{
+			template:    template,
+			profileUUID: profileUUID,
+		}
+		// Use the fleet challenge from the template if not provided in the identifier
+		if fleetChallenge == "" && template.FleetChallenge != nil {
+			fleetChallenge = *template.FleetChallenge
+		}
 	}
-	if profile == nil {
+
+	if certReq == nil {
 		// Return error that implements kithttp.StatusCoder interface
 		return "", &scepserver.BadRequestError{Message: "unknown identifier in URL path"}
 	}
-	if profile.Status == nil || *profile.Status != fleet.MDMDeliveryPending {
+	// We skip windows profiles for this check here as they instantly go to verifying when sent out, might change for windows renewal.
+	if certReq.GetStatus() != fleet.MDMDeliveryPending && !strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
 		// This could happen if Fleet DB was updated before the profile was updated on the host.
 		// We expect another certificate request from the host once the profile is updated.
-		status := "null"
-		if profile.Status != nil {
-			status = string(*profile.Status)
+		status := certReq.GetStatus()
+		if status == "" {
+			status = "null"
 		}
+		// FIXME: MDM client will report a failed status for the profile when we return bad request, which consumes the sole retry attempt.
+		// Seems like we should proactively use ResendHostCertificateProfile here too?
 		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("profile status (%s) is not 'pending' for host:%s profile:%s", status,
 			hostUUID, profileUUID)}
 	}
 	var scepURL string
 
-	switch profile.Type {
+	switch certReq.GetCAType() {
 	case fleet.CAConfigNDES:
 		if groupedCAs.NDESSCEP == nil {
 			// Return error that implements kithttp.StatusCoder interface
 			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 		}
-		if checkChallenge && profile.ChallengeRetrievedAt != nil && profile.ChallengeRetrievedAt.Add(NDESChallengeInvalidAfter).Before(time.Now()) {
+		challengeRetrievedAt := certReq.GetChallengeRetrievedAt()
+		if checkChallenge && challengeRetrievedAt != nil && challengeRetrievedAt.Add(NDESChallengeInvalidAfter).Before(time.Now()) {
 			// The challenge password was retrieved for this profile, and is now invalid.
 			// We need to resend the profile with a new challenge password.
 			// Note: we don't actually know if it is invalid, and we can't get that exact feedback from SCEP server.
-			if err = svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID); err != nil {
+			if err := svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID); err != nil {
 				return "", ctxerr.Wrap(ctx, err, "resending host mdm profile")
 			}
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
@@ -191,20 +315,19 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 		}
 		for _, ca := range groupedCAs.Smallstep {
-			if ca.Name == profile.CAName {
+			if ca.Name == certReq.GetCAName() {
 				scepURL = ca.URL
 				break
 			}
 		}
-		// TODO(sca): confirm if this resend method works for smallstep or if we need to use
-		// something like the approach taken for custom SCEP profiles (where we blank the command uuid
-		// to force a regeneration of the command bytes)
-		// Also confirm the expected expiration time for smallstep challenges
-		if checkChallenge && profile.ChallengeRetrievedAt != nil && profile.ChallengeRetrievedAt.Add(NDESChallengeInvalidAfter).Before(time.Now()) {
+
+		// FIXME: See comment in datastore method regarding how we resend profiles with dynamic content
+		challengeRetrievedAt := certReq.GetChallengeRetrievedAt()
+		if checkChallenge && challengeRetrievedAt != nil && challengeRetrievedAt.Add(SmallstepChallengeInvalidAfter).Before(time.Now()) {
 			// The challenge password was retrieved for this profile, and is now invalid.
 			// We need to resend the profile with a new challenge password.
 			// Note: we don't actually know if it is invalid, and we can't get that exact feedback from SCEP server.
-			if err = svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID); err != nil {
+			if err := svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID); err != nil {
 				return "", ctxerr.Wrap(ctx, err, "resending host mdm profile")
 			}
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
@@ -214,6 +337,18 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		if len(groupedCAs.CustomScepProxy) < 1 {
 			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 		}
+		for _, ca := range groupedCAs.CustomScepProxy {
+			if ca.Name == certReq.GetCAName() {
+				scepURL = ca.URL
+				break
+			}
+		}
+
+		if strings.HasPrefix(certReq.GetProfileUUID(), fleet.MDMWindowsProfileUUIDPrefix) {
+			// TODO: Early return for Windows profiles as they do not support resending yet.
+			return scepURL, nil
+		}
+
 		if checkChallenge {
 			if err := svc.handleFleetChallenge(ctx, fleetChallenge, hostUUID, profileUUID); err != nil {
 				// FIXME: The layered logging implementation of the scepProxyService not
@@ -228,12 +363,6 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 				return "", &scepserver.BadRequestError{
 					Message: "custom scep challenge failed",
 				}
-			}
-		}
-		for _, ca := range groupedCAs.CustomScepProxy {
-			if ca.Name == profile.CAName {
-				scepURL = ca.URL
-				break
 			}
 		}
 	}
@@ -260,14 +389,8 @@ func (svc *scepProxyService) handleFleetChallenge(ctx context.Context, fleetChal
 
 	if err := svc.ds.ConsumeChallenge(ctx, fleetChallenge); err != nil {
 		errs = append(errs, ctxerr.Wrap(ctx, err, "custom scep proxy: validating challenge"))
-		// FIXME: We really should have a more generic function to handle this, but our existing methods
-		// for "resending" profiles don't reevaluate the profile variables so they aren't useful for
-		// custom SCEP profiles where we need to regenerate the SCEP challenge. The main difference between
-		// the existing flow and the implementation below is that we need to blank the command uuid in order
-		// get the reconcile cron to reevaluate the command template to generate the challenge. Otherwise,
-		// it just sends the old bytes again. It feels like we some leaky abstrations somewhere that we need
-		// to clean up.
-		if err := svc.ds.ResendHostCustomSCEPProfile(ctx, hostUUID, profileUUID); err != nil {
+		// FIXME: See comment in datastore method regarding how we resend profiles with dynamic content
+		if err := svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID); err != nil {
 			errs = append(errs, ctxerr.Wrap(ctx, err, "custom scep proxy: resending host mdm profile"))
 		}
 	}

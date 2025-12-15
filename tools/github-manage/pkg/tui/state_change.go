@@ -35,6 +35,7 @@ func (m *model) HandleStateChange(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Update viewport size when window is resized
 		m.detailViewport.Width = msg.Width - 4
 		m.detailViewport.Height = msg.Height - 6
+		m.termWidth = msg.Width
 	case processTaskMsg:
 		// This case is no longer used since we've moved to AsyncManager
 		// Ignore these messages

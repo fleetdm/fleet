@@ -62,6 +62,7 @@ import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import {
   isValidSoftwareAggregateStatus,
   SoftwareAggregateStatus,
+  SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
@@ -1496,6 +1497,7 @@ const ManageHostsPage = ({
         onCancel={toggleTransferHostModal}
         isUpdating={isUpdating}
         multipleHosts={selectedHostIds.length > 1}
+        hostsTeamId={currentTeamId} // Removes current team from the transfer options
       />
     );
   };
@@ -2001,6 +2003,9 @@ const ManageHostsPage = ({
           onClickEditLabel={onEditLabelClick}
           onClickDeleteLabel={toggleDeleteLabelModal}
           isLoading={isLoading}
+          isScriptPackage={SCRIPT_PACKAGE_SOURCES.includes(
+            hostsData?.software_title?.source || ""
+          )}
         />
         {renderNoEnrollSecretBanner()}
         {renderTable()}

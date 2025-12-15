@@ -1,0 +1,8 @@
+{
+  "name": "Parallels Desktop",
+  "unique_identifier": "com.parallels.desktop.console",
+  "token": "parallels",
+  "installer_format": "dmg",
+  "slug": "parallels/darwin",
+  "default_categories": ["Productivity"]
+}

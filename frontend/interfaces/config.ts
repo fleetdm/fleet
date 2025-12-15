@@ -61,6 +61,7 @@ export interface IMdmConfig {
   apple_bm_terms_expired: boolean;
   apple_bm_enabled_and_configured: boolean;
   windows_enabled_and_configured: boolean;
+  enable_turn_on_windows_mdm_manually: boolean;
   windows_migration_enabled: boolean;
   android_enabled_and_configured: boolean;
   end_user_authentication: IEndUserAuthentication;
@@ -156,8 +157,14 @@ export interface IConfig {
   // configuration details for conditional access. For enabled/disabled status per team, see
   // subfields under `integrations`
   conditional_access?: {
+    // Microsoft Entra
     microsoft_entra_tenant_id: string;
     microsoft_entra_connection_configured: boolean;
+    // Okta
+    okta_idp_id: string;
+    okta_assertion_consumer_service_url: string;
+    okta_audience_uri: string;
+    okta_certificate: string;
   };
   host_expiry_settings: {
     host_expiry_enabled: boolean;

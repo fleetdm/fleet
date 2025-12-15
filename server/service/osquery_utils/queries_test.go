@@ -398,13 +398,14 @@ func TestGetDetailQueries(t *testing.T) {
 		"disk_encryption_windows",
 		"chromeos_profile_user_info",
 		"certificates_darwin",
+		"certificates_windows",
 	}
 
 	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil, Integrations{}, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 26)
+	require.Len(t, queriesWithoutWinOSVuln, 27)
 
 	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries
@@ -1134,11 +1135,16 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 				require.False(t, isPersonalEnrollment)
 				return nil
 			}
+			ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+				return nil, common_mysql.NotFound("MDMWindowsEnrolledDevice")
+			}
+			ds.SetOrUpdateMDMDataFuncInvoked = false
+			ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked = false
+
+			err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &fleet.Host{}, ds, c.data)
+			require.NoError(t, err)
+			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 		})
-		err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &fleet.Host{}, ds, c.data)
-		require.NoError(t, err)
-		require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
-		ds.SetOrUpdateMDMDataFuncInvoked = false
 	}
 }
 
@@ -2004,28 +2010,193 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 	logger := log.NewNopLogger()
 	host := &fleet.Host{ID: 1, UUID: "mdm-windows-hw-uuid"}
 
-	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string) error {
+	returnEnrollmentsUpdated := true
+	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string) (bool, error) {
 		require.NotEmpty(t, deviceID)
 		require.Equal(t, host.UUID, hostUUID)
+		return returnEnrollmentsUpdated, nil
+	}
+	ds.UpdateMDMInstalledFromDEPFunc = func(ctx context.Context, hostID uint, enrolledFromDEP bool) error {
 		return nil
 	}
 
-	// if no rows, assume the registry key is not present (i.e. mdm is turned off) and do nothing
-	require.NoError(t, directIngestMDMDeviceIDWindows(ctx, logger, host, ds, []map[string]string{}))
-	require.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+	baseEnrolledDeviceToReturn := fleet.MDMWindowsEnrolledDevice{
+		ID:                     1,
+		MDMHardwareID:          "12345",
+		MDMDeviceState:         "MDMDeviceEnrolledEnrolled",
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "Fleetie-PC",
+		MDMEnrollUserID:        "a1b2c3d4e5f6g7h8i9j0",
+		MDMEnrollProtoVersion:  "7.0",
+		MDMEnrollClientVersion: "10.0.26200.7020",
+		MDMEnrollType:          "Full",
+	}
+	ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, deviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+		device := baseEnrolledDeviceToReturn
+		device.MDMDeviceID = deviceID
+		return &device, nil
+	}
 
-	// if multiple rows, expect error
-	require.Error(t, directIngestMDMDeviceIDWindows(ctx, logger, host, ds, []map[string]string{
-		{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
-		{"name": "mdm-windows-hostname2", "data": "mdm-windows-device-id2"},
-	}))
-	require.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+	ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, hostID uint, mappings []*fleet.HostDeviceMapping, source string) error {
+		require.Len(t, mappings, 1)
+		require.Equal(t, baseEnrolledDeviceToReturn.MDMEnrollUserID, mappings[0].Email)
+		require.Equal(t, host.ID, mappings[0].HostID)
+		require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, mappings[0].Source)
+		require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, source)
+		return nil
+	}
 
-	// happy path
-	require.NoError(t, directIngestMDMDeviceIDWindows(ctx, logger, host, ds, []map[string]string{
-		{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
-	}))
-	require.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+	baseSCIMUser := fleet.ScimUser{
+		ID:         1,
+		UserName:   "fleetie@example.com",
+		GivenName:  ptr.String("Fleetie"),
+		FamilyName: ptr.String("McDougal"),
+		Emails:     []fleet.ScimUserEmail{{ScimUserID: 1, Email: "fleetie@example.com"}},
+	}
+	returnSCIMUser := true
+
+	ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, name string, email string) (*fleet.ScimUser, error) {
+		if returnSCIMUser {
+			return &baseSCIMUser, nil
+		}
+		return nil, common_mysql.NotFound("SCIMUser")
+	}
+
+	ds.SetOrUpdateHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint, scimUserID uint) error {
+		require.Equal(t, host.ID, hostID)
+		require.Equal(t, baseSCIMUser.ID, scimUserID)
+		return nil
+	}
+
+	ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) error {
+		require.Equal(t, host.ID, hostID)
+		return nil
+	}
+
+	testCases := []struct {
+		name                                                 string
+		rows                                                 []map[string]string
+		expectError                                          string
+		mdmEnrollUserID                                      string
+		mdmEnrollNotInOOBE                                   bool
+		returnSCIMUser                                       bool
+		expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked bool
+		expectUpdateMDMInstalledFromDEPFuncInvoked           bool
+		expectReplaceHostDeviceMappingFuncInvoked            bool
+		expectScimUserByUserNameOrEmailFuncInvoked           bool
+		expectDeleteHostSCIMUserMappingFuncInvoked           bool
+	}{
+		{
+			// if no rows, assume the registry key is not present (i.e. mdm is turned off) and do nothing
+			name: "no rows",
+			rows: []map[string]string{},
+		},
+		{
+			name: "multiple rows",
+			rows: []map[string]string{
+				{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+				{"name": "mdm-windows-hostname2", "data": "mdm-windows-device-id2"},
+			}, expectError: "invalid number of rows",
+		},
+		{
+			name: "happy path, device without UPN",
+			rows: []map[string]string{
+				{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+			},
+			expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked: true,
+		},
+		{
+			name: "happy path, device enrolled by Fleetie@example.com via Autopilot",
+			rows: []map[string]string{
+				{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+			},
+			mdmEnrollUserID: "fleetie@example.com",
+			expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked: true,
+			expectReplaceHostDeviceMappingFuncInvoked:            true,
+			expectScimUserByUserNameOrEmailFuncInvoked:           true,
+		},
+		{
+			name: "device was enrolled by fleetie@example.com via Settings app",
+			rows: []map[string]string{
+				{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+			},
+			mdmEnrollUserID:    "fleetie@example.com",
+			mdmEnrollNotInOOBE: true,
+			expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked: true,
+			expectUpdateMDMInstalledFromDEPFuncInvoked:           true,
+			expectScimUserByUserNameOrEmailFuncInvoked:           true,
+			expectReplaceHostDeviceMappingFuncInvoked:            true,
+		},
+	}
+
+	resetInvocationFlags := func() {
+		ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked = false
+		ds.UpdateMDMInstalledFromDEPFuncInvoked = false
+		ds.ReplaceHostDeviceMappingFuncInvoked = false
+		ds.ScimUserByUserNameOrEmailFuncInvoked = false
+		ds.DeleteHostSCIMUserMappingFuncInvoked = false
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resetInvocationFlags()
+
+			// set base enrolled device state
+			if tc.mdmEnrollUserID != "" {
+				baseEnrolledDeviceToReturn.MDMEnrollUserID = tc.mdmEnrollUserID
+			} else {
+				// random string that looks like the sort of device IDs we get from the orbit enroll path
+				baseEnrolledDeviceToReturn.MDMEnrollUserID = "a1b2c3d4e5f6g7h8i9j0"
+			}
+			baseEnrolledDeviceToReturn.MDMNotInOOBE = tc.mdmEnrollNotInOOBE
+
+			// If no updates were done no further actions should be taken. This generic case covers this behavior.
+			if tc.expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked {
+				returnEnrollmentsUpdated = false
+				err := directIngestMDMDeviceIDWindows(ctx, logger, host, ds, tc.rows)
+				require.NoError(t, err)
+
+				require.Equal(t, tc.expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+				require.Equal(t, false, ds.UpdateMDMInstalledFromDEPFuncInvoked)
+				require.Equal(t, false, ds.ReplaceHostDeviceMappingFuncInvoked)
+				require.Equal(t, false, ds.ScimUserByUserNameOrEmailFuncInvoked)
+				require.Equal(t, false, ds.DeleteHostSCIMUserMappingFuncInvoked)
+			}
+
+			// Run the actual defined testcase
+			returnEnrollmentsUpdated = true
+			returnSCIMUser = true
+			err := directIngestMDMDeviceIDWindows(ctx, logger, host, ds, tc.rows)
+			if tc.expectError != "" {
+				require.ErrorContains(t, err, tc.expectError)
+			} else {
+				require.NoError(t, err)
+			}
+
+			require.Equal(t, tc.expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+			require.Equal(t, tc.expectUpdateMDMInstalledFromDEPFuncInvoked, ds.UpdateMDMInstalledFromDEPFuncInvoked)
+			require.Equal(t, tc.expectReplaceHostDeviceMappingFuncInvoked, ds.ReplaceHostDeviceMappingFuncInvoked)
+			require.Equal(t, tc.expectScimUserByUserNameOrEmailFuncInvoked, ds.ScimUserByUserNameOrEmailFuncInvoked)
+			// this test will always return a SCIM user if invoked and as such should update the mapping and never delete it
+			require.Equal(t, false, ds.DeleteHostSCIMUserMappingFuncInvoked)
+
+			// Test the case where no user is returned if applicable
+			if tc.expectScimUserByUserNameOrEmailFuncInvoked {
+				resetInvocationFlags()
+
+				returnSCIMUser = false
+				err = directIngestMDMDeviceIDWindows(ctx, logger, host, ds, tc.rows)
+				require.NoError(t, err)
+
+				require.Equal(t, tc.expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+				require.Equal(t, tc.expectUpdateMDMInstalledFromDEPFuncInvoked, ds.UpdateMDMInstalledFromDEPFuncInvoked)
+				require.Equal(t, tc.expectReplaceHostDeviceMappingFuncInvoked, ds.ReplaceHostDeviceMappingFuncInvoked)
+				require.Equal(t, tc.expectScimUserByUserNameOrEmailFuncInvoked, ds.ScimUserByUserNameOrEmailFuncInvoked)
+				// this test will never return a SCIM user if invoked and as such should always delete the mapping
+				require.Equal(t, true, ds.DeleteHostSCIMUserMappingFuncInvoked)
+			}
+		})
+	}
 }
 
 func TestDirectIngestWindowsProfiles(t *testing.T) {
@@ -2204,7 +2375,7 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
 	logger := log.NewNopLogger()
-	host := &fleet.Host{ID: 1, UUID: "host-uuid"}
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
 
 	row1 := map[string]string{
 		"ca":                "0",
@@ -2289,7 +2460,148 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		return nil
 	}
 
-	err := directIngestHostCertificates(ctx, logger, host, ds, []map[string]string{row1, row2})
+	err := directIngestHostCertificatesDarwin(ctx, logger, host, ds, []map[string]string{row1, row2})
+	require.NoError(t, err)
+	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
+}
+
+func TestDirectIngestHostCertificatesWindows(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "windows"}
+
+	// Fleet SCEP cert example based on data from a real Windows host
+	c1 := map[string]string{
+		"ca":                "-1",
+		"common_name":       "494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D",
+		"subject":           "Fleet, 494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D",
+		"issuer":            "\"\", scep-ca, SCEP CA, FleetDM",
+		"key_algorithm":     "RSA",
+		"key_strength":      "2160",
+		"key_usage":         "CERT_KEY_ENCIPHERMENT_KEY_USAGE,CERT_DIGITAL_SIGNATURE_KEY_USAGE",
+		"signing_algorithm": "sha256RSA",
+		"not_valid_after":   "1780784467",
+		"not_valid_before":  "1749248467",
+		"serial":            "05",
+		"sha1":              "1A395245953C61AE12657704FF45F31A1E7BC1E8",
+		"username":          "Admin",
+		"path":              "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
+	}
+	// Custom SCEP cert example based on data from a real Windows host
+	c2 := map[string]string{
+		"ca":                "-1",
+		"common_name":       "wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN",
+		"subject":           "fleet-w2a6fd2c4-0018-4bdc-8046-c7342962b576, \"wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN\"",
+		"issuer":            "US, scep-ca, SCEP CA, MICROMDM SCEP CA",
+		"key_algorithm":     "RSA",
+		"key_strength":      "1120",
+		"key_usage":         "CERT_DIGITAL_SIGNATURE_KEY_USAGE",
+		"signing_algorithm": "sha256RSA",
+		"not_valid_after":   "1796430423",
+		"not_valid_before":  "1764893823",
+		"serial":            "23",
+		"sha1":              "EE5E756CC1A0782078C7C45180A4544A37D0F6D7",
+		"username":          "Admin",
+		"path":              "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
+	}
+
+	// We'll use the examples above to create rows with minor variations, similar to what
+	// we would get from a real Windows host.
+	c3 := maps.Clone(c1)
+	c3["username"] = "SYSTEM"
+	c3["path"] = "Users\\S-1-5-18\\Personal"
+
+	c4 := maps.Clone(c1)
+	c4["username"] = "SYSTEM"
+	c4["path"] = "CurrentUser\\Personal"
+
+	c5 := maps.Clone(c1)
+	c5["username"] = "SYSTEM"
+	c5["path"] = "Users\\S-1-5-18\\Personal"
+
+	c6 := maps.Clone(c1)
+	c6["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
+
+	c7 := maps.Clone(c2)
+	c7["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
+
+	rows := []map[string]string{c1, c2, c3, c4, c5, c6, c7}
+
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+		require.Equal(t, host.ID, hostID)
+		require.Equal(t, host.UUID, hostUUID)
+		require.Len(t, certs, 3)
+
+		// We expect that the ingest function will deduplicate certs based on SHA1+username
+		// so we should see only 3 unique combinations from the 7 rows above.
+		expectSha1Users := map[string]bool{
+			"1A395245953C61AE12657704FF45F31A1E7BC1E8" + "Admin":  true, // c1, c6
+			"1A395245953C61AE12657704FF45F31A1E7BC1E8" + "SYSTEM": true, // c3, c4, c5
+			"EE5E756CC1A0782078C7C45180A4544A37D0F6D7" + "Admin":  true, // c2, c7
+		}
+		seenSha1Users := map[string]bool{}
+		for _, cert := range certs {
+			s := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
+			_, ok := expectSha1Users[s+cert.Username]
+			require.True(t, ok, "unexpected cert SHA1+username combination: %s + %s", s, cert.Username)
+			seenSha1Users[s+cert.Username] = true
+
+			// Validate fields that differ between the cert examples
+			switch s {
+			case "1A395245953C61AE12657704FF45F31A1E7BC1E8":
+				require.Equal(t, "CERT_KEY_ENCIPHERMENT_KEY_USAGE,CERT_DIGITAL_SIGNATURE_KEY_USAGE", cert.KeyUsage)
+				require.Equal(t, "05", cert.Serial)
+				require.Equal(t, int64(1780784467), cert.NotValidAfter.Unix())
+				require.Equal(t, int64(1749248467), cert.NotValidBefore.Unix())
+				require.Equal(t, 2160, cert.KeyStrength)
+				require.Equal(t, "494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D", cert.CommonName)
+				require.Equal(t, "Fleet, 494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D", cert.SubjectCommonName)
+				require.Equal(t, "\"\", scep-ca, SCEP CA, FleetDM", cert.IssuerCommonName)
+				require.Contains(t, []string{"Admin", "SYSTEM"}, cert.Username)
+
+			case "EE5E756CC1A0782078C7C45180A4544A37D0F6D7":
+				require.Equal(t, "CERT_DIGITAL_SIGNATURE_KEY_USAGE", cert.KeyUsage)
+				require.Equal(t, "23", cert.Serial)
+				require.Equal(t, int64(1796430423), cert.NotValidAfter.Unix())
+				require.Equal(t, int64(1764893823), cert.NotValidBefore.Unix())
+				require.Equal(t, 1120, cert.KeyStrength)
+				require.Equal(t, "wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN", cert.CommonName)
+				require.Equal(t, "fleet-w2a6fd2c4-0018-4bdc-8046-c7342962b576, \"wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN\"", cert.SubjectCommonName)
+				require.Equal(t, "US, scep-ca, SCEP CA, MICROMDM SCEP CA", cert.IssuerCommonName)
+				require.Equal(t, "Admin", cert.Username)
+
+			default:
+				t.Fatalf("unexpected cert SHA1: %s", s)
+			}
+
+			// Validate fields common across all Windows certs in this test
+			require.Equal(t, "RSA", cert.KeyAlgorithm)
+			require.Equal(t, "sha256RSA", cert.SigningAlgorithm)
+			require.False(t, cert.CertificateAuthority)
+			if cert.Username == "SYSTEM" {
+				require.Equal(t, fleet.SystemHostCertificate, cert.Source)
+			} else {
+				require.Equal(t, fleet.UserHostCertificate, cert.Source)
+			}
+
+			// For Windows certs, osquery squeezes all distinguished name fields into
+			// the comma-separated list that we store as Issuer/SubjectCommonName and
+			// we leave all other fields empty for now (see fleet.ExtractDetailsFromOsqueryDistinguishedName)
+			require.Empty(t, cert.SubjectOrganization)
+			require.Empty(t, cert.SubjectOrganizationalUnit)
+			require.Empty(t, cert.SubjectCountry)
+			require.Empty(t, cert.IssuerOrganization)
+			require.Empty(t, cert.IssuerOrganizationalUnit)
+			require.Empty(t, cert.IssuerCountry)
+
+		}
+		require.Equal(t, expectSha1Users, seenSha1Users)
+
+		return nil
+	}
+
+	err := directIngestHostCertificatesWindows(ctx, logger, host, ds, rows)
 	require.NoError(t, err)
 	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
 }

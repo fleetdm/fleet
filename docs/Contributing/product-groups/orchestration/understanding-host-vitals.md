@@ -46,6 +46,24 @@ SELECT
 		path LIKE '/Users/%/Library/Keychains/login.keychain-db';
 ```
 
+## certificates_windows
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1, username,
+		path
+	FROM
+		certificates
+	WHERE
+		store = 'Personal';
+```
+
 ## chromeos_profile_user_info
 
 - Platforms: chrome
@@ -116,9 +134,58 @@ WITH encrypted(enabled) AS (
 - Query:
 ```sql
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
-       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
-       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
-FROM mounts WHERE path = '/' LIMIT 1;
+		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
+					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts WHERE
+-- exclude mounts with no space
+blocks > 0
+AND blocks_size > 0
+
+-- exclude external storage
+AND path NOT LIKE '/media%' AND path NOT LIKE '/mnt%'
+  
+-- exclude device drivers
+AND path NOT LIKE '/dev%' 
+
+-- exclude kernel-related mounts
+AND path NOT LIKE '/proc%'
+AND path NOT LIKE '/sys%'
+
+-- exclude process files
+AND path NOT LIKE '/run%'
+AND path NOT LIKE '/var/run%'
+
+-- exclude boot files
+AND path NOT LIKE '/boot%' 
+
+-- exclude snap packages
+AND path NOT LIKE '/snap%' AND path NOT LIKE '/var/snap%'
+
+-- exclude virtualized mounts, would double-count bare metal storage
+AND path NOT LIKE '/var/lib/docker%'
+AND path NOT LIKE '/var/lib/containers%'
+
+AND type IN (
+'ext4', 
+'ext3', 
+'ext2', 
+'xfs', 
+'btrfs', 
+'ntfs', 
+'vfat',
+'fuseblk', --seen on NTFS and exFAT volumes mounted via FUSE
+'zfs' --also valid storage
+)
+AND (
+device LIKE '/dev/sd%' 
+OR device LIKE '/dev/hd%' 
+OR device LIKE '/dev/vd%' 
+OR device LIKE '/dev/nvme%' 
+OR device LIKE '/dev/mapper%'
+OR device LIKE '/dev/md%'
+OR device LIKE '/dev/dm-%'
+)) AS gigs_all_disk_space
+		FROM mounts WHERE path = '/' LIMIT 1;
 ```
 
 ## disk_space_windows
@@ -809,6 +876,18 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
+  '' AS browser,
+  'npm_packages' AS source,
+  '' AS vendor,
+  0 AS last_opened_at,
+  path AS installed_path
+FROM npm_packages
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
   '' AS extension_for,
   'homebrew_packages' AS source,
   '' AS vendor,
@@ -1004,7 +1083,8 @@ SELECT
   '' AS extension_for,
   'programs' AS source,
   publisher AS vendor,
-  install_location AS installed_path
+  install_location AS installed_path,
+  upgrade_code AS upgrade_code
 FROM programs
 UNION
 SELECT
@@ -1014,7 +1094,8 @@ SELECT
   '' AS extension_for,
   'ie_extensions' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM ie_extensions
 UNION
 SELECT
@@ -1024,7 +1105,8 @@ SELECT
   browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -1034,7 +1116,8 @@ SELECT
   'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -1044,7 +1127,8 @@ SELECT
   '' AS extension_for,
   'chocolatey_packages' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM chocolatey_packages
 ```
 

@@ -128,6 +128,11 @@ type SoftwareInstaller struct {
 	// Categories is the list of categories to which this software belongs: e.g. "Productivity",
 	// "Browsers", etc.
 	Categories []string `json:"categories"`
+
+	BundleIdentifier string `json:"-" db:"bundle_identifier"`
+
+	// DisplayName is an end-user friendly name.
+	DisplayName string `json:"display_name"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -178,7 +183,7 @@ type VPPAppResponse struct {
 	// AppStoreID is the ADAM ID for this app (set when uploading via batch/gitops).
 	AppStoreID string `json:"app_store_id" db:"app_store_id"`
 	// Platform is the platform this title ID corresponds to
-	Platform AppleDevicePlatform `json:"platform" db:"platform"`
+	Platform InstallableDevicePlatform `json:"platform" db:"platform"`
 
 	//// Custom icon fields (blank if not set)
 
@@ -190,6 +195,7 @@ type VPPAppResponse struct {
 	LocalIconHash string `json:"-" db:"-"`
 	// LocalIconPath is the path to the icon specified in YAML
 	LocalIconPath string `json:"-" db:"-"`
+	AppTeamID     uint   `json:"-" db:"app_team_id"`
 }
 
 func (v VPPAppResponse) GetTeamID() uint {
@@ -378,6 +384,8 @@ type HostSoftwareInstallerResult struct {
 	SoftwareInstallerID *uint `json:"-" db:"software_installer_id"`
 	// SoftwarePackage is the name of the software installer package.
 	SoftwarePackage string `json:"software_package" db:"software_package"`
+	// Source is the osquery source for this software (e.g., "sh_packages", "ps1_packages").
+	Source *string `json:"source" db:"source"`
 	// HostID is the ID of the host.
 	HostID uint `json:"host_id" db:"host_id"`
 	// Status is the status of the software installer package on the host.
@@ -412,7 +420,7 @@ type HostSoftwareInstallerResult struct {
 const (
 	SoftwareInstallerQueryFailCopy          = "Query didn't return result or failed\nInstall stopped"
 	SoftwareInstallerQuerySuccessCopy       = "Query returned result\nProceeding to install..."
-	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --scripts-enabled."
+	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --enable-scripts."
 	SoftwareInstallerInstallFailCopy        = "Installing software...\nFailed\n%s"
 	SoftwareInstallerInstallSuccessCopy     = "Installing software...\nSuccess\n%s"
 	SoftwareInstallerPostInstallSuccessCopy = "Running script...\nExit code: 0 (Success)\n%s"
@@ -509,6 +517,7 @@ type UploadSoftwareInstallerPayload struct {
 	AutomaticInstallQuery string
 	Categories            []string
 	CategoryIDs           []uint
+	DisplayName           string
 	// AddedAutomaticInstallPolicy is the auto-install policy that can be
 	// automatically created when a software installer is added to Fleet. This field should be set
 	// after software installer creation if AutomaticInstall is true.
@@ -516,17 +525,17 @@ type UploadSoftwareInstallerPayload struct {
 }
 
 type ExistingSoftwareInstaller struct {
-	InstallerID      uint     `db:"installer_id"`
-	TeamID           *uint    `db:"team_id"`
-	Filename         string   `db:"filename"`
-	Extension        string   `db:"extension"`
-	Version          string   `db:"version"`
-	Platform         string   `db:"platform"`
-	Source           string   `db:"source"`
-	BundleIdentifier *string  `db:"bundle_identifier"`
-	Title            string   `db:"title"`
-	PackageIDList    string   `db:"package_ids"`
-	PackageIDs       []string ``
+	InstallerID      uint    `db:"installer_id"`
+	TeamID           *uint   `db:"team_id"`
+	Filename         string  `db:"filename"`
+	Extension        string  `db:"extension"`
+	Version          string  `db:"version"`
+	Platform         string  `db:"platform"`
+	Source           string  `db:"source"`
+	BundleIdentifier *string `db:"bundle_identifier"`
+	Title            string  `db:"title"`
+	PackageIDList    string  `db:"package_ids"`
+	PackageIDs       []string
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -559,6 +568,14 @@ type UpdateSoftwareInstallerPayload struct {
 	ValidatedLabels *LabelIdentsWithScope
 	Categories      []string
 	CategoryIDs     []uint
+	// DisplayName is an end-user friendly name.
+	DisplayName *string
+}
+
+func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
+	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
+		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
+		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.DisplayName == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -584,8 +601,12 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 		return "pkg_packages", nil
 	case "tar.gz":
 		return "tgz_packages", nil
-	case "sh", "ps1":
-		return "scripts", nil
+	case "ipa":
+		return "ipa", nil
+	case "sh":
+		return "sh_packages", nil
+	case "ps1":
+		return "ps1_packages", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
@@ -600,6 +621,8 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 		return "windows", nil
 	case "pkg":
 		return "darwin", nil
+	case "ipa": // TODO(JVE): what about iPads? Can we get the platforms from the Info.plist file?
+		return "ios", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
@@ -623,6 +646,9 @@ type HostSoftwareWithInstaller struct {
 	ExtensionFor      string                          `json:"extension_for" db:"extension_for"`
 	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
+	DisplayName       string                          `json:"display_name" db:"display_name"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 
 	// SoftwarePackage provides software installer package information, it is
 	// only present if a software installer is available for the software title.
@@ -709,6 +735,7 @@ type SoftwarePackageSpec struct {
 	ReferencedYamlPath string   `json:"referenced_yaml_path"`
 	SHA256             string   `json:"hash_sha256"`
 	Categories         []string `json:"categories"`
+	DisplayName        string   `json:"display_name,omitempty"`
 }
 
 func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) SoftwarePackageSpec {

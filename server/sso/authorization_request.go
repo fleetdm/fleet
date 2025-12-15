@@ -35,6 +35,7 @@ func CreateAuthorizationRequest(
 	sessionStore SessionStore,
 	originalURL string,
 	sessionTTLSeconds uint,
+	requestData SSORequestData,
 ) (sessionID string, idpURL string, err error) {
 	idpURL, err = getDestinationURL(samlProvider.IDPMetadata)
 	if err != nil {
@@ -76,6 +77,7 @@ func CreateAuthorizationRequest(
 		originalURL,
 		metadataWriter.String(),
 		sessionLifetimeSeconds,
+		requestData,
 	)
 	if err != nil {
 		return "", "", fmt.Errorf("caching SSO session while creating auth request: %w", err)

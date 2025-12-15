@@ -1,0 +1,8 @@
+{
+  "name": "GitHub Desktop",
+  "unique_identifier": "com.github.GitHubClient",
+  "token": "github",
+  "installer_format": "zip",
+  "slug": "github/darwin",
+  "default_categories": ["Developer tools"]
+}

@@ -321,9 +321,9 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		Platform:        "darwin",
 	})
 	require.Nil(t, err)
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h1.ID, 10, 5, 200.0))
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h2.ID, 20, 10, 200.1))
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h3.ID, 30, 15, 200.2))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h1.ID, 10, 5, 200.0, nil))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h2.ID, 20, 10, 200.1, nil))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h3.ID, 30, 15, 200.2, nil))
 
 	ctx := context.Background()
 	const simpleMDM, kandji = "https://simplemdm.com", "https://kandji.io"
@@ -719,7 +719,7 @@ func testLabelsChangeDetails(t *testing.T, db *Datastore) {
 	assert.Equal(t, label.Description, saved.Description)
 
 	// Create an Apple config profile, which should reflect a change in label's name
-	profA, err := db.NewMDMAppleConfigProfile(context.Background(), *generateCP("a", "a", 0), nil)
+	profA, err := db.NewMDMAppleConfigProfile(context.Background(), *generateAppleCP("a", "a", 0), nil)
 	require.NoError(t, err)
 	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(),
@@ -897,7 +897,7 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 	require.Equal(t, user.ID, *label2.AuthorID)
 
 	// Create an Apple config profile
-	profA, err := db.NewMDMAppleConfigProfile(context.Background(), *generateCP("a", "a", 0), nil)
+	profA, err := db.NewMDMAppleConfigProfile(context.Background(), *generateAppleCP("a", "a", 0), nil)
 	require.NoError(t, err)
 	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(),
@@ -1300,7 +1300,7 @@ func testListHostsInLabelDiskEncryptionStatus(t *testing.T, ds *Datastore) {
 	}
 
 	// set up data
-	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault-1", "com.fleetdm.fleet.mdm.filevault", 0), nil)
+	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("filevault-1", "com.fleetdm.fleet.mdm.filevault", 0), nil)
 	require.NoError(t, err)
 
 	// verifying status

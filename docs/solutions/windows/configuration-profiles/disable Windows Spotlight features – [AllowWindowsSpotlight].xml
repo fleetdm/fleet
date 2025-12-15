@@ -1,0 +1,14 @@
+<Replace>
+  <!-- Enabling this policy setting turns off Windows spotlight on lock screen, Windows Tips, Microsoft consumer features and other related features 
+       Enable this policy setting if your goal is to minimize network traffic from target devices. 
+      Read more here: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-experience#allowwindowsspotlight -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./User/Vendor/MSFT/Policy/Config/Experience/AllowWindowsSpotlight</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>

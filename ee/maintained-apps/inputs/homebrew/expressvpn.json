@@ -1,0 +1,8 @@
+{
+  "name": "ExpressVPN",
+  "unique_identifier": "com.expressvpn.ExpressVPN",
+  "token": "expressvpn",
+  "installer_format": "pkg",
+  "slug": "expressvpn/darwin",
+  "default_categories": ["Productivity"]
+}

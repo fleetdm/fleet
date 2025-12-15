@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -91,6 +92,12 @@ const (
 	// CapabilityWebSetupExperience denotes the ability of the server to support installing software
 	// as part of a non-blocking setup experience for Linux and Windows
 	CapabilityWebSetupExperience Capability = "web_setup_experience"
+	// CapabilityMacOSWebSetupExperience denotes the ability of the server to support
+	// a web-based setup experience UI for macOS devices
+	CapabilityMacOSWebSetupExperience Capability = "macos_web_setup_experience"
+	// CapabilityEndUserAuth denotes the ability of the client to authenticate
+	// the end user against the Fleet server (e.g. SSO) before enrolling
+	CapabilityEndUserAuth Capability = "end_user_auth"
 )
 
 func GetServerOrbitCapabilities() CapabilityMap {
@@ -102,6 +109,7 @@ func GetServerOrbitCapabilities() CapabilityMap {
 		CapabilityLinuxDiskEncryptionEscrow: {},
 		CapabilitySetupExperience:           {},
 		CapabilityWebSetupExperience:        {},
+		CapabilityMacOSWebSetupExperience:   {},
 	}
 }
 
@@ -114,10 +122,15 @@ func GetServerDeviceCapabilities() CapabilityMap {
 }
 
 func GetOrbitClientCapabilities() CapabilityMap {
-	return CapabilityMap{
+	capabilities := CapabilityMap{
 		CapabilityEscrowBuddy:     {},
 		CapabilitySetupExperience: {},
 	}
+	// On non-macOS systems, include end user auth capability.
+	if runtime.GOOS != "darwin" {
+		capabilities[CapabilityEndUserAuth] = struct{}{}
+	}
+	return capabilities
 }
 
 // CapabilitiesHeader is the header name used to communicate the capabilities.

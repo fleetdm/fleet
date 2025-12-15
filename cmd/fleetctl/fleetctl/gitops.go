@@ -146,6 +146,20 @@ func gitopsCommand() *cli.Command {
 			// Keep track of which labels we'd have after this gitops run.
 			var proposedLabelNames []string
 
+			// Get all labels ... this is used to both populate the proposedLabelNames list and check if
+			// we reference a built-in label (which is not allowed).
+			storedLabelNames := make(map[fleet.LabelType]map[string]interface{}) // label type -> label name set
+			labels, err := fleetClient.GetLabels()
+			if err != nil {
+				return fmt.Errorf("getting labels: %w", err)
+			}
+			for _, lbl := range labels {
+				if storedLabelNames[lbl.LabelType] == nil {
+					storedLabelNames[lbl.LabelType] = make(map[string]interface{})
+				}
+				storedLabelNames[lbl.LabelType][lbl.Name] = struct{}{}
+			}
+
 			// Parsed config and filename pair
 			type ConfigFile struct {
 				Config         *spec.GitOps
@@ -229,20 +243,14 @@ func gitopsCommand() *cli.Command {
 				// In either case we'll get the list of label names from the db so we can ensure that we're
 				// not attempting to apply non-existent labels to other entities.
 				if proposedLabelNames == nil {
-					proposedLabelNames = make([]string, 0)
-					persistedLabels, err := fleetClient.GetLabels()
-					if err != nil {
-						return err
-					}
-					for _, persistedLabel := range persistedLabels {
-						if persistedLabel.LabelType == fleet.LabelTypeRegular {
-							proposedLabelNames = append(proposedLabelNames, persistedLabel.Name)
-						}
+					proposedLabelNames = make([]string, 0, len(storedLabelNames[fleet.LabelTypeRegular]))
+					for persistedLabel := range storedLabelNames[fleet.LabelTypeRegular] {
+						proposedLabelNames = append(proposedLabelNames, persistedLabel)
 					}
 				}
 
-				// Gather stats on where labels are used in the this gitops config,
-				// so we can bail if any of the referenced labels wouldn't exist
+				// Gather stats on where labels are used in this gitops config,
+				// so we can bail if any of the referenced labels don't exist
 				// after this run (either because they'd be deleted, never existed
 				// in the first place).
 				labelsUsed, err := getLabelUsage(config)
@@ -253,16 +261,29 @@ func gitopsCommand() *cli.Command {
 				// Check if any used labels are not in the proposed labels list.
 				// If there are, we'll bail out with helpful error messages.
 				unknownLabelsUsed := false
+				builtInLabelsUsed := false
+
 				for labelUsed := range labelsUsed {
 					if slices.Index(proposedLabelNames, labelUsed) == -1 {
-						for _, labelUser := range labelsUsed[labelUsed] {
-							logf("[!] Unknown label '%s' is referenced by %s '%s'\n", labelUsed, labelUser.Type, labelUser.Name)
+						if _, ok := storedLabelNames[fleet.LabelTypeBuiltIn][labelUsed]; ok {
+							logf(
+								"[!] '%s' label is built-in. Only custom labels are supported. If you want to target a specific platform please use 'platform' instead. If not, please create a custom label and try again. \n",
+								labelUsed,
+							)
+							builtInLabelsUsed = true
+						} else {
+							for _, labelUser := range labelsUsed[labelUsed] {
+								logf("[!] Unknown label '%s' is referenced by %s '%s'\n", labelUsed, labelUser.Type, labelUser.Name)
+							}
+							unknownLabelsUsed = true
 						}
-						unknownLabelsUsed = true
 					}
 				}
 				if unknownLabelsUsed {
 					return errors.New("Please create the missing labels, or update your settings to not refer to these labels.")
+				}
+				if builtInLabelsUsed {
+					return errors.New("Please update your settings to not refer to built-in labels.")
 				}
 
 				// Special handling for tokens is required because they link to teams (by

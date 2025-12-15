@@ -53,6 +53,7 @@
     "AdCampaign": true,
     "MicrosoftComplianceTenant": true,
     "AndroidEnterprise": true,
+    "RenderProofOfValue": true,
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   },

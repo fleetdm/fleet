@@ -55,7 +55,10 @@ const EmptyComponent = React.memo(
     return vulnFilterAndNotSupported ? (
       <VulnsNotSupported platformText={PLATFORM_DISPLAY_NAMES[platform]} />
     ) : (
-      <EmptySoftwareTable noSearchQuery={searchQuery === ""} />
+      <EmptySoftwareTable
+        noSearchQuery={searchQuery === ""}
+        platform={platform}
+      />
     );
   }
 );

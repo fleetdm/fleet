@@ -1,0 +1,8 @@
+{
+  "name": "IntelliJ IDEA CE",
+  "unique_identifier": "com.jetbrains.intellij.ce",
+  "token": "intellij-idea-ce",
+  "installer_format": "dmg",
+  "slug": "intellij-idea-ce/darwin",
+  "default_categories": ["Developer tools"]
+}

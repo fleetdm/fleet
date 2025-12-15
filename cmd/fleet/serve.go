@@ -24,10 +24,11 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
-	"github.com/fleetdm/fleet/v4/ee/server/service/hydrant"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
@@ -62,6 +63,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
@@ -471,6 +473,11 @@ the way that the Fleet server works.
 				}
 			}
 
+			if config.MDM.EnableCustomOSUpdatesAndFileVault && !license.IsPremium() {
+				config.MDM.EnableCustomOSUpdatesAndFileVault = false
+				level.Warn(logger).Log("msg", "Disabling custom OS updates and FileVault management because Fleet Premium license is not present")
+			}
+
 			mdmStorage, err := mds.NewMDMAppleMDMStorage()
 			if err != nil {
 				initFatal(err, "initialize mdm apple MySQL storage")
@@ -779,14 +786,15 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
+			activitiesModule := activities.NewActivityModule(ds, logger)
 			androidSvc, err := android_service.NewService(
 				ctx,
 				logger,
 				ds,
-				svc,
 				config.License.Key,
 				config.Server.PrivateKey,
 				ds,
+				activitiesModule,
 			)
 			if err != nil {
 				initFatal(err, "initializing android service")
@@ -797,7 +805,7 @@ the way that the Fleet server works.
 			var softwareTitleIconStore fleet.SoftwareTitleIconStore
 			var distributedLock fleet.Lock
 			if license.IsPremium() {
-				hydrantService := hydrant.NewService(hydrant.WithLogger(logger))
+				hydrantService := est.NewService(est.WithLogger(logger))
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 				if config.S3.SoftwareInstallersBucket != "" {
 					if config.S3.BucketsAndPrefixesMatch() {
@@ -891,6 +899,7 @@ the way that the Fleet server works.
 					redis_key_value.New(redisPool),
 					scepConfigMgr,
 					digiCertService,
+					androidSvc,
 					hydrantService,
 				)
 				if err != nil {
@@ -963,7 +972,7 @@ the way that the Fleet server works.
 				func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 					return newCleanupsAndAggregationSchedule(
-						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore,
+						ctx, instanceID, ds, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore, androidSvc,
 					)
 				},
 			); err != nil {
@@ -1018,7 +1027,7 @@ the way that the Fleet server works.
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, bootstrapPackageStore, vppInstaller)
+				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, bootstrapPackageStore, vppInstaller, androidSvc)
 			}); err != nil {
 				initFatal(err, "failed to register worker integrations schedule")
 			}
@@ -1081,6 +1090,18 @@ the way that the Fleet server works.
 				)
 			}); err != nil {
 				initFatal(err, "failed to register mdm_android_device_reconciler schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return cronEnableAndroidAppReportsOnDefaultPolicy(ctx, instanceID, ds, logger, androidSvc)
+			}); err != nil {
+				initFatal(err, "failed to register enable_android_app_reports_on_default_policy cron")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return cronMigrateToPerHostPolicy(ctx, instanceID, ds, logger, androidSvc)
+			}); err != nil {
+				initFatal(err, "failed to register migrate_to_per_host_policy cron")
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
@@ -1335,7 +1356,7 @@ the way that the Fleet server works.
 				if err = scim.RegisterSCIM(rootMux, ds, svc, logger, &config); err != nil {
 					initFatal(err, "setup SCIM")
 				}
-				// Host identify SCEP feature only works if a private key has been set up
+				// Host identify and conditional access SCEP feature only works if a private key has been set up
 				if len(config.Server.PrivateKey) > 0 {
 					hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(kitlog.With(logger, "component", "host-id-scep-depot"), &config)
 					if err != nil {
@@ -1344,8 +1365,23 @@ the way that the Fleet server works.
 					if err = hostidentity.RegisterSCEP(rootMux, hostIdentitySCEPDepot, ds, logger, &config); err != nil {
 						initFatal(err, "setup host identity SCEP")
 					}
+
+					// Conditional Access SCEP
+					condAccessSCEPDepot, err := mds.NewConditionalAccessSCEPDepot(kitlog.With(logger, "component", "conditional-access-scep-depot"), &config)
+					if err != nil {
+						initFatal(err, "setup conditional access SCEP depot")
+					}
+					if err = condaccess.RegisterSCEP(ctx, rootMux, condAccessSCEPDepot, ds, logger, &config); err != nil {
+						initFatal(err, "setup conditional access SCEP")
+					}
+
+					// Conditional Access IdP (Okta)
+					if err = condaccess.RegisterIdP(rootMux, ds, logger, &config); err != nil {
+						initFatal(err, "setup conditional access IdP")
+					}
 				} else {
-					level.Warn(logger).Log("msg", "Host identity SCEP is not available because no server private key has been set up.")
+					level.Warn(logger).Log("msg",
+						"Host identity and conditional access SCEP is not available because no server private key has been set up.")
 				}
 			}
 
@@ -1803,7 +1839,7 @@ func createTestBuckets(config *configpkg.FleetConfig, logger log.Logger) {
 		initFatal(err, "initializing S3 software installer store")
 	}
 	if err := softwareInstallerStore.CreateTestBucket(context.Background(), config.S3.SoftwareInstallersBucket); err != nil {
-		// Don't panic, allow devs to run Fleet without minio/S3 dependency.
+		// Don't panic, allow devs to run Fleet without S3 dependency.
 		level.Info(logger).Log(
 			"err", err,
 			"msg", "failed to create test software installer bucket",
@@ -1815,7 +1851,7 @@ func createTestBuckets(config *configpkg.FleetConfig, logger log.Logger) {
 		initFatal(err, "initializing S3 carve store")
 	}
 	if err := carveStore.CreateTestBucket(context.Background(), config.S3.CarvesBucket); err != nil {
-		// Don't panic, allow devs to run Fleet without minio/S3 dependency.
+		// Don't panic, allow devs to run Fleet without S3 dependency.
 		level.Info(logger).Log(
 			"err", err,
 			"msg", "failed to create test carve bucket",

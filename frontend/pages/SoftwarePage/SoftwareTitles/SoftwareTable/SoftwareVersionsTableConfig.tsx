@@ -43,7 +43,7 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { id, name, source } = cellProps.row.original;
+        const { id, name, display_name, source } = cellProps.row.original;
 
         const softwareVersionDetailsPath = getPathWithQueryParams(
           PATHS.SOFTWARE_VERSION_DETAILS(id.toString()),
@@ -55,6 +55,7 @@ const generateTableHeaders = (
         return (
           <SoftwareNameCell
             name={name}
+            display_name={display_name}
             source={source}
             // iconUrl does not exist on ISoftwareVersion
             path={softwareVersionDetailsPath}

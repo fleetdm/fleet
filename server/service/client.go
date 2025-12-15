@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -513,9 +514,11 @@ func numberWithPluralization(n int, singular string, plural string) string {
 	return fmt.Sprintf("%d %s", n, plural)
 }
 
-const dryRunAppliedFormat = "[+] would've applied %s\n"
-const appliedFormat = "[+] applied %s\n"
-const applyingTeamFormat = "[+] applying %s for team %s\n"
+const (
+	dryRunAppliedFormat = "[+] would've applied %s\n"
+	appliedFormat       = "[+] applied %s\n"
+	applyingTeamFormat  = "[+] applying %s for team %s\n"
+)
 
 // ApplyGroup applies the given spec group to Fleet.
 func (c *Client) ApplyGroup(
@@ -885,8 +888,10 @@ func (c *Client) ApplyGroup(
 					LabelsExcludeAny:   app.LabelsExcludeAny,
 					LabelsIncludeAny:   app.LabelsIncludeAny,
 					Categories:         app.Categories,
+					DisplayName:        app.DisplayName,
 					IconPath:           app.Icon.Path,
 					IconHash:           iconHash,
+					Platform:           fleet.InstallableDevicePlatform(app.Platform),
 				})
 				// can be referenced by macos_setup.software.app_store_id
 				if tmSoftwareAppsByAppID[tmName] == nil {
@@ -1237,6 +1242,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			LabelsExcludeAny:   si.LabelsExcludeAny,
 			SHA256:             si.SHA256,
 			Categories:         si.Categories,
+			DisplayName:        si.DisplayName,
 			IconPath:           si.Icon.Path,
 			IconHash:           iconHash,
 		}
@@ -1988,6 +1994,11 @@ func (c *Client) DoGitOps(
 		if incoming.Controls.WindowsMigrationEnabled == nil {
 			mdmAppConfig["windows_migration_enabled"] = false
 		}
+		// Put in default values for enable_turn_on_windows_mdm_manually
+		mdmAppConfig["enable_turn_on_windows_mdm_manually"] = incoming.Controls.EnableTurnOnWindowsMDMManually
+		if incoming.Controls.EnableTurnOnWindowsMDMManually == nil {
+			mdmAppConfig["enable_turn_on_windows_mdm_manually"] = false
+		}
 		if windowsEnabledAndConfiguredAssumption, ok := mdmAppConfig["windows_enabled_and_configured"].(bool); ok {
 			teamAssumptions = &fleet.TeamSpecsDryRunAssumptions{
 				WindowsEnabledAndConfigured: optjson.SetBool(windowsEnabledAndConfiguredAssumption),
@@ -2265,6 +2276,21 @@ func (c *Client) DoGitOps(
 			if ok && teamID == 0 {
 				if dryRun {
 					logFn("[+] would've added any policies/queries to new team %s\n", *incoming.TeamName)
+
+					numCerts := 0
+					if incoming.Controls.AndroidSettings != nil {
+						if androidSettings, ok := incoming.Controls.AndroidSettings.(fleet.AndroidSettings); ok {
+							if androidSettings.Certificates.Valid {
+								numCerts = len(androidSettings.Certificates.Value)
+							}
+						}
+					}
+					if numCerts > 0 {
+						logFn("[+] would've added %s to new team %s\n",
+							numberWithPluralization(numCerts, "Android certificate", "Android certificates"),
+							*incoming.TeamName)
+					}
+
 					return nil, postOps, nil
 				}
 				return nil, nil, fmt.Errorf("team %s not created", *incoming.TeamName)
@@ -2292,6 +2318,16 @@ func (c *Client) DoGitOps(
 
 	err = c.doGitOpsPolicies(incoming, teamSoftwareInstallers, teamVPPApps, teamScripts, logFn, dryRun)
 	if err != nil {
+		return nil, nil, err
+	}
+
+	// Apply Android certificates if present
+	err = c.doGitOpsAndroidCertificates(incoming, logFn, dryRun)
+	if err != nil {
+		var gitOpsErr *gitOpsValidationError
+		if errors.As(err, &gitOpsErr) {
+			return nil, nil, gitOpsErr.WithFileContext(baseDir, filename)
+		}
 		return nil, nil, err
 	}
 
@@ -2451,8 +2487,10 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				AppStoreID:         vppApp.AppStoreID,
 				SelfService:        vppApp.SelfService,
 				InstallDuringSetup: &installDuringSetup,
+				DisplayName:        vppApp.DisplayName,
 				IconPath:           vppApp.Icon.Path,
 				IconHash:           iconHash,
+				Platform:           fleet.InstallableDevicePlatform(vppApp.Platform),
 			})
 		}
 	}
@@ -2843,6 +2881,145 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 			}
 		}
 	}
+	return nil
+}
+
+func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
+	certificates := make([]fleet.CertificateTemplateSpec, 0)
+
+	// Extract Android certificates from config if there are any.
+	if config.Controls.AndroidSettings != nil {
+		androidSettings, ok := config.Controls.AndroidSettings.(fleet.AndroidSettings)
+		if ok && androidSettings.Certificates.Valid && len(androidSettings.Certificates.Value) > 0 {
+			certificates = androidSettings.Certificates.Value
+		}
+	}
+
+	numCerts := len(certificates)
+
+	teamID := ""
+	teamName := ""
+	switch {
+	case config.IsNoTeam():
+		teamName = "No team"
+		teamID = "0"
+	case config.TeamID != nil:
+		teamName = *config.TeamName
+		teamID = fmt.Sprintf("%d", *config.TeamID)
+	default:
+		// global config, ignore
+		return nil
+	}
+
+	// existing certificate templates
+	existingCertificates, err := c.GetCertificateTemplates(teamID)
+	if err != nil {
+		return fmt.Errorf("applying Android certificates: getting existing Android certificates: %w", err)
+	}
+
+	if numCerts == 0 && len(existingCertificates) == 0 {
+		return nil
+	}
+
+	if dryRun {
+		logFn("[+] would have attempted to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+	} else {
+		logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+	}
+
+	// getting certificate authorities
+	cas, err := c.GetCertificateAuthorities()
+	if err != nil {
+		return fmt.Errorf("getting certificate authorities: %w", err)
+	}
+	casByName := make(map[string]*fleet.CertificateAuthoritySummary)
+	for _, ca := range cas {
+		casByName[ca.Name] = ca
+	}
+
+	certRequests := make([]*fleet.CertificateRequestSpec, len(certificates))
+	certsToBeAdded := make(map[string]*fleet.CertificateRequestSpec, len(certificates))
+	for i := range certificates {
+		if !certificates[i].NameValid() {
+			return newGitOpsValidationError(
+				`Invalid characters in "name" field. Only letters, numbers, spaces, dashes, and underscores allowed.`,
+			)
+		}
+
+		// Validate Fleet variables in subject name
+		if err := validateCertificateTemplateFleetVariables(certificates[i].SubjectName); err != nil {
+			return newGitOpsValidationError(
+				fmt.Sprintf(`Invalid Fleet variable in certificate %q: %s`, certificates[i].Name, err.Error()),
+			)
+		}
+
+		ca, ok := casByName[certificates[i].CertificateAuthorityName]
+		if !ok {
+			return fmt.Errorf("certificate authority %q not found for certificate %q",
+				certificates[i].CertificateAuthorityName, certificates[i].Name)
+		}
+		// Validate that the CA is the right type.
+		if ca.Type != string(fleet.CATypeCustomSCEPProxy) {
+			return newGitOpsValidationError(fmt.Sprintf("Android certificates: CA `%s` has type `%s`. Currently, only the custom_scep_proxy certificate authority is supported.", ca.Name, ca.Type))
+		}
+
+		certRequests[i] = &fleet.CertificateRequestSpec{
+			Name:                   certificates[i].Name,
+			Team:                   teamName,
+			CertificateAuthorityId: ca.ID,
+			SubjectName:            certificates[i].SubjectName,
+		}
+		if _, ok := certsToBeAdded[certificates[i].Name]; ok {
+			return newGitOpsValidationError(
+				fmt.Sprintf(
+					`The name %q is already used by another certificate. Please choose a different name and try again.`,
+					certificates[i].Name,
+				),
+			)
+		}
+
+		certsToBeAdded[certificates[i].Name] = certRequests[i]
+	}
+
+	var certificatesToDelete []uint
+	for _, cert := range existingCertificates {
+		if cert != nil {
+			newCert, exists := certsToBeAdded[cert.Name]
+			if !exists {
+				certificatesToDelete = append(certificatesToDelete, cert.ID)
+			} else if cert.SubjectName != newCert.SubjectName || cert.CertificateAuthorityId != newCert.CertificateAuthorityId {
+				// SubjectName or CA changed, mark for deletion (will be recreated)
+				certificatesToDelete = append(certificatesToDelete, cert.ID)
+			}
+		}
+	}
+
+	if len(certificatesToDelete) > 0 {
+		if dryRun {
+			logFn("[-] would've deleted %s\n", numberWithPluralization(len(certificatesToDelete), "Android certificate", "Android certificates"))
+		} else {
+			logFn("[-] deleting %s\n", numberWithPluralization(len(certificatesToDelete), "Android certificate", "Android certificates"))
+			tmId, err := strconv.ParseUint(teamID, 10, 0)
+			if err != nil {
+				return fmt.Errorf("applying Android certificates: parsing team ID: %w", err)
+			}
+			if err := c.DeleteCertificateTemplates(certificatesToDelete, uint(tmId)); err != nil {
+				return fmt.Errorf("applying Android certificates: deleting existing Android certificates: %w", err)
+			}
+		}
+	}
+
+	if dryRun {
+		logFn("[+] would've applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+	} else {
+		if numCerts > 0 {
+			if err := c.ApplyCertificateSpecs(certRequests); err != nil {
+				return fmt.Errorf("applying Android certificates: %w", err)
+			}
+		}
+		logFn("[+] applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
+	}
+
 	return nil
 }
 

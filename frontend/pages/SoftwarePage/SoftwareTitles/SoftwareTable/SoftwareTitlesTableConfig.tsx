@@ -85,6 +85,7 @@ const getSoftwareNameCellData = (
 
   return {
     name: softwareTitle.name,
+    displayName: softwareTitle.display_name,
     source: softwareTitle.source,
     path: softwareTitleDetailsPath,
     hasInstaller: hasInstaller && !isAllTeams,
@@ -111,10 +112,14 @@ const generateTableHeaders = (
           cellProps.row.original,
           teamId
         );
+        const isAndroidPlayStoreApp =
+          !!cellProps.row.original.app_store_app &&
+          cellProps.row.original.source === "android_apps";
 
         return (
           <SoftwareNameCell
             name={nameCellData.name}
+            display_name={nameCellData.displayName}
             source={nameCellData.source}
             path={nameCellData.path}
             router={router}
@@ -124,6 +129,8 @@ const generateTableHeaders = (
             automaticInstallPoliciesCount={
               nameCellData.automaticInstallPoliciesCount
             }
+            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(nameCellData.source)}
+            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );
       },

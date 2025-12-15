@@ -4,6 +4,10 @@
   padding: $pad-xxlarge;
   flex-wrap: wrap;
 
+  &__os-data-set dd {
+    align-items: baseline;
+  }
+
   // Properly vertically aligns host issue icon
   .host-issue {
     display: flex;

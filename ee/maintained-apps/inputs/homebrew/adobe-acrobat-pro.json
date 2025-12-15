@@ -1,0 +1,9 @@
+{
+  "name": "Adobe Acrobat Pro DC",
+  "unique_identifier": "com.adobe.Acrobat.Pro",
+  "token": "adobe-acrobat-pro",
+  "installer_format": "dmg",
+  "slug": "adobe-acrobat-pro/darwin",
+  "default_categories": ["Productivity"],
+  "frozen": true
+}

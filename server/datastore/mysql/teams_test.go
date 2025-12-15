@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strconv"
 	"testing"
@@ -66,7 +67,12 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			assert.NotZero(t, team.ID)
 
-			team, err = ds.Team(context.Background(), team.ID)
+			teamLite, err := ds.TeamLite(context.Background(), team.ID)
+			require.NoError(t, err)
+			assert.Equal(t, tt.name, teamLite.Name)
+			assert.Equal(t, tt.description, teamLite.Description)
+
+			team, err = ds.TeamWithExtras(context.Background(), team.ID)
 			require.NoError(t, err)
 			assert.Equal(t, tt.name, team.Name)
 			assert.Equal(t, tt.description, team.Description)
@@ -107,8 +113,79 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
+			// Add a bunch of data into tables with team IDs that should be cleared when team is deleted
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				res, err := q.ExecContext(context.Background(), fmt.Sprintf(`INSERT INTO software_titles (name, source) VALUES ('MyCoolApp_%s', 'apps')`, tt.name))
+				if err != nil {
+					return err
+				}
+				titleID, _ := res.LastInsertId()
+				_, err = q.ExecContext(
+					context.Background(),
+					`INSERT INTO
+					      mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum)
+				     VALUES (?, ?, ?, ?, ?, ?)`,
+					fmt.Sprintf("uuid_%s", tt.name),
+					0,
+					fmt.Sprintf("TestPayloadIdentifier_%s", tt.name),
+					fmt.Sprintf("TestPayloadName_%s", tt.name),
+					`<?xml version="1.0"`,
+					[]byte("test"),
+				)
+				if err != nil {
+					return err
+				}
+				_, err = q.ExecContext(context.Background(), `
+								  INSERT INTO
+								      mdm_windows_configuration_profiles (team_id, name, syncml, profile_uuid)
+								  VALUES (?, ?, ?, ?)`, 0, fmt.Sprintf("TestPayloadName_%s", tt.name), `<?xml version="1.0"`, fmt.Sprintf("uuid_%s", tt.name))
+				if err != nil {
+					return err
+				}
+				_, err = q.ExecContext(context.Background(), `
+								  INSERT INTO
+								      mdm_android_configuration_profiles (profile_uuid, team_id, name, raw_json)
+								  VALUES (?, ?, ?, ?)`, fmt.Sprintf("uuid_%s", tt.name), 0, fmt.Sprintf("TestPayloadName_%s", tt.name), `{"foo": "bar"}`)
+				if err != nil {
+					return err
+				}
+				_, err = q.ExecContext(
+					context.Background(),
+					"INSERT INTO software_title_display_names (team_id, software_title_id, display_name) VALUES (?, ?, ?)",
+					team.ID,
+					titleID,
+					"delete_test",
+				)
+				if err != nil {
+					return err
+				}
+				_, err = q.ExecContext(
+					context.Background(),
+					"INSERT INTO software_title_icons (team_id, software_title_id, storage_id, filename) VALUES (?, ?, ?, ?)",
+					team.ID,
+					titleID,
+					"delete_test",
+					"delete_test.png",
+				)
+
+				return err
+			})
+
 			err = ds.DeleteTeam(context.Background(), team.ID)
 			require.NoError(t, err)
+
+			// Check that related tables were cleared
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				for _, table := range teamRefs {
+					var count int
+					err := sqlx.GetContext(context.Background(), q, &count, fmt.Sprintf(`SELECT COUNT(*) FROM %s WHERE team_id = ?`, table), team.ID)
+					if err != nil {
+						return err
+					}
+					assert.Zero(t, count)
+				}
+				return nil
+			})
 
 			newP, err := ds.Pack(context.Background(), p.ID)
 			require.NoError(t, err)
@@ -142,7 +219,7 @@ func testTeamsUsers(t *testing.T, ds *Datastore) {
 	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
-	team1, err = ds.Team(context.Background(), team1.ID)
+	team1, err = ds.TeamWithExtras(context.Background(), team1.ID)
 	require.NoError(t, err)
 	assert.Len(t, team1.Users, 0)
 
@@ -154,11 +231,11 @@ func testTeamsUsers(t *testing.T, ds *Datastore) {
 	team1, err = ds.SaveTeam(context.Background(), team1)
 	require.NoError(t, err)
 
-	team1, err = ds.Team(context.Background(), team1.ID)
+	team1, err = ds.TeamWithExtras(context.Background(), team1.ID)
 	require.NoError(t, err)
 	require.ElementsMatch(t, team1Users, team1.Users)
 	// Ensure team 2 not effected
-	team2, err = ds.Team(context.Background(), team2.ID)
+	team2, err = ds.TeamWithExtras(context.Background(), team2.ID)
 	require.NoError(t, err)
 	assert.Len(t, team2.Users, 0)
 
@@ -168,7 +245,7 @@ func testTeamsUsers(t *testing.T, ds *Datastore) {
 	team1.Users = team1Users
 	team1, err = ds.SaveTeam(context.Background(), team1)
 	require.NoError(t, err)
-	team1, err = ds.Team(context.Background(), team1.ID)
+	team1, err = ds.TeamWithExtras(context.Background(), team1.ID)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, team1Users, team1.Users)
 
@@ -178,12 +255,12 @@ func testTeamsUsers(t *testing.T, ds *Datastore) {
 	team2.Users = team2Users
 	team1, err = ds.SaveTeam(context.Background(), team1)
 	require.NoError(t, err)
-	team1, err = ds.Team(context.Background(), team1.ID)
+	team1, err = ds.TeamWithExtras(context.Background(), team1.ID)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, team1Users, team1.Users)
 	team2, err = ds.SaveTeam(context.Background(), team2)
 	require.NoError(t, err)
-	team2, err = ds.Team(context.Background(), team2.ID)
+	team2, err = ds.TeamWithExtras(context.Background(), team2.ID)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, team2Users, team2.Users)
 }
@@ -241,10 +318,10 @@ func testTeamsList(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 2, teams[1].HostCount)
 	assert.Equal(t, 1, teams[1].UserCount)
 
-	// Test that ds.Teams returns the same data as ds.ListTeams
+	// Test that ds.TeamsWithExtras returns the same data as ds.ListTeams
 	// (except list of users).
 	for _, t1 := range teams {
-		t2, err := ds.Team(context.Background(), t1.ID)
+		t2, err := ds.TeamWithExtras(context.Background(), t1.ID)
 		require.NoError(t, err)
 		t2.Users = nil
 		require.Equal(t, t1, t2)
@@ -405,7 +482,7 @@ func testTeamsDeleteIntegrationsFromTeams(t *testing.T, ds *Datastore) {
 		// expected values
 		expected := [][]string{wantTm1, wantTm2, wantTm3}
 		for i, id := range []uint{team1.ID, team2.ID, team3.ID} {
-			tm, err := ds.Team(ctx, id)
+			tm, err := ds.TeamLite(ctx, id)
 			require.NoError(t, err)
 
 			var urls []string
@@ -472,7 +549,7 @@ func testTeamsFeatures(t *testing.T, ds *Datastore) {
 
 		// retrieving a team also returns a team with the default
 		// features
-		team, err = ds.Team(ctx, team.ID)
+		team, err = ds.TeamWithExtras(ctx, team.ID)
 		require.NoError(t, err)
 		assert.Equal(t, defaultFeatures, team.Config.Features)
 
@@ -499,7 +576,7 @@ func testTeamsFeatures(t *testing.T, ds *Datastore) {
 
 		// retrieving a team also returns a team with the default
 		// features
-		team, err = ds.Team(ctx, team.ID)
+		team, err = ds.TeamWithExtras(ctx, team.ID)
 		require.NoError(t, err)
 		assert.Equal(t, defaultFeatures, team.Config.Features)
 
@@ -553,9 +630,13 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 
 		// retrieving a team also returns a team with the default
 		// settings
-		team, err = ds.Team(ctx, team.ID)
+		team, err = ds.TeamWithExtras(ctx, team.ID)
 		require.NoError(t, err)
 		assert.Equal(t, defaultMDM, team.Config.MDM)
+
+		teamLite, err := ds.TeamLite(ctx, team.ID)
+		require.NoError(t, err)
+		assert.Equal(t, defaultMDM, teamLite.Config.MDM)
 
 		team, err = ds.TeamByName(ctx, team.Name)
 		require.NoError(t, err)
@@ -580,9 +661,13 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 
 		// retrieving a team also returns a team with the default
 		// settings
-		team, err = ds.Team(ctx, team.ID)
+		team, err = ds.TeamWithExtras(ctx, team.ID)
 		require.NoError(t, err)
 		assert.Equal(t, defaultMDM, team.Config.MDM)
+
+		teamLite, err := ds.TeamLite(ctx, team.ID)
+		require.NoError(t, err)
+		assert.Equal(t, defaultMDM, teamLite.Config.MDM)
 
 		team, err = ds.TeamByName(ctx, team.Name)
 		require.NoError(t, err)
@@ -620,6 +705,7 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 					},
 					AndroidSettings: fleet.AndroidSettings{
 						CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
+						Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 					},
 				},
 			},
@@ -632,14 +718,17 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 			MacOSUpdates: fleet.AppleOSUpdateSettings{
 				MinimumVersion: optjson.SetString("10.15.0"),
 				Deadline:       optjson.SetString("2025-10-01"),
+				UpdateNewHosts: optjson.Bool{Set: true},
 			},
 			IOSUpdates: fleet.AppleOSUpdateSettings{
 				MinimumVersion: optjson.SetString("11.11.11"),
 				Deadline:       optjson.SetString("2024-04-04"),
+				UpdateNewHosts: optjson.Bool{Set: true},
 			},
 			IPadOSUpdates: fleet.AppleOSUpdateSettings{
 				MinimumVersion: optjson.SetString("12.12.12"),
 				Deadline:       optjson.SetString("2023-03-03"),
+				UpdateNewHosts: optjson.Bool{Set: true},
 			},
 			WindowsUpdates: fleet.WindowsUpdates{
 				DeadlineDays:    optjson.SetInt(7),
@@ -658,6 +747,7 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 			},
 			AndroidSettings: fleet.AndroidSettings{
 				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
+				Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 			},
 		}, mdm)
 	})
