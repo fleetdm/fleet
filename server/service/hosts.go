@@ -109,7 +109,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 	if r.Software != nil {
 		data, err := json.Marshal(r.Software)
 		if err != nil {
-			fmt.Fprintf(w, `"error": "marshaling software: %s`, err.Error())
+			fmt.Fprintf(w, `"error": "marshaling software: %s"`, err.Error())
 			fmt.Fprint(w, `}`)
 			return
 		}
@@ -121,7 +121,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 	if r.SoftwareTitle != nil {
 		data, err := json.Marshal(r.SoftwareTitle)
 		if err != nil {
-			fmt.Fprintf(w, `"error": "marshaling software title: %s`, err.Error())
+			fmt.Fprintf(w, `"error": "marshaling software title: %s"`, err.Error())
 			fmt.Fprint(w, `}`)
 			return
 		}
@@ -139,7 +139,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 		}
 		data, err := json.Marshal(r.MDMSolution)
 		if err != nil {
-			fmt.Fprintf(w, `"error": "marshaling mdm solution: %s`, err.Error())
+			fmt.Fprintf(w, `"error": "marshaling mdm solution: %s"`, err.Error())
 			fmt.Fprint(w, `}`)
 			return
 		}
@@ -151,7 +151,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 	if r.MunkiIssue != nil {
 		data, err := json.Marshal(r.MunkiIssue)
 		if err != nil {
-			fmt.Fprintf(w, `"error": "marshaling munki issue: %s`, err.Error())
+			fmt.Fprintf(w, `"error": "marshaling munki issue: %s"`, err.Error())
 			fmt.Fprint(w, `}`)
 			return
 		}
@@ -171,14 +171,14 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 	for hostResp, err := range r.HostResponseIterator {
 		if err != nil {
 			fmt.Fprint(w, `],`)
-			fmt.Fprintf(w, `"error": "getting host: %s`, err.Error())
+			fmt.Fprintf(w, `"error": "getting host: %s"`, err.Error())
 			fmt.Fprint(w, `}`)
 			return
 		}
 		data, err := json.Marshal(hostResp)
 		if err != nil {
 			fmt.Fprint(w, `],`)
-			fmt.Fprintf(w, `"error": "marshaling host response: %s`, err.Error())
+			fmt.Fprintf(w, `"error": "marshaling host response: %s"`, err.Error())
 			fmt.Fprint(w, `}`)
 			return
 		}
@@ -237,11 +237,15 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		}
 	}
 
+	// Get an iterator to stream hosts one by one.
 	hostIterator, err := svc.StreamHosts(ctx, req.Opts)
 	if err != nil {
 		return listHostsResponse{Err: err}, nil
 	}
 
+	// The `hostIterator` only yields `fleet.Host` instances, which doesn't include
+	// labels or other fields included in `fleet.HostResponse`, so we create another
+	// iterator to act as a transformer from `fleet.Host` to `fleet.HostResponse`.
 	hostResponseIterator := func() iter.Seq2[*fleet.HostResponse, error] {
 		return func(yield func(*fleet.HostResponse, error) bool) {
 			for host, err := range hostIterator {
