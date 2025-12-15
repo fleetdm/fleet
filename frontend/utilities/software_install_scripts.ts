@@ -26,6 +26,7 @@ const getDefaultInstallScript = (fileName: string): string => {
     case "rpm":
       return installRPM;
     case "exe":
+    case "zip":
     case "tar.gz":
     case "sh":
     case "ps1":
