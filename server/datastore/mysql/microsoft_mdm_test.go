@@ -1438,7 +1438,7 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "windows", p)
 
-	results, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID)
+	results, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, "")
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, dev.HostUUID, results[0].HostUUID)
@@ -1453,7 +1453,7 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.True(t, fleet.IsNotFound(err))
 	require.Empty(t, p)
 
-	results, err = ds.GetMDMWindowsCommandResults(ctx, "unknown-cmd-uuid")
+	results, err = ds.GetMDMWindowsCommandResults(ctx, "unknown-cmd-uuid", "")
 	require.NoError(t, err) // expect no error here, just no results
 	require.Empty(t, results)
 }
@@ -1541,7 +1541,7 @@ func testMDMWindowsCommandResultsWithPendingResult(t *testing.T, ds *Datastore) 
 	require.NoError(t, err)
 	require.Equal(t, "windows", p)
 
-	results, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID)
+	results, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, "")
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, dev.HostUUID, results[0].HostUUID)
@@ -1556,7 +1556,7 @@ func testMDMWindowsCommandResultsWithPendingResult(t *testing.T, ds *Datastore) 
 	require.True(t, fleet.IsNotFound(err))
 	require.Empty(t, p)
 
-	results, err = ds.GetMDMWindowsCommandResults(ctx, "unknown-cmd-uuid")
+	results, err = ds.GetMDMWindowsCommandResults(ctx, "unknown-cmd-uuid", "")
 	require.NoError(t, err) // expect no error here, just no results
 	require.Empty(t, results)
 }
@@ -2905,7 +2905,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	require.NoError(t, err)
 
 	// Verify results
-	results, err := ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID)
+	results, err := ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID, "")
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, enrolledDevice1.HostUUID, results[0].HostUUID)
@@ -2933,7 +2933,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice2.Hos
 	require.NoError(t, err)
 
 	// Verify results for the second device
-	results, err = ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID)
+	results, err = ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID, "")
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 
@@ -2957,7 +2957,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice3.Hos
 	require.NoError(t, err)
 
 	// Verify results does not exist for the third device
-	results, err = ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID)
+	results, err = ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID, "")
 	require.NoError(t, err)
 	require.Len(t, results, 2) // still two
 	for _, res := range results {

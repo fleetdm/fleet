@@ -8083,6 +8083,18 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	require.NoError(t, err)
 	certID := savedCertificateTemplates[0].ID
 
+	// Create a host_certificate_templates record for this host (simulating what happens during Android enrollment)
+	// The endpoint /api/fleetd/certificates/{id} requires a host_certificate_templates record to exist
+	err = s.ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+		{
+			HostUUID:              host.UUID,
+			CertificateTemplateID: certID,
+			Status:                fleet.CertificateTemplateDelivered,
+			OperationType:         fleet.MDMOperationTypeInstall,
+		},
+	})
+	require.NoError(t, err)
+
 	var getCertResp getDeviceCertificateTemplateResponse
 
 	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusOK, map[string]string{
@@ -8090,7 +8102,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	})
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
 	require.NoError(t, resp.Body.Close())
-	require.Equal(t, *getCertResp.Certificate.Status, fleet.CertificateTemplateFailed)
+	require.Equal(t, getCertResp.Certificate.Status, fleet.CertificateTemplateFailed)
 
 	// Add an IDP user for the host
 	err = s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
@@ -8220,6 +8232,17 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	require.NoError(t, err)
 	require.Len(t, savedNoTeamCertTemplates, 3)
 	noTeamCertID := savedNoTeamCertTemplates[0].ID
+
+	// Create a host_certificate_templates record for this no-team host
+	err = s.ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+		{
+			HostUUID:              noTeamHost.UUID,
+			CertificateTemplateID: noTeamCertID,
+			Status:                fleet.CertificateTemplateDelivered,
+			OperationType:         fleet.MDMOperationTypeInstall,
+		},
+	})
+	require.NoError(t, err)
 
 	// Get certificate with orbit node_key (should return replaced variables)
 	var getNoTeamCertResp getDeviceCertificateTemplateResponse
@@ -14922,6 +14945,7 @@ INSERT INTO host_certificate_templates (
 	require.Len(t, *getHostResp.Host.MDM.Profiles, 1)
 	profile := (*getHostResp.Host.MDM.Profiles)[0]
 	require.Equal(t, savedTemplate.Name, profile.Name)
+	require.Equal(t, fleet.AndroidCertificateTemplateProfileID, profile.ProfileUUID)
 	require.Equal(t, fleet.MDMOperationTypeInstall, profile.OperationType, "operation_type should be populated for certificate templates")
 
 	// Test cases

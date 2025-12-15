@@ -147,6 +147,7 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 	var teamID, caID uint
 	var err error
 	var certificateTemplateID uint
+	var hostUUID string
 	testCases := []struct {
 		name     string
 		before   func(ds *Datastore)
@@ -201,9 +202,6 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				template, err := ds.GetCertificateTemplateById(ctx, certificateTemplateID)
 				require.NoError(t, err)
 				require.Equal(t, certificateTemplateID, template.ID)
-				require.Nil(t, template.Status)
-				require.Nil(t, template.FleetChallenge)
-				require.Nil(t, template.SCEPChallenge)
 			},
 		},
 		{
@@ -232,6 +230,7 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				}
 				_, err = ds.NewHost(context.Background(), host)
 				require.NoError(t, err)
+				hostUUID = host.UUID
 
 				// Insert initial certificates
 				certificateTemplate := fleet.CertificateTemplate{
@@ -257,17 +256,23 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 					host.UUID,
 					certificateTemplateID,
 					"fleet-challenge",
-					fleet.MDMDeliveryPending,
+					fleet.CertificateTemplateDelivered,
 				)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, ds *Datastore) {
+				// GetCertificateTemplateById should return template data without host-specific fields
 				template, err := ds.GetCertificateTemplateById(ctx, certificateTemplateID)
 				require.NoError(t, err)
 				require.Equal(t, certificateTemplateID, template.ID)
-				require.Equal(t, fleet.MDMDeliveryPending, *template.Status)
-				require.Equal(t, "fleet-challenge", *template.FleetChallenge)
-				require.Equal(t, "test-challenge", *template.SCEPChallenge)
+
+				// GetCertificateTemplateByIdForHost should return host-specific data
+				templateForHost, err := ds.GetCertificateTemplateByIdForHost(ctx, certificateTemplateID, hostUUID)
+				require.NoError(t, err)
+				require.Equal(t, certificateTemplateID, templateForHost.ID)
+				require.Equal(t, fleet.CertificateTemplateDelivered, templateForHost.Status)
+				require.Equal(t, "fleet-challenge", *templateForHost.FleetChallenge)
+				require.Equal(t, "test-challenge", *templateForHost.SCEPChallenge)
 			},
 		},
 		{
@@ -296,6 +301,7 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				}
 				_, err = ds.NewHost(context.Background(), host)
 				require.NoError(t, err)
+				hostUUID = host.UUID
 
 				// Insert initial certificates
 				certificateTemplate := fleet.CertificateTemplate{
@@ -321,17 +327,23 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 					host.UUID,
 					certificateTemplateID,
 					"challenge",
-					fleet.MDMDeliveryVerifying,
+					fleet.CertificateTemplateVerified,
 				)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, ds *Datastore) {
+				// GetCertificateTemplateById should return template data without host-specific fields
 				template, err := ds.GetCertificateTemplateById(ctx, certificateTemplateID)
 				require.NoError(t, err)
 				require.Equal(t, certificateTemplateID, template.ID)
-				require.Equal(t, fleet.MDMDeliveryVerifying, *template.Status)
-				require.Nil(t, template.FleetChallenge)
-				require.Nil(t, template.SCEPChallenge)
+
+				// GetCertificateTemplateByIdForHost should return host-specific data (challenges nil for verified status)
+				templateForHost, err := ds.GetCertificateTemplateByIdForHost(ctx, certificateTemplateID, hostUUID)
+				require.NoError(t, err)
+				require.Equal(t, certificateTemplateID, templateForHost.ID)
+				require.Equal(t, fleet.CertificateTemplateVerified, templateForHost.Status)
+				require.Nil(t, templateForHost.FleetChallenge)
+				require.Nil(t, templateForHost.SCEPChallenge)
 			},
 		},
 	}
@@ -942,11 +954,11 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 				sort.Slice(templates, func(i, j int) bool { return templates[i].Name < templates[j].Name })
 
 				require.Equal(t, ct1.Name, templates[0].Name)
-				require.Equal(t, fleet.MDMDeliveryVerified, templates[0].Status)
+				require.Equal(t, fleet.CertificateTemplateVerified, templates[0].Status)
 				require.Equal(t, fleet.MDMOperationTypeInstall, templates[0].OperationType)
 
 				require.Equal(t, ct2.Name, templates[1].Name)
-				require.Equal(t, fleet.MDMDeliveryFailed, templates[1].Status)
+				require.Equal(t, fleet.CertificateTemplateFailed, templates[1].Status)
 				require.Equal(t, "some error yooo", *templates[1].Detail)
 				require.Equal(t, fleet.MDMOperationTypeInstall, templates[1].OperationType)
 			},
@@ -1163,8 +1175,8 @@ func testGetCertificateTemplateForHost(t *testing.T, ds *Datastore) {
 		{
 			HostUUID:              h1.UUID,
 			CertificateTemplateID: ct1.ID,
-			FleetChallenge:        "challenge-123",
-			Status:                fleet.MDMDeliveryPending,
+			FleetChallenge:        ptr.String("challenge-123"),
+			Status:                fleet.CertificateTemplateDelivered,
 			OperationType:         fleet.MDMOperationTypeInstall,
 		},
 	})
@@ -1186,7 +1198,7 @@ func testGetCertificateTemplateForHost(t *testing.T, ds *Datastore) {
 				require.NotNil(t, result.FleetChallenge)
 				require.Equal(t, "challenge-123", *result.FleetChallenge)
 				require.NotNil(t, result.Status)
-				require.Equal(t, fleet.MDMDeliveryPending, *result.Status)
+				require.Equal(t, fleet.CertificateTemplateDelivered, *result.Status)
 				require.Equal(t, fleet.CAConfigAssetType(fleet.CATypeCustomSCEPProxy), result.CAType)
 				require.Equal(t, "Test SCEP CA", result.CAName)
 			},

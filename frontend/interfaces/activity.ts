@@ -43,6 +43,8 @@ export enum ActivityType {
   EditedMacosMinVersion = "edited_macos_min_version",
   EditedIosMinVersion = "edited_ios_min_version",
   EditedIpadosMinVersion = "edited_ipados_min_version",
+  EnabledMacosUpdateNewHosts = "enabled_macos_update_new_hosts",
+  DisabledMacosUpdateNewHosts = "disabled_macos_update_new_hosts",
   ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
   /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
   CreatedAppleOSProfile = "created_macos_profile",
@@ -327,6 +329,7 @@ export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
   disabled_macos_disk_encryption: "Turned off disk encryption",
   disabled_macos_setup_end_user_auth:
     "Turned off end user authentication (setup experience)",
+  disabled_macos_update_new_hosts: "Disabled OS updates for new macOS hosts",
   disabled_vpp: "Disabled Volume Purchasing Program (VPP)",
   disabled_windows_mdm: "Turned off Windows MDM",
   disabled_windows_mdm_migration: "Turned off Windows MDM migration",
@@ -358,6 +361,7 @@ export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
   enabled_macos_disk_encryption: "Turned on disk encryption",
   enabled_macos_setup_end_user_auth:
     "Turned on end user authentication (setup experience)",
+  enabled_macos_update_new_hosts: "Enabled OS updates for new macOS hosts",
   enabled_vpp: "Enabled Volume Purchasing Program (VPP)",
   enabled_windows_mdm: "Turned on Windows MDM",
   enabled_windows_mdm_migration: "Turned on Windows MDM migration",

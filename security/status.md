@@ -13,6 +13,21 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-10-01 10:09:03
 
+### [CVE-2025-61729](https://nvd.nist.gov/vuln/detail/CVE-2025-61729)
+#### Statement:
+- **Author:** @lucasmrod
+- **Status:** `fixed`
+- **Products:**: `fleet@v4.78.*`
+- **Timestamp:** 2025-12-10 19:26:25
+
+#### Statement:
+- **Author:** @lucasmrod
+- **Status:** `affected`
+- **Status notes:** This is not a CRITICAL CVE, but we still recommend upgrading to 4.78.* when it's available.
+- **Products:**: `fleet@v4.77.0`,`fleet@v4.76.0`,`fleet@v4.76.1`,`fleet@v4.75.0`,`fleet@v4.75.1`,`pkg:golang/stdlib@1.25.3`
+- **Action statement:** `No action statement provided`
+- **Timestamp:** 2025-12-10 19:26:10
+
 ### [CVE-2025-46569](https://nvd.nist.gov/vuln/detail/CVE-2025-46569)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -100,6 +115,53 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Timestamp:** 2025-04-10 15:28:30
 
 ## `fleetdm/fleetctl` docker image
+
+### [CVE-2025-66516](https://nvd.nist.gov/vuln/detail/CVE-2025-66516)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleetctl does not process end-user provided PDF files with Java when generating fleetd installers. The only PDF processing code is in Go for EULA documents.
+- **Products:**: `fleetctl`,`pkg:maven/org.apache.tika/tika-core`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-12-10 18:12:45
+
+### [CVE-2025-66293](https://nvd.nist.gov/vuln/detail/CVE-2025-66293)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleetctl does not use libpng. Fleet components use the 'image/png' Go package for png processing.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libpng16-16`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-12-10 19:04:58
+
+### [CVE-2025-65018](https://nvd.nist.gov/vuln/detail/CVE-2025-65018)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleetctl does not use libpng. Fleet components use the 'image/png' Go package for png processing.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libpng16-16`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-12-10 19:04:42
+
+### [CVE-2025-64720](https://nvd.nist.gov/vuln/detail/CVE-2025-64720)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleetctl does not use libpng. Fleet components use the 'image/png' Go package for png processing.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libpng16-16`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-12-10 19:04:07
+
+### [CVE-2025-61729](https://nvd.nist.gov/vuln/detail/CVE-2025-61729)
+#### Statement:
+- **Author:** @lucasmrod
+- **Status:** `fixed`
+- **Products:**: `fleetctl@v4.78.*`
+- **Timestamp:** 2025-12-10 19:26:44
+
+#### Statement:
+- **Author:** @lucasmrod
+- **Status:** `affected`
+- **Status notes:** This is not a CRITICAL CVE, but we still recommend upgrading to 4.78.* when it's available.
+- **Products:**: `fleetctl@v4.77.0`,`fleetctl@v4.76.0`,`fleetctl@v4.76.1`,`fleetctl@v4.75.0`,`fleetctl@v4.75.1`,`pkg:golang/stdlib@1.25.3`
+- **Action statement:** `No action statement provided`
+- **Timestamp:** 2025-12-10 19:26:35
 
 ### [CVE-2025-49796](https://nvd.nist.gov/vuln/detail/CVE-2025-49796)
 - **Author:** @sgress454

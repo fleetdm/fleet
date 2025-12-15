@@ -663,6 +663,14 @@ type VPPBatchPayload struct {
 	Platform    InstallableDevicePlatform `json:"platform"`
 }
 
+func (v VPPBatchPayload) GetPlatform() string {
+	return string(v.Platform)
+}
+
+func (v VPPBatchPayload) GetAppStoreID() string {
+	return v.AppStoreID
+}
+
 type VPPBatchPayloadWithPlatform struct {
 	AppStoreID         string                    `json:"app_store_id"`
 	SelfService        bool                      `json:"self_service"`

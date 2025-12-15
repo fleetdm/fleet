@@ -548,7 +548,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	return ctxerr.Wrap(ctx, err, "updating host profiles")
 }
 
-func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 	query := `SELECT
     mwe.host_uuid,
     wmc.command_uuid,
@@ -572,13 +572,19 @@ FROM
 WHERE
     wmc.command_uuid = ?`
 
+	args := []any{commandUUID}
+	if hostUUID != "" {
+		query += " AND mwe.host_uuid = ?"
+		args = append(args, hostUUID)
+	}
+
 	var results []*fleet.MDMCommandResult
 	err := sqlx.SelectContext(
 		ctx,
 		ds.reader(ctx),
 		&results,
 		query,
-		commandUUID,
+		args...,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
