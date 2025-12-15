@@ -1048,7 +1048,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						FROM software_titles
 						WHERE application_id IN (%s) AND source IN ('android_apps', 'ios_apps', 'ipados_apps')`, appIDPlaceholders)
 
-					appIDArgs := make([]interface{}, len(unmatchedAppIDs))
+					appIDArgs := make([]any, len(unmatchedAppIDs))
 					for i, appID := range unmatchedAppIDs {
 						appIDArgs[i] = appID
 					}
