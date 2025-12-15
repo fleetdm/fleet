@@ -3,17 +3,12 @@
 package com.fleetdm.agent
 
 import android.app.admin.DevicePolicyManager
-import android.content.Context
 import android.content.Context.DEVICE_POLICY_SERVICE
 import android.content.Context.RESTRICTIONS_SERVICE
 import android.content.Intent
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Bundle
-import android.os.Debug
-import android.provider.Settings
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -29,7 +24,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -37,9 +31,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,13 +53,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.fleetdm.agent.ui.theme.FleetTextDark
 import com.fleetdm.agent.ui.theme.MyApplicationTheme
-import java.security.KeyStore
-import java.security.cert.X509Certificate
-import java.util.Date
-import kotlin.text.contains
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 
 const val CLICKS_TO_DEBUG = 5
