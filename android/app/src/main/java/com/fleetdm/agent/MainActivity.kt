@@ -3,6 +3,9 @@
 package com.fleetdm.agent
 
 import android.app.admin.DevicePolicyManager
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Context.DEVICE_POLICY_SERVICE
 import android.content.Context.RESTRICTIONS_SERVICE
 import android.content.Intent
@@ -19,6 +22,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -56,7 +60,7 @@ import com.fleetdm.agent.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 
-const val CLICKS_TO_DEBUG = 5
+const val CLICKS_TO_DEBUG = 8
 
 @Serializable
 object MainDestination
@@ -110,6 +114,7 @@ fun MainScreen(onNavigateToDebug: () -> Unit) {
 
     var versionClicks by remember { mutableStateOf(0) }
     val installedCerts by CertificateOrchestrator.installedCertsFlow(context).collectAsState(initial = emptyMap())
+    val clipCopied by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -134,6 +139,10 @@ fun MainScreen(onNavigateToDebug: () -> Unit) {
                 AppVersion {
                     if (++versionClicks >= CLICKS_TO_DEBUG) {
                         onNavigateToDebug()
+                    } else if (versionClicks == 1) {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("", "Fleet Android Agent: ${BuildConfig.VERSION_NAME}"))
+                        Toast.makeText(context, "Fleet Agent version copied", Toast.LENGTH_SHORT)
                     }
                 }
             }
@@ -284,18 +293,22 @@ fun CertificateList(modifier: Modifier = Modifier, certificates: CertStatusMap) 
 
 @Composable
 fun AppVersion(onClick: () -> Unit = {}) {
-    Column(
+    Row(
         modifier = Modifier
-            .padding(20.dp)
+            .fillMaxWidth()
             .clickable(onClick = onClick),
-
     ) {
-        Text(
-            text = stringResource(R.string.app_version_title),
-            color = FleetTextDark,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(text = BuildConfig.VERSION_NAME)
+        Column(
+            modifier = Modifier
+                .padding(20.dp)
+            ) {
+            Text(
+                text = stringResource(R.string.app_version_title),
+                color = FleetTextDark,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(text = BuildConfig.VERSION_NAME)
+        }
     }
 }
 
