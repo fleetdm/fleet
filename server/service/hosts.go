@@ -102,8 +102,11 @@ func (r streamHostsResponse) Error() error { return r.Err }
 func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.(http.Flusher).Flush()
-
+	// no-op flush function in case the ResponseWriter doesn't implement http.Flusher.
+	flush := func() {}
+	if f, ok := w.(http.Flusher); ok {
+		flush = f.Flush
+	}
 	fmt.Fprint(w, `{`)
 	firstKey := true
 	if r.Software != nil {
@@ -115,7 +118,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 		}
 		fmt.Fprint(w, `"software":`)
 		fmt.Fprint(w, string(data))
-		w.(http.Flusher).Flush()
+		flush()
 		firstKey = false
 	}
 	if r.SoftwareTitle != nil {
@@ -130,7 +133,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 		}
 		fmt.Fprint(w, `"software_title":`)
 		fmt.Fprint(w, string(data))
-		w.(http.Flusher).Flush()
+		flush()
 		firstKey = false
 	}
 	if r.MDMSolution != nil {
@@ -145,7 +148,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 		}
 		fmt.Fprint(w, `"mobile_device_management_solution":`)
 		fmt.Fprint(w, string(data))
-		w.(http.Flusher).Flush()
+		flush()
 		firstKey = false
 	}
 	if r.MunkiIssue != nil {
@@ -160,7 +163,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 		}
 		fmt.Fprint(w, `"munki_issue":`)
 		fmt.Fprint(w, string(data))
-		w.(http.Flusher).Flush()
+		flush()
 		firstKey = false
 	}
 	if !firstKey {
@@ -186,7 +189,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 			fmt.Fprint(w, `,`)
 		}
 		fmt.Fprint(w, string(data))
-		w.(http.Flusher).Flush()
+		flush()
 		firstHost = false
 	}
 	fmt.Fprint(w, `]}`)
