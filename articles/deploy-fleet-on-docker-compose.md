@@ -210,9 +210,7 @@ This deployment includes three services and one initialization container:
 ## Ports
 
 
-Devices connect to Fleet on port 1337. If you're running Fleet on a server, update your firewall to allow:
-
-- Port 1337 (web UI and API)
+Devices connect to Fleet on port 1337. If needed, update your firewall to allow inbound connections on port 1337.
 
 
 ## View logs
