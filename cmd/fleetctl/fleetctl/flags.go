@@ -71,3 +71,10 @@ func byMDMCommandRequestType() cli.Flag {
 		Usage: "Filter MDM commands by type.",
 	}
 }
+
+func withMDMCommandStatusFilter() cli.Flag {
+	return &cli.StringFlag{
+		Name:  "command_status",
+		Usage: "Filter MDM commands by command status in a comma-separated list. Valid values are 'pending', 'ran', and 'failed'. ",
+	}
+}

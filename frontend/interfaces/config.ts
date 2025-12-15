@@ -41,6 +41,7 @@ interface ICustomSetting {
 export interface IAppleDeviceUpdates {
   minimum_version: string;
   deadline: string;
+  update_new_hosts?: boolean;
 }
 
 export interface IMdmConfig {
