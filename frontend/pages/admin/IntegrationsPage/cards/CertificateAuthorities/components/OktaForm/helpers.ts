@@ -56,9 +56,8 @@ export const generateFormValidations = (
           isValid: (formData: IOktaFormData) => {
             return (
               isEditing ||
-              oktaIntegrations.find(
-                (cert) => cert.name === formData.name
-              ) === undefined
+              oktaIntegrations.find((cert) => cert.name === formData.name) ===
+                undefined
             );
           },
           message: "Name is already used by another CA.",
