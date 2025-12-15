@@ -1,5 +1,4 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
 
 import {
@@ -8,31 +7,13 @@ import {
   IHostPastActivity,
   IHostUpcomingActivity,
 } from "interfaces/activity";
-import {
-  addGravatarUrlToResource,
-  internationalTimeFormat,
-} from "utilities/helpers";
-import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
+import { addGravatarUrlToResource } from "utilities/helpers";
 
-import Avatar from "components/Avatar";
 import FeedListItem from "components/FeedListItem";
 
-import { COLORS } from "styles/var/colors";
-import { dateAgo } from "utilities/date_format";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import { noop } from "lodash";
 
 const baseClass = "activity-item";
-
-const generateActivityId = (
-  activity: IActivity | IHostPastActivity | IHostUpcomingActivity
-) => {
-  if ("id" in activity) {
-    return `activity-${activity.id}`;
-  }
-  return `activity-${activity.uuid}`;
-};
 
 export interface IShowActivityDetailsData {
   type: string;
@@ -91,7 +72,7 @@ const ActivityItem = ({
   activity,
   children,
   className,
-  isSoloActivity,
+  isSoloActivity = false,
   hideShowDetails = false,
   hideCancel = false,
   disableCancel = false,
@@ -132,7 +113,6 @@ const ActivityItem = ({
     onCancel();
   };
 
-  const tooltipId = generateActivityId(activity);
   return (
     <FeedListItem
       useFleetAvatar={activity.fleet_initiated}
