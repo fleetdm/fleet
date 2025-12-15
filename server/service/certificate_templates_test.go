@@ -45,8 +45,16 @@ func TestCreateCertificateTemplate(t *testing.T) {
 		return nil, errors.New("not found")
 	}
 
-	ds.CreateCertificateTemplateFunc = func(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponseFull, error) {
-		return nil, nil
+	ds.CreateCertificateTemplateFunc = func(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponse, error) {
+		return &fleet.CertificateTemplateResponse{
+			CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+				ID:   1,
+				Name: certificateTemplate.Name,
+			},
+		}, nil
+	}
+	ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
+		return 0, nil
 	}
 	t.Run("Invalid CA type", func(t *testing.T) {
 		_, err := svc.CreateCertificateTemplate(ctx, "my template", TeamID, uint(InvalidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
@@ -118,6 +126,7 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 
 	// Track certificate templates that are created
 	var createdCertificates []fleet.CertificateTemplate
+	var nextTemplateID uint = 100
 
 	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) error {
 		createdCertificates = nil
@@ -125,6 +134,34 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 			createdCertificates = append(createdCertificates, *cert)
 		}
 		return nil
+	}
+
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		var result []*fleet.CertificateTemplateResponseSummary
+		for _, cert := range createdCertificates {
+			if cert.TeamID == teamID {
+				result = append(result, &fleet.CertificateTemplateResponseSummary{
+					ID:   nextTemplateID,
+					Name: cert.Name,
+				})
+				nextTemplateID++
+			}
+		}
+		return result, nil, nil
+	}
+
+	ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
+		return 0, nil
+	}
+
+	ds.GetCertificateTemplateByTeamIDAndNameFunc = func(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error) {
+		return &fleet.CertificateTemplateResponse{
+			CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+				ID:   nextTemplateID,
+				Name: name,
+			},
+			TeamID: teamID,
+		}, nil
 	}
 
 	t.Run("Valid CA types", func(t *testing.T) {

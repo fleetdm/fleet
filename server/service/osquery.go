@@ -1115,6 +1115,24 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(labelResults) > 0 {
+		// Force clear results for labels that do not apply to the host anymore.
+		//
+		// There could be a timing bug where:
+		// 1. Host receives a "team label" query to run (distributed/read).
+		// 2. Host is transferred to another team (all its label/policy membership are cleared).
+		// 3. Fleet receives distributed/write corresponding to (1) which includes the result for
+		//    the label of the old team.
+		hostLabelQueries, err := svc.ds.LabelQueriesForHost(ctx, host)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieve label queries")
+		}
+		for labelID := range labelResults {
+			if _, ok := hostLabelQueries[fmt.Sprint(labelID)]; !ok {
+				level.Debug(svc.logger).Log("msg", "clearing result for inapplicable label", "labelID", labelID, "hostID", host.ID)
+				labelResults[labelID] = ptr.Bool(false)
+			}
+		}
+
 		if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
 			logging.WithErr(ctx, err)
 		}
