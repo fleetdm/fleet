@@ -12,6 +12,17 @@ import TooltipTruncatedTextCell from "../TooltipTruncatedTextCell";
 
 const baseClass = "software-name-cell";
 
+/**
+ * Normalizes software names for display purposes.
+ * Maps known problematic names to their user-friendly display names.
+ */
+const normalizeSoftwareDisplayName = (name: string): string => {
+  const nameMap: Record<string, string> = {
+    "Microsoft.CompanyPortal": "Company Portal",
+  };
+  return nameMap[name] || name;
+};
+
 type InstallType =
   | "manual"
   | "selfService"
@@ -175,10 +186,13 @@ const SoftwareNameCell = ({
   isAndroidPlayStoreApp = false,
 }: ISoftwareNameCellProps) => {
   const icon = <SoftwareIcon name={name} source={source} url={iconUrl} />;
+  // Normalize the display name if no custom display_name is provided
+  const displayValue = display_name || normalizeSoftwareDisplayName(name);
+
   // My device page > Software fake link as entire row opens a modal
   if (pageContext === "deviceUser" && !isSelfService) {
     return (
-      <LinkCell tooltipTruncate prefix={icon} value={display_name || name} />
+      <LinkCell tooltipTruncate prefix={icon} value={displayValue} />
     );
   }
 
@@ -188,7 +202,7 @@ const SoftwareNameCell = ({
       <div className={baseClass}>
         <TooltipTruncatedTextCell
           prefix={icon}
-          value={display_name || name}
+          value={displayValue}
           className="software-name"
         />
       </div>
@@ -208,7 +222,7 @@ const SoftwareNameCell = ({
       tooltipTruncate
       customOnClick={onClickSoftware}
       prefix={icon}
-      value={display_name || name}
+      value={displayValue}
       suffix={
         hasInstaller ? (
           <InstallIconWithTooltip
