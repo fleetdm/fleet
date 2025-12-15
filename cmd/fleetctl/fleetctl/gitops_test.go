@@ -4464,6 +4464,33 @@ func TestGitOpsWindowsUpdates(t *testing.T) {
 		defaultTeamConfig = config
 		return nil
 	}
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		return nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
+		return nil, nil
+	}
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		return &fleet.MDMAppleDeclaration{}, nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
+	}
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
 
 	// Mock DefaultTeamConfig functions for No Team webhook settings
 	setupDefaultTeamConfigMocks(ds)
@@ -4477,12 +4504,19 @@ func TestGitOpsWindowsUpdates(t *testing.T) {
 		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 		require.NoError(t, err)
 		_, err = teamFile.WriteString(`
+controls:
+queries:
+policies:
+agent_options:
 name: Team1
 team_settings:
+  secrets:
+    - secret: test
   mdm:
     windows_updates:
       deadline_days: 7
       grace_period_days: 2
+software:
 `)
 		require.NoError(t, err)
 
@@ -4507,12 +4541,19 @@ team_settings:
 		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 		require.NoError(t, err)
 		_, err = teamFile.WriteString(`
+controls:
+queries:
+policies:
+agent_options:
 name: Team1
 team_settings:
+  secrets:
+    - secret: test
   mdm:
     windows_updates:
       deadline_days: null
       grace_period_days: null
+software:
 `)
 		require.NoError(t, err)
 
@@ -4536,9 +4577,16 @@ team_settings:
 		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 		require.NoError(t, err)
 		_, err = teamFile.WriteString(`
+controls:
+queries:
+policies:
+agent_options:
 name: Team1
 team_settings:
+  secrets:
+    - secret: test
   mdm: {}
+software:
 `)
 		require.NoError(t, err)
 
