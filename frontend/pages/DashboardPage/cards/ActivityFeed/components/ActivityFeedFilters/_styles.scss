@@ -7,11 +7,11 @@
     flex: 1;
     min-width: 0; // allows the dropdowns to shrink properly in flex container
   }
-  
+
   &__dropdown-filters {
     display: grid;
     grid-template-areas: "type date sort";
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 4fr 3fr 3fr;
     gap: $pad-medium;
   }
 
@@ -30,8 +30,8 @@
 // this container is defined in the dashboard page .scss file
 @container activity-feed-card (width < 436px) {
   .activity-feed-filters__dropdown-filters {
-    grid-template-columns: repeat(2, 1fr); 
-    grid-template-areas: 
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-areas:
       "type type"
       "date sort";
 

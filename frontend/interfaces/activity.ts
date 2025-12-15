@@ -271,7 +271,7 @@ export interface IActivityDetails {
 }
 
 export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
-  added_app_store_app: "Added App Store (VPP) app",
+  added_app_store_app: "Added App Store app", // Includes VPP and Android Playstore apps
   added_bootstrap_package: "Added bootstrap package",
   added_conditional_access_microsoft: "Added conditional access: Microsoft",
   added_custom_scep_proxy: "Added certificate authority (CA): custom SCEP",
@@ -300,7 +300,7 @@ export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
   created_team: "Added team",
   created_user: "Added user",
   created_windows_profile: "Added configuration profile: Windows",
-  deleted_app_store_app: "Deleted App Store (VPP) app",
+  deleted_app_store_app: "Deleted App Store app", // Includes VPP and Android Playstore apps
   deleted_bootstrap_package: "Deleted bootstrap package",
   deleted_conditional_access_microsoft: "Deleted conditional access: Microsoft",
   deleted_custom_scep_proxy: "Deleted certificate authority (CA): custom SCEP",
@@ -335,7 +335,7 @@ export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
   disabled_windows_mdm_migration: "Turned off Windows MDM migration",
   edited_activity_automations: "Edited activity automations",
   edited_agent_options: "Edited agent options",
-  edited_app_store_app: "Edited App Store (VPP) app",
+  edited_app_store_app: "Edited App Store app", // Includes VPP and Android Playstore apps
   edited_conditional_access_microsoft: "Edited conditional access: Microsoft",
   edited_custom_scep_proxy: "Edited certificate authority (CA): custom SCEP",
   edited_declaration_profile: "GitOps: edited declaration (DDM) profiles",

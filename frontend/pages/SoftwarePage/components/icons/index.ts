@@ -8,6 +8,7 @@ import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
 import AdobeAcrobat from "./AdobeAcrobat";
 import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
+import AdobeDngConverter from "./AdobeDngConverter";
 import Aircall from "./Aircall";
 import Airtame from "./Airtame";
 import AmazonChime from "./AmazonChime";
@@ -49,6 +50,7 @@ import Claude from "./Claude";
 import ClickUp from "./ClickUp";
 import ClockifyDesktop from "./ClockifyDesktop";
 import Cloudflare from "./Cloudflare";
+import CompanyPortal from "./CompanyPortal";
 import CotEditor from "./CotEditor";
 import CreativeCloud from "./AdobeCreativeCloud";
 import Cursor from "./Cursor";
@@ -281,6 +283,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dialpad: Dialpad,
   discord: Discord,
   "DisplayLink USB Graphics Software": DisplayLinkManager,
+  "dng converter": AdobeDngConverter,
   docker: Docker,
   "draw.io": Drawio,
   dropbox: Dropbox,

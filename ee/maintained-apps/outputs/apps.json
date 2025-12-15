@@ -86,6 +86,13 @@
       "description": "Adobe Digital Editions is an E-book reader."
     },
     {
+      "name": "Adobe DNG Converter",
+      "slug": "adobe-dng-converter/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adobe.DNGConverter",
+      "description": "Adobe DNG Conver is a DNG file converter."
+    },
+    {
       "name": "Aircall",
       "slug": "aircall/darwin",
       "platform": "darwin",
@@ -392,6 +399,13 @@
       "platform": "windows",
       "unique_identifier": "Cloudflare WARP",
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+    },
+    {
+      "name": "Company Portal",
+      "slug": "company-portal/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft.CompanyPortal",
+      "description": "Microsoft Company Portal is the app for accessing company resources and managing devices in a secure environment."
     },
     {
       "name": "CotEditor",
