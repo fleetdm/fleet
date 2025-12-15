@@ -31,9 +31,7 @@ import SmallstepForm, {
 import CustomESTForm, {
   ICustomESTFormData,
 } from "../CustomESTForm/CustomESTForm";
-import OktaForm, {
-  IOktaFormData,
-} from "../OktaForm/OktaForm";
+import OktaForm, { IOktaFormData } from "../OktaForm/OktaForm";
 
 export type ICertFormData =
   | IDigicertFormData
@@ -58,9 +56,7 @@ const AddCertAuthorityModal = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const dropdownOptions = useMemo(() => {
-    return generateDropdownOptions(
-      certAuthorities.some((cert) => cert.type === "ndes_scep_proxy")
-    );
+    return generateDropdownOptions(certAuthorities.some((cert) => cert.type === "ndes_scep_proxy"));
   }, [certAuthorities]);
 
   const [
@@ -120,10 +116,7 @@ const AddCertAuthorityModal = ({
     password: "",
   });
 
-  const [
-    oktaFormData,
-    setOktaFormData,
-  ] = useState<IOktaFormData>({
+  const [oktaFormData, setOktaFormData] = useState<IOktaFormData>({
     name: "",
     scepURL: "",
     challengeURL: "",
