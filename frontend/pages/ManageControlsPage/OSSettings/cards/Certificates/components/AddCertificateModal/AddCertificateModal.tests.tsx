@@ -16,7 +16,7 @@ const mockCertAuthorities = [
   { id: 2, name: "Test CA 2", type: "custom_scep_proxy" as const },
 ];
 
-const mockExistingCTs: ICertificate[] = [
+const mockExistingCerts: ICertificate[] = [
   {
     id: 1,
     name: "Existing Certificate",
@@ -122,7 +122,7 @@ describe("AddCertModal", () => {
   it("shows error for Name that already exists and disables Create button", async () => {
     const { user } = renderWithSetup(
       <AddCertModal
-        existingCerts={mockExistingCTs}
+        existingCerts={mockExistingCerts}
         onExit={mockOnExit}
         onSuccess={mockOnSuccess}
       />

@@ -80,14 +80,10 @@ const AddCertModal = ({
   );
   const caPartials = cAResp ?? [];
 
-  const caDropdownOptions = useMemo(
-    () =>
-      caPartials.map((cAP) => ({
-        value: cAP.id.toString(),
-        label: cAP.name,
-      })),
-    [caPartials]
-  );
+  const caDropdownOptions = caPartials.map((cAP) => ({
+    value: cAP.id.toString(),
+    label: cAP.name,
+  }));
 
   const onInputChange = (update: { name: string; value: string }) => {
     const updatedFormData = { ...formData, [update.name]: update.value };
@@ -129,9 +125,6 @@ const AddCertModal = ({
 
     if (isErrorCAs) {
       return <DataError />;
-    }
-    if (caPartials.length === 0) {
-      return <>TODO - add some CAs</>;
     }
     return (
       <form className={baseClass} onSubmit={onSubmitForm}>
