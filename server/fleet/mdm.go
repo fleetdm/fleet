@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"regexp"
+	"slices"
 	"time"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
@@ -34,6 +36,16 @@ const (
 // It provides clearer semantics when used in function signatures and data structures.
 type FleetVarName string
 
+// Includes $FLEET_VAR prefix
+func (n FleetVarName) WithPrefix() string {
+	return fmt.Sprintf("$FLEET_VAR_%s", n)
+}
+
+// Includes ${FLEET_VAR_} braces
+func (n FleetVarName) WithBraces() string {
+	return fmt.Sprintf("${FLEET_VAR_%s}", n)
+}
+
 const (
 	// FleetVarNDESSCEPChallenge and other variables are used as $FLEET_VAR_<VARIABLE_NAME>.
 	// For example: $FLEET_VAR_NDES_SCEP_CHALLENGE
@@ -45,14 +57,15 @@ const (
 	// (not doing it now because of time constraints to finish the story for the release).
 
 	// Host variables
-	FleetVarHostEndUserEmailIDP             FleetVarName = "HOST_END_USER_EMAIL_IDP"
+	FleetVarHostEndUserEmailIDP             FleetVarName = "HOST_END_USER_EMAIL_IDP" // legacy variable, avoid to use in new replacements
 	FleetVarHostHardwareSerial              FleetVarName = "HOST_HARDWARE_SERIAL"
 	FleetVarHostEndUserIDPUsername          FleetVarName = "HOST_END_USER_IDP_USERNAME"
 	FleetVarHostEndUserIDPUsernameLocalPart FleetVarName = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
 	FleetVarHostEndUserIDPGroups            FleetVarName = "HOST_END_USER_IDP_GROUPS"
 	FleetVarHostEndUserIDPDepartment        FleetVarName = "HOST_END_USER_IDP_DEPARTMENT"
 	FleetVarHostEndUserIDPFullname          FleetVarName = "HOST_END_USER_IDP_FULL_NAME"
-	FleetVarHostUUID                        FleetVarName = "HOST_UUID" // Windows only
+	FleetVarHostUUID                        FleetVarName = "HOST_UUID"
+	FleetVarHostPlatform                    FleetVarName = "HOST_PLATFORM"
 
 	// Certificate authority variables
 	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"
@@ -64,9 +77,39 @@ const (
 	FleetVarCustomSCEPProxyURLPrefix     FleetVarName = "CUSTOM_SCEP_PROXY_URL_"
 	FleetVarSmallstepSCEPChallengePrefix FleetVarName = "SMALLSTEP_SCEP_CHALLENGE_"
 	FleetVarSmallstepSCEPProxyURLPrefix  FleetVarName = "SMALLSTEP_SCEP_PROXY_URL_"
+	FleetVarSCEPWindowsCertificateID     FleetVarName = "SCEP_WINDOWS_CERTIFICATE_ID" // nolint:gosec // G101: Potential hardcoded credentials
 
 	// OneTimeChallengeTTL is the time to live for one-time challenges.
 	OneTimeChallengeTTL = 1 * time.Hour
+)
+
+var (
+	// Fleet variable regexp patterns
+	FleetVarHostHardwareSerialRegexp              = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostHardwareSerial))
+	FleetVarHostEndUserIDPUsernameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPUsername))
+	FleetVarHostEndUserIDPDepartmentRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPDepartment))
+	FleetVarHostEndUserIDPUsernameLocalPartRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPUsernameLocalPart))
+	FleetVarHostEndUserIDPGroupsRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPGroups))
+	FleetVarNDESSCEPChallengeRegexp               = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPChallenge))
+	FleetVarNDESSCEPProxyURLRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPProxyURL))
+	FleetVarHostEndUserIDPFullnameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPFullname))
+	FleetVarSCEPRenewalIDRegexp                   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPRenewalID))
+	FleetVarHostUUIDRegexp                        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
+	FleetVarHostPlatformRegexp                    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
+	FleetVarSCEPWindowsCertificateIDRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
+
+	// Fleet variable replacement failed errors
+	HostEndUserEmailIDPVariableReplacementFailedError = fmt.Sprintf("There is no IdP email for this host. "+
+		"Fleet couldn't populate $FLEET_VAR_%s. "+
+		"[Learn more](https://fleetdm.com/learn-more-about/idp-email)", FleetVarHostEndUserEmailIDP)
+
+	IDPFleetVariables = []FleetVarName{
+		FleetVarHostEndUserIDPUsername,
+		FleetVarHostEndUserIDPUsernameLocalPart,
+		FleetVarHostEndUserIDPGroups,
+		FleetVarHostEndUserIDPDepartment,
+		FleetVarHostEndUserIDPFullname,
+	}
 )
 
 type AppleMDM struct {
@@ -329,6 +372,9 @@ type MDMCommand struct {
 	// to authorize the user to see the command, it is not returned as part of
 	// the response payload.
 	TeamID *uint `json:"-" db:"team_id"`
+	// CommandStatus is the fleet computed field representing the status of the command
+	// based on the MDM protocol status
+	CommandStatus MDMCommandStatusFilter `json:"command_status" db:"command_status"`
 }
 
 // MDMCommandListOptions defines the options to control the list of MDM
@@ -341,9 +387,24 @@ type MDMCommandListOptions struct {
 	Filters MDMCommandFilters
 }
 
+type MDMCommandStatusFilter string
+
+const (
+	MDMCommandStatusFilterPending MDMCommandStatusFilter = "pending"
+	MDMCommandStatusFilterRan     MDMCommandStatusFilter = "ran"
+	MDMCommandStatusFilterFailed  MDMCommandStatusFilter = "failed"
+)
+
+var AllMDMCommandStatusFilters = []MDMCommandStatusFilter{
+	MDMCommandStatusFilterPending,
+	MDMCommandStatusFilterRan,
+	MDMCommandStatusFilterFailed,
+}
+
 type MDMCommandFilters struct {
-	HostIdentifier string
-	RequestType    string
+	HostIdentifier  string
+	RequestType     string
+	CommandStatuses []MDMCommandStatusFilter
 }
 
 type MDMPlatformsCounts struct {
@@ -362,14 +423,14 @@ type MDMDiskEncryptionSummary struct {
 }
 
 // MDMProfilesSummary reports the number of hosts being managed with configuration
-// profiles and/or disk encryption. Each host may be counted in only one of four mutually-exclusive categories:
-// Failed, Pending, Verifying, or Verified.
+// profiles, disk encryption or certificate templates.
+// Each host may be counted in only one of four mutually exclusive categories: Failed, Pending, Verifying, or Verified.
 type MDMProfilesSummary struct {
-	// Verified includes each host where Fleet has verified the installation of all of the
+	// Verified includes each host where Fleet has verified the installation of all the
 	// profiles currently applicable to the host. If any of the profiles are pending, failed, or
 	// subject to verification for the host, the host is not counted as verified.
 	Verified uint `json:"verified" db:"verified"`
-	// Verifying includes each host where the MDM service has successfully delivered all of the
+	// Verifying includes each host where the MDM service has successfully delivered all the
 	// profiles currently applicable to the host. If any of the profiles are pending or failed for
 	// the host, the host is not counted as verifying.
 	Verifying uint `json:"verifying" db:"verifying"`
@@ -381,20 +442,36 @@ type MDMProfilesSummary struct {
 	Failed uint `json:"failed" db:"failed"`
 }
 
+func (mdmPS *MDMProfilesSummary) Add(other *MDMProfilesSummary) *MDMProfilesSummary {
+	var s1, s2 MDMProfilesSummary
+	if mdmPS != nil {
+		s1 = *mdmPS
+	}
+	if other != nil {
+		s2 = *other
+	}
+	return &MDMProfilesSummary{
+		Verified:  s1.Verified + s2.Verified,
+		Verifying: s1.Verifying + s2.Verifying,
+		Pending:   s1.Pending + s2.Pending,
+		Failed:    s1.Failed + s2.Failed,
+	}
+}
+
 // HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either
 // a Windows or macOS profile.
 type HostMDMProfile struct {
-	HostUUID            string             `db:"-" json:"-"`
-	CommandUUID         string             `db:"-" json:"-"`
-	ProfileUUID         string             `db:"-" json:"profile_uuid"`
-	Name                string             `db:"-" json:"name"`
-	Identifier          string             `db:"-" json:"-"`
-	Status              *MDMDeliveryStatus `db:"-" json:"status"`
-	OperationType       MDMOperationType   `db:"-" json:"operation_type"`
-	Detail              string             `db:"-" json:"detail"`
-	Platform            string             `db:"-" json:"platform"`
-	Scope               *string            `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
-	ManagedLocalAccount *string            `db:"-" json:"managed_local_account"`
+	HostUUID            string           `db:"-" json:"-"`
+	CommandUUID         string           `db:"-" json:"-"`
+	ProfileUUID         string           `db:"-" json:"profile_uuid"`
+	Name                string           `db:"-" json:"name"`
+	Identifier          string           `db:"-" json:"-"`
+	Status              *string          `db:"-" json:"status"` // MDMDeliveryStatus or CertificateTemplateStatus
+	OperationType       MDMOperationType `db:"-" json:"operation_type"`
+	Detail              string           `db:"-" json:"detail"`
+	Platform            string           `db:"-" json:"platform"`
+	Scope               *string          `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
+	ManagedLocalAccount *string          `db:"-" json:"managed_local_account"`
 }
 
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
@@ -442,6 +519,24 @@ var (
 	MDMDeliveryVerifying MDMDeliveryStatus = "verifying"
 	MDMDeliveryPending   MDMDeliveryStatus = "pending"
 )
+
+func (s MDMDeliveryStatus) IsValid() bool {
+	switch s {
+	case MDMDeliveryFailed, MDMDeliveryPending, MDMDeliveryVerifying, MDMDeliveryVerified:
+		return true
+	default:
+		return false
+	}
+}
+
+// StringPtr returns a pointer to the string representation of the status.
+func (s *MDMDeliveryStatus) StringPtr() *string {
+	if s == nil {
+		return nil
+	}
+	str := string(*s)
+	return &str
+}
 
 type MDMOperationType string
 
@@ -797,6 +892,7 @@ const (
 	MDMAssetABMCert MDMAssetName = "abm_cert"
 	// MDMAssetABMTokenDeprecated is an encrypted JSON file that contains a token
 	// that can be used for the authentication process with the ABM API.
+	//
 	// Deprecated: ABM tokens are now stored in the abm_tokens table, they are
 	// not in mdm_config_assets anymore.
 	MDMAssetABMTokenDeprecated MDMAssetName = "abm_token"
@@ -805,6 +901,7 @@ const (
 	MDMAssetSCEPChallenge MDMAssetName = "scep_challenge"
 	// MDMAssetVPPTokenDeprecated is the name of the token used by MDM to
 	// authenticate to Apple's VPP service.
+	//
 	// Deprecated: VPP tokens are now stored in the vpp_tokens table, they are
 	// not in mdm_config_assets anymore.
 	MDMAssetVPPTokenDeprecated MDMAssetName = "vpp_token"
@@ -819,6 +916,14 @@ const (
 	MDMAssetHostIdentityCACert MDMAssetName = "host_identity_ca_cert"
 	// MDMAssetHostIdentityCAKey is the name of the root CA private key used for host identity
 	MDMAssetHostIdentityCAKey MDMAssetName = "host_identity_ca_key"
+	// MDMAssetConditionalAccessCACert is the name of the root CA certificate used for conditional access SCEP
+	MDMAssetConditionalAccessCACert MDMAssetName = "conditional_access_ca_cert"
+	// MDMAssetConditionalAccessCAKey is the name of the root CA private key used for conditional access SCEP
+	MDMAssetConditionalAccessCAKey MDMAssetName = "conditional_access_ca_key"
+	// MDMAssetConditionalAccessIDPCert is the certificate Fleet uses to sign SAML assertions as an IdP for conditional access
+	MDMAssetConditionalAccessIDPCert MDMAssetName = "conditional_access_idp_cert"
+	// MDMAssetConditionalAccessIDPKey is the private key Fleet uses to sign SAML assertions as an IdP for conditional access
+	MDMAssetConditionalAccessIDPKey MDMAssetName = "conditional_access_idp_key"
 )
 
 type MDMConfigAsset struct {
@@ -999,15 +1104,28 @@ const (
 	IPadOS
 )
 
-type AppleDevicePlatform string
+type InstallableDevicePlatform string
 
 const (
-	MacOSPlatform  AppleDevicePlatform = "darwin"
-	IOSPlatform    AppleDevicePlatform = "ios"
-	IPadOSPlatform AppleDevicePlatform = "ipados"
+	MacOSPlatform   InstallableDevicePlatform = "darwin"
+	IOSPlatform     InstallableDevicePlatform = "ios"
+	IPadOSPlatform  InstallableDevicePlatform = "ipados"
+	AndroidPlatform InstallableDevicePlatform = "android"
 )
 
-var VPPAppsPlatforms = []AppleDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform}
+var AppStoreAppsPlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform, AndroidPlatform}
+
+var ApplePlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform}
+
+// SupportsAppStoreApps returns whether or not the given platform supports app store apps.
+func (p InstallableDevicePlatform) SupportsAppStoreApps() bool {
+	return slices.Contains(AppStoreAppsPlatforms, p)
+}
+
+// IsApplePlatform returns whether the platform is one of Apple's platforms: macOS, iOS, or iPadOS.
+func (p InstallableDevicePlatform) IsApplePlatform() bool {
+	return slices.Contains(ApplePlatforms, p)
+}
 
 type AppleDevicesToRefetch struct {
 	HostID              uint                   `db:"host_id"`
@@ -1100,3 +1218,12 @@ type MDMCommandResults interface {
 }
 
 type MDMCommandResultsHandler func(ctx context.Context, results MDMCommandResults) error
+
+type HostMDMIdentifiers struct {
+	ID             uint   `db:"id"`
+	UUID           string `db:"uuid"`
+	HardwareSerial string `db:"hardware_serial"`
+	Hostname       string `db:"hostname"`
+	Platform       string `db:"platform"`
+	TeamID         *uint  `db:"team_id"`
+}

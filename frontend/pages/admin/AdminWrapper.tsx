@@ -78,7 +78,7 @@ const AdminWrapper = ({
   return (
     <MainContent className={classNames}>
       <>
-        <h1>Settings</h1>
+        <h1 className="page-header">Settings</h1>
         <TabNav>
           <Tabs
             selectedIndex={getTabIndex(pathname)}

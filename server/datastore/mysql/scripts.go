@@ -1412,10 +1412,13 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 
 	switch fleetPlatform {
 	case "darwin", "ios", "ipados":
-		if mdmActions.UnlockPIN != nil {
+		if mdmActions.UnlockPIN != nil && fleetPlatform == "darwin" {
+			// Unlock PIN is only available for macOS hosts
 			status.UnlockPIN = *mdmActions.UnlockPIN
 		}
-		if mdmActions.UnlockRef != nil {
+		if mdmActions.UnlockRef != nil && fleetPlatform == "darwin" {
+			// the unlock reference is a timestamp
+			// (we only store the timestamp for macOS unlocks)
 			var err error
 			status.UnlockRequestedAt, err = time.Parse(time.DateTime, *mdmActions.UnlockRef)
 			if err != nil {
@@ -1425,6 +1428,14 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 				// directly in the DB and messes up the format).
 				status.UnlockRequestedAt = time.Now().UTC()
 			}
+		} else if mdmActions.UnlockRef != nil && fleetPlatform != "darwin" {
+			// the unlock reference is an MDM command uuid
+			cmd, cmdRes, err := ds.getHostMDMAppleCommand(ctx, *mdmActions.UnlockRef, host.UUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get unlock reference")
+			}
+			status.UnlockMDMCommand = cmd
+			status.UnlockMDMCommandResult = cmdRes
 		}
 
 		if mdmActions.LockRef != nil {
@@ -1493,10 +1504,9 @@ func (ds *Datastore) getHostMDMWindowsCommand(ctx context.Context, cmdUUID, host
 		return nil, nil, ctxerr.Wrap(ctx, err, "get Windows MDM command")
 	}
 
-	// get the MDM command result, which may be not found (indicating the command
-	// is pending). Note that it doesn't return ErrNoRows if not found, it
-	// returns success and an empty cmdRes slice.
-	cmdResults, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID)
+	// get the MDM command result, which may be not found (indicating the command doesn't exist).
+	// If it is pending, then it returns 101, and result will be empty.
+	cmdResults, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, "")
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "get Windows MDM command result")
 	}
@@ -1509,6 +1519,12 @@ func (ds *Datastore) getHostMDMWindowsCommand(ctx context.Context, cmdUUID, host
 		if r.HostUUID != hostUUID {
 			continue
 		}
+
+		if r.Status == "101" || string(r.Result) == "" {
+			// command is still pending
+			continue
+		}
+
 		// all statuses for Windows indicate end of processing of the command
 		// (there is no equivalent of "NotNow" or "Idle" as for Apple).
 		cmdRes = r
@@ -1526,17 +1542,16 @@ func (ds *Datastore) getHostMDMAppleCommand(ctx context.Context, cmdUUID, hostUU
 	// get the MDM command result, which may be not found (indicating the command
 	// is pending). Note that it doesn't return ErrNoRows if not found, it
 	// returns success and an empty cmdRes slice.
-	cmdResults, err := ds.GetMDMAppleCommandResults(ctx, cmdUUID)
+	cmdResults, err := ds.GetMDMAppleCommandResults(ctx, cmdUUID, hostUUID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "get Apple MDM command result")
 	}
 
-	// each item in the slice returned by GetMDMAppleCommandResults is
-	// potentially a result for a different host, we need to find the one for
-	// that specific host.
+	// filter by result status to preserve old behavior of this method where it doesn't return pending results.
 	var cmdRes *fleet.MDMCommandResult
 	for _, r := range cmdResults {
 		if r.HostUUID != hostUUID {
+			// this should never happen because we already filter by hostUUID, but just in case
 			continue
 		}
 		if r.Status == fleet.MDMAppleStatusAcknowledged || r.Status == fleet.MDMAppleStatusError || r.Status == fleet.MDMAppleStatusCommandFormatError {
@@ -1775,6 +1790,10 @@ func (ds *Datastore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Cont
 	case "DeviceLock":
 		refCol = "lock_ref"
 		setUnlockRef = true
+	case "EnableLostMode":
+		refCol = "lock_ref"
+	case "DisableLostMode":
+		refCol = "unlock_ref"
 	default:
 		return nil
 	}

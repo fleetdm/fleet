@@ -59,7 +59,11 @@ func (v *AppleSoftware) verifyVPPInstalls(ctx context.Context, hostUUID, verific
 	}
 
 	if err := v.Datastore.ReplaceVPPInstallVerificationUUID(ctx, verificationCommandUUID, newListCmdUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "update install record")
+		return ctxerr.Wrap(ctx, err, "update vpp install record")
+	}
+
+	if err := v.Datastore.ReplaceInHouseAppInstallVerificationUUID(ctx, verificationCommandUUID, newListCmdUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "update in-house app install record")
 	}
 
 	level.Debug(v.Log).Log("msg", "new installed application list command sent", "uuid", newListCmdUUID)

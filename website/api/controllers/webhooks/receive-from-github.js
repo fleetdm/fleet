@@ -58,6 +58,7 @@ module.exports = {
 
       // Humans
       'noahtalerman',
+      'lppepper2',
       'mike-j-thomas',
       'mikermcneil',
       'lukeheath',
@@ -84,21 +85,19 @@ module.exports = {
       'pintomi1989',
       'nonpunctual',
       'dantecatalfamo',
-      'PezHub',
       'SFriendLee',
       'ddribeiro',
       'allenhouchins',
       'harrisonravazzolo',
       'tux234',
       'ksykulev',
-      'onasismunro',
-      'jmwatts',
       'mason-buettner',
       'iansltx',
       'sgress454',
       'BCTBB',
       'kc9wwh',
       'JordanMontgomery',
+      'ds0x',
       'bettapizza',
       'irenareedy',
       'jakestenger',
@@ -115,6 +114,11 @@ module.exports = {
       'Seedity',
       'NickBlee',
       'GrayW',
+      'maribell-fleetdm',
+      'jkatz01',
+      'johnjeremiah',
+      'melpike',
+      'headmin',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)

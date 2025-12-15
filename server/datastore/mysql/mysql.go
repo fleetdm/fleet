@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"regexp"
 	"strconv"
@@ -17,6 +18,7 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	condaccessdepot "github.com/fleetdm/fleet/v4/ee/server/service/condaccess/depot"
 	hostidscepdepot "github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/depot"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -24,11 +26,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/rdsauth"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
@@ -36,6 +40,9 @@ import (
 	"github.com/jmoiron/sqlx"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
+
+// Compile-time interface check
+var _ activities.ActivityStore = (*Datastore)(nil)
 
 const (
 	defaultSelectLimit   = 1000000
@@ -183,6 +190,12 @@ func (ds *Datastore) NewHostIdentitySCEPDepot(logger log.Logger, cfg *config.Fle
 	return hostidscepdepot.NewHostIdentitySCEPDepot(ds.primary, ds, logger, cfg)
 }
 
+// NewConditionalAccessSCEPDepot returns a new conditional access SCEP depot that uses the
+// underlying MySQL writer *sql.DB.
+func (ds *Datastore) NewConditionalAccessSCEPDepot(logger log.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
+	return condaccessdepot.NewConditionalAccessSCEPDepot(ds.primary, ds, logger, cfg)
+}
+
 type entity struct {
 	name string
 }
@@ -219,7 +232,7 @@ func (ds *Datastore) withReadTx(ctx context.Context, fn common_mysql.ReadTxFn) (
 }
 
 // New creates an MySQL datastore.
-func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
+func New(conf config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
 	options := &common_mysql.DBOptions{
 		MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 		MaxAttempts:         defaultMaxAttempts,
@@ -234,7 +247,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		}
 	}
 
-	if err := checkConfig(&config); err != nil {
+	if err := checkConfig(&conf); err != nil {
 		return nil, err
 	}
 	if options.ReplicaConfig != nil {
@@ -243,13 +256,25 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		}
 	}
 
-	dbWriter, err := NewDB(&config, options)
+	// Set up IAM authentication connector factory if needed
+	if err := setupIAMAuthIfNeeded(&conf, options); err != nil {
+		return nil, err
+	}
+
+	dbWriter, err := NewDB(&conf, options)
 	if err != nil {
 		return nil, err
 	}
 	dbReader := dbWriter
 	if options.ReplicaConfig != nil {
-		dbReader, err = NewDB(options.ReplicaConfig, options)
+		// Set up IAM auth for replica if needed (may have different region/credentials)
+		replicaOptions := *options
+		// Reset ConnectorFactory - replica may have different auth requirements than primary
+		replicaOptions.ConnectorFactory = nil
+		if err := setupIAMAuthIfNeeded(options.ReplicaConfig, &replicaOptions); err != nil {
+			return nil, fmt.Errorf("replica: %w", err)
+		}
+		dbReader, err = NewDB(options.ReplicaConfig, &replicaOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -260,7 +285,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		replica:             dbReader,
 		logger:              options.Logger,
 		clock:               c,
-		config:              config,
+		config:              conf,
 		readReplicaConfig:   options.ReplicaConfig,
 		writeCh:             make(chan itemToWrite),
 		stmtCache:           make(map[string]*sqlx.Stmt),
@@ -367,6 +392,28 @@ func checkConfig(conf *config.MysqlConfig) error {
 			return fmt.Errorf("register TLS config for mysql: %w", err)
 		}
 	}
+	return nil
+}
+
+// setupIAMAuthIfNeeded configures IAM authentication for RDS if the config
+// indicates it should be used (no password provided but region is set).
+func setupIAMAuthIfNeeded(conf *config.MysqlConfig, opts *common_mysql.DBOptions) error {
+	if conf.Password != "" || conf.PasswordPath != "" || conf.Region == "" {
+		return nil
+	}
+
+	// Parse host and port from address
+	host, port, err := net.SplitHostPort(conf.Address)
+	if err != nil {
+		host = conf.Address
+		port = "3306"
+	}
+
+	factory, err := rdsauth.NewConnectorFactory(conf, host, port)
+	if err != nil {
+		return fmt.Errorf("failed to create RDS IAM auth connector factory: %w", err)
+	}
+	opts.ConnectorFactory = factory
 	return nil
 }
 

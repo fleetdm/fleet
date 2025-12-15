@@ -20,7 +20,10 @@ module.exports = {
 
 
   exits: {
-    success: { description: 'The device of an Android enterprise was successfully deleted.' }
+    success: { description: 'The device of an Android enterprise was successfully deleted.' },
+    missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
+    unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
+    notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
   },
 
 
@@ -33,7 +36,7 @@ module.exports = {
     if (authHeader && authHeader.startsWith('Bearer')) {
       fleetServerSecret = authHeader.replace('Bearer', '').trim();
     } else {
-      return this.res.unauthorized('Authorization header with Bearer token is required');
+      throw 'missingAuthHeader';
     }
 
     // Authenticate this request
@@ -43,18 +46,18 @@ module.exports = {
 
     // Return a 404 response if no records are found.
     if (!thisAndroidEnterprise) {
-      return this.res.notFound();
+      throw 'notFound';
     }
     // Return an unauthorized response if the provided secret does not match.
     if (thisAndroidEnterprise.fleetServerSecret !== fleetServerSecret) {
-      return this.res.unauthorized();
+      throw 'unauthorized';
     }
 
     // Check the list of Android Enterprises managed by Fleet to see if this Android Enterprise is still managed.
     let isEnterpriseManagedByFleet = await sails.helpers.androidProxy.getIsEnterpriseManagedByFleet(androidEnterpriseId);
     // Return a 404 response if this Android enterprise is no longer managed by Fleet.
     if(!isEnterpriseManagedByFleet) {
-      return this.res.notFound();
+      throw 'notFound';
     }
 
     // Delete the device for this Android enterprise.
@@ -76,7 +79,11 @@ module.exports = {
       await androidmanagement.enterprises.devices.delete({
         name: `enterprises/${androidEnterpriseId}/devices/${deviceId}`,
       });
-    }).intercept((err) => {
+    }).intercept({status: 429}, (err)=>{
+      // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
+      sails.log.warn(`p1: Android management API rate limit exceeded!`);
+      return new Error(`When attempting to delete a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+    }).intercept((err)=>{
       return new Error(`When attempting to delete a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     });
 

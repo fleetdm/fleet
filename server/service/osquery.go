@@ -1115,6 +1115,24 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(labelResults) > 0 {
+		// Force clear results for labels that do not apply to the host anymore.
+		//
+		// There could be a timing bug where:
+		// 1. Host receives a "team label" query to run (distributed/read).
+		// 2. Host is transferred to another team (all its label/policy membership are cleared).
+		// 3. Fleet receives distributed/write corresponding to (1) which includes the result for
+		//    the label of the old team.
+		hostLabelQueries, err := svc.ds.LabelQueriesForHost(ctx, host)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieve label queries")
+		}
+		for labelID := range labelResults {
+			if _, ok := hostLabelQueries[fmt.Sprint(labelID)]; !ok {
+				level.Debug(svc.logger).Log("msg", "clearing result for inapplicable label", "labelID", labelID, "hostID", host.ID)
+				labelResults[labelID] = ptr.Bool(false)
+			}
+		}
+
 		if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
 			logging.WithErr(ctx, err)
 		}
@@ -1159,7 +1177,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		if host.TeamID != nil {
 			teamID = *host.TeamID
 		}
-		team, err := svc.ds.TeamWithoutExtras(ctx, teamID)
+		team, err := svc.ds.TeamLite(ctx, teamID)
 		if err != nil {
 			logging.WithErr(ctx, err)
 		} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
@@ -1268,7 +1286,7 @@ func processCalendarPolicies(
 		return nil
 	}
 
-	team, err := ds.Team(ctx, *host.TeamID)
+	team, err := ds.TeamLite(ctx, *host.TeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "load host team")
 	}
@@ -1400,6 +1418,9 @@ func preProcessSoftwareResults(
 
 	fleetdPacmanPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_pacman"
 	preProcessSoftwareExtraResults(fleetdPacmanPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+
+	jetbrainsPluginsExtraQuery := hostDetailQueryPrefix + "software_jetbrains_plugins"
+	preProcessSoftwareExtraResults(jetbrainsPluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name
@@ -2436,7 +2457,7 @@ func (svc *Service) conditionalAccessConfiguredAndEnabledForTeam(ctx context.Con
 	}
 
 	// Host belongs to a team, thus we load the team configuration.
-	team, err := svc.ds.Team(ctx, *hostTeamID)
+	team, err := svc.ds.TeamLite(ctx, *hostTeamID)
 	if err != nil {
 		return false, false, ctxerr.Wrap(ctx, err, "failed to load team config")
 	}

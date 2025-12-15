@@ -53,7 +53,10 @@ export interface IGetVppInstallCommandResultsResponse {
   results: IMdmCommandResult[];
 }
 export interface IGetSetupExperienceStatusesResponse {
-  setup_experience_results: { software: ISetupStep[]; scripts: ISetupStep[] };
+  setup_experience_results: {
+    software: ISetupStep[];
+    scripts: ISetupStep[];
+  };
 }
 
 export interface IGetSetupExperienceStatusesParams {
@@ -186,5 +189,10 @@ export default {
     const { DEVICE_RESEND_PROFILE } = endpoints;
     const path = DEVICE_RESEND_PROFILE(deviceToken, profileUUID);
     return sendRequest("POST", path);
+  },
+
+  getMdmManualEnrollUrl: (token: string) => {
+    const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
+    return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
   },
 };

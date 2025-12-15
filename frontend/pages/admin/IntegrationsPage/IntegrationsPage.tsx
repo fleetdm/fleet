@@ -7,8 +7,6 @@ import deepDifference from "utilities/deep_difference";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
-import paths from "router/paths";
-
 import configAPI from "services/entities/config";
 
 import { IConfig } from "interfaces/config";
@@ -33,7 +31,11 @@ const IntegrationsPage = ({
   const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
 
-  const { section } = params;
+  let { section } = params;
+  const { subsection } = params;
+  if (!section && !!subsection) {
+    section = "sso";
+  }
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
 
   // // // settings that live under the integrations page
@@ -56,9 +58,17 @@ const IntegrationsPage = ({
         return false;
       }
 
+      const diff = deepDifference(formUpdates, appConfig);
+
+      // If there's no actual change, don't make the API call to update config.
+      // Still refetch in case settings were changed inside a card (like end-user auth).
+      if (Object.keys(diff).length === 0) {
+        refetchConfig();
+        return true;
+      }
+
       setIsUpdatingSettings(true);
 
-      const diff = deepDifference(formUpdates, appConfig);
       // send all formUpdates.agent_options because diff overrides all agent options
       diff.agent_options = formUpdates.agent_options;
 
@@ -66,8 +76,10 @@ const IntegrationsPage = ({
         await configAPI.update(diff);
         renderFlash("success", "Successfully updated settings.");
         refetchConfig();
+        return true;
       } catch (err: unknown) {
         renderFlash("error", "Could not update settings");
+        return false;
       } finally {
         setIsUpdatingSettings(false);
       }
@@ -76,12 +88,8 @@ const IntegrationsPage = ({
   );
 
   if (!appConfig) return <></>;
-  const isManagedCloud = appConfig.license.managed_cloud;
-  if (section?.includes("conditional-access") && !isManagedCloud) {
-    router.push(paths.ADMIN_SETTINGS);
-  }
 
-  const navItems = getIntegrationSettingsNavItems(isManagedCloud);
+  const navItems = getIntegrationSettingsNavItems();
   const DEFAULT_SETTINGS_SECTION = navItems[0];
   const currentSection =
     navItems.find((item) => item.urlSection === section) ??
@@ -104,6 +112,7 @@ const IntegrationsPage = ({
               handleSubmit={onUpdateSettings}
               isPremiumTier={isPremiumTier}
               isUpdatingSettings={isUpdatingSettings}
+              subsection={subsection}
             />
           ) : (
             <Spinner />

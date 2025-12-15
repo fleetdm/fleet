@@ -75,6 +75,11 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
 	}
+
+	if err := verifyLabelsToAssociate(ctx, svc.ds, nil, append(p.LabelsIncludeAny, p.LabelsExcludeAny...)); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
+	}
+
 	policy, err := svc.ds.NewGlobalPolicy(ctx, ptr.Uint(vc.UserID()), p)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "storing policy")
@@ -397,7 +402,7 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 		}
 	}
 	for id := range tIDs {
-		var teamConfig fleet.TeamConfig
+		var teamConfig fleet.TeamConfigLite
 		if id == 0 {
 			// Handle "No Team" (team ID 0) - use AppConfig authorization
 			if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
@@ -407,13 +412,13 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 			if err != nil {
 				return err
 			}
-			teamConfig = *defaultConfig
+			teamConfig = defaultConfig.ToLite()
 		} else {
 			// Handle regular teams
 			if err := svc.authz.Authorize(ctx, &fleet.Team{ID: id}, fleet.ActionWrite); err != nil {
 				return err
 			}
-			t, err := svc.ds.Team(ctx, id)
+			t, err := svc.ds.TeamLite(ctx, id)
 			if err != nil {
 				return err
 			}

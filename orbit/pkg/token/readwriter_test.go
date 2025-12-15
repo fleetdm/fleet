@@ -3,6 +3,7 @@ package token
 import (
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -120,14 +121,17 @@ func TestRotate(t *testing.T) {
 	require.Equal(t, os.FileMode(constant.DefaultWorldReadableFileMode), stat.Mode())
 }
 
-func TestRotater(t *testing.T) {
-	var numRemoteChecks int
+func TestRotator(t *testing.T) {
+	var numRemoteChecks int32 // Use int32 for atomic
+	var numUpdates int32      // Use int32 for atomic
+
 	file, err := os.CreateTemp("", "identifier")
 	require.NoError(t, err)
 	_, err = file.WriteString("test")
 	require.NoError(t, err)
+
 	rw := NewReadWriter(file.Name(), func(token string) error {
-		numRemoteChecks++
+		atomic.AddInt32(&numRemoteChecks, 1) // Atomic write
 		return nil
 	})
 	rw.localCheckDuration = 100 * time.Millisecond
@@ -136,9 +140,8 @@ func TestRotater(t *testing.T) {
 	err = rw.LoadOrGenerate()
 	require.NoError(t, err)
 
-	var numUpdates int
 	rw.SetRemoteUpdateFunc(func(token string) error {
-		numUpdates++
+		atomic.AddInt32(&numUpdates, 1) // Atomic write
 		return nil
 	})
 
@@ -152,7 +155,7 @@ func TestRotater(t *testing.T) {
 	stop2 := rw.StartRotation()
 
 	time.Sleep(150 * time.Millisecond)
-	require.Equal(t, 1, numUpdates)
+	require.Equal(t, int32(1), atomic.LoadInt32(&numUpdates)) // Atomic read
 
 	// Close the first stop channel, this should not stop the rotation.
 	stop1()
@@ -166,8 +169,8 @@ func TestRotater(t *testing.T) {
 
 	// Now wait enough time for the remote check to trigger a rotation.
 	time.Sleep(209 * time.Millisecond)
-	require.Equal(t, 2, numUpdates)
-	require.Equal(t, 1, numRemoteChecks)
+	require.Equal(t, int32(2), atomic.LoadInt32(&numUpdates))      // Atomic read
+	require.Equal(t, int32(1), atomic.LoadInt32(&numRemoteChecks)) // Atomic read
 
 	// Reset the mtime one more time.
 	rw.mu.Lock()
@@ -180,6 +183,6 @@ func TestRotater(t *testing.T) {
 	// Wait enough time to ensure that if the rotation was still running
 	// we would have done another remote check.
 	time.Sleep(250 * time.Millisecond)
-	require.Equal(t, 2, numUpdates)
-	require.Equal(t, 1, numRemoteChecks)
+	require.Equal(t, int32(2), atomic.LoadInt32(&numUpdates))      // Atomic read
+	require.Equal(t, int32(1), atomic.LoadInt32(&numRemoteChecks)) // Atomic read
 }

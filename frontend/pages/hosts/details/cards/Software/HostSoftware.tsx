@@ -186,7 +186,7 @@ const HostSoftware = ({
     ({ queryKey }) => deviceAPI.getDeviceSoftware(queryKey[0]),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isSoftwareEnabled && isMyDevicePage, // if disabled, we'll always show a generic "No software detected" message. No DUP for iPad/iPhone
+      enabled: isSoftwareEnabled && isMyDevicePage, // if disabled, we'll always show a generic "No software detected" message. No My Device Page for iPad/iPhone
       keepPreviousData: true,
       staleTime: 7000,
     }
@@ -332,11 +332,16 @@ const HostSoftware = ({
       <div className={baseClass}>
         <CardHeader
           header="Software"
-          subheader={getSoftwareSubheader({
-            platform,
-            isMyDevicePage: true,
-            hostMdmEnrollmentStatus,
-          })}
+          subheader={
+            // Fleet Free does not have card subheader
+            isPremiumTier
+              ? getSoftwareSubheader({
+                  platform,
+                  isMyDevicePage: true,
+                  hostMdmEnrollmentStatus,
+                })
+              : undefined
+          }
         />
         {renderHostSoftware()}
       </div>
@@ -345,7 +350,8 @@ const HostSoftware = ({
 
   return (
     <div className={baseClass}>
-      {!isAndroid(platform) && (
+      {/* Fleet Free and Android both do not have card subheader */}
+      {!isAndroid(platform) && isPremiumTier && (
         <CardHeader
           subheader={getSoftwareSubheader({
             platform,

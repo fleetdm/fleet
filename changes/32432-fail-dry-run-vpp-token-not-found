@@ -1,1 +1,0 @@
-* Fixed inconsistency in GitOps for App store apps if no VPP token was found, so that both dry run and actual run fails.

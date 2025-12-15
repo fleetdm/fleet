@@ -1,6 +1,6 @@
 variable "tag" {
   description = "The tag to deploy. This would be the same as the branch name"
-  default     = "v4.72.0"
+  default     = "v4.76.1"
 }
 
 variable "fleet_task_count" {
@@ -58,4 +58,10 @@ variable "redis_instance_count" {
     condition     = var.redis_instance_count >= 3
     error_message = "var.redis_instance_count must be greater than or equal to 3."
   }
+}
+
+variable "enable_otel" {
+  description = "Enable OpenTelemetry tracing with SigNoz instead of Elastic APM"
+  type        = bool
+  default     = false
 }

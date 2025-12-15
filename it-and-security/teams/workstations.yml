@@ -54,7 +54,8 @@ controls:
       - path: ../lib/macos/configuration-profiles/disable-internet-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-media-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-safari-safefiles.mobileconfig
-      - path: ../lib/macos/configuration-profiles/enable-doh.mobileconfig
+      # - path: ../lib/macos/configuration-profiles/enable-doh.mobileconfig
+      # Commenting out until I understand why we have this and if there's a better multi-platform solution
       - path: ../lib/macos/configuration-profiles/enable-firewall-logging.mobileconfig
       - path: ../lib/macos/configuration-profiles/enable-gatekeeper.mobileconfig
       - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
@@ -79,11 +80,6 @@ controls:
     bootstrap_package: ""
     enable_end_user_authentication: true
     macos_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
-    software:
-      - package_path: ../lib/macos/software/google-chrome.yml # Google Chrome for macOS
-      - package_path: ../lib/macos/software/zoom.yml # Zoom for macOS
-      - package_path: ../lib/macos/software/1password.yml # 1Password for macOS
-      - app_store_id: '803453959' # Slack Desktop
   macos_updates:
     deadline:
     minimum_version:
@@ -143,18 +139,17 @@ software:
       self_service: true
       categories:
         - Browsers
-    - path: ../lib/macos/software/google-chrome.yml # Google Chrome for macOS
-      self_service: true
-      categories:
-        - Browsers
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
       self_service: true
+      setup_experience: true
     - path: ../lib/macos/software/santa.yml # Santa for macOS
       self_service: true
       labels_include_any:
         - Santa test devices
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
+      display_name: "Zoom"
       self_service: true
+      setup_experience: true
       categories:
         - Productivity
         - Communication
@@ -167,74 +162,83 @@ software:
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
       self_service: false
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
+      display_name: "Zoom"
       self_service: true
+      setup_experience: true
       categories:
         - Communication
       labels_include_any:
         - "Debian-based Linux hosts"
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
+      display_name: "Zoom"
       self_service: true
+      setup_experience: true
       categories:
         - Communication
       labels_include_any:
         - "RPM-based Linux hosts"
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
+      display_name: "Slack"
       self_service: true
+      setup_experience: true
       categories:
         - Productivity
         - Communication
       labels_include_any:
         - "Debian-based Linux hosts"
     - path: ../lib/linux/software/slack-rpm.yml # Slack for RedHat
+      display_name: "Slack"
       self_service: true
+      setup_experience: true
       categories:
         - Productivity
         - Communication
       labels_include_any:
         - "RPM-based Linux hosts"
-    - path: ../lib/windows/software/slack.yml # Slack for Windows
-      self_service: true
-      categories:
-        - Productivity
-        - Communication
-      labels_include_any:
-        - "x86-based Windows hosts"
-    - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
-      self_service: true
-      categories:
-        - Communication
-      labels_include_any:
-        - "ARM-based Windows hosts"
+    # Commenting out until #25407 is implemented
+    # - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
+    #  self_service: true
+    #  categories:
+    #    - Communication
+    #  labels_include_any:
+    #    - "ARM-based Windows hosts"
     - path: ../lib/windows/software/zoom.yml # Zoom for Windows (x86)
+      display_name: "Zoom"
       self_service: true
+      setup_experience: true
       categories:
         - Communication
       labels_include_any:
         - "x86-based Windows hosts"
-    - path: ../lib/windows/software/google-chrome.yml # Google Chrome for Windows
-      self_service: true
-      categories:
-        - Browsers
-      labels_include_any:
-        - "x86-based Windows hosts"
-    - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
-      self_service: true
-      categories:
-        - Browsers
-      labels_include_any:
-        - "ARM-based Windows hosts"
+    # Commenting out until #25407 is implemented
+    # - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
+    #   self_service: true
+    #   setup_experience: true
+    #   categories:
+    #     - Browsers
+    #   labels_include_any:
+    #     - "ARM-based Windows hosts"
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
       self_service: true
+      setup_experience: true
   app_store_apps:
-    - app_store_id: '803453959' # Slack Desktop
-      self_service: true
-      categories:
-        - Communication
-        - Productivity
     - app_store_id: '409183694' # Keynote
       self_service: true
   fleet_maintained_apps:
     # macOS apps
+    - slug: slack/darwin # Slack for macOS
+      self_service: true
+      setup_experience: true
+      post_install_script:
+        path: ../lib/macos/scripts/migrate-slack-preferences.sh
+      categories:
+        - Communication
+        - Productivity
+    - slug: google-chrome/darwin # Google Chrome for macOS
+      self_service: true
+      setup_experience: true
+      categories:
+        - Browsers
     - slug: brave-browser/darwin # Brave for macOS (ARM)
       self_service: true
       labels_include_any:
@@ -252,6 +256,22 @@ software:
     - slug: microsoft-teams/darwin # Microsoft Teams for macOS
       self_service: true
     # Windows apps
+    - slug: slack/windows # Slack for Windows
+      display_name: "Slack"
+      self_service: true
+      setup_experience: true
+      categories:
+        - Productivity
+        - Communication
+      labels_include_any:
+        - "x86-based Windows hosts"
+    - slug: google-chrome/windows # Google Chrome for Windows
+      self_service: true
+      setup_experience: true
+      categories:
+        - Browsers
+      labels_include_any:
+        - "x86-based Windows hosts"
     - slug: brave-browser/windows # Brave for Windows
       self_service: true
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows

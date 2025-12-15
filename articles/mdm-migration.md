@@ -49,11 +49,13 @@ End user experience:
 
 Configuration:
 
-- To kick off the default workflow, unenroll the hosts to be migrated in your current MDM solution. MacOS does not allow a host to be connected to multiple MDM solutions at once.
+- To kick off the default workflow, unenroll the hosts to be migrated in your current MDM solution. macOS does not allow a host to be connected to multiple MDM solutions at once.
 
 #### End user workflow
 
 > Available in Fleet Premium
+
+Fleet's agents must have [updates enabled](https://fleetdm.com/guides/fleetd-updates) (default), for the end user migration workflow to work.
 
 ![Fleet's MDM migration dialog](../website/assets/images/articles/mdm-migration-dialog-494x327@2x.png)
 

@@ -1,10 +1,4 @@
 .host-count-card {
-  // TODO: Figure out how to move this to Card/_styles.scss
-  a {
-    font-weight: normal;
-    color: $core-fleet-black;
-    text-decoration: none;
-  }
   // TODO: keyboard accessibility styling
 
   &__card {
@@ -17,7 +11,6 @@
     padding: $pad-xlarge;
     border: 1px solid $ui-fleet-black-10;
     background: $core-fleet-white;
-    //done
 
     &:hover {
       border-color: $ui-fleet-black-50;

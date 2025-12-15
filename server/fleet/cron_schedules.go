@@ -39,6 +39,12 @@ const (
 	CronHostVitalsLabelMembership      CronScheduleName = "host_vitals_label_membership"
 	CronBatchActivityCompletionChecker CronScheduleName = "batch_activity_completion_checker"
 	CronScheduledBatchActivities       CronScheduleName = "scheduled_batch_activities"
+	// CronEnableAndroidAppReportsOnDefaultPolicy enables applications reports on the default Android MDM policy (profile).
+	// This job only runs once after upgrading to v4.76.0.
+	CronEnableAndroidAppReportsOnDefaultPolicy CronScheduleName = "enable_android_app_reports_on_default_policy"
+	// CronMigrateToPerHostPolicy moves all Android hosts that are on the default MDM policy to a dedicated
+	// policy per host. This job only runs once after upgrading to v4.77.0.
+	CronMigrateToPerHostPolicy CronScheduleName = "migrate_to_per_host_policy"
 )
 
 type CronSchedulesService interface {

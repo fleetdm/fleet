@@ -167,7 +167,13 @@ export const generateTableConfig = (
         <GitOpsModeTooltipWrapper
           position="left"
           renderChildren={(disableChildren) => (
-            <div className={disableChildren ? "disabled-by-gitops-mode" : ""}>
+            <div
+              className={
+                disableChildren
+                  ? "disabled-by-gitops-mode abm-actions-wrapper"
+                  : "abm-actions-wrapper"
+              }
+            >
               <ActionsDropdown
                 options={generateActions()}
                 onChange={(value: string) =>

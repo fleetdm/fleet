@@ -8,7 +8,10 @@ import {
   isIPadOrIPhone,
   PLATFORM_DISPLAY_NAMES,
 } from "interfaces/platform";
-import { getInstallStatusPredicate } from "interfaces/software";
+import {
+  getInstallUninstallStatusPredicate,
+  SCRIPT_PACKAGE_SOURCES,
+} from "interfaces/software";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -16,6 +19,7 @@ import {
 
 import ActivityItem from "components/ActivityItem";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+import TooltipWrapper from "components/TooltipWrapper";
 import { API_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "global-activity-item";
@@ -223,6 +227,35 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  deletedHost: (activity: IActivity) => {
+    const { host_display_name, triggered_by, host_expiry_window } =
+      activity.details || {};
+
+    if (triggered_by === "expiration") {
+      return (
+        <>
+          automatically deleted host <b>{host_display_name}</b> after{" "}
+          <TooltipWrapper
+            tipContent={
+              <>
+                The host expiry window configured in <br />
+                <b>Settings &gt; Organization settings &gt; Advanced options</b>
+              </>
+            }
+          >
+            {host_expiry_window} day{host_expiry_window !== 1 ? "s" : ""}
+          </TooltipWrapper>{" "}
+          of inactivity.
+        </>
+      );
+    }
+
+    return (
+      <>
+        deleted host <b>{host_display_name}</b>.
+      </>
+    );
+  },
   userChangedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
     const { actor_id } = activity;
     const { user_id, user_email, role } = activity.details || {};
@@ -398,6 +431,46 @@ const TAGGED_TEMPLATES = {
       <>
         {editedActivity} the minimum {applePlatform} version {versionSection}{" "}
         {deadlineSection} on hosts assigned to {teamSection}.
+      </>
+    );
+  },
+
+  enabledAppleosUpdateNewHosts: (
+    applePlatform: AppleDisplayPlatform,
+    activity: IActivity
+  ) => {
+    const teamSection = activity.details?.team_id ? (
+      <>
+        the <b>{activity.details.team_name}</b> team
+      </>
+    ) : (
+      <>no team</>
+    );
+
+    return (
+      <>
+        enabled OS updates for all new {applePlatform} hosts on {teamSection}.
+        {applePlatform} hosts will upgrade to the lastest version when they
+        enroll.
+      </>
+    );
+  },
+
+  disabledAppleosUpdateNewHosts: (
+    applePlatform: AppleDisplayPlatform,
+    activity: IActivity
+  ) => {
+    const teamSection = activity.details?.team_id ? (
+      <>
+        the <b>{activity.details.team_name}</b> team
+      </>
+    ) : (
+      <>no team</>
+    );
+
+    return (
+      <>
+        disabled updates for all new {applePlatform} hosts on {teamSection}.
       </>
     );
   },
@@ -712,8 +785,8 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        required end user authentication for macOS hosts that automatically
-        enroll to{" "}
+        required end user authentication for macOS, iOS, iPadOS, and Android
+        hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
             the <b>{activity.details.team_name}</b> team
@@ -729,8 +802,8 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        removed end user authentication requirement for macOS hosts that
-        automatically enroll to{" "}
+        removed end user authentication requirement for macOS, iOS, iPadOS, and
+        Android hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
             the <b>{activity.details.team_name}</b> team
@@ -1136,16 +1209,18 @@ const TAGGED_TEMPLATES = {
       host_display_name: hostName,
       software_title: title,
       status,
+      source,
     } = details;
 
     const showSoftwarePackage =
       !!details.software_package &&
       activity.type === ActivityType.InstalledSoftware;
-
+    const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
     return (
       <>
         {" "}
-        {getInstallStatusPredicate(status)} <b>{title}</b>
+        {getInstallUninstallStatusPredicate(status, isScriptPackageSource)}{" "}
+        <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} on{" "}
         <b>{hostName}</b>.
       </>
@@ -1168,7 +1243,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        {getInstallStatusPredicate(status)} software <b>{title}</b>
+        {getInstallUninstallStatusPredicate(status)} software <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} from{" "}
         <b>{hostName}</b>.
       </>
@@ -1285,6 +1360,10 @@ const TAGGED_TEMPLATES = {
   ),
   deletedMSEntraConditionalAccess: () => (
     <> deleted Microsoft Entra conditional access configuration.</>
+  ),
+  addedConditionalAccessOkta: () => <> configured Okta conditional access.</>,
+  deletedConditionalAccessOkta: () => (
+    <> deleted Okta conditional access configuration.</>
   ),
   enabledConditionalAccessAutomations: (activity: IActivity) => {
     const teamName = activity.details?.team_name;
@@ -1537,12 +1616,26 @@ const TAGGED_TEMPLATES = {
   },
   editedSetupExperienceSoftware: (activity: IActivity) => {
     const { platform, team_name, team_id } = activity.details || {};
+
+    let platformText = "";
+    switch (platform) {
+      case "darwin":
+        platformText = "macOS";
+        break;
+      case "ios":
+        platformText = "iOS";
+        break;
+      case "ipados":
+        platformText = "iPadOS";
+        break;
+      default:
+        platformText = capitalize(platform); // e.g. Windows, Android
+    }
+
     return (
       <>
         {" "}
-        edited setup experience software for{" "}
-        {platform === "darwin" ? "macOS" : capitalize(platform)} hosts that
-        enroll to{" "}
+        edited setup experience software for {platformText} hosts that enroll to{" "}
         {team_id === API_NO_TEAM_ID ? (
           "no team"
         ) : (
@@ -1551,6 +1644,17 @@ const TAGGED_TEMPLATES = {
           </>
         )}
         .
+      </>
+    );
+  },
+  editedHostIdpData: (activity: IActivity) => {
+    const { host_display_name, host_idp_username } = activity.details || {};
+    const removed = host_idp_username === "";
+    return (
+      <>
+        {removed ? "removed" : "set"} the end user associated with{" "}
+        <b>{host_display_name}</b>
+        {removed ? "" : <> to {host_idp_username}</>}.
       </>
     );
   },
@@ -1594,6 +1698,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.UserDeleted: {
       return TAGGED_TEMPLATES.userDeleted(activity);
     }
+    case ActivityType.HostDeleted: {
+      return TAGGED_TEMPLATES.deletedHost(activity);
+    }
     case ActivityType.UserChangedGlobalRole: {
       return TAGGED_TEMPLATES.userChangedGlobalRole(activity, isPremiumTier);
     }
@@ -1623,6 +1730,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EditedIpadosMinVersion: {
       return TAGGED_TEMPLATES.editedAppleosMinVersion("iPadOS", activity);
+    }
+    case ActivityType.EnabledMacosUpdateNewHosts: {
+      return TAGGED_TEMPLATES.enabledAppleosUpdateNewHosts("macOS", activity);
+    }
+    case ActivityType.DisabledMacosUpdateNewHosts: {
+      return TAGGED_TEMPLATES.disabledAppleosUpdateNewHosts("macOS", activity);
     }
     case ActivityType.ReadHostDiskEncryptionKey: {
       return TAGGED_TEMPLATES.readHostDiskEncryptionKey(activity);
@@ -1657,12 +1770,14 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.AddedCustomScepProxy:
     case ActivityType.AddedDigicert:
     case ActivityType.AddedHydrant:
+    case ActivityType.AddedCustomESTProxy:
     case ActivityType.AddedSmallstep: {
       return TAGGED_TEMPLATES.addedCertificateAuthority(activity.details?.name);
     }
     case ActivityType.DeletedCustomScepProxy:
     case ActivityType.DeletedDigicert:
     case ActivityType.DeletedHydrant:
+    case ActivityType.DeletedCustomESTProxy:
     case ActivityType.DeletedSmallstep: {
       return TAGGED_TEMPLATES.deletedCertificateAuthority(
         activity.details?.name
@@ -1671,6 +1786,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedCustomScepProxy:
     case ActivityType.EditedDigicert:
     case ActivityType.EditedHydrant:
+    case ActivityType.EditedCustomESTProxy:
     case ActivityType.EditedSmallstep: {
       return TAGGED_TEMPLATES.editedCertificateAuthority(
         activity.details?.name
@@ -1850,6 +1966,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DeletedMSEntraConditionalAccess: {
       return TAGGED_TEMPLATES.deletedMSEntraConditionalAccess();
     }
+    case ActivityType.AddedConditionalAccessOkta: {
+      return TAGGED_TEMPLATES.addedConditionalAccessOkta();
+    }
+    case ActivityType.DeletedConditionalAccessOkta: {
+      return TAGGED_TEMPLATES.deletedConditionalAccessOkta();
+    }
     case ActivityType.EnabledConditionalAccessAutomations: {
       return TAGGED_TEMPLATES.enabledConditionalAccessAutomations(activity);
     }
@@ -1884,23 +2006,21 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DeletedPolicy: {
       return TAGGED_TEMPLATES.deletedPolicy(activity);
     }
-
     case ActivityType.EscrowedDiskEncryptionKey: {
       return TAGGED_TEMPLATES.escrowedDiskEncryptionKey(activity);
     }
-
     case ActivityType.CreatedCustomVariable: {
       return TAGGED_TEMPLATES.createdCustomVariable(activity);
     }
-
     case ActivityType.DeletedCustomVariable: {
       return TAGGED_TEMPLATES.deletedCustomVariable(activity);
     }
-
     case ActivityType.EditedSetupExperienceSoftware: {
       return TAGGED_TEMPLATES.editedSetupExperienceSoftware(activity);
     }
-
+    case ActivityType.EditedHostIdpData: {
+      return TAGGED_TEMPLATES.editedHostIdpData(activity);
+    }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }

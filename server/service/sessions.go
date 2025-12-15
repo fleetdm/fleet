@@ -493,6 +493,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessio
 	sessionID, idpURL, err = sso.CreateAuthorizationRequest(
 		ctx, samlProvider, svc.ssoSessionStore, redirectURL,
 		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
+		sso.SSORequestData{},
 	)
 	if err != nil {
 		return "", 0, "", ctxerr.Wrap(ctx, err, "InitiateSSO creating authorization")
@@ -575,7 +576,7 @@ func (r callbackSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter
 	deleteSSOCookie(w)
 }
 
-func makeCallbackSSOEndpoint(urlPrefix string) endpoint_utils.HandlerFunc {
+func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 	return func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 		callbackRequest := request.(*callbackSSORequest)
 		session, userID, err := getSSOSession(ctx, svc, callbackRequest)

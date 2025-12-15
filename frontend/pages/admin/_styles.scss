@@ -6,13 +6,6 @@
   overflow: visible;
   @include vertical-page-layout;
 
-  h1 {
-    display: flex;
-    align-items: center;
-    height: 38px;
-    position: relative;
-  }
-
   .side-nav__card-container {
     // all side navs in the admin section we want to limit the max width
     > *:not(.loading-spinner) {

@@ -45,6 +45,7 @@ const EulaSection = ({
     <SettingsSection
       className={baseClass}
       title="End user license agreement (EULA)"
+      id="end-user-license-agreement"
     >
       <div className={`${baseClass}__content`}>
         {!isEulaUploaded || !eulaMetadata ? (

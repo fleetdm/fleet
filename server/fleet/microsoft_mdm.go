@@ -1012,6 +1012,10 @@ type SyncMLCmd struct {
 	// AddCommands is a catch-all for any nested <Add> commands,
 	// which can be found under <Atomic> elements.
 	AddCommands []SyncMLCmd `xml:"Add,omitempty"`
+
+	// ExecCommands is a catch-all for any nested <Exec> commands,
+	// which can be found under <Atomic> elements.
+	ExecCommands []SyncMLCmd `xml:"Exec,omitempty"`
 }
 
 // ParseWindowsMDMCommand parses the raw XML as a single Windows MDM command.
@@ -1493,7 +1497,7 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 		ProfileUUID:   p.ProfileUUID,
 		Name:          p.Name,
 		Identifier:    "",
-		Status:        p.Status,
+		Status:        p.Status.StringPtr(),
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
 		Platform:      "windows",
@@ -1586,6 +1590,21 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 			}
 		}
 	}
+
+	if commandStatus == MDMDeliveryVerifying {
+		// Check a single LocURI for SCEP path, and move straight to verified.
+		if strings.Contains(string(cmdWithSecret.RawCommand), "/Vendor/MSFT/ClientCertificateInstall/SCEP") {
+			commandStatus = MDMDeliveryVerified
+		}
+
+		// Check if the command contains ./User, and no ./Device paths
+		if strings.Contains(string(cmdWithSecret.RawCommand), "./User/") &&
+			!strings.Contains(string(cmdWithSecret.RawCommand), "./Device/") &&
+			!strings.Contains(string(cmdWithSecret.RawCommand), "./Vendor/") {
+			commandStatus = MDMDeliveryVerified
+		}
+	}
+
 	detail := strings.Join(details, ", ")
 	return &MDMWindowsProfilePayload{
 		HostUUID:      hostUUID,

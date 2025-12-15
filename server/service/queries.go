@@ -281,6 +281,10 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		})
 	}
 
+	if err := verifyLabelsToAssociate(ctx, svc.ds, p.TeamID, p.LabelsIncludeAny); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
+	}
+
 	query := &fleet.Query{
 		Saved: true,
 
@@ -415,6 +419,11 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("query payload verification: %s", err),
 		})
+	}
+
+	// We use query.TeamID because we do not allow changing the team
+	if err := verifyLabelsToAssociate(ctx, svc.ds, query.TeamID, p.LabelsIncludeAny); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
 	shouldDiscardQueryResults, shouldDeleteStats := false, false
@@ -925,7 +934,7 @@ func (svc *Service) GetQuerySpecs(ctx context.Context, teamID *uint) ([]*fleet.Q
 func (svc *Service) specFromQuery(ctx context.Context, query *fleet.Query) (*fleet.QuerySpec, error) {
 	var teamName string
 	if query.TeamID != nil {
-		team, err := svc.ds.Team(ctx, *query.TeamID)
+		team, err := svc.ds.TeamLite(ctx, *query.TeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get team from id")
 		}

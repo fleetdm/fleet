@@ -50,13 +50,30 @@ const FORM_VALIDATION_CONFIG: Record<
       {
         name: "requiredForExe",
         isValid: (formData) => {
-          if (formData.software?.type === "exe") {
+          if (
+            formData.software?.type === "exe" ||
+            getExtensionFromFileName(formData.software?.name || "") === "exe"
+          ) {
             // Handle undefined safely with nullish coalescing
             return (formData.installScript ?? "").trim().length > 0;
           }
           return true;
         },
         message: "Install script is required for .exe packages.",
+      },
+      {
+        name: "requiredForZip",
+        isValid: (formData) => {
+          if (
+            formData.software?.type === "zip" ||
+            getExtensionFromFileName(formData.software?.name || "") === "zip"
+          ) {
+            // Handle undefined safely with nullish coalescing
+            return (formData.installScript ?? "").trim().length > 0;
+          }
+          return true;
+        },
+        message: "Install script is required for .zip packages.",
       },
       {
         name: "requiredForTgz",
@@ -66,7 +83,7 @@ const FORM_VALIDATION_CONFIG: Record<
             getExtensionFromFileName(formData.software.name) === "tar.gz"
           ) {
             // Handle undefined safely with nullish coalescing
-            return (formData.uninstallScript ?? "").trim().length > 0;
+            return (formData.installScript ?? "").trim().length > 0;
           }
           return true;
         },
@@ -79,13 +96,30 @@ const FORM_VALIDATION_CONFIG: Record<
       {
         name: "requiredForExe",
         isValid: (formData) => {
-          if (formData.software?.type === "exe") {
+          if (
+            formData.software?.type === "exe" ||
+            getExtensionFromFileName(formData.software?.name || "") === "exe"
+          ) {
             // Handle undefined safely with nullish coalescing
             return (formData.uninstallScript ?? "").trim().length > 0;
           }
           return true;
         },
         message: "Uninstall script is required for .exe packages.",
+      },
+      {
+        name: "requiredForZip",
+        isValid: (formData) => {
+          if (
+            formData.software?.type === "zip" ||
+            getExtensionFromFileName(formData.software?.name || "") === "zip"
+          ) {
+            // Handle undefined safely with nullish coalescing
+            return (formData.uninstallScript ?? "").trim().length > 0;
+          }
+          return true;
+        },
+        message: "Uninstall script is required for .zip packages.",
       },
       {
         name: "requiredForTgz",

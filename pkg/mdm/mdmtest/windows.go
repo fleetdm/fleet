@@ -24,6 +24,10 @@ type TestWindowsMDMClient struct {
 	DeviceID string
 	// HardwareID identifies a device.
 	HardwareID string
+	// NotInOOBE indicates whether the enrollment is happening outside of the OOBE(Out Of Box Experience).
+	// NotInOOBE true basically means the enrollment happened post-setup(i.e. settings->Work or School Account)
+	// False means the enrollment is happening during OOBE/autopilot.
+	notInOOBE bool
 	// fleetServerURL is the URL of the Fleet server, used to ping the MDM endpoints.
 	fleetServerURL string
 	// debug enables debug logging of request/responses.
@@ -52,6 +56,12 @@ type TestWindowsMDMClientOption func(*TestWindowsMDMClient)
 func TestWindowsMDMClientDebug() TestWindowsMDMClientOption {
 	return func(c *TestWindowsMDMClient) {
 		c.debug = true
+	}
+}
+
+func TestWindowsMDMClientNotInOOBE() TestWindowsMDMClientOption {
+	return func(c *TestWindowsMDMClient) {
+		c.notInOOBE = true
 	}
 }
 
@@ -353,7 +363,7 @@ YioVozr1IWYySwWVzMf/SUwKZkKJCAJmSVcixE+4kxPkyPGyauIrN3wWC0zb+mjF
                     <ac:Value>10.0.22598.1</ac:Value>
                 </ac:ContextItem>
                 <ac:ContextItem Name="NotInOobe">
-                    <ac:Value>false</ac:Value>
+                    <ac:Value>` + fmt.Sprintf("%t", c.notInOOBE) + `</ac:Value>
                 </ac:ContextItem>
                 <ac:ContextItem Name="RequestVersion">
                     <ac:Value>5.0</ac:Value>

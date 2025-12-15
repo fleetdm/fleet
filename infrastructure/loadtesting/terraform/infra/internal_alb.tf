@@ -1,5 +1,5 @@
 resource "aws_security_group" "internal" {
-  name   = "${local.prefix}-internal"
+  name   = "${local.prefix}-int"
   vpc_id = data.terraform_remote_state.shared.outputs.vpc.vpc_id
   ingress {
     from_port        = 0
@@ -18,7 +18,7 @@ resource "aws_security_group" "internal" {
 }
 
 resource "aws_lb" "internal" {
-  name     = "${local.prefix}-internal"
+  name     = "${local.prefix}-int"
   internal = true
   security_groups = [
     resource.aws_security_group.internal.id,
@@ -40,7 +40,7 @@ resource "aws_lb_listener" "internal" {
 }
 
 resource "aws_lb_target_group" "internal" {
-  name                 = "${local.prefix}-internal"
+  name                 = "${local.prefix}-int"
   protocol             = "HTTP"
   target_type          = "ip"
   port                 = "80"

@@ -80,6 +80,15 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 			ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScripts bool) (*fleet.SoftwareInstaller, error) {
 				return &fleet.SoftwareInstaller{TeamID: tt.teamID}, nil
 			}
+			ds.GetVPPAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
+				if tt.teamID == nil {
+					return &fleet.VPPAppStoreApp{VPPAppsTeamsID: 0}, nil
+				}
+				return &fleet.VPPAppStoreApp{VPPAppsTeamsID: *tt.teamID}, nil
+			}
+			ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+				return &fleet.SoftwareInstaller{TeamID: tt.teamID}, nil
+			}
 
 			ds.DeleteSoftwareInstallerFunc = func(ctx context.Context, installerID uint) error {
 				return nil
@@ -108,9 +117,9 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				return nil
 			}
 
-			ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+			ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 				if tt.teamID != nil {
-					return &fleet.Team{ID: *tt.teamID}, nil
+					return &fleet.TeamLite{ID: *tt.teamID}, nil
 				}
 
 				return nil, nil
@@ -178,7 +187,7 @@ func TestUpgradeCodeMigration(t *testing.T) {
 		return map[uint]string{uint(1): "deadbeef", uint(2): "deadbeef", uint(3): "noexist", uint(4): "noexist"}, nil
 	}
 
-	var updatedInstallerIDs = map[uint]struct{}{}
+	updatedInstallerIDs := map[uint]struct{}{}
 	ds.UpdateInstallerUpgradeCodeFunc = func(ctx context.Context, installerID uint, upgradeCode string) error {
 		updatedInstallerIDs[installerID] = struct{}{}
 		require.Equal(t, "{B681CB20-107E-428A-9B14-2D3C1AFED244}", upgradeCode)
@@ -201,7 +210,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 
 	t.Run("validate no update", func(t *testing.T) {
 		t.Run("no auth context", func(t *testing.T) {
-			_, err := eeservice.ValidateSoftwareLabels(context.Background(), svc, nil, nil)
+			_, err := eeservice.ValidateSoftwareLabels(context.Background(), svc, nil, nil, nil)
 			require.ErrorContains(t, err, "Authentication required")
 		})
 
@@ -209,7 +218,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 		ctx = authz_ctx.NewContext(ctx, &authCtx)
 
 		t.Run("no auth checked", func(t *testing.T) {
-			_, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, nil)
+			_, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, nil, nil)
 			require.ErrorContains(t, err, "Authentication required")
 		})
 
@@ -231,6 +240,21 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			for _, name := range names {
 				if id, ok := mockLabels[name]; ok {
 					res[name] = id
+				}
+			}
+			return res, nil
+		}
+		ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+			res := make(map[string]*fleet.Label)
+			if names == nil {
+				return res, nil
+			}
+			for _, name := range names {
+				if id, ok := mockLabels[name]; ok {
+					res[name] = &fleet.Label{
+						ID:   id,
+						Name: name,
+					}
 				}
 			}
 			return res, nil
@@ -319,7 +343,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 		}
 		for _, tt := range testCases {
 			t.Run(tt.name, func(t *testing.T) {
-				got, err := eeservice.ValidateSoftwareLabels(ctx, svc, tt.payloadIncludeAny, tt.payloadExcludeAny)
+				got, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, tt.payloadIncludeAny, tt.payloadExcludeAny)
 				if tt.expectError != "" {
 					require.Error(t, err)
 					require.Contains(t, err.Error(), tt.expectError)

@@ -494,6 +494,55 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		software fleet.Software
 		cpe      string
 	}{
+		// This should work but there are no CPE entries in the database despite CVE-2024-25659 existing, using
+		// the following cpe_translations changes:
+		/*
+		  {
+		    "software": {
+		      "bundle_identifier": ["/^TNMS_/"],
+		      "source": ["apps"]
+		    },
+		    "filter": {
+		      "product": ["nokia"],
+		      "vendor": ["transcend_network_management_system"]
+		    }
+		  },
+		*/
+		/*{
+			software: fleet.Software{
+				Name:             "TNMS",
+				BundleIdentifier: "TNMS_19.10.3",
+				Source:           "apps",
+				Version:          "19.10.3",
+			},
+			cpe: "cpe:2.3:a:nokia:transcend_network_management_system:19.10.3:*:*:*:*:macos:*:*",
+		},*/
+		{
+			software: fleet.Software{
+				Name:             "Oracle SQLDeveloper",
+				BundleIdentifier: "com.oracle.SQLDeveloper",
+				Source:           "apps",
+				Version:          "24.3.1",
+			},
+			cpe: "cpe:2.3:a:oracle:sql_developer:24.3.1:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Poly Lens Desktop",
+				BundleIdentifier: "com.poly.lens.legacyhost.app",
+				Source:           "apps",
+			},
+			cpe: "cpe:2.3:a:poly:lens:*:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "BlueStacksMIM",
+				BundleIdentifier: "com.now.gg.BlueStacksMIM",
+				Source:           "apps",
+				Version:          "4.100.1",
+			},
+			cpe: "cpe:2.3:a:bluestacks:bluestacks:4.100.1:*:*:*:*:macos:*:*",
+		},
 		{
 			software: fleet.Software{
 				Name:             "Adobe Acrobat Reader DC.app",
@@ -521,6 +570,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:           "",
 				BundleIdentifier: "com.apple.finder",
 			}, cpe: "cpe:2.3:a:apple:finder:12.5:*:*:*:*:macos:*:*",
+		},
+		{ // Make sure we generate the expected CPE so we can match it downstream and drop the false negative vulns
+			software: fleet.Software{
+				Name:             "Dota 2",
+				Source:           "apps",
+				Version:          "1.0", // default version; on ingestion it's actually blank
+				Vendor:           "",
+				BundleIdentifier: "",
+			},
+			cpe: "cpe:2.3:a:valvesoftware:dota_2:1.0:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1666,6 +1725,18 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			cpe: `cpe:2.3:a:github:pull_requests_and_issues:0.82.0:*:*:*:*:visual_studio_code:*:*`,
 		},
 		{
+			// Running SELECT * FROM cpe_2 WHERE target_sw LIKE '%visual_studio_code%' AND product LIKE
+			// '%go%’; on the CPE sqlite db from NVD returned no rows containing "golang.go", or even “go”
+			// at all, indicating as of 10/3/25 there are no known CVEs in this extension, meaning
+			// it’s safe to skip matching this SW name to avoid the very broad match glob,
+			// cpe:2.3:a:golang:go:*:*:*:*:*:*:*:*, provided by NVD
+			software: fleet.Software{
+				Name:    "golang.go",
+				Source:  "vscode_extensions",
+				Version: "0.50.0",
+			}, cpe: "",
+		},
+		{
 			software: fleet.Software{
 				Name:             "Google Chrome Helper.app",
 				Source:           "apps",
@@ -1812,6 +1883,38 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
+				Name:    "dify",
+				Source:  "npm_packages",
+				Version: "0.11.0",
+			},
+			cpe: "cpe:2.3:a:langgenius:dify:0.11.0:*:*:*:*:node.js:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "undici",
+				Source:  "npm_packages",
+				Version: "5.22.1",
+			},
+			cpe: "cpe:2.3:a:nodejs:undici:5.22.1:*:*:*:*:node.js:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "vite",
+				Source:  "npm_packages",
+				Version: "4.3.9",
+			},
+			cpe: "cpe:2.3:a:vitejs:vite:4.3.9:*:*:*:*:node.js:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "directus",
+				Source:  "npm_packages",
+				Version: "9.12.2",
+			},
+			cpe: "cpe:2.3:a:monospace:directus:9.12.2:*:*:*:*:node.js:*:*",
+		},
+		{
+			software: fleet.Software{
 				Name:             "iTerm2",
 				Source:           "apps",
 				Version:          "3.5.14",
@@ -1843,6 +1946,25 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "128.14.0",
 			},
 			cpe: "cpe:2.3:a:mozilla:firefox:128.14.0:*:*:*:esr:macos:*:*",
+		},
+		{
+			// confirmed that as of Oct. 6 '25 there is no CPE and therefore no CVEs for this software in
+			// the NVD db, so safe to skip checking for one
+			software: fleet.Software{
+				Name:             "Logi Bolt",
+				BundleIdentifier: "com.logi.bolt.app",
+				Source:           "apps",
+				Version:          "1.2",
+			},
+			cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Snyk Security - Code, Open Source, Container, IaC Configurations",
+				Source:  "jetbrains_plugins",
+				Version: "2.4.9",
+			},
+			cpe: "cpe:2.3:a:snyk:snyk_security:2.4.9:*:*:*:*:intellij:*:*",
 		},
 	}
 

@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
@@ -113,6 +114,15 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 	if isMacOS(args.Platform) {
 		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+		}
+	} else {
+		// We shouldn't have any setup experience steps if we're not on a premium license,
+		// but best to check anyway plus it saves some db queries.
+		if license.IsPremium(ctx) {
+			_, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
+			}
 		}
 	}
 
@@ -238,9 +248,9 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 
 // getTeamConfig gets team config from DB if not provided.
 func (a *AppleMDM) getTeamConfig(ctx context.Context, team *fleet.Team, teamID uint) (*fleet.Team, error) {
-	if team == nil {
+	if team == nil { // TODO see if we can swap this (plus callers) to use TeamLite
 		var err error
-		team, err = a.Datastore.Team(ctx, teamID)
+		team, err = a.Datastore.TeamWithExtras(ctx, teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "fetch team to send AccountConfiguration")
 		}
@@ -347,7 +357,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			continue
 		}
 
-		res, err := a.Datastore.GetMDMAppleCommandResults(ctx, cmdUUID)
+		res, err := a.Datastore.GetMDMAppleCommandResults(ctx, cmdUUID, args.HostUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "failed to get MDM command results")
 		}
@@ -416,7 +426,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		return ctxerr.Wrap(ctx, err, "failed to list profiles missing installation")
 	}
 	profilesMissingInstallation = fleet.FilterOutUserScopedProfiles(profilesMissingInstallation)
-	if args.Platform != "darwin" {
+	if !isMacOS(args.Platform) {
 		profilesMissingInstallation = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(profilesMissingInstallation)
 	}
 
@@ -427,6 +437,22 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			return ctxerr.Wrap(ctx, err, "failed to re-enqueue task")
 		}
 		return nil
+	}
+
+	if !isMacOS(args.Platform) {
+		setupExperienceStatuses, err := a.Datastore.ListSetupExperienceResultsByHostUUID(ctx, args.HostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieving setup experience status results for host pending DEP release")
+		}
+		for _, status := range setupExperienceStatuses {
+			if status.Status == fleet.SetupExperienceStatusPending || status.Status == fleet.SetupExperienceStatusRunning {
+				level.Info(a.Log).Log("msg", "re-enqueuing due to setup experience items still pending or running", "host_uuid", args.HostUUID, "status_id", status.ID)
+				if err := reenqueueTask(); err != nil {
+					return ctxerr.Wrap(ctx, err, "failed to re-enqueue task due to pending setup experience items")
+				}
+				return nil
+			}
+		}
 	}
 
 	// release the device

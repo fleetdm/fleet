@@ -14,11 +14,6 @@ const DOWNLOAD_OPTION: ISoftwareOption = {
   iconName: "download",
 };
 
-const EDIT_OPTION: ISoftwareOption = {
-  value: "edit",
-  disabled: false,
-  iconName: "pencil",
-};
 const DELETE_OPTION: ISoftwareOption = {
   value: "delete",
   disabled: false,
@@ -27,14 +22,12 @@ const DELETE_OPTION: ISoftwareOption = {
 
 export const SOFTWARE_PACKAGE_ACTION_OPTIONS = [
   DOWNLOAD_OPTION,
-  EDIT_OPTION,
   DELETE_OPTION,
 ] as const;
 
-export const APP_STORE_APP_ACTION_OPTIONS = [
-  EDIT_OPTION,
-  DELETE_OPTION,
-] as const;
+export const APP_STORE_APP_ACTION_OPTIONS = [DELETE_OPTION] as const;
+
+export const ANDROID_PLAY_STORE_APP_ACTION_OPTIONS = [DELETE_OPTION] as const;
 
 export const downloadFile = (url: string, fileName: string) => {
   // Download a file by simulating a link click.

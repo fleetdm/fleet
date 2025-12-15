@@ -16,12 +16,15 @@ spec:
       enable_disk_encryption: false
       windows_require_bitlocker_pin: null
       macos_updates:
+        update_new_hosts: null
         minimum_version: null
         deadline: null
       ios_updates:
+        update_new_hosts: null
         minimum_version: null
         deadline: null
       ipados_updates:
+        update_new_hosts: null
         minimum_version: null
         deadline: null
       windows_updates:
@@ -33,6 +36,7 @@ spec:
         custom_settings: null
       android_settings:
         custom_settings: null
+        certificates: null
       macos_setup:
         bootstrap_package:
         enable_end_user_authentication: false
@@ -89,6 +93,7 @@ spec:
         custom_settings:
       android_settings:
         custom_settings:
+        certificates:
       macos_setup:
         bootstrap_package:
         enable_end_user_authentication: false

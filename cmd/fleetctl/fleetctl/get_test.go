@@ -797,6 +797,7 @@ spec:
   software_package: null
   source: chrome_extensions
   extension_for: chrome
+  display_name: ""
   browser: chrome
   versions:
   - id: 0
@@ -821,6 +822,7 @@ spec:
   software_package: null
   source: deb_packages
   extension_for: ""
+  display_name: ""
   browser: ""
   versions:
   - id: 0
@@ -839,6 +841,7 @@ spec:
       "name": "foo",
       "source": "chrome_extensions",
       "extension_for": "chrome",
+      "display_name": "",
       "browser": "chrome",
       "hosts_count": 2,
       "icon_url": null,
@@ -874,6 +877,7 @@ spec:
       "id": 0,
       "name": "bar",
       "source": "deb_packages",
+      "display_name": "",
       "extension_for": "",
       "browser": "",
       "hosts_count": 0,
@@ -950,6 +954,7 @@ spec:
   source: chrome_extensions
   browser: chrome
   extension_for: chrome
+  display_name: ""
   version: 0.0.1
   vulnerabilities:
   - cve: cve-321-432-543
@@ -966,6 +971,7 @@ spec:
   extension_id: xyz
   browser: edge
   extension_for: edge
+  display_name: ""
   vulnerabilities: null
 - generated_cpe: someothercpewithoutvulns
   id: 0
@@ -973,6 +979,7 @@ spec:
   source: chrome_extensions
   browser: chrome
   extension_for: chrome
+  display_name: ""
   version: 0.0.3
   vulnerabilities: null
 - bundle_identifier: bundle
@@ -982,6 +989,7 @@ spec:
   source: deb_packages
   browser: ""
   extension_for: ""
+  display_name: ""
   version: 0.0.3
   vulnerabilities: null
 `
@@ -998,6 +1006,7 @@ spec:
       "source": "chrome_extensions",
 	  "browser": "chrome",
 	  "extension_for": "chrome",
+	  "display_name": "",
       "generated_cpe": "somecpe",
       "vulnerabilities": [
         {
@@ -1020,6 +1029,7 @@ spec:
       "extension_id": "xyz",
       "browser": "edge",
 	  "extension_for": "edge",
+	  "display_name": "",
       "generated_cpe": "",
       "vulnerabilities": null
     },
@@ -1030,6 +1040,7 @@ spec:
       "source": "chrome_extensions",
 	  "browser": "chrome",
 	  "extension_for": "chrome",
+	  "display_name": "",
       "generated_cpe": "someothercpewithoutvulns",
       "vulnerabilities": null
     },
@@ -1039,8 +1050,9 @@ spec:
       "version": "0.0.3",
       "bundle_identifier": "bundle",
       "source": "deb_packages",
+      "display_name": "",
       "browser": "",
-	  "extension_for": "",	
+	  "extension_for": "",
       "generated_cpe": "",
       "vulnerabilities": null
     }
@@ -1360,7 +1372,7 @@ func TestGetQueries(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid == 1 {
 			return &fleet.Team{
 				ID:   tid,
@@ -1589,9 +1601,18 @@ func TestGetQuery(t *testing.T) {
 		},
 	})
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid == 1 {
 			return &fleet.Team{
+				ID:   tid,
+				Name: "Foobar",
+			}, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		if tid == 1 {
+			return &fleet.TeamLite{
 				ID:   tid,
 				Name: "Foobar",
 			}, nil
@@ -2460,6 +2481,9 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
 
 	actualYaml := RunAppForTest(t, []string{"get", "teams", "--yaml"})
 	yamlFilePath := writeTmpYml(t, actualYaml)
@@ -2569,7 +2593,19 @@ func TestGetMDMCommandResults(t *testing.T) {
 			{ID: 2, UUID: uuids[1], Hostname: "host2"},
 		}, nil
 	}
-	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	ds.GetHostMDMIdentifiersFunc = func(ctx context.Context, identifer string, teamFilter fleet.TeamFilter) ([]*fleet.HostMDMIdentifiers, error) {
+		return []*fleet.HostMDMIdentifiers{
+			{
+				UUID:           "device1",
+				HardwareSerial: "C02XXXXXXX1",
+				Hostname:       "host1",
+				ID:             1,
+				TeamID:         ptr.Uint(1),
+				Platform:       "darwin",
+			},
+		}, nil
+	}
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 		switch commandUUID {
 		case "empty-cmd":
 			return nil, nil
@@ -2598,7 +2634,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 			}, nil
 		}
 	}
-	ds.GetMDMWindowsCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	ds.GetMDMWindowsCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 		switch commandUUID {
 		case "empty-cmd":
 			return nil, nil
@@ -2976,6 +3012,66 @@ RESULTS:
 		ds.GetMDMWindowsCommandResultsFuncInvoked = false
 		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
 	})
+
+	t.Run("host specific results", func(t *testing.T) {
+		expectedOutput := strings.TrimSpace(`
+ID:
+valid-cmd
+
+TIME:
+2023-04-04T15:29:00Z
+
+TYPE:
+test
+
+STATUS:
+Acknowledged
+
+HOSTNAME:
+host1
+
+PAYLOAD:
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Command</key>
+    <dict>
+      <key>ManagedOnly</key>
+      <false/>
+      <key>RequestType</key>
+      <string>ProfileList</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>0001_ProfileList</string>
+  </dict>
+</plist>
+
+
+RESULTS:
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>CommandUUID</key>
+    <string>6d7cb698-8d93-45a3-b544-71aef37d42e8</string>
+    <key>Status</key>
+    <string>Acknowledged</string>
+    <key>UDID</key>
+    <string>419D46EC-06E6-557C-AD52-601BA0667730</string>
+  </dict>
+</plist>`)
+
+		platform = "darwin"
+		buf, err := RunAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd", "--host", "device1"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.True(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		ds.GetMDMAppleCommandResultsFuncInvoked = false
+	})
 }
 
 func TestGetMDMCommands(t *testing.T) {
@@ -2984,18 +3080,26 @@ func TestGetMDMCommands(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
+	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+		fmt.Println("Called", identifier)
+		if identifier == "foo" || identifier == "h1" {
+			return &fleet.HostLite{ID: 1, UUID: "h1", Hostname: "host1"}, nil
+		}
+		return nil, errors.New(fleet.HostIdentiferNotFound)
+	}
+
 	var empty bool
 	var listErr error
 	var noHostErr error
 	var expectIdentifier bool
 	var expectRequestType bool
-	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
+	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, error) {
 		if empty || listErr != nil {
-			return nil, listErr
+			return nil, nil, listErr
 		}
 
 		if noHostErr != nil {
-			return nil, errors.New(fleet.HostIdentiferNotFound)
+			return nil, nil, errors.New(fleet.HostIdentiferNotFound)
 		}
 
 		if expectIdentifier {
@@ -3005,7 +3109,7 @@ func TestGetMDMCommands(t *testing.T) {
 		if expectRequestType {
 			require.NotEmpty(t, listOpts.Filters.RequestType)
 		}
-
+		fmt.Println("Returning commands")
 		return []*fleet.MDMCommand{
 			{
 				HostUUID:    "h1",
@@ -3031,7 +3135,7 @@ func TestGetMDMCommands(t *testing.T) {
 				Status:      "200",
 				Hostname:    "host2",
 			},
-		}, nil
+		}, nil, nil
 	}
 
 	listErr = io.ErrUnexpectedEOF
@@ -3099,6 +3203,20 @@ The list of 3 most recent commands:
 	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
 	require.Error(t, err)
 	require.ErrorContains(t, err, fleet.HostIdentiferNotFound)
+
+	// Empty results when using host identifier
+	listErr = nil
+	empty = true
+	expectIdentifier = true
+	noHostErr = nil
+	buf, err = RunAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), "No MDM commands have been run on this host.")
+
+	// Command status no host
+	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--command_status", "ran"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `"host_identifier" must be specified when filtering by "command_status"`)
 }
 
 func TestUserIsObserver(t *testing.T) {
