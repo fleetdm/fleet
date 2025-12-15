@@ -754,8 +754,7 @@ If an end user is on vacation (offline for more than 30 days), their certificate
 
 ### User scoped certificates
 
-You can also upload a certificate to be installed in the login keychain of the managed user on a
-macOS and Windows hosts using a user-scoped configuration profile.
+You can deploy a user scoped certificate on macOS and Windows hosts using a user scoped configuration profile.
 
 1. **Add your CA as before**
   Use the above steps to integrate your CA with Fleet.
