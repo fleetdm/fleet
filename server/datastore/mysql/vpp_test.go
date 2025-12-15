@@ -777,7 +777,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(true)},
 		{VPPAppID: app2.VPPAppID, SelfService: true},
-	})
+	}, map[string]uint{})
 	require.NoError(t, err)
 
 	// create policies using two of the apps
@@ -818,7 +818,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(true)},
 		{VPPAppID: app2.VPPAppID},
 		{VPPAppID: app3.VPPAppID},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	policy1, err = ds.Policy(ctx, policy1.ID)
@@ -839,7 +839,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(true)},
 		{VPPAppID: app2.VPPAppID, SelfService: true},
 		{VPPAppID: app4.VPPAppID},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	policy1, err = ds.Policy(ctx, policy1.ID)
@@ -859,7 +859,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app2.VPPAppID, SelfService: true},
 		{VPPAppID: app4.VPPAppID},
-	})
+	}, nil)
 	require.Error(t, err)
 	require.ErrorIs(t, err, errDeleteInstallerInstalledDuringSetup)
 
@@ -868,14 +868,14 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(false)},
 		{VPPAppID: app2.VPPAppID, SelfService: true},
 		{VPPAppID: app4.VPPAppID},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Remove app1 now works
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app2.VPPAppID, SelfService: true},
 		{VPPAppID: app4.VPPAppID},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	policy1, err = ds.Policy(ctx, policy1.ID)
@@ -887,7 +887,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, app2Meta.VPPAppsTeamsID, *policy2.VPPAppsTeamsID)
 
 	// Remove all apps
-	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{})
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{}, nil)
 	require.NoError(t, err)
 
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
@@ -1806,7 +1806,7 @@ func testVPPTokenTeamAssignment(t *testing.T, ds *Datastore) {
 	err = ds.SetTeamVPPApps(ctx, &team1.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(true)},
 		{VPPAppID: app2.VPPAppID, SelfService: true},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
@@ -1913,7 +1913,7 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		app1.VPPAppTeam,
 		app2.VPPAppTeam,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
@@ -1972,7 +1972,7 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		app1.VPPAppTeam,
 		app2.VPPAppTeam,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)

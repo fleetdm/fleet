@@ -1,0 +1,8 @@
+{
+  "name": "DeepL",
+  "unique_identifier": "com.linguee.DeepLCopyTranslator",
+  "token": "deepl",
+  "installer_format": "dmg",
+  "slug": "deepl/darwin",
+  "default_categories": ["Productivity"]
+}

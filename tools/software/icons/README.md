@@ -5,16 +5,23 @@ App icons for the Fleet server and [fleetdm.com software catalog](https://fleetd
 ## Usage
 
 ```bash
-bash tools/software/icons/generate-icons.sh -a /path/to/App.app -s slug-name
+bash tools/software/icons/generate-icons.sh -s slug-name [-a /path/to/App.app | -i /path/to/icon.png]
 ```
 
-- `-a`: Path to the `.app` bundle (e.g. `/Applications/Safari.app`)
-- `-s`: Slug name for the Fleet-maintained app.  The portion before the slash will be used in the output filenames.
+- `-s`: Slug name for the Fleet-maintained app (required). The portion before the slash will be used in the output filenames.
+- `-a`: Path to the `.app` bundle (e.g. `/Applications/Safari.app`). Required if `-i` is not provided.
+- `-i`: Path to a PNG icon file. Required if `-a` is not provided. The icon will be resized to 128x128 if larger.
 
-## Example
+## Examples
 
+Using an app bundle:
 ```bash
 bash tools/software/icons/generate-icons.sh -a /Applications/Google\ Chrome.app -s "google-chrome/darwin"
+```
+
+Using a PNG file directly:
+```bash
+bash tools/software/icons/generate-icons.sh -i /path/to/icon.png -s "company-portal/windows"
 ```
 
 This will generate two files:
