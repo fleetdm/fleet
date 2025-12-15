@@ -3,7 +3,6 @@
   "unique_identifier": "com.smileonmymac.textexpander",
   "token": "textexpander",
   "installer_format": "dmg",
-  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/1password_install.sh",
   "slug": "textexpander/darwin",
   "default_categories": ["Productivity"]
 }
