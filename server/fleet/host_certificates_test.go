@@ -162,7 +162,7 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, err := ExtractDetailsFromOsqueryDistinguishedName(tc.input)
+			actual, err := ExtractDetailsFromOsqueryDistinguishedName("darwin", tc.input)
 			if tc.err {
 				require.Error(t, err)
 			} else {

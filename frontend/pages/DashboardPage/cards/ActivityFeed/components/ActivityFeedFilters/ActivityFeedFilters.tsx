@@ -37,8 +37,8 @@ TYPE_FILTER_OPTIONS.unshift({
 });
 
 const SORT_OPTIONS = [
-  { label: "Newest", value: "desc" },
-  { label: "Oldest", value: "asc" },
+  { label: "Sort by newest", value: "desc" },
+  { label: "Sort by oldest", value: "asc" },
 ];
 
 interface ActivityFeedFiltersProps {
@@ -65,7 +65,7 @@ const ActivityFeedFilters = ({
   setPageIndex,
 }: ActivityFeedFiltersProps) => {
   const onChangeActivityType = (value: string) => {
-    setTypeFilter((prev: string[]) => [value]);
+    setTypeFilter(() => [value]);
     setPageIndex(0);
   };
 

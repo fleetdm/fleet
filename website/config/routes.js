@@ -162,6 +162,14 @@ module.exports.routes = {
     }
   },// handles /success-stores/foo
 
+  'GET /case-study/*': {
+    skipAssets: false,
+    action: 'articles/view-case-study',// Meta title and description set in view action
+    locals: {
+      currentSection: 'customers',
+    }
+  },// handles /case-study/foo
+
   'GET /securing': {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
