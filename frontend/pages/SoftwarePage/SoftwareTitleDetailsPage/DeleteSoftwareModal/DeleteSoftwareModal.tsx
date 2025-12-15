@@ -11,6 +11,19 @@ import InfoBanner from "components/InfoBanner";
 
 const baseClass = "delete-software-modal";
 
+/**
+ * Normalizes software names for display purposes.
+ * Maps known problematic names to their user-friendly display names.
+ */
+const normalizeSoftwareDisplayName = (name: string | undefined): string => {
+  if (!name) return "";
+  // Handle cases where name might have version appended (e.g., "Microsoft.CompanyPortal, 11.2.1495.0")
+  if (name.startsWith("Microsoft.CompanyPortal")) {
+    return name.replace("Microsoft.CompanyPortal", "Company Portal");
+  }
+  return name;
+};
+
 const DELETE_SW_USED_BY_POLICY_ERROR_MSG =
   "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again.";
 const DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG =
@@ -37,6 +50,13 @@ const DeleteSoftwareModal = ({
 }: IDeleteSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Normalize display names for known problematic names
+  const normalizedDisplayName =
+    normalizeSoftwareDisplayName(softwareDisplayName) ||
+    normalizeSoftwareDisplayName(softwareTitleName) ||
+    softwareTitleName;
+  const normalizedTitleName = normalizeSoftwareDisplayName(softwareTitleName);
 
   const onDeleteSoftware = useCallback(async () => {
     setIsDeleting(true);
@@ -74,7 +94,7 @@ const DeleteSoftwareModal = ({
         )}
         <p>
           Are you sure you want to delete{" "}
-          <strong>{softwareDisplayName || softwareTitleName}</strong>?
+          <strong>{normalizedDisplayName}</strong>?
         </p>
         <ul>
           <li>
@@ -87,8 +107,8 @@ const DeleteSoftwareModal = ({
           </li>
           <li>
             Installed software will appear as{" "}
-            <strong>{softwareTitleName}</strong> in software inventories and
-            will use the default icon.
+            <strong>{normalizedTitleName || softwareTitleName}</strong> in
+            software inventories and will use the default icon.
           </li>
         </ul>
         <p>You cannot undo this action.</p>
