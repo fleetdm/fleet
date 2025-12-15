@@ -6,16 +6,22 @@ This guide will cover how to deploy CrowdStrike Falcon on macOS, Linux and Windo
 - Creating a post-install script to collect the CrowdStrike Customer ID for activation
 - Deploying required application configurations
 
-### Install notes
+## Install options to consider before you start
 
-- The best practice is to install CrowdStrike when hosts first enroll to Fleet. Learn how:
-  - [macOS](https://fleetdm.com/guides/setup-experience#install-software)
-  - [Linux](https://fleetdm.com/guides/windows-linux-setup-experience#choose-software)
-  - [Windows](https://fleetdm.com/guides/windows-linux-setup-experience#choose-software)
- 
-- If your organization is using Fleet GitOps and you want to pass the CrowdStrike site key as a secret, follow this guide: https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles.
+#### Install CrowdStrike during Fleet End User Setup Experience
 
-- Starting with fleetd version 1.50, you can use the `crowdstrike_falcon` osquery table to check the status of a Crowdstrike Falcon installation on macOS and Linux.
+>It is considered a best practice to install CrowdStrike when hosts first enroll into Fleet as part of the provisioning process. Learn how:
+>  - [macOS](https://fleetdm.com/guides/setup-experience#install-software)
+>  - [Linux](https://fleetdm.com/guides/windows-linux-setup-experience#choose-software)
+>  - [Windows](https://fleetdm.com/guides/windows-linux-setup-experience#choose-software)
+
+#### Use Gitops to install CrowdStrike
+
+>If your organization is using Fleet GitOps and you want to pass the CrowdStrike site key as a secret, follow this guide: https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles.
+
+#### Dedicated CrowdStrike osquery table
+
+>Starting with fleetd version 1.50, you can use the [`crowdstrike_falcon`](https://fleetdm.com/tables/CrowdStrike_falcon) osquery table to check the status of a CrowdStrike Falcon installation on macOS and Linux.
 
 ## Download the Falcon installer
 
@@ -23,9 +29,7 @@ On the CrowdStrike Falcon dashboard, click the hamburger menu in the top-left co
 
 Select the appropriate Falcon Sensor package for your platform and copy the **Customer ID** string found in the **How to install** sidebar on the right side of the page. The **Customer ID** *must be collected* during the CrowdStrike installation to activate the Falcon application on a host.
 
-> For Windows, CrowdStrike offers `.exe` and `.msi` Falcon installers. Selecting the `.msi` package is preferable because it performs a silent, fully-automated installation when using the **Automatic install** option in Fleet.
-
-See the sections below for more steps specific to your platform.
+>For Windows, CrowdStrike offers `.exe` and `.msi` Falcon installers. Selecting the `.msi` package is preferable because it performs a silent, fully-automated installation when using the **Automatic install** option in Fleet.
 
 ## macOS Falcon installation
 
@@ -37,17 +41,17 @@ The payloads can be combined and delivered as a single Configuration Profile, or
 
 Below is an explanation of what each of the macOS CrowdStrike Falcon payloads does:
 
-- `crowdstrike-service-management.mobileconfig` - Configure CrowdStrike Falcon as a managed login item so its services can't be stopped by end users.
-- `crowdstrike-notification.mobileconfig` - Suppress notifications to reduce end user notification fatigue. (This is a best practice for many fully-managed applications.)
-- `crowdstrike-system-extension` - Install the CrowdStrike Falcon System Extension to allow all necessary application entitlements and access to the macOS kernel.
-- `crowdstrike-web-filter.mobileconfig` - Enable web filtering to monitor network traffic at the socket level.
-- `crowdstrike-full-disk-access.mobileconfig` - Grant full disk access to all CrowdStrike application processes using the CrowdStrike Apple Developer team identifier.
+- `CrowdStrike-service-management.mobileconfig` - Configure CrowdStrike Falcon as a managed login item so its services can't be stopped by end users.
+- `CrowdStrike-notification.mobileconfig` - Suppress notifications to reduce end user notification fatigue. (This is a best practice for many fully-managed applications.)
+- `CrowdStrike-system-extension` - Install the CrowdStrike Falcon System Extension to allow all necessary application entitlements and access to the macOS kernel.
+- `CrowdStrike-web-filter.mobileconfig` - Enable web filtering to monitor network traffic at the socket level.
+- `CrowdStrike-full-disk-access.mobileconfig` - Grant full disk access to all CrowdStrike application processes using the CrowdStrike Apple Developer team identifier.
 
 [Download the CrowdStrike Falcon macOS Configuration Profiles](https://github.com/fleetdm/fleet/tree/main/docs/solutions/macos/configuration-profiles)
 
 To upload Configuration Profiles to your Fleet instance: go to **Controls > OS Settings > Custom settings** then click **Add Profile**.
 
-![Manage configuration profiles](../website/assets/images/articles/fleet-crowdstrike-add-profile-800x450@2x.png)
+![Manage configuration profiles](../website/assets/images/articles/fleet-CrowdStrike-add-profile-800x450@2x.png)
 
 ### 2. Create a post-install script
 
@@ -74,7 +78,7 @@ fi
 1. In Fleet, go to **Software > Add software > Custom package** to upload the Falcon Sensor installer.
 2. Click **Advanced options**, then paste the activation script from the previous step into **Post-install script**, making sure to set the `CUSTOMER_ID` variable.
 
-![Add software advanced options](../website/assets/images/articles/fleet-crowdstrike-post-install-script-800x450@2x.png)
+![Add software advanced options](../website/assets/images/articles/fleet-CrowdStrike-post-install-script-800x450@2x.png)
 
 3. Click **Add software**.
 
@@ -151,4 +155,4 @@ Fleet offers admins a straight-forward approach to deploying the CrowdStrike Fal
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-11-05">
 <meta name="description" value="Deploy CrowdStrike with Fleet">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-crowdstrike-cover-800x450@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-CrowdStrike-cover-800x450@2x.png">
