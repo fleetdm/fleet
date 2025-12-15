@@ -111,26 +111,35 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 		fmt.Fprint(w, `{"error": "no host iterator provided"}`)
 		return
 	}
+
+	// From here on we're committing to a "successful" response,
+	// where the client will have to look for an `error` key
+	// in the JSON to determine actual status.
 	w.WriteHeader(http.StatusOK)
-	// no-op flush function in case the ResponseWriter doesn't implement http.Flusher.
+
+	// Create a no-op flush function in case the ResponseWriter doesn't implement http.Flusher.
 	flush := func() {}
 	if f, ok := w.(http.Flusher); ok {
 		flush = f.Flush
 	}
-	// use the default json marshaller unless a custom one is provided (for testing).
+
+	// Use the default json marshaller unless a custom one is provided (for testing).
 	marshalJson := json.Marshal
 	if r.MarshalJSON != nil {
 		marshalJson = r.MarshalJSON
 	}
+
+	// Start the JSON object.
 	fmt.Fprint(w, `{`)
 	firstKey := true
 
 	t := reflect.TypeOf(listHostsResponse{})
 	v := reflect.ValueOf(r.listHostsResponse)
-
 	keys := []string{"Software", "SoftwareTitle", "MDMSolution", "MunkiIssue"}
 
+	// Iterate over the non-host keys in the response and write them if they are non-nil.
 	for i, key := range keys {
+		// Get the JSON tag name for the field.
 		field, _ := t.FieldByName(key)
 		tag := field.Tag.Get("json")
 		parts := strings.Split(tag, ",")
@@ -140,15 +149,21 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 			fmt.Fprint(w, `,`)
 		}
 
+		// Get the actual value for the field.
 		fieldValue := v.FieldByName(key)
 		if fieldValue.IsValid() && !fieldValue.IsNil() {
 			data, err := marshalJson(fieldValue.Interface())
 			if err != nil {
+				// On error, write the error key and return.
+				// Marshal the error as a JSON object without the surrounding braces,
+				// in case the error string itself contains characters that would break
+				// the JSON response.
 				errData, _ := json.Marshal(map[string]string{"error": fmt.Sprintf("marshaling %s: %s", name, err.Error())})
 				fmt.Fprint(w, string(errData[1:len(errData)-1]))
 				fmt.Fprint(w, `}`)
 				return
 			}
+			// Output the key and value.
 			fmt.Fprintf(w, `"%s":`, name)
 			fmt.Fprint(w, string(data))
 			flush()
@@ -159,8 +174,11 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 	if !firstKey {
 		fmt.Fprint(w, `,`)
 	}
+
+	// Start the hosts array.
 	fmt.Fprint(w, `"hosts": [`)
 	firstHost := true
+	// Get hosts one at a time from the iterator and write them out.
 	for hostResp, err := range r.HostResponseIterator {
 		if err != nil {
 			fmt.Fprint(w, `],`)
@@ -184,6 +202,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 		flush()
 		firstHost = false
 	}
+	// Close the hosts array and the JSON object.
 	fmt.Fprint(w, `]}`)
 }
 
