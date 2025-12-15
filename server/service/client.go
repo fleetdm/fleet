@@ -2178,6 +2178,9 @@ func (c *Client) DoGitOps(
 		if deadline, ok := iOSUpdates["deadline"]; !ok || deadline == nil {
 			iOSUpdates["deadline"] = ""
 		}
+		// update_new_hosts is only used for macOS so ignore any values posted for iOS
+		iOSUpdates["update_new_hosts"] = nil
+
 		// Put in default values for ipados_updates
 		if incoming.Controls.IPadOSUpdates != nil {
 			mdmAppConfig["ipados_updates"] = incoming.Controls.IPadOSUpdates
@@ -2191,6 +2194,9 @@ func (c *Client) DoGitOps(
 		if deadline, ok := iPadOSUpdates["deadline"]; !ok || deadline == nil {
 			iPadOSUpdates["deadline"] = ""
 		}
+		// update_new_hosts is only used for macOS so ignore any values posted for iPadOS
+		iPadOSUpdates["update_new_hosts"] = nil
+
 		// Put in default values for macos_setup
 		if incoming.Controls.MacOSSetup != nil {
 			incoming.Controls.MacOSSetup.SetDefaultsIfNeeded()
