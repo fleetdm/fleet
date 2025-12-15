@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"testing"
 	"time"
@@ -1050,6 +1052,65 @@ func TestListHosts(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.True(t, ds.LoadHostSoftwareFuncInvoked)
+}
+
+func TestStreamHosts(t *testing.T) {
+	t.Run("Happy path", func(t *testing.T) {
+		// Create a mock iterator for the hosts.
+		hostIterator := func() iter.Seq2[*fleet.HostResponse, error] {
+			return func(yield func(*fleet.HostResponse, error) bool) {
+				for i := 1; i <= 3; i++ {
+					host := &fleet.HostResponse{Host: &fleet.Host{ID: uint(i)}}
+					if !yield(host, nil) {
+						return
+					}
+				}
+			}
+		}
+		resp := streamHostsResponse{
+			HostResponseIterator: hostIterator(),
+			listHostsResponse: listHostsResponse{
+				Software: &fleet.Software{
+					ID: uint(1),
+				},
+				SoftwareTitle: &fleet.SoftwareTitle{ID: uint(2)},
+				MDMSolution: &fleet.MDMSolution{
+					ID: uint(3),
+				},
+				MunkiIssue: &fleet.MunkiIssue{
+					ID: uint(4),
+				},
+			},
+		}
+		rr := httptest.NewRecorder()
+		resp.HijackRender(context.Background(), rr)
+		// Assert that the output contains the error message
+		require.Equal(t, rr.Code, 200)
+		// Get the body into a string.
+		body := rr.Body.String()
+		// Unmarshal the string into a map.
+		var results map[string]interface{}
+		err := json.Unmarshal([]byte(body), &results)
+		if err != nil {
+			t.Fatalf("failed to unmarshal response body: %v", err)
+		}
+		// Assert that software.id == 1
+		require.Equal(t, float64(1), results["software"].(map[string]interface{})["id"])
+		// Assert that software_title.id == 2
+		require.Equal(t, float64(2), results["software_title"].(map[string]interface{})["id"])
+		// Assert that mdm_solution.id == 3
+		require.Equal(t, float64(3), results["mobile_device_management_solution"].(map[string]interface{})["id"])
+		// Assert that munki_issue.id == 4
+		require.Equal(t, float64(4), results["munki_issue"].(map[string]interface{})["id"])
+		// Assert that hosts array has length 3
+		hosts := results["hosts"].([]interface{})
+		require.Len(t, hosts, 3)
+		// Assert that host IDs are 1, 2, 3
+		for i, host := range hosts {
+			hostMap := host.(map[string]interface{})
+			require.Equal(t, float64(i+1), hostMap["id"])
+		}
+	})
 }
 
 func TestGetHostSummary(t *testing.T) {

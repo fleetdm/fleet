@@ -95,6 +95,9 @@ type streamHostsResponse struct {
 	listHostsResponse
 	// HostResponseIterator is an iterator to stream hosts one by one.
 	HostResponseIterator iter.Seq2[*fleet.HostResponse, error] `json:"-"`
+	// MarshalJSON is an optional custom JSON marshaller for the response,
+	// used for testing purposes only.
+	MarshalJSON func(v any) ([]byte, error) `json:"-"`
 }
 
 func (r streamHostsResponse) Error() error { return r.Err }
@@ -107,10 +110,15 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 	if f, ok := w.(http.Flusher); ok {
 		flush = f.Flush
 	}
+	// use the default json marshaller unless a custom one is provided (for testing).
+	marshalJson := json.Marshal
+	if r.MarshalJSON != nil {
+		marshalJson = r.MarshalJSON
+	}
 	fmt.Fprint(w, `{`)
 	firstKey := true
 	if r.Software != nil {
-		data, err := json.Marshal(r.Software)
+		data, err := marshalJson(r.Software)
 		if err != nil {
 			fmt.Fprintf(w, `"error": "marshaling software: %s"`, err.Error())
 			fmt.Fprint(w, `}`)
@@ -125,7 +133,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 		if !firstKey {
 			fmt.Fprint(w, `,`)
 		}
-		data, err := json.Marshal(r.SoftwareTitle)
+		data, err := marshalJson(r.SoftwareTitle)
 		if err != nil {
 			fmt.Fprintf(w, `"error": "marshaling software title: %s"`, err.Error())
 			fmt.Fprint(w, `}`)
@@ -140,7 +148,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 		if !firstKey {
 			fmt.Fprint(w, `,`)
 		}
-		data, err := json.Marshal(r.MDMSolution)
+		data, err := marshalJson(r.MDMSolution)
 		if err != nil {
 			fmt.Fprintf(w, `"error": "marshaling mdm solution: %s"`, err.Error())
 			fmt.Fprint(w, `}`)
@@ -155,7 +163,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 		if !firstKey {
 			fmt.Fprint(w, `,`)
 		}
-		data, err := json.Marshal(r.MunkiIssue)
+		data, err := marshalJson(r.MunkiIssue)
 		if err != nil {
 			fmt.Fprintf(w, `"error": "marshaling munki issue: %s"`, err.Error())
 			fmt.Fprint(w, `}`)
@@ -178,7 +186,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 			fmt.Fprint(w, `}`)
 			return
 		}
-		data, err := json.Marshal(hostResp)
+		data, err := marshalJson(hostResp)
 		if err != nil {
 			fmt.Fprint(w, `],`)
 			fmt.Fprintf(w, `"error": "marshaling host response: %s"`, err.Error())
