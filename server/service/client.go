@@ -2158,6 +2158,13 @@ func (c *Client) DoGitOps(
 		if deadline, ok := macOSUpdates["deadline"]; !ok || deadline == nil {
 			macOSUpdates["deadline"] = ""
 		}
+
+		// To keep things backward compatible, if a minimum_version and deadline are both set,
+		// then we also set update_new_hosts
+		if macOSUpdates["minimum_version"] != "" && macOSUpdates["deadline"] != "" {
+			macOSUpdates["update_new_hosts"] = true
+		}
+
 		// Put in default values for ios_updates
 		if incoming.Controls.IOSUpdates != nil {
 			mdmAppConfig["ios_updates"] = incoming.Controls.IOSUpdates
