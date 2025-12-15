@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
@@ -4337,4 +4338,167 @@ software: null
 	require.Len(t, deletedCertificateIDs, 2)
 	assert.Contains(t, deletedCertificateIDs, uint(1))
 	assert.Contains(t, deletedCertificateIDs, uint(2))
+}
+
+func TestGitOpsWindowsUpdates(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+
+	const teamName = "Team1"
+	var savedTeam *fleet.Team
+	team := &fleet.Team{
+		ID:        1,
+		CreatedAt: time.Now(),
+		Name:      teamName,
+	}
+
+	// Track calls to Windows updates functions
+	var setOrUpdateCalls []fleet.MDMWindowsConfigProfile
+	var deleteCalls []struct {
+		teamID *uint
+		name   string
+	}
+
+	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+		setOrUpdateCalls = append(setOrUpdateCalls, cp)
+		return nil
+	}
+
+	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
+		deleteCalls = append(deleteCalls, struct {
+			teamID *uint
+			name   string
+		}{teamID, profileName})
+		return nil
+	}
+
+	// Common mock setup
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		return nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == teamName && savedTeam != nil {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		savedTeam = team
+		return team, nil
+	}
+	ds.NewTeamFunc = func(ctx context.Context, newTeam *fleet.Team) (*fleet.Team, error) {
+		newTeam.ID = team.ID
+		savedTeam = newTeam
+		return newTeam, nil
+	}
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
+	}
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+		return nil, nil
+	}
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) ([]*fleet.Policy, []*fleet.Policy, error) {
+		return nil, nil, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+		return nil
+	}
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
+	}
+
+	t.Run("with values", func(t *testing.T) {
+		// Reset call trackers
+		setOrUpdateCalls = nil
+		deleteCalls = nil
+		savedTeam = nil
+
+		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFile.WriteString(`
+name: Team1
+team_settings:
+  mdm:
+    windows_updates:
+      deadline_days: 7
+      grace_period_days: 2
+`)
+		require.NoError(t, err)
+
+		_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+
+		// Verify SetOrUpdateMDMWindowsConfigProfile was called
+		require.Len(t, setOrUpdateCalls, 1, "SetOrUpdateMDMWindowsConfigProfile should be called once")
+		assert.Equal(t, &team.ID, setOrUpdateCalls[0].TeamID)
+		assert.Equal(t, mdm.FleetWindowsOSUpdatesProfileName, setOrUpdateCalls[0].Name)
+		assert.NotEmpty(t, setOrUpdateCalls[0].SyncML, "SyncML should contain profile data")
+
+		// Verify DeleteMDMWindowsConfigProfileByTeamAndName was NOT called
+		assert.Empty(t, deleteCalls, "DeleteMDMWindowsConfigProfileByTeamAndName should not be called")
+	})
+
+	t.Run("with null values", func(t *testing.T) {
+		// Reset call trackers
+		setOrUpdateCalls = nil
+		deleteCalls = nil
+		// Keep savedTeam from previous test to simulate updating existing team
+
+		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFile.WriteString(`
+name: Team1
+team_settings:
+  mdm:
+    windows_updates:
+      deadline_days: null
+      grace_period_days: null
+`)
+		require.NoError(t, err)
+
+		_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+
+		// Verify DeleteMDMWindowsConfigProfileByTeamAndName was called
+		require.Len(t, deleteCalls, 1, "DeleteMDMWindowsConfigProfileByTeamAndName should be called once")
+		assert.Equal(t, &team.ID, deleteCalls[0].teamID)
+		assert.Equal(t, mdm.FleetWindowsOSUpdatesProfileName, deleteCalls[0].name)
+
+		// Verify SetOrUpdateMDMWindowsConfigProfile was NOT called
+		assert.Empty(t, setOrUpdateCalls, "SetOrUpdateMDMWindowsConfigProfile should not be called")
+	})
+
+	t.Run("field omitted", func(t *testing.T) {
+		// Reset call trackers
+		setOrUpdateCalls = nil
+		deleteCalls = nil
+		savedTeam = nil
+
+		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFile.WriteString(`
+name: Team1
+team_settings:
+  mdm: {}
+`)
+		require.NoError(t, err)
+
+		_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+
+		// Verify neither function was called
+		assert.Empty(t, setOrUpdateCalls, "SetOrUpdateMDMWindowsConfigProfile should not be called")
+		assert.Empty(t, deleteCalls, "DeleteMDMWindowsConfigProfileByTeamAndName should not be called")
+	})
 }
