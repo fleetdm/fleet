@@ -1,49 +1,99 @@
-# Fleet uninstalls app by finding all related product codes for the specified upgrade code
-# Falls back to product code if upgrade code lookup finds nothing
+# Fleet uninstalls Airtame MSI
+# Tries product code first, then falls back to upgrade code lookup
 $inst = New-Object -ComObject "WindowsInstaller.Installer"
 $timeoutSeconds = 300  # 5 minute timeout per product
 $upgradeCode = "{E29931C0-80A4-45BE-8F54-BDC39F9D3C63}"
 $productCode = "{AA404F77-BC09-4A42-A93F-EBB102306039}"
 
-# First, try to find and uninstall products using the upgrade code
-$relatedProducts = $inst.RelatedProducts($upgradeCode)
-$foundProducts = $false
+function Test-ProductInstalled {
+    param([string]$ProductCode)
+    try {
+        $product = $inst.Products.Item($ProductCode)
+        return $true
+    } catch {
+        return $false
+    }
+}
 
-foreach ($product_code in $relatedProducts) {
-    $foundProducts = $true
-    $process = Start-Process msiexec -ArgumentList @("/quiet", "/x", $product_code, "/norestart") -PassThru
+# Function to uninstall by product code and verify it's gone
+function Uninstall-ProductCode {
+    param([string]$Code)
+    
+    Write-Output "Attempting to uninstall product code: $Code"
+    
+    # Check if product is installed first
+    if (-not (Test-ProductInstalled -ProductCode $Code)) {
+        Write-Output "Product code $Code is not installed"
+        return $true
+    }
+    
+    # Uninstall using /qn (quiet, no UI) instead of /quiet
+    $process = Start-Process msiexec -ArgumentList @("/qn", "/x", $Code, "/norestart") -PassThru -Wait -NoNewWindow
     
     # Wait for process with timeout
     $completed = $process.WaitForExit($timeoutSeconds * 1000)
     
     if (-not $completed) {
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-        Exit 1603  # ERROR_UNINSTALL_FAILURE
+        Write-Output "Uninstall timed out for $Code"
+        return $false
     }
     
-    # If the uninstall failed, bail
+    # Check exit code
     if ($process.ExitCode -ne 0) {
-        Write-Output "Uninstall for $($product_code) exited $($process.ExitCode)"
-        Exit $process.ExitCode
+        Write-Output "Uninstall for $Code exited with code $($process.ExitCode)"
+        return $false
+    }
+    
+    # Wait a moment for Windows Installer to update
+    Start-Sleep -Seconds 2
+    
+    # Verify product is actually gone
+    $stillInstalled = Test-ProductInstalled -ProductCode $Code
+    if ($stillInstalled) {
+        Write-Output "Product $Code is still installed after uninstall attempt"
+        return $false
+    }
+    
+    Write-Output "Successfully uninstalled $Code"
+    return $true
+}
+
+# First, try uninstalling by product code directly
+$uninstalled = Uninstall-ProductCode -Code $productCode
+
+# If that didn't work, try finding all products with the upgrade code
+if (-not $uninstalled) {
+    Write-Output "Product code uninstall failed, trying upgrade code lookup..."
+    $relatedProducts = $inst.RelatedProducts($upgradeCode)
+    
+    if ($relatedProducts.Count -eq 0) {
+        Write-Output "No products found with upgrade code $upgradeCode"
+        Exit 1
+    }
+    
+    foreach ($relatedProductCode in $relatedProducts) {
+        Write-Output "Found related product: $relatedProductCode"
+        $result = Uninstall-ProductCode -Code $relatedProductCode
+        if (-not $result) {
+            Write-Output "Failed to uninstall $relatedProductCode"
+            Exit 1
+        }
     }
 }
 
-# If no products were found with upgrade code, try product code directly
-if (-not $foundProducts) {
-    Write-Output "No products found with upgrade code, trying product code directly..."
-    $process = Start-Process msiexec -ArgumentList @("/quiet", "/x", $productCode, "/norestart") -PassThru
-    $completed = $process.WaitForExit($timeoutSeconds * 1000)
-    
-    if (-not $completed) {
-        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-        Exit 1603  # ERROR_UNINSTALL_FAILURE
-    }
-    
-    if ($process.ExitCode -ne 0) {
-        Write-Output "Uninstall by product code exited $($process.ExitCode)"
-        Exit $process.ExitCode
-    }
+# Final verification - check if any products with this upgrade code still exist
+$remainingProducts = $inst.RelatedProducts($upgradeCode)
+if ($remainingProducts.Count -gt 0) {
+    Write-Output "Warning: $($remainingProducts.Count) product(s) still found with upgrade code after uninstall"
+    Exit 1
 }
 
-# All uninstalls succeeded; exit success
+# Also verify the specific product code is gone
+if (Test-ProductInstalled -ProductCode $productCode) {
+    Write-Output "Product code $productCode is still installed"
+    Exit 1
+}
+
+Write-Output "Uninstall completed successfully"
 Exit 0
