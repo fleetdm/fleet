@@ -151,7 +151,7 @@ const AddCertModal = ({
               <CustomLink
                 url={paths.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES}
                 text="Certificate authorities"
-              />
+              />{" "}
               page.
             </>
           }
