@@ -1,0 +1,12 @@
+{
+  "name": "010 Editor",
+  "slug": "010-editor/windows",
+  "package_identifier": "SweetScape.010Editor",
+  "unique_identifier": "010 Editor 16.0.2 (64-bit)",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/010-editor_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/010-editor_uninstall.ps1"
+}

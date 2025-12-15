@@ -1082,9 +1082,9 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 	mdmT := reflect.TypeOf(fleet.TeamMDM{})
 
 	if len(certSummaries) > 0 {
-		androidSettingsType := reflect.TypeOf(fleet.AndroidSettings{})
-		certType := reflect.TypeOf(fleet.CertificateTemplateResponseFull{})
-		fullCerts := make([]map[string]interface{}, 0, len(certSummaries))
+		androidSettingsType := reflect.TypeFor[fleet.AndroidSettings]()
+		certType := reflect.TypeFor[fleet.CertificateTemplateResponse]()
+		fullCerts := make([]map[string]any, 0, len(certSummaries))
 		for _, certSummary := range certSummaries {
 			fullCerts = append(fullCerts, map[string]interface{}{
 				jsonFieldName(certType, "Name"):                     certSummary.Name,
