@@ -6,5 +6,6 @@
   "installer_arch": "x86",
   "installer_type": "msi",
   "installer_scope": "machine",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/airtame_uninstall.ps1",
   "default_categories": ["Productivity"]
 }
