@@ -9,6 +9,13 @@
       "description": "010 Editor is a toolkit for working with text and binary data."
     },
     {
+      "name": "010 Editor",
+      "slug": "010-editor/windows",
+      "platform": "windows",
+      "unique_identifier": "010 Editor 16.0.2 (64-bit)",
+      "description": "010 Editor is a toolkit for working with text and binary data."
+    },
+    {
       "name": "1Password",
       "slug": "1password/darwin",
       "platform": "darwin",
@@ -27,6 +34,13 @@
       "slug": "8x8-work/darwin",
       "platform": "darwin",
       "unique_identifier": "com.electron.8x8---virtual-office",
+      "description": "8x8 Work is a communications application with voice, video, chat, and web conferencing."
+    },
+    {
+      "name": "8x8 Work",
+      "slug": "8x8-work/windows",
+      "platform": "windows",
+      "unique_identifier": "8x8 Work",
       "description": "8x8 Work is a communications application with voice, video, chat, and web conferencing."
     },
     {
@@ -72,11 +86,39 @@
       "description": "Adobe Digital Editions is an E-book reader."
     },
     {
+      "name": "Adobe DNG Converter",
+      "slug": "adobe-dng-converter/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adobe.DNGConverter",
+      "description": "Adobe DNG Conver is a DNG file converter."
+    },
+    {
       "name": "Aircall",
       "slug": "aircall/darwin",
       "platform": "darwin",
       "unique_identifier": "io.aircall.phone",
       "description": "Aircall is cloud-based call center and phone system software."
+    },
+    {
+      "name": "Aircall",
+      "slug": "aircall/windows",
+      "platform": "windows",
+      "unique_identifier": "Aircall",
+      "description": "Aircall is cloud-based call center and phone system software."
+    },
+    {
+      "name": "Airtame",
+      "slug": "airtame/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.airtame.airtame-application",
+      "description": "Airtame is an app that makes shared screens easy to use — for screen sharing, conferencing, digital signage, and alerts."
+    },
+    {
+      "name": "Airtame",
+      "slug": "airtame/windows",
+      "platform": "windows",
+      "unique_identifier": "Airtame 4.15.0",
+      "description": "Airtame is an app that makes shared screens easy to use — for screen sharing, conferencing, digital signage, and alerts."
     },
     {
       "name": "Amazon Chime",
@@ -357,6 +399,13 @@
       "platform": "windows",
       "unique_identifier": "Cloudflare WARP",
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+    },
+    {
+      "name": "Company Portal",
+      "slug": "company-portal/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft.CompanyPortal",
+      "description": "Microsoft Company Portal is the app for accessing company resources and managing devices in a secure environment."
     },
     {
       "name": "CotEditor",
@@ -870,6 +919,13 @@
       "description": "Microsoft Edge is a secure, fast, and modern web browser built for productivity and compatibility."
     },
     {
+      "name": "Microsoft Edge",
+      "slug": "microsoft-edge/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Edge",
+      "description": "Microsoft Edge is a secure, fast, and modern web browser built for productivity and compatibility."
+    },
+    {
       "name": "Microsoft Excel",
       "slug": "microsoft-excel/darwin",
       "platform": "darwin",
@@ -958,13 +1014,20 @@
       "slug": "notion-calendar/darwin",
       "platform": "darwin",
       "unique_identifier": "com.cron.electron",
-      "description": "Manage your time and work, together."
+      "description": "Notion Calendar is an app to manage your time and work, together."
     },
     {
       "name": "Notion",
       "slug": "notion/darwin",
       "platform": "darwin",
       "unique_identifier": "notion.id",
+      "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
+    },
+    {
+      "name": "Notion",
+      "slug": "notion/windows",
+      "platform": "windows",
+      "unique_identifier": "Notion 6.1.0",
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
@@ -1070,6 +1133,13 @@
       "slug": "postman/darwin",
       "platform": "darwin",
       "unique_identifier": "com.postmanlabs.mac",
+      "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
+    },
+    {
+      "name": "Postman",
+      "slug": "postman/windows",
+      "platform": "windows",
+      "unique_identifier": "Postman x64 11.75.4",
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
