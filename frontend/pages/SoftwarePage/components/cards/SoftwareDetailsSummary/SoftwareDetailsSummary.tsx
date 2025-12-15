@@ -83,6 +83,18 @@ const buildActionOptions = (
 
 const baseClass = "software-details-summary";
 
+/**
+ * Normalizes software names for display purposes.
+ * Maps known problematic names to their user-friendly display names.
+ */
+const normalizeSoftwareDisplayName = (name: string): string => {
+  // Handle cases where name might have version appended (e.g., "Microsoft.CompanyPortal, 11.2.1495.0")
+  if (name.startsWith("Microsoft.CompanyPortal")) {
+    return name.replace("Microsoft.CompanyPortal", "Company Portal");
+  }
+  return name;
+};
+
 interface ISoftwareDetailsSummaryProps {
   /** Name displayed in UI */
   displayName: string;
@@ -138,6 +150,9 @@ const SoftwareDetailsSummary = ({
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
   const { config } = useContext(AppContext);
+
+  // Normalize display name for known problematic names
+  const normalizedDisplayName = normalizeSoftwareDisplayName(displayName);
 
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
   const repoURL = config?.gitops.repository_url;
@@ -209,11 +224,11 @@ const SoftwareDetailsSummary = ({
               {isRollingArch ? (
                 // wrap a tooltip around the "rolling" suffix
                 <>
-                  {displayName.slice(0, -8)}
+                  {normalizedDisplayName.slice(0, -8)}
                   <TooltipWrapperArchLinuxRolling />
                 </>
               ) : (
-                <TooltipTruncatedText value={displayName} />
+                <TooltipTruncatedText value={normalizedDisplayName} />
               )}
             </h1>
             {canManageSoftware && (

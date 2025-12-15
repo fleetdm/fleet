@@ -516,6 +516,8 @@ const matchStrictNameSourceToIcon = ({
       return Zoom;
     case name.startsWith("zoom workplace"):
       return Zoom;
+    case name === "microsoft.companyportal":
+      return IntuneCompanyPortal;
     default:
       return null;
   }

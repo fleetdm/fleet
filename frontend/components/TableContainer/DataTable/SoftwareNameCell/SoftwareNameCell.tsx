@@ -17,10 +17,11 @@ const baseClass = "software-name-cell";
  * Maps known problematic names to their user-friendly display names.
  */
 const normalizeSoftwareDisplayName = (name: string): string => {
-  const nameMap: Record<string, string> = {
-    "Microsoft.CompanyPortal": "Company Portal",
-  };
-  return nameMap[name] || name;
+  // Handle cases where name might have version appended (e.g., "Microsoft.CompanyPortal, 11.2.1495.0")
+  if (name.startsWith("Microsoft.CompanyPortal")) {
+    return name.replace("Microsoft.CompanyPortal", "Company Portal");
+  }
+  return name;
 };
 
 type InstallType =
