@@ -1225,6 +1225,12 @@ func (svc *Service) createTeamFromSpec(
 		return nil, err
 	}
 
+	if tm.Config.MDM.WindowsUpdates.DeadlineDays.Valid {
+		if err := svc.mdmWindowsEnableOSUpdates(ctx, &tm.ID, tm.Config.MDM.WindowsUpdates); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "enable team windows OS updates")
+		}
+	}
+
 	if conditionalAccessEnabled.Set && conditionalAccessEnabled.Value {
 		if err := svc.NewActivity(
 			ctx,

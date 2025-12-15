@@ -4267,7 +4267,6 @@ spec:
 	})
 }
 
-
 type notFoundError struct{}
 
 var _ fleet.NotFoundError = (*notFoundError)(nil)
