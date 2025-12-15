@@ -315,7 +315,6 @@ WHERE
 	}
 	listStmt, params = appendListOptionsWithCursorToSQL(listStmt, params, &listOpts.ListOptions)
 
-
 	var results []*fleet.MDMCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, params...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "list commands")
