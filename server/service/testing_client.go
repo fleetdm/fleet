@@ -148,7 +148,16 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		}
 
 		_, err = q.ExecContext(ctx, "DELETE FROM in_house_apps;")
-		return err
+		if err != nil {
+			return err
+		}
+
+		_, err = q.ExecContext(ctx, "DELETE FROM vpp_apps;")
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 
 	lbls, err := ts.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})

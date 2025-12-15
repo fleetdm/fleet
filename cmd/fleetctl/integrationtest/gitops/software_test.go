@@ -551,6 +551,18 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 				}
 				return found, nil
 			}
+			ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+				found2 := make(map[string]*fleet.Label)
+				for _, l := range names {
+					if id, ok := c.expectedLabels[l]; ok {
+						found2[l] = &fleet.Label{
+							ID:   id,
+							Name: l,
+						}
+					}
+				}
+				return found2, nil
+			}
 			ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 				return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
 			}
@@ -565,6 +577,7 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 				require.NoError(t, err)
 				if len(c.expectedLabels) > 0 {
 					require.True(t, ds.LabelIDsByNameFuncInvoked)
+					require.True(t, ds.LabelsByNameFuncInvoked)
 				}
 
 				require.Equal(t, c.expectedLabels, found)

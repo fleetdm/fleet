@@ -2675,6 +2675,20 @@ func TestGitOpsCustomSettings(t *testing.T) {
 				}
 				return ret, nil
 			}
+			ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+				// for this test, recognize labels A, B and C (as well as the built-in macos 14+ one)
+				ret := make(map[string]*fleet.Label)
+				for _, lbl := range names {
+					id, ok := labelToIDs[lbl]
+					if ok {
+						ret[lbl] = &fleet.Label{
+							ID:   id,
+							Name: lbl,
+						}
+					}
+				}
+				return ret, nil
+			}
 			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) error {
 				return nil
 			}

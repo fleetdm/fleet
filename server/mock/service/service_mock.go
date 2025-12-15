@@ -162,7 +162,7 @@ type ListHostsInLabelFunc func(ctx context.Context, lid uint, opt fleet.HostList
 
 type ListLabelsForHostFunc func(ctx context.Context, hostID uint) ([]*fleet.Label, error)
 
-type BatchValidateLabelsFunc func(ctx context.Context, labelNames []string) (map[string]fleet.LabelIdent, error)
+type BatchValidateLabelsFunc func(ctx context.Context, teamID *uint, labelNames []string) (map[string]fleet.LabelIdent, error)
 
 type ApplyQuerySpecsFunc func(ctx context.Context, specs []*fleet.QuerySpec) error
 
@@ -2651,11 +2651,11 @@ func (s *Service) ListLabelsForHost(ctx context.Context, hostID uint) ([]*fleet.
 	return s.ListLabelsForHostFunc(ctx, hostID)
 }
 
-func (s *Service) BatchValidateLabels(ctx context.Context, labelNames []string) (map[string]fleet.LabelIdent, error) {
+func (s *Service) BatchValidateLabels(ctx context.Context, teamID *uint, labelNames []string) (map[string]fleet.LabelIdent, error) {
 	s.mu.Lock()
 	s.BatchValidateLabelsFuncInvoked = true
 	s.mu.Unlock()
-	return s.BatchValidateLabelsFunc(ctx, labelNames)
+	return s.BatchValidateLabelsFunc(ctx, teamID, labelNames)
 }
 
 func (s *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpec) error {

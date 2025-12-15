@@ -146,7 +146,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				}
 			}
 
-			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "validating software labels for batch adding vpp app")
 			}
@@ -343,7 +343,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				)
 			}
 		}
-
 	}
 
 	return addedApps, nil
@@ -482,7 +481,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
 	}
 
-	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, appID.LabelsIncludeAny, appID.LabelsExcludeAny)
+	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, appID.LabelsIncludeAny, appID.LabelsExcludeAny)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "validating software labels for adding vpp app")
 	}
@@ -762,7 +761,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	var validatedLabels *fleet.LabelIdentsWithScope
 	if payload.LabelsExcludeAny != nil || payload.LabelsIncludeAny != nil {
 		var err error
-		validatedLabels, err = ValidateSoftwareLabels(ctx, svc, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+		validatedLabels, err = ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating software labels")
 		}

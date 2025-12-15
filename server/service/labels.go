@@ -680,7 +680,7 @@ func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.Label
 	return svc.ds.GetLabelSpec(ctx, name)
 }
 
-func (svc *Service) BatchValidateLabels(ctx context.Context, labelNames []string) (map[string]fleet.LabelIdent, error) {
+func (svc *Service) BatchValidateLabels(ctx context.Context, teamID *uint, labelNames []string) (map[string]fleet.LabelIdent, error) {
 	if authctx, ok := authz_ctx.FromContext(ctx); !ok {
 		return nil, fleet.NewAuthRequiredError("batch validate labels: missing authorization context")
 	} else if !authctx.Checked() {
@@ -703,6 +703,10 @@ func (svc *Service) BatchValidateLabels(ctx context.Context, labelNames []string
 			Message:     "some or all the labels provided don't exist",
 			InternalErr: fmt.Errorf("names provided: %v", labelNames),
 		}
+	}
+
+	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, labelNames); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
 	byName := make(map[string]fleet.LabelIdent, len(labels))
