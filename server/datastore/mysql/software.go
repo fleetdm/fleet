@@ -1024,8 +1024,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					}
 				}
 
-				// For mobile apps, also try matching by application_id since VPP apps use it
-				// and MDM inventory may report different names than the app store.
+				// For Android apps, also try matching by application_id since VPP apps use it
+				// and MDM inventory may report different names than the Play Store.
 				var unmatchedAppIDs []string
 				unmatchedByAppID := make(map[string][]string)
 				for checksum, title := range newTitlesNeeded {
@@ -1034,7 +1034,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					}
 					if title.ApplicationID != nil && *title.ApplicationID != "" {
 						switch title.Source {
-						case "android_apps", "ios_apps", "ipados_apps":
+						case "android_apps":
 							appID := *title.ApplicationID
 							unmatchedAppIDs = append(unmatchedAppIDs, appID)
 							unmatchedByAppID[appID] = append(unmatchedByAppID[appID], checksum)
@@ -1046,7 +1046,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					appIDPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(unmatchedAppIDs)), ",")
 					appIDStmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, upgrade_code, application_id
 						FROM software_titles
-						WHERE application_id IN (%s) AND source IN ('android_apps', 'ios_apps', 'ipados_apps')`, appIDPlaceholders)
+						WHERE application_id IN (%s) AND source = 'android_apps'`, appIDPlaceholders)
 
 					appIDArgs := make([]any, len(unmatchedAppIDs))
 					for i, appID := range unmatchedAppIDs {
