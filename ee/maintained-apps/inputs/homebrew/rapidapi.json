@@ -1,0 +1,8 @@
+{
+  "name": "RapidAPI",
+  "unique_identifier": "com.luckymarmot.Paw",
+  "token": "rapidapi",
+  "installer_format": "zip",
+  "slug": "rapidapi/darwin",
+  "default_categories": ["Developer tools"]
+}

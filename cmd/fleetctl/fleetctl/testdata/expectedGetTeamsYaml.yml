@@ -16,12 +16,15 @@ spec:
       enable_disk_encryption: false
       windows_require_bitlocker_pin: null
       macos_updates:
+        update_new_hosts: null
         minimum_version: null
         deadline: null
       ios_updates:
+        update_new_hosts: null
         minimum_version: null
         deadline: null
       ipados_updates:
+        update_new_hosts: null
         minimum_version: null
         deadline: null
       windows_updates:

@@ -1,5 +1,6 @@
 package com.fleetdm.agent.scep
 
+import android.util.Log
 import com.fleetdm.agent.GetCertificateTemplateResponse
 import org.bouncycastle.asn1.DERPrintableString
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers
@@ -31,6 +32,8 @@ import kotlinx.coroutines.withContext
  * 5. Extracting and returning the issued certificate and private key
  */
 class ScepClientImpl : ScepClient {
+
+    val TAG = "ScepClientImpl"
 
     companion object {
         private const val SCEP_PROFILE = "NDESCA" // Network Device Enrollment Service CA
@@ -81,7 +84,7 @@ class ScepClientImpl : ScepClient {
             val client = Client(server, verifier)
 
             // Step 5: Build Certificate Signing Request (CSR)
-            val csr = buildCsr(entity, keyPair, config.scepChallenge, config.signatureAlgorithm)
+            val csr = buildCsr(entity, keyPair, config.scepChallenge ?: "", config.signatureAlgorithm)
 
             // Step 6: Send enrollment request
             val response = try {

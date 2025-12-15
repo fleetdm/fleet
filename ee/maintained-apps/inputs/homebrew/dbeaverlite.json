@@ -1,0 +1,9 @@
+{
+  "name": "DBeaverLite",
+  "unique_identifier": "com.dbeaver.product.lite",
+  "token": "dbeaverlite",
+  "installer_format": "dmg",
+  "slug": "dbeaverlite/darwin",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/dbeaverlite-install.sh",
+  "default_categories": ["Developer tools"]
+}

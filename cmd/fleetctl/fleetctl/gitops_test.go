@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -350,7 +349,7 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
-	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) error {
 		return nil
 	}
 
@@ -575,7 +574,7 @@ func TestGitOpsBasicTeam(t *testing.T) {
 
 	const secret = "TestSecret"
 
-	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) error {
 		return nil
 	}
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
@@ -1325,7 +1324,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
-	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) error {
 		return nil
 	}
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
@@ -1529,7 +1528,7 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		return nil
 	}
 
-	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) error {
 		return nil
 	}
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
@@ -1922,7 +1921,7 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		savedAppConfig = config
 		return nil
 	}
-	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) error {
 		return nil
 	}
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
@@ -2466,7 +2465,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 		}, nil
 	}
 
-	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) error {
 		return nil
 	}
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
@@ -2676,7 +2675,7 @@ func TestGitOpsCustomSettings(t *testing.T) {
 				}
 				return ret, nil
 			}
-			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) error {
 				return nil
 			}
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
@@ -3907,40 +3906,16 @@ func TestGitOpsAndroidCertificatesChange(t *testing.T) {
 				ID:                     1,
 				Name:                   "Certificate 1",
 				CertificateAuthorityId: 1,
+				SubjectName:            "CN=Original Subject 1",
 			},
 			{
 				ID:                     2,
 				Name:                   "Certificate 2",
 				CertificateAuthorityId: 2,
+				SubjectName:            "CN=Original Subject 2",
 			},
 		}
 		return existing, &fleet.PaginationMetadata{}, nil
-	}
-
-	// Simulate full certificate details for existing certificates
-	ds.GetCertificateTemplateByIdFunc = func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
-		switch id {
-		case 1:
-			return &fleet.CertificateTemplateResponseFull{
-				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
-					ID:                     1,
-					Name:                   "Certificate 1",
-					CertificateAuthorityId: 1,
-				},
-				SubjectName: "CN=Original Subject 1",
-			}, nil
-		case 2:
-			return &fleet.CertificateTemplateResponseFull{
-				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
-					ID:                     2,
-					Name:                   "Certificate 2",
-					CertificateAuthorityId: 2,
-				},
-				SubjectName: "CN=Original Subject 2",
-			}, nil
-		default:
-			return nil, errors.New("certificate not found")
-		}
 	}
 
 	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) error {
@@ -4157,40 +4132,16 @@ func TestGitOpsAndroidCertificatesDeleteOne(t *testing.T) {
 				ID:                     1,
 				Name:                   "Certificate 1",
 				CertificateAuthorityId: 1,
+				SubjectName:            "CN=Device Certificate 1",
 			},
 			{
 				ID:                     2,
 				Name:                   "Certificate 2",
 				CertificateAuthorityId: 2,
+				SubjectName:            "CN=Device Certificate 2",
 			},
 		}
 		return existing, &fleet.PaginationMetadata{}, nil
-	}
-
-	// Mock GetCertificateTemplateByIdFunc to return full certificate details
-	ds.GetCertificateTemplateByIdFunc = func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
-		switch id {
-		case 1:
-			return &fleet.CertificateTemplateResponseFull{
-				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
-					ID:                     1,
-					Name:                   "Certificate 1",
-					CertificateAuthorityId: 1,
-				},
-				SubjectName: "CN=Device Certificate 1",
-			}, nil
-		case 2:
-			return &fleet.CertificateTemplateResponseFull{
-				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
-					ID:                     2,
-					Name:                   "Certificate 2",
-					CertificateAuthorityId: 2,
-				},
-				SubjectName: "CN=Device Certificate 2",
-			}, nil
-		default:
-			return nil, errors.New("certificate not found")
-		}
 	}
 
 	// Create team config with only one certificate (Certificate 1 removed)
