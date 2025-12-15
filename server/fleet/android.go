@@ -181,10 +181,10 @@ func IsAndroidPolicyFieldValid(fieldName string) bool {
 	return policyFieldsCache[fieldName]
 }
 
-var validAndroidWorkProfileWidgets = map[string]bool{
-	"WORK_PROFILE_WIDGETS_UNSPECIFIED": true,
-	"WORK_PROFILE_WIDGETS_ALLOWED":     true,
-	"WORK_PROFILE_WIDGETS_DISALLOWED":  true,
+var validAndroidWorkProfileWidgets = map[string]struct{}{
+	"WORK_PROFILE_WIDGETS_UNSPECIFIED": {},
+	"WORK_PROFILE_WIDGETS_ALLOWED":     {},
+	"WORK_PROFILE_WIDGETS_DISALLOWED":  {},
 }
 
 // ValidateAndroidAppConfiguration validates Android app configuration JSON.
@@ -213,8 +213,9 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 			Message: "Couldn't update configuration. Invalid JSON.",
 		}
 	}
-	if cfg.WorkProfileWidgets != "" && !validAndroidWorkProfileWidgets[cfg.WorkProfileWidgets] {
-		return &BadRequestError{Message: `Couldn't update configuration. "PROFILE_WIDGETS_ALLOWED" is not a supported value for "workProfileWidget".`}
+
+	if _, validVal := validAndroidWorkProfileWidgets[cfg.WorkProfileWidgets]; cfg.WorkProfileWidgets != "" && !validVal {
+		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "%s" is not a supported value for "workProfileWidget".`, cfg.WorkProfileWidgets)}
 	}
 
 	return nil
