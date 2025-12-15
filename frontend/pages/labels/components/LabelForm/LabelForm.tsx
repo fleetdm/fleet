@@ -19,10 +19,26 @@ interface ILabelFormProps {
   isUpdatingLabel?: boolean;
   teamName: string | null;
   onCancel: () => void;
+  immutableFields: string[];
   onSave: (formData: ILabelFormData, isValid: boolean) => void;
 }
 
 const baseClass = "label-form";
+
+const generateDescriptionHelpText = (immutableFields: string[]) => {
+  if (immutableFields.length === 0) {
+    return "";
+  }
+
+  const SUFFIX =
+    "are immutable. To make changes, delete this label and create a new one.";
+
+  return immutableFields.length === 1
+    ? `Label ${immutableFields[0]} ${SUFFIX}`
+    : `Label ${immutableFields
+        .slice(0, -1)
+        .join(", ")} and ${immutableFields.pop()} ${SUFFIX}`;
+};
 
 const LabelForm = ({
   defaultName = "",
@@ -32,6 +48,7 @@ const LabelForm = ({
   teamName,
   onCancel,
   onSave,
+  immutableFields,
 }: ILabelFormProps) => {
   const [name, setName] = useState(defaultName);
   const [description, setDescription] = useState(defaultDescription);
@@ -78,6 +95,11 @@ const LabelForm = ({
         type="textarea"
         placeholder="Label description (optional)"
       />
+      {immutableFields.length > 0 ? (
+        <span className={`${baseClass}__help-text`}>
+          {generateDescriptionHelpText(immutableFields)}
+        </span>
+      ) : null}
       {teamName ? <TeamNameField name={teamName} /> : null}
       {additionalFields}
       <div className="button-wrap">
