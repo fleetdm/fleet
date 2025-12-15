@@ -83,7 +83,7 @@ export const generateFormValidations = (
             return formData.subjectName.length > 0;
           },
         },
-        // accept any value, let the serve handle any errors
+        // accept any value, let the server handle any errors
       ],
     },
   };
