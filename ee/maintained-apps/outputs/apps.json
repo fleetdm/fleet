@@ -100,6 +100,20 @@
       "description": "Aircall is cloud-based call center and phone system software."
     },
     {
+      "name": "Airtame",
+      "slug": "airtame/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.airtame.airtame-application",
+      "description": "Airtame is an app that makes shared screens easy to use — for screen sharing, conferencing, digital signage, and alerts."
+    },
+    {
+      "name": "Airtame",
+      "slug": "airtame/windows",
+      "platform": "windows",
+      "unique_identifier": "Airtame 4.15.0",
+      "description": "Airtame is an app that makes shared screens easy to use — for screen sharing, conferencing, digital signage, and alerts."
+    },
+    {
       "name": "Amazon Chime",
       "slug": "amazon-chime/darwin",
       "platform": "darwin",
