@@ -24,7 +24,7 @@ You can customize these flows with a webhook (e.g. Tines) to run scripts, use th
 
 ### End user experience
 
-* If a host has multiple users listed in host vitals (e.g. IdP user + a Google Chrome profile or multiple Google Chrome profiles), Fleet creates a calendar event for the first user (alphabetic order). For example, if the CEO's Executive Assistant (EA) is logged into Google Chrome with their email (assistant@example.com) and the CEO's email (ceo@example.com), the CEO will get calendar events for the EA's maintenance window.
+* If a host has multiple users listed in host vitals (e.g. an IdP user and one or more Google Chrome profiles), Fleet schedules the calendar event for the first user in alphabetical order. For example, if the CEO's Executive Assistant (EA) is logged into Google Chrome with their email (assistant@example.com) and the CEO's email (ceo@example.com), the CEO will get calendar events for the EA's maintenance window.
 * If a user is associated with multiple failing hosts, Fleet schedules only one calendar event at a time. After the first host is fixed, Fleet schedules the next event.
 * Users can reschedule the event on their calendar—Fleet will run remediation at the new time.
 * If a user moves the event to before the current time, Fleet shifts it to the next day.
