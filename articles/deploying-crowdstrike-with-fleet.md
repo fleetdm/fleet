@@ -110,7 +110,7 @@ CrowdStrike provides [documentation for additional flags](https://github.com/cro
 1. In Fleet, go to **Software > Add software > Custom package** to upload the Falcon Sensor installer.
 2. Click **Advanced options**, then paste the activation script from the previous step into **Post-install script**, making sure to set the `CUSTOMER_ID` variable.
 
-> You use [labels](https://fleetdm.com/guides/managing-labels-in-fleet) to scope installations for different hardware architectures.
+>You can use [labels](https://fleetdm.com/guides/managing-labels-in-fleet) to scope installations for different hardware architectures.
 
 3. Click **Add software**.
 
@@ -137,7 +137,7 @@ Exit $installProcess.ExitCode
 }
 ```
 
-CrowdStrike provides [documentation for additional flags](https://github.com/crowdstrike/falcon-scripts/tree/main/powershell/install) you can use here.
+>CrowdStrike provides [documentation for additional flags](https://github.com/crowdstrike/falcon-scripts/tree/main/powershell/install) here.
 
 ### 2. Add the Falcon Sensor to your software library
 
