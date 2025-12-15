@@ -1,6 +1,12 @@
 <resources>
     <string name="app_name">Fleet Agent</string>
 
+    <string name="app_description">The app  is installed by your IT administrator to install the certificates needed to connect to corporate networks.</string>
+    <string name="learn_about_fleet">Learn about Fleet</string>
+    <string name="fleet_logo">Fleet logo</string>
+    <string name="certificate_list_title">Installed Certificates:</string>
+
+    <!-- Managed Configuration -->
     <string name="enroll_secret_title">Enroll Secret</string>
     <string name="enroll_secret_description">Secret used to enroll in a fleet instance</string>
     <string name="server_url_title">Fleet Base URL</string>

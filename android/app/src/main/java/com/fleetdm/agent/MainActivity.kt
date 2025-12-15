@@ -1,23 +1,22 @@
 package com.fleetdm.agent
 
 import android.app.admin.DevicePolicyManager
-import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -27,23 +26,22 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.datastore.preferences.core.stringPreferencesKey
+import com.fleetdm.agent.ui.theme.FleetTextDark
 import com.fleetdm.agent.ui.theme.MyApplicationTheme
 import java.security.KeyStore
 import java.security.cert.X509Certificate
 import java.util.Date
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
@@ -52,9 +50,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         // 1. Fetch the Managed Configuration (Application Restrictions)
-        val restrictionsManager = getSystemService(Context.RESTRICTIONS_SERVICE) as android.content.RestrictionsManager
+        val restrictionsManager = getSystemService(RESTRICTIONS_SERVICE) as android.content.RestrictionsManager
         val appRestrictions = restrictionsManager.applicationRestrictions
-        val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        val dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
 
         setContent {
             val enrollSecret by remember { mutableStateOf(appRestrictions.getString("enroll_secret")) }
@@ -209,6 +207,77 @@ suspend fun listKeystoreCertificates(): List<CertificateInfo> = withContext(Disp
 }
 
 data class CertificateInfo(val alias: String, val subject: String, val issuer: String, val notBefore: Date, val notAfter: Date)
+
+@Composable
+fun AboutFleet(modifier: Modifier = Modifier) {
+    Column(modifier = modifier.padding(20.dp)) {
+        Text(
+            text = stringResource(R.string.app_description),
+        )
+        Text(
+            text = stringResource(R.string.learn_about_fleet),
+            fontWeight = FontWeight.Bold,
+            color = FleetTextDark,
+            modifier = Modifier
+                .padding(top = 10.dp)
+                .clickable(onClick = {})
+        )
+    }
+}
+
+@Composable
+fun LogoHeader(modifier: Modifier = Modifier) {
+    Image(
+        modifier = modifier.padding(20.dp),
+        painter = painterResource(R.drawable.fleet_logo),
+        contentDescription = stringResource(R.string.fleet_logo),
+    )
+}
+
+@Composable
+fun CertificateList(modifier: Modifier = Modifier, certificates: CertStatusMap) {
+    Column(modifier = modifier.padding(20.dp)) {
+        Text(
+            text = stringResource(R.string.certificate_list_title),
+            color = FleetTextDark,
+            fontWeight = FontWeight.Bold,
+        )
+        certificates.forEach { (key, value) ->
+            Text(text = value.alias)
+        }
+    }
+}
+
+@Composable
+fun AppVersion(modifier: Modifier = Modifier) {
+    
+}
+
+@Preview(showBackground = true)
+@Composable
+fun FleetScreenPreview() {
+    MyApplicationTheme {
+        Column {
+            LogoHeader()
+            HorizontalDivider()
+            AboutFleet()
+            HorizontalDivider()
+            CertificateList(
+                certificates = mapOf(
+                    1 to CertificateInstallInfo(alias = "WIFI-1", status = CertificateInstallStatus.INSTALLED),
+                    2 to CertificateInstallInfo(alias = "VPN-3", status = CertificateInstallStatus.FAILED))
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun AboutFleetPreview() {
+    MyApplicationTheme {
+        AboutFleet()
+    }
+}
 
 @Preview(showBackground = true)
 @Composable
