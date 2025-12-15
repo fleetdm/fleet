@@ -34,6 +34,12 @@ certificate_authorities:
       password: some-smallstep-password
       url: https://some-smallstep-url.com
       username: some-smallstep-username
+  okta:
+    - challenge_url: https://some-okta-challenge-url.com
+      name: some-okta-name
+      password: some-okta-password
+      url: https://some-okta-url.com
+      username: some-okta-username
 features:
   enable_host_users: true
   enable_software_inventory: true
