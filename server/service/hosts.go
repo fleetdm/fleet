@@ -11,6 +11,7 @@ import (
 	"io"
 	"iter"
 	"net/http"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -123,67 +124,38 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 	}
 	fmt.Fprint(w, `{`)
 	firstKey := true
-	if r.Software != nil {
-		data, err := marshalJson(r.Software)
-		if err != nil {
-			errData, _ := json.Marshal(map[string]string{"error": fmt.Sprintf("marshaling software: %s", err.Error())})
-			fmt.Fprint(w, string(errData[1:len(errData)-1]))
-			fmt.Fprint(w, `}`)
-			return
-		}
-		fmt.Fprint(w, `"software":`)
-		fmt.Fprint(w, string(data))
-		flush()
-		firstKey = false
-	}
-	if r.SoftwareTitle != nil {
-		if !firstKey {
+
+	t := reflect.TypeOf(listHostsResponse{})
+	v := reflect.ValueOf(r.listHostsResponse)
+
+	keys := []string{"Software", "SoftwareTitle", "MDMSolution", "MunkiIssue"}
+
+	for i, key := range keys {
+		field, _ := t.FieldByName(key)
+		tag := field.Tag.Get("json")
+		parts := strings.Split(tag, ",")
+		name := parts[0]
+
+		if i > 0 && !firstKey {
 			fmt.Fprint(w, `,`)
 		}
-		data, err := marshalJson(r.SoftwareTitle)
-		if err != nil {
-			errData, _ := json.Marshal(map[string]string{"error": fmt.Sprintf("marshaling software title: %s", err.Error())})
-			fmt.Fprint(w, string(errData[1:len(errData)-1]))
-			fmt.Fprint(w, `}`)
-			return
+
+		fieldValue := v.FieldByName(key)
+		if fieldValue.IsValid() && !fieldValue.IsNil() {
+			data, err := marshalJson(fieldValue.Interface())
+			if err != nil {
+				errData, _ := json.Marshal(map[string]string{"error": fmt.Sprintf("marshaling %s: %s", name, err.Error())})
+				fmt.Fprint(w, string(errData[1:len(errData)-1]))
+				fmt.Fprint(w, `}`)
+				return
+			}
+			fmt.Fprintf(w, `"%s":`, name)
+			fmt.Fprint(w, string(data))
+			flush()
+			firstKey = false
 		}
-		fmt.Fprint(w, `"software_title":`)
-		fmt.Fprint(w, string(data))
-		flush()
-		firstKey = false
 	}
-	if r.MDMSolution != nil {
-		if !firstKey {
-			fmt.Fprint(w, `,`)
-		}
-		data, err := marshalJson(r.MDMSolution)
-		if err != nil {
-			errData, _ := json.Marshal(map[string]string{"error": fmt.Sprintf("marshaling mdm solution: %s", err.Error())})
-			fmt.Fprint(w, string(errData[1:len(errData)-1]))
-			fmt.Fprint(w, `}`)
-			return
-		}
-		fmt.Fprint(w, `"mobile_device_management_solution":`)
-		fmt.Fprint(w, string(data))
-		flush()
-		firstKey = false
-	}
-	if r.MunkiIssue != nil {
-		if !firstKey {
-			fmt.Fprint(w, `,`)
-		}
-		data, err := marshalJson(r.MunkiIssue)
-		if err != nil {
-			errData, _ := json.Marshal(map[string]string{"error": fmt.Sprintf("marshaling munki issue: %s", err.Error())})
-			fmt.Fprint(w, string(errData[1:len(errData)-1]))
-			fmt.Fprint(w, `}`)
-			return
-		}
-		fmt.Fprint(w, `"munki_issue":`)
-		fmt.Fprint(w, string(data))
-		flush()
-		firstKey = false
-	}
+
 	if !firstKey {
 		fmt.Fprint(w, `,`)
 	}

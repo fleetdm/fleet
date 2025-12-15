@@ -1121,15 +1121,15 @@ func TestStreamHosts(t *testing.T) {
 		},
 		{
 			"Error marshalling SoftwareTitle",
-			"marshaling software title",
+			"marshaling software_title",
 		},
 		{
 			"Error marshalling MDMSolution",
-			"marshaling mdm solution",
+			"marshaling mobile_device_management_solution",
 		},
 		{
 			"Error marshalling MunkiIssue",
-			"marshaling munki issue",
+			"marshaling munki_issue",
 		},
 		{
 			"Error iterating over Hosts",
