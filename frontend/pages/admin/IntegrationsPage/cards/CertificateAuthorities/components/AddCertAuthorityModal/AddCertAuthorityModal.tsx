@@ -56,7 +56,9 @@ const AddCertAuthorityModal = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const dropdownOptions = useMemo(() => {
-    return generateDropdownOptions(certAuthorities.some((cert) => cert.type === "ndes_scep_proxy"));
+    return generateDropdownOptions(
+      certAuthorities.some((cert) => cert.type === "ndes_scep_proxy")
+    );
   }, [certAuthorities]);
 
   const [
