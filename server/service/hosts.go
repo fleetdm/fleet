@@ -122,14 +122,14 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 		firstKey = false
 	}
 	if r.SoftwareTitle != nil {
+		if !firstKey {
+			fmt.Fprint(w, `,`)
+		}
 		data, err := json.Marshal(r.SoftwareTitle)
 		if err != nil {
 			fmt.Fprintf(w, `"error": "marshaling software title: %s"`, err.Error())
 			fmt.Fprint(w, `}`)
 			return
-		}
-		if !firstKey {
-			fmt.Fprint(w, `,`)
 		}
 		fmt.Fprint(w, `"software_title":`)
 		fmt.Fprint(w, string(data))
@@ -152,14 +152,14 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 		firstKey = false
 	}
 	if r.MunkiIssue != nil {
+		if !firstKey {
+			fmt.Fprint(w, `,`)
+		}
 		data, err := json.Marshal(r.MunkiIssue)
 		if err != nil {
 			fmt.Fprintf(w, `"error": "marshaling munki issue: %s"`, err.Error())
 			fmt.Fprint(w, `}`)
 			return
-		}
-		if !firstKey {
-			fmt.Fprint(w, `,`)
 		}
 		fmt.Fprint(w, `"munki_issue":`)
 		fmt.Fprint(w, string(data))
