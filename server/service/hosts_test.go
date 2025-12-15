@@ -1088,25 +1088,25 @@ func TestStreamHosts(t *testing.T) {
 		// Get the body into a string.
 		body := rr.Body.String()
 		// Unmarshal the string into a map.
-		var results map[string]interface{}
+		var results map[string]any
 		err := json.Unmarshal([]byte(body), &results)
 		if err != nil {
 			t.Fatalf("failed to unmarshal response body: %v", err)
 		}
 		// Assert that software.id == 1
-		require.Equal(t, float64(1), results["software"].(map[string]interface{})["id"])
+		require.Equal(t, float64(1), results["software"].(map[string]any)["id"])
 		// Assert that software_title.id == 2
-		require.Equal(t, float64(2), results["software_title"].(map[string]interface{})["id"])
+		require.Equal(t, float64(2), results["software_title"].(map[string]any)["id"])
 		// Assert that mdm_solution.id == 3
-		require.Equal(t, float64(3), results["mobile_device_management_solution"].(map[string]interface{})["id"])
+		require.Equal(t, float64(3), results["mobile_device_management_solution"].(map[string]any)["id"])
 		// Assert that munki_issue.id == 4
-		require.Equal(t, float64(4), results["munki_issue"].(map[string]interface{})["id"])
+		require.Equal(t, float64(4), results["munki_issue"].(map[string]any)["id"])
 		// Assert that hosts array has length 3
-		hosts := results["hosts"].([]interface{})
+		hosts := results["hosts"].([]any)
 		require.Len(t, hosts, 3)
 		// Assert that host IDs are 1, 2, 3
 		for i, host := range hosts {
-			hostMap := host.(map[string]interface{})
+			hostMap := host.(map[string]any)
 			require.Equal(t, float64(i+1), hostMap["id"])
 		}
 		// Assert that the output contains no error message
@@ -1209,7 +1209,7 @@ func TestStreamHosts(t *testing.T) {
 			require.Equal(t, rr.Code, 200)
 			body := rr.Body.String()
 			// Unmarshal the string into a map.
-			var results map[string]interface{}
+			var results map[string]any
 			err := json.Unmarshal([]byte(body), &results)
 			if err != nil {
 				t.Fatalf("failed to unmarshal response body: %v", err)
@@ -1217,7 +1217,7 @@ func TestStreamHosts(t *testing.T) {
 			// Assert that error message is present
 			require.Contains(t, results["error"], tc.ExpectedError)
 			// If the error isn't in the hosts array, ensure that no hosts were returned.
-			hosts, ok := results["hosts"].([]interface{})
+			hosts, ok := results["hosts"].([]any)
 			if tc.Name != "Error marshalling Hosts" && tc.Name != "Error iterating over Hosts" {
 				require.False(t, ok)
 			} else {

@@ -133,7 +133,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 	fmt.Fprint(w, `{`)
 	firstKey := true
 
-	t := reflect.TypeOf(listHostsResponse{})
+	t := reflect.TypeFor[listHostsResponse]()
 	v := reflect.ValueOf(r.listHostsResponse)
 	keys := []string{"Software", "SoftwareTitle", "MDMSolution", "MunkiIssue"}
 
