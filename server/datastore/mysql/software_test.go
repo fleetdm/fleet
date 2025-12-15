@@ -10177,7 +10177,7 @@ func testListHostSoftwareAndroidVPPAppMatching(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, "android_apps", vppTitleSource)
 
-	// Osquery reports shorter name but same application_id
+	// MDM inventory reports shorter name but same application_id
 	inventorySoftware := []fleet.Software{
 		{
 			Name:          "Amazon Shopping",

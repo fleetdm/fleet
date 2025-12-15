@@ -1025,7 +1025,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				}
 
 				// For mobile apps, also try matching by application_id since VPP apps use it
-				// and osquery may report different names than the app store.
+				// and MDM inventory may report different names than the app store.
 				var unmatchedAppIDs []string
 				unmatchedByAppID := make(map[string][]string)
 				for checksum, title := range newTitlesNeeded {
