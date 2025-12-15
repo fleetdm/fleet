@@ -93,6 +93,13 @@
       "description": "Aircall is cloud-based call center and phone system software."
     },
     {
+      "name": "Aircall",
+      "slug": "aircall/windows",
+      "platform": "windows",
+      "unique_identifier": "Aircall",
+      "description": "Aircall is cloud-based call center and phone system software."
+    },
+    {
       "name": "Amazon Chime",
       "slug": "amazon-chime/darwin",
       "platform": "darwin",
