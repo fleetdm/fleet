@@ -7976,31 +7976,43 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	})
 	require.NoError(t, err)
 
-	// apply certificate templates
+	// invalid Fleet variable in subject name
 	var applyResp applyCertificateTemplateSpecsResponse
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
 		Specs: []*fleet.CertificateRequestSpec{
 			{
 				Name:                   "Invalid Template",
-				Team:                   fmt.Sprint(team.ID),
+				Team:                   team.Name,
 				CertificateAuthorityId: ca.ID,
 				SubjectName:            "CN=$FLEET_VAR_NOT_VALID/OU=$FLEET_VAR_HOST_UUID",
 			},
 		},
 	}, http.StatusBadRequest, &applyResp)
 
-	// valid templates
+	// test with non-existent team name
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Invalid Team Template",
+				Team:                   "NonExistentTeam",
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
+			},
+		},
+	}, http.StatusNotFound, &applyResp)
+
+	// valid templates - test team name (not team ID)
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
 		Specs: []*fleet.CertificateRequestSpec{
 			{
 				Name:                   "Template 1",
-				Team:                   fmt.Sprint(team.ID),
+				Team:                   team.Name,
 				CertificateAuthorityId: ca.ID,
 				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
 			},
 			{
 				Name:                   "Template 2",
-				Team:                   fmt.Sprint(team.ID),
+				Team:                   team.Name,
 				CertificateAuthorityId: ca.ID,
 				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
 			},
@@ -8031,6 +8043,31 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	host.OrbitNodeKey = &orbitNodeKey
 	require.NoError(t, s.ds.UpdateHost(ctx, host))
 
+	savedCertificateTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, team.ID, fleet.ListOptions{Page: 0, PerPage: 10})
+	require.NoError(t, err)
+	certID := savedCertificateTemplates[0].ID
+
+	// Create a host_certificate_templates record for this host (simulating what happens during Android enrollment)
+	// The endpoint /api/fleetd/certificates/{id} requires a host_certificate_templates record to exist
+	err = s.ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+		{
+			HostUUID:              host.UUID,
+			CertificateTemplateID: certID,
+			Status:                fleet.CertificateTemplateDelivered,
+			OperationType:         fleet.MDMOperationTypeInstall,
+		},
+	})
+	require.NoError(t, err)
+
+	var getCertResp getDeviceCertificateTemplateResponse
+
+	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+	})
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, getCertResp.Certificate.Status, fleet.CertificateTemplateFailed)
+
 	// Add an IDP user for the host
 	err = s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
 		{
@@ -8041,14 +8078,8 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	}, fleet.DeviceMappingMDMIdpAccounts)
 	require.NoError(t, err)
 
-	savedCertificateTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, team.ID, fleet.ListOptions{Page: 0, PerPage: 10})
-	require.NoError(t, err)
-	certID := savedCertificateTemplates[0].ID
-
 	// Get certificate without node_key
-	var getCertResp getDeviceCertificateTemplateResponse
-
-	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusUnauthorized, nil)
+	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusUnauthorized, nil)
 	require.NoError(t, resp.Body.Close())
 
 	// Get certificate with node_key (should return replaced variables)
@@ -8071,14 +8102,6 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_UUID")
 	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_HARDWARE_SERIAL")
 
-	// Get certificate with host_uuid (should return replaced variables)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d?host_uuid=%s", certID, host.UUID), nil, http.StatusOK, &getCertResp)
-	require.NotNil(t, getCertResp.Certificate)
-
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "test.user@example.com")
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "test-uuid-12345")
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "TEST-SERIAL-67890")
-
 	// batch delete certificate templates
 	var delBatchResp deleteCertificateTemplateSpecsResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
@@ -8089,20 +8112,26 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
 	require.Len(t, listCertifcatesResp.Certificates, 0)
 
-	// certificate templates for "No team" (team_id 0)
+	// certificate templates for "No team"
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
 		Specs: []*fleet.CertificateRequestSpec{
 			{
 				Name:                   "No Team Template 1",
-				Team:                   "0",
+				Team:                   "No team",
 				CertificateAuthorityId: ca.ID,
 				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
 			},
 			{
 				Name:                   "No Team Template 2",
-				Team:                   "0",
+				Team:                   "",
 				CertificateAuthorityId: ca.ID,
 				SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			},
+			{
+				Name: "No Team Template 3",
+				// No Team field, should default to empty string
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
 			},
 		},
 	}, http.StatusOK, &applyResp)
@@ -8110,8 +8139,9 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	// list specs for "no team" (team_id 0)
 	var noTeamCertificatesResp listCertificateTemplatesResponse
 	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
-	require.Len(t, noTeamCertificatesResp.Certificates, 2)
-	assert.ElementsMatch(t, []string{"No Team Template 1", "No Team Template 2"}, []string{noTeamCertificatesResp.Certificates[0].Name, noTeamCertificatesResp.Certificates[1].Name})
+	require.Len(t, noTeamCertificatesResp.Certificates, 3)
+	certNames := []string{noTeamCertificatesResp.Certificates[0].Name, noTeamCertificatesResp.Certificates[1].Name, noTeamCertificatesResp.Certificates[2].Name}
+	assert.ElementsMatch(t, []string{"No Team Template 1", "No Team Template 2", "No Team Template 3"}, certNames)
 
 	// Create a host
 	noTeamHost, err := s.ds.NewHost(ctx, &fleet.Host{
@@ -8127,6 +8157,10 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	})
 	require.NoError(t, err)
 
+	noTeamOrbitNodeKey := uuid.New().String()
+	noTeamHost.OrbitNodeKey = &noTeamOrbitNodeKey
+	require.NoError(t, s.ds.UpdateHost(ctx, noTeamHost))
+
 	// Add an IDP user for host
 	err = s.ds.ReplaceHostDeviceMapping(ctx, noTeamHost.ID, []*fleet.HostDeviceMapping{
 		{
@@ -8139,11 +8173,27 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 
 	savedNoTeamCertTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, 0, fleet.ListOptions{Page: 0, PerPage: 10})
 	require.NoError(t, err)
-	require.Len(t, savedNoTeamCertTemplates, 2)
+	require.Len(t, savedNoTeamCertTemplates, 3)
 	noTeamCertID := savedNoTeamCertTemplates[0].ID
 
+	// Create a host_certificate_templates record for this no-team host
+	err = s.ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+		{
+			HostUUID:              noTeamHost.UUID,
+			CertificateTemplateID: noTeamCertID,
+			Status:                fleet.CertificateTemplateDelivered,
+			OperationType:         fleet.MDMOperationTypeInstall,
+		},
+	})
+	require.NoError(t, err)
+
+	// Get certificate with orbit node_key (should return replaced variables)
 	var getNoTeamCertResp getDeviceCertificateTemplateResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleetd/certificates/%d?node_key=%s", noTeamCertID, *noTeamHost.NodeKey), nil, http.StatusOK, &getNoTeamCertResp)
+	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", noTeamCertID), nil, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", noTeamOrbitNodeKey),
+	})
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getNoTeamCertResp))
+	require.NoError(t, resp.Body.Close())
 	require.NotNil(t, getNoTeamCertResp.Certificate)
 	assert.Contains(t, getNoTeamCertResp.Certificate.SubjectName, "no.team.user@example.com")
 	assert.Contains(t, getNoTeamCertResp.Certificate.SubjectName, "test-no-team-uuid-12345")
@@ -8169,7 +8219,6 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &getCertResp)
 	require.NotNil(t, getCertResp.Certificate)
-	require.Equal(t, uint(0), getCertResp.Certificate.TeamID)
 
 	var delResp deleteCertificateTemplateResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &delResp)
@@ -8181,11 +8230,11 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	}, http.StatusOK, &delBatchResp2)
 
 	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
-	require.Len(t, noTeamCertificatesResp.Certificates, 1)
+	require.Len(t, noTeamCertificatesResp.Certificates, 2)
 	require.Equal(t, noTeamCertificatesResp.Certificates[0].ID, noTeamCertificatesResp.Certificates[0].ID)
 
 	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
-		"ids":     []uint{noTeamCertificatesResp.Certificates[0].ID},
+		"ids":     []uint{noTeamCertificatesResp.Certificates[0].ID, noTeamCertificatesResp.Certificates[1].ID},
 		"team_id": uint(0),
 	}, http.StatusOK, &delBatchResp)
 
@@ -14806,14 +14855,41 @@ INSERT INTO host_certificate_templates (
 	host_uuid,
 	certificate_template_id,
 	status,
-	fleet_challenge
-) VALUES (?, ?, ?, ?);
+	fleet_challenge,
+	operation_type
+) VALUES (?, ?, ?, ?, ?);
 	`
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err = q.ExecContext(ctx, sql, host.UUID, certificateTemplateID, "pending", "some_challenge_value")
+		_, err = q.ExecContext(ctx, sql, host.UUID, certificateTemplateID, "pending", "some_challenge_value", "install")
 		require.NoError(t, err)
 		return nil
 	})
+
+	// Enable Android MDM and verify GetHost returns operation_type for certificate templates
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origAndroidEnabled := appCfg.MDM.AndroidEnabledAndConfigured
+	appCfg.MDM.AndroidEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	err = s.ds.SetAndroidEnabledAndConfigured(ctx, true)
+	require.NoError(t, err)
+	defer func() {
+		appCfg.MDM.AndroidEnabledAndConfigured = origAndroidEnabled
+		_ = s.ds.SaveAppConfig(ctx, appCfg)
+		_ = s.ds.SetAndroidEnabledAndConfigured(ctx, origAndroidEnabled)
+	}()
+
+	// Verify GetHost returns operation_type for certificate templates
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host)
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	require.Len(t, *getHostResp.Host.MDM.Profiles, 1)
+	profile := (*getHostResp.Host.MDM.Profiles)[0]
+	require.Equal(t, savedTemplate.Name, profile.Name)
+	require.Equal(t, fleet.AndroidCertificateTemplateProfileID, profile.ProfileUUID)
+	require.Equal(t, fleet.MDMOperationTypeInstall, profile.OperationType, "operation_type should be populated for certificate templates")
 
 	// Test cases
 	cases := []struct {

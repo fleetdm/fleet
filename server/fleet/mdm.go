@@ -374,6 +374,9 @@ type MDMCommand struct {
 	// to authorize the user to see the command, it is not returned as part of
 	// the response payload.
 	TeamID *uint `json:"-" db:"team_id"`
+	// CommandStatus is the fleet computed field representing the status of the command
+	// based on the MDM protocol status
+	CommandStatus MDMCommandStatusFilter `json:"command_status" db:"command_status"`
 }
 
 // MDMCommandListOptions defines the options to control the list of MDM
@@ -386,9 +389,24 @@ type MDMCommandListOptions struct {
 	Filters MDMCommandFilters
 }
 
+type MDMCommandStatusFilter string
+
+const (
+	MDMCommandStatusFilterPending MDMCommandStatusFilter = "pending"
+	MDMCommandStatusFilterRan     MDMCommandStatusFilter = "ran"
+	MDMCommandStatusFilterFailed  MDMCommandStatusFilter = "failed"
+)
+
+var AllMDMCommandStatusFilters = []MDMCommandStatusFilter{
+	MDMCommandStatusFilterPending,
+	MDMCommandStatusFilterRan,
+	MDMCommandStatusFilterFailed,
+}
+
 type MDMCommandFilters struct {
-	HostIdentifier string
-	RequestType    string
+	HostIdentifier  string
+	RequestType     string
+	CommandStatuses []MDMCommandStatusFilter
 }
 
 type MDMPlatformsCounts struct {
@@ -440,23 +458,22 @@ func (mdmPS *MDMProfilesSummary) Add(other *MDMProfilesSummary) *MDMProfilesSumm
 		Pending:   s1.Pending + s2.Pending,
 		Failed:    s1.Failed + s2.Failed,
 	}
-
 }
 
 // HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either
 // a Windows or macOS profile.
 type HostMDMProfile struct {
-	HostUUID            string             `db:"-" json:"-"`
-	CommandUUID         string             `db:"-" json:"-"`
-	ProfileUUID         string             `db:"-" json:"profile_uuid"`
-	Name                string             `db:"-" json:"name"`
-	Identifier          string             `db:"-" json:"-"`
-	Status              *MDMDeliveryStatus `db:"-" json:"status"`
-	OperationType       MDMOperationType   `db:"-" json:"operation_type"`
-	Detail              string             `db:"-" json:"detail"`
-	Platform            string             `db:"-" json:"platform"`
-	Scope               *string            `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
-	ManagedLocalAccount *string            `db:"-" json:"managed_local_account"`
+	HostUUID            string           `db:"-" json:"-"`
+	CommandUUID         string           `db:"-" json:"-"`
+	ProfileUUID         string           `db:"-" json:"profile_uuid"`
+	Name                string           `db:"-" json:"name"`
+	Identifier          string           `db:"-" json:"-"`
+	Status              *string          `db:"-" json:"status"` // MDMDeliveryStatus or CertificateTemplateStatus
+	OperationType       MDMOperationType `db:"-" json:"operation_type"`
+	Detail              string           `db:"-" json:"detail"`
+	Platform            string           `db:"-" json:"platform"`
+	Scope               *string          `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
+	ManagedLocalAccount *string          `db:"-" json:"managed_local_account"`
 }
 
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
@@ -512,6 +529,15 @@ func (s MDMDeliveryStatus) IsValid() bool {
 	default:
 		return false
 	}
+}
+
+// StringPtr returns a pointer to the string representation of the status.
+func (s *MDMDeliveryStatus) StringPtr() *string {
+	if s == nil {
+		return nil
+	}
+	str := string(*s)
+	return &str
 }
 
 type MDMOperationType string
@@ -868,6 +894,7 @@ const (
 	MDMAssetABMCert MDMAssetName = "abm_cert"
 	// MDMAssetABMTokenDeprecated is an encrypted JSON file that contains a token
 	// that can be used for the authentication process with the ABM API.
+	//
 	// Deprecated: ABM tokens are now stored in the abm_tokens table, they are
 	// not in mdm_config_assets anymore.
 	MDMAssetABMTokenDeprecated MDMAssetName = "abm_token"
@@ -876,6 +903,7 @@ const (
 	MDMAssetSCEPChallenge MDMAssetName = "scep_challenge"
 	// MDMAssetVPPTokenDeprecated is the name of the token used by MDM to
 	// authenticate to Apple's VPP service.
+	//
 	// Deprecated: VPP tokens are now stored in the vpp_tokens table, they are
 	// not in mdm_config_assets anymore.
 	MDMAssetVPPTokenDeprecated MDMAssetName = "vpp_token"
@@ -1087,10 +1115,18 @@ const (
 	AndroidPlatform InstallableDevicePlatform = "android"
 )
 
-var VPPAppsPlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform, AndroidPlatform}
+var AppStoreAppsPlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform, AndroidPlatform}
 
-func (p InstallableDevicePlatform) IsValidInstallableDevicePlatform() bool {
-	return slices.Contains(VPPAppsPlatforms, p)
+var ApplePlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform}
+
+// SupportsAppStoreApps returns whether or not the given platform supports app store apps.
+func (p InstallableDevicePlatform) SupportsAppStoreApps() bool {
+	return slices.Contains(AppStoreAppsPlatforms, p)
+}
+
+// IsApplePlatform returns whether the platform is one of Apple's platforms: macOS, iOS, or iPadOS.
+func (p InstallableDevicePlatform) IsApplePlatform() bool {
+	return slices.Contains(ApplePlatforms, p)
 }
 
 type AppleDevicesToRefetch struct {
@@ -1184,3 +1220,12 @@ type MDMCommandResults interface {
 }
 
 type MDMCommandResultsHandler func(ctx context.Context, results MDMCommandResults) error
+
+type HostMDMIdentifiers struct {
+	ID             uint   `db:"id"`
+	UUID           string `db:"uuid"`
+	HardwareSerial string `db:"hardware_serial"`
+	Hostname       string `db:"hostname"`
+	Platform       string `db:"platform"`
+	TeamID         *uint  `db:"team_id"`
+}

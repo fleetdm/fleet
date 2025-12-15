@@ -17,7 +17,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=:help-customers&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#help-customers](https://fleetdm.slack.com/archives/C062D0THVV1)).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=:help-customers&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (if urgent, mention a [team member](#team) in the [#help-customers](https://fleetdm.slack.com/archives/C062D0THVV1)).
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/79) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request. 
 
@@ -299,6 +299,22 @@ Refunds for Fleet Premium licenses purchased on the self-service license dispens
 
 Once you submit the form, Stripe will refund the user's payment and cancel their subscription.
 
+
+### Respond to a data-deletion request
+
+When a user requests that we delete all data we have stored about them, their data will need to be removed from the following places:
+1. **fleetdm.com**
+    - Create a confidential website request issue
+    - If the user signed up for an account on fleetdm.com, you will need to create a confidential website request issue. A member of the #g-website working group will delete the account and let you know in a comment when the user account is deleted.
+2.  **Salesforce**
+    1. Search Salesforce for the user's email address, delete the contact record, and any related historical event records associated with the user's contact record.
+3. **Stripe** 
+    - If the user created an account on the Fleet website, a Stripe customer profile will have been created for their email address.
+    - Follow these steps to delete the profile: 
+        1. Log in to Stripe using the shared credentials in 1Password 
+        2. Search for the user's email address
+        3. Select the user's Stripe customer record
+        4. Click the "Actions" dropdown in the upper right corner of the customer profile page and select delete.
  
 ## Rituals
 
@@ -306,6 +322,9 @@ Once you submit the form, Stripe will refund the user's payment and cancel their
 
 #### Stubs
 The following stubs are included only to make links backward compatible.
+
+##### Customer support service level agreements (SLAs)
+Please see 📖[handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos).
 
 ##### Runbooks
 Please see [Handbook/customer-success#respond-to-messages-and-alerts](https://www.fleetdm.com/handbook/customer-success#respond-to-messages-and-alerts)

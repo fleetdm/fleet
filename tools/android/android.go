@@ -27,6 +27,7 @@ const (
 	cmdEnterprisesWebTokensCreate = "enterprises.webTokens.create"
 	cmdApplicationsGet            = "applications.get"
 	cmdPoliciesList               = "policies.list"
+	cmdPoliciesDelete             = "policies.delete"
 	cmdDevicesList                = "devices.list"
 	cmdDevicesDelete              = "devices.delete"
 	cmdDevicesRelinquish          = "devices.issueCommand.RELINQUISH_OWNERSHIP"
@@ -38,6 +39,7 @@ var commands = []string{
 	cmdEnterprisesWebTokensCreate,
 	cmdApplicationsGet,
 	cmdPoliciesList,
+	cmdPoliciesDelete,
 	cmdDevicesList,
 	cmdDevicesDelete,
 	cmdDevicesRelinquish,
@@ -98,7 +100,7 @@ func main() {
 		applicationsGet(mgmt, *enterpriseID, flag.Arg(0))
 	case cmdPoliciesList:
 		policiesList(mgmt, *enterpriseID)
-	case "policies.delete":
+	case cmdPoliciesDelete:
 		policiesDelete(mgmt, *enterpriseID, *policyID)
 	case cmdDevicesList:
 		devicesList(mgmt, *enterpriseID)

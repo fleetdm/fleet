@@ -4,12 +4,12 @@ import type { SVGProps } from "react";
 
 const Edge = (props: SVGProps<SVGSVGElement>) => {
   const clipPathId = uniqueId("clip-path-");
-  const fillPathA = uniqueId("fill-path-a-");
-  const fillPathB = uniqueId("fill-path-b-");
-  const fillPathC = uniqueId("fill-path-c-");
-  const fillPathD = uniqueId("fill-path-d-");
-  const fillPathE = uniqueId("fill-path-e-");
-  const fillPathF = uniqueId("fill-path-f-");
+  const fillPathA = uniqueId("fill-path-");
+  const fillPathB = uniqueId("fill-path-");
+  const fillPathC = uniqueId("fill-path-");
+  const fillPathD = uniqueId("fill-path-");
+  const fillPathE = uniqueId("fill-path-");
+  const fillPathF = uniqueId("fill-path-");
 
   return (
     <svg fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>

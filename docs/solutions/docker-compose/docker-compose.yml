@@ -1,0 +1,114 @@
+volumes:
+  mysql:
+  redis:
+  data:
+  logs:
+  vulndb:
+
+services:
+  mysql:
+    image: mysql
+    platform: linux/x86_64
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - mysql:/var/lib/mysql
+    cap_add:
+      - SYS_NICE
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    ports:
+      - "3306:3306"
+    restart: unless-stopped
+
+  redis:
+    image: redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  fleet-init:
+    image: alpine:latest
+    volumes:
+      - logs:/logs
+      - data:/data
+      - vulndb:/vulndb
+    command: sh -c "chown -R 100:101 /logs /data /vulndb"
+
+  fleet:
+    image: fleetdm/fleet
+    platform: linux/x86_64
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      fleet-init:
+        condition: service_completed_successfully
+    command: sh -c "/usr/bin/fleet prepare db --no-prompt && /usr/bin/fleet serve"
+    environment:
+      # In-cluster service addresses (no hostnames/ports on the host)
+      - FLEET_REDIS_ADDRESS=redis:6379
+      - FLEET_MYSQL_ADDRESS=mysql:3306
+      - FLEET_MYSQL_DATABASE=${MYSQL_DATABASE}
+      - FLEET_MYSQL_USERNAME=${MYSQL_USER}
+      - FLEET_MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      # Fleet HTTP listener
+      - FLEET_SERVER_ADDRESS=${FLEET_SERVER_ADDRESS}:${FLEET_SERVER_PORT}
+      - FLEET_SERVER_TLS=${FLEET_SERVER_TLS}
+      # TLS Certificate paths (only needed if FLEET_SERVER_TLS=true)
+      - FLEET_SERVER_CERT=${FLEET_SERVER_CERT}
+      - FLEET_SERVER_KEY=${FLEET_SERVER_KEY}
+      # Secrets
+      - FLEET_SERVER_PRIVATE_KEY=${FLEET_SERVER_PRIVATE_KEY}     # Run 'openssl rand -base64 32' to generate
+      - FLEET_LICENSE_KEY=${FLEET_LICENSE_KEY}
+      # System tuning & other options
+      - FLEET_SESSION_DURATION=${FLEET_SESSION_DURATION}
+      - FLEET_LOGGING_JSON=${FLEET_LOGGING_JSON}
+      - FLEET_OSQUERY_STATUS_LOG_PLUGIN=${FLEET_OSQUERY_STATUS_LOG_PLUGIN}
+      - FLEET_FILESYSTEM_STATUS_LOG_FILE=${FLEET_FILESYSTEM_STATUS_LOG_FILE}
+      - FLEET_FILESYSTEM_RESULT_LOG_FILE=${FLEET_FILESYSTEM_RESULT_LOG_FILE}
+      - FLEET_OSQUERY_LABEL_UPDATE_INTERVAL=${FLEET_OSQUERY_LABEL_UPDATE_INTERVAL}
+      - FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS=${FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS}
+      - FLEET_VULNERABILITIES_DATABASES_PATH=${FLEET_VULNERABILITIES_DATABASES_PATH}
+      - FLEET_VULNERABILITIES_PERIODICITY=${FLEET_VULNERABILITIES_PERIODICITY}
+      # Optional S3 info
+      - FLEET_S3_SOFTWARE_INSTALLERS_BUCKET=${FLEET_S3_SOFTWARE_INSTALLERS_BUCKET}
+      - FLEET_S3_SOFTWARE_INSTALLERS_ACCESS_KEY_ID=${FLEET_S3_SOFTWARE_INSTALLERS_ACCESS_KEY_ID}
+      - FLEET_S3_SOFTWARE_INSTALLERS_SECRET_ACCESS_KEY=${FLEET_S3_SOFTWARE_INSTALLERS_SECRET_ACCESS_KEY}
+      - FLEET_S3_SOFTWARE_INSTALLERS_FORCE_S3_PATH_STYLE=${FLEET_S3_SOFTWARE_INSTALLERS_FORCE_S3_PATH_STYLE}
+      # Override FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL when using a different S3 compatible 
+      # object storage backend (such as RustFS) or running S3 locally with localstack.
+      # Leave this blank to use the default S3 service endpoint.
+      - FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL=${FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL}
+      # RustFS users should set FLEET_S3_SOFTWARE_INSTALLERS_REGION to any nonempty value (eg. localhost)
+      # to short-circuit region discovery
+      - FLEET_S3_SOFTWARE_INSTALLERS_REGION=${FLEET_S3_SOFTWARE_INSTALLERS_REGION}
+    ports:
+      - "${FLEET_SERVER_PORT}:${FLEET_SERVER_PORT}"   # UI/API
+    volumes:
+      - data:/fleet
+      - logs:/logs
+      - vulndb:${FLEET_VULNERABILITIES_DATABASES_PATH}
+      - ./certs/fleet.crt:/fleet/fleet.crt:ro
+      - ./certs/fleet.key:/fleet/fleet.key:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:${FLEET_SERVER_PORT}/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped

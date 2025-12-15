@@ -144,9 +144,10 @@ The goal of the security and compliance group is to increase and exceed Fleet's 
 - Application blocking
 - Encryption
 
+
 ### Product group capacity 
 
-Product group capacity is allocated based on our [bug open time KPI](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?usp=sharing). If the average bug open time is greater than 32 days, 50% of each sprint's total capacity is allocated to bugs and [engineering-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story).
+Product group capacity is allocated based on our [bug open time KPI](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?usp=sharing). If the average bug open time is greater than 32 days, 50% of each sprint's total capacity is allocated to bugs and [engineering-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story). Allocating less than 50% when above our bug open time KPI requires approval from the CEO.
 
 
 ## Working groups

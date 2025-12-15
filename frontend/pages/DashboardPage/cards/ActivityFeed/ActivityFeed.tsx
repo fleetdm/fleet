@@ -296,7 +296,7 @@ const ActivityFeed = ({
   const renderNoActivities = () => {
     return (
       <EmptyTable
-        header="No activivities match the curent criteria"
+        header="No activities match the current criteria"
         info="Try editing a query, updating your policies, or running a live query."
       />
     );

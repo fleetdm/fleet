@@ -1,5 +1,6 @@
 package com.fleetdm.agent.scep
 
+import com.fleetdm.agent.GetCertificateTemplateResponse
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder
@@ -24,7 +25,7 @@ class MockScepClient : ScepClient {
     var shouldThrowNetworkException = false
     var shouldThrowCertificateException = false
     var enrollmentDelay = 0L
-    var capturedConfig: ScepConfig? = null
+    var capturedConfig: GetCertificateTemplateResponse? = null
 
     init {
         if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
@@ -32,7 +33,7 @@ class MockScepClient : ScepClient {
         }
     }
 
-    override suspend fun enroll(config: ScepConfig): ScepResult {
+    override suspend fun enroll(config: GetCertificateTemplateResponse): ScepResult {
         capturedConfig = config
 
         if (enrollmentDelay > 0) {
@@ -47,7 +48,7 @@ class MockScepClient : ScepClient {
         }
 
         // Generate a real key pair and certificate for testing
-        return generateMockResult(config.subject)
+        return generateMockResult(config.subjectName)
     }
 
     private fun generateMockResult(subject: String): ScepResult {

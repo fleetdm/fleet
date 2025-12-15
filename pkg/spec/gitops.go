@@ -1225,11 +1225,6 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 
 var validSHA256Value = regexp.MustCompile(`\b[a-f0-9]{64}\b`)
 
-// NOTE(mna): copying the android application ID regex temporarily, as we must ignore
-// android apps for now. When we add support for them, we should export that regex
-// so it is defined only once.
-var androidApplicationID = regexp.MustCompile(`^([A-Za-z]{1}[A-Za-z\d_]*\.)+[A-Za-z][A-Za-z\d_]*$`)
-
 func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
 	softwareRaw, ok := top["software"]
 	if result.global() {
@@ -1248,11 +1243,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	for _, item := range software.AppStoreApps {
 		if item.AppStoreID == "" {
 			multiError = multierror.Append(multiError, errors.New("software app store id required"))
-			continue
-		}
-
-		// if app store id matches android application id, ignore the app (for now)
-		if androidApplicationID.MatchString(item.AppStoreID) {
 			continue
 		}
 

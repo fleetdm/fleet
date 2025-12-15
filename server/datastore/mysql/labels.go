@@ -394,8 +394,9 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		platform,
 		label_type,
 		label_membership_type,
-		author_id
-	) VALUES ( ?, ?, ?, ?, ?, ?, ?, ? )
+		author_id,
+		team_id
+	) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -408,6 +409,7 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		label.LabelType,
 		label.LabelMembershipType,
 		label.AuthorID,
+		label.TeamID,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting label")
@@ -444,29 +446,44 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string) error {
 			if err == sql.ErrNoRows {
 				return ctxerr.Wrap(ctx, notFound("Label").WithName(name))
 			}
-			return ctxerr.Wrapf(ctx, err, "getting label id to delete")
+			return ctxerr.Wrap(ctx, err, "getting label id to delete")
 		}
-
-		_, err = tx.ExecContext(ctx, `DELETE FROM labels WHERE id = ?`, labelID)
-		if err != nil {
+		if err := deleteLabelsInTx(ctx, tx, []uint{labelID}); err != nil {
 			if isMySQLForeignKey(err) {
 				return ctxerr.Wrap(ctx, foreignKey("labels", name), "delete label")
 			}
-			return ctxerr.Wrapf(ctx, err, "delete label")
+			return ctxerr.Wrap(ctx, err, "delete labels in tx")
 		}
-
-		_, err = tx.ExecContext(ctx, `DELETE FROM label_membership WHERE label_id = ?`, labelID)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "delete label_membership")
-		}
-
-		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type=? AND target_id=?`, fleet.TargetLabel, labelID)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for label %d", labelID)
-		}
-
 		return nil
 	})
+}
+
+func deleteLabelsInTx(ctx context.Context, tx sqlx.ExtContext, labelIDs []uint) error {
+	query, args, err := sqlx.In(`DELETE FROM labels WHERE id IN (?)`, labelIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build sqlx.In statement for labels")
+	}
+	if _, err = tx.ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete label")
+	}
+
+	query, args, err = sqlx.In(`DELETE FROM label_membership WHERE label_id IN (?)`, labelIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build sqlx.In statement for label_membership")
+	}
+	if _, err = tx.ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete label_membership")
+	}
+
+	query, args, err = sqlx.In(`DELETE FROM pack_targets WHERE type = ? AND target_id IN (?)`, fleet.TargetLabel, labelIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build sqlx.In statement for pack_targets")
+	}
+	if _, err = tx.ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting pack_targets")
+	}
+
+	return nil
 }
 
 // Label returns a fleet.Label identified by lid if one exists.
@@ -550,23 +567,22 @@ func (ds *Datastore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) 
 	var rows *sql.Rows
 	var err error
 	platform := platformForHost(host)
-	query := `SELECT id, query FROM labels WHERE platform = ? OR platform = '' AND label_membership_type = ?`
-	rows, err = ds.reader(ctx).QueryContext(ctx, query, platform, fleet.LabelMembershipTypeDynamic)
-
+	query := `SELECT id, query FROM labels WHERE
+		(platform = ? OR platform = '') AND
+		label_membership_type = ? AND
+		(team_id IS NULL OR team_id = ?)`
+	rows, err = ds.reader(ctx).QueryContext(ctx, query, platform, fleet.LabelMembershipTypeDynamic, host.TeamID)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "selecting label queries for host")
 	}
-
 	defer rows.Close()
-	results := map[string]string{}
 
+	results := map[string]string{}
 	for rows.Next() {
 		var id, query string
-
 		if err = rows.Scan(&id, &query); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "scanning label queries for host")
 		}
-
 		results[id] = query
 	}
 	if err := rows.Err(); err != nil {
@@ -1306,7 +1322,7 @@ func amountLabelsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 
 func (ds *Datastore) LabelsSummary(ctx context.Context) ([]*fleet.LabelSummary, error) {
 	labelsSummary := []*fleet.LabelSummary{}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labelsSummary, "SELECT id, name, description, label_type FROM labels"); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labelsSummary, "SELECT id, name, description, label_type, team_id FROM labels"); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "labels summary")
 	}
 	return labelsSummary, nil

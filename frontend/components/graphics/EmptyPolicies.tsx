@@ -1,6 +1,11 @@
 import React from "react";
 
+import { uniqueId } from "lodash";
+
 const EmptyPolicies = () => {
+  const clipPathId = uniqueId("clip-path-");
+  const filterId = uniqueId("filter-");
+
   return (
     <svg
       width="322"
@@ -11,7 +16,7 @@ const EmptyPolicies = () => {
       <circle cx="162.5" cy="101" r="75" fill="#F1F0FF" />
       <path fill="#C5C7D1" d="M161.5 43h1v17h-1z" />
       <circle cx="162.5" cy="24" r="24" fill="#C98DEF" />
-      <g clipPath="url(#a)">
+      <g clipPath={`url(#${clipPathId})`}>
         <path
           d="M172.566 20.294c0 1.453-.217 3.258-.639 5.01-.424 1.762-1.039 3.403-1.797 4.565-.716 1.099-2.085 2.16-3.724 3.126-1.474.87-3.071 1.61-4.406 2.203-1.335-.593-2.932-1.333-4.406-2.203-1.639-.967-3.008-2.027-3.724-3.126-.758-1.163-1.373-2.803-1.797-4.564-.422-1.753-.639-3.558-.639-5.01V16.37L162 12.768l10.566 3.602v3.924Z"
           stroke="#fff"
@@ -22,7 +27,7 @@ const EmptyPolicies = () => {
           fill="#fff"
         />
       </g>
-      <g filter="url(#b)">
+      <g filter={`url(#${filterId})`}>
         <rect x="1" y="61" width="320" height="80" rx="8" fill="#fff" />
         <rect
           x=".5"
@@ -77,11 +82,11 @@ const EmptyPolicies = () => {
         fill="#8B8FA2"
       />
       <defs>
-        <clipPath id="a">
+        <clipPath id={clipPathId}>
           <path fill="#fff" transform="translate(150.5 11)" d="M0 0h23v26H0z" />
         </clipPath>
         <filter
-          id="b"
+          id={filterId}
           x="0"
           y="60"
           width="322"

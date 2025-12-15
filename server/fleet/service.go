@@ -275,10 +275,13 @@ type Service interface {
 	// ListLabelsForHost returns a slice of labels for a given host
 	ListLabelsForHost(ctx context.Context, hostID uint) ([]*Label, error)
 
-	// BatchValidateLabels validates that each of the provided label names exists. The returned map
-	// is keyed by label name. Caller must ensure that appropirate authorization checks are
-	// performed prior to calling this method.
-	BatchValidateLabels(ctx context.Context, labelNames []string) (map[string]LabelIdent, error)
+	// BatchValidateLabels validates that each of the provided label names exists,
+	// and verifies the provided label names belong to the given teamID.
+	//
+	// The returned map is keyed by label name.
+	// Caller must ensure that appropriate authorization checks are performed prior
+	// to calling this method.
+	BatchValidateLabels(ctx context.Context, teamID *uint, labelNames []string) (map[string]LabelIdent, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// QueryService
@@ -358,6 +361,10 @@ type Service interface {
 	// This is used for iOS/iPadOS devices accessing My Device page via client certificates.
 	// Returns an error if the certificate doesn't match the host or if the host is not iOS/iPadOS.
 	AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (host *Host, debug bool, err error)
+	// AuthenticateIDeviceByURL loads host identified by the URL UUID.
+	// This is used for iOS/iPadOS devices (iDevices) accessing endpoints via a unique URL parameter.
+	// Returns an error if the UUID doesn't exist or if the host is not iOS/iPadOS.
+	AuthenticateIDeviceByURL(ctx context.Context, urlUUID string) (host *Host, debug bool, err error)
 
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
 	// GetHost returns the host with the provided ID.
@@ -632,10 +639,10 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate Templates
 
-	CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*CertificateTemplateResponseFull, error)
+	CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*CertificateTemplateResponse, error)
 	ListCertificateTemplates(ctx context.Context, teamID uint, opts ListOptions) ([]*CertificateTemplateResponseSummary, *PaginationMetadata, error)
-	GetDeviceCertificateTemplate(ctx context.Context, id uint) (*CertificateTemplateResponseFull, error)
-	GetCertificateTemplate(ctx context.Context, id uint, hostUUID *string) (*CertificateTemplateResponseFull, error)
+	GetDeviceCertificateTemplate(ctx context.Context, id uint) (*CertificateTemplateResponseForHost, error)
+	GetCertificateTemplate(ctx context.Context, id uint) (*CertificateTemplateResponse, error)
 	DeleteCertificateTemplate(ctx context.Context, id uint) error
 	ApplyCertificateTemplateSpecs(ctx context.Context, specs []*CertificateRequestSpec) error
 	DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
@@ -1100,10 +1107,10 @@ type Service interface {
 	RunMDMCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *CommandEnqueueResult, err error)
 
 	// GetMDMCommandResults returns the execution results of a command identified by a CommandUUID.
-	GetMDMCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
+	GetMDMCommandResults(ctx context.Context, commandUUID string, hostIdentifier string) ([]*MDMCommandResult, error)
 
 	// ListMDMCommands returns MDM commands based on the provided options.
-	ListMDMCommands(ctx context.Context, opts *MDMCommandListOptions) ([]*MDMCommand, error)
+	ListMDMCommands(ctx context.Context, opts *MDMCommandListOptions) ([]*MDMCommand, *int64, error)
 
 	// Set or update the disk encryption key for a host.
 	SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error
