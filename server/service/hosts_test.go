@@ -1111,6 +1111,123 @@ func TestStreamHosts(t *testing.T) {
 			require.Equal(t, float64(i+1), hostMap["id"])
 		}
 	})
+	errorTestCases := []struct {
+		Name          string
+		ExpectedError string
+	}{
+		{
+			"Error marshalling Software",
+			"marshaling software",
+		},
+		{
+			"Error marshalling SoftwareTitle",
+			"marshaling software title",
+		},
+		{
+			"Error marshalling MDMSolution",
+			"marshaling mdm solution",
+		},
+		{
+			"Error marshalling MunkiIssue",
+			"marshaling munki issue",
+		},
+		{
+			"Error iterating over Hosts",
+			"getting host",
+		},
+		{
+			"Error marshalling Hosts",
+			"marshaling host response",
+		},
+	}
+	for _, tc := range errorTestCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			hostIterator := func() iter.Seq2[*fleet.HostResponse, error] {
+				return func(yield func(*fleet.HostResponse, error) bool) {
+					// Yield one good host.
+					host := &fleet.HostResponse{Host: &fleet.Host{ID: uint(1)}}
+					if !yield(host, nil) {
+						return
+					}
+					if tc.Name == "Error iterating over Hosts" {
+						// Yield an error immediately.
+						yield(nil, errors.New("getting host"))
+						return
+					}
+					host = &fleet.HostResponse{Host: &fleet.Host{ID: uint(2)}}
+					if !yield(host, nil) {
+						return
+					}
+				}
+			}
+			resp := streamHostsResponse{
+				HostResponseIterator: hostIterator(),
+				listHostsResponse: listHostsResponse{
+					Software: &fleet.Software{
+						ID: uint(1),
+					},
+					SoftwareTitle: &fleet.SoftwareTitle{ID: uint(2)},
+					MDMSolution: &fleet.MDMSolution{
+						ID: uint(3),
+					},
+					MunkiIssue: &fleet.MunkiIssue{
+						ID: uint(4),
+					},
+				},
+				MarshalJSON: func(v any) ([]byte, error) {
+					switch v.(type) {
+					case *fleet.Software:
+						if tc.Name == "Error marshalling Software" {
+							return nil, errors.New(`got some "error" marshaling {software}`)
+						}
+					case *fleet.SoftwareTitle:
+						if tc.Name == "Error marshalling SoftwareTitle" {
+							return nil, errors.New(`got some "error" marshaling {software title}`)
+						}
+					case *fleet.MDMSolution:
+						if tc.Name == "Error marshalling MDMSolution" {
+							return nil, errors.New(`got some "error" marshaling {mdm solution}`)
+						}
+					case *fleet.MunkiIssue:
+						if tc.Name == "Error marshalling MunkiIssue" {
+							return nil, errors.New(`got some "error" marshaling {munki issue}`)
+						}
+					case *fleet.HostResponse:
+						if tc.Name == "Error marshalling Hosts" {
+							return nil, errors.New(`got some "error" marshaling {host response}`)
+						}
+					}
+					// Default to normal marshalling.
+					return json.Marshal(v)
+				},
+			}
+			rr := httptest.NewRecorder()
+			resp.HijackRender(context.Background(), rr)
+			// Assert that the output contains the error message
+			require.Equal(t, rr.Code, 200)
+			body := rr.Body.String()
+			// Unmarshal the string into a map.
+			var results map[string]interface{}
+			err := json.Unmarshal([]byte(body), &results)
+			if err != nil {
+				t.Fatalf("failed to unmarshal response body: %v", err)
+			}
+			// Assert that error message is present
+			require.Contains(t, results["error"], tc.ExpectedError)
+			// If the error isn't in the hosts array, ensure that no hosts were returned.
+			hosts, ok := results["hosts"].([]interface{})
+			if tc.Name != "Error marshalling Hosts" && tc.Name != "Error iterating over Hosts" {
+				require.False(t, ok)
+			} else {
+				require.True(t, ok)
+				if tc.Name == "Error iterating over Hosts" {
+					require.Len(t, hosts, 1)
+				} else {
+					require.Len(t, hosts, 0)
+				}
+			}
+		})
+	}
 }
 
 func TestGetHostSummary(t *testing.T) {
