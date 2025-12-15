@@ -145,13 +145,12 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 		parts := strings.Split(tag, ",")
 		name := parts[0]
 
-		if i > 0 && !firstKey {
-			fmt.Fprint(w, `,`)
-		}
-
 		// Get the actual value for the field.
 		fieldValue := v.FieldByName(key)
 		if fieldValue.IsValid() && !fieldValue.IsNil() {
+			if i > 0 && !firstKey {
+				fmt.Fprint(w, `,`)
+			}
 			data, err := marshalJson(fieldValue.Interface())
 			if err != nil {
 				// On error, write the error key and return.
