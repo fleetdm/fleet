@@ -241,6 +241,13 @@ const EditSoftwareModal = ({
 
     const updates = deepDifference(formData, currentData);
 
+    // Send an array with an empty string when all categories are unchecked
+    // so that the "categories" key is included in the multipart form data and
+    // will be deleted rather than ignored (an empty array would skip the field)
+    if (!formData.categories?.length) {
+      formData.categories = [""];
+    }
+
     if (isOnlySelfServiceUpdated(updates)) {
       onEditPackage(formData);
     } else {
