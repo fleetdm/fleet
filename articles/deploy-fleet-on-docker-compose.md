@@ -8,7 +8,7 @@ This guide walks you through deploying Fleet using Docker Compose. You'll have a
 
 
 - [Docker](https://docs.docker.com/engine/install/) and [Docker Compose](https://docs.docker.com/compose/install/) installed
-- Ports 1337, 8220, 3306, and 6379 available
+- Ports 1337, 3306, and 6379 available
 - Basic command line familiarity
 
 
@@ -210,10 +210,7 @@ This deployment includes three services and one initialization container:
 ## Ports
 
 
-Devices connect to Fleet on ports 1337 and 8220. If you're running Fleet on a server, update your firewall to allow:
-
-- Port 1337 (web UI and API)
-- Port 8220 (device connections)
+Devices connect to Fleet on port 1337. If needed, update your firewall to allow inbound connections on port 1337.
 
 
 ## View logs
@@ -304,7 +301,7 @@ Both `fleet.crt` and `fleet.key` should exist and be readable. If using Option 1
 
 **Devices won't connect**
 
-Ensure ports 1337 and 8220 are accessible from your devices. Check your firewall and network configuration.
+Ensure port 1337 is accessible from your devices. Check your firewall and network configuration.
 
 If using self-signed certificates, devices need the certificate installed or TLS verification disabled (not recommended for production).
 
