@@ -191,9 +191,7 @@ const SoftwareNameCell = ({
 
   // My device page > Software fake link as entire row opens a modal
   if (pageContext === "deviceUser" && !isSelfService) {
-    return (
-      <LinkCell tooltipTruncate prefix={icon} value={displayValue} />
-    );
+    return <LinkCell tooltipTruncate prefix={icon} value={displayValue} />;
   }
 
   // Non-clickable cell if no router/path (e.g. My device page > SelfService)
