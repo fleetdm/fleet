@@ -85,6 +85,12 @@ org_settings:
       password: # TODO: Add your Smallstep password here
       url: https://some-smallstep-url.com
       username: # TODO: Add your Smallstep username here
+    okta:
+    - challenge_url: https://some-okta-challenge-url.com
+      name: some-okta-name
+      password: # TODO: Add your Okta password here
+      url: https://some-okta-url.com
+      username: some-okta-username
   features:
     additional_queries:
       macs: SELECT mac FROM interface_details

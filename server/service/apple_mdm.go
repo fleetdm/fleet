@@ -5133,10 +5133,9 @@ func preprocessProfileContents(
 					oktaCAs = make(map[string]*fleet.OktaSCEPProxyCA)
 				}
 				var caName string
-				if strings.HasPrefix(fleetVar, string(fleet.FleetVarOktaSCEPChallengePrefix)) {
-					caName = strings.TrimPrefix(fleetVar, string(fleet.FleetVarOktaSCEPChallengePrefix))
-				} else {
-					caName = strings.TrimPrefix(fleetVar, string(fleet.FleetVarOktaSCEPProxyURLPrefix))
+				var found bool
+				if caName, found = strings.CutPrefix(fleetVar, string(fleet.FleetVarOktaSCEPChallengePrefix)); !found {
+					caName, _ = strings.CutPrefix(fleetVar, string(fleet.FleetVarOktaSCEPProxyURLPrefix))
 				}
 				configured, err := isOktaSCEPConfigured(ctx, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, oktaCAs, profUUID, target, caName,
 					fleetVar)
