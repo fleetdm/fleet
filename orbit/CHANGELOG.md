@@ -1,3 +1,7 @@
+## Orbit 1.50.2 (Dec 12, 2025)
+
+* Fixed an issue where macOS devices would fail to enroll when end-user authentication was configured.
+
 ## Orbit 1.50.1 (Nov 27, 2025)
 
 * Upgraded macadmins osquery-extension to v1.2.7.

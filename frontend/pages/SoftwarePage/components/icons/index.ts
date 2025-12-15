@@ -8,7 +8,9 @@ import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
 import AdobeAcrobat from "./AdobeAcrobat";
 import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
+import AdobeDngConverter from "./AdobeDngConverter";
 import Aircall from "./Aircall";
+import Airtame from "./Airtame";
 import AmazonChime from "./AmazonChime";
 import AmazonDCV from "./AmazonDCV";
 import AndroidApp from "./AndroidApp";
@@ -48,6 +50,7 @@ import Claude from "./Claude";
 import ClickUp from "./ClickUp";
 import ClockifyDesktop from "./ClockifyDesktop";
 import Cloudflare from "./Cloudflare";
+import CompanyPortal from "./CompanyPortal";
 import CotEditor from "./CotEditor";
 import CreativeCloud from "./AdobeCreativeCloud";
 import Cursor from "./Cursor";
@@ -77,6 +80,7 @@ import ExpressVpn from "./ExpressVpn";
 import Extension from "./Extension";
 import Falcon from "./Falcon";
 import Figma from "./Figma";
+import FileMakerPro from "./FileMakerPro";
 import Firefox from "./Firefox";
 import Fork from "./Fork";
 import Front from "./Front";
@@ -117,25 +121,31 @@ import MacOS from "./MacOS";
 import Mattermost from "./Mattermost";
 import Messenger from "./Messenger";
 import MicrosoftAutoUpdate from "./MicrosoftAutoUpdate";
+import MicrosoftEdge from "./MicrosoftEdge";
 import MicrosoftOneNote from "./MicrosoftOneNote";
 import MicrosoftOutlook from "./MicrosoftOutlook";
 import MicrosoftPowerPoint from "./MicrosoftPowerPoint";
 import Miro from "./Miro";
 import MongoDbCompass from "./MongoDbCompass";
 import MySqlWorkbench from "./MySqlWorkbench";
+import Nordpass from "./Nordpass";
 import NordVpn from "./NordVpn";
 import Notion from "./Notion";
 import NotionCalendar from "./NotionCalendar";
 import Nova from "./Nova";
 import Nudge from "./Nudge";
+import Obs from "./Obs";
+import Obsidian from "./Obsidian";
 import OmniGraffle from "./OmniGraffle";
 import OmnissaHorizonClient from "./OmnissaHorizonClient";
 import OneDrive from "./OneDrive";
 import OnePassword from "./OnePassword";
 import Opera from "./Opera";
+import OrbStack from "./OrbStack";
 import P4V from "./P4V";
 import Package from "./Package";
 import ParallelsDesktop from "./ParallelsDesktop";
+import PgAdmin4 from "./PgAdmin4";
 import PhpStorm from "./PhpStorm";
 import PodmanDesktop from "./PodmanDesktop";
 import Postman from "./Postman";
@@ -147,20 +157,29 @@ import PyCharm from "./PyCharm";
 import PyCharmCe from "./PyCharmCe";
 import Quip from "./Quip";
 import RancherDesktop from "./RancherDesktop";
+import RapidApi from "./RapidApi";
 import Raycast from "./Raycast";
 import Rectangle from "./Rectangle";
 import Rider from "./Rider";
+import RoyalTsx from "./RoyalTsx";
 import RubyMine from "./RubyMine";
 import RustRover from "./RustRover";
 import Safari from "./Safari";
 import Santa from "./Santa";
+import Shottr from "./Shottr";
 import Signal from "./Signal";
 import Sketch from "./Sketch";
 import Slack from "./Slack";
 import Snagit from "./Snagit";
 import Sourcetree from "./Sourcetree";
+import SplashtopBusiness from "./SplashtopBusiness";
+import SplashtopStreamer from "./SplashtopStreamer";
 import Spotify from "./Spotify";
+import Stats from "./Stats";
+import SublimeMerge from "./SublimeMerge";
 import SublimeText from "./SublimeText";
+import Surfshark from "./Surfshark";
+import SuspiciousPackage from "./SuspiciousPackage";
 import TableauDesktop from "./TableauDesktop";
 import TablePlus from "./TablePlus";
 import Tailscale from "./Tailscale";
@@ -213,6 +232,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
   aircall: Aircall,
+  airtame: Airtame,
   "amazon chime": AmazonChime,
   "amazon dcv": AmazonDCV,
   androidPlayStore: AndroidPlayStore,
@@ -263,16 +283,19 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dialpad: Dialpad,
   discord: Discord,
   "DisplayLink USB Graphics Software": DisplayLinkManager,
+  "dng converter": AdobeDngConverter,
   docker: Docker,
   "draw.io": Drawio,
   dropbox: Dropbox,
   eclipse: Eclipse,
+  edge: MicrosoftEdge,
   egnyte: Egnyte,
   "elgato control center": ElgatoControlCenter,
   evernote: Evernote,
   expressvpn: ExpressVpn,
   falcon: Falcon,
   figma: Figma,
+  "filemaker pro": FileMakerPro,
   firefox: Firefox,
   fork: Fork,
   front: Front,
@@ -322,18 +345,23 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   miro: Miro,
   "mysql workbench": MySqlWorkbench,
   "nord vpn": NordVpn,
+  nordpass: Nordpass,
   nordvpn: NordVpn,
   "notion calendar": NotionCalendar,
   notion: Notion,
   nova: Nova,
   nudge: Nudge,
+  obs: Obs,
+  obsidian: Obsidian,
   omnigraffle: OmniGraffle,
   "omnissa horizon client": OmnissaHorizonClient,
   onedrive: OneDrive,
   opera: Opera,
+  orbstack: OrbStack,
   package: Package,
   "parallels desktop": ParallelsDesktop,
   p4v: P4V,
+  "pgadmin 4": PgAdmin4,
   phpstorm: PhpStorm,
   "podman desktop": PodmanDesktop,
   postman: Postman,
@@ -345,21 +373,30 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   pycharm: PyCharm,
   quip: Quip,
   "rancher desktop": RancherDesktop,
+  rapidapi: RapidApi,
   raycast: Raycast,
   rectangle: Rectangle,
   rider: Rider,
+  "royal tsx": RoyalTsx,
   rubymine: RubyMine,
   rustrover: RustRover,
   safari: Safari,
   santa: Santa,
+  shottr: Shottr,
   signal: Signal,
   sketch: Sketch,
   slack: Slack,
   snagit: Snagit,
   sourcetree: Sourcetree,
+  "splashtop business": SplashtopBusiness,
+  "splashtop streamer": SplashtopStreamer,
   spotify: Spotify,
+  stats: Stats,
   "stream deck": ElgatoStreamDeck,
+  "sublime merge": SublimeMerge,
   "sublime text": SublimeText,
+  surfshark: Surfshark,
+  "suspicious package": SuspiciousPackage,
   tableau: TableauDesktop,
   tableplus: TablePlus,
   tailscale: Tailscale,
@@ -442,7 +479,8 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
 
 /**
  * This attempts to loosely match the provided string to a key in a provided dictionary, returning the key if the
- * provided string starts with the key or undefined otherwise.
+ * provided string starts with the key or undefined otherwise. Keys are sorted by length (longest first) to ensure
+ * more specific matches are checked before shorter, more general ones (e.g., "archaeology" before "arc").
  */
 const matchLoosePrefixToKey = <T extends Record<string, unknown>>(
   dict: T,
@@ -452,9 +490,9 @@ const matchLoosePrefixToKey = <T extends Record<string, unknown>>(
   if (!s) {
     return undefined;
   }
-  const match = Object.keys(dict).find((k) =>
-    s.startsWith(k.trim().toLowerCase())
-  );
+  // Sort keys by length (longest first) to prioritize more specific matches
+  const sortedKeys = Object.keys(dict).sort((a, b) => b.length - a.length);
+  const match = sortedKeys.find((k) => s.startsWith(k.trim().toLowerCase()));
 
   return match ? (match as keyof T) : undefined;
 };

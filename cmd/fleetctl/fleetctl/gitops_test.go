@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -2676,6 +2675,20 @@ func TestGitOpsCustomSettings(t *testing.T) {
 				}
 				return ret, nil
 			}
+			ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+				// for this test, recognize labels A, B and C (as well as the built-in macos 14+ one)
+				ret := make(map[string]*fleet.Label)
+				for _, lbl := range names {
+					id, ok := labelToIDs[lbl]
+					if ok {
+						ret[lbl] = &fleet.Label{
+							ID:   id,
+							Name: lbl,
+						}
+					}
+				}
+				return ret, nil
+			}
 			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) error {
 				return nil
 			}
@@ -3794,6 +3807,23 @@ func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.Ce
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 
+	ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
+		return 0, nil
+	}
+
+	// Mock for looking up certificate template by team ID and name
+	var templateIDCounter uint
+	ds.GetCertificateTemplateByTeamIDAndNameFunc = func(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error) {
+		templateIDCounter++
+		return &fleet.CertificateTemplateResponse{
+			CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+				ID:   templateIDCounter,
+				Name: name,
+			},
+			TeamID: teamID,
+		}, nil
+	}
+
 	return certAuthorities
 }
 
@@ -3907,40 +3937,16 @@ func TestGitOpsAndroidCertificatesChange(t *testing.T) {
 				ID:                     1,
 				Name:                   "Certificate 1",
 				CertificateAuthorityId: 1,
+				SubjectName:            "CN=Original Subject 1",
 			},
 			{
 				ID:                     2,
 				Name:                   "Certificate 2",
 				CertificateAuthorityId: 2,
+				SubjectName:            "CN=Original Subject 2",
 			},
 		}
 		return existing, &fleet.PaginationMetadata{}, nil
-	}
-
-	// Simulate full certificate details for existing certificates
-	ds.GetCertificateTemplateByIdFunc = func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
-		switch id {
-		case 1:
-			return &fleet.CertificateTemplateResponseFull{
-				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
-					ID:                     1,
-					Name:                   "Certificate 1",
-					CertificateAuthorityId: 1,
-				},
-				SubjectName: "CN=Original Subject 1",
-			}, nil
-		case 2:
-			return &fleet.CertificateTemplateResponseFull{
-				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
-					ID:                     2,
-					Name:                   "Certificate 2",
-					CertificateAuthorityId: 2,
-				},
-				SubjectName: "CN=Original Subject 2",
-			}, nil
-		default:
-			return nil, errors.New("certificate not found")
-		}
 	}
 
 	ds.BatchDeleteCertificateTemplatesFunc = func(ctx context.Context, ids []uint) error {
@@ -4157,40 +4163,16 @@ func TestGitOpsAndroidCertificatesDeleteOne(t *testing.T) {
 				ID:                     1,
 				Name:                   "Certificate 1",
 				CertificateAuthorityId: 1,
+				SubjectName:            "CN=Device Certificate 1",
 			},
 			{
 				ID:                     2,
 				Name:                   "Certificate 2",
 				CertificateAuthorityId: 2,
+				SubjectName:            "CN=Device Certificate 2",
 			},
 		}
 		return existing, &fleet.PaginationMetadata{}, nil
-	}
-
-	// Mock GetCertificateTemplateByIdFunc to return full certificate details
-	ds.GetCertificateTemplateByIdFunc = func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
-		switch id {
-		case 1:
-			return &fleet.CertificateTemplateResponseFull{
-				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
-					ID:                     1,
-					Name:                   "Certificate 1",
-					CertificateAuthorityId: 1,
-				},
-				SubjectName: "CN=Device Certificate 1",
-			}, nil
-		case 2:
-			return &fleet.CertificateTemplateResponseFull{
-				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
-					ID:                     2,
-					Name:                   "Certificate 2",
-					CertificateAuthorityId: 2,
-				},
-				SubjectName: "CN=Device Certificate 2",
-			}, nil
-		default:
-			return nil, errors.New("certificate not found")
-		}
 	}
 
 	// Create team config with only one certificate (Certificate 1 removed)

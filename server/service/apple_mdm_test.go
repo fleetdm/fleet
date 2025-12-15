@@ -472,7 +472,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		return res, nil
 	}
 
-	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 		return getResults(commandUUID)
 	}
 
@@ -528,7 +528,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 				checkAuthErr(t, err, c.shoudFailWithAuth)
 
 				// TODO(sarah): move test to shared file
-				_, err = svc.GetMDMCommandResults(ctx, c.cmdUUID)
+				_, err = svc.GetMDMCommandResults(ctx, c.cmdUUID, "")
 				checkAuthErr(t, err, c.shoudFailWithAuth)
 			})
 		}

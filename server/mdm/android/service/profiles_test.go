@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -78,6 +79,7 @@ func TestReconcileProfiles(t *testing.T) {
 		{"HostsWithAddRemoveUpdateProfiles", testHostsWithAddRemoveUpdateProfiles},
 		{"HostsWithLabelProfiles", testHostsWithLabelProfiles},
 		{"CertificateTemplates", testCertificateTemplates},
+		{"BuildAndSendFleetAgentConfigForEnrollment", testBuildAndSendFleetAgentConfigForEnrollment},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -844,7 +846,8 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	host1 := createAndroidHostInTeam(t, ds, 1, &team.ID)
 	host2 := createAndroidHostInTeam(t, ds, 2, &team.ID)
 
-	// Add a host certificate templates for host 2 to exclude host 2 from receiving templates
+	// Add host certificate templates for host 2 with 'delivered' status to exclude it from processing
+	// (only 'pending' status templates are picked up by reconcileCertificateTemplates)
 	var certificateTemplateIDs []uint
 	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		query := `
@@ -858,17 +861,24 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 
 		for _, certTemplateID := range certificateTemplateIDs {
 			_, err = q.ExecContext(ctx,
-				"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
+				"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type) VALUES (?, ?, ?, ?, ?)",
 				host2.UUID,
 				certTemplateID,
 				"challenge",
-				fleet.MDMDeliveryPending,
+				fleet.CertificateTemplateDelivered,
+				fleet.MDMOperationTypeInstall,
 			)
 			require.NoError(t, err)
 		}
 
 		return nil
 	})
+
+	// Create pending certificate templates for host1 (this is what triggers processing)
+	for _, certTemplateID := range certificateTemplateIDs {
+		_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, certTemplateID, team.ID)
+		require.NoError(t, err)
+	}
 
 	// Get app config for server URL
 	appConfig, err := ds.AppConfig(ctx)
@@ -934,7 +944,7 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	for _, hct := range host1CertTemplates {
 		require.Equal(t, host1.Host.UUID, hct.HostUUID)
 		require.NotEmpty(t, hct.FleetChallenge)
-		require.Equal(t, "pending", hct.Status)
+		require.EqualValues(t, fleet.CertificateTemplateDelivered, hct.Status)
 	}
 
 	client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = false
@@ -953,4 +963,89 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 		return sqlx.GetContext(ctx, q, &countHost1, query, host1.Host.UUID)
 	})
 	require.Equal(t, 2, countHost1)
+}
+
+// testBuildAndSendFleetAgentConfigForEnrollment tests the enrollment flow where we send
+// the Fleet agent config to hosts even if they don't have certificate templates to install.
+// This is needed when new hosts are enrolling to receive the Fleet app.
+func testBuildAndSendFleetAgentConfigForEnrollment(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	// Create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "enrollment-test-team"})
+	require.NoError(t, err)
+
+	// Insert enroll secret for team
+	err = ds.ApplyEnrollSecrets(ctx, &team.ID,
+		[]*fleet.EnrollSecret{
+			{Secret: "enroll-secret", TeamID: &team.ID},
+		},
+	)
+	require.NoError(t, err)
+
+	// Get app config for server URL
+	appConfig, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConfig.ServerSettings.ServerURL = "https://fleet.example.com"
+	err = ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
+
+	// Create Android host in the team (no certificate templates)
+	host := createAndroidHostInTeam(t, ds, 100, &team.ID)
+
+	// Track API calls
+	var capturedPolicyName string
+	var capturedPolicies []*androidmanagement.ApplicationPolicy
+	client.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, policies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		capturedPolicyName = policyName
+		capturedPolicies = policies
+		return &androidmanagement.Policy{}, nil
+	}
+
+	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
+	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
+	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
+	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
+	defer func() {
+		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
+		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
+	}()
+
+	// Create service and call BuildAndSendFleetAgentConfig with skipHostsWithoutNewCerts=false
+	// This simulates the enrollment flow from software_worker.go
+	svc := &Service{
+		logger:           kitlog.NewNopLogger(),
+		fleetDS:          ds,
+		ds:               ds.(fleet.AndroidDatastore),
+		androidAPIClient: client,
+	}
+
+	// Call with skipHostsWithoutNewCerts=false (enrollment scenario)
+	err = svc.BuildAndSendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), []string{host.Host.UUID}, false)
+	require.NoError(t, err)
+
+	// Verify the API was called for the host even without certificate templates
+	require.True(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	require.Equal(t, fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), host.Host.UUID), capturedPolicyName)
+	require.Len(t, capturedPolicies, 1)
+
+	// Verify the managed configuration was sent without certificate template IDs
+	var managedConfig android.AgentManagedConfiguration
+	err = json.Unmarshal(capturedPolicies[0].ManagedConfiguration, &managedConfig)
+	require.NoError(t, err)
+	require.Empty(t, managedConfig.CertificateTemplateIDs)
+	require.Equal(t, "https://fleet.example.com", managedConfig.ServerURL)
+	require.Equal(t, host.Host.UUID, managedConfig.HostUUID)
+	require.Equal(t, "enroll-secret", managedConfig.EnrollSecret)
+
+	// Reset the invocation flag
+	client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = false
+
+	// Now test with skipHostsWithoutNewCerts=true (reconciliation scenario)
+	// The host should be skipped since it has no pending certificate templates
+	err = svc.BuildAndSendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), []string{host.Host.UUID}, true)
+	require.NoError(t, err)
+
+	// Verify the API was NOT called since we're skipping hosts without new certs
+	require.False(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 }

@@ -1,0 +1,12 @@
+{
+  "name": "Airtame",
+  "slug": "airtame/windows",
+  "package_identifier": "Airtame.Airtame",
+  "unique_identifier": "Airtame 4.15.0",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/airtame_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/airtame_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}
