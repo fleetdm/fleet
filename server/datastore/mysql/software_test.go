@@ -101,6 +101,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareWithExtensionFor", testListHostSoftwareWithExtensionFor},
 		{"LongestCommonPrefix", testLongestCommonPrefix},
 		{"ListHostSoftwareInHouseApps", testListHostSoftwareInHouseApps},
+		{"ListHostSoftwareAndroidVPPAppMatching", testListHostSoftwareAndroidVPPAppMatching},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -10129,4 +10130,110 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	sw, _, err = ds.ListHostSoftware(ctx, otherHost, opts)
 	require.NoError(t, err)
 	require.Len(t, sw, 0)
+}
+
+// testListHostSoftwareAndroidVPPAppMatching verifies that Android inventory software
+// matches VPP app titles by application_id even when names differ (bug #36809).
+func testListHostSoftwareAndroidVPPAppMatching(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "android-vpp-team"})
+	require.NoError(t, err)
+
+	host := test.NewHost(t, ds, "android-host", "", "android-host-key", "android-host-uuid", time.Now(), test.WithPlatform("android"))
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &tm.ID
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org android", "Test location android")
+	require.NoError(t, err)
+	tok, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{tm.ID})
+	require.NoError(t, err)
+
+	// VPP app with long Play Store name
+	androidApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.amazon.shopping",
+				Platform: fleet.AndroidPlatform,
+			},
+			SelfService: true,
+		},
+		Name:             "Amazon Shopping - Search, Find, Ship, and Save",
+		BundleIdentifier: "com.amazon.shopping",
+		LatestVersion:    "26.0.0",
+		IconURL:          "https://example.com/amazon-icon.png",
+	}
+
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, androidApp, &tm.ID)
+	require.NoError(t, err)
+	require.NotZero(t, vppApp.TitleID)
+
+	var vppTitleSource string
+	err = ds.writer(ctx).GetContext(ctx, &vppTitleSource,
+		"SELECT source FROM software_titles WHERE id = ?", vppApp.TitleID)
+	require.NoError(t, err)
+	assert.Equal(t, "android_apps", vppTitleSource)
+
+	// Osquery reports shorter name but same application_id
+	inventorySoftware := []fleet.Software{
+		{
+			Name:          "Amazon Shopping",
+			Version:       "26.0.0",
+			Source:        "android_apps",
+			ApplicationID: ptr.String("com.amazon.shopping"),
+		},
+	}
+
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, inventorySoftware)
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// Verify inventory matched VPP app's title_id
+	var inventoryTitleID *uint
+	err = ds.writer(ctx).GetContext(ctx, &inventoryTitleID, `
+		SELECT s.title_id FROM software s
+		INNER JOIN host_software hs ON hs.software_id = s.id
+		WHERE hs.host_id = ? AND s.source = 'android_apps'
+		LIMIT 1`, host.ID)
+	require.NoError(t, err)
+
+	if inventoryTitleID == nil {
+		t.Logf("BUG: VPP title_id: %d, Inventory title_id: NULL", vppApp.TitleID)
+	} else {
+		t.Logf("VPP app title_id: %d, Inventory title_id: %d (should be same after fix)", vppApp.TitleID, *inventoryTitleID)
+	}
+
+	require.NotNil(t, inventoryTitleID)
+	assert.Equal(t, vppApp.TitleID, *inventoryTitleID)
+
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true},
+		IncludeAvailableForInstall: true,
+		IsMDMEnrolled:              true,
+	}
+
+	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, sw)
+
+	var amazonApp *fleet.HostSoftwareWithInstaller
+	for i := range sw {
+		if sw[i].Source == "android_apps" && strings.Contains(sw[i].Name, "Amazon Shopping") {
+			amazonApp = sw[i]
+			break
+		}
+	}
+	require.NotNil(t, amazonApp)
+
+	assert.NotNil(t, amazonApp.AppStoreApp)
+	if amazonApp.AppStoreApp != nil {
+		assert.Equal(t, "com.amazon.shopping", amazonApp.AppStoreApp.AppStoreID)
+		require.NotNil(t, amazonApp.AppStoreApp.SelfService)
+		assert.True(t, *amazonApp.AppStoreApp.SelfService)
+		assert.NotNil(t, amazonApp.IconUrl)
+	}
 }

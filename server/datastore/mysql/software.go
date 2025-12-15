@@ -989,7 +989,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					queryArgs = append(queryArgs, firstArg, title.Source, title.ExtensionFor, bundleID)
 				}
 
-				stmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, upgrade_code
+				stmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, upgrade_code, application_id
 					FROM software_titles
 					WHERE (COALESCE(bundle_identifier, name), source, extension_for, COALESCE(bundle_identifier, '')) IN (%s)`, titlePlaceholders)
 
@@ -1020,6 +1020,57 @@ func (ds *Datastore) preInsertSoftwareInventory(
 							titleIDsByChecksum[checksum] = titleSummary.ID
 							// Don't break here - multiple checksums can map to the same title
 							// (e.g., when software has same truncated name but different versions (very rare))
+						}
+					}
+				}
+
+				// For mobile apps, also try matching by application_id since VPP apps use it
+				// and osquery may report different names than the app store.
+				var unmatchedAppIDs []string
+				unmatchedByAppID := make(map[string][]string)
+				for checksum, title := range newTitlesNeeded {
+					if _, ok := titleIDsByChecksum[checksum]; ok {
+						continue
+					}
+					if title.ApplicationID != nil && *title.ApplicationID != "" {
+						switch title.Source {
+						case "android_apps", "ios_apps", "ipados_apps":
+							appID := *title.ApplicationID
+							unmatchedAppIDs = append(unmatchedAppIDs, appID)
+							unmatchedByAppID[appID] = append(unmatchedByAppID[appID], checksum)
+						}
+					}
+				}
+
+				if len(unmatchedAppIDs) > 0 {
+					appIDPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(unmatchedAppIDs)), ",")
+					appIDStmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, upgrade_code, application_id
+						FROM software_titles
+						WHERE application_id IN (%s) AND source IN ('android_apps', 'ios_apps', 'ipados_apps')`, appIDPlaceholders)
+
+					appIDArgs := make([]interface{}, len(unmatchedAppIDs))
+					for i, appID := range unmatchedAppIDs {
+						appIDArgs[i] = appID
+					}
+
+					var appIDTitleSummaries []fleet.SoftwareTitleSummary
+					if err := sqlx.SelectContext(ctx, tx, &appIDTitleSummaries, appIDStmt, appIDArgs...); err != nil {
+						return ctxerr.Wrap(ctx, err, "select software titles by application_id")
+					}
+
+					for _, titleSummary := range appIDTitleSummaries {
+						if titleSummary.ApplicationID == nil {
+							continue
+						}
+						checksums, ok := unmatchedByAppID[*titleSummary.ApplicationID]
+						if !ok {
+							continue
+						}
+						for _, checksum := range checksums {
+							title := newTitlesNeeded[checksum]
+							if titleSummary.Source == title.Source {
+								titleIDsByChecksum[checksum] = titleSummary.ID
+							}
 						}
 					}
 				}
