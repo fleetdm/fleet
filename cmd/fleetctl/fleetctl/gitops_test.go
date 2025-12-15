@@ -4420,6 +4420,53 @@ func TestGitOpsWindowsUpdates(t *testing.T) {
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		return []fleet.ScriptResponse{}, nil
 	}
+	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) error {
+		return nil
+	}
+	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+		return nil
+	}
+	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+		if savedTeam != nil && *savedTeam.Filename == filename {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+
+	// Track default team config for team 0
+	defaultTeamConfig := &fleet.TeamConfig{}
+
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		if tid == 0 {
+			return &fleet.TeamLite{
+				ID:     0,
+				Name:   fleet.ReservedNameNoTeam,
+				Config: defaultTeamConfig.ToLite(),
+			}, nil
+		}
+		if tid == team.ID {
+			return savedTeam.ToTeamLite(), nil
+		}
+		return nil, nil
+	}
+
+	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+		return defaultTeamConfig, nil
+	}
+
+	ds.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+		defaultTeamConfig = config
+		return nil
+	}
+
+	// Mock DefaultTeamConfig functions for No Team webhook settings
+	setupDefaultTeamConfigMocks(ds)
 
 	t.Run("with values", func(t *testing.T) {
 		// Reset call trackers
