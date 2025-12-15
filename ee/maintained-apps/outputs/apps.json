@@ -86,6 +86,13 @@
       "description": "Adobe Digital Editions is an E-book reader."
     },
     {
+      "name": "Adobe DNG Converter",
+      "slug": "adobe-dng-converter/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adobe.DNGConverter",
+      "description": "Adobe DNG Conver is a DNG file converter."
+    },
+    {
       "name": "Aircall",
       "slug": "aircall/darwin",
       "platform": "darwin",
