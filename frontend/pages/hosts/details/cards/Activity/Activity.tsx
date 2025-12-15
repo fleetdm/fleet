@@ -3,6 +3,7 @@ import classnames from "classnames";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import { IHostUpcomingActivity } from "interfaces/activity";
+import { ICommand } from "interfaces/command";
 import {
   IHostPastActivitiesResponse,
   IHostUpcomingActivitiesResponse,
@@ -19,6 +20,8 @@ import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem
 import PastActivityFeed from "./PastActivityFeed";
 import UpcomingActivityFeed from "./UpcomingActivityFeed";
 import MDMCommandsToggle from "./MDMCommandsToggle";
+import PastCommandFeed from "./PastCommandFeed";
+import UpcomingCommandFeed from "./UpcomingCommandFeed";
 
 const baseClass = "host-activity-card";
 
@@ -37,6 +40,7 @@ interface IActivityProps {
   activeTab: "past" | "upcoming";
   showMDMCommands: boolean;
   activities?: IHostPastActivitiesResponse | IHostUpcomingActivitiesResponse;
+  commands?: ICommand[];
   isLoading?: boolean;
   isError?: boolean;
   className?: string;
@@ -55,6 +59,7 @@ const Activity = ({
   activeTab,
   showMDMCommands,
   activities,
+  commands = [],
   isLoading,
   isError,
   className,
@@ -105,13 +110,19 @@ const Activity = ({
                 showMDMCommands ? onHideMDMCommands : onShowMDMCommands
               }
             />
-            <PastActivityFeed
-              activities={activities as IHostPastActivitiesResponse | undefined}
-              onShowDetails={onShowDetails}
-              isError={isError}
-              onNextPage={onNextPage}
-              onPreviousPage={onPreviousPage}
-            />
+            {showMDMCommands ? (
+              <PastCommandFeed commands={commands} />
+            ) : (
+              <PastActivityFeed
+                activities={
+                  activities as IHostPastActivitiesResponse | undefined
+                }
+                onShowDetails={onShowDetails}
+                isError={isError}
+                onNextPage={onNextPage}
+                onPreviousPage={onPreviousPage}
+              />
+            )}
           </TabPanel>
           <TabPanel>
             <MDMCommandsToggle
@@ -121,17 +132,21 @@ const Activity = ({
                 showMDMCommands ? onHideMDMCommands : onShowMDMCommands
               }
             />
-            <UpcomingActivityFeed
-              activities={
-                activities as IHostUpcomingActivitiesResponse | undefined
-              }
-              onShowDetails={onShowDetails}
-              onCancel={onCancel}
-              isError={isError}
-              onNextPage={onNextPage}
-              onPreviousPage={onPreviousPage}
-              canCancelActivities={canCancelActivities}
-            />
+            {showMDMCommands ? (
+              <UpcomingCommandFeed commands={commands} />
+            ) : (
+              <UpcomingActivityFeed
+                activities={
+                  activities as IHostUpcomingActivitiesResponse | undefined
+                }
+                onShowDetails={onShowDetails}
+                onCancel={onCancel}
+                isError={isError}
+                onNextPage={onNextPage}
+                onPreviousPage={onPreviousPage}
+                canCancelActivities={canCancelActivities}
+              />
+            )}
           </TabPanel>
         </Tabs>
       </TabNav>

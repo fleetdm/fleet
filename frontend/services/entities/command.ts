@@ -4,7 +4,7 @@ import { ICommand } from "interfaces/command";
 import { getPathWithQueryParams } from "utilities/url";
 import { createMockGetCommandsResponse } from "__mocks__/commandMock";
 
-import { PaginationParams, DEFAULT_PAGINATION_PARAMS } from "./common";
+import { PaginationParams } from "./common";
 
 export interface IGetCommandsRequest extends PaginationParams {
   order_key?: string;
@@ -27,9 +27,6 @@ export default {
     const url = getPathWithQueryParams(COMMANDS, requestParams);
 
     return sendRequest("GET", url);
-    // return new Promise((resolve) => {
-    //   resolve(createMockGetCommandsResponse());
-    // });
   },
 
   // getCommandResults: (
