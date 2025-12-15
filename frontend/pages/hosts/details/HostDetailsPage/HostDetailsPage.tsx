@@ -1292,6 +1292,7 @@ Observer plus must be checked against host's team id  */
                         ? pastActivities
                         : upcomingActivities
                     }
+                    commands={mdmCommands}
                     isLoading={
                       activeActivityTab === "past"
                         ? pastActivitiesIsFetching

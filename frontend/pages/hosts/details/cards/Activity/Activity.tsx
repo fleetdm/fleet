@@ -3,11 +3,11 @@ import classnames from "classnames";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import { IHostUpcomingActivity } from "interfaces/activity";
-import { ICommand } from "interfaces/command";
 import {
   IHostPastActivitiesResponse,
   IHostUpcomingActivitiesResponse,
 } from "services/entities/activities";
+import { IGetCommandsResponse } from "services/entities/command";
 
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
@@ -40,7 +40,7 @@ interface IActivityProps {
   activeTab: "past" | "upcoming";
   showMDMCommands: boolean;
   activities?: IHostPastActivitiesResponse | IHostUpcomingActivitiesResponse;
-  commands?: ICommand[];
+  commands?: IGetCommandsResponse;
   isLoading?: boolean;
   isError?: boolean;
   className?: string;
@@ -59,7 +59,7 @@ const Activity = ({
   activeTab,
   showMDMCommands,
   activities,
-  commands = [],
+  commands,
   isLoading,
   isError,
   className,
@@ -111,7 +111,7 @@ const Activity = ({
               }
             />
             {showMDMCommands ? (
-              <PastCommandFeed commands={commands} />
+              <PastCommandFeed commands={commands?.results ?? []} />
             ) : (
               <PastActivityFeed
                 activities={
@@ -133,7 +133,7 @@ const Activity = ({
               }
             />
             {showMDMCommands ? (
-              <UpcomingCommandFeed commands={commands} />
+              <UpcomingCommandFeed commands={commands?.results ?? []} />
             ) : (
               <UpcomingActivityFeed
                 activities={

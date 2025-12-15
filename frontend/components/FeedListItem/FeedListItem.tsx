@@ -19,8 +19,8 @@ const baseClass = "feed-list-item";
 interface IFeedListItemProps {
   children: ReactNode;
   useFleetAvatar: boolean;
-  useAPIOnlyAvatar: boolean;
   createdAt: Date;
+  useAPIOnlyAvatar?: boolean;
   gravatarURL?: string;
   allowShowDetails?: boolean;
   allowCancel?: boolean;
@@ -34,9 +34,9 @@ interface IFeedListItemProps {
 const FeedListItem = ({
   children,
   useFleetAvatar,
-  useAPIOnlyAvatar,
   createdAt,
   gravatarURL,
+  useAPIOnlyAvatar = false,
   allowShowDetails = false,
   allowCancel = false,
   isSoloItem = false,
