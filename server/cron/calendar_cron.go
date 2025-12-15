@@ -135,7 +135,7 @@ func cronCalendarEventsForTeam(
 	// 	- We ignore hosts that are passing all policies and do not have an associated email.
 	//	- We get only one host per email that's failing policies (the one with lower host id).
 	//	- On every host, we prioritize email selection: IdP Username (mdm_idp_accounts or idp sources) first,
-	//	  then Google Chrome profiles, then other sources. If multiple emails exist at the same priority level,
+	//	  then Google Chrome profiles, then other sources. If multiple Google Chrome profile emails exist,
 	//	  we select the first one alphabetically.
 	//	- GetTeamHostsPolicyMemberships returns the hosts that are passing all policies and have a calendar event.
 	//
