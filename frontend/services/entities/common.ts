@@ -15,3 +15,8 @@ export interface PaginationParams {
   page: number;
   per_page: number;
 }
+
+export const DEFAULT_PAGINATION_PARAMS: PaginationParams = {
+  page: 1,
+  per_page: 10,
+};

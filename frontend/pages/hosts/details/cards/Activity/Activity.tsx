@@ -35,6 +35,7 @@ const UpcomingTooltip = () => {
 
 interface IActivityProps {
   activeTab: "past" | "upcoming";
+  showMDMCommands: boolean;
   activities?: IHostPastActivitiesResponse | IHostUpcomingActivitiesResponse;
   isLoading?: boolean;
   isError?: boolean;
@@ -52,6 +53,7 @@ interface IActivityProps {
 
 const Activity = ({
   activeTab,
+  showMDMCommands,
   activities,
   isLoading,
   isError,
@@ -63,6 +65,8 @@ const Activity = ({
   onPreviousPage,
   onShowDetails,
   onCancel,
+  onShowMDMCommands,
+  onHideMDMCommands,
 }: IActivityProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -96,8 +100,10 @@ const Activity = ({
           </TabList>
           <TabPanel>
             <MDMCommandsToggle
-              showMDMCommands={false}
-              onToggleMDMCommands={() => { }}
+              showMDMCommands={showMDMCommands}
+              onToggleMDMCommands={
+                showMDMCommands ? onHideMDMCommands : onShowMDMCommands
+              }
             />
             <PastActivityFeed
               activities={activities as IHostPastActivitiesResponse | undefined}
@@ -109,9 +115,11 @@ const Activity = ({
           </TabPanel>
           <TabPanel>
             <MDMCommandsToggle
-              showMDMCommands={false}
+              showMDMCommands={showMDMCommands}
               commandCount={10}
-              onToggleMDMCommands={() => { }}
+              onToggleMDMCommands={
+                showMDMCommands ? onHideMDMCommands : onShowMDMCommands
+              }
             />
             <UpcomingActivityFeed
               activities={

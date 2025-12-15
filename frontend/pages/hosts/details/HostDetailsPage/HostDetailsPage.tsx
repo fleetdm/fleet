@@ -19,6 +19,7 @@ import hostAPI, {
   IGetHostCertsRequestParams,
 } from "services/entities/hosts";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
+import commandAPI from "services/entities/command";
 
 import {
   IHost,
@@ -517,6 +518,7 @@ const HostDetailsPage = ({
     {
       keepPreviousData: true,
       staleTime: 2000,
+      enabled: !showMDMCommands,
     }
   );
 
@@ -556,6 +558,31 @@ const HostDetailsPage = ({
       ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
       staleTime: 2000,
+      enabled: !showMDMCommands,
+    }
+  );
+
+  const { data: mdmCommands } = useQuery(
+    [
+      {
+        scope: "host-mdm-commands",
+        pageIndex: activityPage,
+        perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
+        hostUUID: host?.uuid,
+        activeTab: activeActivityTab,
+      },
+    ],
+    ({ queryKey: [{ pageIndex, perPage, hostUUID, activeTab }] }) => {
+      return commandAPI.getCommands({
+        page: pageIndex,
+        per_page: perPage,
+        host_identifier: hostUUID,
+        command_status: activeTab === "past" ? "ran" : "pending",
+      });
+    },
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isAppleDevice(host?.platform) && showMDMCommands,
     }
   );
 
@@ -1005,7 +1032,7 @@ const HostDetailsPage = ({
   );
 
   /*  Context team id might be different that host's team id
-  Observer plus must be checked against host's team id  */
+Observer plus must be checked against host's team id  */
   const isGlobalOrHostsTeamObserverPlus =
     currentUser && host?.team_id
       ? permissions.isObserverPlus(currentUser, host.team_id)
@@ -1281,6 +1308,13 @@ const HostDetailsPage = ({
                       isHostTeamAdmin ||
                       isHostTeamMaintainer
                     }
+                    showMDMCommands={showMDMCommands}
+                    onShowMDMCommands={() => {
+                      setShowMDMCommands(true);
+                    }}
+                    onHideMDMCommands={() => {
+                      setShowMDMCommands(false);
+                    }}
                     upcomingCount={upcomingActivities?.count || 0}
                     onChangeTab={onChangeActivityTab}
                     onNextPage={() => setActivityPage(activityPage + 1)}
