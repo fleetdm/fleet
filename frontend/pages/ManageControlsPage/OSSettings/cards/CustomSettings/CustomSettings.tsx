@@ -26,7 +26,7 @@ import AddProfileModal from "./components/ProfileUploader/components/AddProfileM
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
 import ProfileLabelsModal from "./components/ProfileLabelsModal/ProfileLabelsModal";
 import ProfileListItem from "./components/ProfileListItem";
-import ProfileListHeading from "../../../components/UploadListHeading";
+import UploadListHeading from "../../../components/UploadListHeading";
 import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
 import ResendConfigProfileModal from "./components/ResendConfigProfileModal";
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
@@ -172,7 +172,7 @@ const CustomSettings = ({
           keyAttribute="profile_uuid"
           listItems={profiles}
           HeadingComponent={() => (
-            <ProfileListHeading
+            <UploadListHeading
               onClickAdd={() => setShowAddProfileModal(true)}
               entityName="Configuration profile"
               createEntityText="Add profile"

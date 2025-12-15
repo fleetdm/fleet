@@ -6,7 +6,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import paths from "router/paths";
 
 import { NotificationContext } from "context/notification";
-import certificatesAPI, { ICertTemplate } from "services/entities/certificates";
+import certificatesAPI, { ICertificate } from "services/entities/certificates";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -22,34 +22,34 @@ import CustomLink from "components/CustomLink";
 import {
   validateFormData,
   generateFormValidations,
-  IAddCTFormValidation,
+  IAddCertFormValidation,
 } from "./helpers";
 
 const baseClass = "add-ct-modal";
 
-export interface IAddCTFormData {
+export interface IAddCertFormData {
   name: string;
   certAuthorityId: string;
   subjectName: string;
 }
 
-interface IAddCTModalProps {
-  existingCTs: ICertTemplate[];
+interface IAddCertModalProps {
+  existingCerts: ICertificate[];
   onExit: () => void;
   onSuccess: () => void;
   currentTeamId?: number;
 }
 
-const AddCTModal = ({
-  existingCTs,
+const AddCertModal = ({
+  existingCerts: existingCTs,
   onExit,
   onSuccess,
   currentTeamId,
-}: IAddCTModalProps) => {
+}: IAddCertModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const [isUpdating, setIsUpdating] = useState(false);
-  const [formData, setFormData] = useState<IAddCTFormData>({
+  const [formData, setFormData] = useState<IAddCertFormData>({
     name: "",
     certAuthorityId: "",
     subjectName: "",
@@ -60,7 +60,7 @@ const AddCTModal = ({
     [existingCTs]
   );
 
-  const [formValidation, setFormValidation] = useState<IAddCTFormValidation>(
+  const [formValidation, setFormValidation] = useState<IAddCertFormValidation>(
     () => validateFormData(formData, validations)
   );
 
@@ -106,20 +106,17 @@ const AddCTModal = ({
 
     setIsUpdating(true);
     try {
-      await certificatesAPI.createCertTemplate({
+      await certificatesAPI.createCert({
         name: formData.name,
         certAuthorityId: parseInt(formData.certAuthorityId, 10),
         subjectName: formData.subjectName,
         teamId: currentTeamId,
       });
-      renderFlash("success", "Successfully added your certificate template.");
+      renderFlash("success", "Successfully added your certificate.");
       onSuccess();
       onExit();
     } catch (e) {
-      renderFlash(
-        "error",
-        "Couldn't add certificate template. Please try again."
-      );
+      renderFlash("error", "Couldn't add certificate. Please try again.");
     } finally {
       setIsUpdating(false);
     }
@@ -206,7 +203,7 @@ const AddCTModal = ({
   return (
     <Modal
       className={baseClass}
-      title="Add certificate template"
+      title="Add certificate"
       width="large"
       onExit={onExit}
       isContentDisabled={isUpdating}
@@ -216,4 +213,4 @@ const AddCTModal = ({
   );
 };
 
-export default AddCTModal;
+export default AddCertModal;

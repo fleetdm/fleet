@@ -1,6 +1,6 @@
 import React, { useContext, useState } from "react";
 
-import certAPI, { ICertTemplate } from "services/entities/certificates";
+import certAPI, { ICertificate } from "services/entities/certificates";
 import { NotificationContext } from "context/notification";
 
 import Button from "components/buttons/Button";
@@ -8,42 +8,32 @@ import Modal from "components/Modal";
 
 const baseClass = "delete-cert-template-modal";
 
-interface IDeleteCertTemplateModalProps {
-  cT: ICertTemplate;
+interface IDeleteCertModalProps {
+  cert: ICertificate;
   onExit: () => void;
 }
 
-const DeleteCertTemplateModal = ({
-  cT,
-  onExit,
-}: IDeleteCertTemplateModalProps) => {
+const DeleteCertificateModal = ({ cert, onExit }: IDeleteCertModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const { name, id } = cT;
+  const { name, id } = cert;
 
   const onDelete = async () => {
     setIsUpdating(true);
     try {
-      await certAPI.deleteCertTemplate(id);
-      renderFlash("success", "Successfully deleted certificate template.");
+      await certAPI.deleteCert(id);
+      renderFlash("success", "Successfully deleted certificate.");
       setIsUpdating(false);
       onExit();
     } catch (e) {
       setIsUpdating(false);
-      renderFlash(
-        "error",
-        "Couldn't delete certificate template. Please try again."
-      );
+      renderFlash("error", "Couldn't delete certificate. Please try again.");
     }
   };
 
   return (
-    <Modal
-      className={baseClass}
-      title="Delete certificate template"
-      onExit={onExit}
-    >
+    <Modal className={baseClass} title="Delete certificate" onExit={onExit}>
       <>
         <p>
           This action will remove the <b>{name}</b> certificate from all hosts
@@ -67,4 +57,4 @@ const DeleteCertTemplateModal = ({
   );
 };
 
-export default DeleteCertTemplateModal;
+export default DeleteCertificateModal;

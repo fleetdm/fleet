@@ -310,7 +310,7 @@ export default {
   CONFIG_PROFILE_STATUS: (uuid: string) =>
     `/${API_VERSION}/fleet/configuration_profiles/${uuid}/status`,
   CONFIG_PROFILE_BATCH_RESEND: `/${API_VERSION}/fleet/configuration_profiles/resend/batch`,
-  CERT_TEMPLATES: `/${API_VERSION}/fleet/certificates`,
+  CERTIFICATES: `/${API_VERSION}/fleet/certificates`,
 
   // Certificate authority endpoints
   CERTIFICATE_AUTHORITIES: `/${API_VERSION}/fleet/certificate_authorities`,

@@ -44,27 +44,27 @@ export type IEditCertAuthorityBody =
   | { smallstep: Partial<ICertificatesSmallstep> }
   | { custom_est_proxy: Partial<ICertificatesCustomEST> };
 
-interface IGetCertTemplatesParams extends PaginationParams {
+interface IGetCertsParams extends PaginationParams {
   // not supported: after, order key, order direction, match query, meta (always included)
   team_id?: number;
 }
 
-export interface IQueryKeyGetCerts extends IGetCertTemplatesParams {
-  scope: "certificate_templates";
+export interface IQueryKeyGetCerts extends IGetCertsParams {
+  scope: "certificates";
 }
-export interface ICertTemplate {
+export interface ICertificate {
   id: number;
   name: string;
   certificate_authority_id: number;
   certificate_authority_name: string;
   created_at: string;
 }
-export interface IGetCertTemplatesResponse {
+export interface IGetCertsResponse {
   meta: ListEntitiesResponsePaginationCommon;
-  certificates: ICertTemplate[]; // TODO - lobby to call this certificate_templates
+  certificates: ICertificate[];
 }
 
-export interface ICreateCertTemplate {
+export interface ICreateCert {
   name: string;
   certAuthorityId: number;
   subjectName: string;
@@ -106,12 +106,12 @@ export default {
     const { CERTIFICATE_AUTHORITY_REQUEST_CERT } = endpoints;
     return sendRequest("GET", CERTIFICATE_AUTHORITY_REQUEST_CERT(id));
   },
-  getCertTemplates: ({
+  getCerts: ({
     team_id,
     page,
     per_page,
-  }: IGetCertTemplatesParams): Promise<IGetCertTemplatesResponse> => {
-    const { CERT_TEMPLATES } = endpoints;
+  }: IGetCertsParams): Promise<IGetCertsResponse> => {
+    const { CERTIFICATES: CERT_TEMPLATES } = endpoints;
 
     const queryString = buildQueryStringFromParams({ team_id, page, per_page });
 
@@ -120,13 +120,8 @@ export default {
       queryString ? CERT_TEMPLATES.concat(`?${queryString}`) : CERT_TEMPLATES
     );
   },
-  createCertTemplate: ({
-    name,
-    certAuthorityId,
-    subjectName,
-    teamId,
-  }: ICreateCertTemplate) => {
-    const { CERT_TEMPLATES } = endpoints;
+  createCert: ({ name, certAuthorityId, subjectName, teamId }: ICreateCert) => {
+    const { CERTIFICATES } = endpoints;
     const requestBody = {
       name,
       certificate_authority_id: certAuthorityId,
@@ -134,11 +129,11 @@ export default {
     };
     return sendRequest(
       "POST",
-      teamId ? CERT_TEMPLATES.concat(`?team_id=${teamId}`) : CERT_TEMPLATES,
+      teamId ? CERTIFICATES.concat(`?team_id=${teamId}`) : CERTIFICATES,
       requestBody
     );
   },
-  deleteCertTemplate: (id: number) => {
-    return sendRequest("DELETE", endpoints.CERT_TEMPLATES.concat(`/${id}`));
+  deleteCert: (id: number) => {
+    return sendRequest("DELETE", endpoints.CERTIFICATES.concat(`/${id}`));
   },
 };

@@ -6,14 +6,14 @@ import Button from "components/buttons/Button";
 
 const baseClass = "add-cert-card";
 
-interface IAddCTCardProps {
+interface IAddCertCardProps {
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const AddCTCard = ({ setShowModal }: IAddCTCardProps) => (
+const AddCertCard = ({ setShowModal }: IAddCertCardProps) => (
   <Card color="grey" className={baseClass}>
     <div className={`${baseClass}__card--content-wrap`}>
-      <b>Add certificate template</b>
+      <b>Add certificate</b>
       <p>Help your end users connect to your corporate network.</p>
       <GitOpsModeTooltipWrapper
         tipOffset={8}
@@ -32,4 +32,4 @@ const AddCTCard = ({ setShowModal }: IAddCTCardProps) => (
   </Card>
 );
 
-export default AddCTCard;
+export default AddCertCard;

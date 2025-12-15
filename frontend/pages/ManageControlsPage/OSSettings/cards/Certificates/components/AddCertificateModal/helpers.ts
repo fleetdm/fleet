@@ -1,20 +1,20 @@
-import { ICertTemplate } from "services/entities/certificates";
-import { IAddCTFormData } from "./AddCTModal";
+import { ICertificate } from "services/entities/certificates";
+import { IAddCertFormData } from "./AddCertificateModal";
 
-export interface IAddCTFormValidation {
+export interface IAddCertFormValidation {
   isValid: boolean;
   name?: { isValid: boolean; message?: string };
   certAuthorityId?: { isValid: boolean; message?: string };
   subjectName?: { isValid: boolean; message?: string };
 }
 
-type IMessageFunc = (formData: IAddCTFormData) => string;
+type IMessageFunc = (formData: IAddCertFormData) => string;
 type IValidationMessage = string | IMessageFunc;
-type IFormValidationKey = keyof Omit<IAddCTFormValidation, "isValid">;
+type IFormValidationKey = keyof Omit<IAddCertFormValidation, "isValid">;
 
 interface IValidation {
   name: string;
-  isValid: (formData: IAddCTFormData) => boolean;
+  isValid: (formData: IAddCertFormData) => boolean;
   message?: IValidationMessage;
 }
 
@@ -24,20 +24,20 @@ type IFormValidations = Record<
 >;
 
 export const generateFormValidations = (
-  existingCTs: ICertTemplate[]
+  existingCerts: ICertificate[]
 ): IFormValidations => {
   const FORM_VALIDATIONS: IFormValidations = {
     name: {
       validations: [
         {
           name: "required",
-          isValid: (formData: IAddCTFormData) => {
+          isValid: (formData: IAddCertFormData) => {
             return formData.name.length > 0;
           },
         },
         {
           name: "invalidCharacters",
-          isValid: (formData: IAddCTFormData) => {
+          isValid: (formData: IAddCertFormData) => {
             return /^[a-zA-Z0-9 \-_]+$/.test(formData.name);
           },
           message:
@@ -45,18 +45,19 @@ export const generateFormValidations = (
         },
         {
           name: "unique",
-          isValid: (formData: IAddCTFormData) => {
+          isValid: (formData: IAddCertFormData) => {
             return (
-              existingCTs.find(
-                (ct) => ct.name.toLowerCase() === formData.name.toLowerCase()
+              existingCerts.find(
+                (cert) =>
+                  cert.name.toLowerCase() === formData.name.toLowerCase()
               ) === undefined
             );
           },
-          message: "Name is already used by another certificate template.",
+          message: "Name is already used by another certificate.",
         },
         {
           name: "maxLength",
-          isValid: (formData: IAddCTFormData) => {
+          isValid: (formData: IAddCertFormData) => {
             return formData.name.length <= 255;
           },
           message: "Name is too long. Maximum is 255 characters.",
@@ -67,7 +68,7 @@ export const generateFormValidations = (
       validations: [
         {
           name: "required",
-          isValid: (formData: IAddCTFormData) => {
+          isValid: (formData: IAddCertFormData) => {
             return formData.certAuthorityId !== "";
           },
           // no error message specified
@@ -78,7 +79,7 @@ export const generateFormValidations = (
       validations: [
         {
           name: "required",
-          isValid: (formData: IAddCTFormData) => {
+          isValid: (formData: IAddCertFormData) => {
             return formData.subjectName.length > 0;
           },
         },
@@ -90,7 +91,7 @@ export const generateFormValidations = (
 };
 
 const getErrorMessage = (
-  formData: IAddCTFormData,
+  formData: IAddCertFormData,
   message?: IValidationMessage
 ) => {
   if (message === undefined || typeof message === "string") {
@@ -100,10 +101,10 @@ const getErrorMessage = (
 };
 
 export const validateFormData = (
-  formData: IAddCTFormData,
+  formData: IAddCertFormData,
   validationConfig: IFormValidations
-): IAddCTFormValidation => {
-  const formValidation: IAddCTFormValidation = {
+): IAddCertFormValidation => {
+  const formValidation: IAddCertFormValidation = {
     isValid: true,
   };
 
