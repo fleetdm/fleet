@@ -41,11 +41,11 @@ The payloads can be combined and delivered as a single Configuration Profile, or
 
 Below is an explanation of what each of the macOS CrowdStrike Falcon payloads does:
 
-- `-service-management.mobileconfig` - Configure  Falcon as a managed login item so its services can't be stopped by end users.
-- `CrowdStrike-notification.mobileconfig` - Suppress notifications to reduce end user notification fatigue. (This is a best practice for many fully-managed applications.)
-- `CrowdStrike-system-extension` - Install the CrowdStrike Falcon System Extension to allow all necessary application entitlements and access to the macOS kernel.
-- `CrowdStrike-web-filter.mobileconfig` - Enable web filtering to monitor network traffic at the socket level.
-- `CrowdStrike-full-disk-access.mobileconfig` - Grant full disk access to all CrowdStrike application processes using the CrowdStrike Apple Developer team identifier.
+- `crowdstrike-service-management.mobileconfig` - Configure  Falcon as a managed login item so its services can't be stopped by end users.
+- `crowdstrike-notification.mobileconfig` - Suppress notifications to reduce end user notification fatigue. (This is a best practice for many fully-managed applications.)
+- `crowdstrike-system-extension` - Install the CrowdStrike Falcon System Extension to allow all necessary application entitlements and access to the macOS kernel.
+- `crowdstrike-web-filter.mobileconfig` - Enable web filtering to monitor network traffic at the socket level.
+- `crowdstrike-full-disk-access.mobileconfig` - Grant full disk access to all CrowdStrike application processes using the CrowdStrike Apple Developer team identifier.
 
 [Download the CrowdStrike Falcon macOS Configuration Profiles](https://github.com/fleetdm/fleet/tree/main/docs/solutions/macos/configuration-profiles)
 
