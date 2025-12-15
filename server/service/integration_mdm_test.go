@@ -19343,7 +19343,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 			LabelsIncludeAny: []string{globalLabel.Name, l2t2.Name},
 		}, http.StatusBadRequest, &tpResp)
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), teamPolicyRequest{
-			Name:             "t1 policy",
+			Name:             "t1 policy exclude",
 			Query:            "SELECT 1;",
 			LabelsExcludeAny: []string{globalLabel.Name, l2t2.Name},
 		}, http.StatusBadRequest, &tpResp)
@@ -19362,7 +19362,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 			LabelsExcludeAny: []string{globalLabel.Name, l1t1.Name},
 		}, http.StatusOK, &tpResp)
 
-		// 1.B.3 Attempt to edit a team policy with a team policy that references l2t2 (should fail).
+		// 1.B.3 Attempt to edit a team policy to reference l2t2 (should fail; label is outside team).
 		mtplr := modifyTeamPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), modifyTeamPolicyRequest{
 			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
@@ -19377,7 +19377,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 			},
 		}, http.StatusBadRequest, &mtplr)
 
-		// 1.B.3 Attempt to edit a team policy with a team policy that references a team label (should succeed).
+		// 1.B.3 Attempt to edit a team policy to reference a team label on the same team (should succeed).
 		mtplr = modifyTeamPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), modifyTeamPolicyRequest{
 			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
@@ -19400,7 +19400,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 			LabelsIncludeAny: []string{globalLabel.Name, l2t2.Name},
 		}, http.StatusBadRequest, &tpResp)
 		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", teamPolicyRequest{
-			Name:             "no team policy",
+			Name:             "no team policy exclude",
 			Query:            "SELECT 1;",
 			LabelsExcludeAny: []string{globalLabel.Name, l2t2.Name},
 		}, http.StatusBadRequest, &tpResp)
@@ -19434,7 +19434,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 			},
 		}, http.StatusBadRequest, &mtplr)
 
-		// 1.B.3 Attempt to edit a team policy with a team policy that references a global label (should succeed).
+		// 1.B.3 Attempt to edit a team policy to reference a global label (should succeed).
 		mtplr = modifyTeamPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), modifyTeamPolicyRequest{
 			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
@@ -19489,7 +19489,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 		// 2.B.1 Attempt to create a team query with a label of another team (should fail).
 		createQueryResp = createQueryResponse{}
 		reqQuery = &fleet.QueryPayload{
-			Name:             ptr.String("All teams query"),
+			Name:             ptr.String("Team one query"),
 			Query:            ptr.String("SELECT 1;"),
 			LabelsIncludeAny: []string{l2t2.Name},
 
@@ -19500,7 +19500,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 		// 2.B.2 Attempt to create a team query with a label of the same team (should succeed).
 		createQueryResp = createQueryResponse{}
 		reqQuery = &fleet.QueryPayload{
-			Name:             ptr.String("All teams query"),
+			Name:             ptr.String("Team one query"),
 			Query:            ptr.String("SELECT 1;"),
 			LabelsIncludeAny: []string{l1t1.Name, globalLabel.Name},
 
