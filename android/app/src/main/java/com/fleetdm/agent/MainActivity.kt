@@ -1,12 +1,22 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.fleetdm.agent
 
 import android.app.admin.DevicePolicyManager
+import android.content.Context
+import android.content.Context.DEVICE_POLICY_SERVICE
+import android.content.Context.RESTRICTIONS_SERVICE
+import android.content.Intent
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.os.Debug
 import android.provider.Settings
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
@@ -17,9 +27,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -28,6 +46,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -36,92 +55,179 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.fleetdm.agent.ui.theme.FleetTextDark
 import com.fleetdm.agent.ui.theme.MyApplicationTheme
 import java.security.KeyStore
 import java.security.cert.X509Certificate
 import java.util.Date
+import kotlin.text.contains
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+
+const val CLICKS_TO_DEBUG = 5
+
+@Serializable
+object MainDestination
+
+@Serializable
+object DebugDestination
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-
-        // 1. Fetch the Managed Configuration (Application Restrictions)
-        val restrictionsManager = getSystemService(RESTRICTIONS_SERVICE) as android.content.RestrictionsManager
-        val appRestrictions = restrictionsManager.applicationRestrictions
-        val dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(
+                scrim = android.graphics.Color.TRANSPARENT,
+                darkScrim = android.graphics.Color.TRANSPARENT,
+            ),
+        )
 
         setContent {
-            val enrollSecret by remember { mutableStateOf(appRestrictions.getString("enroll_secret")) }
-            val delegatedScopes by remember { mutableStateOf(dpm.getDelegatedScopes(null, packageName).toList()) }
-            val delegatedCertScope by remember {
-                mutableStateOf(delegatedScopes.contains(DevicePolicyManager.DELEGATION_CERT_INSTALL))
-            }
-            val androidID by remember { mutableStateOf(Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)) }
-            val enrollmentSpecificID by remember { mutableStateOf(appRestrictions.getString("host_uuid")) }
-            val certIds by remember { mutableStateOf(CertificateOrchestrator.getCertificateIDs(this)) }
-            val permissionsList by remember {
-                val grantedPermissions = mutableListOf<String>()
-                val packageInfo: PackageInfo = packageManager.getPackageInfo(packageName, PackageManager.GET_PERMISSIONS)
-                packageInfo.requestedPermissions?.let {
-                    for (i in it.indices) {
-                        if ((
-                                packageInfo.requestedPermissionsFlags?.get(i)
-                                    ?.and(PackageInfo.REQUESTED_PERMISSION_GRANTED)
-                                ) != 0
-                        ) {
-                            grantedPermissions.add(it[i])
-                        }
-                    }
-                }
-                mutableStateOf(grantedPermissions.toList())
-            }
-            val fleetBaseUrl by remember {
-                mutableStateOf(appRestrictions.getString("server_url"))
-            }
-            var installedCertificates: List<CertificateInfo> by remember { mutableStateOf(listOf()) }
-            val apiKey by ApiClient.apiKeyFlow.collectAsState(initial = null)
-            val baseUrl by ApiClient.baseUrlFlow.collectAsState(initial = null)
-            val allegedInstalledCerts by CertificateOrchestrator.installedCertsFlow(this).collectAsState(initial = "")
-
-            LaunchedEffect(Unit) {
-                installedCertificates = listKeystoreCertificates()
-            }
-
             MyApplicationTheme {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    content = { padding ->
-                        Column(
-                            modifier = Modifier.padding(padding).verticalScroll(rememberScrollState()),
-                        ) {
-                            StatusScreen()
-                            KeyValue("packageName", packageName)
-                            KeyValue("versionName", packageManager.getPackageInfo(packageName, 0).versionName)
-                            KeyValue("longVersionCode", packageManager.getPackageInfo(packageName, 0).longVersionCode.toString())
-                            KeyValue("enroll_secret", enrollSecret)
-                            KeyValue("delegatedScopes", delegatedScopes.toString())
-                            KeyValue("delegated cert scope", delegatedCertScope.toString())
-                            KeyValue("android id", androidID)
-                            KeyValue("host_uuid (MC)", enrollmentSpecificID)
-                            KeyValue("server_url (MC)", fleetBaseUrl)
-                            KeyValue("orbit_node_key (datastore)", apiKey)
-                            KeyValue("base_url (datastore)", baseUrl)
-                            KeyValue("certificate_templates->id", certIds.toString())
-                            KeyValue("alleged_installed", allegedInstalledCerts.toString())
-                            PermissionList(
-                                permissionsList = permissionsList,
-                            )
-                            CertificateList(certificateList = installedCertificates)
-                        }
-                    },
-                )
+                AppNavigation()
             }
         }
     }
+}
+
+@Composable
+fun AppNavigation() {
+    val navController = rememberNavController()
+
+    NavHost(
+        navController = navController,
+        startDestination = MainDestination,
+    ) {
+        composable<MainDestination> {
+            MainScreen(
+                onNavigateToDebug = { navController.navigate(DebugDestination) },
+            )
+        }
+
+        composable<DebugDestination> {
+            DebugScreen(
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+    }
+}
+
+@Composable
+fun MainScreen(onNavigateToDebug: () -> Unit) {
+    val context = LocalContext.current
+
+    var versionClicks by remember { mutableStateOf(0) }
+    val installedCerts by CertificateOrchestrator.installedCertsFlow(context).collectAsState(initial = emptyMap())
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        content = { paddingValues ->
+            Column(Modifier.padding(paddingValues = paddingValues)) {
+                LogoHeader()
+                HorizontalDivider()
+                AboutFleet {
+                    val intent = Intent(Intent.ACTION_VIEW, BuildConfig.INFO_URL.toUri())
+                    if (intent.resolveActivity(context.packageManager) != null) {
+                        // A browser is available, open the URL directly
+                        context.startActivity(intent)
+                    } else {
+                        // A browser is not available in the work profile, display a toast with the URL
+                        val toast = Toast.makeText(context, "Visit ${BuildConfig.INFO_URL}\nfor more information", Toast.LENGTH_LONG)
+                        toast.show()
+                    }
+                }
+                HorizontalDivider()
+                CertificateList(certificates = installedCerts)
+                HorizontalDivider()
+                AppVersion {
+                    if (++versionClicks >= CLICKS_TO_DEBUG) {
+                        onNavigateToDebug()
+                    }
+                }
+            }
+        },
+    )
+}
+
+@Composable
+fun DebugScreen(onNavigateBack: () -> Unit) {
+    val context = LocalContext.current
+
+    val restrictionsManager = context.getSystemService(RESTRICTIONS_SERVICE) as android.content.RestrictionsManager
+    val appRestrictions = restrictionsManager.applicationRestrictions
+    val dpm = context.getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
+
+    val enrollSecret = remember { appRestrictions.getString("enroll_secret")?.apply { "****" + takeLast(4) } }
+    val delegatedScopes = remember { dpm.getDelegatedScopes(null, context.packageName).toList() }
+    val delegatedCertScope = remember { delegatedScopes.contains(DevicePolicyManager.DELEGATION_CERT_INSTALL) }
+    val enrollmentSpecificID = remember { appRestrictions.getString("host_uuid")?.apply { "****" + takeLast(4) } }
+    val certIds = remember { CertificateOrchestrator.getCertificateIDs(context) }
+    val permissionsList = remember {
+        val grantedPermissions = mutableListOf<String>()
+        val packageInfo: PackageInfo = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
+        packageInfo.requestedPermissions?.let {
+            for (i in it.indices) {
+                if ((
+                        packageInfo.requestedPermissionsFlags?.get(i)
+                            ?.and(PackageInfo.REQUESTED_PERMISSION_GRANTED)
+                        ) != 0
+                ) {
+                    grantedPermissions.add(it[i])
+                }
+            }
+        }
+        grantedPermissions.toList()
+    }
+    val fleetBaseUrl = remember { appRestrictions.getString("server_url") }
+    val apiKey by ApiClient.apiKeyFlow.map { it?.apply { "****" + takeLast(4) } }.collectAsState(initial = null)
+    val baseUrl by ApiClient.baseUrlFlow.collectAsState(initial = null)
+    val installedCerts by CertificateOrchestrator.installedCertsFlow(context).collectAsState(initial = emptyMap())
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text("Debug Information") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                        )
+                    }
+                },
+            )
+        },
+        content = { paddingValues ->
+            Column(
+                Modifier
+                    .padding(paddingValues = paddingValues)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                KeyValue("packageName", context.packageName)
+                KeyValue("versionName", context.packageManager.getPackageInfo(context.packageName, 0).versionName)
+                KeyValue("longVersionCode", context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode.toString())
+                KeyValue("enroll_secret", enrollSecret)
+                KeyValue("delegatedScopes", delegatedScopes.toString())
+                KeyValue("delegated cert scope", delegatedCertScope.toString())
+                KeyValue("host_uuid (MC)", enrollmentSpecificID)
+                KeyValue("server_url (MC)", fleetBaseUrl)
+                KeyValue("orbit_node_key (datastore)", apiKey)
+                KeyValue("base_url (datastore)", baseUrl)
+                KeyValue("certificate_templates->id", certIds.toString())
+                KeyValue("certs_installed", installedCerts.toString())
+                PermissionList(
+                    permissionsList = permissionsList,
+                )
+            }
+        },
+    )
 }
 
 @Composable
@@ -138,37 +244,6 @@ fun PermissionList(modifier: Modifier = Modifier, permissionsList: List<String>)
 }
 
 @Composable
-fun CertificateList(modifier: Modifier = Modifier, certificateList: List<CertificateInfo>) {
-    Column(modifier = modifier) {
-        Text("certificate list:")
-        HorizontalDivider()
-        certificateList.forEach {
-            Text(it.alias)
-            HorizontalDivider()
-        }
-    }
-}
-
-@Composable
-fun StatusScreen(modifier: Modifier = Modifier) {
-    val tag = "CertStatusScreen"
-    Log.i(tag, "this is a log!")
-
-    Greeting(
-        name = "banana frog",
-        modifier = modifier,
-    )
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier,
-    )
-}
-
-@Composable
 fun KeyValue(key: String, value: String?) {
     Text(
         buildAnnotatedString {
@@ -181,35 +256,8 @@ fun KeyValue(key: String, value: String?) {
     HorizontalDivider()
 }
 
-suspend fun listKeystoreCertificates(): List<CertificateInfo> = withContext(Dispatchers.IO) {
-    try {
-        val keyStore = KeyStore.getInstance("AndroidKeyStore")
-        keyStore.load(null)
-
-        val aliases = keyStore.aliases().toList()
-
-        aliases.mapNotNull { alias ->
-            val cert = keyStore.getCertificate(alias) as? X509Certificate
-            cert?.let {
-                CertificateInfo(
-                    alias = alias,
-                    subject = it.subjectDN.name,
-                    issuer = it.issuerDN.name,
-                    notBefore = it.notBefore,
-                    notAfter = it.notAfter,
-                )
-            }
-        }
-    } catch (e: Exception) {
-        Log.e("Certificate", "Error listing keystore certificates", e)
-        emptyList()
-    }
-}
-
-data class CertificateInfo(val alias: String, val subject: String, val issuer: String, val notBefore: Date, val notAfter: Date)
-
 @Composable
-fun AboutFleet(modifier: Modifier = Modifier) {
+fun AboutFleet(modifier: Modifier = Modifier, onLearnClick: () -> Unit = {}) {
     Column(modifier = modifier.padding(20.dp)) {
         Text(
             text = stringResource(R.string.app_description),
@@ -220,7 +268,7 @@ fun AboutFleet(modifier: Modifier = Modifier) {
             color = FleetTextDark,
             modifier = Modifier
                 .padding(top = 10.dp)
-                .clickable(onClick = {})
+                .clickable(onClick = onLearnClick),
         )
     }
 }
@@ -249,8 +297,20 @@ fun CertificateList(modifier: Modifier = Modifier, certificates: CertStatusMap) 
 }
 
 @Composable
-fun AppVersion(modifier: Modifier = Modifier) {
-    
+fun AppVersion(onClick: () -> Unit = {}) {
+    Column(
+        modifier = Modifier
+            .padding(20.dp)
+            .clickable(onClick = onClick),
+
+    ) {
+        Text(
+            text = stringResource(R.string.app_version_title),
+            color = FleetTextDark,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(text = BuildConfig.VERSION_NAME)
+    }
 }
 
 @Preview(showBackground = true)
@@ -265,8 +325,11 @@ fun FleetScreenPreview() {
             CertificateList(
                 certificates = mapOf(
                     1 to CertificateInstallInfo(alias = "WIFI-1", status = CertificateInstallStatus.INSTALLED),
-                    2 to CertificateInstallInfo(alias = "VPN-3", status = CertificateInstallStatus.FAILED))
+                    2 to CertificateInstallInfo(alias = "VPN-3", status = CertificateInstallStatus.FAILED),
+                ),
             )
+            HorizontalDivider()
+            AppVersion(onClick = {})
         }
     }
 }
@@ -276,13 +339,5 @@ fun FleetScreenPreview() {
 fun AboutFleetPreview() {
     MyApplicationTheme {
         AboutFleet()
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    MyApplicationTheme {
-        Greeting("Android")
     }
 }

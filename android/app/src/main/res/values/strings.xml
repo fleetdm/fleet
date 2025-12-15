@@ -4,7 +4,8 @@
     <string name="app_description">The app  is installed by your IT administrator to install the certificates needed to connect to corporate networks.</string>
     <string name="learn_about_fleet">Learn about Fleet</string>
     <string name="fleet_logo">Fleet logo</string>
-    <string name="certificate_list_title">Installed Certificates:</string>
+    <string name="certificate_list_title">Installed Certificates</string>
+    <string name="app_version_title">App Version</string>
 
     <!-- Managed Configuration -->
     <string name="enroll_secret_title">Enroll Secret</string>
