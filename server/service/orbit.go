@@ -236,6 +236,16 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}
 	}
 
+	// Associate the newly-enrolled host with a SCIM user if applicable.
+	// Do this only for linux and windows devices, as macOS devices
+	// are associated during MDM enrollment.
+	platform := host.FleetPlatform()
+	if platform == "linux" || platform == "windows" {
+		if err := svc.ds.MaybeAssociateHostWithScimUser(ctx, host.ID); err != nil {
+			level.Error(svc.logger).Log("msg", "failed to associate enrolled host with SCIM user", "err", err, "host_id", host.ID)
+		}
+	}
+
 	if err := svc.NewActivity(
 		ctx,
 		nil,
