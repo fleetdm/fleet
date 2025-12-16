@@ -429,7 +429,7 @@
 #  ║╣ ║║║╠╣ ║ ║╠╦╝║  ║╣   ║ ║╠═╝║╣ ╠╦╝╠═╣ ║ ║║║║║ ╦  ╚═╗╚╦╝╚═╗ ║ ║╣ ║║║  ║ ║╠═╝ ║║╠═╣ ║ ║╣ ╚═╗
 #  ╚═╝╝╚╝╚  ╚═╝╩╚═╚═╝╚═╝  ╚═╝╩  ╚═╝╩╚═╩ ╩ ╩ ╩╝╚╝╚═╝  ╚═╝ ╩ ╚═╝ ╩ ╚═╝╩ ╩  ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝╚═╝
 - industryName: Enforce operating system (OS) updates
-  description: Keep operating systems up to date for macOS, iOS/iPadOS, Windows, and Android devices.
+  description: Keep operating systems up to date for macOS, iOS/iPadOS, Windows, and Android (coming soon) devices.
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-updates
   tier: Premium
   jamfProHasFeature: yes
