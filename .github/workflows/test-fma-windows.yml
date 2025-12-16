@@ -170,26 +170,40 @@ jobs:
             }
 
             # Wait for registry to update (MSI uninstalls can take longer)
-            Start-Sleep -Seconds 10
+            # Poll the registry until entries are gone or timeout
+            $maxWaitTime = 120  # 2 minutes max
+            $elapsed = 0
+            $pollInterval = 5   # Check every 5 seconds
+            $allRemoved = $false
 
-            # Verify all are uninstalled
-            $remaining = @()
-            foreach ($path in $uninstallPaths) {
-              $items = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object {
-                $_.DisplayName -and ($_.DisplayName -like "*$displayName*") -and ($publisher -eq "" -or $_.Publisher -eq $publisher)
+            while ($elapsed -lt $maxWaitTime) {
+              Start-Sleep -Seconds $pollInterval
+              $elapsed += $pollInterval
+
+              $remaining = @()
+              foreach ($path in $uninstallPaths) {
+                $items = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object {
+                  $_.DisplayName -and ($_.DisplayName -like "*$displayName*") -and ($publisher -eq "" -or $_.Publisher -eq $publisher)
+                }
+                if ($items) {
+                  $remaining += $items
+                }
               }
-              if ($items) {
-                $remaining += $items
+
+              if ($remaining.Count -eq 0) {
+                Write-Host "All .NET Runtime installations successfully uninstalled (waited $elapsed seconds)"
+                $allRemoved = $true
+                break
+              } else {
+                Write-Host "Still waiting for $($remaining.Count) installation(s) to be removed... (elapsed: $elapsed seconds)"
               }
             }
 
-            if ($remaining.Count -gt 0) {
-              Write-Host "Warning: $($remaining.Count) .NET Runtime installation(s) still remain after uninstall attempt"
+            if (-not $allRemoved) {
+              Write-Host "Warning: $($remaining.Count) .NET Runtime installation(s) still remain after $maxWaitTime seconds"
               foreach ($item in $remaining) {
                 Write-Host "  - $($item.DisplayName)"
               }
-            } else {
-              Write-Host "All .NET Runtime installations successfully uninstalled"
             }
           }
         shell: pwsh
