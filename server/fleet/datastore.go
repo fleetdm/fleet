@@ -2582,6 +2582,9 @@ type Datastore interface {
 	// RevertHostCertificateTemplatesToPending reverts specific host certificate templates from 'delivering' back to 'pending'.
 	RevertHostCertificateTemplatesToPending(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error
 
+	// GetFailedCertificateInstallIDsByHostUUID returns the certificate template IDs that have a 'failed' status for the given host UUID.
+	GetFailedCertificateInstallIDsByHostUUID(ctx context.Context, hostUUID string) ([]uint, error)
+
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
 

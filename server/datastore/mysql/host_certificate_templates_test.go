@@ -29,6 +29,7 @@ func TestHostCertificateTemplates(t *testing.T) {
 		{"ListAndroidHostUUIDsWithPendingCertificateTemplates", testListAndroidHostUUIDsWithPendingCertificateTemplates},
 		{"CertificateTemplateFullStateMachine", testCertificateTemplateFullStateMachine},
 		{"RevertStaleCertificateTemplates", testRevertStaleCertificateTemplates},
+		{"GetFailedCertificateInstallIDsByHostUUID", testGetFailedCertificateInstallIDsByHostUUID},
 	}
 
 	for _, c := range cases {
@@ -803,5 +804,115 @@ func testRevertStaleCertificateTemplates(t *testing.T, ds *Datastore) {
 		affected, err := ds.RevertStaleCertificateTemplates(ctx, 6*time.Hour)
 		require.NoError(t, err)
 		require.Equal(t, int64(0), affected)
+	})
+}
+
+func testGetFailedCertificateInstallIDsByHostUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("returns failed certificate template IDs for host", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		// Create additional templates
+		template2, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Cert2",
+			TeamID:                 setup.team.ID,
+			CertificateAuthorityID: setup.ca.ID,
+			SubjectName:            "CN=Test2",
+		})
+		require.NoError(t, err)
+
+		template3, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Cert3",
+			TeamID:                 setup.team.ID,
+			CertificateAuthorityID: setup.ca.ID,
+			SubjectName:            "CN=Test3",
+		})
+		require.NoError(t, err)
+
+		hostUUID := "test-host-uuid"
+
+		// Insert records with different statuses
+		hostCerts := []fleet.HostCertificateTemplate{
+			{HostUUID: hostUUID, CertificateTemplateID: setup.template.ID, Status: fleet.CertificateTemplateFailed, OperationType: fleet.MDMOperationTypeInstall},
+			{HostUUID: hostUUID, CertificateTemplateID: template2.ID, Status: fleet.CertificateTemplateDelivered, OperationType: fleet.MDMOperationTypeInstall},
+			{HostUUID: hostUUID, CertificateTemplateID: template3.ID, Status: fleet.CertificateTemplateFailed, OperationType: fleet.MDMOperationTypeInstall},
+		}
+		err = ds.BulkInsertHostCertificateTemplates(ctx, hostCerts)
+		require.NoError(t, err)
+
+		// Get failed certificate IDs
+		failedIDs, err := ds.GetFailedCertificateInstallIDsByHostUUID(ctx, hostUUID)
+		require.NoError(t, err)
+		require.Len(t, failedIDs, 2)
+		require.Contains(t, failedIDs, setup.template.ID)
+		require.Contains(t, failedIDs, template3.ID)
+	})
+
+	t.Run("returns empty slice when no failed certificates", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		hostUUID := "test-host-uuid"
+
+		// Insert records with non-failed statuses
+		hostCerts := []fleet.HostCertificateTemplate{
+			{HostUUID: hostUUID, CertificateTemplateID: setup.template.ID, Status: fleet.CertificateTemplateDelivered, OperationType: fleet.MDMOperationTypeInstall},
+		}
+		err := ds.BulkInsertHostCertificateTemplates(ctx, hostCerts)
+		require.NoError(t, err)
+
+		failedIDs, err := ds.GetFailedCertificateInstallIDsByHostUUID(ctx, hostUUID)
+		require.NoError(t, err)
+		require.Len(t, failedIDs, 0)
+	})
+
+	t.Run("returns empty slice for non-existent host", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+
+		failedIDs, err := ds.GetFailedCertificateInstallIDsByHostUUID(ctx, "non-existent-host")
+		require.NoError(t, err)
+		require.Len(t, failedIDs, 0)
+	})
+
+	t.Run("only returns failed certificates for specified host", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		// Insert failed records for two different hosts
+		hostCerts := []fleet.HostCertificateTemplate{
+			{HostUUID: "host-1", CertificateTemplateID: setup.template.ID, Status: fleet.CertificateTemplateFailed, OperationType: fleet.MDMOperationTypeInstall},
+			{HostUUID: "host-2", CertificateTemplateID: setup.template.ID, Status: fleet.CertificateTemplateFailed, OperationType: fleet.MDMOperationTypeInstall},
+		}
+		err := ds.BulkInsertHostCertificateTemplates(ctx, hostCerts)
+		require.NoError(t, err)
+
+		// Get failed IDs for host-1 only
+		failedIDs, err := ds.GetFailedCertificateInstallIDsByHostUUID(ctx, "host-1")
+		require.NoError(t, err)
+		require.Len(t, failedIDs, 1)
+		require.Equal(t, setup.template.ID, failedIDs[0])
+	})
+
+	t.Run("filters out remove operation types", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		hostUUID := "test-host-uuid"
+
+		// Insert records with different operation types
+		hostCerts := []fleet.HostCertificateTemplate{
+			{HostUUID: hostUUID, CertificateTemplateID: setup.template.ID, Status: fleet.CertificateTemplateFailed, OperationType: fleet.MDMOperationTypeRemove},
+			{HostUUID: hostUUID, CertificateTemplateID: setup.template.ID + 1, Status: fleet.CertificateTemplateFailed, OperationType: fleet.MDMOperationTypeInstall},
+		}
+		err := ds.BulkInsertHostCertificateTemplates(ctx, hostCerts)
+		require.NoError(t, err)
+
+		// Get failed certificate IDs
+		failedIDs, err := ds.GetFailedCertificateInstallIDsByHostUUID(ctx, hostUUID)
+		require.NoError(t, err)
+		require.Len(t, failedIDs, 1)
+		require.Equal(t, setup.template.ID+1, failedIDs[0])
 	})
 }

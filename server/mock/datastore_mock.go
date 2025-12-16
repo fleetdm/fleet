@@ -1687,6 +1687,8 @@ type TransitionCertificateTemplatesToDeliveredFunc func(ctx context.Context, hos
 
 type RevertHostCertificateTemplatesToPendingFunc func(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error
 
+type GetFailedCertificateInstallIDsByHostUUIDFunc func(ctx context.Context, hostUUID string) ([]uint, error)
+
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
 type UpdateOrDeleteHostMDMWindowsProfileFunc func(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error
@@ -4191,6 +4193,9 @@ type DataStore struct {
 
 	RevertHostCertificateTemplatesToPendingFunc        RevertHostCertificateTemplatesToPendingFunc
 	RevertHostCertificateTemplatesToPendingFuncInvoked bool
+
+	GetFailedCertificateInstallIDsByHostUUIDFunc        GetFailedCertificateInstallIDsByHostUUIDFunc
+	GetFailedCertificateInstallIDsByHostUUIDFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -10029,6 +10034,13 @@ func (s *DataStore) RevertHostCertificateTemplatesToPending(ctx context.Context,
 	s.RevertHostCertificateTemplatesToPendingFuncInvoked = true
 	s.mu.Unlock()
 	return s.RevertHostCertificateTemplatesToPendingFunc(ctx, hostUUID, certificateTemplateIDs)
+}
+
+func (s *DataStore) GetFailedCertificateInstallIDsByHostUUID(ctx context.Context, hostUUID string) ([]uint, error) {
+	s.mu.Lock()
+	s.GetFailedCertificateInstallIDsByHostUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetFailedCertificateInstallIDsByHostUUIDFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {

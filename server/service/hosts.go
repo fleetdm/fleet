@@ -1735,6 +1735,20 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			return nil, ctxerr.Wrap(ctx, err, "set IDP device mapping")
 		}
 
+		// Requeue android certificate requests if applicable
+		if host.Platform == "android" {
+			ids, err := svc.ds.GetFailedCertificateInstallIDsByHostUUID(ctx, host.UUID)
+			if err != nil {
+				level.Error(svc.logger).Log("msg", "failed to get certificate install ids")
+			}
+			if len(ids) > 0 {
+				err := svc.ds.RevertHostCertificateTemplatesToPending(ctx, host.UUID, ids)
+				if err != nil {
+					level.Error(svc.logger).Log("msg", "failed to revert host certificate templates to pending")
+				}
+			}
+		}
+
 		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),

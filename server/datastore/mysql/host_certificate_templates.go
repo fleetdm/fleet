@@ -405,3 +405,23 @@ func (ds *Datastore) RevertStaleCertificateTemplates(
 	}
 	return result.RowsAffected()
 }
+
+// GetFailedCertificateInstallIDsByHostUUID returns the certificate template IDs that have
+// a 'failed' status for the given host UUID.
+func (ds *Datastore) GetFailedCertificateInstallIDsByHostUUID(
+	ctx context.Context,
+	hostUUID string,
+) ([]uint, error) {
+	stmt := fmt.Sprintf(`
+		SELECT certificate_template_id
+		FROM host_certificate_templates
+		WHERE host_uuid = ? AND status = '%s' AND operation_type = '%s'
+		ORDER BY certificate_template_id
+	`, fleet.CertificateTemplateFailed, fleet.MDMOperationTypeInstall)
+
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, hostUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get failed certificate IDs for host")
+	}
+	return ids, nil
+}

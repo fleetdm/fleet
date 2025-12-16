@@ -198,7 +198,7 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 			return nil, err
 		}
 		certificate.Status = fleet.CertificateTemplateFailed
-		return certificate, nil
+		return nil, newNotFoundError()
 	}
 	certificate.SubjectName = subjectName
 
