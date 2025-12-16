@@ -84,6 +84,8 @@ const Activity = ({
 }: IActivityProps) => {
   const classNames = classnames(baseClass, className);
 
+  const commandCount = commands?.count ?? 0;
+
   return (
     <Card
       borderRadiusSize="xxlarge"
@@ -109,7 +111,7 @@ const Activity = ({
               <TabText>Past</TabText>
             </Tab>
             <Tab>
-              <TabText count={upcomingCount}>Upcoming</TabText>
+              <TabText count={upcomingCount + commandCount}>Upcoming</TabText>
             </Tab>
           </TabList>
           <TabPanel>
@@ -141,7 +143,7 @@ const Activity = ({
           <TabPanel>
             <MDMCommandsToggle
               showMDMCommands={showMDMCommands}
-              commandCount={10}
+              commandCount={commandCount}
               onToggleMDMCommands={
                 showMDMCommands ? onHideMDMCommands : onShowMDMCommands
               }
