@@ -4429,7 +4429,7 @@ WHERE
 	var idpAccount fleet.MDMIdPAccount
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &idpAccount, getMDMIDPSQL, host.ID)
 	if err != nil {
-		if fleet.IsNotFound(err) {
+		if errors.Is(err, sql.ErrNoRows) {
 			// No MDM IdP account for this host, nothing to do.
 			return nil
 		}
