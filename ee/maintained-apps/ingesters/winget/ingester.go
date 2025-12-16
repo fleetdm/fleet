@@ -220,6 +220,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			installerType = installerTypeMSI
 		}
 
+		// Normalize burn (WiX Burn) to exe since burn installers are EXE files
+		if installerType == "burn" {
+			installerType = installerTypeExe
+		}
+
 		scope := m.Scope
 		if scope == "" {
 			scope = installer.Scope
@@ -230,6 +235,16 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 				case installerTypeMSIX, "zip":
 					// AppX/MSIX packages and zip files containing AppX are typically user-scoped
 					scope = userScope
+				case installerTypeExe:
+					// EXE installers default to machine scope if input doesn't specify otherwise
+					// This helps match installers when manifest doesn't specify scope
+					// If input specifies a different scope, it will be checked in the match logic
+					if input.InstallerScope != "" {
+						// Try to match the input scope first, but fall back to machine if no match
+						scope = input.InstallerScope
+					} else {
+						scope = machineScope
+					}
 				}
 			}
 		}
@@ -372,6 +387,7 @@ var vendorTypes = map[string]struct{}{
 	installerTypeWix:      {},
 	installerTypeNullSoft: {},
 	installerTypeInno:     {},
+	"burn":                {}, // WiX Burn installers are EXE files
 }
 
 func isVendorType(installerType string) bool {
