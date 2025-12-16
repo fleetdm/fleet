@@ -10,10 +10,15 @@ const baseClass = "delete-cert-template-modal";
 
 interface IDeleteCertModalProps {
   cert: ICertificate;
+  onSuccess: () => void;
   onExit: () => void;
 }
 
-const DeleteCertificateModal = ({ cert, onExit }: IDeleteCertModalProps) => {
+const DeleteCertificateModal = ({
+  cert,
+  onSuccess,
+  onExit,
+}: IDeleteCertModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -25,6 +30,7 @@ const DeleteCertificateModal = ({ cert, onExit }: IDeleteCertModalProps) => {
       await certAPI.deleteCert(id);
       renderFlash("success", "Successfully deleted certificate.");
       setIsUpdating(false);
+      onSuccess();
       onExit();
     } catch (e) {
       setIsUpdating(false);

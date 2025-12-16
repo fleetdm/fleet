@@ -86,13 +86,13 @@ const Certificates = ({
   const { has_next_results: hasNext, has_previous_results: hasPrev } =
     certsResp?.meta || {};
 
-  const onAddSuccess = () => {
+  const onUpdateSuccess = () => {
     refetchCerts();
     onMutation();
   };
 
   // pagination controls
-  const path = PATHS.CONTROLS_CUSTOM_SETTINGS;
+  const path = PATHS.CONTROLS_CERTIFICATES;
   const queryString = isPremiumTier ? `?team_id=${currentTeamId}&` : "?";
 
   const onPrevPage = useCallback(() => {
@@ -214,13 +214,14 @@ const Certificates = ({
         <AddCertModal
           existingCerts={certs}
           onExit={() => setShowAddCertModal(false)}
-          onSuccess={onAddSuccess}
+          onSuccess={onUpdateSuccess}
           currentTeamId={currentTeamId}
         />
       )}
       {certToDelete && (
         <DeleteCertModal
           cert={certToDelete}
+          onSuccess={onUpdateSuccess}
           onExit={() => setCertToDelete(null)}
         />
       )}
