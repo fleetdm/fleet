@@ -1326,6 +1326,13 @@ Observer plus must be checked against host's team id  */
                     onNextPage={() => setActivityPage(activityPage + 1)}
                     onPreviousPage={() => setActivityPage(activityPage - 1)}
                     onShowDetails={onShowActivityDetails}
+                    onShowCommandDetails={(commandUUID, hostUUID) => {
+                      console.log(
+                        "Show command details",
+                        commandUUID,
+                        hostUUID
+                      );
+                    }}
                     onCancel={onCancelActivity}
                   />
                 )}

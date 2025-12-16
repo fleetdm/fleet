@@ -10,11 +10,15 @@ const baseClass = "upcoming-command-feed";
 interface IUpcomingCommandFeedProps {
   commands: ICommand[];
   onShowDetails: (commandUUID: string, hostUUID: string) => void;
+  onNextPage: () => void;
+  onPreviousPage: () => void;
 }
 
 const UpcomingCommandFeed = ({
   commands,
   onShowDetails,
+  onNextPage,
+  onPreviousPage,
 }: IUpcomingCommandFeedProps) => {
   if (commands.length === 0) {
     return (

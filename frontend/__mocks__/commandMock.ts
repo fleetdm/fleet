@@ -6,7 +6,7 @@ const DEFAULT_COMMAND_MOCK: ICommand = {
   command_uuid: "default-command-uuid",
   status: "Pending",
   updated_at: "2024-01-01T00:00:00Z",
-  request_type: "DefaultRequestType",
+  request_type: "InstallProfile",
   hostname: "default-hostname",
 };
 

@@ -116,6 +116,8 @@ const Activity = ({
               <PastCommandFeed
                 commands={commands?.results ?? []}
                 onShowDetails={onShowCommandDetails}
+                onNextPage={onNextPage}
+                onPreviousPage={onPreviousPage}
               />
             ) : (
               <PastActivityFeed
@@ -141,6 +143,8 @@ const Activity = ({
               <UpcomingCommandFeed
                 commands={commands?.results ?? []}
                 onShowDetails={onShowCommandDetails}
+                onNextPage={onNextPage}
+                onPreviousPage={onPreviousPage}
               />
             ) : (
               <UpcomingActivityFeed
