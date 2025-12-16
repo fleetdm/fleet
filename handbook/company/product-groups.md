@@ -66,7 +66,7 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 - New device onboarding
 - Scripts
 - Setup experience
-- OS updates
+- OS configuration & updates
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
 
