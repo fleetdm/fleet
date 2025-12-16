@@ -89,6 +89,7 @@ jobs:
             "has_windows_apps=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_google_chrome=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_7zip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "has_microsoft_net_runtime=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             exit 0
           }
 
@@ -100,6 +101,7 @@ jobs:
             "has_windows_apps=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_google_chrome=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_7zip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "has_microsoft_net_runtime=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             Write-Host "No windows apps changed, skipping Windows workflow"
           } else {
             "has_windows_apps=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
@@ -121,6 +123,14 @@ jobs:
               Write-Host "7-zip detected in changed apps"
             } else {
               "has_7zip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            }
+
+            # Check if microsoft-net-runtime/windows is in the changed apps
+            if ("microsoft-net-runtime/windows" -in $windowsSlugs) {
+              "has_microsoft_net_runtime=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+              Write-Host "Microsoft .NET Runtime detected in changed apps"
+            } else {
+              "has_microsoft_net_runtime=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             }
           }
         shell: pwsh
@@ -222,6 +232,108 @@ jobs:
 
           if (-not $found) {
             Write-Host "7-Zip uninstall path not found in registry"
+          }
+        shell: pwsh
+
+      - name: Remove pre-installed .NET Runtime
+        if: steps.check-windows-apps.outputs.has_windows_apps == 'true' && steps.check-windows-apps.outputs.has_microsoft_net_runtime == 'true'
+        run: |
+          Write-Host "Listing all installed .NET Runtime packages:"
+          Get-Package | Where-Object { $_.Name -like "*Microsoft .NET Runtime*" } | ForEach-Object {
+            Write-Host "  - $($_.Name) (Version: $($_.Version))"
+          }
+
+          # Check registry for all .NET Runtime uninstallers
+          $uninstallPaths = @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
+
+          $displayName = "Microsoft .NET Runtime"
+          $publisher = "Microsoft Corporation"
+          $uninstallEntries = @()
+
+          foreach ($path in $uninstallPaths) {
+            $items = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object {
+              $_.DisplayName -and ($_.DisplayName -like "*$displayName*") -and ($publisher -eq "" -or $_.Publisher -eq $publisher) -and $_.UninstallString
+            }
+            if ($items) {
+              $uninstallEntries += $items
+            }
+          }
+
+          if ($uninstallEntries.Count -eq 0) {
+            Write-Host ".NET Runtime uninstall entries not found in registry"
+          } else {
+            Write-Host "Found $($uninstallEntries.Count) .NET Runtime installation(s) to uninstall"
+            
+            foreach ($uninstallEntry in $uninstallEntries) {
+              Write-Host "Uninstalling: $($uninstallEntry.DisplayName)"
+              
+              $uninstallString = $uninstallEntry.UninstallString
+              $exePath = ""
+              $arguments = ""
+
+              # Parse the uninstall string to extract executable path and existing arguments
+              if ($uninstallString -match '^"([^"]+)"(.*)') {
+                  $exePath = $matches[1]
+                  $arguments = $matches[2].Trim()
+              } elseif ($uninstallString -match '^([^\s]+)(.*)') {
+                  $exePath = $matches[1]
+                  $arguments = $matches[2].Trim()
+              } else {
+                  Write-Host "  Error: Could not parse uninstall string: $uninstallString"
+                  continue
+              }
+
+              # Build argument list array, preserving existing arguments and adding /quiet /norestart
+              $argumentList = @()
+              if ($arguments -ne '') {
+                  $argumentList += $arguments -split '\s+'
+              }
+              if ($argumentList -notcontains "/quiet") {
+                  $argumentList += "/quiet"
+              }
+              if ($argumentList -notcontains "/norestart") {
+                  $argumentList += "/norestart"
+              }
+
+              Write-Host "  Executable: $exePath"
+              Write-Host "  Arguments: $($argumentList -join ' ')"
+
+              try {
+                  $process = Start-Process -FilePath $exePath -ArgumentList $argumentList -Wait -NoNewWindow -PassThru
+                  Write-Host "  Exit code: $($process.ExitCode)"
+              } catch {
+                  Write-Host "  Error running uninstaller: $_"
+              }
+              
+              # Wait a bit between uninstalls
+              Start-Sleep -Seconds 2
+            }
+
+            # Wait for registry to update
+            Start-Sleep -Seconds 3
+
+            # Verify all are uninstalled
+            $remaining = @()
+            foreach ($path in $uninstallPaths) {
+              $items = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object {
+                $_.DisplayName -and ($_.DisplayName -like "*$displayName*") -and ($publisher -eq "" -or $_.Publisher -eq $publisher)
+              }
+              if ($items) {
+                $remaining += $items
+              }
+            }
+
+            if ($remaining.Count -gt 0) {
+              Write-Host "Warning: $($remaining.Count) .NET Runtime installation(s) still remain after uninstall attempt"
+              foreach ($item in $remaining) {
+                Write-Host "  - $($item.DisplayName)"
+              }
+            } else {
+              Write-Host "All .NET Runtime installations successfully uninstalled"
+            }
           }
         shell: pwsh
 

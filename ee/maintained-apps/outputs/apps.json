@@ -964,7 +964,7 @@
       "name": "Microsoft .NET Runtime",
       "slug": "microsoft-net-runtime/windows",
       "platform": "windows",
-      "unique_identifier": "Microsoft .NET Runtime - 9.0.11 (x64)",
+      "unique_identifier": "Microsoft .NET Runtime - 6.0.36 (x64)",
       "description": "The Microsoft .NET Runtime is the execution enviroment required to run applications built using the .NET platform."
     },
     {
