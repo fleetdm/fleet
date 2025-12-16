@@ -1041,7 +1041,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 
 				if len(unmatchedAppIDs) > 0 {
 					appIDPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(unmatchedAppIDs)), ",")
-					appIDStmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, upgrade_code, application_id
+					appIDStmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, application_id
 						FROM software_titles
 						WHERE application_id IN (%s) AND source = 'android_apps'`, appIDPlaceholders)
 
