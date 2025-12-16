@@ -1603,6 +1603,8 @@ type ScimLastRequestFunc func(ctx context.Context) (*fleet.ScimLastRequest, erro
 
 type UpdateScimLastRequestFunc func(ctx context.Context, lastRequest *fleet.ScimLastRequest) error
 
+type MaybeAssociateHostWithScimUserFunc func(ctx context.Context, hostID uint) error
+
 type NewChallengeFunc func(ctx context.Context) (string, error)
 
 type ConsumeChallengeFunc func(ctx context.Context, challenge string) error
@@ -4067,6 +4069,9 @@ type DataStore struct {
 
 	UpdateScimLastRequestFunc        UpdateScimLastRequestFunc
 	UpdateScimLastRequestFuncInvoked bool
+
+	MaybeAssociateHostWithScimUserFunc        MaybeAssociateHostWithScimUserFunc
+	MaybeAssociateHostWithScimUserFuncInvoked bool
 
 	NewChallengeFunc        NewChallengeFunc
 	NewChallengeFuncInvoked bool
@@ -9740,6 +9745,13 @@ func (s *DataStore) UpdateScimLastRequest(ctx context.Context, lastRequest *flee
 	s.UpdateScimLastRequestFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateScimLastRequestFunc(ctx, lastRequest)
+}
+
+func (s *DataStore) MaybeAssociateHostWithScimUser(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.MaybeAssociateHostWithScimUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaybeAssociateHostWithScimUserFunc(ctx, hostID)
 }
 
 func (s *DataStore) NewChallenge(ctx context.Context) (string, error) {

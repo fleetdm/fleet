@@ -2453,6 +2453,8 @@ type Datastore interface {
 	ScimLastRequest(ctx context.Context) (*ScimLastRequest, error)
 	// UpdateScimLastRequest updates the last SCIM request info
 	UpdateScimLastRequest(ctx context.Context, lastRequest *ScimLastRequest) error
+	// MaybeAssociateHostWithScimUser links a host with a SCIM user based on MDM IdP and IdP user ID
+	MaybeAssociateHostWithScimUser(ctx context.Context, hostID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Challenges
