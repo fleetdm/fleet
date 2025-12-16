@@ -324,7 +324,7 @@ func getTeamIDOrZeroForGlobal(stringID *string) *uint {
 		return ptr.Uint(0)
 	}
 
-	if parsedTeamID, err := strconv.ParseUint(*req.TeamID, 10, 64); err == nil {
+	if parsedTeamID, err := strconv.ParseUint(*stringID, 10, 64); err == nil {
 		return ptr.Uint(uint(parsedTeamID))
 	}
 

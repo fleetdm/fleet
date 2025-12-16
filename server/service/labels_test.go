@@ -39,10 +39,10 @@ func TestLabelsAuth(t *testing.T) {
 	ds.LabelFunc = func(ctx context.Context, id uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 		return &fleet.LabelWithTeamName{}, nil, nil
 	}
-	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.Label, error) {
+	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
 		return nil, nil
 	}
-	ds.LabelsSummaryFunc = func(ctx context.Context) ([]*fleet.LabelSummary, error) {
+	ds.LabelsSummaryFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSummary, error) {
 		return nil, nil
 	}
 	ds.ListHostsInLabelFunc = func(ctx context.Context, filter fleet.TeamFilter, lid uint, opts fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -138,9 +138,9 @@ func TestListLabelsHostCountOptions(t *testing.T) {
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
-	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.Label, error) {
-		// Expect the team filter to be empty, meaning no host counts requested
-		require.Nil(t, filter.User)
+	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
+		// Expect host counts not to be requested
+		require.False(t, includeHostCounts)
 		return nil, nil
 	}
 
@@ -148,8 +148,10 @@ func TestListLabelsHostCountOptions(t *testing.T) {
 	_, err := svc.ListLabels(ctx, fleet.ListOptions{}, nil, false)
 	require.NoError(t, err)
 
-	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.Label, error) {
-		// Expect the team filter to be empty, meaning no host counts requested
+	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
+		// Expect host counts to be requested
+		require.True(t, includeHostCounts)
+		// Expect the team filter to be set
 		require.Equal(t, filter.User, user)
 		return nil, nil
 	}

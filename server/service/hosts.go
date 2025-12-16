@@ -720,7 +720,7 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 	}
 	hostSummary.AllLinuxCount = linuxCount
 
-	labelsSummary, err := svc.ds.LabelsSummary(ctx)
+	labelsSummary, err := svc.ds.LabelsSummary(ctx, fleet.TeamFilter{})
 	if err != nil {
 		return nil, err
 	}

@@ -1085,7 +1085,7 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 		labelsByID[l.ID] = l
 	}
 
-	ls, err := db.LabelsSummary(context.Background())
+	ls, err := db.LabelsSummary(context.Background(), fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, ls, 4)
 	for _, l := range ls {
@@ -1101,7 +1101,7 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 	})
 	require.NoError(t, err)
 
-	ls, err = db.LabelsSummary(context.Background())
+	ls, err = db.LabelsSummary(context.Background(), fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, ls, 5)
 }

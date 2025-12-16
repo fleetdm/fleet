@@ -1262,7 +1262,7 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 		{Name: "Vital Vince", ID: 3, HostVitalsCriteria: ptr.RawMessage(json.RawMessage(`{"vital":"owl", "value":"hoot"}`)), LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeHostVitals},
 	}
 
-	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
+	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
 		return labels, nil
 	}
 
