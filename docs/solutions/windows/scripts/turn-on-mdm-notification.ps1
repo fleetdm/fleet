@@ -21,7 +21,7 @@ if ($isMDMTurnedOn) {
     
 Turn on MDM by following these steps:
     
-Close this window, go to Settings and search `"Access work or school`"
+Close this window, go to Settings and search `"Access work or school`".
     
 Select **Connect** and enter your work email and password.
     
