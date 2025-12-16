@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -74,6 +75,25 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 	// Create pending certificate template records for all enrolled Android hosts in the team
 	if _, err := svc.ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, savedTemplate.ID, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating pending certificate templates for existing hosts")
+	}
+
+	activity := fleet.ActivityTypeCreatedAndroidCertificate{
+		CertificateName: name,
+	}
+	if teamID != 0 {
+		team, err := svc.ds.TeamLite(ctx, teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting team")
+		}
+		activity.TeamID = &team.ID
+		activity.TeamName = &team.Name
+	}
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		activity,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create activity for new certificate template")
 	}
 
 	return savedTemplate, nil

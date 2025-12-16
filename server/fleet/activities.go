@@ -3201,8 +3201,9 @@ func (a ActivityTypeEditedHostIdpData) Documentation() (activity, details, detai
 }
 
 type ActivityTypeCreatedAndroidCertificate struct {
-	TeamID   *uint   `json:"team_id"`
-	TeamName *string `json:"team_name"`
+	CertificateName string  `json:"certificate_name"`
+	TeamID          *uint   `json:"team_id"`
+	TeamName        *string `json:"team_name"`
 }
 
 func (a ActivityTypeCreatedAndroidCertificate) ActivityName() string {
@@ -3212,16 +3213,19 @@ func (a ActivityTypeCreatedAndroidCertificate) ActivityName() string {
 func (a ActivityTypeCreatedAndroidCertificate) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when an user creates an Android Certificate.`,
 		`This activity contains the following fields:
+- certificate_name: Name of the certificate.
 - "team_id": The ID of the team where the certificate was created, ` + "`null`" + ` if it applies to devices that are not in a team.
 - "team_name": The name of the team where the certificate was created, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "certificate_name": "WiFi cert",
   "team_id": 123,
   "team_name": "Mobile devices"
 }`
 }
 
 type ActivityTypeDeletedAndroidCertificate struct {
-	TeamID   *uint   `json:"team_id"`
-	TeamName *string `json:"team_name"`
+	CertificateName string  `json:"certificate_name"`
+	TeamID          *uint   `json:"team_id"`
+	TeamName        *string `json:"team_name"`
 }
 
 func (a ActivityTypeDeletedAndroidCertificate) ActivityName() string {
@@ -3231,8 +3235,10 @@ func (a ActivityTypeDeletedAndroidCertificate) ActivityName() string {
 func (a ActivityTypeDeletedAndroidCertificate) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when an user deletes an Android Certificate.`,
 		`This activity contains the following fields:
+- certificate_name: Name of the certificate.
 - "team_id": The ID of the team where the certificate was deleted, ` + "`null`" + ` if it applies to devices that are not in a team.
 - "team_name": The name of the team where the certificate was deleted, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "certificate_name": "WiFi cert",
   "team_id": 123,
   "team_name": "Mobile devices"
 }`

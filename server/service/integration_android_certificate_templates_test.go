@@ -197,6 +197,16 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	require.NotZero(t, createResp.ID)
 	certificateTemplateID := createResp.ID
 
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeCreatedAndroidCertificate{}.ActivityName(),
+		fmt.Sprintf(
+			`{"team_id": %d, "team_name": %q, "certificate_name": %q}`,
+			teamID,
+			teamName,
+			certTemplateName,
+		),
+		0)
+
 	// Step: Verify status is 'pending'
 	s.verifyCertificateStatus(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplatePending, "")
 
