@@ -145,11 +145,6 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 	t := reflect.TypeFor[listHostsResponse]()
 	v := reflect.ValueOf(r.listHostsResponse)
 
-	type fieldInfo struct {
-		name  string
-		value any
-	}
-
 	// The set of properties of listHostsResponse to consider for output.
 	fieldNames := []string{"Software", "SoftwareTitle", "MDMSolution", "MunkiIssue"}
 
