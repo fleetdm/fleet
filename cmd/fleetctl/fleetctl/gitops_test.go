@@ -404,9 +404,11 @@ controls:
   ios_updates:
     deadline: "2022-02-02"
     minimum_version: "17.6"
+    update_new_hosts: true
   ipados_updates:
     deadline: "2023-03-03"
     minimum_version: "18.0"
+    update_new_hosts: false
   enable_disk_encryption: true
   windows_require_bitlocker_pin: true
 queries:
@@ -480,7 +482,13 @@ software:
 	require.Equal(t, "18.0", savedAppConfig.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2024-03-03", savedAppConfig.MDM.MacOSUpdates.Deadline.Value)
 	// To keep things backwards compatible if MinimumVersion & Deadline are set, then UpdateNewHosts should be set to true
-	require.True(t, savedAppConfig.MDM.MacOSUpdates.UpdateNewHosts.Value)
+	require.Equal(t, optjson.SetBool(true), savedAppConfig.MDM.MacOSUpdates.UpdateNewHosts)
+	require.Equal(t, "2022-02-02", savedAppConfig.MDM.IOSUpdates.Deadline.Value)
+	require.Equal(t, "17.6", savedAppConfig.MDM.IOSUpdates.MinimumVersion.Value)
+	require.Equal(t, optjson.Bool{}, savedAppConfig.MDM.IOSUpdates.UpdateNewHosts)
+	require.Equal(t, "2023-03-03", savedAppConfig.MDM.IPadOSUpdates.Deadline.Value)
+	require.Equal(t, "18.0", savedAppConfig.MDM.IPadOSUpdates.MinimumVersion.Value)
+	require.Equal(t, optjson.Bool{}, savedAppConfig.MDM.IPadOSUpdates.UpdateNewHosts)
 
 	// Check certificate authorities
 	assert.True(t, ds.GetGroupedCertificateAuthoritiesFuncInvoked)
@@ -801,7 +809,7 @@ software:
 	assert.Equal(t, "2025-10-10", savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
 	assert.Equal(t, "18.0", savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	// To keep things backwards compatible if MinimumVersion & Deadline are set, then UpdateNewHosts should be set to true
-	assert.Equal(t, true, savedTeam.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
+	assert.Equal(t, optjson.SetBool(true), savedTeam.Config.MDM.MacOSUpdates.UpdateNewHosts)
 
 	// The previous run created the team, so let's rerun with an existing team
 	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
