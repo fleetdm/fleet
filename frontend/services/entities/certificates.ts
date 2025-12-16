@@ -111,13 +111,13 @@ export default {
     page,
     per_page,
   }: IGetCertsParams): Promise<IGetCertsResponse> => {
-    const { CERTIFICATES: CERT_TEMPLATES } = endpoints;
+    const { CERTIFICATES } = endpoints;
 
     const queryString = buildQueryStringFromParams({ team_id, page, per_page });
 
     return sendRequest(
       "GET",
-      queryString ? CERT_TEMPLATES.concat(`?${queryString}`) : CERT_TEMPLATES
+      queryString ? CERTIFICATES.concat(`?${queryString}`) : CERTIFICATES
     );
   },
   createCert: ({ name, certAuthorityId, subjectName, teamId }: ICreateCert) => {
