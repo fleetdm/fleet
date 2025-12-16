@@ -1032,13 +1032,10 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					if _, ok := titleIDsByChecksum[checksum]; ok {
 						continue
 					}
-					if title.ApplicationID != nil && *title.ApplicationID != "" {
-						switch title.Source {
-						case "android_apps":
-							appID := *title.ApplicationID
-							unmatchedAppIDs = append(unmatchedAppIDs, appID)
-							unmatchedByAppID[appID] = append(unmatchedByAppID[appID], checksum)
-						}
+					if title.ApplicationID != nil && *title.ApplicationID != "" && title.Source == "android_apps" {
+						appID := *title.ApplicationID
+						unmatchedAppIDs = append(unmatchedAppIDs, appID)
+						unmatchedByAppID[appID] = append(unmatchedByAppID[appID], checksum)
 					}
 				}
 
