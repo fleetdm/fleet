@@ -170,6 +170,13 @@
       "description": "Arc is a productivity-focused browser."
     },
     {
+      "name": "Arc",
+      "slug": "arc/windows",
+      "platform": "windows",
+      "unique_identifier": "Arc",
+      "description": "Arc is a productivity-focused browser."
+    },
+    {
       "name": "Archaeology",
       "slug": "archaeology/darwin",
       "platform": "darwin",
