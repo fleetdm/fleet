@@ -144,7 +144,7 @@ You can unenroll a macOS, Windows, or Linux host from Fleet (iOS, iPadOS, and An
 
 2. For macOS, iOS, and iPadOS hosts with MDM turned on, select **Actions > Turn off MDM** to turn MDM off. For Windows hosts with MDM turned on, download and run the [turn off MDM script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1) on the host.
 
-4. Next, for macOS, Windows, and Linux hosts [uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd). 
+3. Next, for macOS, Windows, and Linux hosts [uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd). 
 
 5. Last, select **Actions > Delete** to delete the host from Fleet.
 
