@@ -9,8 +9,10 @@ import android.content.Context
 import android.content.Context.DEVICE_POLICY_SERVICE
 import android.content.Context.RESTRICTIONS_SERVICE
 import android.content.Intent
+import android.content.RestrictionsManager
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -52,6 +54,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -73,8 +76,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(
-                scrim = android.graphics.Color.TRANSPARENT,
-                darkScrim = android.graphics.Color.TRANSPARENT,
+                scrim = Color.TRANSPARENT,
+                darkScrim = Color.TRANSPARENT,
             ),
         )
 
@@ -114,7 +117,6 @@ fun MainScreen(onNavigateToDebug: () -> Unit) {
 
     var versionClicks by remember { mutableStateOf(0) }
     val installedCerts by CertificateOrchestrator.installedCertsFlow(context).collectAsState(initial = emptyMap())
-    val clipCopied by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -142,7 +144,7 @@ fun MainScreen(onNavigateToDebug: () -> Unit) {
                     } else if (versionClicks == 1) {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(ClipData.newPlainText("", "Fleet Android Agent: ${BuildConfig.VERSION_NAME}"))
-                        Toast.makeText(context, "Fleet Agent version copied", Toast.LENGTH_SHORT)
+                        Toast.makeText(context, "Fleet Agent version copied", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -154,14 +156,14 @@ fun MainScreen(onNavigateToDebug: () -> Unit) {
 fun DebugScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
 
-    val restrictionsManager = context.getSystemService(RESTRICTIONS_SERVICE) as android.content.RestrictionsManager
+    val restrictionsManager = context.getSystemService(RESTRICTIONS_SERVICE) as RestrictionsManager
     val appRestrictions = restrictionsManager.applicationRestrictions
     val dpm = context.getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
 
-    val enrollSecret = remember { appRestrictions.getString("enroll_secret")?.apply { "****" + takeLast(4) } }
+    val enrollSecret = remember { appRestrictions.getString("enroll_secret")?.let { "****" + it.takeLast(4) } }
     val delegatedScopes = remember { dpm.getDelegatedScopes(null, context.packageName).toList() }
     val delegatedCertScope = remember { delegatedScopes.contains(DevicePolicyManager.DELEGATION_CERT_INSTALL) }
-    val enrollmentSpecificID = remember { appRestrictions.getString("host_uuid")?.apply { "****" + takeLast(4) } }
+    val enrollmentSpecificID = remember { appRestrictions.getString("host_uuid")?.let { "****" + it.takeLast(4) } }
     val certIds = remember { CertificateOrchestrator.getCertificateIDs(context) }
     val permissionsList = remember {
         val grantedPermissions = mutableListOf<String>()
@@ -180,7 +182,7 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
         grantedPermissions.toList()
     }
     val fleetBaseUrl = remember { appRestrictions.getString("server_url") }
-    val apiKey by ApiClient.apiKeyFlow.map { it?.apply { "****" + takeLast(4) } }.collectAsState(initial = null)
+    val apiKey by ApiClient.apiKeyFlow.map { it?.let { "****" + it.takeLast(4) } }.collectAsState(initial = null)
     val baseUrl by ApiClient.baseUrlFlow.collectAsState(initial = null)
     val installedCerts by CertificateOrchestrator.installedCertsFlow(context).collectAsState(initial = emptyMap())
 
