@@ -12,16 +12,16 @@ const baseClass = "past-command-feed";
 interface IPastCommandFeedProps {
   commands: ICommand[];
   onShowDetails: (commandUUID: string, hostUUID: string) => void;
-  // onNextPage: () => void;
-  // onPreviousPage: () => void;
+  onNextPage: () => void;
+  onPreviousPage: () => void;
 }
 
 const PastCommandFeed = ({
   commands,
   onShowDetails,
-}: // onNextPage,
-  // onPreviousPage,
-  IPastCommandFeedProps) => {
+  onNextPage,
+  onPreviousPage,
+}: IPastCommandFeedProps) => {
   if (commands.length === 0) {
     return (
       <EmptyFeed

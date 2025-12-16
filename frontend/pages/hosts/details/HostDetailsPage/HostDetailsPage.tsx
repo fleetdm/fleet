@@ -562,7 +562,12 @@ const HostDetailsPage = ({
     }
   );
 
-  const { data: mdmCommands } = useQuery(
+  const {
+    data: mdmCommands,
+    isError: mdmCommandsIsError,
+    isFetching: mdmCommandsIsFetching,
+    isLoading: mdmCommandsIsLoading,
+  } = useQuery(
     [
       {
         scope: "host-mdm-commands",
@@ -577,7 +582,7 @@ const HostDetailsPage = ({
         page: pageIndex,
         per_page: perPage,
         host_identifier: hostUUID,
-        command_status: activeTab === "past" ? "ran" : "pending",
+        command_status: activeTab === "past" ? "ran,failed" : "pending",
       });
     },
     {

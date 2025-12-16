@@ -50,6 +50,7 @@ interface IActivityProps {
   onNextPage: () => void;
   onPreviousPage: () => void;
   onShowDetails: ShowActivityDetailsHandler;
+  onShowCommandDetails: (commandUUID: string, hostUUID: string) => void;
   onCancel: (activity: IHostUpcomingActivity) => void;
   onShowMDMCommands: () => void;
   onHideMDMCommands: () => void;
@@ -69,6 +70,7 @@ const Activity = ({
   onNextPage,
   onPreviousPage,
   onShowDetails,
+  onShowCommandDetails,
   onCancel,
   onShowMDMCommands,
   onHideMDMCommands,
@@ -111,7 +113,10 @@ const Activity = ({
               }
             />
             {showMDMCommands ? (
-              <PastCommandFeed commands={commands?.results ?? []} />
+              <PastCommandFeed
+                commands={commands?.results ?? []}
+                onShowDetails={onShowCommandDetails}
+              />
             ) : (
               <PastActivityFeed
                 activities={
@@ -133,7 +138,10 @@ const Activity = ({
               }
             />
             {showMDMCommands ? (
-              <UpcomingCommandFeed commands={commands?.results ?? []} />
+              <UpcomingCommandFeed
+                commands={commands?.results ?? []}
+                onShowDetails={onShowCommandDetails}
+              />
             ) : (
               <UpcomingActivityFeed
                 activities={
