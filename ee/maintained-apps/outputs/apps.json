@@ -1444,6 +1444,13 @@
       "description": "Teleport Suite is a modern SSH server for teams managing distributed infrastructure."
     },
     {
+      "name": "TextExpander",
+      "slug": "textexpander/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.smileonmymac.textexpander",
+      "description": "TextExpander is an application that let's you create and insert pre-made snippets of text anywhere."
+    },
+    {
       "name": "Thunderbird",
       "slug": "thunderbird/darwin",
       "platform": "darwin",
