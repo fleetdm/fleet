@@ -3,10 +3,12 @@
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
+
 public class MdmRegistration
 {
     [DllImport("mdmregistration.dll", SetLastError = true)]
     public static extern int UnregisterDeviceWithManagement(IntPtr pDeviceID);
+    
     public static int UnregisterDevice()
     {
         return UnregisterDeviceWithManagement(IntPtr.Zero);
