@@ -62,10 +62,9 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 
 **Areas of expertise**:
 - MDM protocol & configuration
+- Configuration profiles
 - New device onboarding
 - Scripts
-- Certificate Authorities (CAs)
-- Certificate delivery & renewal
 - Setup experience
 - OS updates
 
@@ -139,10 +138,11 @@ The goal of the security and compliance group is to increase and exceed Fleet's 
 - Software inventory ingestion
 - CVE/CPE ingestion & matching
 - Vulnerability reporting
-- CIS benchmarks 
-- PCI ASV
-- Application blocking
+- Conditional access
+- Certificate Authorities (CAs)
+- Certificate delivery & renewal
 - Encryption
+- CIS benchmarks 
 
 
 ### Product group capacity 
