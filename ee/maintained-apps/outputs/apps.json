@@ -156,6 +156,13 @@
       "description": "Apparency is an app to inspect application bundles."
     },
     {
+      "name": "AppCleaner",
+      "slug": "appcleaner/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.freemacsoft.AppCleaner",
+      "description": ""
+    },
+    {
       "name": "Arc",
       "slug": "arc/darwin",
       "platform": "darwin",

@@ -19,6 +19,7 @@ import AndroidStudio from "./AndroidStudio";
 import Anka from "./Anka";
 import AnyDesk from "./AnyDesk";
 import Apparency from "./Apparency";
+import AppCleaner from "./AppCleaner";
 import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
 import Arc from "./Arc";
@@ -240,6 +241,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   anka: Anka,
   anydesk: AnyDesk,
   apparency: Apparency,
+  appcleaner: AppCleaner,
   appleAppStore: AppleAppStore,
   arc: Arc,
   archaeology: Archaeology,
