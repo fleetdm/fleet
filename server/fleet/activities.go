@@ -3199,3 +3199,41 @@ func (a ActivityTypeEditedHostIdpData) Documentation() (activity, details, detai
 	"host_idp_username": "anna.chao@example.com"
 }`
 }
+
+type ActivityTypeCreatedAndroidCertificate struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeCreatedAndroidCertificate) ActivityName() string {
+	return "created_android_certificate"
+}
+
+func (a ActivityTypeCreatedAndroidCertificate) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when an user creates an Android Certificate.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team where the certificate was created, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team where the certificate was created, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Mobile devices"
+}`
+}
+
+type ActivityTypeDeletedAndroidCertificate struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedAndroidCertificate) ActivityName() string {
+	return "deleted_android_certificate"
+}
+
+func (a ActivityTypeDeletedAndroidCertificate) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when an user deletes an Android Certificate.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team where the certificate was deleted, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team where the certificate was deleted, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Mobile devices"
+}`
+}
