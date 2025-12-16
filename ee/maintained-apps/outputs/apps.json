@@ -121,6 +121,13 @@
       "description": "Airtame is an app that makes shared screens easy to use — for screen sharing, conferencing, digital signage, and alerts."
     },
     {
+      "name": "Alfred 5",
+      "slug": "alfred/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.runningwithcrayons.Alfred",
+      "description": "Alfred is an application launcher and productivity software."
+    },
+    {
       "name": "Amazon Chime",
       "slug": "amazon-chime/darwin",
       "platform": "darwin",

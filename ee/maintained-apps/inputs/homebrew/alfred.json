@@ -1,0 +1,8 @@
+{
+  "name": "Alfred 5",
+  "unique_identifier": "com.runningwithcrayons.Alfred",
+  "token": "alfred",
+  "installer_format": "tar.gz",
+  "slug": "alfred/darwin",
+  "default_categories": ["Productivity"]
+}

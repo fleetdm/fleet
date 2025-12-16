@@ -11,6 +11,7 @@ import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
 import AdobeDngConverter from "./AdobeDngConverter";
 import Aircall from "./Aircall";
 import Airtame from "./Airtame";
+import Alfred5 from "./Alfred5";
 import AmazonChime from "./AmazonChime";
 import AmazonDCV from "./AmazonDCV";
 import AndroidApp from "./AndroidApp";
@@ -233,6 +234,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe digital editions": AdobeDigitalEditions45,
   aircall: Aircall,
   airtame: Airtame,
+  alfred: Alfred5,
   "amazon chime": AmazonChime,
   "amazon dcv": AmazonDCV,
   androidPlayStore: AndroidPlayStore,
