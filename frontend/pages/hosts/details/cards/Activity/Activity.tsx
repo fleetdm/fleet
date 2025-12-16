@@ -51,6 +51,8 @@ interface IActivityProps {
   isLoading?: boolean;
   isError?: boolean;
   className?: string;
+  /** The count displayed in the Upcoming tab. It consists of the amount of
+   * upcoming activities and mdm commands. */
   upcomingCount: number;
   canCancelActivities: boolean;
   onChangeTab: (index: number, last: number, event: Event) => void;
@@ -111,7 +113,7 @@ const Activity = ({
               <TabText>Past</TabText>
             </Tab>
             <Tab>
-              <TabText count={upcomingCount + commandCount}>Upcoming</TabText>
+              <TabText count={upcomingCount}>Upcoming</TabText>
             </Tab>
           </TabList>
           <TabPanel className={`${baseClass}__tab-panel`}>

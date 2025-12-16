@@ -203,11 +203,6 @@ const HostDetailsPage = ({
 
   const handlePageError = useErrorHandler();
 
-  // this is used in this component to get the Activity Card MDM commands data
-  // needed on the inital render. After the inital render, the
-  // data is fetched when the current activity tab is changed.
-  const isInitialRender = React.useRef(true);
-
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
@@ -521,9 +516,9 @@ const HostDetailsPage = ({
       );
     },
     {
+      ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
       staleTime: 2000,
-      enabled: !showMDMCommands,
     }
   );
 
@@ -563,45 +558,67 @@ const HostDetailsPage = ({
       ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
       staleTime: 2000,
-      enabled: !showMDMCommands,
     }
   );
 
-  // request to get the host mdm commands
   const {
-    data: mdmCommands,
-    isError: mdmCommandsIsError,
-    isFetching: mdmCommandsIsFetching,
-    isLoading: mdmCommandsIsLoading,
+    data: pastMDMCommands,
+    isError: pastMDMCommandsIsError,
+    isFetching: pastMDMCommandsIsFetching,
+    isLoading: pastMDMCommandsIsLoading,
   } = useQuery(
     [
       {
-        scope: "host-mdm-commands",
+        scope: "host-past-mdm-commands",
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
         hostUUID: host?.uuid,
         activeTab: activeActivityTab,
+        commandStatus: "ran,failed",
       },
     ],
-    ({ queryKey: [{ pageIndex, perPage, hostUUID, activeTab }] }) => {
+    ({ queryKey: [{ pageIndex, perPage, hostUUID, commandStatus }] }) => {
       return commandAPI.getCommands({
         page: pageIndex,
         per_page: perPage,
         host_identifier: hostUUID,
-        // on the inital render of the page we want to get the pending commands to be able to render the
-        // upcoming activities tab count with the correct number
-        command_status:
-          activeTab === "upcoming" || isInitialRender.current
-            ? "pending"
-            : "ran,failed",
+        command_status: commandStatus,
       });
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isAppleDevice(host?.platform),
-      onSuccess: () => {
-        isInitialRender.current = false;
+    }
+  );
+
+  // request to get the host mdm commands
+  const {
+    data: upcomingMDMCommands,
+    isError: upcomingMDMCommandsIsError,
+    isFetching: upcomingMDMCommandsIsFetching,
+    isLoading: upcomingMDMCommandsIsLoading,
+  } = useQuery(
+    [
+      {
+        scope: "host-upcoming-mdm-commands",
+        pageIndex: activityPage,
+        perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
+        hostUUID: host?.uuid,
+        activeTab: activeActivityTab,
+        commandStatus: "pending",
       },
+    ],
+    ({ queryKey: [{ pageIndex, perPage, hostUUID, commandStatus }] }) => {
+      return commandAPI.getCommands({
+        page: pageIndex,
+        per_page: perPage,
+        host_identifier: hostUUID,
+        command_status: commandStatus,
+      });
+    },
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isAppleDevice(host?.platform),
     }
   );
 
@@ -1311,7 +1328,11 @@ Observer plus must be checked against host's team id  */
                         ? pastActivities
                         : upcomingActivities
                     }
-                    commands={mdmCommands}
+                    commands={
+                      activeActivityTab === "past"
+                        ? pastMDMCommands
+                        : upcomingMDMCommands
+                    }
                     isLoading={
                       activeActivityTab === "past"
                         ? pastActivitiesIsFetching
@@ -1335,7 +1356,10 @@ Observer plus must be checked against host's team id  */
                     onHideMDMCommands={() => {
                       setShowMDMCommands(false);
                     }}
-                    upcomingCount={upcomingActivities?.count || 0}
+                    upcomingCount={
+                      (upcomingActivities?.count || 0) +
+                      (upcomingMDMCommands?.count || 0)
+                    }
                     onChangeTab={onChangeActivityTab}
                     onNextPage={() => setActivityPage(activityPage + 1)}
                     onPreviousPage={() => setActivityPage(activityPage - 1)}
