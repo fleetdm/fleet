@@ -1113,6 +1113,44 @@ func TestStreamHosts(t *testing.T) {
 		_, exists := results["error"]
 		require.False(t, exists)
 	})
+
+	t.Run("Minimal data", func(t *testing.T) {
+		// Create a mock iterator for the hosts.
+		hostIterator := func() iter.Seq2[*fleet.HostResponse, error] {
+			return func(yield func(*fleet.HostResponse, error) bool) {
+				// Yield no hosts.
+			}
+		}
+		resp := streamHostsResponse{
+			HostResponseIterator: hostIterator(),
+			listHostsResponse:    listHostsResponse{},
+		}
+		rr := httptest.NewRecorder()
+		resp.HijackRender(context.Background(), rr)
+		require.Equal(t, rr.Code, 200)
+		// Get the body into a string.
+		body := rr.Body.String()
+		// Unmarshal the string into a map.
+		var results map[string]any
+		err := json.Unmarshal([]byte(body), &results)
+		if err != nil {
+			t.Fatalf("failed to unmarshal response body: %v", err)
+		}
+		_, ok := results["software"]
+		require.False(t, ok)
+		_, ok = results["software_title"]
+		require.False(t, ok)
+		_, ok = results["mobile_device_management_solution"]
+		require.False(t, ok)
+		_, ok = results["munki_issue"]
+		require.False(t, ok)
+		hosts := results["hosts"].([]any)
+		require.Len(t, hosts, 0)
+		// Assert that the output contains no error message
+		_, exists := results["error"]
+		require.False(t, exists)
+	})
+
 	errorTestCases := []struct {
 		Name          string
 		ExpectedError string

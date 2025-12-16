@@ -129,25 +129,51 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 		marshalJson = r.MarshalJSON
 	}
 
+	// Create function for returning errors in the JSON response.
+	marshalError := func(errString string) string {
+		errData, err := json.Marshal(map[string]string{"error": errString})
+		if err != nil {
+			return `{"error": "unknown error"}`
+		}
+		return string(errData[1 : len(errData)-1])
+	}
+
 	// Start the JSON object.
 	fmt.Fprint(w, `{`)
 	firstKey := true
 
 	t := reflect.TypeFor[listHostsResponse]()
 	v := reflect.ValueOf(r.listHostsResponse)
-	keys := []string{"Software", "SoftwareTitle", "MDMSolution", "MunkiIssue"}
+
+	type fieldInfo struct {
+		name  string
+		value any
+	}
+
+	fields := []fieldInfo{
+		{"Software", r.listHostsResponse.Software},
+		{"SoftwareTitle", r.listHostsResponse.SoftwareTitle},
+		{"MDMSolution", r.listHostsResponse.MDMSolution},
+		{"MunkiIssue", r.listHostsResponse.MunkiIssue},
+	}
 
 	// Iterate over the non-host keys in the response and write them if they are non-nil.
-	for i, key := range keys {
+	for i, fieldInfo := range fields {
+		fieldName := fieldInfo.name
 		// Get the JSON tag name for the field.
-		field, _ := t.FieldByName(key)
-		tag := field.Tag.Get("json")
+		fieldDef, _ := t.FieldByName(fieldName)
+		tag := fieldDef.Tag.Get("json")
 		parts := strings.Split(tag, ",")
 		name := parts[0]
 
 		// Get the actual value for the field.
-		fieldValue := v.FieldByName(key)
-		if fieldValue.IsValid() && !fieldValue.IsNil() {
+		fieldValue := v.FieldByName(fieldName)
+		if !fieldValue.IsValid() {
+			// Panic if the field is not found.
+			// This indicates a programming error (we put something bad in the keys list).
+			panic(fmt.Sprintf("field %s not found in listHostsResponse", fieldName))
+		}
+		if !fieldValue.IsNil() {
 			if i > 0 && !firstKey {
 				fmt.Fprint(w, `,`)
 			}
@@ -157,8 +183,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 				// Marshal the error as a JSON object without the surrounding braces,
 				// in case the error string itself contains characters that would break
 				// the JSON response.
-				errData, _ := json.Marshal(map[string]string{"error": fmt.Sprintf("marshaling %s: %s", name, err.Error())})
-				fmt.Fprint(w, string(errData[1:len(errData)-1]))
+				fmt.Fprint(w, marshalError(fmt.Sprintf("marshaling %s: %s", name, err.Error())))
 				fmt.Fprint(w, `}`)
 				return
 			}
@@ -181,16 +206,14 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 	for hostResp, err := range r.HostResponseIterator {
 		if err != nil {
 			fmt.Fprint(w, `],`)
-			errData, _ := json.Marshal(map[string]string{"error": fmt.Sprintf("getting host: %s", err.Error())})
-			fmt.Fprint(w, string(errData[1:len(errData)-1]))
+			fmt.Fprint(w, marshalError(fmt.Sprintf("getting host %s: ", err.Error())))
 			fmt.Fprint(w, `}`)
 			return
 		}
 		data, err := marshalJson(hostResp)
 		if err != nil {
 			fmt.Fprint(w, `],`)
-			errData, _ := json.Marshal(map[string]string{"error": fmt.Sprintf("marshaling host response: %s", err.Error())})
-			fmt.Fprint(w, string(errData[1:len(errData)-1]))
+			fmt.Fprint(w, marshalError(fmt.Sprintf("marshaling host response: %s", err.Error())))
 			fmt.Fprint(w, `}`)
 			return
 		}
@@ -365,7 +388,7 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 
 				if opt.PopulateSoftware {
 					if err = svc.ds.LoadHostSoftware(ctx, host, opt.PopulateSoftwareVulnerabilityDetails); err != nil {
-						yield(nil, err)
+						yield(nil, ctxerr.Wrapf(ctx, err, "get software vulnerability details for host %d", host.ID))
 						return
 					}
 				}
@@ -373,7 +396,7 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 				if opt.PopulatePolicies {
 					hp, err := svc.ds.ListPoliciesForHost(ctx, host)
 					if err != nil {
-						yield(nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get policies for host %d", host.ID)))
+						yield(nil, ctxerr.Wrapf(ctx, err, "get policies for host %d", host.ID))
 						return
 					}
 					host.Policies = &hp
@@ -382,7 +405,7 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 				if opt.PopulateUsers {
 					hu, err := svc.ds.ListHostUsers(ctx, host.ID)
 					if err != nil {
-						yield(nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get users for host %d", host.ID)))
+						yield(nil, ctxerr.Wrapf(ctx, err, "get users for host %d", host.ID))
 						return
 					}
 					host.Users = hu
