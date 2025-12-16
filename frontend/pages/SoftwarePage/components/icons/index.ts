@@ -36,6 +36,7 @@ import Blender from "./Blender";
 import Box from "./Box";
 import Brave from "./Brave";
 import Bruno from "./Bruno";
+import Calibre from "./Calibre";
 import CleanMyMac from "./CleanMyMac";
 import CleanShotX from "./CleanShotX";
 import CLion from "./CLion";
@@ -56,6 +57,7 @@ import CotEditor from "./CotEditor";
 import CreativeCloud from "./AdobeCreativeCloud";
 import Cursor from "./Cursor";
 import Cyberduck from "./Cyberduck";
+import Dash from "./Dash";
 import DataGrip from "./DataGrip";
 import DbBrowserForSqLite from "./DbBrowserForSqLite";
 import DBeaver from "./DBeaver";
@@ -258,6 +260,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   box: Box,
   brave: Brave,
   bruno: Bruno,
+  calibre: Calibre,
   camtasia: Camtasia,
   canva: Canva,
   "chatgpt atlas": ChatGptAtlas,
@@ -276,6 +279,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   coteditor: CotEditor,
   cursor: Cursor,
   cyberduck: Cyberduck,
+  dash: Dash,
   datagrip: DataGrip,
   "db browser for sqlite": DbBrowserForSqLite,
   "dbeaver community": DBeaver,
