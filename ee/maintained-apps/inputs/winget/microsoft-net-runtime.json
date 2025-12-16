@@ -1,8 +1,8 @@
 {
   "name": "Microsoft .NET Runtime",
   "slug": "microsoft-net-runtime/windows",
-  "package_identifier": "Microsoft.DotNet.Runtime.6",
-  "unique_identifier": "Microsoft .NET Runtime - 6.0.36 (x64)",
+  "package_identifier": "Microsoft.DotNet.Runtime.9",
+  "unique_identifier": "Microsoft .NET Runtime - 9.0.11 (x64)",
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

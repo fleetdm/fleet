@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "6.0.36",
+      "version": "9.0.11",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft .NET Runtime - 6.0.36 (x64)' AND publisher = 'Microsoft Corporation';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft .NET Runtime - 9.0.11 (x64)' AND publisher = 'Microsoft Corporation';"
       },
-      "installer_url": "https://builds.dotnet.microsoft.com/dotnet/Runtime/6.0.36/dotnet-runtime-6.0.36-win-x64.exe",
+      "installer_url": "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.11/dotnet-runtime-9.0.11-win-x64.exe",
       "install_script_ref": "17637121",
       "uninstall_script_ref": "96491a23",
-      "sha256": "6bdad7bc4c41fe93d4ae7b0312b1d017cfe369d28e7e2e421f5b675f9feefe84",
+      "sha256": "c32c80f4de9ab948f48cad7a23ef7a9913548b3ac65556513fd6fcbc7e9c8bab",
       "default_categories": [
         "Developer tools"
       ]
