@@ -1,4 +1,5 @@
 import { IConfigServerSettings } from "./config";
+import { HostAndroidCertStatus } from "./host";
 
 export interface IMdmApple {
   common_name: string;
@@ -185,7 +186,11 @@ export interface IHostMdmProfile {
   name: string;
   operation_type: ProfileOperationType | null;
   platform: ProfilePlatform;
-  status: MdmProfileStatus | MdmDDMProfileStatus | LinuxDiskEncryptionStatus;
+  status:
+    | MdmProfileStatus
+    | MdmDDMProfileStatus
+    | LinuxDiskEncryptionStatus
+    | HostAndroidCertStatus;
   detail: string;
   scope: ProfileScope | null;
   managed_local_account: string | null;
