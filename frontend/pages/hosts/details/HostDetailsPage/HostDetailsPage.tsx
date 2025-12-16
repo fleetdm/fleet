@@ -203,6 +203,11 @@ const HostDetailsPage = ({
 
   const handlePageError = useErrorHandler();
 
+  // this is used in this component to get the Activity Card MDM commands data
+  // needed on the inital render. After the inital render, the
+  // data is fetched when the current activity tab is changed.
+  const isInitialRender = React.useRef(true);
+
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
@@ -562,6 +567,7 @@ const HostDetailsPage = ({
     }
   );
 
+  // request to get the host mdm commands
   const {
     data: mdmCommands,
     isError: mdmCommandsIsError,
@@ -582,12 +588,20 @@ const HostDetailsPage = ({
         page: pageIndex,
         per_page: perPage,
         host_identifier: hostUUID,
-        command_status: activeTab === "past" ? "ran,failed" : "pending",
+        // on the inital render of the page we want to get the pending commands to be able to render the
+        // upcoming activities tab count with the correct number
+        command_status:
+          activeTab === "upcoming" || isInitialRender.current
+            ? "pending"
+            : "ran,failed",
       });
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isAppleDevice(host?.platform) && showMDMCommands,
+      enabled: isAppleDevice(host?.platform),
+      onSuccess: () => {
+        isInitialRender.current = false;
+      },
     }
   );
 
