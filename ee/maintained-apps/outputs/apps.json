@@ -436,6 +436,20 @@
       "description": "CotEditor is a plain-text editor for web pages, program source codes, and more."
     },
     {
+      "name": "CrashPlan",
+      "slug": "crashplan/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.crashplan.desktop",
+      "description": "CrashPlan is backup and recovery software."
+    },
+    {
+      "name": "CrashPlan",
+      "slug": "crashplan/windows",
+      "platform": "windows",
+      "unique_identifier": "CrashPlan",
+      "description": "CrashPlan is backup and recovery software."
+    },
+    {
       "name": "Cursor",
       "slug": "cursor/darwin",
       "platform": "darwin",
