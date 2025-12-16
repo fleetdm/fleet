@@ -1335,13 +1335,15 @@ Observer plus must be checked against host's team id  */
                     }
                     isLoading={
                       activeActivityTab === "past"
-                        ? pastActivitiesIsFetching
-                        : upcomingActivitiesIsFetching
+                        ? pastActivitiesIsFetching || pastMDMCommandsIsFetching
+                        : upcomingActivitiesIsFetching ||
+                        upcomingMDMCommandsIsFetching
                     }
                     isError={
                       activeActivityTab === "past"
-                        ? pastActivitiesIsError
-                        : upcomingActivitiesIsError
+                        ? pastActivitiesIsError || pastMDMCommandsIsError
+                        : upcomingActivitiesIsError ||
+                        upcomingMDMCommandsIsError
                     }
                     canCancelActivities={
                       isGlobalAdmin ||
