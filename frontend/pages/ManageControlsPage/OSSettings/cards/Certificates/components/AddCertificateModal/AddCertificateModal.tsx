@@ -1,5 +1,6 @@
 import React, { useContext, useMemo, useState } from "react";
 import { useQuery } from "react-query";
+import { SingleValue } from "react-select-5";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
@@ -10,14 +11,14 @@ import certificatesAPI, { ICertificate } from "services/entities/certificates";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import CustomLink from "components/CustomLink";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import {
   validateFormData,
@@ -91,8 +92,11 @@ const AddCertModal = ({
     setFormValidation(validateFormData(updatedFormData, validations));
   };
 
-  const onChangeCA = (value: string) => {
-    const updatedFormData = { ...formData, certAuthorityId: value };
+  const onChangeCA = (newValue: SingleValue<CustomOptionType>) => {
+    const updatedFormData = {
+      ...formData,
+      certAuthorityId: newValue?.value ?? "",
+    };
     setFormData(updatedFormData);
     setFormValidation(validateFormData(updatedFormData, validations));
   };
@@ -138,11 +142,13 @@ const AddCertModal = ({
           parseTarget
           placeholder="VPN certificate"
         />
-        <Dropdown
+        <DropdownWrapper
           label="Certificate authority (CA)"
+          name="certificateAuthority"
           options={caDropdownOptions}
           value={formData.certAuthorityId}
           onChange={onChangeCA}
+          customNoOptionsMessage="No certificate authorities found."
           placeholder="Select certificate authority"
           helpText={
             <>
@@ -155,7 +161,6 @@ const AddCertModal = ({
               page.
             </>
           }
-          searchable={false}
           error={formValidation.certAuthorityId?.message}
         />
         <InputField
