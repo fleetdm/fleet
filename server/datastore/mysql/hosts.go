@@ -4413,7 +4413,10 @@ func (ds *Datastore) MaybeAssociateHostWithScimUser(ctx context.Context, host *f
 	// Get any existing MDM IdP record for the host.
 	getMDMIDPSQL := `
 SELECT
-    mdm_idp_accounts.*
+    mdm_idp_accounts.uuid,
+	mdm_idp_accounts.username,
+	mdm_idp_accounts.email,
+	mdm_idp_accounts.fullname
 FROM
 	mdm_idp_accounts
 JOIN host_mdm_idp_accounts ON
