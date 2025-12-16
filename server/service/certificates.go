@@ -85,8 +85,10 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting team")
 		}
-		activity.TeamID = &team.ID
-		activity.TeamName = &team.Name
+		if team != nil {
+			activity.TeamID = &team.ID
+			activity.TeamName = &team.Name
+		}
 	}
 	if err := svc.NewActivity(
 		ctx,
@@ -287,8 +289,10 @@ func (svc *Service) DeleteCertificateTemplate(ctx context.Context, certificateTe
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting team")
 		}
-		activity.TeamID = &team.ID
-		activity.TeamName = &team.Name
+		if team != nil {
+			activity.TeamID = &team.ID
+			activity.TeamName = &team.Name
+		}
 	}
 	if err := svc.NewActivity(
 		ctx,

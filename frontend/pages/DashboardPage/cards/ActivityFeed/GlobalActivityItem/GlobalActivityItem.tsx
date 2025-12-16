@@ -1677,8 +1677,7 @@ const TAGGED_TEMPLATES = {
     const { team_id, team_name, name } = activity.details || {};
     return (
       <>
-        deleted certificate <b>{name}</b> to Android hosts assigned
-        to{" "}
+        deleted certificate <b>{name}</b> to Android hosts assigned to{" "}
         {team_id === API_NO_TEAM_ID || team_id === null ? (
           "no team"
         ) : (
