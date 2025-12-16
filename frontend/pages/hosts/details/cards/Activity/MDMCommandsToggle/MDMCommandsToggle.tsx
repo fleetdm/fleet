@@ -19,8 +19,9 @@ const MDMCommandsToggle = ({
   onToggleMDMCommands,
 }: IMDMCommandsToggleProps) => {
   const classNames = classnames(baseClass, className);
-  const labelText = `Show MDM commands${commandCount !== undefined ? ` (${commandCount})` : ""
-    }`;
+  const labelText = `Show MDM commands${
+    commandCount !== undefined ? ` (${commandCount})` : ""
+  }`;
 
   return (
     <Slider
