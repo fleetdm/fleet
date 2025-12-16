@@ -7,9 +7,9 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.spotless)
     alias(libs.plugins.detekt)
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.2.20"
     id("jacoco")
 }
 
@@ -242,41 +242,40 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.amapi.sdk)
+    implementation(libs.kotlinx.serialization.json)
 
     // SCEP (Simple Certificate Enrollment Protocol)
-    implementation("com.google.code.jscep:jscep:3.0.1")
+    implementation(libs.jscep)
 
     // Bouncy Castle - Cryptography provider
-    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
+    implementation(libs.bouncycastle.bcprov)
+    implementation(libs.bouncycastle.bcpkix)
 
     // Apache Commons - Utilities used by jScep
-    implementation("commons-codec:commons-codec:1.20.0")
+    implementation(libs.commons.codec)
 
     // Logging - Required by jScep
-    implementation("org.slf4j:slf4j-api:2.0.17")
-    implementation("org.slf4j:slf4j-simple:2.0.17")
+    implementation(libs.slf4j.api)
+    implementation(libs.slf4j.simple)
 
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.androidx.work.testing)
     testImplementation(libs.robolectric)
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
-    testImplementation("org.json:json:20231013") // For JSON parsing in unit tests
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.json) // For JSON parsing in unit tests
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation("io.mockk:mockk-android:1.13.13")
+    androidTestImplementation(libs.mockk.android)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    // Preferences DataStore (SharedPreferences like APIs)
-    implementation("androidx.datastore:datastore-preferences:1.2.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
-    implementation("androidx.navigation:navigation-compose:2.9.6")
-    implementation("androidx.compose.material:material-icons-extended:1.7.8")
 }
