@@ -271,49 +271,66 @@ jobs:
               Write-Host "Uninstalling: $($uninstallEntry.DisplayName)"
               
               $uninstallString = $uninstallEntry.UninstallString
-              $exePath = ""
-              $arguments = ""
-
-              # Parse the uninstall string to extract executable path and existing arguments
-              if ($uninstallString -match '^"([^"]+)"(.*)') {
-                  $exePath = $matches[1]
-                  $arguments = $matches[2].Trim()
-              } elseif ($uninstallString -match '^([^\s]+)(.*)') {
-                  $exePath = $matches[1]
-                  $arguments = $matches[2].Trim()
-              } else {
-                  Write-Host "  Error: Could not parse uninstall string: $uninstallString"
-                  continue
-              }
-
-              # Build argument list array, preserving existing arguments and adding /quiet /norestart
-              $argumentList = @()
-              if ($arguments -ne '') {
-                  $argumentList += $arguments -split '\s+'
-              }
-              if ($argumentList -notcontains "/quiet") {
-                  $argumentList += "/quiet"
-              }
-              if ($argumentList -notcontains "/norestart") {
-                  $argumentList += "/norestart"
-              }
-
-              Write-Host "  Executable: $exePath"
-              Write-Host "  Arguments: $($argumentList -join ' ')"
-
-              try {
-                  $process = Start-Process -FilePath $exePath -ArgumentList $argumentList -Wait -NoNewWindow -PassThru
+              
+              # Check if it's an MSI uninstall (contains /X{GUID})
+              if ($uninstallString -match "/X\{([A-F0-9\-]+)\}") {
+                $guid = $matches[1]
+                Write-Host "  Found MSI GUID: $guid"
+                try {
+                  $process = Start-Process -FilePath "msiexec.exe" -ArgumentList "/X{$guid}", "/quiet", "/norestart" -Wait -NoNewWindow -PassThru
                   Write-Host "  Exit code: $($process.ExitCode)"
-              } catch {
-                  Write-Host "  Error running uninstaller: $_"
+                  
+                  # MSI uninstalls can take time - wait longer
+                  Start-Sleep -Seconds 5
+                } catch {
+                  Write-Host "  Error running msiexec: $_"
+                }
+              } else {
+                # Try EXE-based uninstall
+                $exePath = ""
+                $arguments = ""
+
+                # Parse the uninstall string to extract executable path and existing arguments
+                if ($uninstallString -match '^"([^"]+)"(.*)') {
+                    $exePath = $matches[1]
+                    $arguments = $matches[2].Trim()
+                } elseif ($uninstallString -match '^([^\s]+)(.*)') {
+                    $exePath = $matches[1]
+                    $arguments = $matches[2].Trim()
+                } else {
+                    Write-Host "  Error: Could not parse uninstall string: $uninstallString"
+                    continue
+                }
+
+                # Build argument list array, preserving existing arguments and adding /quiet /norestart
+                $argumentList = @()
+                if ($arguments -ne '') {
+                    $argumentList += $arguments -split '\s+'
+                }
+                if ($argumentList -notcontains "/quiet") {
+                    $argumentList += "/quiet"
+                }
+                if ($argumentList -notcontains "/norestart") {
+                    $argumentList += "/norestart"
+                }
+
+                Write-Host "  Executable: $exePath"
+                Write-Host "  Arguments: $($argumentList -join ' ')"
+
+                try {
+                    $process = Start-Process -FilePath $exePath -ArgumentList $argumentList -Wait -NoNewWindow -PassThru
+                    Write-Host "  Exit code: $($process.ExitCode)"
+                } catch {
+                    Write-Host "  Error running uninstaller: $_"
+                }
               }
               
               # Wait a bit between uninstalls
               Start-Sleep -Seconds 2
             }
 
-            # Wait for registry to update
-            Start-Sleep -Seconds 3
+            # Wait for registry to update (MSI uninstalls can take longer)
+            Start-Sleep -Seconds 10
 
             # Verify all are uninstalled
             $remaining = @()
