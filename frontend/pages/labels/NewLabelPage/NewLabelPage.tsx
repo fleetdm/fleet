@@ -16,8 +16,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 // therefore not longer needed anywhere else
 import { generateTableHeaders } from "pages/labels/components/ManualLabelForm/LabelHostTargetTableConfig";
 
-// @ts-ignore
-import validateQuery from "components/forms/validators/validate_query";
+import { validateQuery } from "components/forms/validators/validate_query";
 
 import { QueryContext } from "context/query";
 import { AppContext } from "context/app";

@@ -17,6 +17,7 @@ export interface ISearchFieldProps {
   clearButton?: boolean;
   icon?: IconNames;
   tooltip?: React.ReactNode;
+  disabled?: boolean;
 }
 
 const SearchField = ({
@@ -27,6 +28,7 @@ const SearchField = ({
   onClick,
   icon = "search",
   tooltip,
+  disabled,
 }: ISearchFieldProps): JSX.Element => {
   const [searchQueryInput, setSearchQueryInput] = useState(defaultValue);
 
@@ -59,6 +61,7 @@ const SearchField = ({
           clearButton={clearButton}
           iconPosition="start"
           iconSvg={icon}
+          disabled={disabled}
         />
       </TooltipWrapper>
     </>
