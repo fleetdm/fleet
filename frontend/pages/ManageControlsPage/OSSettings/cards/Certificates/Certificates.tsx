@@ -6,8 +6,6 @@ import { formatDistanceToNow } from "date-fns";
 import { AppContext } from "context/app";
 import PATHS from "router/paths";
 
-import { createMockAndroidCert } from "__mocks__/certificatesMock";
-
 import UploadList from "pages/ManageControlsPage/components/UploadList";
 import UploadListHeading from "pages/ManageControlsPage/components/UploadListHeading";
 
@@ -57,9 +55,8 @@ const Certificates = ({
   const { config, isPremiumTier } = useContext(AppContext);
 
   const androidMdmEnabled = !!config?.mdm.android_enabled_and_configured;
-  // const androidMdmEnabled = true;
 
-  let {
+  const {
     data: certsResp,
     isLoading: isLoadingCerts,
     isError: isErrorCerts,
@@ -84,15 +81,6 @@ const Certificates = ({
       enabled: isPremiumTier && androidMdmEnabled,
     }
   );
-
-  // TODO - undo;
-  certsResp = {
-    certificates: [createMockAndroidCert()],
-    meta: {
-      has_next_results: false,
-      has_previous_results: false,
-    },
-  };
 
   const certs = certsResp?.certificates || [];
   const { has_next_results: hasNext, has_previous_results: hasPrev } =
