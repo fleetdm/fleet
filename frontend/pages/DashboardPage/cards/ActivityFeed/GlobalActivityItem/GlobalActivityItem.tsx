@@ -1658,6 +1658,40 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  createdCert: (activity: IActivity) => {
+    const { name, team_name } = activity.details || {};
+    const teamText = team_name ? (
+      <>
+        assigned to the <b>{team_name}</b>
+      </>
+    ) : (
+      <>with no</>
+    );
+
+    return (
+      <>
+        added certificate {name ? <b>{name} </b> : ""}to Android hosts{" "}
+        {teamText} team.
+      </>
+    );
+  },
+  deletedCert: (activity: IActivity) => {
+    const { name, team_name } = activity.details || {};
+    const teamText = team_name ? (
+      <>
+        assigned to the <b>{team_name}</b>
+      </>
+    ) : (
+      <>with no</>
+    );
+
+    return (
+      <>
+        deleted certificate {name ? <b>{name} </b> : ""}from Android hosts{" "}
+        {teamText} team.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -2020,6 +2054,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EditedHostIdpData: {
       return TAGGED_TEMPLATES.editedHostIdpData(activity);
+    }
+    case ActivityType.CreatedCertificate: {
+      return TAGGED_TEMPLATES.createdCert(activity);
+    }
+    case ActivityType.DeletedCertificate: {
+      return TAGGED_TEMPLATES.deletedCert(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

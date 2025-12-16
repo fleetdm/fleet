@@ -12,7 +12,6 @@ import {
   addGravatarUrlToResource,
   internationalTimeFormat,
 } from "utilities/helpers";
-import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 
 import Avatar from "components/Avatar";
 
