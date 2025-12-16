@@ -114,7 +114,7 @@ const Activity = ({
               <TabText count={upcomingCount + commandCount}>Upcoming</TabText>
             </Tab>
           </TabList>
-          <TabPanel>
+          <TabPanel className={`${baseClass}__tab-panel`}>
             <MDMCommandsToggle
               showMDMCommands={showMDMCommands}
               onToggleMDMCommands={
@@ -140,7 +140,7 @@ const Activity = ({
               />
             )}
           </TabPanel>
-          <TabPanel>
+          <TabPanel className={`${baseClass}__tab-panel`}>
             <MDMCommandsToggle
               showMDMCommands={showMDMCommands}
               commandCount={commandCount}
