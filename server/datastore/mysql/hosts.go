@@ -4410,6 +4410,18 @@ func (ds *Datastore) MaybeAssociateHostWithScimUser(ctx context.Context, host *f
 		return ctxerr.New(ctx, "MaybeAssociateHostWithScimUser: host is nil")
 	}
 
+	// If an existing SCIM user association exists for this host, nothing to do.
+	var existingSCIMUserID uint
+	checkExistingSQL := `SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &existingSCIMUserID, checkExistingSQL, host.ID)
+	if err == nil {
+		// Existing SCIM user association found, nothing to do.
+		// Bail early so that we don't trigger side-effects downstream like resending profiles.
+		return nil
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return ctxerr.Wrap(ctx, err, "MaybeAssociateHostWithScimUser: check existing SCIM user for host")
+	}
+
 	// Get any existing MDM IdP record for the host.
 	getMDMIDPSQL := `
 SELECT
@@ -4427,7 +4439,7 @@ WHERE
 	hosts.id = ?`
 
 	var idpAccount fleet.MDMIdPAccount
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &idpAccount, getMDMIDPSQL, host.ID)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &idpAccount, getMDMIDPSQL, host.ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// No MDM IdP account for this host, nothing to do.
@@ -4473,7 +4485,7 @@ func (ds *Datastore) associateHostWithScimUser(ctx context.Context, hostID uint,
 func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID uint, scimUserID uint) error {
 	_, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE scim_user_id = VALUES(scim_user_id)`,
+		`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
 		hostID, scimUserID,
 	)
 	if err != nil {

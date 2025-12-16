@@ -12064,31 +12064,19 @@ func testMaybeAssociateHostWithScimUser(t *testing.T, ds *Datastore) {
 		// Create MDM IDP account record, host MDM IDP account mapping, and SCIM user record
 		createIdPRecords()
 		createScimUserRecord()
-		createScimUserRecord("testuser2@example.com")
 
-		var scimUser1ID uint
-		err = sqlx.GetContext(ctx, ds.reader(ctx), &scimUser1ID, `SELECT id FROM scim_users WHERE user_name = ?`, "testuser@example.com")
+		var scimUserID uint
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &scimUserID, `SELECT id FROM scim_users WHERE user_name = ?`, "testuser@example.com")
 		require.NoError(t, err)
-		require.NotZero(t, scimUser1ID)
-		var scimUser2ID uint
-		err = sqlx.GetContext(ctx, ds.reader(ctx), &scimUser2ID, `SELECT id FROM scim_users WHERE user_name = ?`, "testuser2@example.com")
-		require.NoError(t, err)
-		require.NotZero(t, scimUser2ID)
+		require.NotZero(t, scimUserID)
 
 		// Create host_scim_user mapping to simulate duplicate records.
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?,?)`, host.ID, scimUser2ID)
+			_, err := q.ExecContext(ctx, `INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?,?)`, host.ID, scimUserID)
 			return err
 		})
 
-		// This should update the existing mapping to point to scimUser1ID, since it matches the host's MDM IDP account email.
 		err := ds.MaybeAssociateHostWithScimUser(ctx, host)
 		require.NoError(t, err)
-
-		var hostScimUserID uint
-		err = sqlx.GetContext(ctx, ds.reader(ctx), &hostScimUserID, `SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
-		require.NoError(t, err)
-		require.NotZero(t, hostScimUserID)
-		require.Equal(t, scimUser1ID, hostScimUserID)
 	})
 }
