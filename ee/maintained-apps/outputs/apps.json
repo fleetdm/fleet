@@ -156,6 +156,13 @@
       "description": "Apparency is an app to inspect application bundles."
     },
     {
+      "name": "AppCleaner",
+      "slug": "appcleaner/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.freemacsoft.AppCleaner",
+      "description": "AppCleaner is an application uninstaller."
+    },
+    {
       "name": "Arc",
       "slug": "arc/darwin",
       "platform": "darwin",
@@ -280,6 +287,13 @@
       "platform": "darwin",
       "unique_identifier": "com.usebruno.app",
       "description": "Bruno is an open source IDE for exploring and testing APIs."
+    },
+    {
+      "name": "calibre",
+      "slug": "calibre/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.kovidgoyal.calibre",
+      "description": "calibre is e-book management software."
     },
     {
       "name": "Camtasia",
@@ -441,6 +455,13 @@
       "platform": "windows",
       "unique_identifier": "Cyberduck",
       "description": "Cyberduck is a server and cloud storage browser."
+    },
+    {
+      "name": "Dash",
+      "slug": "dash/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.kapeli.dashdoc",
+      "description": "Dash is an API documentation browser and code snippet manager."
     },
     {
       "name": "DataGrip",
@@ -1435,6 +1456,13 @@
       "platform": "darwin",
       "unique_identifier": "com.gravitational.teleport.tsh",
       "description": "Teleport Suite is a modern SSH server for teams managing distributed infrastructure."
+    },
+    {
+      "name": "TextExpander",
+      "slug": "textexpander/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.smileonmymac.textexpander",
+      "description": "TextExpander is an application that let's you create and insert pre-made snippets of text anywhere."
     },
     {
       "name": "Thunderbird",

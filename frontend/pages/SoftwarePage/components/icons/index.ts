@@ -19,6 +19,7 @@ import AndroidStudio from "./AndroidStudio";
 import Anka from "./Anka";
 import AnyDesk from "./AnyDesk";
 import Apparency from "./Apparency";
+import AppCleaner from "./AppCleaner";
 import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
 import Arc from "./Arc";
@@ -35,6 +36,7 @@ import Blender from "./Blender";
 import Box from "./Box";
 import Brave from "./Brave";
 import Bruno from "./Bruno";
+import Calibre from "./Calibre";
 import CleanMyMac from "./CleanMyMac";
 import CleanShotX from "./CleanShotX";
 import CLion from "./CLion";
@@ -50,11 +52,11 @@ import Claude from "./Claude";
 import ClickUp from "./ClickUp";
 import ClockifyDesktop from "./ClockifyDesktop";
 import Cloudflare from "./Cloudflare";
-import CompanyPortal from "./CompanyPortal";
 import CotEditor from "./CotEditor";
 import CreativeCloud from "./AdobeCreativeCloud";
 import Cursor from "./Cursor";
 import Cyberduck from "./Cyberduck";
+import Dash from "./Dash";
 import DataGrip from "./DataGrip";
 import DbBrowserForSqLite from "./DbBrowserForSqLite";
 import DBeaver from "./DBeaver";
@@ -188,6 +190,7 @@ import Teams from "./Teams";
 import Telegram from "./Telegram";
 import TeleportConnect from "./TeleportConnect";
 import Terminal from "./Terminal";
+import TextExpander from "./TextExpander";
 import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
 import Tower from "./Tower";
@@ -240,6 +243,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   anka: Anka,
   anydesk: AnyDesk,
   apparency: Apparency,
+  appcleaner: AppCleaner,
   appleAppStore: AppleAppStore,
   arc: Arc,
   archaeology: Archaeology,
@@ -255,6 +259,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   box: Box,
   brave: Brave,
   bruno: Bruno,
+  calibre: Calibre,
   camtasia: Camtasia,
   canva: Canva,
   "chatgpt atlas": ChatGptAtlas,
@@ -273,6 +278,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   coteditor: CotEditor,
   cursor: Cursor,
   cyberduck: Cyberduck,
+  dash: Dash,
   datagrip: DataGrip,
   "db browser for sqlite": DbBrowserForSqLite,
   "dbeaver community": DBeaver,
@@ -406,6 +412,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   teleport: TeleportConnect,
   terminal: Terminal,
   teamviewer: TeamViewer,
+  textexpander: TextExpander,
   thunderbird: Thunderbird,
   todoist: Todoist,
   tower: Tower,

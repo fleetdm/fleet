@@ -8390,6 +8390,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
+		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type)
+		VALUES (?, 1, 'foo', 'pending', 'install')
+	`, host.UUID)
+	require.NoError(t, err)
+
+	_, err = ds.writer(context.Background()).Exec(`
           INSERT INTO host_mdm_apple_declarations (host_uuid, declaration_uuid, token, declaration_identifier, declaration_name)
           VALUES (?, uuid(), UNHEX(REPLACE(UUID(), '-', '')), 'test-identifier', 'test-name')
 	`, host.UUID)
