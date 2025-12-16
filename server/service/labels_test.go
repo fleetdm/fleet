@@ -375,7 +375,7 @@ func TestBatchValidateLabels(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 
 	t.Run("no auth context", func(t *testing.T) {
-		_, err := svc.BatchValidateLabels(context.Background(), nil)
+		_, err := svc.BatchValidateLabels(context.Background(), nil, nil)
 		require.ErrorContains(t, err, "Authentication required")
 	})
 
@@ -383,7 +383,7 @@ func TestBatchValidateLabels(t *testing.T) {
 	ctx = authz_ctx.NewContext(ctx, &authCtx)
 
 	t.Run("no auth checked", func(t *testing.T) {
-		_, err := svc.BatchValidateLabels(ctx, nil)
+		_, err := svc.BatchValidateLabels(ctx, nil, nil)
 		require.ErrorContains(t, err, "Authentication required")
 	})
 
@@ -409,6 +409,21 @@ func TestBatchValidateLabels(t *testing.T) {
 		for _, name := range names {
 			if id, ok := mockLabels[name]; ok {
 				res[name] = id
+			}
+		}
+		return res, nil
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		res := make(map[string]*fleet.Label)
+		if names == nil {
+			return res, nil
+		}
+		for _, name := range names {
+			if id, ok := mockLabels[name]; ok {
+				res[name] = &fleet.Label{
+					ID:   id,
+					Name: name,
+				}
 			}
 		}
 		return res, nil
@@ -464,7 +479,7 @@ func TestBatchValidateLabels(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := svc.BatchValidateLabels(ctx, tt.labelNames)
+			got, err := svc.BatchValidateLabels(ctx, nil, tt.labelNames)
 			if tt.expectError != "" {
 				require.Contains(t, err.Error(), tt.expectError)
 			} else {

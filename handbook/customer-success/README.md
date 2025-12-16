@@ -277,7 +277,7 @@ All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. W
 
 ### Communicate feedback on prioritized customer requests
 
-When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) adds the `~customer request` label to the feature request issue and files a user story that's brought through [drafting](https://fleetdm.com/handbook/product-design#drafting).
+When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) files a user story that's brought through [drafting](https://fleetdm.com/handbook/product-design#drafting).
 
 After the user story is released, the PD will ask the appropriate Customer Success Manager (CSM) to bring the released improvements to the customer for feedback. When this happens, PD assigns the CSM and adds the `#g-unicorns` label.
 
@@ -299,6 +299,22 @@ Refunds for Fleet Premium licenses purchased on the self-service license dispens
 
 Once you submit the form, Stripe will refund the user's payment and cancel their subscription.
 
+
+### Respond to a data-deletion request
+
+When a user requests that we delete all data we have stored about them, their data will need to be removed from the following places:
+1. **fleetdm.com**
+    - Create a confidential website request issue
+    - If the user signed up for an account on fleetdm.com, you will need to create a confidential website request issue. A member of the #g-website working group will delete the account and let you know in a comment when the user account is deleted.
+2.  **Salesforce**
+    1. Search Salesforce for the user's email address, delete the contact record, and any related historical event records associated with the user's contact record.
+3. **Stripe** 
+    - If the user created an account on the Fleet website, a Stripe customer profile will have been created for their email address.
+    - Follow these steps to delete the profile: 
+        1. Log in to Stripe using the shared credentials in 1Password 
+        2. Search for the user's email address
+        3. Select the user's Stripe customer record
+        4. Click the "Actions" dropdown in the upper right corner of the customer profile page and select delete.
  
 ## Rituals
 

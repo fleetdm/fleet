@@ -8,7 +8,9 @@ import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
 import AdobeAcrobat from "./AdobeAcrobat";
 import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
+import AdobeDngConverter from "./AdobeDngConverter";
 import Aircall from "./Aircall";
+import Airtame from "./Airtame";
 import AmazonChime from "./AmazonChime";
 import AmazonDCV from "./AmazonDCV";
 import AndroidApp from "./AndroidApp";
@@ -17,6 +19,7 @@ import AndroidStudio from "./AndroidStudio";
 import Anka from "./Anka";
 import AnyDesk from "./AnyDesk";
 import Apparency from "./Apparency";
+import AppCleaner from "./AppCleaner";
 import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
 import Arc from "./Arc";
@@ -33,6 +36,7 @@ import Blender from "./Blender";
 import Box from "./Box";
 import Brave from "./Brave";
 import Bruno from "./Bruno";
+import Calibre from "./Calibre";
 import CleanMyMac from "./CleanMyMac";
 import CleanShotX from "./CleanShotX";
 import CLion from "./CLion";
@@ -52,6 +56,7 @@ import CotEditor from "./CotEditor";
 import CreativeCloud from "./AdobeCreativeCloud";
 import Cursor from "./Cursor";
 import Cyberduck from "./Cyberduck";
+import Dash from "./Dash";
 import DataGrip from "./DataGrip";
 import DbBrowserForSqLite from "./DbBrowserForSqLite";
 import DBeaver from "./DBeaver";
@@ -118,6 +123,7 @@ import MacOS from "./MacOS";
 import Mattermost from "./Mattermost";
 import Messenger from "./Messenger";
 import MicrosoftAutoUpdate from "./MicrosoftAutoUpdate";
+import MicrosoftEdge from "./MicrosoftEdge";
 import MicrosoftOneNote from "./MicrosoftOneNote";
 import MicrosoftOutlook from "./MicrosoftOutlook";
 import MicrosoftPowerPoint from "./MicrosoftPowerPoint";
@@ -184,6 +190,7 @@ import Teams from "./Teams";
 import Telegram from "./Telegram";
 import TeleportConnect from "./TeleportConnect";
 import Terminal from "./Terminal";
+import TextExpander from "./TextExpander";
 import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
 import Tower from "./Tower";
@@ -228,6 +235,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
   aircall: Aircall,
+  airtame: Airtame,
   "amazon chime": AmazonChime,
   "amazon dcv": AmazonDCV,
   androidPlayStore: AndroidPlayStore,
@@ -235,6 +243,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   anka: Anka,
   anydesk: AnyDesk,
   apparency: Apparency,
+  appcleaner: AppCleaner,
   appleAppStore: AppleAppStore,
   arc: Arc,
   archaeology: Archaeology,
@@ -250,6 +259,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   box: Box,
   brave: Brave,
   bruno: Bruno,
+  calibre: Calibre,
   camtasia: Camtasia,
   canva: Canva,
   "chatgpt atlas": ChatGptAtlas,
@@ -268,6 +278,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   coteditor: CotEditor,
   cursor: Cursor,
   cyberduck: Cyberduck,
+  dash: Dash,
   datagrip: DataGrip,
   "db browser for sqlite": DbBrowserForSqLite,
   "dbeaver community": DBeaver,
@@ -278,10 +289,12 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dialpad: Dialpad,
   discord: Discord,
   "DisplayLink USB Graphics Software": DisplayLinkManager,
+  "dng converter": AdobeDngConverter,
   docker: Docker,
   "draw.io": Drawio,
   dropbox: Dropbox,
   eclipse: Eclipse,
+  edge: MicrosoftEdge,
   egnyte: Egnyte,
   "elgato control center": ElgatoControlCenter,
   evernote: Evernote,
@@ -399,6 +412,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   teleport: TeleportConnect,
   terminal: Terminal,
   teamviewer: TeamViewer,
+  textexpander: TextExpander,
   thunderbird: Thunderbird,
   todoist: Todoist,
   tower: Tower,
@@ -472,7 +486,8 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
 
 /**
  * This attempts to loosely match the provided string to a key in a provided dictionary, returning the key if the
- * provided string starts with the key or undefined otherwise.
+ * provided string starts with the key or undefined otherwise. Keys are sorted by length (longest first) to ensure
+ * more specific matches are checked before shorter, more general ones (e.g., "archaeology" before "arc").
  */
 const matchLoosePrefixToKey = <T extends Record<string, unknown>>(
   dict: T,
@@ -482,9 +497,9 @@ const matchLoosePrefixToKey = <T extends Record<string, unknown>>(
   if (!s) {
     return undefined;
   }
-  const match = Object.keys(dict).find((k) =>
-    s.startsWith(k.trim().toLowerCase())
-  );
+  // Sort keys by length (longest first) to prioritize more specific matches
+  const sortedKeys = Object.keys(dict).sort((a, b) => b.length - a.length);
+  const match = sortedKeys.find((k) => s.startsWith(k.trim().toLowerCase()));
 
   return match ? (match as keyof T) : undefined;
 };

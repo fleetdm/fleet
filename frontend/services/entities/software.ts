@@ -29,6 +29,7 @@ import { ISoftwareDisplayNameFormData } from "pages/SoftwarePage/SoftwareTitleDe
 import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
 import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
 import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
+import { ISoftwareConfigurationFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditConfigurationModal/EditConfigurationModal";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -179,6 +180,7 @@ export interface IEditAppStoreAppPostBody {
   labels_exclude_any?: string[];
   categories?: SoftwareCategory[];
   display_name?: string;
+  configuration?: string;
 }
 
 const ORDER_KEY = "name";
@@ -301,6 +303,13 @@ const handleDisplayNameAppStoreAppForm = (
   body: IEditAppStoreAppPostBody
 ) => {
   body.display_name = formData.displayName || "";
+};
+
+const handleConfigurationAppStoreAppForm = (
+  formData: ISoftwareConfigurationFormData,
+  body: IEditAppStoreAppPostBody
+) => {
+  body.configuration = formData.configuration || "{}";
 };
 
 const handleEditAppStoreAppForm = (
@@ -557,6 +566,7 @@ export default {
       | ISoftwareVppFormData
       | ISoftwareAndroidFormData
       | ISoftwareDisplayNameFormData
+      | ISoftwareConfigurationFormData
   ) => {
     const { EDIT_SOFTWARE_APP_STORE_APP } = endpoints;
 
@@ -566,6 +576,12 @@ export default {
       // Handles Edit display name form only
       handleDisplayNameAppStoreAppForm(
         formData as ISoftwareDisplayNameFormData,
+        body
+      );
+    } else if ("configuration" in formData) {
+      // Handles Edit configuration form only
+      handleConfigurationAppStoreAppForm(
+        formData as ISoftwareConfigurationFormData,
         body
       );
     } else {
