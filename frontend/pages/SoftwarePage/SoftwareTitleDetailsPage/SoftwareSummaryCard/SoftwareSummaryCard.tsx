@@ -189,6 +189,9 @@ const SoftwareSummaryCard = ({
           installerType={installerType}
           openViewYamlModal={onToggleViewYaml}
           isIosOrIpadosApp={isIosOrIpadosApp}
+          name={softwareTitle.name}
+          displayName={softwareTitle.display_name || softwareTitle.name}
+          source={softwareTitle.source}
         />
       )}
       {showEditConfigurationModal && softwareInstaller && teamId && (

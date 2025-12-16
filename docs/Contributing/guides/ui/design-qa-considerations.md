@@ -113,6 +113,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 
 ## Integrations
 
+- New 3rd party integrations or changes should be load tested to see if we need to throttle calls to the 3rd party
 - Jira
 - Zendesk
 - Webhooks

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"os"
@@ -206,6 +207,18 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 				// Expand secrets for client-side validation
 				v, ok := os.LookupEnv(env)
 				if ok {
+					documentIsXML := strings.HasPrefix(strings.TrimSpace(s), "<") // We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
+					if documentIsXML {
+						// Escape XML special characters
+						var b strings.Builder
+						xmlErr := xml.EscapeText(&b, []byte(v))
+						if xmlErr != nil {
+							err = multierror.Append(xmlErr, fmt.Errorf("failed to XML escape fleet secret %s", env))
+							return "", false
+						}
+						v = b.String()
+					}
+
 					return v, true
 				}
 				// If secret not found, leave as-is for server to handle
@@ -269,13 +282,16 @@ func ExpandEnvBytesIncludingSecrets(b []byte) ([]byte, error) {
 	return []byte(s), nil
 }
 
-// LookupEnvSecrets only looks up FLEET_SECRET_XXX environment variables. Escaping is not supported.
+// LookupEnvSecrets only looks up FLEET_SECRET_XXX environment variables. Escaping is limited to XML files.
 // This is used for finding secrets in scripts only. The original string is not modified.
 // A map of secret names to values is updated.
 func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 	if secretsMap == nil {
 		return errors.New("secretsMap cannot be nil")
 	}
+
+	documentIsXML := strings.HasPrefix(strings.TrimSpace(s), "<") // We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
+
 	var err *multierror.Error
 	_ = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
 		if strings.HasPrefix(env, fleet.ServerSecretPrefix) {
@@ -285,6 +301,18 @@ func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 				err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
 				return "", false
 			}
+
+			if documentIsXML {
+				// Escape XML special characters
+				var b strings.Builder
+				xmlErr := xml.EscapeText(&b, []byte(v))
+				if xmlErr != nil {
+					err = multierror.Append(xmlErr, fmt.Errorf("failed to XML escape fleet secret %s", env))
+					return "", false
+				}
+				v = b.String()
+			}
+
 			secretsMap[env] = v
 		}
 		return "", false
