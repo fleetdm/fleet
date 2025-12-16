@@ -56,8 +56,8 @@ const Certificates = ({
   const [certToDelete, setCertToDelete] = useState<null | ICertificate>(null);
   const { config, isPremiumTier } = useContext(AppContext);
 
-  // const androidMdmEnabled = !!config?.mdm.android_enabled_and_configured;
-  const androidMdmEnabled = true;
+  const androidMdmEnabled = !!config?.mdm.android_enabled_and_configured;
+  // const androidMdmEnabled = true;
 
   let {
     data: certsResp,
@@ -85,7 +85,7 @@ const Certificates = ({
     }
   );
 
-  // TODO - undo
+  // TODO - undo;
   certsResp = {
     certificates: [createMockAndroidCert()],
     meta: {
@@ -94,7 +94,7 @@ const Certificates = ({
     },
   };
 
-  const certs = certsResp?.certificates;
+  const certs = certsResp?.certificates || [];
   const { has_next_results: hasNext, has_previous_results: hasPrev } =
     certsResp?.meta || {};
 
@@ -102,22 +102,6 @@ const Certificates = ({
     refetchCerts();
     onMutation();
   };
-
-  // const onDeleteCert = async (profileId: string) => {
-  //   setIsDeleting(true);
-  //   try {
-  //     await mdmAPI.deleteProfile(profileId);
-  //     refetchCerts();
-  //     onMutation();
-  //     renderFlash("success", "Successfully deleted!");
-  //   } catch (e) {
-  //     renderFlash("error", "Couldn't delete. Please try again.");
-  //   } finally {
-  //     selectedProfile.current = null;
-  //     setShowDeleteProfileModal(false);
-  //   }
-  //   setIsDeleting(false);
-  // };
 
   // pagination controls
   const path = PATHS.CONTROLS_CUSTOM_SETTINGS;
@@ -137,13 +121,15 @@ const Certificates = ({
     }
     if (!androidMdmEnabled) {
       return (
-        <GenericMsgWithNavButton
-          header="Manage your hosts"
-          buttonText="Turn on"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          router={router}
-          info="Android MDM must be turned on to apply custom settings."
-        />
+        <div className={`${baseClass}__mdm-disabled-message`}>
+          <GenericMsgWithNavButton
+            header="Manage your hosts"
+            buttonText="Turn on"
+            path={PATHS.ADMIN_INTEGRATIONS_MDM}
+            router={router}
+            info="Android MDM must be turned on to apply custom settings."
+          />
+        </div>
       );
     }
     if (isLoadingCerts) {
@@ -154,7 +140,7 @@ const Certificates = ({
       return <DataError />;
     }
 
-    if (!certs?.length) {
+    if (!certs.length) {
       return <AddCertCard setShowModal={setShowAddCertModal} />;
     }
 
@@ -162,7 +148,7 @@ const Certificates = ({
       <>
         <UploadList
           keyAttribute="id"
-          listItems={certs || []}
+          listItems={certs}
           HeadingComponent={() => (
             <UploadListHeading
               entityName="Certificate"
@@ -226,7 +212,7 @@ const Certificates = ({
           <>
             Deploy certificates. Currently only Android is supported. For macOS,
             iOS, iPadOS and Windows use configuration profiles, and for Linux
-            use Scripts.
+            use Scripts.{" "}
             <CustomLink
               newTab
               text="Learn more"

@@ -11,10 +11,12 @@ interface IAddCertCardProps {
 }
 
 const AddCertCard = ({ setShowModal }: IAddCertCardProps) => (
-  <Card color="grey" className={baseClass}>
-    <div className={`${baseClass}__card--content-wrap`}>
-      <b>Add certificate</b>
-      <p>Help your end users connect to your corporate network.</p>
+  <Card className={baseClass}>
+    <div className={`${baseClass}__content-wrap`}>
+      <div className={`${baseClass}__text`}>
+        <b>Add certificate</b>
+        <p>Help your end users connect to your corporate network.</p>
+      </div>
       <GitOpsModeTooltipWrapper
         tipOffset={8}
         renderChildren={(disableChildren) => (

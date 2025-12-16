@@ -1,20 +1,46 @@
 import React from "react";
 
+import { http, HttpResponse } from "msw";
 import { screen, waitFor } from "@testing-library/react";
 import { ICertificate } from "services/entities/certificates";
-import { renderWithSetup } from "test/test-utils";
+import mockServer from "test/mock-server";
+import {
+  renderWithSetup,
+  baseUrl,
+  createCustomRenderer,
+} from "test/test-utils";
 
 import AddCertModal from "./AddCertificateModal";
-
-jest.mock("services/entities/certificates");
 
 const mockOnExit = jest.fn();
 const mockOnSuccess = jest.fn();
 
-const mockCertAuthorities = [
-  { id: 1, name: "Test CA 1", type: "custom_scep_proxy" as const },
-  { id: 2, name: "Test CA 2", type: "custom_scep_proxy" as const },
-];
+/**
+Need mocks:
+- getCertificateAuthoritiesList
+- certificatesAPI.createCert
+*/
+
+// const mockCertAuthorities = [
+//   { id: 1, name: "Test CA 1", type: "custom_scep_proxy" as const },
+//   { id: 2, name: "Test CA 2", type: "custom_scep_proxy" as const },
+// ];
+
+const getCAsHandler = http.get(baseUrl("/certificate_authorities"), () => {
+  return HttpResponse.json({
+    certificate: "ABCDE",
+  });
+});
+
+const createCertHandler = http.post(baseUrl("/certificates"), () => {
+  return HttpResponse.json({
+    id: 123,
+    name: "New Certificate",
+    certificate_authority_id: 1,
+    subject_name: "Test subject name",
+    created_at: new Date().toISOString(),
+  });
+});
 
 const mockExistingCerts: ICertificate[] = [
   {
@@ -26,33 +52,9 @@ const mockExistingCerts: ICertificate[] = [
   },
 ];
 
-// Mock the useQuery hook
-jest.mock("react-query", () => ({
-  ...jest.requireActual("react-query"),
-  useQuery: jest.fn(() => ({
-    data: { certificate_authorities: mockCertAuthorities },
-    isLoading: false,
-    isError: false,
-  })),
-}));
-
-// Mock the contexts
-jest.mock("context/notification", () => ({
-  NotificationContext: {
-    Consumer: ({ children }: any) => children({ renderFlash: jest.fn() }),
-  },
-}));
-
-jest.mock("context/app", () => ({
-  AppContext: {
-    Consumer: ({ children }: any) => children({ currentTeam: { id: 1 } }),
-  },
-}));
-
 describe("AddCertModal", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+  mockServer.use(getCAsHandler);
+  mockServer.use(createCertHandler);
 
   it("renders the modal with all form fields", async () => {
     renderWithSetup(
