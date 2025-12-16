@@ -272,12 +272,14 @@ jobs:
               
               $uninstallString = $uninstallEntry.UninstallString
               
-              # Check if it's an MSI uninstall (contains /X{GUID})
-              if ($uninstallString -match "/X\{([A-F0-9\-]+)\}") {
+              # Check if it's an MSI uninstall (contains /X{GUID} or /x{GUID})
+              if ($uninstallString -match "/[Xx]\{([A-F0-9\-]+)\}") {
                 $guid = $matches[1]
                 Write-Host "  Found MSI GUID: $guid"
                 try {
-                  $process = Start-Process -FilePath "msiexec.exe" -ArgumentList "/X{$guid}", "/quiet", "/norestart" -Wait -NoNewWindow -PassThru
+                  # Use /x (lowercase) and /qn (quiet no UI) - standard MSI uninstall flags
+                  # Pass GUID directly without braces (msiexec handles it)
+                  $process = Start-Process -FilePath "msiexec.exe" -ArgumentList @("/qn", "/x", $guid, "/norestart") -Wait -NoNewWindow -PassThru
                   Write-Host "  Exit code: $($process.ExitCode)"
                   
                   # MSI uninstalls can take time - wait longer
