@@ -3573,7 +3573,7 @@ func (r mdmUnenrollResponse) Error() error { return r.Err }
 
 func (r mdmUnenrollResponse) Status() int { return http.StatusNoContent }
 
-func mdmUnenrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func mdmUnenrollEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*mdmUnenrollRequest)
 	err := svc.UnenrollMDM(ctx, req.HostID)
 	if err != nil {
