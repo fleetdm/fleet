@@ -49,9 +49,9 @@ const mockExistingCerts: ICertificate[] = [
 ];
 
 describe("AddCertModal", () => {
-  mockServer.use(getCAsHandler);
-  mockServer.use(createCertHandler);
   it("renders the modal with all form fields", async () => {
+    mockServer.use(getCAsHandler);
+    mockServer.use(createCertHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -80,6 +80,8 @@ describe("AddCertModal", () => {
   });
 
   it("disables Create button when Name field is empty", async () => {
+    mockServer.use(getCAsHandler);
+    mockServer.use(createCertHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -107,6 +109,8 @@ describe("AddCertModal", () => {
   });
 
   it("shows error for Name with invalid characters and disables Create button", async () => {
+    mockServer.use(getCAsHandler);
+    mockServer.use(createCertHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -134,6 +138,8 @@ describe("AddCertModal", () => {
   });
 
   it("shows error for Name that already exists and disables Create button", async () => {
+    mockServer.use(getCAsHandler);
+    mockServer.use(createCertHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -161,6 +167,8 @@ describe("AddCertModal", () => {
   });
 
   it("shows error for Name with more than 255 characters and disables Create button", async () => {
+    mockServer.use(getCAsHandler);
+    mockServer.use(createCertHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -189,6 +197,8 @@ describe("AddCertModal", () => {
   });
 
   it("disables Create button when Certificate authority is not selected", async () => {
+    mockServer.use(getCAsHandler);
+    mockServer.use(createCertHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -217,6 +227,8 @@ describe("AddCertModal", () => {
   });
 
   it("disables Create button when Subject name is empty", async () => {
+    mockServer.use(getCAsHandler);
+    mockServer.use(createCertHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -251,6 +263,8 @@ describe("AddCertModal", () => {
   });
 
   it("full flow is okay when all fields are valid", async () => {
+    mockServer.use(getCAsHandler);
+    mockServer.use(createCertHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -293,6 +307,8 @@ describe("AddCertModal", () => {
   });
 
   it("calls onExit when Cancel button is clicked", async () => {
+    mockServer.use(getCAsHandler);
+    mockServer.use(createCertHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
     });
