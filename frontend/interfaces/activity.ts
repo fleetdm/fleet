@@ -149,6 +149,8 @@ export enum ActivityType {
   DeletedCustomVariable = "deleted_custom_variable",
   EditedSetupExperienceSoftware = "edited_setup_experience_software",
   EditedHostIdpData = "edited_host_idp_data",
+  CreatedCertificateTemplate = "created_certificate_template",
+  DeletedCertificateTemplate = "deleted_certificate_template",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -419,4 +421,6 @@ export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
   [ActivityType.EditedSetupExperienceSoftware]:
     "Edited setup experience software",
   [ActivityType.EditedHostIdpData]: "Edited host identity provider (IdP) data",
+  [ActivityType.CreatedCertificateTemplate]: "Created certificate template",
+  [ActivityType.DeletedCertificateTemplate]: "Deleted certificate template",
 };

@@ -3201,9 +3201,9 @@ func (a ActivityTypeEditedHostIdpData) Documentation() (activity, details, detai
 }
 
 type ActivityTypeCreatedCertificateTemplate struct {
-	CertificateName string  `json:"certificate_name"`
-	TeamID          *uint   `json:"team_id"`
-	TeamName        *string `json:"team_name"`
+	Name     string  `json:"name"`
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
 }
 
 func (a ActivityTypeCreatedCertificateTemplate) ActivityName() string {
@@ -3213,7 +3213,7 @@ func (a ActivityTypeCreatedCertificateTemplate) ActivityName() string {
 func (a ActivityTypeCreatedCertificateTemplate) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when an user creates a Certificate Template.`,
 		`This activity contains the following fields:
-- certificate_name: Name of the certificate.
+- "name": Name of the certificate.
 - "team_id": The ID of the team where the certificate was created, ` + "`null`" + ` if it applies to devices that are not in a team.
 - "team_name": The name of the team where the certificate was created, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
   "certificate_name": "WiFi cert",
@@ -3223,9 +3223,9 @@ func (a ActivityTypeCreatedCertificateTemplate) Documentation() (activity string
 }
 
 type ActivityTypeDeletedCertificateTemplate struct {
-	CertificateName string  `json:"certificate_name"`
-	TeamID          *uint   `json:"team_id"`
-	TeamName        *string `json:"team_name"`
+	Name     string  `json:"name"`
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
 }
 
 func (a ActivityTypeDeletedCertificateTemplate) ActivityName() string {
@@ -3235,7 +3235,7 @@ func (a ActivityTypeDeletedCertificateTemplate) ActivityName() string {
 func (a ActivityTypeDeletedCertificateTemplate) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when an user deletes a Certificate Template.`,
 		`This activity contains the following fields:
-- certificate_name: Name of the certificate.
+- "name"": Name of the certificate.
 - "team_id": The ID of the team where the certificate was deleted, ` + "`null`" + ` if it applies to devices that are not in a team.
 - "team_name": The name of the team where the certificate was deleted, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
   "certificate_name": "WiFi cert",

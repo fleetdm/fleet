@@ -78,7 +78,7 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 	}
 
 	activity := fleet.ActivityTypeCreatedCertificateTemplate{
-		CertificateName: name,
+		Name: name,
 	}
 	if teamID != 0 {
 		team, err := svc.ds.TeamLite(ctx, teamID)
@@ -280,7 +280,7 @@ func (svc *Service) DeleteCertificateTemplate(ctx context.Context, certificateTe
 	}
 
 	activity := fleet.ActivityTypeDeletedCertificateTemplate{
-		CertificateName: certificate.Name,
+		Name: certificate.Name,
 	}
 	if certificate.TeamID != 0 {
 		team, err := svc.ds.TeamLite(ctx, certificate.TeamID)
