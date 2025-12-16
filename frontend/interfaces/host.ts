@@ -98,9 +98,6 @@ export interface IMunkiData {
 export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
 
 export type HostCertStatus =
-  | "pending_removal"
-  | "removing"
-  | "removed"
   | "verified"
   | "failed"
   //  all below display "pending" in UI
