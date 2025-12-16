@@ -17157,6 +17157,36 @@ func (s *integrationMDMTestSuite) TestHostsCantTurnMDMOff() {
 	require.Contains(t, extractServerErrorText(r.Body), fleet.CantTurnOffMDMForWindowsHostsMessage)
 }
 
+func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
+	t := s.T()
+	ctx := t.Context()
+
+	didCallAMAPIDelete := false
+	s.androidAPIClient.EnterprisesDevicesDeleteFunc = func(ctx context.Context, deviceName string) error {
+		didCallAMAPIDelete = true
+		return nil
+	}
+
+	enterpriseId, err := s.ds.CreateEnterprise(ctx, s.users["admin1"].ID)
+	require.NoError(t, err)
+	err = s.ds.UpdateEnterprise(ctx, &android.EnterpriseDetails{
+		Enterprise: android.Enterprise{
+			ID:           enterpriseId,
+			EnterpriseID: "ultimate-fake",
+		},
+		SignupName:  "fake",
+		SignupToken: "value",
+		TopicID:     "yep",
+	})
+	require.NoError(t, err)
+
+	hostId := createAndroidHostWithStorage(t, s.ds, nil)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", hostId), nil, http.StatusNoContent)
+
+	// We can't verify the MDM status due to the async nature of the Android MDM flow.
+	require.True(t, didCallAMAPIDelete, "expected to call AMA EnterprisesDevicesDelete API")
+}
+
 func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger() {
 	t := s.T()
 	ctx := context.Background()

@@ -94,6 +94,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		softwareTitleIconStore fleet.SoftwareTitleIconStore
 		distributedLock        fleet.Lock
 		keyValueStore          fleet.KeyValueStore
+		androidService         android.Service
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
@@ -187,6 +188,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		fleetConfig.MicrosoftCompliancePartner.ProxyAPIKey = "insecure" // setting this so the feature is "enabled".
 	}
 
+	if len(opts) > 0 && opts[0].androidModule != nil {
+		androidService = opts[0].androidModule
+	}
+
 	var wstepManager microsoft_mdm.CertManager
 	if fleetConfig.MDM.WindowsWSTEPIdentityCert != "" && fleetConfig.MDM.WindowsWSTEPIdentityKey != "" {
 		rawCert, err := os.ReadFile(fleetConfig.MDM.WindowsWSTEPIdentityCert)
@@ -223,6 +228,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
 		keyValueStore,
+		androidService,
 	)
 	if err != nil {
 		panic(err)

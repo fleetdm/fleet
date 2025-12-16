@@ -3560,3 +3560,59 @@ func (svc *Service) GetMDMConfigProfileStatus(ctx context.Context, profileUUID s
 	}
 	return status, nil
 }
+
+type mdmUnenrollRequest struct {
+	HostID uint `url:"id"`
+}
+
+type mdmUnenrollResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r mdmUnenrollResponse) Error() error { return r.Err }
+
+func (r mdmUnenrollResponse) Status() int { return http.StatusNoContent }
+
+func mdmUnenrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*mdmUnenrollRequest)
+	err := svc.UnenrollMDM(ctx, req.HostID)
+	if err != nil {
+		return mdmUnenrollResponse{Err: err}, nil
+	}
+	return mdmUnenrollResponse{}, nil
+}
+
+func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting host for MDM unenroll")
+	}
+
+	// Check authorization again based on host info for team-based permissions.
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{
+		TeamID: host.TeamID,
+	}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	switch host.Platform {
+	case "windows":
+		return &fleet.BadRequestError{
+			Message: fleet.CantTurnOffMDMForWindowsHostsMessage,
+		}
+	case "ios", "ipados", "darwin":
+		return svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, host)
+	case "android":
+		// We need to pass host ID and let android look it up again, to avoid refercing the fleet. type for import cycles.
+		return svc.androidSvc.UnenrollAndroidHost(ctx, host.ID)
+	default:
+		level.Debug(svc.logger).Log("msg", "MDM unenrollment requested for host with unknown platform", "host_id", host.ID, "platform", host.Platform)
+		return &fleet.BadRequestError{
+			Message: "MDM unenrollment is not supported for this host platform",
+		}
+	}
+}

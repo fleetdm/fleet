@@ -602,7 +602,7 @@ type RenewABMTokenFunc func(ctx context.Context, token io.Reader, tokenID uint) 
 
 type EnqueueMDMAppleCommandFunc func(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error)
 
-type EnqueueMDMAppleCommandRemoveEnrollmentProfileFunc func(ctx context.Context, hostID uint) error
+type EnqueueMDMAppleCommandRemoveEnrollmentProfileFunc func(ctx context.Context, host *fleet.Host) error
 
 type BatchSetMDMAppleProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error
 
@@ -867,6 +867,8 @@ type RequestCertificateFunc func(ctx context.Context, p fleet.RequestCertificate
 type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, groupedCAs fleet.GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error
 
 type GetGroupedCertificateAuthoritiesFunc func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
+
+type UnenrollMDMFunc func(ctx context.Context, hostID uint) error
 
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
@@ -2143,6 +2145,9 @@ type Service struct {
 
 	GetGroupedCertificateAuthoritiesFunc        GetGroupedCertificateAuthoritiesFunc
 	GetGroupedCertificateAuthoritiesFuncInvoked bool
+
+	UnenrollMDMFunc        UnenrollMDMFunc
+	UnenrollMDMFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4191,11 +4196,11 @@ func (s *Service) EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd strin
 	return s.EnqueueMDMAppleCommandFunc(ctx, rawBase64Cmd, deviceIDs)
 }
 
-func (s *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostID uint) error {
+func (s *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, host *fleet.Host) error {
 	s.mu.Lock()
 	s.EnqueueMDMAppleCommandRemoveEnrollmentProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.EnqueueMDMAppleCommandRemoveEnrollmentProfileFunc(ctx, hostID)
+	return s.EnqueueMDMAppleCommandRemoveEnrollmentProfileFunc(ctx, host)
 }
 
 func (s *Service) BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error {
@@ -5120,4 +5125,11 @@ func (s *Service) GetGroupedCertificateAuthorities(ctx context.Context, includeS
 	s.GetGroupedCertificateAuthoritiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetGroupedCertificateAuthoritiesFunc(ctx, includeSecrets)
+}
+
+func (s *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.UnenrollMDMFuncInvoked = true
+	s.mu.Unlock()
+	return s.UnenrollMDMFunc(ctx, hostID)
 }

@@ -954,7 +954,7 @@ type Service interface {
 
 	// EnqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a command to remove the
 	// profile used for Fleet MDM enrollment from the specified device.
-	EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostID uint) error
+	EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, host *Host) error
 
 	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
 	// team or for hosts with no team.
@@ -1397,6 +1397,9 @@ type Service interface {
 	BatchApplyCertificateAuthorities(ctx context.Context, groupedCAs GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error
 	// GetGroupedCertificateAuthorities retrieves the grouped certificate authorities
 	GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*GroupedCertificateAuthorities, error)
+
+	// UnenrollMDM unenrolls the host from MDM
+	UnenrollMDM(ctx context.Context, hostID uint) error
 }
 
 type KeyValueStore interface {

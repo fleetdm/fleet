@@ -675,11 +675,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// host-specific mdm routes
 
-	// Deprecated: PATCH /mdm/hosts/:id/unenroll is now deprecated, replaced by
-	// DELETE /hosts/:id/mdm.
-	mdmAppleMW.PATCH("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/unenroll", mdmAppleCommandRemoveEnrollmentProfileEndpoint, mdmAppleCommandRemoveEnrollmentProfileRequest{})
-	mdmAppleMW.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/mdm", mdmAppleCommandRemoveEnrollmentProfileEndpoint, mdmAppleCommandRemoveEnrollmentProfileRequest{})
-
 	// Deprecated: POST /mdm/hosts/:id/lock is now deprecated, replaced by
 	// POST /hosts/:id/lock.
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/lock", deviceLockEndpoint, deviceLockRequest{})
@@ -739,6 +734,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// GET /commands endpoint.
 	mdmAnyMW.GET("/api/_version_/fleet/mdm/commands", listMDMCommandsEndpoint, listMDMCommandsRequest{})
 	mdmAnyMW.GET("/api/_version_/fleet/commands", listMDMCommandsEndpoint, listMDMCommandsRequest{})
+
+	// Deprecated: PATCH /mdm/hosts/:id/unenroll is now deprecated, replaced by
+	// DELETE /hosts/:id/mdm.
+	mdmAnyMW.PATCH("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/unenroll", mdmUnenrollEndpoint, mdmUnenrollRequest{})
+	mdmAnyMW.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/mdm", mdmUnenrollEndpoint, mdmUnenrollRequest{})
 
 	// Deprecated: GET /mdm/disk_encryption/summary is now deprecated, replaced by the
 	// GET /disk_encryption endpoint.

@@ -2192,64 +2192,23 @@ func (svc *Service) mdmPushCertTopic(ctx context.Context) (string, error) {
 	return mdmPushCertTopic, nil
 }
 
-type mdmAppleCommandRemoveEnrollmentProfileRequest struct {
-	HostID uint `url:"id"`
-}
-
-type mdmAppleCommandRemoveEnrollmentProfileResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r mdmAppleCommandRemoveEnrollmentProfileResponse) Error() error { return r.Err }
-
-func (r mdmAppleCommandRemoveEnrollmentProfileResponse) Status() int { return http.StatusNoContent }
-
-func mdmAppleCommandRemoveEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*mdmAppleCommandRemoveEnrollmentProfileRequest)
-	err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, req.HostID)
-	if err != nil {
-		return mdmAppleCommandRemoveEnrollmentProfileResponse{Err: err}, nil
-	}
-	return mdmAppleCommandRemoveEnrollmentProfileResponse{}, nil
-}
-
-func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, host *fleet.Host) error {
+	if !fleet.IsApplePlatform(host.Platform) {
+		level.Debug(svc.logger).Log("msg", "Skipping mdm apple remove profile command for non-Apple host", "host_id", host.ID, "platform", host.Platform)
+		return nil // no-op for non-Apple hosts
 	}
 
-	h, err := svc.ds.HostLite(ctx, hostID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting host info for mdm apple remove profile command")
-	}
-
-	switch h.Platform {
-	case "windows":
-		return &fleet.BadRequestError{
-			Message: fleet.CantTurnOffMDMForWindowsHostsMessage,
-		}
-	default:
-		// host is darwin, so continue
-	}
-
-	info, err := svc.ds.GetHostMDMCheckinInfo(ctx, h.UUID)
+	info, err := svc.ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting mdm checkin info for mdm apple remove profile command")
 	}
 
-	// Check authorization again based on host info for team-based permissions.
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{
-		TeamID: h.TeamID,
-	}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(ctx, h.UUID)
+	nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting mdm enrollment status for mdm apple remove profile command")
 	}
 	if nanoEnroll == nil || !nanoEnroll.Enabled {
-		return fleet.NewUserMessageError(ctxerr.New(ctx, fmt.Sprintf("mdm is not enabled for host %d", hostID)), http.StatusConflict)
+		return fleet.NewUserMessageError(ctxerr.New(ctx, fmt.Sprintf("mdm is not enabled for host %d", host.ID)), http.StatusConflict)
 	}
 
 	cmdUUID := uuid.New().String()
@@ -2260,10 +2219,10 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 
 	if err := svc.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
-			HostSerial:       h.HardwareSerial,
-			HostDisplayName:  h.DisplayName(),
+			HostSerial:       host.HardwareSerial,
+			HostDisplayName:  host.DisplayName(),
 			InstalledFromDEP: info.InstalledFromDEP,
-			Platform:         h.Platform,
+			Platform:         host.Platform,
 		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
@@ -2272,7 +2231,7 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 		Action:   mdmlifecycle.HostActionTurnOff,
 		Platform: info.Platform,
-		UUID:     h.UUID,
+		UUID:     host.UUID,
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "running turn off action in mdm lifecycle")

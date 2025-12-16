@@ -3682,8 +3682,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	require.EqualValues(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
 
 	// turn off MDM for that host, should fail the pending install
-	var unenrollResp android.DefaultResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm/unenroll", host1.ID), nil, http.StatusOK, &unenrollResp)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host1.ID), nil, http.StatusNoContent)
 
 	// app install is still pending as the device hasn't reported back its unenrollment yet
 	getHostSw = getHostSoftwareResponse{}
