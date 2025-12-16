@@ -1763,6 +1763,33 @@ func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs
 	return m, nil
 }
 
+func (ds *Datastore) SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error {
+	const stmt = `
+UPDATE
+	host_vpp_software_installs
+	JOIN hosts h ON
+		h.id = host_vpp_software_installs.host_id
+SET
+	verification_at = NULL,
+	verification_command_uuid = NULL,
+	associated_event_id = ?
+WHERE
+	h.uuid = ? AND
+	host_vpp_software_installs.adam_id = ? AND
+	host_vpp_software_installs.platform = ? AND
+	-- not removed or canceled
+	host_vpp_software_installs.removed = 0 AND
+	host_vpp_software_installs.canceled = 0 AND
+	-- only if successfull or pending install
+	host_vpp_software_installs.verification_failed_at IS NULL
+`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, fmt.Sprint(policyVersion), hostUUID, applicationID, fleet.AndroidPlatform)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set android app install pending apply config")
+	}
+	return nil
+}
+
 // InsertAndroidAppConfiguration creates a new Android app configuration entry.
 func (ds *Datastore) InsertAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
 	stmt := `

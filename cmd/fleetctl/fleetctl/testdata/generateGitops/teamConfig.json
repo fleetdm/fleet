@@ -107,7 +107,8 @@
         "enable_disk_encryption": true,
         "macos_updates": {
             "minimum_version": "95.1",
-            "deadline": "2020-12-31"
+            "deadline": "2020-12-31",
+            "update_new_hosts": true
         },
         "ios_updates": {
             "minimum_version": "98.1",

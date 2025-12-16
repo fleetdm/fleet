@@ -4,6 +4,8 @@
 import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 
+import CrashPlan from "./CrashPlan";
+import SevenZip from "./7Zip";
 import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
 import AdobeAcrobat from "./AdobeAcrobat";
@@ -19,6 +21,7 @@ import AndroidStudio from "./AndroidStudio";
 import Anka from "./Anka";
 import AnyDesk from "./AnyDesk";
 import Apparency from "./Apparency";
+import AppCleaner from "./AppCleaner";
 import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
 import Arc from "./Arc";
@@ -35,6 +38,7 @@ import Blender from "./Blender";
 import Box from "./Box";
 import Brave from "./Brave";
 import Bruno from "./Bruno";
+import Calibre from "./Calibre";
 import CleanMyMac from "./CleanMyMac";
 import CleanShotX from "./CleanShotX";
 import CLion from "./CLion";
@@ -55,6 +59,7 @@ import CotEditor from "./CotEditor";
 import CreativeCloud from "./AdobeCreativeCloud";
 import Cursor from "./Cursor";
 import Cyberduck from "./Cyberduck";
+import Dash from "./Dash";
 import DataGrip from "./DataGrip";
 import DbBrowserForSqLite from "./DbBrowserForSqLite";
 import DBeaver from "./DBeaver";
@@ -188,6 +193,7 @@ import Teams from "./Teams";
 import Telegram from "./Telegram";
 import TeleportConnect from "./TeleportConnect";
 import Terminal from "./Terminal";
+import TextExpander from "./TextExpander";
 import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
 import Tower from "./Tower";
@@ -224,6 +230,7 @@ import Zoom from "./Zoom";
 // matched in the application logic.
 export const SOFTWARE_NAME_TO_ICON_MAP = {
   "010 editor": ZeroOneZeroEditor,
+  "7 zip": SevenZip,
   "8x8 work": EightXEightWork,
   "1password": OnePassword,
   abstract: Abstract,
@@ -240,6 +247,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   anka: Anka,
   anydesk: AnyDesk,
   apparency: Apparency,
+  appcleaner: AppCleaner,
   appleAppStore: AppleAppStore,
   arc: Arc,
   archaeology: Archaeology,
@@ -255,6 +263,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   box: Box,
   brave: Brave,
   bruno: Bruno,
+  calibre: Calibre,
   camtasia: Camtasia,
   canva: Canva,
   "chatgpt atlas": ChatGptAtlas,
@@ -270,9 +279,12 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cloudflare: Cloudflare,
   code: VisualStudioCode,
   "company portal": IntuneCompanyPortal,
+  crashplan: CrashPlan,
+  "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
   cursor: Cursor,
   cyberduck: Cyberduck,
+  dash: Dash,
   datagrip: DataGrip,
   "db browser for sqlite": DbBrowserForSqLite,
   "dbeaver community": DBeaver,
@@ -406,6 +418,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   teleport: TeleportConnect,
   terminal: Terminal,
   teamviewer: TeamViewer,
+  textexpander: TextExpander,
   thunderbird: Thunderbird,
   todoist: Todoist,
   tower: Tower,
@@ -515,6 +528,8 @@ const matchStrictNameSourceToIcon = ({
       return Zoom;
     case name.startsWith("zoom workplace"):
       return Zoom;
+    case name === "microsoft.companyportal":
+      return IntuneCompanyPortal;
     default:
       return null;
   }
