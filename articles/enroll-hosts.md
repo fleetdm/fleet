@@ -146,7 +146,7 @@ You can unenroll a macOS, Windows, or Linux host from Fleet (iOS, iPadOS, and An
 
 3. Next, for macOS, Windows, and Linux hosts [uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd). 
 
-5. Last, select **Actions > Delete** to delete the host from Fleet.
+4. Last, select **Actions > Delete** to delete the host from Fleet.
 
 > If an end user wants to switch their workstation's operating system (e.g. Windows to Linux), before they switch, delete the host from Fleet. Then, re-enroll the host.
 
