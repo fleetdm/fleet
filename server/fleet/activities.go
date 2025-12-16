@@ -3200,18 +3200,18 @@ func (a ActivityTypeEditedHostIdpData) Documentation() (activity, details, detai
 }`
 }
 
-type ActivityTypeCreatedAndroidCertificate struct {
+type ActivityTypeCreatedCertificateTemplate struct {
 	CertificateName string  `json:"certificate_name"`
 	TeamID          *uint   `json:"team_id"`
 	TeamName        *string `json:"team_name"`
 }
 
-func (a ActivityTypeCreatedAndroidCertificate) ActivityName() string {
-	return "created_android_certificate"
+func (a ActivityTypeCreatedCertificateTemplate) ActivityName() string {
+	return "created_certificate_template"
 }
 
-func (a ActivityTypeCreatedAndroidCertificate) Documentation() (activity string, details string, detailsExample string) {
-	return `Generated when an user creates an Android Certificate.`,
+func (a ActivityTypeCreatedCertificateTemplate) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when an user creates a Certificate Template.`,
 		`This activity contains the following fields:
 - certificate_name: Name of the certificate.
 - "team_id": The ID of the team where the certificate was created, ` + "`null`" + ` if it applies to devices that are not in a team.
@@ -3222,18 +3222,18 @@ func (a ActivityTypeCreatedAndroidCertificate) Documentation() (activity string,
 }`
 }
 
-type ActivityTypeDeletedAndroidCertificate struct {
+type ActivityTypeDeletedCertificateTemplate struct {
 	CertificateName string  `json:"certificate_name"`
 	TeamID          *uint   `json:"team_id"`
 	TeamName        *string `json:"team_name"`
 }
 
-func (a ActivityTypeDeletedAndroidCertificate) ActivityName() string {
-	return "deleted_android_certificate"
+func (a ActivityTypeDeletedCertificateTemplate) ActivityName() string {
+	return "deleted_certificate_template"
 }
 
-func (a ActivityTypeDeletedAndroidCertificate) Documentation() (activity string, details string, detailsExample string) {
-	return `Generated when an user deletes an Android Certificate.`,
+func (a ActivityTypeDeletedCertificateTemplate) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when an user deletes a Certificate Template.`,
 		`This activity contains the following fields:
 - certificate_name: Name of the certificate.
 - "team_id": The ID of the team where the certificate was deleted, ` + "`null`" + ` if it applies to devices that are not in a team.

@@ -198,7 +198,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	certificateTemplateID := createResp.ID
 
 	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeCreatedAndroidCertificate{}.ActivityName(),
+		fleet.ActivityTypeCreatedCertificateTemplate{}.ActivityName(),
 		fmt.Sprintf(
 			`{"team_id": %d, "team_name": %q, "certificate_name": %q}`,
 			teamID,
@@ -264,7 +264,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", certificateTemplateID), nil, http.StatusOK)
 
 	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeDeletedAndroidCertificate{}.ActivityName(),
+		fleet.ActivityTypeDeletedCertificateTemplate{}.ActivityName(),
 		fmt.Sprintf(
 			`{"team_id": %d, "team_name": %q, "certificate_name": %q}`,
 			teamID,
