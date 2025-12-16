@@ -910,7 +910,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 	return fmt.Sprintf("%s.team_id IN (%s)", hostKey, strings.Join(idStrs, ","))
 }
 
-// whereFilterGlobalOrTeamIDByTeams is the same as whereFilterHostsByTeams, it
+// whereFilterTeamWithGlobalStats is the same as whereFilterHostsByTeams, it
 // returns the appropriate condition to use in the WHERE clause to render only
 // the appropriate teams, but is to be used when the team_id column uses "0" to
 // mean "all teams including no team". This is the case e.g. for
@@ -919,7 +919,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 // filter provides the filtering parameters that should be used.
 // filterTableAlias is the name/alias of the table to use in generating the
 // SQL.
-func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, filterTableAlias string) string {
+func (ds *Datastore) whereFilterTeamWithGlobalStats(filter fleet.TeamFilter, filterTableAlias string) string {
 	globalFilter := fmt.Sprintf("%s.team_id = 0 AND %[1]s.global_stats = 1", filterTableAlias)
 	teamIDFilter := fmt.Sprintf("%s.team_id", filterTableAlias)
 	return ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(filter, globalFilter, teamIDFilter)
