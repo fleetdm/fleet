@@ -1601,7 +1601,7 @@ type ScimLastRequestFunc func(ctx context.Context) (*fleet.ScimLastRequest, erro
 
 type UpdateScimLastRequestFunc func(ctx context.Context, lastRequest *fleet.ScimLastRequest) error
 
-type MaybeAssociateHostWithScimUserFunc func(ctx context.Context, host *fleet.Host) error
+type MaybeAssociateHostWithScimUserFunc func(ctx context.Context, hostID uint) error
 
 type NewChallengeFunc func(ctx context.Context) (string, error)
 
@@ -9735,11 +9735,11 @@ func (s *DataStore) UpdateScimLastRequest(ctx context.Context, lastRequest *flee
 	return s.UpdateScimLastRequestFunc(ctx, lastRequest)
 }
 
-func (s *DataStore) MaybeAssociateHostWithScimUser(ctx context.Context, host *fleet.Host) error {
+func (s *DataStore) MaybeAssociateHostWithScimUser(ctx context.Context, hostID uint) error {
 	s.mu.Lock()
 	s.MaybeAssociateHostWithScimUserFuncInvoked = true
 	s.mu.Unlock()
-	return s.MaybeAssociateHostWithScimUserFunc(ctx, host)
+	return s.MaybeAssociateHostWithScimUserFunc(ctx, hostID)
 }
 
 func (s *DataStore) NewChallenge(ctx context.Context) (string, error) {

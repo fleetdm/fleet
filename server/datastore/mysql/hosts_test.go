@@ -12029,7 +12029,7 @@ func testMaybeAssociateHostWithScimUser(t *testing.T, ds *Datastore) {
 		createIdPRecords()
 		createScimUserRecord()
 
-		err := ds.MaybeAssociateHostWithScimUser(ctx, host)
+		err := ds.MaybeAssociateHostWithScimUser(ctx, host.ID)
 		require.NoError(t, err)
 
 		var scimUserID uint
@@ -12039,7 +12039,7 @@ func testMaybeAssociateHostWithScimUser(t *testing.T, ds *Datastore) {
 	})
 	t.Run("no mdm idp account record", func(t *testing.T) {
 		defer cleanup()
-		err := ds.MaybeAssociateHostWithScimUser(ctx, host)
+		err := ds.MaybeAssociateHostWithScimUser(ctx, host.ID)
 		require.NoError(t, err)
 
 		var scimUserID uint
@@ -12051,7 +12051,7 @@ func testMaybeAssociateHostWithScimUser(t *testing.T, ds *Datastore) {
 		defer cleanup()
 		// Create MDM IDP account record and host MDM IDP account mapping
 		createIdPRecords()
-		err := ds.MaybeAssociateHostWithScimUser(ctx, host)
+		err := ds.MaybeAssociateHostWithScimUser(ctx, host.ID)
 		require.NoError(t, err)
 
 		var scimUserID uint
@@ -12076,7 +12076,7 @@ func testMaybeAssociateHostWithScimUser(t *testing.T, ds *Datastore) {
 			return err
 		})
 
-		err := ds.MaybeAssociateHostWithScimUser(ctx, host)
+		err := ds.MaybeAssociateHostWithScimUser(ctx, host.ID)
 		require.NoError(t, err)
 	})
 }

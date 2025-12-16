@@ -4404,16 +4404,11 @@ WHERE %s`
 }
 
 // Given a host, attempt to associate with a SCIM user.
-func (ds *Datastore) MaybeAssociateHostWithScimUser(ctx context.Context, host *fleet.Host) error {
-	// Validate that host is not nil.
-	if host == nil {
-		return ctxerr.New(ctx, "MaybeAssociateHostWithScimUser: host is nil")
-	}
-
+func (ds *Datastore) MaybeAssociateHostWithScimUser(ctx context.Context, hostID uint) error {
 	// Check for an existing SCIM user association for the host.
 	var existingSCIMUserID uint
 	checkExistingSQL := `SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &existingSCIMUserID, checkExistingSQL, host.ID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &existingSCIMUserID, checkExistingSQL, hostID)
 	if err == nil {
 		// Existing SCIM user association found, nothing to do.
 		// Bail early so that we don't trigger side-effects downstream like resending profiles.
@@ -4439,7 +4434,7 @@ WHERE
 	hosts.id = ?`
 
 	var idpAccount fleet.MDMIdPAccount
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &idpAccount, getMDMIDPSQL, host.ID)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &idpAccount, getMDMIDPSQL, hostID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// No MDM IdP account for this host, nothing to do.
@@ -4449,7 +4444,7 @@ WHERE
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return maybeAssociateHostMDMIdPWithScimUser(ctx, tx, ds.logger, host.ID, &idpAccount)
+		return maybeAssociateHostMDMIdPWithScimUser(ctx, tx, ds.logger, hostID, &idpAccount)
 	})
 }
 
