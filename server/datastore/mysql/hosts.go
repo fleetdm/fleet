@@ -2223,6 +2223,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		Hostname:       hostInfo.Hostname,
 		HardwareModel:  hostInfo.HardwareModel,
 		HardwareSerial: hostInfo.HardwareSerial,
+		UUID:           hostInfo.HardwareUUID,
 	}
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		serialToMatch := hostInfo.HardwareSerial
@@ -4400,6 +4401,45 @@ WHERE %s`
 	}
 
 	return nil
+}
+
+func (ds *Datastore) MaybeAssociateHostWithScimUser(ctx context.Context, host *fleet.Host) error {
+	// Validate that host is not nil.
+	if host == nil {
+		return ctxerr.New(ctx, "MaybeAssociateHostWithScimUser: host is nil")
+	}
+
+	// First, get the SCIM user ID associated with the host's MDM IdP account.
+	getSCIMUserIDSQL := `
+SELECT
+    scim_users.id
+FROM
+	scim_users
+JOIN mdm_idp_accounts ON 
+	mdm_idp_accounts.email = scim_users.user_name OR mdm_idp_accounts.username = scim_users.user_name
+JOIN host_mdm_idp_accounts ON
+	host_mdm_idp_accounts.account_uuid = mdm_idp_accounts.uuid
+WHERE
+	host_mdm_idp_accounts.host_uuid = ?`
+	var scimUserID uint
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &scimUserID, getSCIMUserIDSQL, host.UUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// No MDM IdP account found for this host, nothing to do
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "MaybeAssociateHostWithScimUser: get mdm idp account for host")
+	}
+
+	// Now that we have the SCIM user ID, associate it with the host.
+	linkSQL := `INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE scim_user_id = VALUES(scim_user_id)`
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, linkSQL, host.ID, scimUserID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "MaybeAssociateHostWithScimUser: link host with scim user")
+		}
+		return nil
+	})
 }
 
 func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostID uint, idp *fleet.MDMIdPAccount) error {

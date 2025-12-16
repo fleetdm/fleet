@@ -237,6 +237,11 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}
 	}
 
+	// Associate the newly-enrolled host with a SCIM user if applicable.
+	if err := svc.ds.MaybeAssociateHostWithScimUser(ctx, host); err != nil {
+		level.Error(svc.logger).Log("msg", "failed to associate enrolled host with SCIM user", "err", err, "host_id", host.ID)
+	}
+
 	if err := svc.NewActivity(
 		ctx,
 		nil,
