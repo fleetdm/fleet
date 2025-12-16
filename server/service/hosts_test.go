@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"testing"
 	"time"
@@ -1050,6 +1052,222 @@ func TestListHosts(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.True(t, ds.LoadHostSoftwareFuncInvoked)
+}
+
+func TestStreamHosts(t *testing.T) {
+	t.Run("Happy path", func(t *testing.T) {
+		// Create a mock iterator for the hosts.
+		hostIterator := func() iter.Seq2[*fleet.HostResponse, error] {
+			return func(yield func(*fleet.HostResponse, error) bool) {
+				for i := 1; i <= 3; i++ {
+					host := &fleet.HostResponse{Host: &fleet.Host{ID: uint(i)}}
+					if !yield(host, nil) {
+						return
+					}
+				}
+			}
+		}
+		resp := streamHostsResponse{
+			HostResponseIterator: hostIterator(),
+			listHostsResponse: listHostsResponse{
+				Software: &fleet.Software{
+					ID: uint(1),
+				},
+				SoftwareTitle: &fleet.SoftwareTitle{ID: uint(2)},
+				MDMSolution: &fleet.MDMSolution{
+					ID: uint(3),
+				},
+				MunkiIssue: &fleet.MunkiIssue{
+					ID: uint(4),
+				},
+			},
+		}
+		rr := httptest.NewRecorder()
+		resp.HijackRender(context.Background(), rr)
+		require.Equal(t, rr.Code, 200)
+		// Get the body into a string.
+		body := rr.Body.String()
+		// Unmarshal the string into a map.
+		var results map[string]any
+		err := json.Unmarshal([]byte(body), &results)
+		if err != nil {
+			t.Fatalf("failed to unmarshal response body: %v", err)
+		}
+		// Assert that software.id == 1
+		require.Equal(t, float64(1), results["software"].(map[string]any)["id"])
+		// Assert that software_title.id == 2
+		require.Equal(t, float64(2), results["software_title"].(map[string]any)["id"])
+		// Assert that mdm_solution.id == 3
+		require.Equal(t, float64(3), results["mobile_device_management_solution"].(map[string]any)["id"])
+		// Assert that munki_issue.id == 4
+		require.Equal(t, float64(4), results["munki_issue"].(map[string]any)["id"])
+		// Assert that hosts array has length 3
+		hosts := results["hosts"].([]any)
+		require.Len(t, hosts, 3)
+		// Assert that host IDs are 1, 2, 3
+		for i, host := range hosts {
+			hostMap := host.(map[string]any)
+			require.Equal(t, float64(i+1), hostMap["id"])
+		}
+		// Assert that the output contains no error message
+		_, exists := results["error"]
+		require.False(t, exists)
+	})
+
+	t.Run("Minimal data", func(t *testing.T) {
+		// Create a mock iterator for the hosts.
+		hostIterator := func() iter.Seq2[*fleet.HostResponse, error] {
+			return func(yield func(*fleet.HostResponse, error) bool) {
+				// Yield no hosts.
+			}
+		}
+		resp := streamHostsResponse{
+			HostResponseIterator: hostIterator(),
+			listHostsResponse:    listHostsResponse{},
+		}
+		rr := httptest.NewRecorder()
+		resp.HijackRender(context.Background(), rr)
+		require.Equal(t, rr.Code, 200)
+		// Get the body into a string.
+		body := rr.Body.String()
+		// Unmarshal the string into a map.
+		var results map[string]any
+		err := json.Unmarshal([]byte(body), &results)
+		if err != nil {
+			t.Fatalf("failed to unmarshal response body: %v", err)
+		}
+		_, ok := results["software"]
+		require.False(t, ok)
+		_, ok = results["software_title"]
+		require.False(t, ok)
+		_, ok = results["mobile_device_management_solution"]
+		require.False(t, ok)
+		_, ok = results["munki_issue"]
+		require.False(t, ok)
+		hosts := results["hosts"].([]any)
+		require.Len(t, hosts, 0)
+		// Assert that the output contains no error message
+		_, exists := results["error"]
+		require.False(t, exists)
+	})
+
+	errorTestCases := []struct {
+		Name          string
+		ExpectedError string
+	}{
+		{
+			"Error marshalling Software",
+			"marshaling software",
+		},
+		{
+			"Error marshalling SoftwareTitle",
+			"marshaling software_title",
+		},
+		{
+			"Error marshalling MDMSolution",
+			"marshaling mobile_device_management_solution",
+		},
+		{
+			"Error marshalling MunkiIssue",
+			"marshaling munki_issue",
+		},
+		{
+			"Error iterating over Hosts",
+			"getting host",
+		},
+		{
+			"Error marshalling Hosts",
+			"marshaling host response",
+		},
+	}
+	for _, tc := range errorTestCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			hostIterator := func() iter.Seq2[*fleet.HostResponse, error] {
+				return func(yield func(*fleet.HostResponse, error) bool) {
+					// Yield one good host.
+					host := &fleet.HostResponse{Host: &fleet.Host{ID: uint(1)}}
+					if !yield(host, nil) {
+						return
+					}
+					if tc.Name == "Error iterating over Hosts" {
+						// Yield an error immediately.
+						yield(nil, errors.New("getting host"))
+						return
+					}
+					host = &fleet.HostResponse{Host: &fleet.Host{ID: uint(2)}}
+					if !yield(host, nil) {
+						return
+					}
+				}
+			}
+			resp := streamHostsResponse{
+				HostResponseIterator: hostIterator(),
+				listHostsResponse: listHostsResponse{
+					Software: &fleet.Software{
+						ID: uint(1),
+					},
+					SoftwareTitle: &fleet.SoftwareTitle{ID: uint(2)},
+					MDMSolution: &fleet.MDMSolution{
+						ID: uint(3),
+					},
+					MunkiIssue: &fleet.MunkiIssue{
+						ID: uint(4),
+					},
+				},
+				MarshalJSON: func(v any) ([]byte, error) {
+					switch v.(type) {
+					case *fleet.Software:
+						if tc.Name == "Error marshalling Software" {
+							return nil, errors.New(`got some "error" marshaling {software}`)
+						}
+					case *fleet.SoftwareTitle:
+						if tc.Name == "Error marshalling SoftwareTitle" {
+							return nil, errors.New(`got some "error" marshaling {software title}`)
+						}
+					case *fleet.MDMSolution:
+						if tc.Name == "Error marshalling MDMSolution" {
+							return nil, errors.New(`got some "error" marshaling {mdm solution}`)
+						}
+					case *fleet.MunkiIssue:
+						if tc.Name == "Error marshalling MunkiIssue" {
+							return nil, errors.New(`got some "error" marshaling {munki issue}`)
+						}
+					case *fleet.HostResponse:
+						if tc.Name == "Error marshalling Hosts" {
+							return nil, errors.New(`got some "error" marshaling {host response}`)
+						}
+					}
+					// Default to normal marshalling.
+					return json.Marshal(v)
+				},
+			}
+			rr := httptest.NewRecorder()
+			resp.HijackRender(context.Background(), rr)
+			// Assert that the output contains the error message
+			require.Equal(t, rr.Code, 200)
+			body := rr.Body.String()
+			// Unmarshal the string into a map.
+			var results map[string]any
+			err := json.Unmarshal([]byte(body), &results)
+			if err != nil {
+				t.Fatalf("failed to unmarshal response body: %v", err)
+			}
+			// Assert that error message is present
+			require.Contains(t, results["error"], tc.ExpectedError)
+			// If the error isn't in the hosts array, ensure that no hosts were returned.
+			hosts, ok := results["hosts"].([]any)
+			if tc.Name != "Error marshalling Hosts" && tc.Name != "Error iterating over Hosts" {
+				require.False(t, ok)
+			} else {
+				require.True(t, ok)
+				if tc.Name == "Error iterating over Hosts" {
+					require.Len(t, hosts, 1)
+				} else {
+					require.Len(t, hosts, 0)
+				}
+			}
+		})
+	}
 }
 
 func TestGetHostSummary(t *testing.T) {
