@@ -48,15 +48,42 @@ Exit `$exitCode
 $exitCode = 0
 
 try {
-    # Wait for an interactive user to be logged on
+    # Wait for an interactive user to be logged on (with timeout for headless environments)
+    $maxWaitTime = 60  # Maximum wait time in seconds
+    $startTime = Get-Date
+    $userName = $null
+    
     while ($true) {
         $userName = (Get-CimInstance Win32_ComputerSystem).UserName
 
         if ($userName -and $userName -like "*\*") {
             break
-        } else {
-            Start-Sleep -Seconds 5
         }
+        
+        $elapsed = (New-Timespan -Start $startTime).TotalSeconds
+        if ($elapsed -gt $maxWaitTime) {
+            # Timeout reached - likely headless environment
+            # Run uninstallation directly without scheduled task
+            Write-Host "No interactive user detected after $maxWaitTime seconds. Running uninstallation directly (headless mode)..."
+            
+            # Write the script to disk and execute it directly
+            Set-Content -Path $scriptPath -Value $userScript -Force
+            & powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File $scriptPath
+            
+            if (Test-Path $exitCodeFile) {
+                $exitCode = Get-Content $exitCodeFile
+            } else {
+                $exitCode = 1
+            }
+            
+            # Clean up
+            Remove-Item -Path $scriptPath -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $exitCodeFile -Force -ErrorAction SilentlyContinue
+            
+            Exit $exitCode
+        }
+        
+        Start-Sleep -Seconds 5
     }
 
     # Write the uninstall script to disk
