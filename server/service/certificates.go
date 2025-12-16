@@ -93,7 +93,7 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 		authz.UserFromContext(ctx),
 		activity,
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create activity for new certificate template")
+		return nil, ctxerr.Wrap(ctx, err, "creating activity for new certificate template")
 	}
 
 	return savedTemplate, nil
@@ -268,14 +268,37 @@ func deleteCertificateTemplateEndpoint(ctx context.Context, request interface{},
 func (svc *Service) DeleteCertificateTemplate(ctx context.Context, certificateTemplateID uint) error {
 	certificate, err := svc.ds.GetCertificateTemplateById(ctx, certificateTemplateID)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "getting certificate template")
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: certificate.TeamID}, fleet.ActionWrite); err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "authorizing user for certificate template deletion")
 	}
 
-	return svc.ds.DeleteCertificateTemplate(ctx, certificateTemplateID)
+	if err := svc.ds.DeleteCertificateTemplate(ctx, certificateTemplateID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting certificate template")
+	}
+
+	activity := fleet.ActivityTypeDeletedAndroidCertificate{
+		CertificateName: certificate.Name,
+	}
+	if certificate.TeamID != 0 {
+		team, err := svc.ds.TeamLite(ctx, certificate.TeamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting team")
+		}
+		activity.TeamID = &team.ID
+		activity.TeamName = &team.Name
+	}
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		activity,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating activity for deleting certificate template")
+	}
+
+	return nil
 }
 
 type applyCertificateTemplateSpecsRequest struct {

@@ -259,6 +259,19 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 
 	// Step: Verify the status is 'failed' with details
 	s.verifyCertificateStatus(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateFailed, failedDetail)
+
+	// Delete the cert
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", certificateTemplateID), nil, http.StatusOK)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDeletedAndroidCertificate{}.ActivityName(),
+		fmt.Sprintf(
+			`{"team_id": %d, "team_name": %q, "certificate_name": %q}`,
+			teamID,
+			teamName,
+			certTemplateName,
+		),
+		0)
 }
 
 // TestCertificateTemplateSpecEndpointAndAMAPIFailure tests:
