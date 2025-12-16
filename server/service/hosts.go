@@ -150,6 +150,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 		value any
 	}
 
+	// The set of properties of listHostsResponse to consider for output.
 	fieldNames := []string{"Software", "SoftwareTitle", "MDMSolution", "MunkiIssue"}
 
 	// Iterate over the non-host keys in the response and write them if they are non-nil.
