@@ -1559,6 +1559,8 @@ type GetAndroidAppConfigurationByAppTeamIDFunc func(ctx context.Context, vppAppT
 
 type HasAndroidAppConfigurationChangedFunc func(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error)
 
+type SetAndroidAppInstallPendingApplyConfigFunc func(ctx context.Context, hostUUID string, applicationID string, policyVersion int64) error
+
 type BulkGetAndroidAppConfigurationsFunc func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error)
 
 type InsertAndroidAppConfigurationFunc func(ctx context.Context, config *fleet.AndroidAppConfiguration) error
@@ -3999,6 +4001,9 @@ type DataStore struct {
 
 	HasAndroidAppConfigurationChangedFunc        HasAndroidAppConfigurationChangedFunc
 	HasAndroidAppConfigurationChangedFuncInvoked bool
+
+	SetAndroidAppInstallPendingApplyConfigFunc        SetAndroidAppInstallPendingApplyConfigFunc
+	SetAndroidAppInstallPendingApplyConfigFuncInvoked bool
 
 	BulkGetAndroidAppConfigurationsFunc        BulkGetAndroidAppConfigurationsFunc
 	BulkGetAndroidAppConfigurationsFuncInvoked bool
@@ -9581,6 +9586,13 @@ func (s *DataStore) HasAndroidAppConfigurationChanged(ctx context.Context, appli
 	s.HasAndroidAppConfigurationChangedFuncInvoked = true
 	s.mu.Unlock()
 	return s.HasAndroidAppConfigurationChangedFunc(ctx, applicationID, globalOrTeamID, newConfig)
+}
+
+func (s *DataStore) SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID string, applicationID string, policyVersion int64) error {
+	s.mu.Lock()
+	s.SetAndroidAppInstallPendingApplyConfigFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAndroidAppInstallPendingApplyConfigFunc(ctx, hostUUID, applicationID, policyVersion)
 }
 
 func (s *DataStore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error) {

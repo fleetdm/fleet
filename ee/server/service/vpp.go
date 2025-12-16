@@ -624,12 +624,23 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}
 	}
 
+	var androidConfigChanged bool
+	// note that if appID.Configuration is nil, InsertVPPAppWithTeam will ignore it (it will not
+	// update or remove it), so here we ignore it too if it is nil.
+	if appID.Configuration != nil && appID.Platform == fleet.AndroidPlatform {
+		changed, err := svc.ds.HasAndroidAppConfigurationChanged(ctx, appID.AdamID, ptr.ValOrZero(teamID), appID.Configuration)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "checking android app configuration change")
+		}
+		androidConfigChanged = changed
+	}
+
 	addedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "writing VPP app to db")
 	}
 	if appID.Platform == fleet.AndroidPlatform {
-		err := worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appID.AdamID, addedApp.AppTeamID, androidEnterpriseName)
+		err := worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appID.AdamID, addedApp.AppTeamID, androidEnterpriseName, androidConfigChanged)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
 		}
@@ -860,7 +871,9 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	}
 
 	var androidConfigChanged bool
-	if !labelsChanged && meta.Platform == fleet.AndroidPlatform {
+	// note that if appID.Configuration is nil, InsertVPPAppWithTeam will ignore it (it will not
+	// update or remove it), so here we ignore it too if it is nil.
+	if payload.Configuration != nil && meta.Platform == fleet.AndroidPlatform {
 		// check if configuration has changed
 		androidConfigChanged, err = svc.ds.HasAndroidAppConfigurationChanged(ctx, meta.AdamID, ptr.ValOrZero(teamID), payload.Configuration)
 		if err != nil {
@@ -881,7 +894,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
-		err = worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appToWrite.AdamID, insertedApp.AppTeamID, enterprise.Name())
+		err = worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appToWrite.AdamID, insertedApp.AppTeamID, enterprise.Name(), androidConfigChanged)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
 		}
