@@ -15,5 +15,9 @@ columns:
     type: text
     required: false
     description: cdhash_sha256 is the SHA256 hash returned by codesign of the code directory for the macOS app or executable. It is a unique identifier for the code signature of the app.
+  - name: binary_sha256
+    type: text
+    required: false
+    description: binary_sha256 is the SHA256 hash returned by codesign of the binary file for the macOS app or executable. It is a unique identifier for the entire binary file.
 notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 evented: false
