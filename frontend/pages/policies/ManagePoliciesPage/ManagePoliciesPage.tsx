@@ -1198,17 +1198,14 @@ const ManagePolicyPage = ({
         helpText: "Run script to resolve failing policies.",
         tooltipContent: disabledRunScriptTooltipContent,
       },
-    ];
-
-    if (globalConfigFromContext?.license.managed_cloud) {
-      options.push({
+      {
         label: "Conditional access",
         value: "conditional_access",
         isDisabled: !!disabledConditionalAccessTooltipContent,
         helpText: "Block single sign-on for hosts failing policies.",
         tooltipContent: disabledConditionalAccessTooltipContent,
-      });
-    }
+      },
+    ];
 
     // Maintainers do not have access to other workflows
     if (!isGlobalMaintainer && !isTeamMaintainer) {
