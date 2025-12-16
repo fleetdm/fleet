@@ -82,6 +82,7 @@ func TestSoftware(t *testing.T) {
 		{"ListIOSHostSoftware", testListIOSHostSoftware},
 		{"ListHostSoftwareWithVPPApps", testListHostSoftwareWithVPPApps},
 		{"ListHostSoftwareVPPSelfService", testListHostSoftwareVPPSelfService},
+		{"ListHostSoftwareVPPSelfServiceTeamFilter", testListHostSoftwareVPPSelfServiceTeamFilter},
 		{"SetHostSoftwareInstallResult", testSetHostSoftwareInstallResult},
 		{"CreateIntermediateInstallFailureRecord", testCreateIntermediateInstallFailureRecord},
 		{"ListHostSoftwareInstallThenTransferTeam", testListHostSoftwareInstallThenTransferTeam},
@@ -5777,6 +5778,109 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	assert.Len(t, sw, 0)
+}
+
+// testListHostSoftwareVPPSelfServiceTeamFilter tests that when a VPP app exists
+// in both global and a team with different self_service values, the correct
+// (team-specific) self_service value is returned for hosts in that team.
+func testListHostSoftwareVPPSelfServiceTeamFilter(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a team
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_vpp_filter_" + t.Name()})
+	require.NoError(t, err)
+
+	// Create iOS host and assign to team
+	host := test.NewHost(t, ds, "host_vpp_filter", "", "host_vpp_filter_key", "host_vpp_filter_uuid", time.Now(), test.WithPlatform("ios"))
+	nanoEnroll(t, ds, host, false)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &tm.ID
+
+	user := test.NewUser(t, ds, "VppFilter", "vppfilter@example.com", true)
+
+	// Setup VPP token
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	// Create VPP app with self_service=true for the team
+	vppApp := &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{SelfService: true, VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_filter_" + t.Name(), Platform: fleet.IOSPlatform}},
+		Name:             "vpp_filter_app",
+		BundleIdentifier: "com.app.vppfilter",
+		LatestVersion:    "1.0.0",
+	}
+	va, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID)
+	require.NoError(t, err)
+
+	// Also add the same app globally with self_service=false
+	// This simulates the bug scenario where multiple vpp_apps_teams entries exist
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, self_service)
+		VALUES (?, ?, 0, 0)
+		ON DUPLICATE KEY UPDATE self_service = 0
+	`, vppApp.AdamID, vppApp.Platform)
+	require.NoError(t, err)
+
+	// Install the VPP app on the host (via host_vpp_software_installs)
+	cmdUUID := createVPPAppInstallRequest(t, ds, host, va.AdamID, user)
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+	require.NoError(t, err)
+	createVPPAppInstallResult(t, ds, host, cmdUUID, fleet.MDMAppleStatusAcknowledged)
+
+	// Insert software entry for the installed VPP app
+	res, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
+		VALUES (?, ?, ?, ?, ?, UNHEX(MD5(?)))
+	`, vppApp.Name, "1.0.0", "ios_apps", vppApp.BundleIdentifier, va.TitleID, "vppfilter_checksum_input")
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+	softwareID, err := res.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO host_software (host_id, software_id)
+		VALUES (?, ?)
+	`, host.ID, softwareID)
+	require.NoError(t, err)
+
+	// Query with self-service filter - the team's self_service=true should be used
+	opts := fleet.HostSoftwareTitleListOptions{
+		SelfServiceOnly:            true,
+		IsMDMEnrolled:              true,
+		IncludeAvailableForInstall: true,
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+	}
+
+	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+
+	// Should return the VPP app because team's self_service=true
+	// If the bug existed (no team filter), we might get duplicate rows or wrong self_service value
+	require.Len(t, sw, 1, "expected 1 self-service VPP app for team host")
+	assert.Equal(t, vppApp.Name, sw[0].Name)
+	assert.NotNil(t, sw[0].AppStoreApp)
+	require.NotNil(t, sw[0].AppStoreApp.SelfService, "expected SelfService to be set")
+	assert.True(t, *sw[0].AppStoreApp.SelfService, "expected self_service=true from team's vpp_apps_teams entry")
+
+	// Verify that if we query without self-service filter, we still get the correct value
+	opts.SelfServiceOnly = false
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	found := false
+	for _, s := range sw {
+		if s.Name == vppApp.Name {
+			found = true
+			assert.NotNil(t, s.AppStoreApp)
+			require.NotNil(t, s.AppStoreApp.SelfService, "expected SelfService to be set")
+			assert.True(t, *s.AppStoreApp.SelfService, "expected self_service=true from team's vpp_apps_teams entry")
+		}
+	}
+	assert.True(t, found, "expected to find the VPP app in the list")
 }
 
 func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {

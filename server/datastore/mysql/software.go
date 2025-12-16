@@ -3901,7 +3901,7 @@ func pushVersion(softwareIDStr string, softwareTitleRecord *hostSoftware, hostIn
 	}
 }
 
-func hostInstalledVpps(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
+func hostInstalledVpps(ds *Datastore, ctx context.Context, hostID uint, globalOrTeamID uint) ([]*hostSoftware, error) {
 	vppInstalledStmt := `
 		SELECT
 			vpp_apps.title_id AS id,
@@ -3918,12 +3918,12 @@ func hostInstalledVpps(ds *Datastore, ctx context.Context, hostID uint) ([]*host
 		INNER JOIN
 			vpp_apps ON hvsi.adam_id = vpp_apps.adam_id AND hvsi.platform = vpp_apps.platform
 		INNER JOIN
-			vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform
+			vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = ?
 		WHERE
 			hvsi.host_id = ?
 	`
 	var vppInstalled []*hostSoftware
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &vppInstalled, vppInstalledStmt, hostID)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &vppInstalled, vppInstalledStmt, globalOrTeamID, hostID)
 	if err != nil {
 		return nil, err
 	}
@@ -4260,7 +4260,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 	}
 
-	hostInstalledVppsApps, err := hostInstalledVpps(ds, ctx, host.ID)
+	hostInstalledVppsApps, err := hostInstalledVpps(ds, ctx, host.ID, globalOrTeamID)
 	if err != nil {
 		return nil, nil, err
 	}
