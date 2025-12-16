@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/osquery/osquery-go/plugin/table"
 )
 
 func TestParseMDATPHealthOutput(t *testing.T) {
@@ -264,7 +266,7 @@ func TestHealthOutputRegexPattern(t *testing.T) {
 
 func TestGenerateMDATPStatusWithoutBinary(t *testing.T) {
 	// This test ensures generateMDATPStatus handles the case where mdatp binary is not found
-	result, err := generateMDATPStatus(context.Background(), nil)
+	result, err := generateMDATPStatus(context.Background(), table.QueryContext{})
 
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
