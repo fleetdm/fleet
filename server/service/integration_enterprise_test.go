@@ -23037,7 +23037,7 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 
 	// batch delete certificate templates
 	var delBatchResp deleteCertificateTemplateSpecsResponse
-	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
 		"ids": []uint{listCertifcatesResp.Certificates[0].ID, listCertifcatesResp.Certificates[1].ID},
 	}, http.StatusOK, &delBatchResp)
 
@@ -23141,7 +23141,7 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 
 	// creating a certificate
 	var createCertResp createCertificateTemplateResponse
-	s.DoJSON("POST", "/api/latest/fleet/certificates", map[string]interface{}{
+	s.DoJSON("POST", "/api/latest/fleet/certificates", map[string]any{
 		"name":                     "POST No Team Cert",
 		"certificate_authority_id": ca.ID,
 		"subject_name":             "CN=$FLEET_VAR_HOST_UUID",
@@ -23157,7 +23157,7 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &delResp)
 
 	var delBatchResp2 deleteCertificateTemplateSpecsResponse
-	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
 		"ids": []uint{noTeamCertificatesResp.Certificates[0].ID},
 		// team_id intentionally omitted - should default to 0
 	}, http.StatusOK, &delBatchResp2)
@@ -23166,7 +23166,7 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	require.Len(t, noTeamCertificatesResp.Certificates, 2)
 	require.Equal(t, noTeamCertificatesResp.Certificates[0].ID, noTeamCertificatesResp.Certificates[0].ID)
 
-	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
 		"ids":     []uint{noTeamCertificatesResp.Certificates[0].ID, noTeamCertificatesResp.Certificates[1].ID},
 		"team_id": uint(0),
 	}, http.StatusOK, &delBatchResp)
