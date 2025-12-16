@@ -181,7 +181,7 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
         grantedPermissions.toList()
     }
     val fleetBaseUrl = remember { appRestrictions.getString("server_url") }
-    val apiKey by ApiClient.apiKeyFlow.map { it?.let { "****" + it.takeLast(4) } }.collectAsState(initial = null)
+    val apiKey by ApiClient.apiKeyDebugFlow.collectAsState(initial = null)
     val baseUrl by ApiClient.baseUrlFlow.collectAsState(initial = null)
     val installedCerts by CertificateOrchestrator.installedCertsFlow(context).collectAsState(initial = emptyMap())
 
