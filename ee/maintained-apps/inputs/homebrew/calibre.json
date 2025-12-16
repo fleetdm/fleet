@@ -4,5 +4,5 @@
   "token": "calibre",
   "installer_format": "dmg",
   "slug": "calibre/darwin",
-  "default_categories": ["Producivity"]
+  "default_categories": ["Productivity"]
 }
