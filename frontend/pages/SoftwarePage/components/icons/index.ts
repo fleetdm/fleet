@@ -278,6 +278,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cloudflare: Cloudflare,
   code: VisualStudioCode,
   "company portal": IntuneCompanyPortal,
+  "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
   cursor: Cursor,
   cyberduck: Cyberduck,
@@ -525,6 +526,8 @@ const matchStrictNameSourceToIcon = ({
       return Zoom;
     case name.startsWith("zoom workplace"):
       return Zoom;
+    case name === "microsoft.companyportal":
+      return IntuneCompanyPortal;
     default:
       return null;
   }
