@@ -200,7 +200,7 @@ const Secrets = () => {
                 renderChildren={(disableChildren) => (
                   <span>
                     <Button
-                      variant="text-icon"
+                      variant="inverse"
                       onClick={onClickAddSecret}
                       disabled={disableChildren}
                     >
