@@ -58,13 +58,22 @@ runs:
         rm "$CERTIFICATE_PATH"
         echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
 
+        # Extract the signing identity from the keychain (use SHA-1 hash for reliability)
+        SIGNING_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep "Developer ID Application" | head -1 | awk '{print $2}')
+        if [[ -z "$SIGNING_IDENTITY" ]]; then
+          echo "Error: No Developer ID Application identity found in keychain"
+          exit 1
+        fi
+        echo "Found signing identity: $SIGNING_IDENTITY"
+        echo "SIGNING_IDENTITY=$SIGNING_IDENTITY" >> $GITHUB_ENV
+
     - name: Code Sign Standalone binary
       shell: bash
       run: |
         chmod +x "$BINARY_PATH"
 
         # Sign the binary and verify
-        codesign --sign "$DEVELOPER_ID" --timestamp --options runtime --deep --force "$BINARY_PATH"
+        codesign --sign "$SIGNING_IDENTITY" --timestamp --options runtime --deep --force "$BINARY_PATH"
         
         # Verify signature
         codesign --verify --deep --strict --verbose=2 "$BINARY_PATH"
