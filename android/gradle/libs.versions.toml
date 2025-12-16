@@ -13,15 +13,13 @@ detekt = "1.23.8"
 workManager = "2.11.0"
 amapi = "1.7.0"
 robolectric = "4.16"
-kotlinxSerialization = "1.9.0"
-kotlinxCoroutines = "1.9.0"
+kotlinx = "1.9.0"
 jscep = "3.0.1"
 bouncycastle = "1.78.1"
 commonsCodec = "1.20.0"
 slf4j = "2.0.17"
 datastorePreferences = "1.2.0"
 navigationCompose = "2.9.6"
-materialIconsExtended = "1.7.8"
 json = "20231013"
 mockk = "1.13.13"
 
@@ -51,10 +49,10 @@ commons-codec = { group = "commons-codec", name = "commons-codec", version.ref =
 slf4j-api = { group = "org.slf4j", name = "slf4j-api", version.ref = "slf4j" }
 slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version.ref = "slf4j" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }
-kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
-androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "materialIconsExtended" }
-kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
+androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinx" }
 json = { group = "org.json", name = "json", version.ref = "json" }
 mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }
 
