@@ -4536,6 +4536,9 @@ func TestGitOpsWindowsUpdates(t *testing.T) {
 		require.NoError(t, err)
 		_, err = teamFile.WriteString(`
 controls:
+  windows_updates:
+    deadline_days: 7
+    grace_period_days: 2
 queries:
 policies:
 agent_options:
@@ -4543,10 +4546,6 @@ name: Team1
 team_settings:
   secrets:
     - secret: test
-  mdm:
-    windows_updates:
-      deadline_days: 7
-      grace_period_days: 2
 software:
 `)
 		require.NoError(t, err)
@@ -4573,6 +4572,9 @@ software:
 		require.NoError(t, err)
 		_, err = teamFile.WriteString(`
 controls:
+  windows_updates:
+    deadline_days: null
+    grace_period_days: null
 queries:
 policies:
 agent_options:
@@ -4580,10 +4582,6 @@ name: Team1
 team_settings:
   secrets:
     - secret: test
-  mdm:
-    windows_updates:
-      deadline_days: null
-      grace_period_days: null
 software:
 `)
 		require.NoError(t, err)
@@ -4616,7 +4614,6 @@ name: Team1
 team_settings:
   secrets:
     - secret: test
-  mdm: {}
 software:
 `)
 		require.NoError(t, err)
