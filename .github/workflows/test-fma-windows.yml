@@ -93,12 +93,21 @@ jobs:
           $publisher = "Microsoft Corporation"
           $uninstallEntries = @()
 
-          foreach ($path in $uninstallPaths) {
-            $items = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object {
-              $_.DisplayName -and ($_.DisplayName -like "*$displayName*") -and ($publisher -eq "" -or $_.Publisher -eq $publisher) -and $_.UninstallString
-            }
-            if ($items) {
-              $uninstallEntries += $items
+          foreach ($basePath in @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+            "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+          )) {
+            $keys = Get-ChildItem $basePath -ErrorAction SilentlyContinue
+            foreach ($key in $keys) {
+              $item = Get-ItemProperty $key.PSPath -ErrorAction SilentlyContinue
+              if ($item -and $item.DisplayName -and ($item.DisplayName -like "*$displayName*") -and ($publisher -eq "" -or $item.Publisher -eq $publisher) -and $item.UninstallString) {
+                # Store both the item and the key path for later removal if needed
+                $uninstallEntries += @{
+                  Item = $item
+                  KeyPath = $key.PSPath
+                  ProductCode = $key.PSChildName
+                }
+              }
             }
           }
 
@@ -107,25 +116,41 @@ jobs:
           } else {
             Write-Host "Found $($uninstallEntries.Count) .NET Runtime installation(s) to uninstall"
             
-            foreach ($uninstallEntry in $uninstallEntries) {
+            foreach ($entry in $uninstallEntries) {
+              $uninstallEntry = $entry.Item
               Write-Host "Uninstalling: $($uninstallEntry.DisplayName)"
               
               $uninstallString = $uninstallEntry.UninstallString
+              $productCode = $entry.ProductCode
+              $keyPath = $entry.KeyPath
               
               # Check if it's an MSI uninstall (contains /X{GUID} or /x{GUID})
               if ($uninstallString -match "/[Xx]\{([A-F0-9\-]+)\}") {
                 $guid = $matches[1]
-                Write-Host "  Found MSI GUID: $guid"
+                Write-Host "  Found MSI GUID: $guid (ProductCode: $productCode)"
+                
                 try {
-                  # Use /x (lowercase) and /qn (quiet no UI) - standard MSI uninstall flags
-                  # Pass GUID directly without braces (msiexec handles it)
-                  $process = Start-Process -FilePath "msiexec.exe" -ArgumentList @("/qn", "/x", $guid, "/norestart") -Wait -NoNewWindow -PassThru
-                  Write-Host "  Exit code: $($process.ExitCode)"
+                  # Try using ProductCode from registry - Windows Installer caches this
+                  Write-Host "  Attempting uninstall with ProductCode: $productCode"
+                  $process = Start-Process -FilePath "msiexec.exe" -ArgumentList @("/qn", "/x", $productCode, "/norestart") -Wait -NoNewWindow -PassThru
+                  
+                  if ($process.ExitCode -eq 1619) {
+                    Write-Host "  MSI file not found (1619), removing registry entry directly..."
+                    # If MSI is gone, remove the registry entry directly
+                    try {
+                      Remove-Item -Path $keyPath -Force -Recurse -ErrorAction Stop
+                      Write-Host "  Successfully removed registry entry: $keyPath"
+                    } catch {
+                      Write-Host "  Failed to remove registry entry: $_"
+                    }
+                  } else {
+                    Write-Host "  Exit code: $($process.ExitCode)"
+                  }
                   
                   # MSI uninstalls can take time - wait longer
                   Start-Sleep -Seconds 5
                 } catch {
-                  Write-Host "  Error running msiexec: $_"
+                  Write-Host "  Error running uninstall command: $_"
                 }
               } else {
                 # Try EXE-based uninstall
