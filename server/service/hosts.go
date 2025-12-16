@@ -150,16 +150,10 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 		value any
 	}
 
-	fields := []fieldInfo{
-		{"Software", r.listHostsResponse.Software},
-		{"SoftwareTitle", r.listHostsResponse.SoftwareTitle},
-		{"MDMSolution", r.listHostsResponse.MDMSolution},
-		{"MunkiIssue", r.listHostsResponse.MunkiIssue},
-	}
+	fieldNames := []string{"Software", "SoftwareTitle", "MDMSolution", "MunkiIssue"}
 
 	// Iterate over the non-host keys in the response and write them if they are non-nil.
-	for i, fieldInfo := range fields {
-		fieldName := fieldInfo.name
+	for i, fieldName := range fieldNames {
 		// Get the JSON tag name for the field.
 		fieldDef, _ := t.FieldByName(fieldName)
 		tag := fieldDef.Tag.Get("json")
