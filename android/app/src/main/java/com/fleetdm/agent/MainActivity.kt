@@ -287,8 +287,10 @@ fun CertificateList(modifier: Modifier = Modifier, certificates: CertStatusMap) 
             color = FleetTextDark,
             fontWeight = FontWeight.Bold,
         )
-        certificates.forEach { (key, value) ->
-            Text(text = value.alias)
+        certificates.forEach { (_, value) ->
+            if (value.status == CertificateInstallStatus.INSTALLED) {
+                Text(text = value.alias)
+            }
         }
     }
 }
