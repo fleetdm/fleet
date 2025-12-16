@@ -3,27 +3,21 @@ package service
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/activity"
 )
 
 type Service struct {
-	authz *authz.Authorizer
+	authz activity.Authorizer
 	store Datastore
 }
 
 // NewService creates a new activity service with the given dependencies.
-func NewService(store Datastore) (*Service, error) {
-	authorizer, err := authz.NewAuthorizer()
-	if err != nil {
-		return nil, fmt.Errorf("new authorizer: %w", err)
-	}
-
+func NewService(authz activity.Authorizer, store Datastore) *Service {
 	return &Service{
-		authz: authorizer,
+		authz: authz,
 		store: store,
-	}, nil
+	}
 }
 
 // Ping verifies the service is healthy.

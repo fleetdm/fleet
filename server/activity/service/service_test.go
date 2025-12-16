@@ -16,14 +16,23 @@ func (m *mockStore) Ping(_ context.Context) error {
 	return m.pingErr
 }
 
+// mockAuthorizer implements activity.Authorizer for testing.
+type mockAuthorizer struct{}
+
+func (m *mockAuthorizer) SkipAuthorization(_ context.Context) {}
+
+func (m *mockAuthorizer) Authorize(_ context.Context, _, _ any) error {
+	return nil
+}
+
 func TestNewService(t *testing.T) {
 	t.Parallel()
 
+	authz := &mockAuthorizer{}
 	store := &mockStore{}
-	svc, err := NewService(store)
+	svc := NewService(authz, store)
 
-	require.NoError(t, err)
 	require.NotNil(t, svc)
 	require.Equal(t, store, svc.store)
-	require.NotNil(t, svc.authz)
+	require.Equal(t, authz, svc.authz)
 }

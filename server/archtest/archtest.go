@@ -14,12 +14,14 @@ import (
 // It is used to ensure that packages do not depend on each other in a way that increases coupling and maintainability.
 // Based on https://github.com/matthewmcnew/archtest
 type PackageTest struct {
-	t            TestingT
-	pkgs         []string
-	includeRegex *regexp.Regexp
-	ignorePkgs   map[string]struct{}
-	ignoreXTests map[string]struct{}
-	withTests    bool
+	t             TestingT
+	pkgs          []string
+	includeRegex  *regexp.Regexp
+	ignorePkgs    map[string]struct{}
+	ignoreXTests  map[string]struct{}
+	exceptPkgs    map[string]struct{}
+	forbiddenPkgs []string
+	withTests     bool
 }
 
 // PackageTest will ignore dependency on this package.
@@ -40,7 +42,10 @@ func (pt *PackageTest) OnlyInclude(regex *regexp.Regexp) *PackageTest {
 	return pt
 }
 
-func (pt *PackageTest) IgnorePackages(pkgs ...string) *PackageTest {
+// IgnoreRecursively ignores packages completely - they are not checked AND their
+// transitive dependencies are not traversed. Use this when you want to exclude
+// an entire dependency tree from the analysis.
+func (pt *PackageTest) IgnoreRecursively(pkgs ...string) *PackageTest {
 	if pt.ignorePkgs == nil {
 		pt.ignorePkgs = make(map[string]struct{}, len(pkgs))
 	}
@@ -64,14 +69,38 @@ func (pt *PackageTest) IgnoreXTests(pkgs ...string) *PackageTest {
 	return pt
 }
 
+// IgnoreDeps ignores packages in the ShouldNotDependOn check, but still
+// traverses their transitive dependencies. Use this when you want to allow
+// a specific package but still verify what it imports.
+func (pt *PackageTest) IgnoreDeps(pkgs ...string) *PackageTest {
+	if pt.exceptPkgs == nil {
+		pt.exceptPkgs = make(map[string]struct{}, len(pkgs))
+	}
+	for _, p := range pt.expandPackages(pkgs) {
+		pt.exceptPkgs[p] = struct{}{}
+	}
+	return pt
+}
+
 func (pt *PackageTest) WithTests() *PackageTest {
 	pt.withTests = true
 	return pt
 }
 
-func (pt *PackageTest) ShouldNotDependOn(pkgs ...string) {
-	expandedPackages := pt.expandPackages(pkgs)
+// ShouldNotDependOn specifies which packages are forbidden dependencies.
+// Call Execute() to run the test.
+func (pt *PackageTest) ShouldNotDependOn(pkgs ...string) *PackageTest {
+	pt.forbiddenPkgs = append(pt.forbiddenPkgs, pkgs...)
+	return pt
+}
+
+// Check runs the dependency check and reports any violations.
+func (pt *PackageTest) Check() {
+	expandedPackages := pt.expandPackages(pt.forbiddenPkgs)
 	for dep := range pt.findDependencies(pt.pkgs) {
+		if _, excepted := pt.exceptPkgs[dep.name]; excepted {
+			continue
+		}
 		if dep.isDependencyOn(expandedPackages) {
 			pt.t.Errorf("Error: package dependency not allowed. Dependency chain:\n%s", dep)
 		}

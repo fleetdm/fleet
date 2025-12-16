@@ -4,23 +4,24 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/server/activity"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
 
 // GetRoutes returns a function that attaches activity routes to the router.
-func GetRoutes(fleetSvc fleet.Service, svc activity.Service) endpoint_utils.HandlerRoutesFunc {
+func GetRoutes(svc activity.Service, authMiddleware endpoint.Middleware) endpoint_utils.HandlerRoutesFunc {
 	return func(r *mux.Router, opts []kithttp.ServerOption) {
-		attachFleetAPIRoutes(r, fleetSvc, svc, opts)
+		attachFleetAPIRoutes(r, svc, authMiddleware, opts)
 	}
 }
 
-func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc activity.Service, opts []kithttp.ServerOption) {
+func attachFleetAPIRoutes(r *mux.Router, svc activity.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption) {
 	// //////////////////////////////////////////
 	// User-authenticated endpoints
-	ue := newUserAuthenticatedEndpointer(fleetSvc, svc, opts, r, apiVersions()...)
+	ue := newUserAuthenticatedEndpointer(svc, authMiddleware, opts, r, apiVersions()...)
 
 	// Ping endpoint: hello world for the activity bounded context
 	ue.GET("/api/_version_/fleet/activity/ping", pingEndpoint, nil)
@@ -33,7 +34,7 @@ func apiVersions() []string {
 // //////////////////////////////////////////
 // Endpoint handlers
 
-func pingEndpoint(ctx context.Context, _ any, svc activity.Service) fleet.Errorer {
+func pingEndpoint(ctx context.Context, _ any, svc activity.Service) platform_http.Errorer {
 	if err := svc.Ping(ctx); err != nil {
 		return activity.DefaultResponse{Err: err}
 	}

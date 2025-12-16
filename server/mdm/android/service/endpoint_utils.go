@@ -17,6 +17,9 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// AndroidFunc is the handler function signature for Android service endpoints.
+type AndroidFunc func(ctx context.Context, request any, svc android.Service) platform_http.Errorer
+
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	return eu.EncodeCommonResponse(ctx, w, response,
 		func(w http.ResponseWriter, response interface{}) error {
@@ -32,13 +35,13 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 }
 
 // Compile-time check to ensure that endpointer implements Endpointer.
-var _ eu.Endpointer[eu.AndroidFunc] = &endpointer{}
+var _ eu.Endpointer[AndroidFunc] = &endpointer{}
 
 type endpointer struct {
 	svc android.Service
 }
 
-func (e *endpointer) CallHandlerFunc(f eu.AndroidFunc, ctx context.Context, request any,
+func (e *endpointer) CallHandlerFunc(f AndroidFunc, ctx context.Context, request any,
 	svc any) (platform_http.Errorer, error) {
 	return f(ctx, request, svc.(android.Service)), nil
 }
@@ -48,8 +51,8 @@ func (e *endpointer) Service() any {
 }
 
 func newUserAuthenticatedEndpointer(fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *eu.CommonEndpointer[eu.AndroidFunc] {
-	return &eu.CommonEndpointer[eu.AndroidFunc]{
+	versions ...string) *eu.CommonEndpointer[AndroidFunc] {
+	return &eu.CommonEndpointer[AndroidFunc]{
 		EP: &endpointer{
 			svc: svc,
 		},
@@ -65,8 +68,8 @@ func newUserAuthenticatedEndpointer(fleetSvc fleet.Service, svc android.Service,
 }
 
 func newNoAuthEndpointer(fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *eu.CommonEndpointer[eu.AndroidFunc] {
-	return &eu.CommonEndpointer[eu.AndroidFunc]{
+	versions ...string) *eu.CommonEndpointer[AndroidFunc] {
+	return &eu.CommonEndpointer[AndroidFunc]{
 		EP: &endpointer{
 			svc: svc,
 		},

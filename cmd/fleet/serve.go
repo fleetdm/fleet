@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	activity_service "github.com/fleetdm/fleet/v4/server/activity/service"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -63,6 +64,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
@@ -72,6 +74,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/getsentry/sentry-go"
+	"github.com/go-kit/kit/endpoint"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
@@ -258,10 +261,11 @@ the way that the Fleet server works.
 			ds = mds
 
 			// Initialize activity bounded context service using shared connections
-			activitySvc, err := activity_bootstrap.NewService(dbConns.Primary, dbConns.Replica)
+			activityAuthorizer, err := authz.NewAuthorizer()
 			if err != nil {
-				initFatal(err, "initializing activity service")
+				initFatal(err, "initializing activity authorizer")
 			}
+			activitySvc := activity_bootstrap.NewService(activityAuthorizer, dbConns.Primary, dbConns.Replica)
 
 			if config.S3.CarvesBucket != "" || config.S3.Bucket != "" {
 				carveStore, err = s3.NewCarveStore(config.S3, ds)
@@ -1261,10 +1265,13 @@ the way that the Fleet server works.
 				}
 				extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
 
+				userAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+					return auth.AuthenticatedUser(svc, next)
+				}
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool,
 					[]endpoint_utils.HandlerRoutesFunc{
 						android_service.GetRoutes(svc, androidSvc),
-						activity_service.GetRoutes(svc, activitySvc),
+						activity_service.GetRoutes(activitySvc, userAuthMiddleware),
 					}, extra...)
 
 				setupRequired, err := svc.SetupRequired(baseCtx)

@@ -19,7 +19,11 @@ func TestAllAndroidPackageDependencies(t *testing.T) {
 		// https://github.com/fleetdm/fleet/pull/29853#pullrequestreview-2936461467
 		// WithTests().
 		IgnoreXTests("github.com/fleetdm/fleet/v4/server/fleet"). // ignore fleet_test package
-		IgnorePackages(
+		ShouldNotDependOn(
+			"github.com/fleetdm/fleet/v4/server/service...",
+			"github.com/fleetdm/fleet/v4/server/datastore/mysql...",
+		).
+		IgnoreRecursively(
 			"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql...",
 			"github.com/fleetdm/fleet/v4/server/service/externalsvc", // dependency on Jira and Zendesk
 			"github.com/fleetdm/fleet/v4/server/service/middleware/auth",
@@ -30,10 +34,7 @@ func TestAllAndroidPackageDependencies(t *testing.T) {
 			"github.com/fleetdm/fleet/v4/server/mdm/android/tests...", // Android functionality moved to main datastore
 			"github.com/fleetdm/fleet/v4/server/mdm/android/service",  // Activities module
 		).
-		ShouldNotDependOn(
-			"github.com/fleetdm/fleet/v4/server/service...",
-			"github.com/fleetdm/fleet/v4/server/datastore/mysql...",
-		)
+		Check()
 }
 
 // TestAndroidPackageDependencies checks that android package is NOT dependent on ANY other Fleet packages
@@ -43,5 +44,6 @@ func TestAndroidPackageDependencies(t *testing.T) {
 	t.Parallel()
 	archtest.NewPackageTest(t, "github.com/fleetdm/fleet/v4/server/mdm/android").
 		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
-		ShouldNotDependOn("github.com/fleetdm/fleet/v4/...")
+		ShouldNotDependOn("github.com/fleetdm/fleet/v4/...").
+		Check()
 }

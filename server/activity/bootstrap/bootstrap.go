@@ -3,6 +3,7 @@
 package bootstrap
 
 import (
+	"github.com/fleetdm/fleet/v4/server/activity"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/mysql"
 	"github.com/fleetdm/fleet/v4/server/activity/service"
 	"github.com/jmoiron/sqlx"
@@ -10,7 +11,7 @@ import (
 
 // NewService creates a new activity service with a MySQL datastore.
 // This is the production constructor used for dependency injection.
-func NewService(primaryDB, replicaDB *sqlx.DB) (*service.Service, error) {
+func NewService(authz activity.Authorizer, primaryDB, replicaDB *sqlx.DB) *service.Service {
 	store := mysql.NewDatastore(primaryDB, replicaDB)
-	return service.NewService(store)
+	return service.NewService(authz, store)
 }

@@ -12,6 +12,14 @@ type Service interface {
 	Ping(ctx context.Context) error
 }
 
+// Authorizer defines the authorization interface needed by the activity service.
+type Authorizer interface {
+	// SkipAuthorization marks the request as not requiring authorization.
+	SkipAuthorization(ctx context.Context)
+	// Authorize checks authorization for the provided object and action.
+	Authorize(ctx context.Context, object, action any) error
+}
+
 // /////////////////////////////////////////////
 // Activity API request and response structs
 

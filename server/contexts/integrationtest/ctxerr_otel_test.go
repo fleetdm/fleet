@@ -1,10 +1,11 @@
-package ctxerr
+package integrationtest
 
 import (
 	"context"
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -32,7 +33,7 @@ func TestHandleSendsContextToOTEL(t *testing.T) {
 				v := viewer.Viewer{User: testUser}
 				ctx = viewer.NewContext(ctx, v)
 				// Register the viewer as a telemetry provider
-				ctx = AddTelemetryProvider(ctx, &v)
+				ctx = ctxerr.AddTelemetryProvider(ctx, &v)
 				return ctx
 			},
 			errorMessage: "test error with user context",
@@ -49,7 +50,7 @@ func TestHandleSendsContextToOTEL(t *testing.T) {
 				}
 				ctx = host.NewContext(ctx, testHost)
 				// Register the host as a telemetry provider
-				ctx = AddTelemetryProvider(ctx, &host.HostAttributeProvider{Host: testHost})
+				ctx = ctxerr.AddTelemetryProvider(ctx, &host.HostAttributeProvider{Host: testHost})
 				return ctx
 			},
 			errorMessage: "test error with host context",
@@ -83,8 +84,8 @@ func TestHandleSendsContextToOTEL(t *testing.T) {
 			ctx = tc.setupContext(ctx)
 
 			// Create and handle an error
-			err := New(ctx, tc.errorMessage)
-			Handle(ctx, err)
+			err := ctxerr.New(ctx, tc.errorMessage)
+			ctxerr.Handle(ctx, err)
 
 			// Force span to end so we can check recorded data
 			span.End()

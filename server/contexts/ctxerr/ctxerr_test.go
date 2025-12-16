@@ -10,13 +10,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/host"
-	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	pkgerrors "github.com/pkg/errors" //nolint:depguard
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type mockStack struct {
+	trace []string
+}
+
+func (s mockStack) List() []string {
+	return s.trace
+}
 
 func setup() (context.Context, func()) {
 	ctx := context.Background()
@@ -83,7 +88,7 @@ func TestNewWithData(t *testing.T) {
 	t.Run("with valid data", func(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
-		data := map[string]interface{}{"foo": "bar"}
+		data := map[string]any{"foo": "bar"}
 		err := NewWithData(ctx, "new", data).(*FleetError)
 
 		require.Equal(t, err.msg, "new")
@@ -95,7 +100,7 @@ func TestNewWithData(t *testing.T) {
 	t.Run("with invalid data", func(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
-		data := map[string]interface{}{"foo": make(chan int)}
+		data := map[string]any{"foo": make(chan int)}
 		err := NewWithData(ctx, "new", data).(*FleetError)
 		require.Equal(t, err.msg, "new")
 		require.NotEmpty(t, err.stack.List())
@@ -149,7 +154,7 @@ func TestWrapNewWithData(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
 		cause := errors.New("cause")
-		data := map[string]interface{}{"foo": "bar"}
+		data := map[string]any{"foo": "bar"}
 		err := WrapWithData(ctx, cause, "new", data).(*FleetError)
 
 		require.Equal(t, err.msg, "new")
@@ -162,7 +167,7 @@ func TestWrapNewWithData(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
 		cause := errors.New("cause")
-		data := map[string]interface{}{"foo": make(chan int)}
+		data := map[string]any{"foo": make(chan int)}
 		err := WrapWithData(ctx, cause, "new", data).(*FleetError)
 		require.Equal(t, err.msg, "new")
 		require.NotEmpty(t, err.stack.List())
@@ -173,7 +178,7 @@ func TestWrapNewWithData(t *testing.T) {
 	t.Run("without message provided", func(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
-		data := map[string]interface{}{"foo": make(chan int)}
+		data := map[string]any{"foo": make(chan int)}
 		cause := errors.New("cause")
 		err := WrapWithData(ctx, cause, "", data).(*FleetError)
 		require.Equal(t, err.msg, "")
@@ -185,7 +190,7 @@ func TestWrapNewWithData(t *testing.T) {
 	t.Run("with nil error provided", func(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
-		err := WrapWithData(ctx, nil, "msg", map[string]interface{}{"foo": "bar"})
+		err := WrapWithData(ctx, nil, "msg", map[string]any{"foo": "bar"})
 		require.Equal(t, err, nil)
 	})
 }
@@ -219,7 +224,7 @@ func TestMarshalJSON(t *testing.T) {
 	errWrap := Wrap(ctx, errNew, "b").(*FleetError)
 	errWrap.stack = mockStack{[]string{"sb"}}
 
-	errNewWithData := NewWithData(ctx, "c", map[string]interface{}{"f": "c"}).(*FleetError)
+	errNewWithData := NewWithData(ctx, "c", map[string]any{"f": "c"}).(*FleetError)
 	errNewWithData.stack = mockStack{[]string{"sc"}}
 
 	cases := []struct {
@@ -315,32 +320,6 @@ func TestHandle(t *testing.T) {
 		}
 		ctx = NewContext(ctx, eh)
 		Handle(ctx, err)
-	})
-}
-
-func TestAdditionalMetadata(t *testing.T) {
-	t.Run("saves additional data about the host if present", func(t *testing.T) {
-		ctx, cleanup := setup()
-		defer cleanup()
-		h := &fleet.Host{Platform: "test_platform", OsqueryVersion: "5.0"}
-		hctx := host.NewContext(ctx, h)
-		// Register the host as an error attribute provider
-		hctx = AddErrorAttributeProvider(hctx, &host.HostAttributeProvider{Host: h})
-		err := New(hctx, "with host context").(*FleetError)
-
-		require.JSONEq(t, string(err.data), `{"host":{"osquery_version":"5.0","platform":"test_platform"},"timestamp":"1969-06-19T21:44:05Z"}`)
-	})
-
-	t.Run("saves additional data about the viewer if present", func(t *testing.T) {
-		ctx, cleanup := setup()
-		defer cleanup()
-		v := viewer.Viewer{Session: &fleet.Session{ID: 1}, User: &fleet.User{SSOEnabled: true}}
-		vctx := viewer.NewContext(ctx, v)
-		// Register the viewer as an error attribute provider
-		vctx = AddErrorAttributeProvider(vctx, &v)
-		err := New(vctx, "with host context").(*FleetError)
-
-		require.JSONEq(t, string(err.data), `{"viewer":{"is_logged_in":true,"sso_enabled":true},"timestamp":"1969-06-19T21:44:05Z"}`)
 	})
 }
 
