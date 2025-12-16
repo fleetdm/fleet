@@ -527,7 +527,7 @@ func (ds *Datastore) labelDB(ctx context.Context, lid uint, teamFilter fleet.Tea
 
 // ListLabels returns all labels limited or sorted by fleet.ListOptions.
 // MatchQuery not supported
-func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
+func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
 	if opt.After != "" {
 		return nil, &fleet.BadRequestError{Message: "parameter 'after' is not supported"}
 	}
@@ -535,9 +535,11 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 		return nil, &fleet.BadRequestError{Message: "parameter 'query' is not supported"}
 	}
 
+	// TODO filtering; treat team 0 as explicit global
+
 	query := "SELECT * FROM labels l "
-	// If a team filter is provided, filter host membership by team and return counts with the labels.
-	if filter.User != nil {
+	// When applicable, filter host membership by team and return counts with the labels.
+	if filter.User != nil && includeHostCounts {
 		query = fmt.Sprintf(`
 				SELECT *,
 					(SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s) AS host_count
@@ -547,7 +549,7 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 	}
 
 	query, params := appendListOptionsToSQL(query, &opt)
-	labels := []*fleet.Label{}
+	var labels []*fleet.Label
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, params...); err != nil {
 		// it's ok if no labels exist
@@ -1327,8 +1329,9 @@ func amountLabelsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 	return amount, nil
 }
 
-func (ds *Datastore) LabelsSummary(ctx context.Context) ([]*fleet.LabelSummary, error) {
-	labelsSummary := []*fleet.LabelSummary{}
+func (ds *Datastore) LabelsSummary(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSummary, error) {
+	var labelsSummary []*fleet.LabelSummary
+	// TODO team filtering
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labelsSummary, "SELECT id, name, description, label_type, team_id FROM labels"); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "labels summary")
 	}

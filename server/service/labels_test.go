@@ -114,10 +114,10 @@ func TestLabelsAuth(t *testing.T) {
 			_, err = svc.GetLabelSpec(ctx, "abc")
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.ListLabels(ctx, fleet.ListOptions{}, true)
+			_, err = svc.ListLabels(ctx, fleet.ListOptions{}, nil, true)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.LabelsSummary((ctx))
+			_, err = svc.LabelsSummary((ctx), nil)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.ListHostsInLabel(ctx, 1, fleet.HostListOptions{})
@@ -145,7 +145,7 @@ func TestListLabelsHostCountOptions(t *testing.T) {
 	}
 
 	// Test explicitly setting include_host_counts to false
-	_, err := svc.ListLabels(ctx, fleet.ListOptions{}, false)
+	_, err := svc.ListLabels(ctx, fleet.ListOptions{}, nil, false)
 	require.NoError(t, err)
 
 	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.Label, error) {
@@ -155,7 +155,7 @@ func TestListLabelsHostCountOptions(t *testing.T) {
 	}
 
 	// Test explicitly setting include_host_counts to true
-	_, err = svc.ListLabels(ctx, fleet.ListOptions{}, true)
+	_, err = svc.ListLabels(ctx, fleet.ListOptions{}, nil, true)
 	require.NoError(t, err)
 }
 
@@ -198,11 +198,11 @@ func testLabelsListLabels(t *testing.T, ds *mysql.Datastore) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 	require.NoError(t, ds.MigrateData(context.Background()))
 
-	labels, err := svc.ListLabels(test.UserContext(ctx, test.UserAdmin), fleet.ListOptions{Page: 0, PerPage: 1000}, true)
+	labels, err := svc.ListLabels(test.UserContext(ctx, test.UserAdmin), fleet.ListOptions{Page: 0, PerPage: 1000}, nil, true)
 	require.NoError(t, err)
 	require.Len(t, labels, 8)
 
-	labelsSummary, err := svc.LabelsSummary(test.UserContext(ctx, test.UserAdmin))
+	labelsSummary, err := svc.LabelsSummary(test.UserContext(ctx, test.UserAdmin), nil)
 	require.NoError(t, err)
 	require.Len(t, labelsSummary, 8)
 }

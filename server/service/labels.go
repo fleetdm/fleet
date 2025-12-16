@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -279,6 +280,7 @@ func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.LabelWithTeam
 
 type listLabelsRequest struct {
 	ListOptions       fleet.ListOptions `url:"list_options"`
+	TeamID            *string           `query:"team_id,optional"` // string because it's an int or "global"
 	IncludeHostCounts *bool             `query:"include_host_counts,optional"`
 }
 
@@ -297,7 +299,7 @@ func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		includeHostCounts = *req.IncludeHostCounts
 	}
 
-	labels, err := svc.ListLabels(ctx, req.ListOptions, includeHostCounts)
+	labels, err := svc.ListLabels(ctx, req.ListOptions, getTeamIDOrZeroForGlobal(req.TeamID), includeHostCounts)
 	if err != nil {
 		return listLabelsResponse{Err: err}, nil
 	}
@@ -313,20 +315,30 @@ func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	return resp, nil
 }
 
-func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
+func getTeamIDOrZeroForGlobal(stringID *string) *uint {
+	if stringID == nil || *stringID == "" {
+		return nil
+	}
+
+	if *stringID == "global" {
+		return ptr.Uint(0)
+	}
+
+	if parsedTeamID, err := strconv.ParseUint(*req.TeamID, 10, 64); err == nil {
+		return ptr.Uint(uint(parsedTeamID))
+	}
+
+	return nil
+}
+
+func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions, teamID *uint, includeHostCounts bool) ([]*fleet.Label, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	filter := fleet.TeamFilter{}
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, fleet.ErrNoContext
-	}
-
-	// Default to including host counts.
-	if includeHostCounts {
-		filter = fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 	}
 
 	// TODO(mna): ListLabels doesn't currently return the hostIDs members of the
@@ -335,7 +347,7 @@ func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions, inclu
 	// would probably be to do it in 2 queries : grab all label IDs from the
 	// list, then select hostID+labelID tuples in one query (where labelID IN
 	// <list of ids>)and fill the hostIDs per label.
-	return svc.ds.ListLabels(ctx, filter, opt)
+	return svc.ds.ListLabels(ctx, fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID}, opt, includeHostCounts)
 }
 
 func labelResponseForLabel(label *fleet.Label, hostIDs []uint) (*labelResponse, error) {
@@ -360,6 +372,10 @@ func labelResponseForLabelWithTeamName(label *fleet.LabelWithTeamName, hostIDs [
 // Labels Summary
 ////////////////////////////////////////////////////////////////////////////////
 
+type getLabelsSummaryRequest struct {
+	TeamID *string `query:"team_id,optional"` // string because it's an int or "global"
+}
+
 type getLabelsSummaryResponse struct {
 	Labels []*fleet.LabelSummary `json:"labels"`
 	Err    error                 `json:"error,omitempty"`
@@ -368,19 +384,26 @@ type getLabelsSummaryResponse struct {
 func (r getLabelsSummaryResponse) Error() error { return r.Err }
 
 func getLabelsSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	labels, err := svc.LabelsSummary(ctx)
+	req := request.(*getLabelsSummaryRequest)
+
+	labels, err := svc.LabelsSummary(ctx, getTeamIDOrZeroForGlobal(req.TeamID))
 	if err != nil {
 		return getLabelsSummaryResponse{Err: err}, nil
 	}
 	return getLabelsSummaryResponse{Labels: labels}, nil
 }
 
-func (svc *Service) LabelsSummary(ctx context.Context) ([]*fleet.LabelSummary, error) {
+func (svc *Service) LabelsSummary(ctx context.Context, teamID *uint) ([]*fleet.LabelSummary, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	return svc.ds.LabelsSummary(ctx)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	return svc.ds.LabelsSummary(ctx, fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID})
 }
 
 ////////////////////////////////////////////////////////////////////////////////

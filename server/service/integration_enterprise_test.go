@@ -22763,7 +22763,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsDistributedReadWrite() {
 	filterLabelQueries := func(queries map[string]string) map[string]string {
 		allLabels, err := s.ds.ListLabels(t.Context(), fleet.TeamFilter{
 			User: user,
-		}, fleet.ListOptions{})
+		}, fleet.ListOptions{}, false)
 		require.NoError(t, err)
 		builtinLabels := make(map[string]struct{})
 		for _, label := range allLabels {
