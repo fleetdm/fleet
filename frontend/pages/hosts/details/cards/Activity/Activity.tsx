@@ -28,7 +28,14 @@ const baseClass = "host-activity-card";
 const UpcomingTooltip = () => {
   return (
     <TooltipWrapper
-      tipContent="Failure of one activity won't cancel other activities."
+      tipContent={
+        <>
+          Failure of one activity won&apos;t cancel other activities.
+          <br />
+          <br />
+          Currently, only software and scripts are guaranteed to run in order.
+        </>
+      }
       className={`${baseClass}__upcoming-tooltip`}
     >
       Activities run as listed
