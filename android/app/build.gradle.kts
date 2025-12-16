@@ -26,6 +26,8 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        buildConfigField("String", "INFO_URL", "\"https://fleetdm.com/better\"")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Pass integration test flag from project property to instrumentation runner
@@ -110,6 +112,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         resources {
@@ -143,6 +146,7 @@ kotlin {
     jvmToolchain(17)
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        freeCompilerArgs.add("-opt-in=androidx.compose.material3.ExperimentalMaterial3Api")
     }
 }
 
@@ -273,4 +277,6 @@ dependencies {
     // Preferences DataStore (SharedPreferences like APIs)
     implementation("androidx.datastore:datastore-preferences:1.2.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    implementation("androidx.navigation:navigation-compose:2.9.6")
+    implementation("androidx.compose.material:material-icons-extended:1.7.8")
 }
