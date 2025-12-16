@@ -14968,7 +14968,7 @@ func (s *integrationTestSuite) TestGetCertificateTemplate() {
 	t := s.T()
 	ctx := context.Background()
 
-	// Enable Android MDM and verify GetHost returns operation_type for certificate templates
+	// Enable Android MDM
 	appCfg, err := s.ds.AppConfig(ctx)
 	require.NoError(t, err)
 	origAndroidEnabled := appCfg.MDM.AndroidEnabledAndConfigured
@@ -14989,13 +14989,13 @@ func (s *integrationTestSuite) TestGetCertificateTemplate() {
 	teamID := team.ID
 
 	orbitNodeKey := uuid.New().String()
-	uuid := uuid.New().String()
-	hostName := "test-update-host-certificate-template"
+	hostUUID := uuid.New().String()
+	hostName := "test-get-certificate-template"
 
 	// Create a host
 	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		NodeKey:  &orbitNodeKey,
-		UUID:     uuid,
+		UUID:     hostUUID,
 		Hostname: hostName,
 		Platform: "android",
 		TeamID:   &teamID,
@@ -15004,12 +15004,14 @@ func (s *integrationTestSuite) TestGetCertificateTemplate() {
 
 	host.OrbitNodeKey = &orbitNodeKey
 	require.NoError(t, s.ds.UpdateHost(ctx, host))
+
+	// Set MDM enrollment so CreatePendingCertificateTemplatesForExistingHosts will find the host
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", false, "", "", false))
 
 	// Create a test certificate authority
 	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      ptr.String("TestUpdateHostCertificateTemplate SCEP CA"),
+		Name:      ptr.String("TestGetCertificateTemplate SCEP CA"),
 		URL:       ptr.String("http://localhost:8080/scep"),
 		Challenge: ptr.String("test-challenge"),
 	})
@@ -15018,7 +15020,7 @@ func (s *integrationTestSuite) TestGetCertificateTemplate() {
 
 	var createTemplateResp createCertificateTemplateResponse
 	creq := createCertificateTemplateRequest{
-		Name:                   "TestUpdateHostCertificateTemplate-Cert",
+		Name:                   "TestGetCertificateTemplate-Cert",
 		TeamID:                 teamID,
 		CertificateAuthorityId: caID,
 		SubjectName:            "CN=Test Subject 1",
@@ -15029,14 +15031,57 @@ func (s *integrationTestSuite) TestGetCertificateTemplate() {
 
 	// Delete the certificate after the test is done, so the team can be deleted.
 	defer func() {
-		// Clean up
 		err = s.ds.DeleteCertificateTemplate(ctx, certificateTemplateID)
 		require.NoError(t, err)
 	}()
 
-	// GET certificate API should return not found because the
-	// host_certificate_template is not in a delivered state
-	s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certificateTemplateID), nil, http.StatusNotFound, map[string]string{
-		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
-	})
+	// Table-driven test for all certificate status types.
+	// Only "delivered" status should return 200; all others should return 404.
+	cases := []struct {
+		name           string
+		status         fleet.CertificateTemplateStatus
+		expectedStatus int
+	}{
+		{
+			name:           "pending status",
+			status:         fleet.CertificateTemplatePending,
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:           "delivering status",
+			status:         fleet.CertificateTemplateDelivering,
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:           "failed status",
+			status:         fleet.CertificateTemplateFailed,
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:           "verified status",
+			status:         fleet.CertificateTemplateVerified,
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:           "delivered status",
+			status:         fleet.CertificateTemplateDelivered,
+			expectedStatus: http.StatusOK,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Update the host_certificate_templates status for this test case
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx,
+					`UPDATE host_certificate_templates SET status = ? WHERE host_uuid = ? AND certificate_template_id = ?`,
+					tc.status, hostUUID, certificateTemplateID)
+				return err
+			})
+
+			s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certificateTemplateID), nil, tc.expectedStatus, map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			})
+		})
+	}
 }
