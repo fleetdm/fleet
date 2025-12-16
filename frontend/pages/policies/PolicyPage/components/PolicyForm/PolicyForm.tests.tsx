@@ -8,6 +8,7 @@ import userEvent from "@testing-library/user-event";
 import createMockPolicy from "__mocks__/policyMock";
 import createMockUser from "__mocks__/userMock";
 import createMockConfig from "__mocks__/configMock";
+import { createMockTeamSummary } from "__mocks__/teamMock";
 
 import { ILabelSummary } from "interfaces/label";
 import PolicyForm from "./PolicyForm";
@@ -305,6 +306,7 @@ describe("PolicyForm - component", () => {
         context: {
           app: {
             currentUser: createMockUser(),
+            currentTeam: createMockTeamSummary(),
             isGlobalObserver: false,
             isGlobalAdmin: true,
             isGlobalMaintainer: false,
