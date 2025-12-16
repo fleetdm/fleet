@@ -14963,3 +14963,80 @@ INSERT INTO host_certificate_templates (
 		})
 	}
 }
+
+func (s *integrationTestSuite) TestGetCertificateTemplate() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Enable Android MDM and verify GetHost returns operation_type for certificate templates
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origAndroidEnabled := appCfg.MDM.AndroidEnabledAndConfigured
+	appCfg.MDM.AndroidEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	err = s.ds.SetAndroidEnabledAndConfigured(ctx, true)
+	require.NoError(t, err)
+	defer func() {
+		appCfg.MDM.AndroidEnabledAndConfigured = origAndroidEnabled
+		_ = s.ds.SaveAppConfig(ctx, appCfg)
+		_ = s.ds.SetAndroidEnabledAndConfigured(ctx, origAndroidEnabled)
+	}()
+
+	// Create a test team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
+	require.NoError(t, err)
+	teamID := team.ID
+
+	orbitNodeKey := uuid.New().String()
+	uuid := uuid.New().String()
+	hostName := "test-update-host-certificate-template"
+
+	// Create a host
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		NodeKey:  &orbitNodeKey,
+		UUID:     uuid,
+		Hostname: hostName,
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	host.OrbitNodeKey = &orbitNodeKey
+	require.NoError(t, s.ds.UpdateHost(ctx, host))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", false, "", "", false))
+
+	// Create a test certificate authority
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("TestUpdateHostCertificateTemplate SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID := ca.ID
+
+	var createTemplateResp createCertificateTemplateResponse
+	creq := createCertificateTemplateRequest{
+		Name:                   "TestUpdateHostCertificateTemplate-Cert",
+		TeamID:                 teamID,
+		CertificateAuthorityId: caID,
+		SubjectName:            "CN=Test Subject 1",
+	}
+	s.DoJSON("POST", "/api/latest/fleet/certificates", creq, http.StatusOK, &createTemplateResp)
+
+	certificateTemplateID := createTemplateResp.ID
+
+	// Delete the certificate after the test is done, so the team can be deleted.
+	defer func() {
+		// Clean up
+		err = s.ds.DeleteCertificateTemplate(ctx, certificateTemplateID)
+		require.NoError(t, err)
+	}()
+
+	// GET certificate API should return not found because the
+	// host_certificate_template is not in a delivered state
+	s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certificateTemplateID), nil, http.StatusNotFound, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+	})
+}

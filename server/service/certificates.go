@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 )
 
 type createCertificateTemplateRequest struct {
@@ -161,6 +162,17 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 	certificate, err := svc.ds.GetCertificateTemplateByIdForHost(ctx, id, host.UUID)
 	if err != nil {
 		return nil, err
+	}
+
+	// Return not found error if certificate is not in a delivered state
+	switch certificate.Status {
+	case fleet.CertificateTemplateFailed, fleet.CertificateTemplateVerified:
+		level.Error(svc.logger).Log("msg", "host certificate template is in unexpected state", "host_uuid", host.UUID, "certificate_template_id", id)
+		return nil, newNotFoundError()
+	case fleet.CertificateTemplatePending, fleet.CertificateTemplateDelivering:
+		// certificate is still being processed, it may have been deleted
+		// after being sent to the host
+		return nil, newNotFoundError()
 	}
 
 	// team_id = 0 for hosts without a team
