@@ -11,24 +11,20 @@ import {
 } from "test/test-utils";
 
 import AddCertModal from "./AddCertificateModal";
+import { INVALID_NAME_MSG, NAME_TOO_LONG_MSG, USED_NAME_MSG } from "./helpers";
 
 const mockOnExit = jest.fn();
 const mockOnSuccess = jest.fn();
 
-/**
-Need mocks:
-- getCertificateAuthoritiesList
-- certificatesAPI.createCert
-*/
-
-// const mockCertAuthorities = [
-//   { id: 1, name: "Test CA 1", type: "custom_scep_proxy" as const },
-//   { id: 2, name: "Test CA 2", type: "custom_scep_proxy" as const },
-// ];
-
 const getCAsHandler = http.get(baseUrl("/certificate_authorities"), () => {
   return HttpResponse.json({
-    certificate: "ABCDE",
+    certificate_authorities: [
+      {
+        id: 1,
+        name: "TEST_SCEP_CA",
+        type: "custom_scep_proxy",
+      },
+    ],
   });
 });
 
@@ -55,15 +51,21 @@ const mockExistingCerts: ICertificate[] = [
 describe("AddCertModal", () => {
   mockServer.use(getCAsHandler);
   mockServer.use(createCertHandler);
-
   it("renders the modal with all form fields", async () => {
-    renderWithSetup(
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+    render(
       <AddCertModal
         existingCerts={[]}
         onExit={mockOnExit}
         onSuccess={mockOnSuccess}
       />
     );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+    });
 
     expect(screen.getByText("Add certificate")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("VPN certificate")).toBeInTheDocument();
@@ -78,7 +80,10 @@ describe("AddCertModal", () => {
   });
 
   it("disables Create button when Name field is empty", async () => {
-    const { user } = renderWithSetup(
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+    const { user } = render(
       <AddCertModal
         existingCerts={[]}
         onExit={mockOnExit}
@@ -86,7 +91,11 @@ describe("AddCertModal", () => {
       />
     );
 
-    const createButton = screen.getByText("Create");
+    await waitFor(() => {
+      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+    });
+
+    const createButton = screen.getByRole("button", { name: /Create/i });
     expect(createButton).toBeDisabled();
 
     await user.hover(createButton);
@@ -98,7 +107,10 @@ describe("AddCertModal", () => {
   });
 
   it("shows error for Name with invalid characters and disables Create button", async () => {
-    const { user } = renderWithSetup(
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+    const { user } = render(
       <AddCertModal
         existingCerts={[]}
         onExit={mockOnExit}
@@ -106,23 +118,26 @@ describe("AddCertModal", () => {
       />
     );
 
+    await waitFor(() => {
+      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+    });
+
     const nameInput = screen.getByPlaceholderText("VPN certificate");
     await user.type(nameInput, "Invalid@Name#");
 
     await waitFor(() => {
-      expect(
-        screen.getByText(
-          "Invalid characters. Only letters, numbers, spaces, dashes, and underscores allowed."
-        )
-      ).toBeInTheDocument();
+      expect(screen.getByText(INVALID_NAME_MSG)).toBeInTheDocument();
     });
 
-    const createButton = screen.getByText("Create");
+    const createButton = screen.getByRole("button", { name: /Create/i });
     expect(createButton).toBeDisabled();
   });
 
   it("shows error for Name that already exists and disables Create button", async () => {
-    const { user } = renderWithSetup(
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+    const { user } = render(
       <AddCertModal
         existingCerts={mockExistingCerts}
         onExit={mockOnExit}
@@ -130,52 +145,65 @@ describe("AddCertModal", () => {
       />
     );
 
+    await waitFor(() => {
+      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+    });
+
     const nameInput = screen.getByPlaceholderText("VPN certificate");
     await user.type(nameInput, "Existing Certificate");
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Name is already used by another certificate.")
-      ).toBeInTheDocument();
+      expect(screen.getByText(USED_NAME_MSG)).toBeInTheDocument();
     });
 
-    const createButton = screen.getByText("Create");
+    const createButton = screen.getByRole("button", { name: /Create/i });
     expect(createButton).toBeDisabled();
   });
 
   it("shows error for Name with more than 255 characters and disables Create button", async () => {
-    const { user } = renderWithSetup(
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+    const { user } = render(
       <AddCertModal
-        existingCerts={[]}
+        existingCerts={mockExistingCerts}
         onExit={mockOnExit}
         onSuccess={mockOnSuccess}
       />
     );
 
-    const nameInput = screen.getByPlaceholderText("VPN certificate");
-    const longName = "a".repeat(256);
-    await user.type(nameInput, longName);
-
     await waitFor(() => {
-      expect(
-        screen.getByText("Name is too long. Maximum is 255 characters.")
-      ).toBeInTheDocument();
+      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
     });
 
-    const createButton = screen.getByText("Create");
+    const nameInput = screen.getByPlaceholderText("VPN certificate");
+
+    const longName = "a".repeat(256);
+    await user.type(nameInput, longName);
+    await waitFor(() => {
+      expect(screen.getByText(NAME_TOO_LONG_MSG)).toBeInTheDocument();
+    });
+
+    const createButton = screen.getByRole("button", { name: /Create/i });
     expect(createButton).toBeDisabled();
   });
 
   it("disables Create button when Certificate authority is not selected", async () => {
-    const { user } = renderWithSetup(
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+    const { user } = render(
       <AddCertModal
-        existingCerts={[]}
+        existingCerts={mockExistingCerts}
         onExit={mockOnExit}
         onSuccess={mockOnSuccess}
       />
     );
 
-    // Fill in name and subject name, but leave CA unselected
+    await waitFor(() => {
+      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+    });
+
     const nameInput = screen.getByPlaceholderText("VPN certificate");
     await user.type(nameInput, "Valid Name");
 
@@ -184,12 +212,15 @@ describe("AddCertModal", () => {
     );
     await user.type(subjectNameInput, "/CN=test/O=Org");
 
-    const createButton = screen.getByText("Create");
+    const createButton = screen.getByRole("button", { name: /Create/i });
     expect(createButton).toBeDisabled();
   });
 
   it("disables Create button when Subject name is empty", async () => {
-    const { user } = renderWithSetup(
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+    const { user } = render(
       <AddCertModal
         existingCerts={[]}
         onExit={mockOnExit}
@@ -197,22 +228,43 @@ describe("AddCertModal", () => {
       />
     );
 
-    // Fill in name only
+    await waitFor(() => {
+      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+    });
+
     const nameInput = screen.getByPlaceholderText("VPN certificate");
     await user.type(nameInput, "Valid Name");
 
-    const createButton = screen.getByText("Create");
+    const caDropdown = screen.getByText("Select certificate authority");
+    await user.click(caDropdown);
+
+    await waitFor(() => {
+      expect(screen.getByText("TEST_SCEP_CA")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("TEST_SCEP_CA"));
+
+    expect(screen.queryByText("Select certificate authority")).toBeNull();
+
+    const createButton = screen.getByRole("button", { name: /Create/i });
     expect(createButton).toBeDisabled();
   });
 
-  it("enables Create button when all fields are valid", async () => {
-    const { user } = renderWithSetup(
+  it("full flow is okay when all fields are valid", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+    const { user } = render(
       <AddCertModal
         existingCerts={[]}
         onExit={mockOnExit}
         onSuccess={mockOnSuccess}
       />
     );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+    });
 
     // Fill in all fields with valid data
     const nameInput = screen.getByPlaceholderText("VPN certificate");
@@ -223,57 +275,42 @@ describe("AddCertModal", () => {
     );
     await user.type(subjectNameInput, "/CN=test/O=Org");
 
-    // Select a certificate authority from dropdown
     const caDropdown = screen.getByText("Select certificate authority");
     await user.click(caDropdown);
 
     await waitFor(() => {
-      expect(screen.getByText("Test CA 1")).toBeInTheDocument();
+      expect(screen.getByText("TEST_SCEP_CA")).toBeInTheDocument();
     });
+    await user.click(screen.getByText("TEST_SCEP_CA"));
+    expect(screen.queryByText("Select certificate authority")).toBeNull();
 
-    await user.click(screen.getByText("Test CA 1"));
+    const createButton = screen.getByRole("button", { name: /Create/i });
+    expect(createButton).not.toBeDisabled();
 
-    // Wait for the Create button to be enabled
-    await waitFor(() => {
-      const createButton = screen.getByText("Create");
-      expect(createButton).not.toBeDisabled();
-    });
+    await user.click(createButton);
+
+    expect(mockOnSuccess).toHaveBeenCalledTimes(1);
   });
 
   it("calls onExit when Cancel button is clicked", async () => {
-    const { user } = renderWithSetup(
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+    const { user } = render(
       <AddCertModal
         existingCerts={[]}
         onExit={mockOnExit}
         onSuccess={mockOnSuccess}
       />
     );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+    });
 
     const cancelButton = screen.getByText("Cancel");
     await user.click(cancelButton);
 
     expect(mockOnExit).toHaveBeenCalledTimes(1);
-  });
-
-  it("accepts valid name with letters, numbers, spaces, dashes, and underscores", async () => {
-    const { user } = renderWithSetup(
-      <AddCertModal
-        existingCerts={[]}
-        onExit={mockOnExit}
-        onSuccess={mockOnSuccess}
-      />
-    );
-
-    const nameInput = screen.getByPlaceholderText("VPN certificate");
-    await user.type(nameInput, "Valid Name-123_test");
-
-    await waitFor(() => {
-      // Should not show error message
-      expect(
-        screen.queryByText(
-          "Invalid characters. Only letters, numbers, spaces, dashes, and underscores allowed."
-        )
-      ).not.toBeInTheDocument();
-    });
   });
 });

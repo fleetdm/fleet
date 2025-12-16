@@ -8,6 +8,11 @@ export interface IAddCertFormValidation {
   subjectName?: { isValid: boolean; message?: string };
 }
 
+export const INVALID_NAME_MSG =
+  "Invalid characters. Only letters, numbers, spaces, dashes, and underscores allowed.";
+export const USED_NAME_MSG = "Name is already used by another certificate.";
+export const NAME_TOO_LONG_MSG = "Name is too long. Maximum is 255 characters.";
+
 type IMessageFunc = (formData: IAddCertFormData) => string;
 type IValidationMessage = string | IMessageFunc;
 type IFormValidationKey = keyof Omit<IAddCertFormValidation, "isValid">;
@@ -40,8 +45,7 @@ export const generateFormValidations = (
           isValid: (formData: IAddCertFormData) => {
             return /^[a-zA-Z0-9 \-_]+$/.test(formData.name);
           },
-          message:
-            "Invalid characters. Only letters, numbers, spaces, dashes, and underscores allowed.",
+          message: INVALID_NAME_MSG,
         },
         {
           name: "unique",
@@ -53,14 +57,14 @@ export const generateFormValidations = (
               ) === undefined
             );
           },
-          message: "Name is already used by another certificate.",
+          message: USED_NAME_MSG,
         },
         {
           name: "maxLength",
           isValid: (formData: IAddCertFormData) => {
             return formData.name.length <= 255;
           },
-          message: "Name is too long. Maximum is 255 characters.",
+          message: NAME_TOO_LONG_MSG,
         },
       ],
     },
