@@ -4410,7 +4410,7 @@ func (ds *Datastore) MaybeAssociateHostWithScimUser(ctx context.Context, host *f
 		return ctxerr.New(ctx, "MaybeAssociateHostWithScimUser: host is nil")
 	}
 
-	// If an existing SCIM user association exists for this host, nothing to do.
+	// Check for an existing SCIM user association for the host.
 	var existingSCIMUserID uint
 	checkExistingSQL := `SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &existingSCIMUserID, checkExistingSQL, host.ID)
