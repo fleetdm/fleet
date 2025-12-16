@@ -156,6 +156,13 @@
       "description": "Apparency is an app to inspect application bundles."
     },
     {
+      "name": "AppCleaner",
+      "slug": "appcleaner/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.freemacsoft.AppCleaner",
+      "description": "AppCleaner is an application uninstaller."
+    },
+    {
       "name": "Arc",
       "slug": "arc/darwin",
       "platform": "darwin",
@@ -1435,6 +1442,13 @@
       "platform": "darwin",
       "unique_identifier": "com.gravitational.teleport.tsh",
       "description": "Teleport Suite is a modern SSH server for teams managing distributed infrastructure."
+    },
+    {
+      "name": "TextExpander",
+      "slug": "textexpander/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.smileonmymac.textexpander",
+      "description": "TextExpander is an application that let's you create and insert pre-made snippets of text anywhere."
     },
     {
       "name": "Thunderbird",

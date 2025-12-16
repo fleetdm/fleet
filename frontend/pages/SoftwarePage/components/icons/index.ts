@@ -19,6 +19,7 @@ import AndroidStudio from "./AndroidStudio";
 import Anka from "./Anka";
 import AnyDesk from "./AnyDesk";
 import Apparency from "./Apparency";
+import AppCleaner from "./AppCleaner";
 import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
 import Arc from "./Arc";
@@ -188,6 +189,7 @@ import Teams from "./Teams";
 import Telegram from "./Telegram";
 import TeleportConnect from "./TeleportConnect";
 import Terminal from "./Terminal";
+import TextExpander from "./TextExpander";
 import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
 import Tower from "./Tower";
@@ -240,6 +242,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   anka: Anka,
   anydesk: AnyDesk,
   apparency: Apparency,
+  appcleaner: AppCleaner,
   appleAppStore: AppleAppStore,
   arc: Arc,
   archaeology: Archaeology,
@@ -406,6 +409,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   teleport: TeleportConnect,
   terminal: Terminal,
   teamviewer: TeamViewer,
+  textexpander: TextExpander,
   thunderbird: Thunderbird,
   todoist: Todoist,
   tower: Tower,
