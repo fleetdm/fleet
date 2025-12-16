@@ -281,8 +281,6 @@ func (c *Client) authenticatedRequestWithQuery(params interface{}, verb string, 
 	if err != nil {
 		return fmt.Errorf("%s %s: %w", verb, path, err)
 	}
-	defer response.Body.Close()
-
 	return c.parseResponse(verb, path, response, responseDest)
 }
 

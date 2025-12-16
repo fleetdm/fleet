@@ -402,6 +402,9 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 	var replacingInstallDuringSetup bool
 	if len(incomingApps) == 0 || incomingApps[0].InstallDuringSetup != nil {
 		replacingInstallDuringSetup = true
+		// TODO(JK): if this is variable is still true by the end, and no errors happened, this means setup experience changed
+		// this has to be the only condition? because if IndividualApp.InstallDuringSetup is true, there will be an error
+		// maybe factor this out to a function?
 	}
 
 	var toAddApps []fleet.VPPAppTeam

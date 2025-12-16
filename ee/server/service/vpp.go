@@ -79,16 +79,17 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	for _, payload := range payloads {
 		if payload.Platform == "" && isAdamID.MatchString(payload.AppStoreID) {
 			// add all possible Apple platforms, we'll remove the ones that this app doesn't support later
-			payloadsWithPlatform = append(payloadsWithPlatform, fleet.VPPBatchPayloadWithPlatform{
-				AppStoreID:         payload.AppStoreID,
-				SelfService:        payload.SelfService,
-				InstallDuringSetup: payload.InstallDuringSetup,
-				Platform:           fleet.MacOSPlatform,
-				LabelsExcludeAny:   payload.LabelsExcludeAny,
-				LabelsIncludeAny:   payload.LabelsIncludeAny,
-				Categories:         payload.Categories,
-				DisplayName:        payload.DisplayName,
-			},
+			payloadsWithPlatform = append(payloadsWithPlatform,
+				fleet.VPPBatchPayloadWithPlatform{
+					AppStoreID:         payload.AppStoreID,
+					SelfService:        payload.SelfService,
+					InstallDuringSetup: payload.InstallDuringSetup,
+					Platform:           fleet.MacOSPlatform,
+					LabelsExcludeAny:   payload.LabelsExcludeAny,
+					LabelsIncludeAny:   payload.LabelsIncludeAny,
+					Categories:         payload.Categories,
+					DisplayName:        payload.DisplayName,
+				},
 				fleet.VPPBatchPayloadWithPlatform{
 					AppStoreID:         payload.AppStoreID,
 					SelfService:        payload.SelfService,
@@ -290,6 +291,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
+	// TODO(JK): duplicate code, add parameter, or extract to a function that doesn't use context?
+	var replacingInstallDuringSetup bool
+	if len(allPlatformApps) == 0 || allPlatformApps[0].InstallDuringSetup != nil {
+		replacingInstallDuringSetup = true
+	}
+
 	if err := svc.ds.SetTeamVPPApps(ctx, teamID, allPlatformApps, appStoreIDToTitleID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "no vpp token to set team vpp assets"), http.StatusUnprocessableEntity)
@@ -344,6 +351,13 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					},
 				)
 			}
+		}
+	}
+
+	if replacingInstallDuringSetup {
+		err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedSetupExperienceSoftware{TeamID: ptr.ValOrZero(teamID), TeamName: teamName})
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create edited setup experience activity")
 		}
 	}
 

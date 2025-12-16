@@ -356,6 +356,9 @@ func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context
 		return ctxerr.Wrap(ctx, err, "make android apps available")
 	}
 
+	// TODO(JK): think about setup experience
+	//
+
 	return nil
 }
 
