@@ -92,10 +92,7 @@ const ActivityItem = ({
     activityCreatedAt = new Date();
   }
 
-  const classNames = classnames(baseClass, className, {
-    [`${baseClass}__solo-activity`]: isSoloActivity,
-    [`${baseClass}__no-details`]: hideShowDetails,
-  });
+  const classNames = classnames(baseClass, className);
 
   const onShowActivityDetails = (e: React.MouseEvent<HTMLButtonElement>) => {
     // added this stopPropagation as there is some weirdness around the event
@@ -125,7 +122,7 @@ const ActivityItem = ({
       isSoloItem={isSoloActivity}
       onClickFeedItem={onShowActivityDetails}
       onClickCancel={onCancelActivity}
-      className={baseClass}
+      className={classNames}
     >
       {children}
     </FeedListItem>
