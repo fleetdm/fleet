@@ -289,6 +289,13 @@
       "description": "Bruno is an open source IDE for exploring and testing APIs."
     },
     {
+      "name": "calibre",
+      "slug": "calibre/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.kovidgoyal.calibre",
+      "description": "calibre is e-book management software."
+    },
+    {
       "name": "Camtasia",
       "slug": "camtasia/darwin",
       "platform": "darwin",
@@ -448,6 +455,13 @@
       "platform": "windows",
       "unique_identifier": "Cyberduck",
       "description": "Cyberduck is a server and cloud storage browser."
+    },
+    {
+      "name": "Dash",
+      "slug": "dash/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.kapeli.dashdoc",
+      "description": "Dash is an API documentation browser and code snippet manager."
     },
     {
       "name": "DataGrip",
