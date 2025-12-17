@@ -3,6 +3,7 @@ import classnames from "classnames";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import { IHostUpcomingActivity } from "interfaces/activity";
+import { isAppleDevice } from "interfaces/platform";
 import {
   IHostPastActivitiesResponse,
   IHostUpcomingActivitiesResponse,
@@ -45,6 +46,7 @@ const UpcomingTooltip = () => {
 
 interface IActivityProps {
   activeTab: "past" | "upcoming";
+  showMDMCommandsToggle: boolean;
   showMDMCommands: boolean;
   activities?: IHostPastActivitiesResponse | IHostUpcomingActivitiesResponse;
   commands?: IGetCommandsResponse;
@@ -67,6 +69,7 @@ interface IActivityProps {
 
 const Activity = ({
   activeTab,
+  showMDMCommandsToggle,
   showMDMCommands,
   activities,
   commands,
@@ -117,12 +120,14 @@ const Activity = ({
             </Tab>
           </TabList>
           <TabPanel className={`${baseClass}__tab-panel`}>
-            <MDMCommandsToggle
-              showMDMCommands={showMDMCommands}
-              onToggleMDMCommands={
-                showMDMCommands ? onHideMDMCommands : onShowMDMCommands
-              }
-            />
+            {showMDMCommandsToggle && (
+              <MDMCommandsToggle
+                showMDMCommands={showMDMCommands}
+                onToggleMDMCommands={
+                  showMDMCommands ? onHideMDMCommands : onShowMDMCommands
+                }
+              />
+            )}
             {showMDMCommands ? (
               <PastCommandFeed
                 commands={commands?.results ?? []}
@@ -143,13 +148,15 @@ const Activity = ({
             )}
           </TabPanel>
           <TabPanel className={`${baseClass}__tab-panel`}>
-            <MDMCommandsToggle
-              showMDMCommands={showMDMCommands}
-              commandCount={commandCount}
-              onToggleMDMCommands={
-                showMDMCommands ? onHideMDMCommands : onShowMDMCommands
-              }
-            />
+            {showMDMCommandsToggle && (
+              <MDMCommandsToggle
+                showMDMCommands={showMDMCommands}
+                commandCount={commandCount}
+                onToggleMDMCommands={
+                  showMDMCommands ? onHideMDMCommands : onShowMDMCommands
+                }
+              />
+            )}
             {showMDMCommands ? (
               <UpcomingCommandFeed
                 commands={commands?.results ?? []}

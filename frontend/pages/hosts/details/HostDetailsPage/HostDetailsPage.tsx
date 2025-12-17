@@ -1351,6 +1351,7 @@ Observer plus must be checked against host's team id  */
                       isHostTeamAdmin ||
                       isHostTeamMaintainer
                     }
+                    showMDMCommandsToggle={isAppleDevice(host.platform)}
                     showMDMCommands={showMDMCommands}
                     onShowMDMCommands={() => {
                       setShowMDMCommands(true);
