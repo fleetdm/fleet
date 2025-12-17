@@ -2,6 +2,8 @@ import React from "react";
 import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
 
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+
 import { IActivityDetails } from "interfaces/activity";
 import { ICommandResult } from "interfaces/command";
 
@@ -168,20 +170,27 @@ const CommandResultsModal = ({
     Error,
     IGetCommandResultsResponse,
     IGetHostCommandResultsQueryKey[]
-  >([{ scope: "command_results", host_uuid, command_uuid }], ({ queryKey }) =>
-    commandApi.getHostCommandResults(queryKey[0]).then((resp) => {
-      if (!resp?.results) {
-        // this should not happen, but just in case return the response as is
-        return resp;
-      }
-      return {
-        results: resp.results.map?.((r) => ({
-          ...r,
-          payload: atob(r.payload),
-          result: atob(r.result),
-        })),
-      };
-    })
+  >(
+    [{ scope: "command_results", host_uuid, command_uuid }],
+    ({ queryKey }) =>
+      commandApi.getHostCommandResults(queryKey[0]).then((resp) => {
+        if (!resp?.results) {
+          // this should not happen, but just in case return the response as is
+          return resp;
+        }
+        return {
+          results: resp.results.map?.((r) => ({
+            ...r,
+            payload: atob(r.payload),
+            result: atob(r.result),
+          })),
+        };
+      }),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      keepPreviousData: true,
+      staleTime: 2000,
+    }
   );
 
   return (
