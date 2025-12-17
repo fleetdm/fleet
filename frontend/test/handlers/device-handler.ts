@@ -8,7 +8,7 @@ import createMockHost from "__mocks__/hostMock";
 import createMockLicense from "__mocks__/licenseMock";
 import createMockMacAdmins from "__mocks__/macAdminsMock";
 import { createMockHostCertificate } from "__mocks__/certificatesMock";
-import { createMockMdmCommandResult } from "__mocks__/mdmMock";
+import { createMockAppleMdmCommandResult } from "__mocks__/commandMock";
 
 import { baseUrl } from "test/test-utils";
 import { IDeviceUserResponse } from "interfaces/host";
@@ -105,7 +105,7 @@ export const getDeviceVppCommandResultHandler = http.get(
       statusMap[uuid as "notnow-uuid" | "acknowledged-uuid" | "uuid-failed"] ||
       "Acknowledged";
 
-    const mdmCommand = createMockMdmCommandResult({
+    const mdmCommand = createMockAppleMdmCommandResult({
       command_uuid: uuid as string,
       status,
       payload: btoa(`payload for ${uuid}`),

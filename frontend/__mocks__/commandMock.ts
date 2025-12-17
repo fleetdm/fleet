@@ -1,4 +1,4 @@
-import { ICommand } from "interfaces/command";
+import { ICommand, ICommandResult } from "interfaces/command";
 import { IGetCommandsResponse } from "services/entities/command";
 
 const DEFAULT_COMMAND_MOCK: ICommand = {
@@ -27,3 +27,33 @@ export const createMockGetCommandsResponse = (
   ...DEFAULT_GET_COMMANDS_RESPONSE_MOCK,
   ...overrides,
 });
+
+/**
+ * Creates mock of an Apple MDM command result that implements the ICommandResult interface.
+ */
+
+export const createMockAppleMdmCommandResult = (
+  overrides?: Partial<ICommandResult>
+): ICommandResult => {
+  const defaultPayload = `<Command>
+    <RequestType>InstallApplication</RequestType>
+    <Identifier>com.example.MockApp</Identifier>
+  </Command>`;
+
+  const defaultResult = `<Result>
+    <Status>Acknowledged</Status>
+    <Message>Installation complete</Message>
+  </Result>`;
+
+  return {
+    host_uuid: "11111111-2222-3333-4444-555555555555",
+    command_uuid: "mock-command-uuid-1234",
+    status: "Acknowledged", // or "Error", "NotNow", "200", etc.
+    updated_at: "2025-08-10T12:05:00Z",
+    request_type: "InstallApplication",
+    hostname: "Mock iPhone",
+    payload: btoa(defaultPayload),
+    result: btoa(defaultResult),
+    ...overrides,
+  };
+};

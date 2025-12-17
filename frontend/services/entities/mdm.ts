@@ -2,7 +2,6 @@ import {
   IBootstrapPackageAggregate,
   IBootstrapPackageMetadata,
   IHostMdmProfile,
-  IMdmCommandResult,
   IMdmProfile,
   IMdmSSOReponse,
   MdmProfileStatus,
@@ -79,10 +78,6 @@ export interface IMDMAppleEnrollmentProfileParams {
   token: string;
   ref?: string;
   deviceinfo?: string;
-}
-
-export interface IGetMdmCommandResultsResponse {
-  results: IMdmCommandResult[];
 }
 
 export interface IGetSetupExperienceScriptResponse {
@@ -356,14 +351,6 @@ const mdmService = {
       { team_id: teamId }
     )}`;
     return sendRequest("DELETE", path);
-  },
-
-  getCommandResults: (
-    command_uuid: string
-  ): Promise<IGetMdmCommandResultsResponse> => {
-    const { COMMANDS_RESULTS: MDM_COMMANDS_RESULTS } = endpoints;
-    const url = `${MDM_COMMANDS_RESULTS}?command_uuid=${command_uuid}`;
-    return sendRequest("GET", url);
   },
 
   downloadManualEnrollmentProfile: (token: string) => {

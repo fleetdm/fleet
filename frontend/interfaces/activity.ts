@@ -212,6 +212,7 @@ export interface IActivityDetails {
   bootstrap_package_name?: string;
   batch_execution_id?: string;
   command_uuid?: string;
+  host_uuid?: string;
   deadline_days?: number;
   deadline?: string;
   email?: string;
