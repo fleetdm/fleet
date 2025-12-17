@@ -89,6 +89,7 @@ jobs:
             "has_windows_apps=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_google_chrome=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_7zip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "has_dotnet_runtime=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             exit 0
           }
 
@@ -100,6 +101,7 @@ jobs:
             "has_windows_apps=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_google_chrome=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_7zip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "has_dotnet_runtime=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             Write-Host "No windows apps changed, skipping Windows workflow"
           } else {
             "has_windows_apps=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
@@ -121,6 +123,16 @@ jobs:
               Write-Host "7-zip detected in changed apps"
             } else {
               "has_7zip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            }
+
+            # Check if any microsoft-net-runtime-*/windows is in the changed apps
+            $dotnetRuntimeSlugs = $windowsSlugs | Where-Object { $_ -like "microsoft-net-runtime-*/windows" }
+            if ($dotnetRuntimeSlugs -and $dotnetRuntimeSlugs.Count -gt 0) {
+              "has_dotnet_runtime=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+              Write-Host "Microsoft .NET Runtime detected in changed apps:"
+              $dotnetRuntimeSlugs | ForEach-Object { Write-Host "  - $_" }
+            } else {
+              "has_dotnet_runtime=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             }
           }
         shell: pwsh
@@ -222,6 +234,114 @@ jobs:
 
           if (-not $found) {
             Write-Host "7-Zip uninstall path not found in registry"
+          }
+        shell: pwsh
+
+      - name: Install .NET Core Uninstall Tool
+        if: steps.check-windows-apps.outputs.has_windows_apps == 'true' && steps.check-windows-apps.outputs.has_dotnet_runtime == 'true'
+        run: |
+          Write-Host "Downloading .NET Core Uninstall Tool..."
+          $uninstallerUrl = "https://github.com/dotnet/cli-lab/releases/latest/download/dotnet-core-uninstall.msi"
+          $uninstallerPath = "$env:TEMP\dotnet-core-uninstall.msi"
+          Invoke-WebRequest -Uri $uninstallerUrl -OutFile $uninstallerPath
+          
+          Write-Host "Installing .NET Core Uninstall Tool..."
+          Start-Process -FilePath "msiexec.exe" -ArgumentList "/i", "`"$uninstallerPath`"", "/quiet", "/norestart" -Wait -NoNewWindow
+          
+          # Add to PATH if not already there
+          $uninstallerPath = "${env:ProgramFiles}\dotnet-core-uninstall"
+          if (Test-Path $uninstallerPath) {
+            Write-Host ".NET Core Uninstall Tool installed successfully"
+          } else {
+            Write-Host "Warning: .NET Core Uninstall Tool may not be in expected location"
+          }
+        shell: pwsh
+
+      - name: Remove pre-installed .NET runtimes
+        if: steps.check-windows-apps.outputs.has_windows_apps == 'true' && steps.check-windows-apps.outputs.has_dotnet_runtime == 'true'
+        run: |
+          Write-Host "Listing all installed .NET runtimes:"
+          
+          # Try to use dotnet-core-uninstall if available
+          $uninstallerExe = "${env:ProgramFiles}\dotnet-core-uninstall\dotnet-core-uninstall.exe"
+          if (Test-Path $uninstallerExe) {
+            Write-Host "Using .NET Core Uninstall Tool..."
+            & $uninstallerExe list --runtimes | Out-String | Write-Host
+            
+            # Get list of installed runtime versions
+            $runtimeList = & $uninstallerExe list --runtimes 2>&1 | Out-String
+            Write-Host $runtimeList
+            
+            # Remove all .NET Runtime versions (not just 6.0)
+            # The tool supports removing all runtimes with --all flag or by version pattern
+            Write-Host "Removing all installed .NET Runtime versions..."
+            $removeOutput = & $uninstallerExe remove --runtime --all --yes 2>&1 | Out-String
+            Write-Host $removeOutput
+            
+            # Verify removal
+            $remainingRuntimes = & $uninstallerExe list --runtimes 2>&1 | Out-String
+            if ($remainingRuntimes -match "Microsoft\.NET.*Runtime") {
+              Write-Host "Warning: Some .NET Runtime installations may still be present"
+              Write-Host $remainingRuntimes
+            } else {
+              Write-Host "Successfully removed all .NET Runtime installations"
+            }
+          } else {
+            Write-Host ".NET Core Uninstall Tool not found, trying registry-based removal..."
+            
+            # Fallback: Try to find and remove via registry
+            $uninstallPaths = @(
+              "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+              "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+            )
+            
+            $foundRuntimes = @()
+            foreach ($path in $uninstallPaths) {
+              $entries = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object {
+                $_.DisplayName -like "*Microsoft .NET Runtime*" -and
+                $_.Publisher -eq "Microsoft Corporation"
+              }
+              if ($entries) {
+                $foundRuntimes += $entries
+              }
+            }
+            
+            if ($foundRuntimes.Count -gt 0) {
+              Write-Host "Found $($foundRuntimes.Count) .NET Runtime installation(s):"
+              foreach ($runtime in $foundRuntimes) {
+                Write-Host "  - $($runtime.DisplayName)"
+                $uninstallString = if ($runtime.QuietUninstallString) {
+                  $runtime.QuietUninstallString
+                } elseif ($runtime.UninstallString) {
+                  $runtime.UninstallString
+                } else {
+                  $null
+                }
+                
+                if ($uninstallString) {
+                  Write-Host "    Uninstall string: $uninstallString"
+                  try {
+                    # Parse uninstall string
+                    if ($uninstallString -match '"([^"]+)"') {
+                      $exePath = $matches[1]
+                      $args = $uninstallString.Substring($matches[0].Length).Trim()
+                      if (-not $args -or $args -notmatch "/silent") {
+                        $args = "/silent"
+                      }
+                      Write-Host "    Executing: $exePath $args"
+                      Start-Process -FilePath $exePath -ArgumentList $args -Wait -NoNewWindow
+                      Write-Host "    Successfully removed $($runtime.DisplayName)"
+                    } else {
+                      Write-Host "    Could not parse uninstall string"
+                    }
+                  } catch {
+                    Write-Host "    Failed to remove $($runtime.DisplayName): $($_.Exception.Message)"
+                  }
+                }
+              }
+            } else {
+              Write-Host "No .NET Runtime installations found in registry"
+            }
           }
         shell: pwsh
 

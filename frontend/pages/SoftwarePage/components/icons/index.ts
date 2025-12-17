@@ -126,6 +126,7 @@ import MacOS from "./MacOS";
 import Mattermost from "./Mattermost";
 import Messenger from "./Messenger";
 import MicrosoftAutoUpdate from "./MicrosoftAutoUpdate";
+import MicrosoftDotNet from "./MicrosoftDotNet";
 import MicrosoftEdge from "./MicrosoftEdge";
 import MicrosoftOneNote from "./MicrosoftOneNote";
 import MicrosoftOutlook from "./MicrosoftOutlook";
@@ -326,6 +327,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   maccy: Maccy,
   mattermost: Mattermost,
   "microsoft autoupdate": MicrosoftAutoUpdate,
+  "microsoft .net runtime": MicrosoftDotNet,
   "mongodb compass": MongoDbCompass,
   "mozilla firefox": Firefox,
   "github desktop": GitHubDesktop,

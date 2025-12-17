@@ -982,6 +982,13 @@
       "description": "Microsoft Excel is the industry-standard spreadsheet software, perfect for data analysis, reporting, and visualization."
     },
     {
+      "name": "Microsoft .NET Runtime 6",
+      "slug": "microsoft-net-runtime-6/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft .NET Runtime - 6.0.36 (x64)",
+      "description": "Microsoft .NET Runtime 6 is the execution engine that runs applications built with the .NET framework."
+    },
+    {
       "name": "Microsoft OneNote",
       "slug": "microsoft-onenote/darwin",
       "platform": "darwin",
