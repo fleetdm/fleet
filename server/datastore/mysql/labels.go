@@ -552,7 +552,7 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 
 	query, params, err := applyLabelListTeamFilter(query, filter)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query to select labels")
+		return nil, err
 	}
 
 	query, params = appendListOptionsWithCursorToSQL(query, params, &opt)
@@ -569,6 +569,8 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 	return labels, nil
 }
 
+var errInaccessibleTeam = errors.New("The team ID you provided refers to a team that either does not exist or you do not have permission to access.")
+
 // applyLabelListTeamFilter requires labels to be aliased as "l" to work
 func applyLabelListTeamFilter(query string, filter fleet.TeamFilter) (string, []any, error) {
 	if filter.User == nil { // fall back to safe (global-only) filter if this happens (it shouldn't)
@@ -579,7 +581,7 @@ func applyLabelListTeamFilter(query string, filter fleet.TeamFilter) (string, []
 		if *filter.TeamID == 0 { // global labels only; any user can see them
 			return query + " WHERE l.team_id IS NULL", nil, nil
 		} else if !filter.UserCanAccessSelectedTeam() {
-			return "", nil, fleet.NewUserMessageError(errors.New("The team ID you provided refers to a team that either does not exist or you do not have permission to access."), 403)
+			return "", nil, fleet.NewUserMessageError(errInaccessibleTeam, 403)
 		} // else user can see the team labels they're asking for; return global labels plus that team's labels
 
 		return query + " WHERE l.team_id IS NULL OR l.team_id = ?", []any{*filter.TeamID}, nil
@@ -1365,7 +1367,7 @@ func (ds *Datastore) LabelsSummary(ctx context.Context, filter fleet.TeamFilter)
 	query := "SELECT id, name, description, label_type, team_id FROM labels l"
 	query, params, err := applyLabelListTeamFilter(query, filter)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query for labels summary")
+		return nil, err
 	}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labelsSummary, query, params...); err != nil {

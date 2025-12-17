@@ -1078,6 +1078,27 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 	err = db.ApplyLabelSpecs(context.Background(), newLabels)
 	require.Nil(t, err)
 
+	team1, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	team3, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team3"})
+	require.NoError(t, err)
+
+	team1Label, err := db.NewLabel(context.Background(), &fleet.Label{
+		Name:                "t1 label",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+		TeamID:              &team1.ID,
+	})
+	require.NoError(t, err)
+	team2Label, err := db.NewLabel(context.Background(), &fleet.Label{
+		Name:                "t2 label",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+		TeamID:              &team2.ID,
+	})
+	require.NoError(t, err)
+
+	// should only show global labels
 	labels, err = db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	require.Len(t, labels, 4)
@@ -1086,6 +1107,7 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 		labelsByID[l.ID] = l
 	}
 
+	// should show only global labels
 	ls, err := db.LabelsSummary(context.Background(), fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, ls, 4)
@@ -1105,6 +1127,137 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 	ls, err = db.LabelsSummary(context.Background(), fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, ls, 5)
+
+	// explicit global filter
+	ls, err = db.LabelsSummary(context.Background(), fleet.TeamFilter{
+		User:   &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserver}}},
+		TeamID: ptr.Uint(0),
+	})
+	require.NoError(t, err)
+	require.Len(t, ls, 5)
+
+	// global role filtered to team
+	ls, err = db.LabelsSummary(context.Background(), fleet.TeamFilter{
+		User:   &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+		TeamID: &team1.ID,
+	})
+	require.NoError(t, err)
+	require.Len(t, ls, 6)
+	foundTeamLabels := make(map[uint]fleet.LabelSummary)
+	for _, l := range ls {
+		if l.TeamID != nil {
+			foundTeamLabels[*l.TeamID] = *l
+		}
+	}
+	for team, label := range map[*fleet.Team]*fleet.Label{team1: team1Label} {
+		foundLabel, labelInMap := foundTeamLabels[team.ID]
+		require.Truef(t, labelInMap, "%s label should have been found", team.Name)
+		require.Equalf(t, label.ID, foundLabel.ID, "Found team label %s label did not match expected (%s)", foundLabel.Name, label.Name)
+	}
+
+	// team role filtered to user-accessible team
+	ls, err = db.LabelsSummary(context.Background(), fleet.TeamFilter{
+		User:   &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserverPlus}}},
+		TeamID: &team1.ID,
+	})
+	require.NoError(t, err)
+	require.Len(t, ls, 6)
+	foundTeamLabels = make(map[uint]fleet.LabelSummary)
+	for _, l := range ls {
+		if l.TeamID != nil {
+			foundTeamLabels[*l.TeamID] = *l
+		}
+	}
+	for team, label := range map[*fleet.Team]*fleet.Label{team1: team1Label} {
+		foundLabel, labelInMap := foundTeamLabels[team.ID]
+		require.Truef(t, labelInMap, "%s label should have been found", team.Name)
+		require.Equalf(t, label.ID, foundLabel.ID, "Found team label %s label did not match expected (%s)", foundLabel.Name, label.Name)
+	}
+
+	// team role filtered to inaccessible team
+	ls, err = db.LabelsSummary(context.Background(), fleet.TeamFilter{
+		User:   &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserverPlus}}},
+		TeamID: &team2.ID,
+	})
+	require.ErrorIs(t, err, errInaccessibleTeam)
+
+	// global role with no team filter
+	ls, err = db.LabelsSummary(context.Background(), fleet.TeamFilter{
+		User: &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+	})
+	require.NoError(t, err)
+	require.Len(t, ls, 7)
+	foundTeamLabels = make(map[uint]fleet.LabelSummary)
+	for _, l := range ls {
+		if l.TeamID != nil {
+			foundTeamLabels[*l.TeamID] = *l
+		}
+	}
+	for team, label := range map[*fleet.Team]*fleet.Label{team1: team1Label, team2: team2Label} {
+		foundLabel, labelInMap := foundTeamLabels[team.ID]
+		require.Truef(t, labelInMap, "%s label should have been found", team.Name)
+		require.Equalf(t, label.ID, foundLabel.ID, "Found team label %s label did not match expected (%s)", foundLabel.Name, label.Name)
+	}
+
+	// single-team user with no team filter
+	ls, err = db.LabelsSummary(context.Background(), fleet.TeamFilter{
+		User: &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserverPlus}}},
+	})
+	require.NoError(t, err)
+	require.Len(t, ls, 6)
+	foundTeamLabels = make(map[uint]fleet.LabelSummary)
+	for _, l := range ls {
+		if l.TeamID != nil {
+			foundTeamLabels[*l.TeamID] = *l
+		}
+	}
+	for team, label := range map[*fleet.Team]*fleet.Label{team1: team1Label} {
+		foundLabel, labelInMap := foundTeamLabels[team.ID]
+		require.Truef(t, labelInMap, "%s label should have been found", team.Name)
+		require.Equalf(t, label.ID, foundLabel.ID, "Found team label %s label did not match expected (%s)", foundLabel.Name, label.Name)
+	}
+
+	// multi-team user with no team filter, partial overlap with labels
+	ls, err = db.LabelsSummary(context.Background(), fleet.TeamFilter{
+		User: &fleet.User{Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserverPlus},
+			{Team: fleet.Team{ID: team3.ID}, Role: fleet.RoleMaintainer},
+		}},
+	})
+	require.NoError(t, err)
+	require.Len(t, ls, 6)
+	foundTeamLabels = make(map[uint]fleet.LabelSummary)
+	for _, l := range ls {
+		if l.TeamID != nil {
+			foundTeamLabels[*l.TeamID] = *l
+		}
+	}
+	for team, label := range map[*fleet.Team]*fleet.Label{team1: team1Label} {
+		foundLabel, labelInMap := foundTeamLabels[team.ID]
+		require.Truef(t, labelInMap, "%s label should have been found", team.Name)
+		require.Equalf(t, label.ID, foundLabel.ID, "Found team label %s label did not match expected (%s)", foundLabel.Name, label.Name)
+	}
+
+	// multi-team user with no team filter, full overlap with labels
+	ls, err = db.LabelsSummary(context.Background(), fleet.TeamFilter{
+		User: &fleet.User{Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserverPlus},
+			{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleMaintainer},
+		}},
+	})
+	require.NoError(t, err)
+	require.Len(t, ls, 7)
+	foundTeamLabels = make(map[uint]fleet.LabelSummary)
+	for _, l := range ls {
+		if l.TeamID != nil {
+			foundTeamLabels[*l.TeamID] = *l
+		}
+	}
+	for team, label := range map[*fleet.Team]*fleet.Label{team1: team1Label, team2: team2Label} {
+		foundLabel, labelInMap := foundTeamLabels[team.ID]
+		require.Truef(t, labelInMap, "%s label should have been found", team.Name)
+		require.Equalf(t, label.ID, foundLabel.ID, "Found team label %s label did not match expected (%s)", foundLabel.Name, label.Name)
+	}
 }
 
 func testListHostsInLabelIssues(t *testing.T, ds *Datastore) {
