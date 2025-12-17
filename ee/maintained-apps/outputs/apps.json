@@ -1374,6 +1374,20 @@
       "description": "Stats is a system monitor for the menu bar."
     },
     {
+      "name": "Steam",
+      "slug": "steam/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.valvesoftware.steam",
+      "description": "Steam is a video game digital distribution service."
+    },
+    {
+      "name": "Steam",
+      "slug": "steam/windows",
+      "platform": "windows",
+      "unique_identifier": "Steam",
+      "description": "Steam is a video game digital distribution service."
+    },
+    {
       "name": "Sublime Merge",
       "slug": "sublime-merge/darwin",
       "platform": "darwin",
