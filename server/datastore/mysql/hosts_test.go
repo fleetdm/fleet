@@ -6926,10 +6926,10 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 
 	// Verify in db the source of the replaced entry
 	var hostEmailSources []string
-	err = ds.writer(ctx).SelectContext(ctx, &hostEmailSources, `SELECT source FROM host_emails WHERE email = ? AND host_id = ?`, "mdm.user@example.com", h1.ID)
+	err = ds.writer(ctx).SelectContext(ctx, &hostEmailSources, `SELECT source FROM host_emails WHERE email = ? AND host_id = ?`, "new.user@example.com", h1.ID)
 	require.NoError(t, err)
 	for _, source := range hostEmailSources {
-		require.NotEqual(t, fleet.DeviceMappingIDP, source, "idp entry should be replaced")
+		require.NotEqual(t, fleet.DeviceMappingMDMIdpAccounts, source, "mdm_idp_accounts entry should be replaced")
 	}
 
 	// Verify only the new IDP mapping exists (mdm_idp_accounts should be gone)
