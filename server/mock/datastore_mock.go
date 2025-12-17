@@ -1045,7 +1045,7 @@ type MDMAppleSetPendingDeclarationsAsFunc func(ctx context.Context, hostUUID str
 
 type MDMAppleSetRemoveDeclarationsAsPendingFunc func(ctx context.Context, hostUUID string, declarationUUIDs []string) error
 
-type GetMDMAppleOSUpdatesSettingsByHostSerialFunc func(ctx context.Context, hostSerial string) (*fleet.AppleOSUpdateSettings, error)
+type GetMDMAppleOSUpdatesSettingsByHostSerialFunc func(ctx context.Context, hostSerial string) (string, *fleet.AppleOSUpdateSettings, error)
 
 type InsertMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error
 
@@ -1602,6 +1602,8 @@ type ListScimGroupsFunc func(ctx context.Context, opts fleet.ScimGroupsListOptio
 type ScimLastRequestFunc func(ctx context.Context) (*fleet.ScimLastRequest, error)
 
 type UpdateScimLastRequestFunc func(ctx context.Context, lastRequest *fleet.ScimLastRequest) error
+
+type MaybeAssociateHostWithScimUserFunc func(ctx context.Context, hostID uint) error
 
 type NewChallengeFunc func(ctx context.Context) (string, error)
 
@@ -4067,6 +4069,9 @@ type DataStore struct {
 
 	UpdateScimLastRequestFunc        UpdateScimLastRequestFunc
 	UpdateScimLastRequestFuncInvoked bool
+
+	MaybeAssociateHostWithScimUserFunc        MaybeAssociateHostWithScimUserFunc
+	MaybeAssociateHostWithScimUserFuncInvoked bool
 
 	NewChallengeFunc        NewChallengeFunc
 	NewChallengeFuncInvoked bool
@@ -7789,7 +7794,7 @@ func (s *DataStore) MDMAppleSetRemoveDeclarationsAsPending(ctx context.Context, 
 	return s.MDMAppleSetRemoveDeclarationsAsPendingFunc(ctx, hostUUID, declarationUUIDs)
 }
 
-func (s *DataStore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (*fleet.AppleOSUpdateSettings, error) {
+func (s *DataStore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (string, *fleet.AppleOSUpdateSettings, error) {
 	s.mu.Lock()
 	s.GetMDMAppleOSUpdatesSettingsByHostSerialFuncInvoked = true
 	s.mu.Unlock()
@@ -9740,6 +9745,13 @@ func (s *DataStore) UpdateScimLastRequest(ctx context.Context, lastRequest *flee
 	s.UpdateScimLastRequestFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateScimLastRequestFunc(ctx, lastRequest)
+}
+
+func (s *DataStore) MaybeAssociateHostWithScimUser(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.MaybeAssociateHostWithScimUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaybeAssociateHostWithScimUserFunc(ctx, hostID)
 }
 
 func (s *DataStore) NewChallenge(ctx context.Context) (string, error) {

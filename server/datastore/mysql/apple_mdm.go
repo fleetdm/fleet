@@ -6711,7 +6711,7 @@ WHERE (
 	return nil
 }
 
-func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (*fleet.AppleOSUpdateSettings, error) {
+func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (string, *fleet.AppleOSUpdateSettings, error) {
 	stmt := `
 SELECT
 	team_id, platform
@@ -6728,7 +6728,7 @@ LIMIT 1`
 		Platform string `db:"platform"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, serial); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting team id for host")
+		return "", nil, ctxerr.Wrap(ctx, err, "getting team id for host")
 	}
 
 	var settings fleet.AppleOSUpdateSettings
@@ -6736,7 +6736,7 @@ LIMIT 1`
 		// use the global settings
 		ac, err := ds.AppConfig(ctx)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting app config for os update settings")
+			return "", nil, ctxerr.Wrap(ctx, err, "getting app config for os update settings")
 		}
 		switch dest.Platform {
 		case "ios":
@@ -6746,13 +6746,13 @@ LIMIT 1`
 		case "darwin":
 			settings = ac.MDM.MacOSUpdates
 		default:
-			return nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
+			return "", nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
 		}
 	} else {
 		// use the team settings
 		tm, err := ds.TeamLite(ctx, *dest.TeamID)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting team os update settings")
+			return "", nil, ctxerr.Wrap(ctx, err, "getting team os update settings")
 		}
 		switch dest.Platform {
 		case "ios":
@@ -6762,11 +6762,11 @@ LIMIT 1`
 		case "darwin":
 			settings = tm.Config.MDM.MacOSUpdates
 		default:
-			return nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
+			return "", nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
 		}
 	}
 
-	return &settings, nil
+	return dest.Platform, &settings, nil
 }
 
 // ClearMDMUpcomingActivitiesDB clears the upcoming activities of the host that

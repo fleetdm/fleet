@@ -29,6 +29,7 @@ const SoftwareIcon = ({
   url,
   uploadedAt,
 }: ISoftwareIconProps) => {
+  console.log("name", name, "source", source, "url", url);
   const classNames = classnames(baseClass, `${baseClass}__${size}`);
 
   const [imgFailed, setImgFailed] = useState(false);

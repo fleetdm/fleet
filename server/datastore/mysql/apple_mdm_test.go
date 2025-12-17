@@ -8011,9 +8011,14 @@ func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 
 	checkDevice := func(t *testing.T, teamID uint, key string, wantVersion string) {
 		checkExpectedVersion(t, getConfigSettings(teamID, key), wantVersion)
-		gotSettings, err := ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), devicesByKey[key].SerialNumber)
+		platform, gotSettings, err := ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), devicesByKey[key].SerialNumber)
 		require.NoError(t, err)
 		checkExpectedVersion(t, gotSettings, wantVersion)
+		if key == "macos" {
+			require.Equal(t, "darwin", platform)
+		} else {
+			require.Equal(t, platform, key)
+		}
 	}
 
 	// empty global settings to start
@@ -8110,7 +8115,7 @@ func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 	})
 
 	// non-DEP host should return not found
-	_, err = ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), "non-dep-serial")
+	_, _, err = ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), "non-dep-serial")
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// deleted DEP host should return not found
@@ -8118,7 +8123,7 @@ func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 		_, err := q.ExecContext(context.Background(), "UPDATE host_dep_assignments SET deleted_at = NOW() WHERE host_id = ?", hostIDsByKey["macos"])
 		return err
 	})
-	_, err = ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), devicesByKey["macos"].SerialNumber)
+	_, _, err = ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), devicesByKey["macos"].SerialNumber)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 

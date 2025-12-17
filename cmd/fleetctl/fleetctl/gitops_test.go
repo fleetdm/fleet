@@ -411,12 +411,17 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	_, err = tmpFile.WriteString(
 		`
 controls:
+  macos_updates:
+    deadline: "2024-03-03"
+    minimum_version: "18.0"
   ios_updates:
     deadline: "2022-02-02"
     minimum_version: "17.6"
+    update_new_hosts: true
   ipados_updates:
     deadline: "2023-03-03"
     minimum_version: "18.0"
+    update_new_hosts: false
   enable_disk_encryption: true
   windows_require_bitlocker_pin: true
 queries:
@@ -487,6 +492,16 @@ software:
 	// Check MDM settings
 	require.True(t, savedAppConfig.MDM.EnableDiskEncryption.Value)
 	require.True(t, savedAppConfig.MDM.RequireBitLockerPIN.Value)
+	require.Equal(t, "18.0", savedAppConfig.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2024-03-03", savedAppConfig.MDM.MacOSUpdates.Deadline.Value)
+	// To keep things backwards compatible if MinimumVersion & Deadline are set, then UpdateNewHosts should be set to true
+	require.Equal(t, optjson.SetBool(true), savedAppConfig.MDM.MacOSUpdates.UpdateNewHosts)
+	require.Equal(t, "2022-02-02", savedAppConfig.MDM.IOSUpdates.Deadline.Value)
+	require.Equal(t, "17.6", savedAppConfig.MDM.IOSUpdates.MinimumVersion.Value)
+	require.Equal(t, optjson.Bool{}, savedAppConfig.MDM.IOSUpdates.UpdateNewHosts)
+	require.Equal(t, "2023-03-03", savedAppConfig.MDM.IPadOSUpdates.Deadline.Value)
+	require.Equal(t, "18.0", savedAppConfig.MDM.IPadOSUpdates.MinimumVersion.Value)
+	require.Equal(t, optjson.Bool{}, savedAppConfig.MDM.IPadOSUpdates.UpdateNewHosts)
 
 	// Check certificate authorities
 	assert.True(t, ds.GetGroupedCertificateAuthoritiesFuncInvoked)
@@ -751,6 +766,9 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	_, err = tmpFile.WriteString(
 		`
 controls:
+  macos_updates:
+    deadline: "2025-10-10"
+    minimum_version: "18.0"
   ios_updates:
     deadline: "2024-10-10"
     minimum_version: "18.0"
@@ -806,6 +824,11 @@ software:
 	assert.Equal(t, teamName, savedTeam.Name)
 	assert.Empty(t, enrolledTeamSecrets)
 	assert.True(t, savedTeam.Config.Features.EnableSoftwareInventory)
+
+	assert.Equal(t, "2025-10-10", savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
+	assert.Equal(t, "18.0", savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	// To keep things backwards compatible if MinimumVersion & Deadline are set, then UpdateNewHosts should be set to true
+	assert.Equal(t, optjson.SetBool(true), savedTeam.Config.MDM.MacOSUpdates.UpdateNewHosts)
 
 	// The previous run created the team, so let's rerun with an existing team
 	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
@@ -1489,6 +1512,7 @@ software:
 	assert.Empty(t, savedTeam.Config.MDM.WindowsSettings.CustomSettings.Value)
 	assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
 	assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	assert.False(t, savedTeam.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
 	assert.Empty(t, savedTeam.Config.MDM.MacOSSetup.BootstrapPackage.Value)
 	assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
 	assert.Equal(t, filepath.Base(tmpFile.Name()), *savedTeam.Filename)

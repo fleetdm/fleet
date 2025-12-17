@@ -4,6 +4,7 @@
 import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 
+import CrashPlan from "./CrashPlan";
 import SevenZip from "./7Zip";
 import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
@@ -180,6 +181,7 @@ import SplashtopBusiness from "./SplashtopBusiness";
 import SplashtopStreamer from "./SplashtopStreamer";
 import Spotify from "./Spotify";
 import Stats from "./Stats";
+import Steam from "./Steam";
 import SublimeMerge from "./SublimeMerge";
 import SublimeText from "./SublimeText";
 import Surfshark from "./Surfshark";
@@ -278,6 +280,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cloudflare: Cloudflare,
   code: VisualStudioCode,
   "company portal": IntuneCompanyPortal,
+  crashplan: CrashPlan,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
   cursor: Cursor,
@@ -402,6 +405,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "splashtop streamer": SplashtopStreamer,
   spotify: Spotify,
   stats: Stats,
+  steam: Steam,
   "stream deck": ElgatoStreamDeck,
   "sublime merge": SublimeMerge,
   "sublime text": SublimeText,

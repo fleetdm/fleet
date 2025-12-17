@@ -149,6 +149,8 @@ export enum ActivityType {
   DeletedCustomVariable = "deleted_custom_variable",
   EditedSetupExperienceSoftware = "edited_setup_experience_software",
   EditedHostIdpData = "edited_host_idp_data",
+  CreatedCertificate = "created_certificate",
+  DeletedCertificate = "deleted_certificate",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -269,7 +271,8 @@ export interface IActivityDetails {
   host_idp_username?: string;
 }
 
-export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
+// maps activity types to their corresponding label to use when filtering activites via the dropdown
+export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_app_store_app: "Added App Store app", // Includes VPP and Android Playstore apps
   added_bootstrap_package: "Added bootstrap package",
   added_conditional_access_microsoft: "Added conditional access: Microsoft",
@@ -419,4 +422,6 @@ export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
   [ActivityType.EditedSetupExperienceSoftware]:
     "Edited setup experience software",
   [ActivityType.EditedHostIdpData]: "Edited host identity provider (IdP) data",
+  [ActivityType.CreatedCertificate]: "Created certificate",
+  [ActivityType.DeletedCertificate]: "Deleted certificate",
 };
