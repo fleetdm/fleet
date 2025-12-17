@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -549,24 +550,10 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 		)
 	}
 
-	var params []any
-	var err error
-
-	if filter.TeamID != nil {
-		if *filter.TeamID == 0 || !filter.UserHasRoleInSelectedTeam() { // global labels only; any user can see them
-			query += " WHERE l.team_id IS NULL"
-		} else { // user can see the team labels they're asking for; return global labels plus that team's labels
-			query += " WHERE l.team_id IS NULL OR l.team_id = ?"
-			params = append(params, *filter.TeamID)
-		}
-	} else if filter.User == nil { // fall back to safe (global-only) filter if this happens (it shouldn't)
-		query += " WHERE l.team_id IS NULL"
-	} else if !filter.User.HasAnyGlobalRole() && filter.User.HasAnyTeamRole() { // filter to teams user can see
-		query, params, err = sqlx.In(query+" WHERE l.team_id IS NULL OR l.team_id IN (?)", filter.User.TeamIDsWithAnyRole())
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "selecting labels")
-		}
-	} // user exists and has a global role, so we don't need to filter out any team labels
+	query, params, err := applyLabelListTeamFilter(query, filter)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query to select labels")
+	}
 
 	query, params = appendListOptionsWithCursorToSQL(query, params, &opt)
 	var labels []*fleet.Label
@@ -580,6 +567,29 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 	}
 
 	return labels, nil
+}
+
+// applyLabelListTeamFilter requires labels to be aliased as "l" to work
+func applyLabelListTeamFilter(query string, filter fleet.TeamFilter) (string, []any, error) {
+	if filter.User == nil { // fall back to safe (global-only) filter if this happens (it shouldn't)
+		return query + " WHERE l.team_id IS NULL", nil, nil
+	}
+
+	if filter.TeamID != nil {
+		if *filter.TeamID == 0 { // global labels only; any user can see them
+			return query + " WHERE l.team_id IS NULL", nil, nil
+		} else if !filter.UserCanAccessSelectedTeam() {
+			return "", nil, fleet.NewUserMessageError(errors.New("The team ID you provided refers to a team that either does not exist or you do not have permission to access."), 403)
+		} // else user can see the team labels they're asking for; return global labels plus that team's labels
+
+		return query + " WHERE l.team_id IS NULL OR l.team_id = ?", []any{*filter.TeamID}, nil
+	}
+
+	if !filter.User.HasAnyGlobalRole() && filter.User.HasAnyTeamRole() { // filter to teams user can see
+		return sqlx.In(query+" WHERE l.team_id IS NULL OR l.team_id IN (?)", filter.User.TeamIDsWithAnyRole())
+	} // else user exists and has a global role, so we don't need to filter out any team labels
+
+	return query, nil, nil
 }
 
 func platformForHost(host *fleet.Host) string {
@@ -1351,8 +1361,14 @@ func amountLabelsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 
 func (ds *Datastore) LabelsSummary(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSummary, error) {
 	var labelsSummary []*fleet.LabelSummary
-	// TODO team filtering
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labelsSummary, "SELECT id, name, description, label_type, team_id FROM labels"); err != nil {
+
+	query := "SELECT id, name, description, label_type, team_id FROM labels l"
+	query, params, err := applyLabelListTeamFilter(query, filter)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query for labels summary")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labelsSummary, query, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "labels summary")
 	}
 	return labelsSummary, nil

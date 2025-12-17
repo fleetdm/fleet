@@ -587,8 +587,12 @@ type TeamFilter struct {
 	TeamID *uint
 }
 
-func (f TeamFilter) UserHasRoleInSelectedTeam() bool {
-	return false // TODO
+func (f TeamFilter) UserCanAccessSelectedTeam() bool {
+	if f.TeamID == nil { // this method doesn't make sense if there's no team ID specified
+		return false
+	}
+
+	return f.User.HasAnyGlobalRole() || f.User.HasAnyRoleInTeam(*f.TeamID)
 }
 
 const (

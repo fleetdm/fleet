@@ -437,16 +437,30 @@ func (u *User) SetFakePassword(keySize, cost int) error {
 	return nil
 }
 
-func (u *User) TeamIDsWithAnyRole() []uint {
-	return []uint{} // TODO
+func (u *User) TeamIDsWithAnyRole() (teamIDs []uint) {
+	for _, team := range u.Teams {
+		teamIDs = append(teamIDs, team.ID)
+	}
+
+	return teamIDs
 }
 
 func (u *User) HasAnyGlobalRole() bool {
-	return false // TODO
+	return u.GlobalRole != nil
 }
 
 func (u *User) HasAnyTeamRole() bool {
-	return false // TODO
+	return len(u.Teams) > 0
+}
+
+func (u *User) HasAnyRoleInTeam(id uint) bool {
+	for _, team := range u.Teams {
+		if team.ID == id {
+			return true
+		}
+	}
+
+	return false
 }
 
 func saltAndHashPassword(keySize int, plaintext string, cost int) (hashed []byte, salt string, err error) {
