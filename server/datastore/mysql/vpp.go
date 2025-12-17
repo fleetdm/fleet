@@ -425,7 +425,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 	}
 
 	appsWithChangedLabels := make(map[uint]map[uint]struct{})
-	var vppTokenRequired bool
+	var vppTokenRequired, setupExperienceChanged bool
 	for _, incomingApp := range incomingApps {
 		if incomingApp.Platform.IsApplePlatform() {
 			vppTokenRequired = true
@@ -446,7 +446,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 		}
 
 		if changed.InstallDuringSetup {
-			replacingInstallDuringSetup = true
+			setupExperienceChanged = true
 		}
 
 		if changed.Anything {
@@ -555,7 +555,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 
 		return nil
 	})
-	return replacingInstallDuringSetup, err
+	return setupExperienceChanged, err
 }
 
 func (ds *Datastore) checkConflictingSoftwareInstallerForVPPApp(
@@ -2357,6 +2357,11 @@ func (ds *Datastore) didAppStoreAppChange(ctx context.Context, teamID *uint, inc
 		installDuringSetupChanged = incomingApp.InstallDuringSetup != nil &&
 			existingApp.InstallDuringSetup != nil &&
 			*incomingApp.InstallDuringSetup != *existingApp.InstallDuringSetup
+	}
+
+	// Added a new app for setup experience
+	if !isExistingApp && incomingApp.InstallDuringSetup != nil && *incomingApp.InstallDuringSetup {
+		installDuringSetupChanged = true
 	}
 
 	if !isExistingApp || existingApp.SelfService != incomingApp.SelfService || labelsChanged ||
