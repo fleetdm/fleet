@@ -206,13 +206,13 @@ func (c *Client) do(ctx context.Context, name, method, path string, in interface
 		return req, err
 	}
 
-	limit30KiB := 30 * 1024
+	limit50KiB := 50 * 1024
 	if c.logger != nil {
 		responseBodyString := ""
 		// This should cover large DEP requests without overwhelming the logs and get the data needed
 		// for the most important ones like assign profile responses
-		if len(bodyBytes) > limit30KiB {
-			responseBodyString = string(bodyBytes[:limit30KiB]) + "...[truncated]"
+		if len(bodyBytes) > limit50KiB {
+			responseBodyString = string(bodyBytes[:limit50KiB]) + "...[truncated]"
 		} else {
 			responseBodyString = string(bodyBytes)
 		}
