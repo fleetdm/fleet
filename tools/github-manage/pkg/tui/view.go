@@ -84,6 +84,8 @@ func (m model) RenderLoading() string {
 		loadingMessage = fmt.Sprintf("Fetching Project Items (ID: %d)...", m.projectID)
 	case EstimatedCommand:
 		loadingMessage = fmt.Sprintf("Fetching Estimated Tickets (Project: %d)...", m.projectID)
+	case MilestoneCommand:
+		loadingMessage = fmt.Sprintf("Fetching Milestone Issues (%s)...", m.search)
 	default:
 		loadingMessage = "Fetching Issues..."
 	}
@@ -394,7 +396,7 @@ func (m model) selectedWorkflowDescription() string {
 	case BulkSprintKickoff:
 		desc = "Add selected issues to a project and set initial sprint kickoff fields (status, estimate sync, labels)."
 	case BulkMilestoneClose:
-		desc = "Generate a release summary from selected issues (features/bugs) suitable for milestone close notes."
+		desc = "Add to drafting and set to confirm and celebrate, removes :release label and adds :product label for selected issues (features/bugs)."
 	case BulkKickOutOfSprint:
 		desc = "Remove selected issues from a project and reset sprint-related fields (status, labels)."
 	case BulkDemoSummary:

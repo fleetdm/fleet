@@ -227,12 +227,14 @@ func getIssueEstimatesAcrossProjects(issueNumber int) (map[int]int, error) {
 				Issue struct {
 					ProjectItems struct {
 						Nodes []struct {
-							Project struct{ Number int `json:"number"` } `json:"project"`
-							FieldValues struct{
-								Nodes []struct{
-									Typename string  `json:"__typename"`
+							Project struct {
+								Number int `json:"number"`
+							} `json:"project"`
+							FieldValues struct {
+								Nodes []struct {
+									Typename string   `json:"__typename"`
 									Number   *float64 `json:"number,omitempty"`
-									Field    struct{
+									Field    struct {
 										Name string `json:"name"`
 									} `json:"field"`
 								} `json:"nodes"`

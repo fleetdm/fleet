@@ -3,11 +3,13 @@ package main
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"fleetdm/gm/pkg/ghapi"
+	"fleetdm/gm/pkg/tui"
 )
 
 // milestoneCmd is the parent command for milestone-related operations.
@@ -345,8 +347,49 @@ var milestoneReportCmd = &cobra.Command{
 	},
 }
 
+// milestoneViewCmd shows the interactive issues UI populated by issues tied to a given milestone
+var milestoneViewCmd = &cobra.Command{
+	Use:   "view <milestone-id-or-title>",
+	Short: "Interactive view of issues in a milestone",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ident := strings.TrimSpace(args[0])
+		if ident == "" {
+			return fmt.Errorf("milestone identifier is required")
+		}
+
+		// Resolve to milestone title: accept numeric id or title directly
+		title := ident
+		if n, err := strconv.Atoi(ident); err == nil {
+			// Look up milestone by number across open+closed
+			miles, lerr := ghapi.ListRepoMilestones(true)
+			if lerr != nil {
+				return fmt.Errorf("failed to list milestones: %v", lerr)
+			}
+			found := ""
+			for _, m := range miles {
+				if m.Number == n {
+					found = m.Title
+					break
+				}
+			}
+			if found == "" {
+				return fmt.Errorf("milestone #%d not found", n)
+			}
+			title = found
+		}
+
+		// Run the TUI with milestone mode so we can enforce limit and warn when overflow
+		lim, _ := cmd.Flags().GetInt("limit")
+		tui.RunTUI(tui.MilestoneCommand, 0, lim, title)
+		return nil
+	},
+}
+
 func init() {
 	milestoneCmd.AddCommand(milestoneReportCmd)
+	milestoneCmd.AddCommand(milestoneViewCmd)
+	milestoneViewCmd.Flags().Int("limit", 300, "Maximum number of issues to fetch for the milestone (shows warning if more exist)")
 	milestoneReportCmd.Flags().StringVar(&milestoneFormat, "format", "tsv", "Output format: tsv (default) or md")
 	milestoneReportCmd.Flags().BoolVar(&milestoneStripEmojis, "strip-emojis", false, "Strip emojis from project titles and statuses")
 	milestoneReportCmd.Flags().StringVar(&milestoneSummarySort, "summary-sort", "count", "Summary sort: count (default) or name")
