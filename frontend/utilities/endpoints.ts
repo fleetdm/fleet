@@ -299,6 +299,9 @@ export default {
   SCRIPT_RUN_BATCH_SUMMARIES: `/${API_VERSION}/fleet/scripts/batch`,
   SCRIPT_BATCH_HOST_RESULTS: (id: string) =>
     `/${API_VERSION}/fleet/scripts/batch/${id}/host-results`,
+
+  // Command endpoints
+  COMMANDS: `/${API_VERSION}/fleet/commands`,
   COMMANDS_RESULTS: `/${API_VERSION}/fleet/commands/results`,
 
   // idp endpoints

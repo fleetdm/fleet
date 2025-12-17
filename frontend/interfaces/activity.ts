@@ -179,7 +179,7 @@ export type IHostUpcomingActivityType =
 
 export interface IActivity {
   created_at: string;
-  id: number;
+  id: number | string;
   actor_full_name: string;
   actor_id: number;
   actor_gravatar: string;
