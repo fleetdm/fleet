@@ -307,7 +307,7 @@ fun AppVersion(onClick: () -> Unit = {}) {
     ) {
         Column(
             modifier = Modifier
-                .padding(20.dp),
+                .padding(horizontal = 20.dp),
         ) {
             Text(
                 text = stringResource(R.string.app_version_title),
