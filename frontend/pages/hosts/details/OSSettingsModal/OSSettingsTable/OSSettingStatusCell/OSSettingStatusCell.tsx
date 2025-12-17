@@ -19,7 +19,9 @@ import {
   LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG,
   PROFILE_DISPLAY_CONFIG,
   ProfileDisplayOption,
+  ProfileStatus,
   WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG,
+  WindowsDiskEncryptionDisplayStatus,
 } from "./helpers";
 
 const baseClass = "os-settings-status-cell";
@@ -111,9 +113,13 @@ const OSSettingStatusCell = ({
     status !== "success" &&
     status !== "acknowledged"
   ) {
-    displayOption = WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG[status];
+    displayOption =
+      WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG[
+        status as WindowsDiskEncryptionDisplayStatus
+      ];
   } else if (operationType) {
-    displayOption = PROFILE_DISPLAY_CONFIG[operationType]?.[status];
+    displayOption =
+      PROFILE_DISPLAY_CONFIG[operationType]?.[status as ProfileStatus];
   }
 
   const isDeviceUser = window.location.pathname
