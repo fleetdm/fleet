@@ -1128,11 +1128,10 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, ls, 5)
 
-	testCases := []struct {
+	for _, tc := range []struct {
 		name               string
 		filter             fleet.TeamFilter
 		expectedErr        error
-		expectedCount      int
 		expectedTeamLabels map[*fleet.Team]*fleet.Label
 	}{
 		{
@@ -1141,8 +1140,6 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 				User:   &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserver}}},
 				TeamID: ptr.Uint(0),
 			},
-			expectedCount:      5,
-			expectedTeamLabels: nil,
 		},
 		{
 			name: "global role filtered to team",
@@ -1150,7 +1147,6 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 				User:   &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
 				TeamID: &team1.ID,
 			},
-			expectedCount:      6,
 			expectedTeamLabels: map[*fleet.Team]*fleet.Label{team1: team1Label},
 		},
 		{
@@ -1159,7 +1155,6 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 				User:   &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserverPlus}}},
 				TeamID: &team1.ID,
 			},
-			expectedCount:      6,
 			expectedTeamLabels: map[*fleet.Team]*fleet.Label{team1: team1Label},
 		},
 		{
@@ -1175,7 +1170,6 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 			filter: fleet.TeamFilter{
 				User: &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
 			},
-			expectedCount:      7,
 			expectedTeamLabels: map[*fleet.Team]*fleet.Label{team1: team1Label, team2: team2Label},
 		},
 		{
@@ -1183,7 +1177,6 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 			filter: fleet.TeamFilter{
 				User: &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserverPlus}}},
 			},
-			expectedCount:      6,
 			expectedTeamLabels: map[*fleet.Team]*fleet.Label{team1: team1Label},
 		},
 		{
@@ -1194,7 +1187,6 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 					{Team: fleet.Team{ID: team3.ID}, Role: fleet.RoleMaintainer},
 				}},
 			},
-			expectedCount:      6,
 			expectedTeamLabels: map[*fleet.Team]*fleet.Label{team1: team1Label},
 		},
 		{
@@ -1205,12 +1197,9 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 					{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleMaintainer},
 				}},
 			},
-			expectedCount:      7,
 			expectedTeamLabels: map[*fleet.Team]*fleet.Label{team1: team1Label, team2: team2Label},
 		},
-	}
-
-	for _, tc := range testCases {
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ls, err := db.LabelsSummary(context.Background(), tc.filter)
 			if tc.expectedErr != nil {
@@ -1218,20 +1207,18 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 				return
 			}
 			require.NoError(t, err)
-			require.Len(t, ls, tc.expectedCount)
+			require.Len(t, ls, 5+len(tc.expectedTeamLabels))
 
-			if tc.expectedTeamLabels != nil {
-				foundTeamLabels := make(map[uint]fleet.LabelSummary)
-				for _, l := range ls {
-					if l.TeamID != nil {
-						foundTeamLabels[*l.TeamID] = *l
-					}
+			foundTeamLabels := make(map[uint]fleet.LabelSummary)
+			for _, l := range ls {
+				if l.TeamID != nil {
+					foundTeamLabels[*l.TeamID] = *l
 				}
-				for team, label := range tc.expectedTeamLabels {
-					foundLabel, labelInMap := foundTeamLabels[team.ID]
-					require.Truef(t, labelInMap, "%s label should have been found", team.Name)
-					require.Equalf(t, label.ID, foundLabel.ID, "Found team label %s label did not match expected (%s)", foundLabel.Name, label.Name)
-				}
+			}
+			for team, label := range tc.expectedTeamLabels {
+				foundLabel, labelInMap := foundTeamLabels[team.ID]
+				require.Truef(t, labelInMap, "%s label should have been found", team.Name)
+				require.Equalf(t, label.ID, foundLabel.ID, "Found team label %s label did not match expected (%s)", foundLabel.Name, label.Name)
 			}
 		})
 	}
