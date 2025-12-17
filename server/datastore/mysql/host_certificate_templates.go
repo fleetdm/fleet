@@ -253,61 +253,73 @@ func (ds *Datastore) ListAndroidHostUUIDsWithPendingCertificateTemplates(
 	return hostUUIDs, nil
 }
 
-// TransitionCertificateTemplatesToDelivering atomically transitions certificate templates
-// from 'pending' to 'delivering' status. Returns the certificate template IDs that were
-// successfully transitioned. This prevents concurrent cron runs from processing the same templates.
-func (ds *Datastore) TransitionCertificateTemplatesToDelivering(
+// GetAndTransitionCertificateTemplatesToDelivering retrieves all certificate templates
+// with operation_type='install' for a host, transitions any pending ones to 'delivering' status,
+// and returns both the newly delivering template IDs and the existing (verified/delivered) ones.
+// This prevents concurrent cron runs from processing the same templates.
+func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 	ctx context.Context,
 	hostUUID string,
-) ([]uint, error) {
-	var certificateTemplateIDs []uint
+) (*fleet.HostCertificateTemplatesForDelivery, error) {
+	result := &fleet.HostCertificateTemplatesForDelivery{}
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Select templates that are pending (only fetch id and certificate_template_id to minimize data transfer)
+		// Select ALL templates with operation_type='install' for this host
 		var rows []struct {
-			ID                    uint `db:"id"`
-			CertificateTemplateID uint `db:"certificate_template_id"`
+			ID                    uint                            `db:"id"`
+			CertificateTemplateID uint                            `db:"certificate_template_id"`
+			Status                fleet.CertificateTemplateStatus `db:"status"`
 		}
 		selectStmt := fmt.Sprintf(`
-			SELECT id, certificate_template_id
+			SELECT id, certificate_template_id, status
 			FROM host_certificate_templates
 			WHERE
 				host_uuid = ? AND
-				status = '%s' AND
 				operation_type = '%s'
 			FOR UPDATE
-		`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
+		`, fleet.MDMOperationTypeInstall)
 		if err := sqlx.SelectContext(ctx, tx, &rows, selectStmt, hostUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "select pending templates")
+			return ctxerr.Wrap(ctx, err, "select install templates")
 		}
 
 		if len(rows) == 0 {
-			return nil // Another process already picked them up
+			return nil
 		}
 
-		// Collect IDs from locked rows to ensure we only update those specific rows
-		ids := make([]uint, len(rows))
-		certificateTemplateIDs = make([]uint, len(rows))
-		for i, r := range rows {
-			ids[i] = r.ID
-			certificateTemplateIDs[i] = r.CertificateTemplateID
+		// Separate templates by status
+		var pendingIDs []uint // primary key IDs for UPDATE (only pending ones need transitioning)
+		for _, r := range rows {
+			switch r.Status {
+			case fleet.CertificateTemplatePending:
+				pendingIDs = append(pendingIDs, r.ID)
+				result.DeliveringTemplateIDs = append(result.DeliveringTemplateIDs, r.CertificateTemplateID)
+			case fleet.CertificateTemplateDelivering:
+				// Already delivering (from a previous failed run), include in delivering list; should be very rare
+				result.DeliveringTemplateIDs = append(result.DeliveringTemplateIDs, r.CertificateTemplateID)
+			default:
+				// delivered, verified, failed
+				result.OtherTemplateIDs = append(result.OtherTemplateIDs, r.CertificateTemplateID)
+			}
 		}
 
-		// Transition to delivering - only update the rows we locked
+		if len(pendingIDs) == 0 {
+			return nil // No pending templates to transition
+		}
+
+		// Transition only pending templates to delivering
 		updateStmt, args, err := sqlx.In(fmt.Sprintf(`
 			UPDATE host_certificate_templates
 			SET status = '%s', updated_at = NOW()
 			WHERE id IN (?)
-		`, fleet.CertificateTemplateDelivering), ids)
+		`, fleet.CertificateTemplateDelivering), pendingIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build update to delivering query")
 		}
 		if _, err := tx.ExecContext(ctx, updateStmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "update to delivering")
 		}
-
 		return nil
 	})
-	return certificateTemplateIDs, err
+	return result, err
 }
 
 // TransitionCertificateTemplatesToDelivered transitions templates from 'delivering' to 'delivered'
