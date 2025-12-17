@@ -289,7 +289,7 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 				pendingIDs = append(pendingIDs, r.ID)
 				result.DeliveringTemplateIDs = append(result.DeliveringTemplateIDs, r.CertificateTemplateID)
 			case fleet.CertificateTemplateDelivering:
-				// Already delivering (from a previous failed run), include in delivering list
+				// Already delivering (from a previous failed run), include in delivering list; should be very rare
 				result.DeliveringTemplateIDs = append(result.DeliveringTemplateIDs, r.CertificateTemplateID)
 			default:
 				// delivered, verified, failed

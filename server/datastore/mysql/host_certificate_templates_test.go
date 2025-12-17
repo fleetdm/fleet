@@ -619,10 +619,12 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, hostUUIDs, 0)
 
-	// Second call should return empty delivering (no more pending templates)
+	// Second call should return the already-delivering templates (no new pending ones to transition)
 	certTemplates, err = ds.GetAndTransitionCertificateTemplatesToDelivering(ctx, "android-host")
 	require.NoError(t, err)
-	require.Empty(t, certTemplates.DeliveringTemplateIDs)
+	require.Len(t, certTemplates.DeliveringTemplateIDs, 2) // Already delivering from previous call
+	require.ElementsMatch(t, []uint{setup.template.ID, templateTwo.ID}, certTemplates.DeliveringTemplateIDs)
+	require.Empty(t, certTemplates.OtherTemplateIDs) // No delivered/verified/failed yet
 
 	// Verify database shows delivering status
 	records, err := ds.ListCertificateTemplatesForHosts(ctx, []string{"android-host"})
