@@ -21901,7 +21901,7 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 
 	// Verify the IDP mapping was created and returned in device mappings
 	require.Equal(t, "scim.user@example.com", putResp.DeviceMapping[0].Email)
-	require.Equal(t, fleet.DeviceMappingIDP, putResp.DeviceMapping[0].Source)
+	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, putResp.DeviceMapping[0].Source)
 
 	// Verify the IDP mapping appears in the host's device mappings via getHostDeviceMapping
 	var getResp listHostDeviceMappingResponse
@@ -21909,7 +21909,7 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 		nil, http.StatusOK, &getResp)
 	require.Len(t, getResp.DeviceMapping, 1)
 	require.Equal(t, "scim.user@example.com", getResp.DeviceMapping[0].Email)
-	require.Equal(t, fleet.DeviceMappingIDP, getResp.DeviceMapping[0].Source)
+	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, getResp.DeviceMapping[0].Source)
 
 	// Test that IDP mapping appears correctly in host details via getHostEndpoint
 	var hostResp getHostResponse
@@ -21959,10 +21959,10 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 		if mapping.Email == "custom.user@example.com" && mapping.Source == fleet.DeviceMappingCustomReplacement {
 			foundCustom = true
 		}
-		if mapping.Email == "any.username@example.com" && mapping.Source == fleet.DeviceMappingIDP {
+		if mapping.Email == "any.username@example.com" && mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
 			foundCurrentIdp = true
 		}
-		if mapping.Email == "scim.user@example.com" && mapping.Source == fleet.DeviceMappingIDP {
+		if mapping.Email == "scim.user@example.com" && mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
 			foundOldIdp = true
 		}
 	}
@@ -22005,10 +22005,10 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 	foundNonScimIdp := false
 	foundPreviousIdp := false
 	for _, mapping := range putResp.DeviceMapping {
-		if mapping.Email == "nonscim@example.com" && mapping.Source == fleet.DeviceMappingIDP {
+		if mapping.Email == "nonscim@example.com" && mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
 			foundNonScimIdp = true
 		}
-		if (mapping.Email == "scim.user@example.com" || mapping.Email == "any.username@example.com") && mapping.Source == fleet.DeviceMappingIDP {
+		if (mapping.Email == "scim.user@example.com" || mapping.Email == "any.username@example.com") && mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
 			foundPreviousIdp = true
 		}
 	}
