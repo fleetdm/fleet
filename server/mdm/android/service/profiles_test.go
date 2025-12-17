@@ -80,6 +80,7 @@ func TestReconcileProfiles(t *testing.T) {
 		{"HostsWithLabelProfiles", testHostsWithLabelProfiles},
 		{"CertificateTemplates", testCertificateTemplates},
 		{"BuildAndSendFleetAgentConfigForEnrollment", testBuildAndSendFleetAgentConfigForEnrollment},
+		{"CertificateTemplatesIncludesExistingVerified", testCertificateTemplatesIncludesExistingVerified},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1048,4 +1049,130 @@ func testBuildAndSendFleetAgentConfigForEnrollment(t *testing.T, ds fleet.Datast
 
 	// Verify the API was NOT called since we're skipping hosts without new certs
 	require.False(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+}
+
+// testCertificateTemplatesIncludesExistingVerified tests that when a host has existing verified
+// certificates AND new pending certificates, the agent config sent to AMAPI includes ALL
+// certificate templates (both existing and new), not just the new pending ones.
+func testCertificateTemplatesIncludesExistingVerified(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	// Create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "existing-cert-test-team"})
+	require.NoError(t, err)
+
+	// Insert enroll secret for team
+	err = ds.ApplyEnrollSecrets(ctx, &team.ID,
+		[]*fleet.EnrollSecret{
+			{Secret: "secret", TeamID: &team.ID},
+		},
+	)
+	require.NoError(t, err)
+
+	// Create a test certificate authority
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("Test SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+
+	// Create two certificate templates
+	templateExisting := &fleet.CertificateTemplate{
+		Name:                   "existing-cert-template",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Existing Certificate",
+	}
+	existingCert, err := ds.CreateCertificateTemplate(ctx, templateExisting)
+	require.NoError(t, err)
+
+	templateNew := &fleet.CertificateTemplate{
+		Name:                   "new-cert-template",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=New Certificate",
+	}
+	newCert, err := ds.CreateCertificateTemplate(ctx, templateNew)
+	require.NoError(t, err)
+
+	// Create an Android host in the team
+	host := createAndroidHostInTeam(t, ds, 300, &team.ID)
+
+	// Insert the existing certificate template as "verified" (already installed and working)
+	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type) VALUES (?, ?, ?, ?, ?)",
+			host.Host.UUID,
+			existingCert.ID,
+			"existing-challenge",
+			fleet.CertificateTemplateVerified,
+			fleet.MDMOperationTypeInstall,
+		)
+		return err
+	})
+
+	// Insert the new certificate template as "pending" (to be processed)
+	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type) VALUES (?, ?, ?, ?, ?)",
+			host.Host.UUID,
+			newCert.ID,
+			"",
+			fleet.CertificateTemplatePending,
+			fleet.MDMOperationTypeInstall,
+		)
+		return err
+	})
+
+	// Get app config for server URL
+	appConfig, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConfig.ServerSettings.ServerURL = "https://fleet.example.com"
+	err = ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
+
+	// Track API calls
+	var capturedPolicies []*androidmanagement.ApplicationPolicy
+	client.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, policies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		capturedPolicies = policies
+		return &androidmanagement.Policy{}, nil
+	}
+
+	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
+	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
+	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
+	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
+	defer func() {
+		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
+		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
+	}()
+
+	// Run reconciliation
+	err = reconciler.reconcileCertificateTemplates(ctx)
+	require.NoError(t, err)
+
+	// Verify the API was called
+	require.True(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	require.Len(t, capturedPolicies, 1)
+
+	// Parse the managed configuration
+	var managedConfig android.AgentManagedConfiguration
+	err = json.Unmarshal(capturedPolicies[0].ManagedConfiguration, &managedConfig)
+	require.NoError(t, err)
+
+	// BUG: Currently this assertion fails because the agent config only includes
+	// the NEW pending certificate, not the existing verified one.
+	// The agent config should include ALL certificate templates (both existing and new).
+	require.Len(t, managedConfig.CertificateTemplateIDs, 2,
+		"Agent config should include both existing verified certificate and new pending certificate")
+
+	// Verify both certificate template IDs are present
+	templateIDs := make(map[uint]bool)
+	for _, tmpl := range managedConfig.CertificateTemplateIDs {
+		templateIDs[tmpl.ID] = true
+	}
+	require.True(t, templateIDs[existingCert.ID], "Existing verified certificate should be in the config")
+	require.True(t, templateIDs[newCert.ID], "New pending certificate should be in the config")
 }

@@ -608,20 +608,21 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 	require.Equal(t, "android-host", hostUUIDs[0])
 
 	// Step 3: Transition to delivering
-	templateIDs, err := ds.TransitionCertificateTemplatesToDelivering(ctx, "android-host")
+	certTemplates, err := ds.GetAndTransitionCertificateTemplatesToDelivering(ctx, "android-host")
 	require.NoError(t, err)
-	require.Len(t, templateIDs, 2)
-	require.ElementsMatch(t, []uint{setup.template.ID, templateTwo.ID}, templateIDs)
+	require.Len(t, certTemplates.DeliveringTemplateIDs, 2)
+	require.ElementsMatch(t, []uint{setup.template.ID, templateTwo.ID}, certTemplates.DeliveringTemplateIDs)
+	require.Empty(t, certTemplates.OtherTemplateIDs) // No existing verified/delivered templates yet
 
 	// Verify host is no longer in pending list
 	hostUUIDs, err = ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 10)
 	require.NoError(t, err)
 	require.Len(t, hostUUIDs, 0)
 
-	// Second call should return empty (no more pending templates)
-	templateIDs, err = ds.TransitionCertificateTemplatesToDelivering(ctx, "android-host")
+	// Second call should return empty delivering (no more pending templates)
+	certTemplates, err = ds.GetAndTransitionCertificateTemplatesToDelivering(ctx, "android-host")
 	require.NoError(t, err)
-	require.Len(t, templateIDs, 0)
+	require.Empty(t, certTemplates.DeliveringTemplateIDs)
 
 	// Verify database shows delivering status
 	records, err := ds.ListCertificateTemplatesForHosts(ctx, []string{"android-host"})
@@ -660,7 +661,7 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 	_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, setup.template.ID, setup.team.ID)
 	require.NoError(t, err)
 
-	_, err = ds.TransitionCertificateTemplatesToDelivering(ctx, "revert-test-host")
+	_, err = ds.GetAndTransitionCertificateTemplatesToDelivering(ctx, "revert-test-host")
 	require.NoError(t, err)
 
 	// Revert to pending

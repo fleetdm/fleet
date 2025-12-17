@@ -2575,9 +2575,10 @@ type Datastore interface {
 	// certificate templates in 'pending' status ready for delivery.
 	ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error)
 
-	// TransitionCertificateTemplatesToDelivering atomically transitions certificate templates
-	// from 'pending' to 'delivering' status. Returns the certificate template IDs that were transitioned.
-	TransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) ([]uint, error)
+	// GetAndTransitionCertificateTemplatesToDelivering retrieves all certificate templates
+	// with operation_type='install' for a host, transitions any pending ones to 'delivering' status.
+	// If there are no pending certificate templates, then nothing is returned.
+	GetAndTransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) (*HostCertificateTemplatesForDelivery, error)
 
 	// TransitionCertificateTemplatesToDelivered transitions templates from 'delivering' to 'delivered'
 	// and sets the fleet_challenge for each template.
