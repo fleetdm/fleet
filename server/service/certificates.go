@@ -412,6 +412,8 @@ func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certific
 type updateCertificateStatusRequest struct {
 	CertificateTemplateID uint   `url:"id"`
 	Status                string `json:"status"`
+	// OperationType is optional and defaults to "install" if not provided.
+	OperationType *string `json:"operation_type,omitempty"`
 	// Detail provides additional information about the status change.
 	// For example, it can be used to provide a reason for a failed status change.
 	Detail *string `json:"detail,omitempty"`
@@ -429,7 +431,7 @@ func updateCertificateStatusEndpoint(ctx context.Context, request interface{}, s
 		return nil, errors.New("invalid request")
 	}
 
-	err := svc.UpdateCertificateStatus(ctx, req.CertificateTemplateID, fleet.MDMDeliveryStatus(req.Status), req.Detail)
+	err := svc.UpdateCertificateStatus(ctx, req.CertificateTemplateID, fleet.MDMDeliveryStatus(req.Status), req.Detail, req.OperationType)
 	if err != nil {
 		return updateCertificateStatusResponse{Err: err}, nil
 	}
@@ -442,6 +444,7 @@ func (svc *Service) UpdateCertificateStatus(
 	certificateTemplateID uint,
 	status fleet.MDMDeliveryStatus,
 	detail *string,
+	operationType *string,
 ) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
@@ -457,5 +460,15 @@ func (svc *Service) UpdateCertificateStatus(
 		return fleet.NewInvalidArgumentError("status", string(status))
 	}
 
-	return svc.ds.UpsertCertificateStatus(ctx, host.UUID, certificateTemplateID, status, detail, fleet.MDMOperationTypeInstall)
+	// Default operation_type to "install" if not provided.
+	opType := fleet.MDMOperationTypeInstall
+	if operationType != nil && *operationType != "" {
+		opType = fleet.MDMOperationType(*operationType)
+	}
+
+	if !opType.IsValid() {
+		return fleet.NewInvalidArgumentError("operation_type", string(opType))
+	}
+
+	return svc.ds.UpsertCertificateStatus(ctx, host.UUID, certificateTemplateID, status, detail, opType)
 }
