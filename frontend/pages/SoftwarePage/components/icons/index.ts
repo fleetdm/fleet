@@ -181,6 +181,7 @@ import SplashtopBusiness from "./SplashtopBusiness";
 import SplashtopStreamer from "./SplashtopStreamer";
 import Spotify from "./Spotify";
 import Stats from "./Stats";
+import Steam from "./Steam";
 import SublimeMerge from "./SublimeMerge";
 import SublimeText from "./SublimeText";
 import Surfshark from "./Surfshark";
@@ -404,6 +405,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "splashtop streamer": SplashtopStreamer,
   spotify: Spotify,
   stats: Stats,
+  steam: Steam,
   "stream deck": ElgatoStreamDeck,
   "sublime merge": SublimeMerge,
   "sublime text": SublimeText,

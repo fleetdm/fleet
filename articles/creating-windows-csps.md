@@ -232,6 +232,8 @@ Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-DeviceManagement-Ente
 
 [This](https://blog.mindcore.dk/2022/09/intune-error-codes-and-solutions/) blog post can also help you translate error codes that are present here.
 
+> If you encounter the error: "The MDM protocol returned a success but the result couldn’t be verified by osquery", and the profile includes `[!CDATA []]` sections, [escape the XML](https://www.freeformatter.com/xml-escape.html) instead of using CDATA. For example, `[!CDATA[<enabled/>]]>` should be changed to `&lt;enabled/&gt;`.
+
 
 ## Conclusion
 

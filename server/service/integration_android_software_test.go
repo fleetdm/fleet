@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -91,8 +92,25 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	)
 	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
 
+	amapiConfig := struct {
+		AppIDsToNames                     map[string]string
+		EnterprisesPoliciesPatchValidator func(policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts)
+	}{
+		AppIDsToNames:                     map[string]string{},
+		EnterprisesPoliciesPatchValidator: func(policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) {},
+	}
+
 	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
-		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: "Test App"}, nil
+		title := amapiConfig.AppIDsToNames[packageName]
+
+		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: title}, nil
+	}
+
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+
+		amapiConfig.EnterprisesPoliciesPatchValidator(policyName, policy, opts)
+
+		return &androidmanagement.Policy{}, nil
 	}
 
 	// Valid application ID format, but wrong platform specified: should fail
@@ -193,6 +211,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 
 	// Should have hit the android API endpoint
 	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = false
 
 	s.DoJSON(
 		"PATCH",
@@ -211,7 +230,108 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		return nil
 	})
 
-	// Test Android app configurations
+	// Add some apps to a different team. They shouldn't be sent to our existing host
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+	// Add Android app
+	androidAppNewTeam := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.my.cool.app",
+				Platform: fleet.AndroidPlatform,
+			},
+		},
+		Name:             "My cool app",
+		BundleIdentifier: "com.my.cool.app",
+		IconURL:          "https://example.com/images/3",
+	}
+	s.DoJSON(
+		"POST",
+		"/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{AppStoreID: androidAppNewTeam.AdamID, Platform: fleet.AndroidPlatform, TeamID: &team.ID},
+		http.StatusOK,
+		&addAppResp,
+	)
+
+	// New app should not show up in "No team" library
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(0))
+	s.Assert().Len(listSWTitles.SoftwareTitles, 1)
+	s.Assert().Equal(androidApp.AdamID, listSWTitles.SoftwareTitles[0].AppStoreApp.AppStoreID) // just the app we had before
+	s.Assert().Empty(listSWTitles.SoftwareTitles[0].AppStoreApp.Version)
+
+	// New app SHOULD show up in our new team library
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(team.ID))
+	s.Assert().Len(listSWTitles.SoftwareTitles, 1)
+	s.Assert().Equal(androidAppNewTeam.AdamID, listSWTitles.SoftwareTitles[0].AppStoreApp.AppStoreID)
+	s.Assert().Empty(listSWTitles.SoftwareTitles[0].AppStoreApp.Version)
+
+	androidAppNewTeam2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.my.cool.app.two",
+				Platform: fleet.AndroidPlatform,
+			},
+		},
+		Name:             "My cool app 2",
+		BundleIdentifier: "com.my.cool.app.two",
+		IconURL:          "https://example.com/images/4",
+	}
+
+	amapiConfig.AppIDsToNames[androidAppNewTeam2.AdamID] = androidAppNewTeam2.Name
+
+	s.DoJSON(
+		"POST",
+		"/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{AppStoreID: androidAppNewTeam2.AdamID, Platform: fleet.AndroidPlatform, TeamID: &team.ID},
+		http.StatusOK,
+		&addAppResp,
+	)
+
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(team.ID))
+	s.Assert().Len(listSWTitles.SoftwareTitles, 2)
+	s.Assert().True(slices.ContainsFunc(listSWTitles.SoftwareTitles, func(t fleet.SoftwareTitleListResult) bool {
+		return t.AppStoreApp.AppStoreID == androidAppNewTeam.AdamID || t.AppStoreApp.AppStoreID == androidAppNewTeam2.AdamID
+	}))
+
+	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "platform": "%s", "self_service": true}`,
+			team.Name, androidAppNewTeam2.Name, addAppResp.TitleID, androidAppNewTeam2.AdamID, fmt.Sprint(team.ID), androidAppNewTeam2.Platform), 0)
+
+	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
+	s.runWorkerUntilDone()
+	// We shouldn't have hit the AMAPI, since there are no hosts in the team
+	s.Assert().False(s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	s.Assert().False(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+
+	amapiConfig.EnterprisesPoliciesPatchValidator = func(policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) {
+		var appIDs []string
+		for _, a := range policy.Applications {
+			appIDs = append(appIDs, a.PackageName)
+		}
+
+		s.Assert().ElementsMatch(appIDs, []string{androidAppNewTeam.AdamID, androidAppNewTeam2.AdamID})
+		s.Assert().Contains(policyName, host1.UUID)
+	}
+
+	// Transfer a host to the team
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &team.ID,
+		HostIDs: []uint{host1.ID},
+	}, http.StatusOK, &addHostsToTeamResponse{})
+
+	s.runWorkerUntilDone()
+	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+
+	// Transfer host back to "No team"
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  nil,
+		HostIDs: []uint{host1.ID},
+	}, http.StatusOK, &addHostsToTeamResponse{})
+
+	// =========================================
+	//       Android app configurations
+	// =========================================
 
 	// Title with no configuration should omit it from response
 	var getAppResp map[string]any
@@ -236,6 +356,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		IconURL:          "https://example.com/images/2",
 	}
 
+	amapiConfig.AppIDsToNames[androidAppWithConfig.AdamID] = androidAppWithConfig.Name
+
 	// Add Android app
 	var appWithConfigResp addAppStoreAppResponse
 	s.DoJSON(
@@ -253,7 +375,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	// Verify that activity includes configuration
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "platform": "%s", "self_service": true,"configuration": %s}`,
-			"", "Test App", appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", androidAppWithConfig.Platform, androidAppWithConfig.Configuration), 0)
+			"", androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", androidAppWithConfig.Platform, androidAppWithConfig.Configuration), 0)
 
 	// Should see it in host software library
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
@@ -294,7 +416,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	// Verify that configuration changed and last activity is correct
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_icon_url":"https://example.com/1.jpg", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "software_display_name":"", "platform": "%s", "self_service": true,"configuration": %s}`,
-			"", "Test App", appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", androidAppWithConfig.Platform, newConfig), 0)
+			"", androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", androidAppWithConfig.Platform, newConfig), 0)
 }
 
 func (s *integrationMDMTestSuite) TestAndroidSetupExperienceSoftware() {

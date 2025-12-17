@@ -2345,10 +2345,6 @@ type Datastore interface {
 	// assigned to any team).
 	GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
-	// GetCertificateStatusSummary GetCertificateTemplatesSummary returns a summary of the current state of certificate templates on each host in
-	// the specified team (or, if no team is specified, each host that is not assigned to any team).
-	GetMDMProfileSummaryFromHostCertificateTemplates(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
-
 	// GetHostCertificateTemplates returns what certificate templates are currently associated with the specified host.
 	GetHostCertificateTemplates(ctx context.Context, hostUUID string) ([]HostCertificateTemplate, error)
 
@@ -2411,6 +2407,8 @@ type Datastore interface {
 
 	// DeleteAndroidAppConfiguration removes an Android app configuration.
 	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) error
+
+	ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
@@ -2544,9 +2542,11 @@ type Datastore interface {
 	UpsertCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status MDMDeliveryStatus, detail *string) error
 
 	// BatchUpsertCertificateTemplates upserts a batch of certificates.
-	BatchUpsertCertificateTemplates(ctx context.Context, certificates []*CertificateTemplate) error
+	// Returns a map of team IDs that had certificates inserted or updated.
+	BatchUpsertCertificateTemplates(ctx context.Context, certificates []*CertificateTemplate) ([]uint, error)
 	// BatchDeleteCertificateTemplates deletes a batch of certificates.
-	BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) error
+	// Returns true if any rows were deleted.
+	BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) (bool, error)
 	// CreateCertificateTemplate creates a new certificate template.
 	CreateCertificateTemplate(ctx context.Context, certificateTemplate *CertificateTemplate) (*CertificateTemplateResponse, error)
 	// DeleteCertificateTemplate deletes a certificate template by its ID.
