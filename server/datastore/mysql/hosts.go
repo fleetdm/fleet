@@ -3679,9 +3679,17 @@ func deviceMappingTranslateSourceColumn(hostEmailsTableAlias string) string {
 		hostEmailsTableAlias += "."
 	}
 	// this means:
-	// 	if source starts with "custom_" then return "custom" else return source as-is
-	return fmt.Sprintf(` CASE WHEN %ssource LIKE '%s%%' THEN '%s' ELSE %[1]ssource END `,
-		hostEmailsTableAlias, fleet.DeviceMappingCustomPrefix, fleet.DeviceMappingCustomReplacement)
+	// 	if source starts with "custom_" then return "custom"
+	//  if source is "idp" then return "mdm_idp_accounts"
+	//  else return source as-is
+	return fmt.Sprintf(`
+		CASE
+			WHEN %ssource LIKE '%s%%' THEN '%s'
+			WHEN %ssource = '%s' THEN '%s'
+			ELSE %[1]ssource
+		END
+	`, hostEmailsTableAlias, fleet.DeviceMappingCustomPrefix, fleet.DeviceMappingCustomReplacement,
+		hostEmailsTableAlias, fleet.DeviceMappingIDP, fleet.DeviceMappingMDMIdpAccounts)
 }
 
 func (ds *Datastore) listHostDeviceMappingDB(ctx context.Context, q sqlx.QueryerContext, hostID uint) ([]*fleet.HostDeviceMapping, error) {
