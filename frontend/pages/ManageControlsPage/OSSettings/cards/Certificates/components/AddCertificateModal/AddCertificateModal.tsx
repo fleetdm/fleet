@@ -172,7 +172,7 @@ const AddCertModal = ({
           error={formValidation.subjectName?.message}
           helpText='Separate subject fields by a "/". For example: /CN=john@example.com/O=Acme Inc.'
           parseTarget
-          placeholder="/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/O=Your Organization"
+          placeholder="CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, O=Your Organization"
         />
         <div className="modal-cta-wrap">
           <TooltipWrapper
