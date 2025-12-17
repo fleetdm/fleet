@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "2.11.12",
+      "version": "2.12.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'coing.ClockifyDesktop';"
       },

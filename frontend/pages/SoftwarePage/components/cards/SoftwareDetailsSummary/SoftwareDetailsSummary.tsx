@@ -61,14 +61,19 @@ const buildActionOptions = (
       isDisabled: !!disableEditAppearanceTooltipContent,
       tooltipContent: disableEditAppearanceTooltipContent,
     },
-    {
+  ];
+
+  // Hides edit software option only for Android installers, as they are currently non-editable
+  if (!androidSoftwareAvailableForInstall) {
+    options.push({
       label: "Edit software",
       value: "edit_software",
       isDisabled: !!disableEditSoftwareTooltipContent,
       tooltipContent: disableEditSoftwareTooltipContent,
-    },
-  ];
+    });
+  }
 
+  // Show edit configuration option only for Android installers
   if (androidSoftwareAvailableForInstall) {
     options.push({
       label: "Edit configuration",

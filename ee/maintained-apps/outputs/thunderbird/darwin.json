@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "146.0",
+      "version": "146.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.thunderbird';"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/thunderbird/releases/146.0/mac/en-US/Thunderbird%20146.0.dmg",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/thunderbird/releases/146.0.1/mac/en-US/Thunderbird%20146.0.1.dmg",
       "install_script_ref": "0c7af986",
       "uninstall_script_ref": "6937c9cb",
-      "sha256": "44e0897af5e1a304c67312e817ce1a412c65c8e3b88bfc456c2bbd1524b16ee9",
+      "sha256": "5b729073f032a77589b88f69a032066233a6e0f862b66005de81cee0f2adc601",
       "default_categories": [
         "Productivity"
       ]

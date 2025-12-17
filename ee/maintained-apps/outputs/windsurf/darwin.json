@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "1.12.44",
+      "version": "1.12.47",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.exafunction.windsurf';"
       },
-      "installer_url": "https://windsurf-stable.codeiumdata.com/darwin-arm64-dmg/stable/f93b1c92ecdd92da92e9ae934d52d3098776fc81/Windsurf-darwin-arm64-1.12.44.dmg",
+      "installer_url": "https://windsurf-stable.codeiumdata.com/darwin-arm64-dmg/stable/8951cd3ad688e789573d7f51750d67ae4a0bea7d/Windsurf-darwin-arm64-1.12.47.dmg",
       "install_script_ref": "cd1810b3",
       "uninstall_script_ref": "d403e841",
-      "sha256": "34b68b46e4e127217c6c7a5386a48a17acfa632ce34f085eaf43e37691b2c0de",
+      "sha256": "4aea763206e72e85c5c31ba4ae9ac8018d0f8a92cb0bee26d49c0b2c45e44c75",
       "default_categories": [
         "Developer tools"
       ]
