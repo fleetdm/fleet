@@ -14,14 +14,16 @@ import (
 // It is used to ensure that packages do not depend on each other in a way that increases coupling and maintainability.
 // Based on https://github.com/matthewmcnew/archtest
 type PackageTest struct {
-	t             TestingT
-	pkgs          []string
-	includeRegex  *regexp.Regexp
-	ignorePkgs    map[string]struct{}
-	ignoreXTests  map[string]struct{}
-	exceptPkgs    map[string]struct{}
-	forbiddenPkgs []string
-	withTests     bool
+	t                    TestingT
+	pkgs                 []string
+	includeRegex         *regexp.Regexp
+	ignorePkgs           map[string]struct{}
+	ignoreXTests         map[string]struct{}
+	exceptPkgs           map[string]struct{}
+	forbiddenPkgs        []string
+	withTests            bool
+	withTestsRecursively bool
+	rootPkgs             map[string]struct{} // expanded root packages for WithTests check
 }
 
 // PackageTest will ignore dependency on this package.
@@ -82,8 +84,19 @@ func (pt *PackageTest) IgnoreDeps(pkgs ...string) *PackageTest {
 	return pt
 }
 
+// WithTests includes test imports only from the specified root packages.
+// Use this when you want to check test dependencies of your packages but not
+// the test dependencies of their transitive dependencies.
 func (pt *PackageTest) WithTests() *PackageTest {
 	pt.withTests = true
+	return pt
+}
+
+// WithTestsRecursively includes test imports from all packages in the dependency tree.
+// Use this when you want to check test dependencies of all packages, including
+// transitive dependencies.
+func (pt *PackageTest) WithTestsRecursively() *PackageTest {
+	pt.withTestsRecursively = true
 	return pt
 }
 
@@ -144,13 +157,22 @@ func (pd packageDependency) asXTest() *packageDependency {
 	return &pd
 }
 
-func (pt PackageTest) findDependencies(pkgs []string) <-chan *packageDependency {
+func (pt *PackageTest) findDependencies(pkgs []string) <-chan *packageDependency {
 	c := make(chan *packageDependency)
 	go func() {
 		defer close(c)
 
+		// Expand and store root packages for WithTests check
+		expandedRoots := pt.expandPackages(pkgs)
+		if pt.withTests {
+			pt.rootPkgs = make(map[string]struct{}, len(expandedRoots))
+			for _, p := range expandedRoots {
+				pt.rootPkgs[p] = struct{}{}
+			}
+		}
+
 		importCache := map[string]struct{}{}
-		for _, p := range pt.expandPackages(pkgs) {
+		for _, p := range expandedRoots {
 			pt.read(c, &packageDependency{name: p, parent: nil}, importCache)
 		}
 	}()
@@ -185,7 +207,11 @@ func (pt *PackageTest) read(pChan chan<- *packageDependency, topDependency *pack
 			queue.PushBack(&packageDependency{name: importPath, parent: dep})
 		}
 
-		if pt.withTests {
+		// Determine if we should include test imports for this package
+		_, isRootPkg := pt.rootPkgs[dep.name]
+		includeTests := pt.withTestsRecursively || (pt.withTests && isRootPkg)
+
+		if includeTests {
 			for _, i := range pkg.TestImports {
 				queue.PushBack(&packageDependency{name: i, parent: dep})
 			}
