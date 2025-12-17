@@ -4,7 +4,7 @@ _Available in Fleet Premium_
 
 In Fleet, you can install Apple App Store apps on your macOS, iOS, and iPadOS hosts. To do this, you must first [turn on Apple MDM](https://fleetdm.com/guides/apple-mdm-setup#turn-on-apple-mdm) and Apple's [Volume Purchasing Program (VPP)](https://fleetdm.com/guides/apple-mdm-setup#volume-purchasing-program-vpp).
 
-You can also manage which Google Play Store apps are available for self-serivce in your end user's Android work profiles.
+You can also manage which Google Play Store apps are available for self-serivce in your end user's Android work profiles. Google only allows free Google Play Store apps. [Paid apps aren't supported](https://www.androidenterprise.community/discussions/conversations/distributing-paid-apps/653).
 
 Currently, Fleet only supports Apple App Store apps from the United States (US) region. If the app is listed on the [Apple App Store](https://apps.apple.com/) and it has `/us` in the URL (e.g. https://apps.apple.com/us/app/slack/id618783545) then it's supported.
 

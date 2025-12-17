@@ -186,6 +186,7 @@ func TestHosts(t *testing.T) {
 		{"TestGetMatchingHostSerialsMarkedDeleted", testGetMatchingHostSerialsMarkedDeleted},
 		{"ListHostsByProfileUUIDAndStatus", testListHostsProfileUUIDAndStatus},
 		{"SetOrUpdateHostDiskTpmPIN", testSetOrUpdateHostDiskTpmPIN},
+		{"TestMaybeAssociateHostWithScimUser", testMaybeAssociateHostWithScimUser},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -8390,6 +8391,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
+		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type)
+		VALUES (?, 1, 'foo', 'pending', 'install')
+	`, host.UUID)
+	require.NoError(t, err)
+
+	_, err = ds.writer(context.Background()).Exec(`
           INSERT INTO host_mdm_apple_declarations (host_uuid, declaration_uuid, token, declaration_identifier, declaration_name)
           VALUES (?, uuid(), UNHEX(REPLACE(UUID(), '-', '')), 'test-identifier', 'test-name')
 	`, host.UUID)
@@ -11969,4 +11976,107 @@ func testSetOrUpdateHostDiskTpmPIN(t *testing.T, ds *Datastore) {
 		)
 		require.NotEqual(t, expected, tpmPINSet)
 	}
+}
+
+func testMaybeAssociateHostWithScimUser(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		UUID: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	cleanup := func() {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM mdm_idp_accounts`)
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_idp_accounts`)
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM scim_users`)
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM host_scim_user`)
+			return err
+		})
+	}
+	createIdPRecords := func() {
+		// Create MDM IDP account record, host MDM IDP account mapping, and SCIM user record
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES (?,?,?,?)`, "mdm_account_uuid", "testuser", "Test User", "testuser@example.com")
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES (?,?)`, host.UUID, "mdm_account_uuid")
+			return err
+		})
+	}
+	createScimUserRecord := func(email ...string) {
+		userEmail := "testuser@example.com"
+		if len(email) > 0 {
+			userEmail = email[0]
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO scim_users (user_name) VALUES (?)`, userEmail)
+			return err
+		})
+	}
+	t.Run("happy path", func(t *testing.T) {
+		defer cleanup()
+		// Create MDM IDP account record, host MDM IDP account mapping, and SCIM user record
+		createIdPRecords()
+		createScimUserRecord()
+
+		err := ds.MaybeAssociateHostWithScimUser(ctx, host.ID)
+		require.NoError(t, err)
+
+		var scimUserID uint
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &scimUserID, `SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
+		require.NoError(t, err)
+		require.NotZero(t, scimUserID)
+	})
+	t.Run("no mdm idp account record", func(t *testing.T) {
+		defer cleanup()
+		err := ds.MaybeAssociateHostWithScimUser(ctx, host.ID)
+		require.NoError(t, err)
+
+		var scimUserID uint
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &scimUserID, `SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
+		require.Error(t, err)
+		require.True(t, errors.Is(err, sql.ErrNoRows))
+	})
+	t.Run("no scim user record", func(t *testing.T) {
+		defer cleanup()
+		// Create MDM IDP account record and host MDM IDP account mapping
+		createIdPRecords()
+		err := ds.MaybeAssociateHostWithScimUser(ctx, host.ID)
+		require.NoError(t, err)
+
+		var scimUserID uint
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &scimUserID, `SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
+		require.Error(t, err)
+		require.True(t, errors.Is(err, sql.ErrNoRows))
+	})
+	t.Run("duplicate scim user records", func(t *testing.T) {
+		defer cleanup()
+		// Create MDM IDP account record, host MDM IDP account mapping, and SCIM user record
+		createIdPRecords()
+		createScimUserRecord()
+
+		var scimUserID uint
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &scimUserID, `SELECT id FROM scim_users WHERE user_name = ?`, "testuser@example.com")
+		require.NoError(t, err)
+		require.NotZero(t, scimUserID)
+
+		// Create host_scim_user mapping to simulate duplicate records.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?,?)`, host.ID, scimUserID)
+			return err
+		})
+
+		err := ds.MaybeAssociateHostWithScimUser(ctx, host.ID)
+		require.NoError(t, err)
+	})
 }

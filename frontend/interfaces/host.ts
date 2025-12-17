@@ -97,11 +97,27 @@ export interface IMunkiData {
 
 export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
 
+export type HostCertStatus =
+  | "verified"
+  | "failed"
+  //  all below display "pending" in UI
+  | "pending"
+  | "delivering"
+  | "delivered";
+
+export interface IHostCert {
+  name: string;
+  status: HostCertStatus;
+  operation_type: "install" | "remove";
+  detail: string;
+}
+
 export interface IOSSettings {
   disk_encryption: {
     status: DiskEncryptionStatus | null;
     detail: string;
   };
+  certificates: IHostCert[];
 }
 
 interface IMdmMacOsSettings {

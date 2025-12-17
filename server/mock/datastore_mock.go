@@ -1045,7 +1045,7 @@ type MDMAppleSetPendingDeclarationsAsFunc func(ctx context.Context, hostUUID str
 
 type MDMAppleSetRemoveDeclarationsAsPendingFunc func(ctx context.Context, hostUUID string, declarationUUIDs []string) error
 
-type GetMDMAppleOSUpdatesSettingsByHostSerialFunc func(ctx context.Context, hostSerial string) (*fleet.AppleOSUpdateSettings, error)
+type GetMDMAppleOSUpdatesSettingsByHostSerialFunc func(ctx context.Context, hostSerial string) (string, *fleet.AppleOSUpdateSettings, error)
 
 type InsertMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error
 
@@ -1559,6 +1559,8 @@ type GetAndroidAppConfigurationByAppTeamIDFunc func(ctx context.Context, vppAppT
 
 type HasAndroidAppConfigurationChangedFunc func(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error)
 
+type SetAndroidAppInstallPendingApplyConfigFunc func(ctx context.Context, hostUUID string, applicationID string, policyVersion int64) error
+
 type BulkGetAndroidAppConfigurationsFunc func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error)
 
 type InsertAndroidAppConfigurationFunc func(ctx context.Context, config *fleet.AndroidAppConfiguration) error
@@ -1600,6 +1602,8 @@ type ListScimGroupsFunc func(ctx context.Context, opts fleet.ScimGroupsListOptio
 type ScimLastRequestFunc func(ctx context.Context) (*fleet.ScimLastRequest, error)
 
 type UpdateScimLastRequestFunc func(ctx context.Context, lastRequest *fleet.ScimLastRequest) error
+
+type MaybeAssociateHostWithScimUserFunc func(ctx context.Context, hostID uint) error
 
 type NewChallengeFunc func(ctx context.Context) (string, error)
 
@@ -4000,6 +4004,9 @@ type DataStore struct {
 	HasAndroidAppConfigurationChangedFunc        HasAndroidAppConfigurationChangedFunc
 	HasAndroidAppConfigurationChangedFuncInvoked bool
 
+	SetAndroidAppInstallPendingApplyConfigFunc        SetAndroidAppInstallPendingApplyConfigFunc
+	SetAndroidAppInstallPendingApplyConfigFuncInvoked bool
+
 	BulkGetAndroidAppConfigurationsFunc        BulkGetAndroidAppConfigurationsFunc
 	BulkGetAndroidAppConfigurationsFuncInvoked bool
 
@@ -4062,6 +4069,9 @@ type DataStore struct {
 
 	UpdateScimLastRequestFunc        UpdateScimLastRequestFunc
 	UpdateScimLastRequestFuncInvoked bool
+
+	MaybeAssociateHostWithScimUserFunc        MaybeAssociateHostWithScimUserFunc
+	MaybeAssociateHostWithScimUserFuncInvoked bool
 
 	NewChallengeFunc        NewChallengeFunc
 	NewChallengeFuncInvoked bool
@@ -7784,7 +7794,7 @@ func (s *DataStore) MDMAppleSetRemoveDeclarationsAsPending(ctx context.Context, 
 	return s.MDMAppleSetRemoveDeclarationsAsPendingFunc(ctx, hostUUID, declarationUUIDs)
 }
 
-func (s *DataStore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (*fleet.AppleOSUpdateSettings, error) {
+func (s *DataStore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (string, *fleet.AppleOSUpdateSettings, error) {
 	s.mu.Lock()
 	s.GetMDMAppleOSUpdatesSettingsByHostSerialFuncInvoked = true
 	s.mu.Unlock()
@@ -9583,6 +9593,13 @@ func (s *DataStore) HasAndroidAppConfigurationChanged(ctx context.Context, appli
 	return s.HasAndroidAppConfigurationChangedFunc(ctx, applicationID, globalOrTeamID, newConfig)
 }
 
+func (s *DataStore) SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID string, applicationID string, policyVersion int64) error {
+	s.mu.Lock()
+	s.SetAndroidAppInstallPendingApplyConfigFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAndroidAppInstallPendingApplyConfigFunc(ctx, hostUUID, applicationID, policyVersion)
+}
+
 func (s *DataStore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error) {
 	s.mu.Lock()
 	s.BulkGetAndroidAppConfigurationsFuncInvoked = true
@@ -9728,6 +9745,13 @@ func (s *DataStore) UpdateScimLastRequest(ctx context.Context, lastRequest *flee
 	s.UpdateScimLastRequestFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateScimLastRequestFunc(ctx, lastRequest)
+}
+
+func (s *DataStore) MaybeAssociateHostWithScimUser(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.MaybeAssociateHostWithScimUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaybeAssociateHostWithScimUserFunc(ctx, hostID)
 }
 
 func (s *DataStore) NewChallenge(ctx context.Context) (string, error) {
