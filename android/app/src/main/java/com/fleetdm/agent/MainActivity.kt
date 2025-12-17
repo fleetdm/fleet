@@ -281,7 +281,7 @@ fun LogoHeader(modifier: Modifier = Modifier) {
 
 @Composable
 fun CertificateList(modifier: Modifier = Modifier, certificates: CertStatusMap) {
-    Column(modifier = modifier.padding(20.dp)) {
+    Column(modifier = modifier.padding(all = 20.dp)) {
         Text(
             text = stringResource(R.string.certificate_list_title),
             color = FleetTextDark,
