@@ -65,14 +65,3 @@ dockers:
     dockerfile: tools/fleet-docker/Dockerfile
     image_templates:
       - 'fleetdm/fleet:{{ .ShortCommit }}'
-
-  - goos: linux
-    goarch: amd64
-    ids:
-      - fleetctl
-    dockerfile: tools/fleetctl-docker/Dockerfile
-    build_flag_templates:
-      - "--build-arg=binpath=fleetctl"
-    image_templates:
-      - 'fleetdm/fleetctl:{{ .ShortCommit }}'
-

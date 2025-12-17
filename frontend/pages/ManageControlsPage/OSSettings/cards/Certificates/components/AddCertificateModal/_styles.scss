@@ -1,0 +1,14 @@
+.add-certificate-modal {
+  form {
+    padding-bottom: 0;
+  }
+
+  .form-field {
+    margin-bottom: $pad-large;
+  }
+
+  textarea {
+    min-height: 100px;
+    font-family: $monospace;
+  }
+}

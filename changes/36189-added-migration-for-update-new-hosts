@@ -1,0 +1,1 @@
+* Created migration for adding 'update_new_hosts' flag to both App and Team configs.

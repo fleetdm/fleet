@@ -1,7 +1,6 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 
-import paths from "router/paths";
 import { AppContext } from "context/app";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
 import certificatesAPI from "services/entities/certificates";
@@ -139,7 +138,7 @@ const CertificateAuthorities = () => {
   };
 
   return (
-    <SettingsSection title="Certificates">
+    <SettingsSection title="Certificate authorities">
       {renderContent()}
       {showAddCertAuthorityModal && certAuthorities && (
         <AddCertAuthorityModal

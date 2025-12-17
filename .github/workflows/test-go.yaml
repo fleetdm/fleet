@@ -15,6 +15,8 @@ on:
       - 'tools/osquery/in-a-box/osquery/docker-compose.yml'
       - 'server/authz/policy.rego'
       - 'docker-compose.yml'
+      - 'frontend/templates/enroll-ota.html'
+      - 'frontend/templates/windowsTOS.html'
   pull_request:
     paths:
       - '**.go'
@@ -25,6 +27,8 @@ on:
       - 'tools/osquery/in-a-box/osquery/docker-compose.yml'
       - 'server/authz/policy.rego'
       - 'docker-compose.yml'
+      - 'frontend/templates/enroll-ota.html'
+      - 'frontend/templates/windowsTOS.html'
   workflow_dispatch: # Manual
   schedule:
     - cron: '0 4 * * *'

@@ -224,7 +224,7 @@ There are [several special email addresses](https://docs.google.com/document/d/1
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company.  
 - **Public:**   _Share with anyone, anywhere in the world_
 - **Confidential:**  _Share only with team members who've signed an NDA, consulting agreement, or employment agreement_
-- **Classified:**  _Share only with the CEO, Executive Assitant, Head of People, Head of Digital Workplace & GTM Systems, and/or the people involved.  e.g., US social security numbers during hiring_
+- **Classified:**  _Share only with the CEO, Executive Assistant, Head of People, Head of Digital Workplace & GTM Systems, and/or the people involved.  e.g., US social security numbers during hiring_
 
 
 ### Document titles
@@ -357,6 +357,16 @@ In Figma:
   - File extension might be .jpg or .png.
   - Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
+
+#### Clearing cached images
+
+When replacing an existing image on the Fleet website, if the new version has the same filename as the old version, the image must be purged from the Cloudflare cache for the latest version to be visible to users.
+
+To purge an image from the Cloudflare cache:
+1. Copy the URL of the image hosted on fleetdm.com.
+2. Log into Cloudflare and select the Fleet account, then select fleetdm.com.
+3. Select **Caching** » **Configuration** in the navigation sidebar, and click the "Custom Purge" option.
+4. Select the option to purge by URL, paste the URL of the image, and select purge. After a few moments, Cloudflare will serve the new version of the image to users.
 
 
 ## Change management

@@ -2,14 +2,14 @@ import React from "react";
 import { Column } from "react-table";
 
 import { IStringCellProps } from "interfaces/datatable_config";
-import { IHostMdmData } from "interfaces/host";
+import { HostAndroidCertStatus, IHostMdmData } from "interfaces/host";
 import {
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
   IHostMdmProfile,
-  MdmDDMProfileStatus,
-  MdmProfileStatus,
   isLinuxDiskEncryptionStatus,
   isWindowsDiskEncryptionStatus,
+  MdmDDMProfileStatus,
+  MdmProfileStatus,
 } from "interfaces/mdm";
 import { isDDMProfile } from "services/entities/mdm";
 
@@ -37,7 +37,8 @@ export type INonDDMProfileStatus = MdmProfileStatus | "action_required";
 
 export type OsSettingsTableStatusValue =
   | MdmDDMProfileStatus
-  | INonDDMProfileStatus;
+  | INonDDMProfileStatus
+  | HostAndroidCertStatus;
 
 const generateTableConfig = (
   canResendProfiles: boolean,
@@ -70,6 +71,7 @@ const generateTableConfig = (
             operationType={cellProps.row.original.operation_type}
             profileName={cellProps.row.original.name}
             hostPlatform={cellProps.row.original.platform}
+            profileUUID={cellProps.row.original.profile_uuid}
           />
         );
       },
