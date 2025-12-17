@@ -2309,6 +2309,57 @@ This activity contains the following fields:
 }
 ```
 
+## updated_enroll_secret
+
+Generated when an enroll secret is updated.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the enroll secret applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the enroll secret applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 1,
+  "team_name": "Workstations",
+}
+```
+
+## added_enroll_secret
+
+Generated when an enroll secret is added.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the enroll secret applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the enroll secret applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 1,
+  "team_name": "Workstations",
+}
+```
+
+## deleted_enroll_secret
+
+Generated when an enroll secret is deleted.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the enroll secret applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the enroll secret applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 1,
+  "team_name": "Workstations",
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
