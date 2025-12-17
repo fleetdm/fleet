@@ -291,13 +291,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
-	// TODO(JK): duplicate code, add parameter, or extract to a function that doesn't use context?
-	var replacingInstallDuringSetup bool
-	if len(allPlatformApps) == 0 || allPlatformApps[0].InstallDuringSetup != nil {
-		replacingInstallDuringSetup = true
-	}
-
-	if err := svc.ds.SetTeamVPPApps(ctx, teamID, allPlatformApps, appStoreIDToTitleID); err != nil {
+	setupExperienceChanged, err := svc.ds.SetTeamVPPApps(ctx, teamID, allPlatformApps, appStoreIDToTitleID)
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "no vpp token to set team vpp assets"), http.StatusUnprocessableEntity)
 		}
@@ -354,7 +349,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
-	if replacingInstallDuringSetup {
+	if setupExperienceChanged {
 		err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedSetupExperienceSoftware{TeamID: ptr.ValOrZero(teamID), TeamName: teamName})
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create edited setup experience activity")
