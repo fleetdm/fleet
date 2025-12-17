@@ -4,26 +4,27 @@
 $exeFilePath = "${env:INSTALLER_PATH}"
 
 try {
-
-# Add argument to install silently
-# Microsoft .NET Runtime 6 supports /silent for silent installation
-$processOptions = @{
-  FilePath = "$exeFilePath"
-  ArgumentList = "/silent"
-  PassThru = $true
-  Wait = $true
-}
+    # Microsoft .NET Runtime uses a burn installer (WiX bootstrapper) which supports /quiet for silent installation
+    $processOptions = @{
+        FilePath = $exeFilePath
+        ArgumentList = "/quiet", "/norestart"
+        PassThru = $true
+        Wait = $true
+        NoNewWindow = $true
+    }
     
-# Start process and track exit code
-$process = Start-Process @processOptions
-$exitCode = $process.ExitCode
-
-# Prints the exit code
-Write-Host "Install exit code: $exitCode"
-Exit $exitCode
+    $process = Start-Process @processOptions
+    $exitCode = $process.ExitCode
+    
+    Write-Host "Install exit code: $exitCode"
+    
+    # Give osquery a moment to detect the installation
+    Start-Sleep -Seconds 2
+    
+    Exit $exitCode
 
 } catch {
-  Write-Host "Error: $_"
-  Exit 1
+    Write-Host "Error: $_"
+    Exit 1
 }
 
