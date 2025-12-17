@@ -365,10 +365,12 @@ fun FleetScreenPreview() {
 @Composable
 fun DebugCertificateListPreview() {
     MyApplicationTheme {
-        DebugCertificateList(certificates = mapOf(
-            1 to CertificateInstallInfo(alias = "WIFI-1", status = CertificateInstallStatus.INSTALLED),
-            2 to CertificateInstallInfo(alias = "VPN-3", status = CertificateInstallStatus.FAILED),
-        ))
+        DebugCertificateList(
+            certificates = mapOf(
+                1 to CertificateInstallInfo(alias = "WIFI-1", status = CertificateInstallStatus.INSTALLED),
+                2 to CertificateInstallInfo(alias = "VPN-3", status = CertificateInstallStatus.FAILED),
+            ),
+        )
     }
 }
 
