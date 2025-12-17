@@ -170,7 +170,7 @@ const AddCertModal = ({
           value={formData.subjectName}
           onChange={onInputChange}
           error={formValidation.subjectName?.message}
-          helpText='Separate subject fields by a "/". For example: /CN=john@example.com/O=Acme Inc.'
+          helpText='Separate subject fields by ", ". For example: CN=john@example.com, O=Acme Inc.'
           parseTarget
           placeholder="CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, O=Your Organization"
         />
