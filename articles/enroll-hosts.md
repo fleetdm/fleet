@@ -311,6 +311,7 @@ The client certificates can also be pushed to existing installations by placing 
   - `C:\Program Files\Orbit\update_client.crt`
   - `C:\Program Files\Orbit\update_client.key`
 
+#### Alternative browser host
 If using Fleet Desktop, you may need to specify an alternative host for the "My device" URL (in the Fleet tray icon).
 Such alternative host should not require client certificates on the TLS connection.
 ```sh
