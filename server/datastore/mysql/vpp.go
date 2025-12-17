@@ -633,7 +633,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 		}
 	}
 
-	if vppToken != nil {
+	if vppToken != nil && app.Platform != fleet.AndroidPlatform {
 		vppTokenID = &vppToken.ID
 	}
 
@@ -2250,6 +2250,7 @@ FROM (
 			0 AS count_host_updated_after_labels,
 			vpp_apps_teams.adam_id AS installable_id
 			FROM vpp_apps_teams
+			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
 			LEFT JOIN vpp_app_team_labels ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
 			WHERE vpp_app_team_labels.id IS NULL AND vpp_apps_teams.platform = 'android'
 
@@ -2264,6 +2265,7 @@ FROM (
 		FROM
 			vpp_app_team_labels vatl
 			LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
+			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
 		LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
 		AND lm.host_id = ?
 		WHERE vatl.exclude = 0 AND vpp_apps_teams.platform = 'android'
@@ -2300,6 +2302,7 @@ FROM (
 		FROM
 			vpp_app_team_labels vatl
 		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
+		JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
 		LEFT OUTER JOIN labels lbl ON lbl.id = vatl.label_id
 		LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
 			AND lm.host_id = ?
@@ -2311,7 +2314,7 @@ FROM (
 			AND count_host_labels = 0) t;
 	`
 
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &applicationIDs, stmt, hostID, hostID, hostID)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &applicationIDs, stmt, hostID, hostID, hostID, hostID, hostID, hostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get in android apps in scope for host")
 	}

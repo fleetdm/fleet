@@ -2408,6 +2408,8 @@ type Datastore interface {
 	// DeleteAndroidAppConfiguration removes an Android app configuration.
 	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) error
 
+	ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
 

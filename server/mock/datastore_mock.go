@@ -1567,6 +1567,8 @@ type UpdateAndroidAppConfigurationFunc func(ctx context.Context, config *fleet.A
 
 type DeleteAndroidAppConfigurationFunc func(ctx context.Context, adamID string, globalOrTeamID uint) error
 
+type ListMDMAndroidUUIDsToHostIDsFunc func(ctx context.Context, hostIDs []uint) (map[string]uint, error)
+
 type CreateScimUserFunc func(ctx context.Context, user *fleet.ScimUser) (uint, error)
 
 type ScimUserByIDFunc func(ctx context.Context, id uint) (*fleet.ScimUser, error)
@@ -4013,6 +4015,9 @@ type DataStore struct {
 
 	DeleteAndroidAppConfigurationFunc        DeleteAndroidAppConfigurationFunc
 	DeleteAndroidAppConfigurationFuncInvoked bool
+
+	ListMDMAndroidUUIDsToHostIDsFunc        ListMDMAndroidUUIDsToHostIDsFunc
+	ListMDMAndroidUUIDsToHostIDsFuncInvoked bool
 
 	CreateScimUserFunc        CreateScimUserFunc
 	CreateScimUserFuncInvoked bool
@@ -9614,6 +9619,13 @@ func (s *DataStore) DeleteAndroidAppConfiguration(ctx context.Context, adamID st
 	s.DeleteAndroidAppConfigurationFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteAndroidAppConfigurationFunc(ctx, adamID, globalOrTeamID)
+}
+
+func (s *DataStore) ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
+	s.mu.Lock()
+	s.ListMDMAndroidUUIDsToHostIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMDMAndroidUUIDsToHostIDsFunc(ctx, hostIDs)
 }
 
 func (s *DataStore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (uint, error) {
