@@ -456,7 +456,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, []string{appleCmdUUID, failedAppleCmdUUID}, got)
 
 	// pagination and pagination meta data
-	_, _, meta, err := ds.ListMDMCommands(
+	cmds, _, meta, err := ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
