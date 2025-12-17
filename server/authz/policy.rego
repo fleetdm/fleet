@@ -358,12 +358,13 @@ allow {
   action == read
 }
 
-# Team admins, maintainers, observer_plus, observers and gitops can read labels.
+# Team admins, maintainers, observer_plus, observers and gitops can read global labels.
 allow {
-	object.type == "label"
+  object.type == "label"
+  is_null(object.team_id)
   # If role is admin, maintainer, observer_plus or observer on any team.
   team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer, gitops][_]
-	action == read
+  action == read
 }
 
 # Global admins, maintainers and gitops can write labels
@@ -373,15 +374,22 @@ allow {
   action == write
 }
 
-
-# Team admins and maintainers can write labels
+# Team admins, maintainers, and gitops can write global labels they created
 allow {
   object.type == "label"
-  # If role is admin, maintainer or gitops on any team.
-  team_role(subject, subject.teams[_].id) == [admin, maintainer][_]
+  is_null(object.team_id)
+  object.author_id = subject.id
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
   action == write
 }
 
+# Team admins, maintainers, and gitops can write labels for their team
+allow {
+  object.type == "label"
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  action == write
+}
 
 ##
 # Queries

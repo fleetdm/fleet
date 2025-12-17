@@ -25,6 +25,10 @@ func TestLabelsAuth(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 
 	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
+		lbl.ID = 1
+		if lbl.Name == "Other label" {
+			lbl.ID = 2
+		}
 		return lbl, nil
 	}
 	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
@@ -56,14 +60,16 @@ func TestLabelsAuth(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name            string
-		user            *fleet.User
-		shouldFailWrite bool
-		shouldFailRead  bool
+		name                          string
+		user                          *fleet.User
+		shouldFailGlobalWrite         bool
+		shouldFailGlobalRead          bool
+		shouldFailGlobalWriteIfAuthor bool
 	}{
 		{
 			"global admin",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
 			false,
 			false,
 		},
@@ -72,16 +78,19 @@ func TestLabelsAuth(t *testing.T) {
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
 			false,
 			false,
+			false,
 		},
 		{
 			"global observer",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
 			true,
 			false,
+			true,
 		},
 		{
 			"team maintainer",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
 			false,
 			false,
 		},
@@ -90,44 +99,64 @@ func TestLabelsAuth(t *testing.T) {
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
 			true,
 			false,
+			true,
 		},
 	}
+
+	// add a new label authored by no one so we can check writes for labels that aren't authored by the user
+	otherLabel, _, err := svc.NewLabel(viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleMaintainer)}}), fleet.LabelPayload{Name: "Other label", Query: "SELECT 0"})
+	require.NoError(t, err)
+
+	// TODO create other-team label
+
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			_, _, err := svc.NewLabel(ctx, fleet.LabelPayload{Name: t.Name(), Query: `SELECT 1`})
-			checkAuthErr(t, tt.shouldFailWrite, err)
+			myLabel, _, err := svc.NewLabel(ctx, fleet.LabelPayload{Name: t.Name(), Query: `SELECT 1`})
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
-			_, _, err = svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{})
-			checkAuthErr(t, tt.shouldFailWrite, err)
+			_, _, err = svc.ModifyLabel(ctx, otherLabel.ID, fleet.ModifyLabelPayload{})
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+
+			if myLabel != nil {
+				_, _, err = svc.ModifyLabel(ctx, myLabel.ID, fleet.ModifyLabelPayload{})
+				checkAuthErr(t, tt.shouldFailGlobalWriteIfAuthor, err)
+			}
 
 			err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{})
-			checkAuthErr(t, tt.shouldFailWrite, err)
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
-			_, _, err = svc.GetLabel(ctx, 1)
-			checkAuthErr(t, tt.shouldFailRead, err)
+			_, _, err = svc.GetLabel(ctx, otherLabel.ID)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			_, err = svc.GetLabelSpecs(ctx)
-			checkAuthErr(t, tt.shouldFailRead, err)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			_, err = svc.GetLabelSpec(ctx, "abc")
-			checkAuthErr(t, tt.shouldFailRead, err)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			_, err = svc.ListLabels(ctx, fleet.ListOptions{}, nil, true)
-			checkAuthErr(t, tt.shouldFailRead, err)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
-			_, err = svc.LabelsSummary((ctx), nil)
-			checkAuthErr(t, tt.shouldFailRead, err)
+			_, err = svc.LabelsSummary(ctx, nil)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			_, err = svc.ListHostsInLabel(ctx, 1, fleet.HostListOptions{})
-			checkAuthErr(t, tt.shouldFailRead, err)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			err = svc.DeleteLabel(ctx, "abc")
-			checkAuthErr(t, tt.shouldFailWrite, err)
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
-			err = svc.DeleteLabelByID(ctx, 1)
-			checkAuthErr(t, tt.shouldFailWrite, err)
+			err = svc.DeleteLabelByID(ctx, otherLabel.ID)
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+
+			if myLabel != nil {
+				err = svc.DeleteLabelByID(ctx, myLabel.ID)
+				checkAuthErr(t, tt.shouldFailGlobalWriteIfAuthor, err)
+			}
+
+			// TODO add team label permissions
 		})
 	}
 }
