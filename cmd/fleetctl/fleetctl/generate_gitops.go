@@ -1413,33 +1413,29 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		return nil, nil
 	}
 
-	// setupSoftwareBySoftwareTitle := make(map[uint]struct{})
-	// setupSoftwareByPlatformAndApp := make(map[string]struct{})
+	setupSoftwareBySoftwareTitle := make(map[uint]struct{})
+	setupSoftwareByPlatformAndApp := make(map[string]struct{})
 
-	// TODO(JK): this isn't needed, since ListSoftwareTitles provides the installDuringSetup in SoftwarePackageOrApp ???
-	// // This could be optimized if a call to setup_experience/software could be made with an all platforms
-	// // flag that would ultimately call ListSoftwareTitles without the platform field set, or if
-	// // installDuringSetup was available in the
-	// for _, platform := range []string{"macos", "windows", "linux", "ios", "ipados", "android"} {
-	// 	// See if the team has setup software configured.
-	// 	setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(platform, teamID)
-	// 	if err != nil {
-	// 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
-	// 		return nil, err
-	// 	}
-	// 	for _, software := range setupSoftware {
-	// 		pkg := software.SoftwarePackage
-	// 		if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
-	// 			setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
-	// 		}
-	// 		if software.AppStoreApp != nil {
-	// 			appStoreApp := software.AppStoreApp
-	// 			if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
-	// 				setupSoftwareByPlatformAndApp[strings.Join([]string{platform, appStoreApp.AppStoreID}, "_")] = struct{}{}
-	// 			}
-	// 		}
-	// 	}
-	// }
+	// Fill in InstallDuringSetup for software, as that information is only available
+	// from the setup experience endpoint
+	platforms := "macos,windows,linux,ios,ipados,android"
+	setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(platforms, teamID)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
+		return nil, err
+	}
+	for _, software := range setupSoftware {
+		pkg := software.SoftwarePackage
+		if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
+			setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
+		}
+		if software.AppStoreApp != nil {
+			appStoreApp := software.AppStoreApp
+			if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
+				setupSoftwareByPlatformAndApp[strings.Join([]string{appStoreApp.Platform, appStoreApp.AppStoreID}, "_")] = struct{}{}
+			}
+		}
+	}
 
 	result := make(map[string]interface{})
 	packages := make([]map[string]interface{}, 0)
@@ -1645,10 +1641,11 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				labels = softwareTitle.SoftwarePackage.LabelsExcludeAny
 				labelKey = "labels_exclude_any"
 			}
-			if sw.SoftwarePackage.InstallDuringSetup != nil && *sw.SoftwarePackage.InstallDuringSetup {
+			if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
 				softwareSpec["setup_experience"] = true
 			}
 		} else {
+			platformAndAppID := strings.Join([]string{string(softwareTitle.AppStoreApp.Platform), softwareTitle.AppStoreApp.AdamID}, "_")
 			if len(softwareTitle.AppStoreApp.LabelsIncludeAny) > 0 {
 				labels = softwareTitle.AppStoreApp.LabelsIncludeAny
 				labelKey = "labels_include_any"
@@ -1657,8 +1654,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				labels = softwareTitle.AppStoreApp.LabelsExcludeAny
 				labelKey = "labels_exclude_any"
 			}
-			fmt.Printf("sw.AppStoreApp: %#v\n\n\n", sw.AppStoreApp.InstallDuringSetup)
-			if sw.AppStoreApp.InstallDuringSetup != nil && *sw.AppStoreApp.InstallDuringSetup {
+			if _, exists := setupSoftwareByPlatformAndApp[platformAndAppID]; exists {
 				softwareSpec["setup_experience"] = true
 			}
 		}

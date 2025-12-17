@@ -656,6 +656,8 @@ func TestGenerateGitops(t *testing.T) {
 	err := action(cliContext)
 	require.NoError(t, err, buf.String())
 
+	// TODO(JK): update the testdata
+
 	compareDirs(t, "./testdata/generateGitops/test_dir_premium", tempDir)
 
 	t.Cleanup(func() {

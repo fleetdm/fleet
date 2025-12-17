@@ -402,9 +402,6 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 	var replacingInstallDuringSetup bool
 	if len(incomingApps) == 0 || incomingApps[0].InstallDuringSetup != nil {
 		replacingInstallDuringSetup = true
-		// TODO(JK): if this is variable is still true by the end, and no errors happened, this means setup experience changed
-		// this has to be the only condition? because if IndividualApp.InstallDuringSetup is true, there will be an error
-		// maybe factor this out to a function?
 	}
 
 	var toAddApps []fleet.VPPAppTeam
@@ -434,39 +431,9 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			vppTokenRequired = true
 		}
 		// upsert it if it does not exist or labels or SelfService or InstallDuringSetup flags are changed
-		existingApp, isExistingApp := existingApps[incomingApp.VPPAppID]
-		incomingApp.AppTeamID = existingApp.AppTeamID
-		var labelsChanged, categoriesChanged, displayNameChanged, configurationChanged bool
-		if isExistingApp {
-			existingLabels, err := ds.getExistingLabels(ctx, incomingApp.AppTeamID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting existing labels for vpp app")
-			}
-
-			labelsChanged = !existingLabels.Equal(incomingApp.ValidatedLabels)
-
-			existingCatIDs, err := ds.getVPPAppTeamCategoryIDs(ctx, incomingApp.AppTeamID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting existing categories for vpp app")
-			}
-
-			categoriesChanged = !slices.Equal(existingCatIDs, incomingApp.CategoryIDs)
-
-			existingDisplayName := ptr.ValOrZero(existingApp.DisplayName)
-			incomingDisplayName := ptr.ValOrZero(incomingApp.DisplayName)
-			displayNameChanged = existingDisplayName != incomingDisplayName
-
-			if incomingApp.Platform == fleet.AndroidPlatform {
-				configurationChanged, err = ds.HasAndroidAppConfigurationChanged(ctx, existingApp.AdamID, ptr.ValOrZero(teamID), incomingApp.Configuration)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "getting existing configuration for android app")
-				}
-				// Set configuration to empty if it exists and is provided as null
-				if configurationChanged && len(incomingApp.Configuration) == 0 {
-					incomingApp.Configuration = json.RawMessage("{}")
-				}
-			}
-
+		appChanged, labelsChanged, err := ds.didAppStoreAppChange(ctx, teamID, incomingApp, existingApps)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if app store app changed")
 		}
 
 		// Get the hosts that are NOT in label scope currently (before the update happens)
@@ -476,18 +443,9 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 				return ctxerr.Wrap(ctx, err, "getting hosts not in scope for vpp app")
 			}
 			appsWithChangedLabels[incomingApp.AppTeamID] = hostsNotInScope
-
 		}
 
-		if !isExistingApp ||
-			existingApp.SelfService != incomingApp.SelfService ||
-			labelsChanged ||
-			categoriesChanged ||
-			displayNameChanged ||
-			configurationChanged ||
-			incomingApp.InstallDuringSetup != nil &&
-				existingApp.InstallDuringSetup != nil &&
-				*incomingApp.InstallDuringSetup != *existingApp.InstallDuringSetup {
+		if appChanged {
 			toAddApps = append(toAddApps, incomingApp)
 		}
 	}
@@ -2343,4 +2301,55 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get VPP apps to install during setup experience")
 	}
 	return ids, nil
+}
+
+func (ds *Datastore) didAppStoreAppChange(ctx context.Context, teamID *uint, incomingApp fleet.VPPAppTeam,
+	existingApps map[fleet.VPPAppID]fleet.VPPAppTeam) (appChanged, labelsChanged bool, err error) {
+
+	existingApp, isExistingApp := existingApps[incomingApp.VPPAppID]
+	incomingApp.AppTeamID = existingApp.AppTeamID
+
+	var categoriesChanged, installDuringSetupChanged, displayNameChanged, configurationChanged bool
+
+	if isExistingApp {
+		existingLabels, err := ds.getExistingLabels(ctx, incomingApp.AppTeamID)
+		if err != nil {
+			return false, labelsChanged, ctxerr.Wrap(ctx, err, "getting existing labels for vpp app")
+		}
+
+		labelsChanged = !existingLabels.Equal(incomingApp.ValidatedLabels)
+
+		existingCatIDs, err := ds.getVPPAppTeamCategoryIDs(ctx, incomingApp.AppTeamID)
+		if err != nil {
+			return false, labelsChanged, ctxerr.Wrap(ctx, err, "getting existing categories for vpp app")
+		}
+
+		categoriesChanged = !slices.Equal(existingCatIDs, incomingApp.CategoryIDs)
+
+		existingDisplayName := ptr.ValOrZero(existingApp.DisplayName)
+		incomingDisplayName := ptr.ValOrZero(incomingApp.DisplayName)
+		displayNameChanged = existingDisplayName != incomingDisplayName
+
+		if incomingApp.Platform == fleet.AndroidPlatform {
+			configurationChanged, err = ds.HasAndroidAppConfigurationChanged(ctx, existingApp.AdamID, ptr.ValOrZero(teamID), incomingApp.Configuration)
+			if err != nil {
+				return false, labelsChanged, ctxerr.Wrap(ctx, err, "getting existing configuration for android app")
+			}
+			// Set configuration to empty if it exists and is provided as null
+			if configurationChanged && len(incomingApp.Configuration) == 0 {
+				incomingApp.Configuration = json.RawMessage("{}")
+			}
+		}
+
+		installDuringSetupChanged = incomingApp.InstallDuringSetup != nil &&
+			existingApp.InstallDuringSetup != nil &&
+			*incomingApp.InstallDuringSetup != *existingApp.InstallDuringSetup
+	}
+
+	if !isExistingApp || existingApp.SelfService != incomingApp.SelfService || labelsChanged ||
+		categoriesChanged || displayNameChanged || configurationChanged || installDuringSetupChanged {
+		return true, labelsChanged, nil
+	}
+
+	return false, labelsChanged, nil
 }
