@@ -12,19 +12,22 @@ interface ICommandItemProps {
 }
 
 const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
-  const { command_uuid, host_uuid, request_type, status, updated_at } = command;
+  const {
+    command_status,
+    command_uuid,
+    host_uuid,
+    request_type,
+    updated_at,
+  } = command;
 
   let statusVerb = "";
-  switch (status) {
-    case "Pending":
-    case "NotNow":
+  switch (command_status) {
+    case "pending":
       statusVerb = "will run";
       break;
-    case "Acknowledged":
+    case "ran":
+    case "failed":
       statusVerb = "ran";
-      break;
-    case "Error":
-      statusVerb = "failed";
       break;
     default:
       statusVerb = "ran";

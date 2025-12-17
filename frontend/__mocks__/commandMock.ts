@@ -4,6 +4,7 @@ import { IGetCommandsResponse } from "services/entities/command";
 const DEFAULT_COMMAND_MOCK: ICommand = {
   host_uuid: "default-host-uuid",
   command_uuid: "default-command-uuid",
+  command_status: "pending",
   status: "Pending",
   updated_at: "2024-01-01T00:00:00Z",
   request_type: "InstallProfile",
