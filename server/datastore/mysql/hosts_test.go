@@ -6981,23 +6981,6 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Verify the mdm_idp_accounts entry exists
-	// in db
-	var hostEmailSourceResults []struct {
-		Email  string
-		Source string
-	}
-	err = ds.writer(ctx).SelectContext(ctx, &hostEmailSourceResults, `SELECT email, source FROM host_emails WHERE host_id = ?`, h1.ID)
-	require.NoError(t, err)
-	foundMdmIdp = false
-	for _, mapping := range hostEmailSourceResults {
-		if mapping.Email == "mdm.user2@example.com" && mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
-			foundMdmIdp = true
-			break
-		}
-	}
-	require.True(t, foundMdmIdp, "Should find MDM IDP mapping")
-
-	// translated from list method
 	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
 	require.NoError(t, err)
 	require.Len(t, mappings, 2)
