@@ -2138,23 +2138,17 @@ func (svc *Service) needsOSUpdateForDEPEnrollment(ctx context.Context, m fleet.M
 
 	minVersion := settings.MinimumVersion.Value
 	hasMinVersion := settings.MinimumVersion.Set && settings.MinimumVersion.Valid && minVersion != ""
-	updateNewHosts := settings.UpdateNewHosts.Set && settings.UpdateNewHosts.Valid && settings.UpdateNewHosts.Value
-	isMacOS := platform == "darwin"
 
-	if isMacOS {
-		// If "Update New Hosts" is unchecked on macOS, we never update.
-		if !updateNewHosts {
-			return false, nil
-		}
+	// For macOS hosts, whether to update new hosts during DEP enrollment is determined solely by UpdateNewHosts
+	if platform == "darwin" {
+		updateNewHosts := settings.UpdateNewHosts.Set && settings.UpdateNewHosts.Valid && settings.UpdateNewHosts.Value
 
-		// If "Update New Hosts" is checked but no version is set, we force an update
-		if !hasMinVersion {
-			level.Info(svc.logger).Log(
-				"msg", "checking os updates settings, minimum version not set, forcing macos update",
-				"serial", m.Serial,
-			)
-			return true, nil
-		}
+		level.Info(svc.logger).Log(
+			"msg", "checking os updates settings for macos, update will be forced if UpdateNewHosts is set",
+			"update_new_hosts", updateNewHosts,
+			"serial", m.Serial,
+		)
+		return updateNewHosts, nil
 	}
 
 	// TODO: confirm what this check should do
