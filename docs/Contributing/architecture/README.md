@@ -1,11 +1,12 @@
-# Fleet Architecture Documentation
+# Fleet architecture documentation
 
 This directory contains high-level architecture documentation for Fleet.
 
 ## Overview
 
-- [High-Level Architecture](high-level-architecture.md) - Overview of Fleet's architecture
+- [High-level architecture](high-level-architecture.md) - Overview of Fleet's architecture
 - [Infrastructure](infrastructure.md) - Documentation on Fleet's infrastructure
+- [Modular monolith](modular-monolith/README.md) - Fleet's transition to a modular monolith with bounded contexts
 
 ## Product group architecture
 

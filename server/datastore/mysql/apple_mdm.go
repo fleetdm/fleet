@@ -830,77 +830,6 @@ func (ds *Datastore) GetAppleHostMDMCertificateProfile(ctx context.Context, host
 	return &profile, nil
 }
 
-// RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
-func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
-	// This will trigger a resend next time profiles are checked
-	updateQuery := `UPDATE host_mdm_apple_profiles SET status = NULL WHERE status IS NOT NULL AND operation_type = ? AND (`
-	hostProfileClause := ``
-	values := []interface{}{fleet.MDMOperationTypeInstall}
-
-	totalHostCertsToRenew := 0
-	hostCertTypesToRenew := fleet.ListCATypesWithRenewalSupport()
-	for _, hostCertType := range hostCertTypesToRenew {
-		hostCertsToRenew := []struct {
-			HostUUID       string    `db:"host_uuid"`
-			ProfileUUID    string    `db:"profile_uuid"`
-			NotValidAfter  time.Time `db:"not_valid_after"`
-			ValidityPeriod int       `db:"validity_period"`
-		}{}
-		// Fetch all MDM Managed certificates of the given type that aren't already queued for
-		// resend(hmap.status=null) and which
-		// * Have a validity period > 30 days and are expiring in the next 30 days
-		// * Have a validity period <= 30 days and are within half the validity period of expiration
-		// nb: we SELECT not_valid_after and validity_period here so we can use them in the HAVING clause, but
-		// we don't actually need them for the update logic.
-		err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
-	SELECT
-		hmmc.host_uuid,
-		hmmc.profile_uuid,
-		hmmc.not_valid_after,
-		DATEDIFF(hmmc.not_valid_after, hmmc.not_valid_before) AS validity_period
-	FROM
-		host_mdm_managed_certificates hmmc
-	INNER JOIN
-		host_mdm_apple_profiles hmap
-		ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
-	WHERE
-		hmmc.type = ? AND hmap.status IS NOT NULL AND hmap.operation_type = ?
-	HAVING
-		validity_period IS NOT NULL AND
-		((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
-		(validity_period <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
-	LIMIT 1000`, hostCertType, fleet.MDMOperationTypeInstall)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
-		}
-		if len(hostCertsToRenew) == 0 {
-			level.Debug(ds.logger).Log("msg", "No "+hostCertType+" certificates to renew")
-			continue
-		}
-		totalHostCertsToRenew += len(hostCertsToRenew)
-
-		for _, hostCertToRenew := range hostCertsToRenew {
-			hostProfileClause += `(host_uuid = ? AND profile_uuid = ?) OR `
-			values = append(values, hostCertToRenew.HostUUID, hostCertToRenew.ProfileUUID)
-		}
-	}
-	if totalHostCertsToRenew == 0 {
-		return nil
-	}
-
-	hostProfileClause = strings.TrimSuffix(hostProfileClause, " OR ")
-
-	level.Debug(ds.logger).Log("msg", "Renewing MDM managed digicert/SCEP certificates", "len(hostCertsToRenew)", totalHostCertsToRenew)
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, updateQuery+hostProfileClause+")", values...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "updating mdm managed certificates to renew")
-		}
-		return nil
-	})
-	return err
-}
-
 // ResendHostCertificateProfile marks the given profile UUID to be resent to the host with the given UUID. It
 // also deactivates prior nano commands and resets the retry counter for the profile UUID and host UUID.
 //
@@ -6782,7 +6711,7 @@ WHERE (
 	return nil
 }
 
-func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (*fleet.AppleOSUpdateSettings, error) {
+func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (string, *fleet.AppleOSUpdateSettings, error) {
 	stmt := `
 SELECT
 	team_id, platform
@@ -6799,7 +6728,7 @@ LIMIT 1`
 		Platform string `db:"platform"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, serial); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting team id for host")
+		return "", nil, ctxerr.Wrap(ctx, err, "getting team id for host")
 	}
 
 	var settings fleet.AppleOSUpdateSettings
@@ -6807,7 +6736,7 @@ LIMIT 1`
 		// use the global settings
 		ac, err := ds.AppConfig(ctx)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting app config for os update settings")
+			return "", nil, ctxerr.Wrap(ctx, err, "getting app config for os update settings")
 		}
 		switch dest.Platform {
 		case "ios":
@@ -6817,13 +6746,13 @@ LIMIT 1`
 		case "darwin":
 			settings = ac.MDM.MacOSUpdates
 		default:
-			return nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
+			return "", nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
 		}
 	} else {
 		// use the team settings
 		tm, err := ds.TeamLite(ctx, *dest.TeamID)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting team os update settings")
+			return "", nil, ctxerr.Wrap(ctx, err, "getting team os update settings")
 		}
 		switch dest.Platform {
 		case "ios":
@@ -6833,11 +6762,11 @@ LIMIT 1`
 		case "darwin":
 			settings = tm.Config.MDM.MacOSUpdates
 		default:
-			return nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
+			return "", nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
 		}
 	}
 
-	return &settings, nil
+	return dest.Platform, &settings, nil
 }
 
 // ClearMDMUpcomingActivitiesDB clears the upcoming activities of the host that

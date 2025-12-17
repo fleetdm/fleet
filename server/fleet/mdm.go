@@ -196,10 +196,10 @@ type ABMTermsUpdater interface {
 // MDMIdPAccount contains account information of a third-party IdP that can be
 // later used for MDM operations like creating local accounts.
 type MDMIdPAccount struct {
-	UUID     string
-	Username string
-	Fullname string
-	Email    string
+	UUID     string `db:"uuid"`
+	Username string `db:"username"`
+	Fullname string `db:"fullname"`
+	Email    string `db:"email"`
 }
 
 type MDMAppleBootstrapPackage struct {
@@ -442,36 +442,20 @@ type MDMProfilesSummary struct {
 	Failed uint `json:"failed" db:"failed"`
 }
 
-func (mdmPS *MDMProfilesSummary) Add(other *MDMProfilesSummary) *MDMProfilesSummary {
-	var s1, s2 MDMProfilesSummary
-	if mdmPS != nil {
-		s1 = *mdmPS
-	}
-	if other != nil {
-		s2 = *other
-	}
-	return &MDMProfilesSummary{
-		Verified:  s1.Verified + s2.Verified,
-		Verifying: s1.Verifying + s2.Verifying,
-		Pending:   s1.Pending + s2.Pending,
-		Failed:    s1.Failed + s2.Failed,
-	}
-}
-
 // HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either
 // a Windows or macOS profile.
 type HostMDMProfile struct {
-	HostUUID            string             `db:"-" json:"-"`
-	CommandUUID         string             `db:"-" json:"-"`
-	ProfileUUID         string             `db:"-" json:"profile_uuid"`
-	Name                string             `db:"-" json:"name"`
-	Identifier          string             `db:"-" json:"-"`
-	Status              *MDMDeliveryStatus `db:"-" json:"status"`
-	OperationType       MDMOperationType   `db:"-" json:"operation_type"`
-	Detail              string             `db:"-" json:"detail"`
-	Platform            string             `db:"-" json:"platform"`
-	Scope               *string            `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
-	ManagedLocalAccount *string            `db:"-" json:"managed_local_account"`
+	HostUUID            string           `db:"-" json:"-"`
+	CommandUUID         string           `db:"-" json:"-"`
+	ProfileUUID         string           `db:"-" json:"profile_uuid"`
+	Name                string           `db:"-" json:"name"`
+	Identifier          string           `db:"-" json:"-"`
+	Status              *string          `db:"-" json:"status"` // MDMDeliveryStatus or CertificateTemplateStatus
+	OperationType       MDMOperationType `db:"-" json:"operation_type"`
+	Detail              string           `db:"-" json:"detail"`
+	Platform            string           `db:"-" json:"platform"`
+	Scope               *string          `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
+	ManagedLocalAccount *string          `db:"-" json:"managed_local_account"`
 }
 
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
@@ -527,6 +511,15 @@ func (s MDMDeliveryStatus) IsValid() bool {
 	default:
 		return false
 	}
+}
+
+// StringPtr returns a pointer to the string representation of the status.
+func (s *MDMDeliveryStatus) StringPtr() *string {
+	if s == nil {
+		return nil
+	}
+	str := string(*s)
+	return &str
 }
 
 type MDMOperationType string

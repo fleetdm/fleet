@@ -122,7 +122,7 @@ func (p HostMDMAndroidProfile) ToHostMDMProfile() HostMDMProfile {
 		ProfileUUID:   p.ProfileUUID,
 		Name:          p.Name,
 		Identifier:    "",
-		Status:        p.Status,
+		Status:        p.Status.StringPtr(),
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
 		Platform:      "android",
@@ -181,6 +181,12 @@ func IsAndroidPolicyFieldValid(fieldName string) bool {
 	return policyFieldsCache[fieldName]
 }
 
+var validAndroidWorkProfileWidgets = map[string]struct{}{
+	"WORK_PROFILE_WIDGETS_UNSPECIFIED": {},
+	"WORK_PROFILE_WIDGETS_ALLOWED":     {},
+	"WORK_PROFILE_WIDGETS_DISALLOWED":  {},
+}
+
 // ValidateAndroidAppConfiguration validates Android app configuration JSON.
 // Configuration must be valid JSON with only "managedConfiguration" and/or
 // "workProfileWidgets" as top-level keys. Empty configuration is not allowed.
@@ -206,6 +212,10 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 		return &BadRequestError{
 			Message: "Couldn't update configuration. Invalid JSON.",
 		}
+	}
+
+	if _, validVal := validAndroidWorkProfileWidgets[cfg.WorkProfileWidgets]; cfg.WorkProfileWidgets != "" && !validVal {
+		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "%s" is not a supported value for "workProfileWidget".`, cfg.WorkProfileWidgets)}
 	}
 
 	return nil

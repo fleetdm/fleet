@@ -676,9 +676,6 @@ func TestMDMCommonAuthorization(t *testing.T) {
 	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 		return fleet.DiskEncryptionConfig{}, nil
 	}
-	ds.GetMDMProfileSummaryFromHostCertificateTemplatesFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
-		return &fleet.MDMProfilesSummary{}, nil
-	}
 
 	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
 		res := make(map[string]bool, len(hosts))
@@ -2356,6 +2353,19 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 			if label != "baddy" {
 				labelID++
 				m[label] = labelID
+			}
+		}
+		return m, nil
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		m := map[string]*fleet.Label{}
+		for _, name := range names {
+			if name != "baddy" {
+				labelID++
+				m[name] = &fleet.Label{
+					ID:   labelID,
+					Name: name,
+				}
 			}
 		}
 		return m, nil

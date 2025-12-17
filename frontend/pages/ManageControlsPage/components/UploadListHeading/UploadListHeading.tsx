@@ -1,22 +1,26 @@
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon";
-import Button from "components/buttons/Button";
 import React from "react";
 
-const baseClass = "profile-list-heading";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
-interface IProfileListHeadingProps {
-  onClickAddProfile?: () => void;
+import Icon from "components/Icon";
+import Button from "components/buttons/Button";
+
+const baseClass = "upload-list-heading";
+
+interface IUploadListHeadingProps {
+  entityName: string;
+  createEntityText: string;
+  onClickAdd?: () => void;
 }
 
-const ProfileListHeading = ({
-  onClickAddProfile,
-}: IProfileListHeadingProps) => {
+const UploadListHeading = ({
+  entityName,
+  createEntityText,
+  onClickAdd,
+}: IUploadListHeadingProps) => {
   return (
     <div className={baseClass}>
-      <span className={`${baseClass}__profile-name-heading`}>
-        Configuration profile
-      </span>
+      <span className={`${baseClass}__upload-name-heading`}>{entityName}</span>
       <span className={`${baseClass}__actions-heading`}>
         <GitOpsModeTooltipWrapper
           position="left"
@@ -25,12 +29,12 @@ const ProfileListHeading = ({
               disabled={disableChildren}
               variant="brand-inverse-icon"
               className={`${baseClass}__add-button`}
-              onClick={onClickAddProfile}
+              onClick={onClickAdd}
               iconStroke
             >
               <>
                 <Icon name="plus" color="core-fleet-green" />
-                Add profile
+                {createEntityText}
               </>
             </Button>
           )}
@@ -40,4 +44,4 @@ const ProfileListHeading = ({
   );
 };
 
-export default ProfileListHeading;
+export default UploadListHeading;
