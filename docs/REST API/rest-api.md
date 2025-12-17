@@ -1666,7 +1666,7 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "fleet_desktop": {
     "transparency_url": "https://fleetdm.com/better",
-    "alternative_browser_host_url": ""
+    "alternative_browser_host_url": "https://fleet-desktop.example.com"
   },
   "gitops": {
     "gitops_mode_enabled": false,
