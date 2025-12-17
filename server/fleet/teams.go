@@ -587,6 +587,10 @@ type TeamFilter struct {
 	TeamID *uint
 }
 
+func (f TeamFilter) UserHasRoleInSelectedTeam() bool {
+	return false // TODO
+}
+
 const (
 	TeamKind = "team"
 )

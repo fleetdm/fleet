@@ -437,6 +437,18 @@ func (u *User) SetFakePassword(keySize, cost int) error {
 	return nil
 }
 
+func (u *User) TeamIDsWithAnyRole() []uint {
+	return []uint{} // TODO
+}
+
+func (u *User) HasAnyGlobalRole() bool {
+	return false // TODO
+}
+
+func (u *User) HasAnyTeamRole() bool {
+	return false // TODO
+}
+
 func saltAndHashPassword(keySize int, plaintext string, cost int) (hashed []byte, salt string, err error) {
 	salt, err = server.GenerateRandomText(keySize)
 	if err != nil {

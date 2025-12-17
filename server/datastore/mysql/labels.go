@@ -535,8 +535,6 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 		return nil, &fleet.BadRequestError{Message: "parameter 'query' is not supported"}
 	}
 
-	// TODO filtering; treat team 0 as explicit global
-
 	query := "SELECT l.* FROM labels l "
 	// When applicable, filter host membership by team and return counts with the labels.
 	if filter.User != nil && includeHostCounts {
@@ -551,13 +549,26 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 		)
 	}
 
-	if filter.TeamID != nil {
-		if *filter.TeamID == 0 { // global labels only; any user can see them
-			query += " WHERE l.team_id IS NULL"
-		} // TODO filter by team ID if the user can access it, FALSE if the user can't
-	} // TODO filter by teams that the user has access to, plus global
+	var params []any
+	var err error
 
-	query, params := appendListOptionsToSQL(query, &opt)
+	if filter.TeamID != nil {
+		if *filter.TeamID == 0 || !filter.UserHasRoleInSelectedTeam() { // global labels only; any user can see them
+			query += " WHERE l.team_id IS NULL"
+		} else { // user can see the team labels they're asking for; return global labels plus that team's labels
+			query += " WHERE l.team_id IS NULL OR l.team_id = ?"
+			params = append(params, *filter.TeamID)
+		}
+	} else if filter.User == nil { // fall back to safe (global-only) filter if this happens (it shouldn't)
+		query += " WHERE l.team_id IS NULL"
+	} else if !filter.User.HasAnyGlobalRole() && filter.User.HasAnyTeamRole() { // filter to teams user can see
+		query, params, err = sqlx.In(query+" WHERE l.team_id IS NULL OR l.team_id IN (?)", filter.User.TeamIDsWithAnyRole())
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "selecting labels")
+		}
+	} // user exists and has a global role, so we don't need to filter out any team labels
+
+	query, params = appendListOptionsWithCursorToSQL(query, params, &opt)
 	var labels []*fleet.Label
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, params...); err != nil {
