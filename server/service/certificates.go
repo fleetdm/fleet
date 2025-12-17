@@ -473,8 +473,7 @@ func (svc *Service) UpdateCertificateStatus(
 
 	certificate, err := svc.ds.GetCertificateTemplateForHost(ctx, host.UUID, certificateTemplateID)
 	if err != nil {
-		level.Error(svc.logger).Log("msg", "error getting certificate template for host", "host_uuid", host.UUID, "certificate_template_id", certificateTemplateID, "err", err)
-		return nil
+		return err
 	}
 
 	if certificate.Status != nil && *certificate.Status != fleet.CertificateTemplateDelivered {
@@ -482,7 +481,7 @@ func (svc *Service) UpdateCertificateStatus(
 		return nil
 	}
 
-	if certificate.OperationType != opType {
+	if certificate.OperationType != nil && *certificate.OperationType != opType {
 		level.Info(svc.logger).Log("msg", "ignoring certificate status update for different operation type", "host_uuid", host.UUID, "certificate_template_id", certificateTemplateID, "current_operation_type", certificate.OperationType, "new_operation_type", opType)
 		return nil
 	}

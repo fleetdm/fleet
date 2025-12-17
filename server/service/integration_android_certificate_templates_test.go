@@ -234,7 +234,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	// Step: Verify the status is 'verified'
 	s.verifyCertificateStatus(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateVerified, successDetail)
 
-	// Step: Host updates the certificate status to 'failed' via fleetd API
+	// Step: Host attempts to update the certificate status to 'failed' via fleetd API
+	// This should be ignored since the current status is not 'delivered'
 	failedDetail := "Certificate installation failed: invalid challenge"
 	updateReq, err = json.Marshal(updateCertificateStatusRequest{
 		Status: string(fleet.CertificateTemplateFailed),
@@ -247,8 +248,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	})
 	_ = resp.Body.Close()
 
-	// Step: Verify the status is 'failed' with details
-	s.verifyCertificateStatus(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateFailed, failedDetail)
+	// Step: Verify the status is still 'verified' with details
+	s.verifyCertificateStatus(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateVerified, successDetail)
 }
 
 // TestCertificateTemplateSpecEndpointAndAMAPIFailure tests:
