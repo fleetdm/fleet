@@ -800,6 +800,13 @@
       "description": "Inkscape is a vector graphics editor."
     },
     {
+      "name": "Inkscape",
+      "slug": "inkscape/windows",
+      "platform": "windows",
+      "unique_identifier": "Inkscape",
+      "description": "Inkscape is a vector graphics editor."
+    },
+    {
       "name": "Insomnia",
       "slug": "insomnia/darwin",
       "platform": "darwin",
