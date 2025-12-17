@@ -803,6 +803,10 @@ func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *an
 // UnenrollAndroidHost calls AMAPI to delete the device (work profile) and emits an activity.
 // The actual MDM status flip to Off is performed when Pub/Sub sends DELETED for the device.
 func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+
 	host, err := svc.fleetDS.HostLite(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting host for android unenrollment")
@@ -811,6 +815,13 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 	if !fleet.IsAndroidPlatform(host.Platform) {
 		level.Debug(svc.logger).Log("msg", "Skipping Android unenrollment for non-Android host", "host_id", host.ID, "platform", host.Platform)
 		return nil // no-op for non-Android hosts
+	}
+
+	// Check authorization again based on host info for team-based permissions.
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{
+		TeamID: host.TeamID,
+	}, fleet.ActionWrite); err != nil {
+		return err
 	}
 
 	// Resolve Android device and enterprise
