@@ -61,6 +61,11 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 	if appPath != "" {
 		query += fmt.Sprintf(" OR install_location LIKE '%%%s%%'", appPath)
 	}
+	// Special handling for .NET Runtime: registry entries use format "Microsoft .NET Runtime - X.Y.Z (arch)"
+	// but app name might be "Microsoft .NET Runtime 6", so add fallback search
+	if strings.Contains(appName, "Microsoft .NET Runtime") {
+		query += " OR LOWER(name) LIKE LOWER('%Microsoft .NET Runtime%')"
+	}
 	cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
