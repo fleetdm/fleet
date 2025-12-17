@@ -244,10 +244,10 @@ jobs:
           $uninstallerUrl = "https://github.com/dotnet/cli-lab/releases/latest/download/dotnet-core-uninstall.msi"
           $uninstallerPath = "$env:TEMP\dotnet-core-uninstall.msi"
           Invoke-WebRequest -Uri $uninstallerUrl -OutFile $uninstallerPath
-          
+
           Write-Host "Installing .NET Core Uninstall Tool..."
           Start-Process -FilePath "msiexec.exe" -ArgumentList "/i", "`"$uninstallerPath`"", "/quiet", "/norestart" -Wait -NoNewWindow
-          
+
           # Add to PATH if not already there
           $uninstallerPath = "${env:ProgramFiles}\dotnet-core-uninstall"
           if (Test-Path $uninstallerPath) {
@@ -261,7 +261,7 @@ jobs:
         if: steps.check-windows-apps.outputs.has_windows_apps == 'true' && steps.check-windows-apps.outputs.has_dotnet_runtime == 'true'
         run: |
           Write-Host "Listing all installed .NET runtimes:"
-          
+
           # Try to use dotnet-core-uninstall if available
           $uninstallerExe = "${env:ProgramFiles}\dotnet-core-uninstall\dotnet-core-uninstall.exe"
           if (Test-Path $uninstallerExe) {
@@ -321,8 +321,14 @@ jobs:
                 if ($uninstallString) {
                   Write-Host "    Uninstall string: $uninstallString"
                   try {
-                    # Parse uninstall string
-                    if ($uninstallString -match '"([^"]+)"') {
+                    # Parse uninstall string - handle MSI format (MsiExec.exe /X{GUID})
+                    if ($uninstallString -match "/X\{([A-F0-9\-]+)\}") {
+                      $guid = $matches[1]
+                      Write-Host "    Uninstalling MSI with GUID: $guid"
+                      Start-Process -FilePath "msiexec.exe" -ArgumentList "/X{$guid}", "/quiet", "/norestart" -Wait -NoNewWindow
+                      Write-Host "    Successfully removed $($runtime.DisplayName)"
+                    } elseif ($uninstallString -match '"([^"]+)"') {
+                      # Handle quoted executable path
                       $exePath = $matches[1]
                       $args = $uninstallString.Substring($matches[0].Length).Trim()
                       if (-not $args -or $args -notmatch "/silent") {
@@ -332,7 +338,7 @@ jobs:
                       Start-Process -FilePath $exePath -ArgumentList $args -Wait -NoNewWindow
                       Write-Host "    Successfully removed $($runtime.DisplayName)"
                     } else {
-                      Write-Host "    Could not parse uninstall string"
+                      Write-Host "    Could not parse uninstall string format: $uninstallString"
                     }
                   } catch {
                     Write-Host "    Failed to remove $($runtime.DisplayName): $($_.Exception.Message)"
