@@ -3141,7 +3141,7 @@ func TestGetMDMCommands(t *testing.T) {
 				Status:      "200",
 				Hostname:    "host2",
 			},
-		}, nil, nil
+		}, nil, nil, nil
 	}
 
 	listErr = io.ErrUnexpectedEOF
