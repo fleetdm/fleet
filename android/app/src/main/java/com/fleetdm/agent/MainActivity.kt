@@ -212,13 +212,35 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
                 KeyValue("server_url (MC)", fleetBaseUrl)
                 KeyValue("server_url (DS)", baseUrl)
                 KeyValue("certificate_templates->id", certIds.toString())
-                KeyValue("certs_installed", installedCerts.toString())
+                DebugCertificateList(certificates = installedCerts)
                 PermissionList(
                     permissionsList = permissionsList,
                 )
             }
         },
     )
+}
+
+@Composable
+fun DebugCertificateList(certificates: CertStatusMap) {
+    Column {
+        Text("certificate status:", fontWeight = FontWeight.Bold)
+        certificates.forEach { (key, value) ->
+            Row(modifier = Modifier.padding(bottom = 5.dp, start = 10.dp)) {
+                Text(
+                    text = key.toString(),
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(end = 5.dp),
+                )
+                Column {
+                    Text(text = "alias: ${value.alias}")
+                    Text(text = "status: ${value.status}")
+                    Text(text = "retries: ${value.retries}")
+                }
+            }
+        }
+        HorizontalDivider()
+    }
 }
 
 @Composable
@@ -336,6 +358,17 @@ fun FleetScreenPreview() {
             )
             AppVersion(onClick = {})
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun DebugCertificateListPreview() {
+    MyApplicationTheme {
+        DebugCertificateList(certificates = mapOf(
+            1 to CertificateInstallInfo(alias = "WIFI-1", status = CertificateInstallStatus.INSTALLED),
+            2 to CertificateInstallInfo(alias = "VPN-3", status = CertificateInstallStatus.FAILED),
+        ))
     }
 }
 
