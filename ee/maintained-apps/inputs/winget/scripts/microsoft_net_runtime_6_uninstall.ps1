@@ -38,15 +38,29 @@ if ($uninstallString -match '^"([^"]+)"(.*)') {
     Exit 1
 }
 
-# Build argument list array, preserving existing arguments and adding /silent for silent
+# Build argument list array, preserving existing arguments and adding silent flag
 $argumentList = @()
 if ($arguments -ne '') {
     # Split existing arguments and add them
     $argumentList += $arguments -split '\s+'
 }
-# Add /silent for silent uninstall if not already present
-if ($argumentList -notcontains "/silent" -and $argumentList -notcontains "--silent") {
-    $argumentList += "/silent"
+
+# Detect if this is an MSI uninstall (MsiExec.exe) - MSI uses /quiet, not /silent
+$isMsi = $exePath -like "*msiexec.exe" -or $exePath -like "*MsiExec.exe"
+
+if ($isMsi) {
+    # MSI uninstalls use /quiet and /norestart
+    if ($argumentList -notcontains "/quiet") {
+        $argumentList += "/quiet"
+    }
+    if ($argumentList -notcontains "/norestart") {
+        $argumentList += "/norestart"
+    }
+} else {
+    # Non-MSI installers typically use /silent
+    if ($argumentList -notcontains "/silent" -and $argumentList -notcontains "--silent") {
+        $argumentList += "/silent"
+    }
 }
 
 Write-Host "Uninstall executable: $exePath"
