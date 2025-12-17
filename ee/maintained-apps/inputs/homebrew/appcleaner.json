@@ -1,0 +1,8 @@
+{
+  "name": "AppCleaner",
+  "unique_identifier": "net.freemacsoft.AppCleaner",
+  "token": "appcleaner",
+  "installer_format": "zip",
+  "slug": "appcleaner/darwin",
+  "default_categories": ["Productivity"]
+}

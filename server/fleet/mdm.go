@@ -196,10 +196,10 @@ type ABMTermsUpdater interface {
 // MDMIdPAccount contains account information of a third-party IdP that can be
 // later used for MDM operations like creating local accounts.
 type MDMIdPAccount struct {
-	UUID     string
-	Username string
-	Fullname string
-	Email    string
+	UUID     string `db:"uuid"`
+	Username string `db:"username"`
+	Fullname string `db:"fullname"`
+	Email    string `db:"email"`
 }
 
 type MDMAppleBootstrapPackage struct {
@@ -440,22 +440,6 @@ type MDMProfilesSummary struct {
 	// Failed includes each host that has failed to apply one or more of the profiles currently
 	// applicable to the host.
 	Failed uint `json:"failed" db:"failed"`
-}
-
-func (mdmPS *MDMProfilesSummary) Add(other *MDMProfilesSummary) *MDMProfilesSummary {
-	var s1, s2 MDMProfilesSummary
-	if mdmPS != nil {
-		s1 = *mdmPS
-	}
-	if other != nil {
-		s2 = *other
-	}
-	return &MDMProfilesSummary{
-		Verified:  s1.Verified + s2.Verified,
-		Verifying: s1.Verifying + s2.Verifying,
-		Pending:   s1.Pending + s2.Pending,
-		Failed:    s1.Failed + s2.Failed,
-	}
 }
 
 // HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either
