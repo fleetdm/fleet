@@ -11,6 +11,7 @@ import {
   ICertificatesSmallstep,
   ICertificatesCustomEST,
 } from "interfaces/certificates";
+import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import {
   ListEntitiesResponsePaginationCommon,
   PaginationParams,
@@ -126,12 +127,9 @@ export default {
       name,
       certificate_authority_id: certAuthorityId,
       subject_name: subjectName,
+      team_id: teamId === APP_CONTEXT_ALL_TEAMS_ID ? API_ALL_TEAMS_ID : teamId,
     };
-    return sendRequest(
-      "POST",
-      teamId ? CERTIFICATES.concat(`?team_id=${teamId}`) : CERTIFICATES,
-      requestBody
-    );
+    return sendRequest("POST", CERTIFICATES, requestBody);
   },
   deleteCert: (id: number) => {
     return sendRequest("DELETE", endpoints.CERTIFICATES.concat(`/${id}`));
