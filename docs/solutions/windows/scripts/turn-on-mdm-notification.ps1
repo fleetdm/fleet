@@ -1,6 +1,6 @@
 $scriptBlock = @'
 # Locate the MDM Enrollment Key in the registry
-$enrollmentKey = Get-Item -Path HKLM:\SOFTWARE\Microsoft\Enrollments\* | Get-ItemProperty | Where-Object {$_.ProviderID -eq 'Fleet'} | Where-Object {$_.EnrollmentType -eq 0} | Where-Object {$_.EnrollmentState -match '1|6|13'}
+$enrollmentKey = Get-Item -Path HKLM:\SOFTWARE\Microsoft\Enrollments\* | Get-ItemProperty | Where-Object {$_.ProviderID -eq 'Fleet'} | Where-Object {$_.EnrollmentState -match '1|6|13'}
 
 if($enrollmentKey){
     $isMDMTurnedOn = $true
