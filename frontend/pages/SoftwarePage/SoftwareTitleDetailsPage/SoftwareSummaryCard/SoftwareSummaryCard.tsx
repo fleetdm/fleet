@@ -1,105 +1,155 @@
 /** software/titles/:id > First section */
 
-import React, { useContext, useState } from "react";
-import { AppContext } from "context/app";
+import React, { useState } from "react";
 
 import { InjectedRouter } from "react-router";
 
+import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import {
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
   ISoftwareTitleDetails,
-  isSoftwarePackage,
-  ISoftwarePackage,
-  IAppStoreApp,
   NO_VERSION_OR_HOST_DATA_SOURCES,
+  IAppStoreApp,
 } from "interfaces/software";
 
 import Card from "components/Card";
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary";
 import TitleVersionsTable from "./TitleVersionsTable";
 import EditIconModal from "../EditIconModal";
+import EditSoftwareModal from "../EditSoftwareModal";
+import EditConfigurationModal from "../EditConfigurationModal";
 
 interface ISoftwareSummaryCard {
-  title: ISoftwareTitleDetails;
+  softwareTitle: ISoftwareTitleDetails;
   softwareId: number;
   teamId?: number;
   isAvailableForInstall?: boolean;
   isLoading?: boolean;
   router: InjectedRouter;
   refetchSoftwareTitle: () => void;
-  softwareInstaller?: ISoftwarePackage | IAppStoreApp;
+  onToggleViewYaml: () => void;
 }
 
 const baseClass = "software-summary-card";
 
 const SoftwareSummaryCard = ({
-  teamId,
+  softwareTitle,
   softwareId,
+  teamId,
   isAvailableForInstall,
-  title,
   isLoading = false,
   router,
-  softwareInstaller,
   refetchSoftwareTitle,
+  onToggleViewYaml,
 }: ISoftwareSummaryCard) => {
-  const { source } = title;
-
-  const {
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isTeamMaintainerOrTeamAdmin,
-  } = useContext(AppContext);
+  const installerResult = useSoftwareInstaller(softwareTitle);
 
   const [iconUploadedAt, setIconUploadedAt] = useState("");
+  const [showEditIconModal, setShowEditIconModal] = useState(false);
+  const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
+  const [showEditConfigurationModal, setShowEditConfigurationModal] = useState(
+    false
+  );
 
   // Hide versions table for tgz_packages, sh_packages, & ps1_packages and when no hosts have the
   // software installed
   const showVersionsTable =
-    !!title.hosts_count && !NO_VERSION_OR_HOST_DATA_SOURCES.includes(source);
+    !!softwareTitle.hosts_count &&
+    !NO_VERSION_OR_HOST_DATA_SOURCES.includes(softwareTitle.source);
 
-  const hasEditPermissions =
-    isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
-  const canEditIcon =
-    softwareInstaller &&
-    typeof teamId === "number" &&
-    teamId >= 0 &&
-    hasEditPermissions;
+  // If there is no installer (no package/app), bail out of installer‑related UI.
+  if (!installerResult) {
+    // when no installer, no edit actions:
+    return (
+      <>
+        <Card borderRadiusSize="xxlarge" className={baseClass}>
+          <SoftwareDetailsSummary
+            displayName={softwareTitle.display_name || softwareTitle.name}
+            type={formatSoftwareType(softwareTitle)}
+            versions={softwareTitle.versions?.length ?? 0}
+            hostCount={softwareTitle.hosts_count}
+            countsUpdatedAt={softwareTitle.counts_updated_at}
+            queryParams={{ software_title_id: softwareId, team_id: teamId }}
+            name={softwareTitle.name}
+            source={softwareTitle.source}
+            iconUrl={softwareTitle.icon_url}
+            iconUploadedAt={iconUploadedAt}
+          />
+          {showVersionsTable && (
+            <TitleVersionsTable
+              router={router}
+              data={softwareTitle.versions ?? []}
+              isLoading={isLoading}
+              teamIdForApi={teamId}
+              isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(
+                softwareTitle.source
+              )}
+              isAvailableForInstall={isAvailableForInstall}
+              countsUpdatedAt={softwareTitle.counts_updated_at}
+            />
+          )}
+        </Card>
+      </>
+    );
+  }
 
-  const [showEditIconModal, setShowEditIconModal] = useState(false);
+  const { meta } = installerResult;
+  const {
+    softwareInstaller,
+    installerType,
+    isIosOrIpadosApp,
+    isAndroidPlayStoreApp,
+    canManageSoftware,
+  } = meta;
 
-  const onClickEditIcon = () => {
-    setShowEditIconModal(!showEditIconModal);
-  };
+  const canEditAppearance = canManageSoftware;
+
+  const canEditSoftware = canManageSoftware;
+
+  const canEditConfiguration = canManageSoftware && isAndroidPlayStoreApp;
+
+  const onClickEditAppearance = () => setShowEditIconModal(true);
+  const onClickEditSoftware = () => setShowEditSoftwareModal(true);
+  const onClickEditConfiguration = () => setShowEditConfigurationModal(true);
 
   return (
     <>
       <Card borderRadiusSize="xxlarge" className={baseClass}>
         <SoftwareDetailsSummary
-          displayName={title.display_name || title.name}
-          type={formatSoftwareType(title)}
-          versions={title.versions?.length ?? 0}
-          hostCount={title.hosts_count}
-          countsUpdatedAt={title.counts_updated_at}
+          displayName={softwareTitle.display_name || softwareTitle.name}
+          type={formatSoftwareType(softwareTitle)}
+          versions={softwareTitle.versions?.length ?? 0}
+          hostCount={softwareTitle.hosts_count}
+          countsUpdatedAt={softwareTitle.counts_updated_at}
           queryParams={{
             software_title_id: softwareId,
             team_id: teamId,
           }}
-          name={title.name}
-          source={title.source}
-          iconUrl={title.icon_url}
+          name={softwareTitle.name}
+          source={softwareTitle.source}
+          iconUrl={softwareTitle.icon_url}
           iconUploadedAt={iconUploadedAt}
-          onClickEditIcon={canEditIcon ? onClickEditIcon : undefined}
+          canManageSoftware={canManageSoftware}
+          onClickEditAppearance={
+            canEditAppearance ? onClickEditAppearance : undefined
+          }
+          onClickEditSoftware={
+            canEditSoftware ? onClickEditSoftware : undefined
+          }
+          onClickEditConfiguration={
+            canEditConfiguration ? onClickEditConfiguration : undefined
+          }
         />
         {showVersionsTable && (
           <TitleVersionsTable
             router={router}
-            data={title.versions ?? []}
+            data={softwareTitle.versions ?? []}
             isLoading={isLoading}
             teamIdForApi={teamId}
-            isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(title.source)}
+            isIPadOSOrIOSApp={isIosOrIpadosApp}
             isAvailableForInstall={isAvailableForInstall}
-            countsUpdatedAt={title.counts_updated_at}
+            countsUpdatedAt={softwareTitle.counts_updated_at}
           />
         )}
       </Card>
@@ -115,21 +165,44 @@ const SoftwareSummaryCard = ({
             refetchSoftwareTitle={refetchSoftwareTitle}
             iconUploadedAt={iconUploadedAt}
             setIconUploadedAt={setIconUploadedAt}
-            installerType={
-              isSoftwarePackage(softwareInstaller) ? "package" : "vpp"
-            }
+            installerType={installerType}
             previewInfo={{
-              name: title.display_name || title.name,
-              titleName: title.name,
-              type: formatSoftwareType(title),
-              source: title.source,
-              currentIconUrl: title.icon_url,
-              versions: title.versions?.length ?? 0,
-              countsUpdatedAt: title.counts_updated_at,
+              name: softwareTitle.display_name || softwareTitle.name,
+              titleName: softwareTitle.name,
+              type: formatSoftwareType(softwareTitle),
+              source: softwareTitle.source,
+              currentIconUrl: softwareTitle.icon_url,
+              versions: softwareTitle.versions?.length ?? 0,
+              countsUpdatedAt: softwareTitle.counts_updated_at,
               selfServiceVersion: softwareInstaller.version,
             }}
           />
         )}
+      {showEditSoftwareModal && softwareInstaller && teamId && (
+        <EditSoftwareModal
+          router={router}
+          softwareId={softwareId}
+          teamId={teamId}
+          softwareInstaller={softwareInstaller}
+          onExit={() => setShowEditSoftwareModal(false)}
+          refetchSoftwareTitle={refetchSoftwareTitle}
+          installerType={installerType}
+          openViewYamlModal={onToggleViewYaml}
+          isIosOrIpadosApp={isIosOrIpadosApp}
+          name={softwareTitle.name}
+          displayName={softwareTitle.display_name || softwareTitle.name}
+          source={softwareTitle.source}
+        />
+      )}
+      {showEditConfigurationModal && softwareInstaller && teamId && (
+        <EditConfigurationModal
+          softwareInstaller={softwareInstaller as IAppStoreApp}
+          softwareId={softwareId}
+          teamId={teamId}
+          refetchSoftwareTitle={refetchSoftwareTitle}
+          onExit={() => setShowEditConfigurationModal(false)}
+        />
+      )}
     </>
   );
 };

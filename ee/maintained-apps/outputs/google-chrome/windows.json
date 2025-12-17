@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "143.0.7499.41",
+      "version": "143.0.7499.147",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Google Chrome' AND publisher = 'Google LLC';"
       },
       "installer_url": "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "7a2f151e",
-      "sha256": "5b4e75cda33097b3c83602447e81841785be64165e1c615637d4306c594d6a1c",
+      "sha256": "no_check",
       "default_categories": [
         "Browsers"
       ],

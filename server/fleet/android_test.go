@@ -44,6 +44,12 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			errorMsg:    "Couldn't update configuration. Invalid JSON.",
 		},
 		{
+			name:        "invalid - workProfileWidgets bad value",
+			config:      json.RawMessage(`{"workProfileWidgets": "NO_SUCH_VALUE"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "NO_SUCH_VALUE" is not a supported value for "workProfileWidget".`,
+		},
+		{
 			name:        "valid - empty object",
 			config:      json.RawMessage(`{}`),
 			expectError: false,

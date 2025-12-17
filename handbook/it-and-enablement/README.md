@@ -159,12 +159,6 @@ Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confid
 7. Verify that the principal record details match exactly what is on LinkedIn.
 
 
-<!-- 
-### Research an account
-
-To research an account, follow the steps in the follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/edit/main/go-to-market-strategy.md#research-an-account) and move it toward sales-readiness **after** discovering [relevant intent signals](https://fleetdm.com/handbook/marketing#measure-intent-signals).
--->
-
 
 ## Rituals
 

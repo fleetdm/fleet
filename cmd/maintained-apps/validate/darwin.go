@@ -253,6 +253,16 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 				return true, nil
 			}
 
+			// Adobe DNG Converter's version format includes build number in parentheses
+			// (e.g., "18.0 (2389)") which doesn't match the installer version (e.g., "18.0")
+			// Check if the version starts with the expected version to handle this case
+			if uniqueAppIdentifier == "com.adobe.DNGConverter" {
+				if strings.HasPrefix(result.Version, appVersion+" ") || strings.HasPrefix(result.Version, appVersion+"(") {
+					level.Info(logger).Log("msg", "Adobe DNG Converter detected - version matches with build number")
+					return true, nil
+				}
+			}
+
 			// Check various version matching strategies
 			if checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
 				return true, nil
