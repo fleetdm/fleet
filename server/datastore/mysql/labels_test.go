@@ -92,7 +92,7 @@ func TestLabels(t *testing.T) {
 		{"QueriesForCentOSHost", testLabelsQueriesForCentOSHost},
 		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
 		{"DeleteLabel", testDeleteLabel},
-		{"LabelsSummary", testLabelsSummary},
+		{"LabelsSummaryAndListTeamFiltering", testLabelsSummaryAndListTeamFiltering},
 		{"ListHostsInLabelIssues", testListHostsInLabelIssues},
 		{"ListHostsInLabelDiskEncryptionStatus", testListHostsInLabelDiskEncryptionStatus},
 		{"HostMemberOfAllLabels", testHostMemberOfAllLabels},
@@ -1049,7 +1049,7 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 	require.True(t, fleet.IsForeignKey(err))
 }
 
-func testLabelsSummary(t *testing.T, db *Datastore) {
+func testLabelsSummaryAndListTeamFiltering(t *testing.T, db *Datastore) {
 	test.AddAllHostsLabel(t, db)
 
 	// Only 'All Hosts' label should be returned
@@ -1200,7 +1200,7 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 			expectedTeamLabels: map[*fleet.Team]*fleet.Label{team1: team1Label, team2: team2Label},
 		},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name+" summary", func(t *testing.T) {
 			ls, err := db.LabelsSummary(context.Background(), tc.filter)
 			if tc.expectedErr != nil {
 				require.ErrorIs(t, err, tc.expectedErr)
@@ -1210,6 +1210,27 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 			require.Len(t, ls, 5+len(tc.expectedTeamLabels))
 
 			foundTeamLabels := make(map[uint]fleet.LabelSummary)
+			for _, l := range ls {
+				if l.TeamID != nil {
+					foundTeamLabels[*l.TeamID] = *l
+				}
+			}
+			for team, label := range tc.expectedTeamLabels {
+				foundLabel, labelInMap := foundTeamLabels[team.ID]
+				require.Truef(t, labelInMap, "%s label should have been found", team.Name)
+				require.Equalf(t, label.ID, foundLabel.ID, "Found team label %s label did not match expected (%s)", foundLabel.Name, label.Name)
+			}
+		})
+		t.Run(tc.name+" list", func(t *testing.T) {
+			ls, err := db.ListLabels(context.Background(), tc.filter, fleet.ListOptions{}, false)
+			if tc.expectedErr != nil {
+				require.ErrorIs(t, err, tc.expectedErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, ls, 5+len(tc.expectedTeamLabels))
+
+			foundTeamLabels := make(map[uint]fleet.Label)
 			for _, l := range ls {
 				if l.TeamID != nil {
 					foundTeamLabels[*l.TeamID] = *l
