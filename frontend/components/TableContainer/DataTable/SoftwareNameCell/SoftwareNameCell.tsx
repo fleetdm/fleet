@@ -1,7 +1,10 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
 
-import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
+import {
+  getSelfServiceTooltip,
+  SOFTWARE_NAME_CELL_BASE_CLASS,
+} from "pages/SoftwarePage/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
@@ -10,7 +13,7 @@ import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import LinkCell from "../LinkCell";
 import TooltipTruncatedTextCell from "../TooltipTruncatedTextCell";
 
-const baseClass = "software-name-cell";
+const baseClass = SOFTWARE_NAME_CELL_BASE_CLASS;
 
 /**
  * Normalizes software names for display purposes.
