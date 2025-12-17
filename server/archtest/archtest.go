@@ -105,7 +105,7 @@ func (pt *PackageTest) WithTestsRecursively() *PackageTest {
 }
 
 // ShouldNotDependOn specifies which packages are forbidden dependencies.
-// Call Execute() to run the test.
+// Call Check() to run the test.
 func (pt *PackageTest) ShouldNotDependOn(pkgs ...string) *PackageTest {
 	pt.forbiddenPkgs = append(pt.forbiddenPkgs, pkgs...)
 	return pt
