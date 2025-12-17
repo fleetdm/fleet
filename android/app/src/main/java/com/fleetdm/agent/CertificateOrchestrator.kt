@@ -60,6 +60,8 @@ object CertificateOrchestrator {
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
+        // Treat a missing field like a null field for optional types
+        explicitNulls = false
     }
 
     // Mutex to protect concurrent access to certificate storage
