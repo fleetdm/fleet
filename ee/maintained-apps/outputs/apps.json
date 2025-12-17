@@ -240,6 +240,13 @@
       "description": "Beyond Compare is an app used to compare files and folders."
     },
     {
+      "name": "Beyond Compare",
+      "slug": "beyond-compare/windows",
+      "platform": "windows",
+      "unique_identifier": "Beyond Compare 5.1.6",
+      "description": "Beyond Compare is an app used to compare files and folders."
+    },
+    {
       "name": "Bitwarden",
       "slug": "bitwarden/darwin",
       "platform": "darwin",
