@@ -1051,9 +1051,9 @@ func testBuildAndSendFleetAgentConfigForEnrollment(t *testing.T, ds fleet.Datast
 	require.False(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 }
 
-// testCertificateTemplatesIncludesExistingVerified tests that when a host has existing verified
-// certificates AND new pending certificates, the agent config sent to AMAPI includes ALL
-// certificate templates (both existing and new), not just the new pending ones.
+// testCertificateTemplatesIncludesExistingVerified tests that when a host has existing
+// certificates in various statuses AND a new pending certificate, the agent config sent
+// to AMAPI includes ALL certificate templates, not just the new pending one.
 func testCertificateTemplatesIncludesExistingVerified(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
 	ctx := t.Context()
 
@@ -1078,50 +1078,97 @@ func testCertificateTemplatesIncludesExistingVerified(t *testing.T, ds fleet.Dat
 	})
 	require.NoError(t, err)
 
-	// Create two certificate templates
-	templateExisting := &fleet.CertificateTemplate{
-		Name:                   "existing-cert-template",
+	// Create certificate templates for each status we want to test
+	templateVerified := &fleet.CertificateTemplate{
+		Name:                   "verified-cert-template",
 		TeamID:                 team.ID,
 		CertificateAuthorityID: ca.ID,
-		SubjectName:            "CN=Existing Certificate",
+		SubjectName:            "CN=Verified Certificate",
 	}
-	existingCert, err := ds.CreateCertificateTemplate(ctx, templateExisting)
+	verifiedCert, err := ds.CreateCertificateTemplate(ctx, templateVerified)
 	require.NoError(t, err)
 
-	templateNew := &fleet.CertificateTemplate{
-		Name:                   "new-cert-template",
+	templateDelivered := &fleet.CertificateTemplate{
+		Name:                   "delivered-cert-template",
 		TeamID:                 team.ID,
 		CertificateAuthorityID: ca.ID,
-		SubjectName:            "CN=New Certificate",
+		SubjectName:            "CN=Delivered Certificate",
 	}
-	newCert, err := ds.CreateCertificateTemplate(ctx, templateNew)
+	deliveredCert, err := ds.CreateCertificateTemplate(ctx, templateDelivered)
+	require.NoError(t, err)
+
+	templateDelivering := &fleet.CertificateTemplate{
+		Name:                   "delivering-cert-template",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Delivering Certificate",
+	}
+	deliveringCert, err := ds.CreateCertificateTemplate(ctx, templateDelivering)
+	require.NoError(t, err)
+
+	templateFailed := &fleet.CertificateTemplate{
+		Name:                   "failed-cert-template",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Failed Certificate",
+	}
+	failedCert, err := ds.CreateCertificateTemplate(ctx, templateFailed)
+	require.NoError(t, err)
+
+	templatePending := &fleet.CertificateTemplate{
+		Name:                   "pending-cert-template",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Pending Certificate",
+	}
+	pendingCert, err := ds.CreateCertificateTemplate(ctx, templatePending)
 	require.NoError(t, err)
 
 	// Create an Android host in the team
 	host := createAndroidHostInTeam(t, ds, 300, &team.ID)
 
-	// Insert the existing certificate template as "verified" (already installed and working)
+	// Insert certificate templates with various statuses
 	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+		// Verified status
 		_, err := q.ExecContext(ctx,
 			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type) VALUES (?, ?, ?, ?, ?)",
-			host.Host.UUID,
-			existingCert.ID,
-			"existing-challenge",
-			fleet.CertificateTemplateVerified,
-			fleet.MDMOperationTypeInstall,
+			host.Host.UUID, verifiedCert.ID, "verified-challenge", fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall,
 		)
-		return err
-	})
+		if err != nil {
+			return err
+		}
 
-	// Insert the new certificate template as "pending" (to be processed)
-	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
+		// Delivered status
+		_, err = q.ExecContext(ctx,
 			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type) VALUES (?, ?, ?, ?, ?)",
-			host.Host.UUID,
-			newCert.ID,
-			"",
-			fleet.CertificateTemplatePending,
-			fleet.MDMOperationTypeInstall,
+			host.Host.UUID, deliveredCert.ID, "delivered-challenge", fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall,
+		)
+		if err != nil {
+			return err
+		}
+
+		// Delivering status (from a previous failed run)
+		_, err = q.ExecContext(ctx,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type) VALUES (?, ?, ?, ?, ?)",
+			host.Host.UUID, deliveringCert.ID, "delivering-challenge", fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeInstall,
+		)
+		if err != nil {
+			return err
+		}
+
+		// Failed status
+		_, err = q.ExecContext(ctx,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type) VALUES (?, ?, ?, ?, ?)",
+			host.Host.UUID, failedCert.ID, "failed-challenge", fleet.CertificateTemplateFailed, fleet.MDMOperationTypeInstall,
+		)
+		if err != nil {
+			return err
+		}
+
+		// Pending status (new certificate to be processed)
+		_, err = q.ExecContext(ctx,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type) VALUES (?, ?, ?, ?, ?)",
+			host.Host.UUID, pendingCert.ID, "", fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall,
 		)
 		return err
 	})
@@ -1162,17 +1209,18 @@ func testCertificateTemplatesIncludesExistingVerified(t *testing.T, ds fleet.Dat
 	err = json.Unmarshal(capturedPolicies[0].ManagedConfiguration, &managedConfig)
 	require.NoError(t, err)
 
-	// BUG: Currently this assertion fails because the agent config only includes
-	// the NEW pending certificate, not the existing verified one.
-	// The agent config should include ALL certificate templates (both existing and new).
-	require.Len(t, managedConfig.CertificateTemplateIDs, 2,
-		"Agent config should include both existing verified certificate and new pending certificate")
+	// Agent config should include ALL 5 certificate templates regardless of status
+	require.Len(t, managedConfig.CertificateTemplateIDs, 5,
+		"Agent config should include all certificate templates (verified, delivered, delivering, failed, and pending)")
 
-	// Verify both certificate template IDs are present
+	// Verify all certificate template IDs are present
 	templateIDs := make(map[uint]bool)
 	for _, tmpl := range managedConfig.CertificateTemplateIDs {
 		templateIDs[tmpl.ID] = true
 	}
-	require.True(t, templateIDs[existingCert.ID], "Existing verified certificate should be in the config")
-	require.True(t, templateIDs[newCert.ID], "New pending certificate should be in the config")
+	require.True(t, templateIDs[verifiedCert.ID], "Verified certificate should be in the config")
+	require.True(t, templateIDs[deliveredCert.ID], "Delivered certificate should be in the config")
+	require.True(t, templateIDs[deliveringCert.ID], "Delivering certificate should be in the config")
+	require.True(t, templateIDs[failedCert.ID], "Failed certificate should be in the config")
+	require.True(t, templateIDs[pendingCert.ID], "Pending certificate should be in the config")
 }

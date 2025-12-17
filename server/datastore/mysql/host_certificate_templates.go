@@ -281,15 +281,18 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 			return nil
 		}
 
-		// Separate pending templates from existing ones
-		var pendingIDs []uint         // primary key IDs for UPDATE
-		var pendingTemplateIDs []uint // certificate_template_id for return
+		// Separate templates by status
+		var pendingIDs []uint // primary key IDs for UPDATE (only pending ones need transitioning)
 		for _, r := range rows {
-			if r.Status == fleet.CertificateTemplatePending {
+			switch r.Status {
+			case fleet.CertificateTemplatePending:
 				pendingIDs = append(pendingIDs, r.ID)
-				pendingTemplateIDs = append(pendingTemplateIDs, r.CertificateTemplateID)
-			} else {
-				// All other statuses (delivering, delivered, verified, failed) are existing templates
+				result.DeliveringTemplateIDs = append(result.DeliveringTemplateIDs, r.CertificateTemplateID)
+			case fleet.CertificateTemplateDelivering:
+				// Already delivering (from a previous failed run), include in delivering list
+				result.DeliveringTemplateIDs = append(result.DeliveringTemplateIDs, r.CertificateTemplateID)
+			default:
+				// delivered, verified, failed
 				result.OtherTemplateIDs = append(result.OtherTemplateIDs, r.CertificateTemplateID)
 			}
 		}
@@ -298,7 +301,7 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 			return nil // No pending templates to transition
 		}
 
-		// Transition pending to delivering
+		// Transition only pending templates to delivering
 		updateStmt, args, err := sqlx.In(fmt.Sprintf(`
 			UPDATE host_certificate_templates
 			SET status = '%s', updated_at = NOW()
@@ -310,8 +313,6 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 		if _, err := tx.ExecContext(ctx, updateStmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "update to delivering")
 		}
-
-		result.DeliveringTemplateIDs = pendingTemplateIDs
 		return nil
 	})
 	return result, err
