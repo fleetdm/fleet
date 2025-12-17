@@ -182,6 +182,7 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 			certificate.ID,
 			fleet.MDMDeliveryFailed,
 			&errorMsg,
+			fleet.MDMOperationTypeInstall,
 		); err != nil {
 			return nil, err
 		}
@@ -456,5 +457,5 @@ func (svc *Service) UpdateCertificateStatus(
 		return fleet.NewInvalidArgumentError("status", string(status))
 	}
 
-	return svc.ds.UpsertCertificateStatus(ctx, host.UUID, certificateTemplateID, status, detail)
+	return svc.ds.UpsertCertificateStatus(ctx, host.UUID, certificateTemplateID, status, detail, fleet.MDMOperationTypeInstall)
 }
