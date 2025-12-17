@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -155,6 +156,17 @@ type modifyTeamRequest struct {
 
 func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyTeamRequest)
+
+	// AppleOSUpdateSettings.UpdateNewHosts is only used in macOS ... so ignore any values sent for iOS/iPadOS
+	if req.TeamPayload.MDM != nil {
+		if req.TeamPayload.MDM.IOSUpdates != nil {
+			req.TeamPayload.MDM.IOSUpdates.UpdateNewHosts = optjson.Bool{}
+		}
+		if req.TeamPayload.MDM.IPadOSUpdates != nil {
+			req.TeamPayload.MDM.IPadOSUpdates.UpdateNewHosts = optjson.Bool{}
+		}
+	}
+
 	team, err := svc.ModifyTeam(ctx, req.ID, req.TeamPayload)
 	if err != nil {
 		return teamResponse{Err: err}, nil

@@ -656,11 +656,20 @@ type VPPBatchPayload struct {
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories  []string                  `json:"categories"`
-	DisplayName string                    `json:"display_name"`
-	IconPath    string                    `json:"-"`
-	IconHash    string                    `json:"-"`
-	Platform    InstallableDevicePlatform `json:"platform"`
+	Categories    []string                  `json:"categories"`
+	DisplayName   string                    `json:"display_name"`
+	IconPath      string                    `json:"-"`
+	IconHash      string                    `json:"-"`
+	Platform      InstallableDevicePlatform `json:"platform"`
+	Configuration json.RawMessage           `json:"configuration,omitempty"`
+}
+
+func (v VPPBatchPayload) GetPlatform() string {
+	return string(v.Platform)
+}
+
+func (v VPPBatchPayload) GetAppStoreID() string {
+	return v.AppStoreID
 }
 
 type VPPBatchPayloadWithPlatform struct {
@@ -673,8 +682,9 @@ type VPPBatchPayloadWithPlatform struct {
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
 	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
-	CategoryIDs []uint `json:"-"`
-	DisplayName string `json:"display_name"`
+	CategoryIDs   []uint          `json:"-"`
+	DisplayName   string          `json:"display_name"`
+	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 
 type SoftwareCategory struct {

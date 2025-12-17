@@ -1388,12 +1388,12 @@ This endpoint is used to delete Android Enterprise. Once deleted, hosts that bel
 
 `Status: 200`
 
-### Create Android enrollment token
+### Get Android enrollment token
 
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-This endpoint is used to generate enrollment token and enrollment URL which opens wizard (settings app) to enroll Android host.
+This endpoint is used to retrieve an Android enrollment token and enrollment URL using a Fleet enroll secret which opens the Android enrollment wizard (settings app) to enroll the Android host.
 
-`POST /api/v1/fleet/android_enterprise/enrollment_token`
+`GET /api/v1/fleet/android_enterprise/enrollment_token`
 
 #### Parameters
 
@@ -1403,7 +1403,7 @@ This endpoint is used to generate enrollment token and enrollment URL which open
 
 #### Example
 
-`POST /api/v1/fleet/android/enterprise/enrollment_token?enroll_secret=0Z6IuKpKU4y7xl%2BZcrp2gPcMi1kKNs3p`
+`GET /api/v1/fleet/android/enterprise/enrollment_token?enroll_secret=0Z6IuKpKU4y7xl%2BZcrp2gPcMi1kKNs3p`
 
 ##### Default response
 

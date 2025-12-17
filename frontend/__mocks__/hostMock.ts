@@ -76,6 +76,7 @@ const DEFAULT_HOST_MOCK: IHost = {
         status: null,
         detail: "",
       },
+      certificates: [],
     },
     macos_settings: {
       disk_encryption: null,

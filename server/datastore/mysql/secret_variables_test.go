@@ -162,11 +162,14 @@ This document contains a secret not stored in the database.
 Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 `
 
+	xmlValidSecret := `<?xml>${FLEET_SECRET_VALID_XML}</xml>` //nolint:gosec // G101: test fixture, not a credential
+
 	ctx := t.Context()
 
 	secretMap := map[string]string{
 		"VALID":      "testValue1",
 		"ALSO_VALID": "testValue2",
+		"VALID_XML":  "<tag>value & more</tag>",
 	}
 
 	secrets := make([]fleet.SecretVariable, 0, len(secretMap))
@@ -196,6 +199,11 @@ Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 	_, err = ds.ExpandEmbeddedSecrets(ctx, invalidSecret)
 	require.ErrorContains(t, err, "$FLEET_SECRET_INVALID")
 	require.ErrorContains(t, err, "$FLEET_SECRET_ALSO_INVALID")
+
+	expanded, err = ds.ExpandEmbeddedSecrets(ctx, xmlValidSecret)
+	require.NoError(t, err)
+	expectedXMLExpansion := `<?xml>&lt;tag&gt;value &amp; more&lt;/tag&gt;</xml>`
+	require.Equal(t, expectedXMLExpansion, expanded)
 }
 
 func testCreateSecretVariable(t *testing.T, ds *Datastore) {

@@ -56,11 +56,11 @@ object ApiClient {
         }
     }
 
-    val apiKeyFlow: Flow<String?>
+    val apiKeyDebugFlow: Flow<String?>
         get() = dataStore.data.map { preferences ->
             preferences[API_KEY]?.let { encrypted ->
                 try {
-                    KeystoreManager.decrypt(encrypted)
+                    "****" + KeystoreManager.decrypt(encrypted).takeLast(4)
                 } catch (e: Exception) {
                     Log.e("ApiClient", "Failed to decrypt API key", e)
                     null
