@@ -197,6 +197,16 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	require.NotZero(t, createResp.ID)
 	certificateTemplateID := createResp.ID
 
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeCreatedCertificateTemplate{}.ActivityName(),
+		fmt.Sprintf(
+			`{"team_id": %d, "team_name": %q, "name": %q}`,
+			teamID,
+			teamName,
+			certTemplateName,
+		),
+		0)
+
 	// Step: Verify status is 'pending'
 	s.verifyCertificateStatus(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplatePending, "")
 
@@ -250,6 +260,19 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 
 	// Step: Verify the status is still 'verified' with details
 	s.verifyCertificateStatus(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateVerified, successDetail)
+
+	// Delete the cert
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", certificateTemplateID), nil, http.StatusOK)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDeletedCertificateTemplate{}.ActivityName(),
+		fmt.Sprintf(
+			`{"team_id": %d, "team_name": %q, "name": %q}`,
+			teamID,
+			teamName,
+			certTemplateName,
+		),
+		0)
 }
 
 // TestCertificateTemplateSpecEndpointAndAMAPIFailure tests:

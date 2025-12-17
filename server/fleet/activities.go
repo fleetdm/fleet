@@ -3199,3 +3199,47 @@ func (a ActivityTypeEditedHostIdpData) Documentation() (activity, details, detai
 	"host_idp_username": "anna.chao@example.com"
 }`
 }
+
+type ActivityTypeCreatedCertificateTemplate struct {
+	Name     string  `json:"name"`
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeCreatedCertificateTemplate) ActivityName() string {
+	return "created_certificate_template"
+}
+
+func (a ActivityTypeCreatedCertificateTemplate) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when an user creates a Certificate Template.`,
+		`This activity contains the following fields:
+- "name": Name of the certificate.
+- "team_id": The ID of the team where the certificate was created, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team where the certificate was created, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "certificate_name": "WiFi cert",
+  "team_id": 123,
+  "team_name": "Mobile devices"
+}`
+}
+
+type ActivityTypeDeletedCertificateTemplate struct {
+	Name     string  `json:"name"`
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedCertificateTemplate) ActivityName() string {
+	return "deleted_certificate_template"
+}
+
+func (a ActivityTypeDeletedCertificateTemplate) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when an user deletes a Certificate Template.`,
+		`This activity contains the following fields:
+- "name"": Name of the certificate.
+- "team_id": The ID of the team where the certificate was deleted, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team where the certificate was deleted, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "certificate_name": "WiFi cert",
+  "team_id": 123,
+  "team_name": "Mobile devices"
+}`
+}
