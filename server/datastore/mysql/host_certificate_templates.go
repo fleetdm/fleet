@@ -51,9 +51,13 @@ func (ds *Datastore) ListCertificateTemplatesForHosts(ctx context.Context, hostU
 			hosts.uuid AS host_uuid,
 			certificate_templates.id AS certificate_template_id,
 			host_certificate_templates.fleet_challenge AS fleet_challenge,
-			host_certificate_templates.status AS status
+			host_certificate_templates.status AS status,
+			host_certificate_templates.operation_type AS operation_type,
+			certificate_authorities.type AS ca_type,
+			certificate_authorities.name AS ca_name
 		FROM certificate_templates
 		INNER JOIN hosts ON hosts.team_id = certificate_templates.team_id
+		INNER JOIN certificate_authorities ON certificate_authorities.id = certificate_templates.certificate_authority_id
 		LEFT JOIN host_certificate_templates
 			ON host_certificate_templates.host_uuid = hosts.uuid
 			AND host_certificate_templates.certificate_template_id = certificate_templates.id
@@ -81,6 +85,7 @@ func (ds *Datastore) GetCertificateTemplateForHost(ctx context.Context, hostUUID
 			certificate_templates.id AS certificate_template_id,
 			host_certificate_templates.fleet_challenge AS fleet_challenge,
 			host_certificate_templates.status AS status,
+			host_certificate_templates.operation_type AS operation_type,
 			certificate_authorities.type AS ca_type,
 			certificate_authorities.name AS ca_name
 		FROM certificate_templates
@@ -176,23 +181,20 @@ func (ds *Datastore) UpsertCertificateStatus(
 	certificateTemplateID uint,
 	status fleet.MDMDeliveryStatus,
 	detail *string,
+	operationType fleet.MDMOperationType,
 ) error {
-	updateStmt := `
-    UPDATE host_certificate_templates
-    SET status = ?, detail = ?
-    WHERE host_uuid = ? AND certificate_template_id = ?`
-
-	insertStmt := `
-		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge, operation_type)
-		VALUES (?, ?, ?, ?, ?, ?)`
-
 	// Validate the status.
 	if !status.IsValid() {
 		return ctxerr.Wrap(ctx, fmt.Errorf("Invalid status '%s'", string(status)))
 	}
 
+	updateStmt := `
+		UPDATE host_certificate_templates
+		SET status = ?, detail = ?, operation_type = ?
+		WHERE host_uuid = ? AND certificate_template_id = ?`
+
 	// Attempt to update the certificate status for the given host and template.
-	result, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, detail, hostUUID, certificateTemplateID)
+	result, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, detail, operationType, hostUUID, certificateTemplateID)
 	if err != nil {
 		return err
 	}
@@ -216,8 +218,10 @@ func (ds *Datastore) UpsertCertificateStatus(
 			return ctxerr.Wrap(ctx, err, "could not read certificate template for inserting new record")
 		}
 
-		// Default to install operation type for new records
-		params := []any{hostUUID, certificateTemplateID, status, detail, "", fleet.MDMOperationTypeInstall}
+		insertStmt := `
+			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge, operation_type)
+			VALUES (?, ?, ?, ?, ?, ?)`
+		params := []any{hostUUID, certificateTemplateID, status, detail, "", operationType}
 		if _, err := ds.writer(ctx).ExecContext(ctx, insertStmt, params...); err != nil {
 			return ctxerr.Wrap(ctx, err, "could not insert new host certificate template")
 		}
