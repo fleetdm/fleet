@@ -19,6 +19,8 @@ locals {
     ELASTIC_APM_SERVICE_VERSION         = "${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
     FLEET_LOGGING_TRACING_ENABLED       = "true"
     FLEET_LOGGING_TRACING_TYPE          = "elasticapm"
+    FLEET_DEV_MDM_APPLE_DISABLE_PUSH    = "1"
+    FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY = "1"
   }
 
   extra_environment_variables = merge(

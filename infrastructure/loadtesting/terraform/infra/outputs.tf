@@ -41,3 +41,8 @@ output "vpc_subnets" {
   value       = data.terraform_remote_state.shared.outputs.vpc.private_subnets
   description = "VPC private subnets from shared fleet-vpc"
 }
+
+output "scep" {
+  sensitive = true
+  value = module.mdm.scep.id
+}

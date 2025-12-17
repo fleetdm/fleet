@@ -5,6 +5,10 @@ data "git_repository" "tf" {
   directory = "${path.module}/../../../../"
 }
 
+data "aws_secretsmanager_secret_version" "scep" {
+  secret_id = data.terraform_remote_state.infra.outputs.scep
+}
+
 module "osquery_perf" {
   source                     = "github.com/fleetdm/fleet-terraform//addons/osquery-perf?ref=tf-mod-addon-osquery-perf-v1.2.1"
   customer_prefix            = local.customer
@@ -16,7 +20,7 @@ module "osquery_perf" {
   ecs_execution_iam_role_arn = data.terraform_remote_state.infra.outputs.ecs_execution_arn
   server_url                 = "http://${data.terraform_remote_state.infra.outputs.internal_alb_dns_name}"
   osquery_perf_image         = "${resource.aws_ecr_repository.loadtest.repository_url}:loadtest-${local.loadtest_tag}"
-  extra_flags                = var.extra_flags
+  extra_flags                = concat(var.extra_flags, ["-mdm_scep_challenge", jsondecode(data.aws_secretsmanager_secret_version.scep.secret_string)["FLEET_MDM_APPLE_SCEP_CHALLENGE"]])
   logging_options            = data.terraform_remote_state.infra.outputs.logging_config
   enroll_secret_arn          = data.terraform_remote_state.infra.outputs.enroll_secret_arn
   task_size                  = var.task_size
