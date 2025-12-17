@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 )
 
 type createCertificateTemplateRequest struct {
@@ -468,6 +469,22 @@ func (svc *Service) UpdateCertificateStatus(
 
 	if !opType.IsValid() {
 		return fleet.NewInvalidArgumentError("operation_type", string(opType))
+	}
+
+	certificate, err := svc.ds.GetCertificateTemplateForHost(ctx, host.UUID, certificateTemplateID)
+	if err != nil {
+		level.Error(svc.logger).Log("msg", "error getting certificate template for host", "host_uuid", host.UUID, "certificate_template_id", certificateTemplateID, "err", err)
+		return nil
+	}
+
+	if certificate.Status != nil && *certificate.Status != fleet.CertificateTemplateDelivered {
+		level.Info(svc.logger).Log("msg", "ignoring certificate status update for non-delivered certificate", "host_uuid", host.UUID, "certificate_template_id", certificateTemplateID, "current_status", certificate.Status, "new_status", status)
+		return nil
+	}
+
+	if certificate.OperationType != opType {
+		level.Info(svc.logger).Log("msg", "ignoring certificate status update for different operation type", "host_uuid", host.UUID, "certificate_template_id", certificateTemplateID, "current_operation_type", certificate.OperationType, "new_operation_type", opType)
+		return nil
 	}
 
 	return svc.ds.UpsertCertificateStatus(ctx, host.UUID, certificateTemplateID, status, detail, opType)
