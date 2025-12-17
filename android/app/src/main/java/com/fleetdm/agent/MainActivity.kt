@@ -21,6 +21,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,6 +31,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -43,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -59,7 +62,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.fleetdm.agent.ui.theme.FleetTextDark
 import com.fleetdm.agent.ui.theme.MyApplicationTheme
-import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 
 const val CLICKS_TO_DEBUG = 8
@@ -136,7 +138,6 @@ fun MainScreen(onNavigateToDebug: () -> Unit) {
                 }
                 HorizontalDivider()
                 CertificateList(certificates = installedCerts)
-                HorizontalDivider()
                 AppVersion {
                     if (++versionClicks >= CLICKS_TO_DEBUG) {
                         onNavigateToDebug()
@@ -159,9 +160,7 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
     val appRestrictions = restrictionsManager.applicationRestrictions
     val dpm = context.getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
 
-    val enrollSecret = remember { appRestrictions.getString("enroll_secret")?.let { "****" + it.takeLast(4) } }
     val delegatedScopes = remember { dpm.getDelegatedScopes(null, context.packageName).toList() }
-    val delegatedCertScope = remember { delegatedScopes.contains(DevicePolicyManager.DELEGATION_CERT_INSTALL) }
     val enrollmentSpecificID = remember { appRestrictions.getString("host_uuid")?.let { "****" + it.takeLast(4) } }
     val certIds = remember { CertificateOrchestrator.getCertificateIDs(context) }
     val permissionsList = remember {
@@ -181,7 +180,6 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
         grantedPermissions.toList()
     }
     val fleetBaseUrl = remember { appRestrictions.getString("server_url") }
-    val apiKey by ApiClient.apiKeyDebugFlow.collectAsState(initial = null)
     val baseUrl by ApiClient.baseUrlFlow.collectAsState(initial = null)
     val installedCerts by CertificateOrchestrator.installedCertsFlow(context).collectAsState(initial = emptyMap())
 
@@ -207,15 +205,12 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
                     .verticalScroll(rememberScrollState()),
             ) {
                 KeyValue("packageName", context.packageName)
-                KeyValue("versionName", context.packageManager.getPackageInfo(context.packageName, 0).versionName)
-                KeyValue("longVersionCode", context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode.toString())
-                KeyValue("enroll_secret", enrollSecret)
+                KeyValue("versionName", BuildConfig.VERSION_NAME)
+                KeyValue("longVersionCode", BuildConfig.VERSION_CODE.toString())
                 KeyValue("delegatedScopes", delegatedScopes.toString())
-                KeyValue("delegated cert scope", delegatedCertScope.toString())
                 KeyValue("host_uuid (MC)", enrollmentSpecificID)
                 KeyValue("server_url (MC)", fleetBaseUrl)
-                KeyValue("orbit_node_key (datastore)", apiKey)
-                KeyValue("base_url (datastore)", baseUrl)
+                KeyValue("server_url (DS)", baseUrl)
                 KeyValue("certificate_templates->id", certIds.toString())
                 KeyValue("certs_installed", installedCerts.toString())
                 PermissionList(
@@ -258,14 +253,20 @@ fun AboutFleet(modifier: Modifier = Modifier, onLearnClick: () -> Unit = {}) {
         Text(
             text = stringResource(R.string.app_description),
         )
-        Text(
-            text = stringResource(R.string.learn_about_fleet),
-            fontWeight = FontWeight.Bold,
-            color = FleetTextDark,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier
                 .padding(top = 10.dp)
                 .clickable(onClick = onLearnClick),
-        )
+        ) {
+            Text(
+                text = stringResource(R.string.learn_about_fleet),
+                fontWeight = FontWeight.Bold,
+                color = FleetTextDark,
+            )
+            Icon(imageVector = Icons.AutoMirrored.Default.ArrowForward, contentDescription = "forward arrow")
+        }
     }
 }
 
@@ -286,6 +287,9 @@ fun CertificateList(modifier: Modifier = Modifier, certificates: CertStatusMap) 
             color = FleetTextDark,
             fontWeight = FontWeight.Bold,
         )
+        certificates.ifEmpty {
+            Text(text = stringResource(R.string.certificate_list_no_certificates))
+        }
         certificates.forEach { (_, value) ->
             if (value.status == CertificateInstallStatus.INSTALLED) {
                 Text(text = value.alias)
@@ -330,7 +334,6 @@ fun FleetScreenPreview() {
                     2 to CertificateInstallInfo(alias = "VPN-3", status = CertificateInstallStatus.FAILED),
                 ),
             )
-            HorizontalDivider()
             AppVersion(onClick = {})
         }
     }

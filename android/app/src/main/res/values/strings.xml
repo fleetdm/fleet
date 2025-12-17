@@ -2,9 +2,10 @@
     <string name="app_name">Fleet</string>
 
     <string name="app_description">The app is installed by your IT administrator to install the certificates needed to connect to corporate networks.</string>
-    <string name="learn_about_fleet">About Fleet →</string>
+    <string name="learn_about_fleet">About Fleet</string>
     <string name="fleet_logo">Fleet logo</string>
     <string name="certificate_list_title">Installed certificates</string>
+    <string name="certificate_list_no_certificates">No certificates installed</string>
     <string name="app_version_title">App Version</string>
 
     <!-- Managed Configuration -->

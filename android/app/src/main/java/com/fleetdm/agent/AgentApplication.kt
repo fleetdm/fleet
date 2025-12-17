@@ -51,7 +51,7 @@ class AgentApplication : Application() {
                     ApiClient.setEnrollmentCredentials(
                         enrollSecret = enrollSecret,
                         hardwareUUID = hostUUID,
-                        baseUrl = serverURL,
+                        serverUrl = serverURL,
                         computerName = "${Build.BRAND} ${Build.MODEL}",
                     )
 
