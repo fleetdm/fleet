@@ -430,7 +430,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 		if incomingApp.Platform.IsApplePlatform() {
 			vppTokenRequired = true
 		}
-		// upsert it if it does not exist or labels or SelfService or InstallDuringSetup flags are changed
+		// upsert the app if anything changed
 		changed, err := ds.didAppStoreAppChange(ctx, teamID, incomingApp, existingApps)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "checking if app store app changed")
@@ -555,7 +555,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 
 		return nil
 	})
-	return false, err
+	return replacingInstallDuringSetup, err
 }
 
 func (ds *Datastore) checkConflictingSoftwareInstallerForVPPApp(
