@@ -537,16 +537,25 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 
 	// TODO filtering; treat team 0 as explicit global
 
-	query := "SELECT * FROM labels l "
+	query := "SELECT l.* FROM labels l "
 	// When applicable, filter host membership by team and return counts with the labels.
 	if filter.User != nil && includeHostCounts {
 		query = fmt.Sprintf(`
-				SELECT *,
-					(SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s) AS host_count
+				SELECT l.*,
+					(SELECT COUNT(1)
+					 FROM label_membership lm
+					     JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s
+					 ) AS host_count
 				FROM labels l
 			`, ds.whereFilterHostsByTeams(filter, "h"),
 		)
 	}
+
+	if filter.TeamID != nil {
+		if *filter.TeamID == 0 { // global labels only; any user can see them
+			query += " WHERE l.team_id IS NULL"
+		} // TODO filter by team ID if the user can access it, FALSE if the user can't
+	} // TODO filter by teams that the user has access to, plus global
 
 	query, params := appendListOptionsToSQL(query, &opt)
 	var labels []*fleet.Label
