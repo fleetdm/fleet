@@ -431,7 +431,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			vppTokenRequired = true
 		}
 		// upsert the app if anything changed
-		changed, err := ds.didAppStoreAppChange(ctx, teamID, incomingApp, existingApps)
+		changed, err := ds.hasAppStoreAppChanged(ctx, teamID, incomingApp, existingApps)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "checking if app store app changed")
 		}
@@ -2317,7 +2317,7 @@ type appStoreAppChanges struct {
 	Configuration      bool
 }
 
-func (ds *Datastore) didAppStoreAppChange(ctx context.Context, teamID *uint, incomingApp fleet.VPPAppTeam, existingApps map[fleet.VPPAppID]fleet.VPPAppTeam) (appStoreAppChanges, error) {
+func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, incomingApp fleet.VPPAppTeam, existingApps map[fleet.VPPAppID]fleet.VPPAppTeam) (appStoreAppChanges, error) {
 
 	existingApp, isExistingApp := existingApps[incomingApp.VPPAppID]
 	incomingApp.AppTeamID = existingApp.AppTeamID
@@ -2359,7 +2359,7 @@ func (ds *Datastore) didAppStoreAppChange(ctx context.Context, teamID *uint, inc
 			*incomingApp.InstallDuringSetup != *existingApp.InstallDuringSetup
 	}
 
-	// Added a new app for setup experience
+	// Added a new app with setup experience enabled
 	if !isExistingApp && incomingApp.InstallDuringSetup != nil && *incomingApp.InstallDuringSetup {
 		installDuringSetupChanged = true
 	}
