@@ -73,7 +73,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
 			return nil, &fleet.BadRequestError{
-				Message:     "The maximum file size is 3 GB.",
+				Message:     "The maximum file size is 10 GB.",
 				InternalErr: err,
 			}
 		}
@@ -96,7 +96,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		if decoded.File.Size > fleet.MaxSoftwareInstallerSize {
 			// Should never happen here since the request's body is limited to the maximum size.
 			return nil, &fleet.BadRequestError{
-				Message: "The maximum file size is 3 GB.",
+				Message: "The maximum file size is 10 GB.",
 			}
 		}
 	}
@@ -246,7 +246,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
 			return nil, &fleet.BadRequestError{
-				Message:     "The maximum file size is 3 GB.",
+				Message:     "The maximum file size is 10 GB.",
 				InternalErr: err,
 			}
 		}
@@ -275,7 +275,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		// Should never happen here since the request's body is limited to the
 		// maximum size.
 		return nil, &fleet.BadRequestError{
-			Message: "The maximum file size is 3 GB.",
+			Message: "The maximum file size is 10 GB.",
 		}
 	}
 
