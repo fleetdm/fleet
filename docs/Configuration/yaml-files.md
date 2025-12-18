@@ -511,6 +511,9 @@ software:
       categories:
         - Communication
       setup_experience: true
+      auto_update_enabled: true
+      auto_update_window_start: "00:00"
+      auto_update_window_end: "04:00"
   fleet_maintained_apps:
     - slug: slack/darwin
       install_script:
