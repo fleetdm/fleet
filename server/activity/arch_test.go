@@ -12,7 +12,7 @@ import (
 // If coupling is necessary, it should be done in the main server/fleet, server/service, or other package.
 func TestAllActivityPackageDependencies(t *testing.T) {
 	t.Parallel()
-	archtest.NewPackageTest(t, "github.com/fleetdm/fleet/v4/server/activity...").
+	archtest.NewPackageTest(t, "github.com/fleetdm/fleet/v4/server/activity/...").
 		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
 		WithTests().
 		// Should not depend on any Fleet packages
