@@ -1352,8 +1352,19 @@ func TestAppleMDMUnenrollment(t *testing.T) {
 	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
-	hostOne := &fleet.Host{ID: 1, UUID: "test-host-no-team-2"}
-	hostGlobal := &fleet.Host{ID: 42, UUID: "test-host-no-team"}
+	hostOne := &fleet.Host{ID: 1, UUID: "test-host-no-team-2", Platform: "ios"}
+	hostGlobal := &fleet.Host{ID: 42, UUID: "test-host-no-team", Platform: "darwin"}
+
+	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+		switch hostID {
+		case hostOne.ID:
+			return hostOne, nil
+		case hostGlobal.ID:
+			return hostGlobal, nil
+		default:
+			return nil, errors.New("not found")
+		}
+	}
 
 	ds.GetHostMDMCheckinInfoFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
 		return &fleet.HostMDMCheckinInfo{Platform: "darwin"}, nil
