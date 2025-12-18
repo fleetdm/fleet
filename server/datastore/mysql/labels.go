@@ -516,7 +516,7 @@ func (ds *Datastore) labelDB(ctx context.Context, lid uint, teamFilter fleet.Tea
 		WHERE l.id = ?
 	`, ds.whereFilterHostsByTeams(teamFilter, "h"))
 
-	stmt, params, err := applyLabelTeamFilter(stmt, teamFilter)
+	stmt, params, err := applyLabelTeamFilter(stmt, teamFilter, true)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "building label select query")
 	}
@@ -564,7 +564,7 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 		)
 	}
 
-	query, params, err := applyLabelTeamFilter(query, filter)
+	query, params, err := applyLabelTeamFilter(query, filter, false)
 	if err != nil {
 		return nil, err
 	}
@@ -577,6 +577,7 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 		if err == sql.ErrNoRows {
 			return labels, nil
 		}
+
 		return nil, ctxerr.Wrap(ctx, err, "selecting labels")
 	}
 
@@ -586,13 +587,13 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 var errInaccessibleTeam = errors.New("The team ID you provided refers to a team that either does not exist or you do not have permission to access.")
 
 // applyLabelTeamFilter requires the labels table to be aliased as "l" to work
-func applyLabelTeamFilter(query string, filter fleet.TeamFilter) (string, []any, error) {
+func applyLabelTeamFilter(query string, filter fleet.TeamFilter, queryHasWHere bool) (string, []any, error) {
 	if filter.User == nil { // fall back to safe (global-only) filter if this happens (it shouldn't)
 		return query + " WHERE l.team_id IS NULL", nil, nil
 	}
 
 	whereOrAnd := " WHERE "
-	if strings.Contains(strings.ToLower(query), "where") {
+	if queryHasWHere { // passed rather than set via a contains check because some callers include subqueries
 		whereOrAnd = " AND "
 	}
 
@@ -1396,7 +1397,7 @@ func (ds *Datastore) LabelsSummary(ctx context.Context, filter fleet.TeamFilter)
 	var labelsSummary []*fleet.LabelSummary
 
 	query := "SELECT id, name, description, label_type, team_id FROM labels l"
-	query, params, err := applyLabelTeamFilter(query, filter)
+	query, params, err := applyLabelTeamFilter(query, filter, false)
 	if err != nil {
 		return nil, err
 	}
