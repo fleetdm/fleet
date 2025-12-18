@@ -17,7 +17,7 @@ import (
 
 // MaxSoftwareInstallerSize is the maximum size allowed for software
 // installers. This is enforced by the endpoints that upload installers.
-const MaxSoftwareInstallerSize = 3000 * units.MiB
+const MaxSoftwareInstallerSize = 10000 * units.MiB
 
 // SoftwareInstallerStore is the interface to store and retrieve software
 // installer files. Fleet supports storing to the local filesystem and to an
