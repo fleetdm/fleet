@@ -756,6 +756,9 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	appCfg.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	// ensure global Windows OS updates are always disabled for the next test
 	appCfg.MDM.WindowsUpdates = fleet.WindowsUpdates{}
+	appCfg.MDM.EnabledAndConfigured = true
+	appCfg.MDM.AppleBMEnabledAndConfigured = true
+	appCfg.MDM.AndroidEnabledAndConfigured = true
 	// ensure the server URL is constant
 	appCfg.ServerSettings.ServerURL = s.server.URL
 	err := s.ds.SaveAppConfig(ctx, &appCfg.AppConfig)
