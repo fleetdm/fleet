@@ -308,6 +308,7 @@ WHERE
 	// TODO: Maybe move this to the service method? What about pagination metadata?
 	if listOpts.OrderKey == "" {
 		listOpts.OrderKey = "updated_at"
+		listOpts.OrderDirection = fleet.OrderDescending
 	}
 	// // FIXME: We probably ought to modify how listOptionsFromRequest in transport.go applies the
 	// // default order direction. Defaulting to ascending doesn't make sense for date fields like
