@@ -2,7 +2,7 @@
 
 Use Fleet's best practice GitOps workflow to manage your computers as code. To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
-Fleet GitOps workflow is designed to be applied to all teams at once. However, the flow can be customized to only modify specific teams and/or global settings.
+Fleet GitOps workflow is designed to be applied to all teams at once. However, the flow can be customized to only modify specific teams and/or global settings. Note that when running the `fleetctl gitops` action for all teams, files are expected to use the `.yml` extension. Files ending in `.yaml` will not be evaluated unless passed in individually as arguments to `fleetctl gitops -f`.
 
 Users with global admin permissions may apply GitOps configurations globally and to all teams, while users whose permissions are scoped to specific teams may apply settings to only the teams they have permission to modify.
 
@@ -1059,7 +1059,7 @@ org_settings:
 After you've uploaded a [Volume Purchasing Program](https://fleetdm.com/guides/macos-mdm-setup#volume-purchasing-program-vpp) (VPP) token, the  `volume_purchasing_program` section lets you configure the teams in Fleet that have access to that VPP token's App Store apps. Currently, adding a VPP token is only available using Fleet's UI.
 
 - `location` is the name of the location in the Apple Business Manager account.
-- `teams` is a list of team names. If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, App Store apps are available to install on hosts in all teams.
+- `teams` is a list of team names. If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, App Store apps will not be available to install on any team. To apply it to all teams, use `- All teams`. 
 
 Can only be configured for all teams (`org_settings`).
 

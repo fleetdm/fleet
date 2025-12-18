@@ -1,4 +1,4 @@
-.activity-item {
+.feed-list-item {
   display: grid; // Grid system is used to create variable solid line lengths
   grid-template-columns: 16px 16px 8px 1fr;
   grid-template-rows: max-content;
@@ -57,7 +57,7 @@
       background-color: $ui-off-white;
       cursor: pointer;
 
-      .activity-item__action-button {
+      .feed-list-item__action-button {
         visibility: visible;
       }
     }
@@ -68,7 +68,7 @@
       padding-right: $pad-xsmall;
     }
 
-    .activity-details {
+    .feed-details {
       margin: 0;
       line-height: 16px;
     }
@@ -119,13 +119,13 @@
   }
 
   &:first-child {
-    .activity-item__avatar-upper-dash {
+    .feed-list-item__avatar-upper-dash {
       border-right: none;
     }
   }
 
   &:last-child {
-    .activity-item__avatar-lower-dash {
+    .feed-list-item__avatar-lower-dash {
       border-right: none;
     }
   }
@@ -143,15 +143,15 @@
     display: flex;
     gap: $pad-medium;
 
-    .activity-item__avatar-wrapper {
+    .feed-list-item__avatar-wrapper {
       display: block;
     }
 
-    .activity-item__avatar-lower-dash {
+    .feed-list-item__avatar-lower-dash {
       display: none;
     }
 
-    .activity-item__details-wrapper {
+    .feed-list-item__details-wrapper {
       display: block;
       padding: 0;
       margin-bottom: 0;
@@ -162,13 +162,13 @@
       }
     }
 
-    .activity-item__details-actions {
+    .feed-list-item__details-actions {
       display: none;
     }
   }
 
   &__no-details {
-    .activity-item__details-wrapper {
+    .feed-list-item__details-wrapper {
       &:hover {
         cursor: auto;
         background-color: transparent;

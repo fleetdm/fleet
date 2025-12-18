@@ -433,7 +433,9 @@ $max-width: 2560px;
   height: 32px;
   border-radius: 4px;
 
-  a {
+  a,
+  span.link-with-context // Disabled side nav item
+  {
     display: flex;
     align-items: center;
     height: 100%;
@@ -442,8 +444,10 @@ $max-width: 2560px;
     font-weight: $regular;
     text-decoration: none;
     border-bottom: none;
-    cursor: pointer;
+  }
 
+  a {
+    cursor: pointer;
     &:hover {
       color: $ui-fleet-black-75-over;
     }
