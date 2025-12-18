@@ -19227,7 +19227,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
 	require.True(t, fleet.IsNotFound(err))
 
 	// Make sure l2t2 in t2 is unaffected.
-	_, _, err = s.ds.Label(t.Context(), l2t2.ID, fleet.TeamFilter{})
+	_, _, err = s.ds.Label(t.Context(), l2t2.ID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 
 	// Make sure label membership for l1t1 is gone.

@@ -456,6 +456,16 @@ func TestAuthorizeLabel(t *testing.T) {
 	t.Parallel()
 
 	label := &fleet.Label{}
+	authoredLabel := func(user *fleet.User) fleet.Label {
+		return fleet.Label{AuthorID: &user.ID}
+	}
+	sameTeamLabel := func(user *fleet.User) fleet.Label {
+		return fleet.Label{TeamID: &user.Teams[0].ID}
+	}
+	differentTeamLabel := func(user *fleet.User) fleet.Label {
+		return fleet.Label{TeamID: ptr.Uint(999)}
+	}
+
 	runTestCases(t, []authTestCase{
 		{user: nil, object: label, action: read, allow: false},
 		{user: nil, object: label, action: write, allow: false},
@@ -478,14 +488,38 @@ func TestAuthorizeLabel(t *testing.T) {
 		{user: test.UserGitOps, object: label, action: read, allow: true},
 		{user: test.UserGitOps, object: label, action: write, allow: true},
 
+		{user: test.UserTeamObserverTeam1, object: label, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: label, action: write, allow: false},
+
+		{user: test.UserTeamObserverPlusTeam1, object: label, action: read, allow: true},
+		{user: test.UserTeamObserverPlusTeam1, object: label, action: write, allow: false},
+
 		{user: test.UserTeamGitOpsTeam1, object: label, action: read, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: label, action: write, allow: false},
 
 		{user: test.UserTeamAdminTeam1, object: label, action: read, allow: true},
-		{user: test.UserTeamAdminTeam1, object: label, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: label, action: write, allow: false},
 
 		{user: test.UserTeamMaintainerTeam1, object: label, action: read, allow: true},
-		{user: test.UserTeamMaintainerTeam1, object: label, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: label, action: write, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: authoredLabel(test.UserTeamObserverTeam1), action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: authoredLabel(test.UserTeamObserverTeam1), action: write, allow: false},
+
+		{user: test.UserTeamGitOpsTeam1, object: authoredLabel(test.UserTeamGitOpsTeam1), action: read, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: authoredLabel(test.UserTeamGitOpsTeam1), action: write, allow: true},
+
+		{user: test.UserTeamObserverTeam1, object: sameTeamLabel(test.UserTeamObserverTeam1), action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: sameTeamLabel(test.UserTeamObserverTeam1), action: write, allow: false},
+
+		{user: test.UserTeamGitOpsTeam1, object: sameTeamLabel(test.UserTeamGitOpsTeam1), action: read, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: sameTeamLabel(test.UserTeamGitOpsTeam1), action: write, allow: true},
+
+		{user: test.UserTeamObserverTeam1, object: differentTeamLabel(test.UserTeamObserverTeam1), action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: differentTeamLabel(test.UserTeamObserverTeam1), action: write, allow: false},
+
+		{user: test.UserTeamGitOpsTeam1, object: differentTeamLabel(test.UserTeamGitOpsTeam1), action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: differentTeamLabel(test.UserTeamGitOpsTeam1), action: write, allow: false},
 	})
 }
 

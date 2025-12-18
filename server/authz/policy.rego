@@ -378,12 +378,21 @@ allow {
 allow {
   object.type == "label"
   is_null(object.team_id)
+  not is_null(object.author_id)
   object.author_id = subject.id
   team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
   action == write
 }
 
-# Team admins, maintainers, and gitops can write labels for their team
+# Team users can read labels on their team
+allow {
+  object.type == "label"
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer, gitops, observer_plus, observer][_]
+  action == read
+}
+
+# Team admins, maintainers, and gitops can write labels on their team
 allow {
   object.type == "label"
   not is_null(object.team_id)
