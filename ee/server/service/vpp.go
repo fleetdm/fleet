@@ -461,6 +461,10 @@ func getPlatformsFromSupportedDevices(supportedDevices []string) map[fleet.Insta
 
 var androidApplicationID = regexp.MustCompile(`^([A-Za-z]{1}[A-Za-z\d_]*\.)+[A-Za-z][A-Za-z\d_]*$`)
 
+// fleetAgentPackagePrefix is the package prefix for Fleet Android agent.
+// IT admins should not be able to add this app manually via the Software page as it is managed automatically by Fleet.
+const fleetAgentPackagePrefix = "com.fleetdm.agent"
+
 func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID fleet.VPPAppTeam) (uint, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return 0, err
@@ -515,6 +519,10 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	case fleet.AndroidPlatform:
 		if !isAndroidAppID {
 			return 0, fleet.NewInvalidArgumentError("app_store_id", "Application ID must be a valid Android application ID")
+		}
+		if strings.HasPrefix(appID.AdamID, fleetAgentPackagePrefix) {
+			return 0, fleet.NewInvalidArgumentError("app_store_id", "The Fleet agent cannot be added manually. "+
+				"It is automatically managed by Fleet when Android MDM is enabled.")
 		}
 		appID.SelfService = true
 		appID.AddAutoInstallPolicy = false
