@@ -436,6 +436,17 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		Raw:         []byte(appleCmd),
 	})
 	require.NoError(t, err)
+	// Update the timestamp to ensure there is enough difference for ordering to have it always come first
+	// using default list options
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(
+			ctx,
+			`UPDATE nano_command_results SET updated_at = updated_at + INTERVAL 1 SECOND WHERE command_uuid = ?`,
+			failedAppleCmdUUID,
+		)
+		return err
+	})
+
 	cmds, total, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
@@ -453,7 +464,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	for _, cmd := range cmds {
 		got = append(got, cmd.CommandUUID)
 	}
-	require.ElementsMatch(t, []string{appleCmdUUID, failedAppleCmdUUID}, got)
+	require.Equal(t, []string{failedAppleCmdUUID, appleCmdUUID}, got)
 
 	// pagination and pagination meta data
 	cmds, _, meta, err := ds.ListMDMCommands(
