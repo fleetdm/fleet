@@ -4031,6 +4031,10 @@ func TestGitOpsAndroidCertificatesChange(t *testing.T) {
 		return true, nil
 	}
 
+	ds.SetHostCertificateTemplatesToPendingRemoveFunc = func(ctx context.Context, certificateTemplateIDs uint) error {
+		return nil
+	}
+
 	// Create team config with modified subjectNames
 	teamConfig := `
 name: %s
