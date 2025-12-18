@@ -1374,13 +1374,6 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// check that Windows MDM is enabled - the middleware of that endpoint checks
-	// only that any MDM is enabled, maybe it's just macOS
-	if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
-		err := fleet.NewInvalidArgumentError("profile_uuid", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
-		return ctxerr.Wrap(ctx, err, "check windows MDM enabled")
-	}
-
 	prof, err := svc.ds.GetMDMWindowsConfigProfile(ctx, profileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -1456,13 +1449,6 @@ func (svc *Service) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUU
 	// first we perform a perform basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
-	}
-
-	// check that Android MDM is enabled - the middleware of that endpoint checks
-	// only that any MDM is enabled, maybe it's just macOS
-	if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
-		err := fleet.NewInvalidArgumentError("profile_uuid", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
-		return ctxerr.Wrap(ctx, err, "check android MDM enabled")
 	}
 
 	prof, err := svc.ds.GetMDMAndroidConfigProfile(ctx, profileUUID)
@@ -2196,17 +2182,6 @@ func (svc *Service) BatchSetMDMProfiles(
 			return ctxerr.Wrap(ctx, err, "logging activity for edited android profile")
 		}
 	}
-
-	// // TODO(AP): Uncomment to enable activity logging for Android profiles once implemented
-	// 	if updates.AndroidProfile {
-	// 	if err := svc.NewActivity(
-	// 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidProfile{
-	// 			TeamID:   tmID,
-	// 			TeamName: tmName,
-	// 		}); err != nil {
-	// 		return ctxerr.Wrap(ctx, err, "logging activity for edited android profiles")
-	// 	}
-	// }
 
 	return nil
 }
