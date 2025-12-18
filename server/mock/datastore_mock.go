@@ -685,6 +685,8 @@ type LoadHostByOrbitNodeKeyFunc func(ctx context.Context, nodeKey string) (*flee
 
 type HostLiteFunc func(ctx context.Context, hostID uint) (*fleet.Host, error)
 
+type HostLiteWithContextFunc func(ctx context.Context, q sqlx.QueryerContext, id uint) (*fleet.Host, error)
+
 type UpdateHostOsqueryIntervalsFunc func(ctx context.Context, hostID uint, intervals fleet.HostOsqueryIntervals) error
 
 type TeamAgentOptionsFunc func(ctx context.Context, teamID uint) (*json.RawMessage, error)
@@ -2662,6 +2664,9 @@ type DataStore struct {
 
 	HostLiteFunc        HostLiteFunc
 	HostLiteFuncInvoked bool
+
+	HostLiteWithContextFunc        HostLiteWithContextFunc
+	HostLiteWithContextFuncInvoked bool
 
 	UpdateHostOsqueryIntervalsFunc        UpdateHostOsqueryIntervalsFunc
 	UpdateHostOsqueryIntervalsFuncInvoked bool
@@ -6457,6 +6462,13 @@ func (s *DataStore) HostLite(ctx context.Context, hostID uint) (*fleet.Host, err
 	s.HostLiteFuncInvoked = true
 	s.mu.Unlock()
 	return s.HostLiteFunc(ctx, hostID)
+}
+
+func (s *DataStore) HostLiteWithContext(ctx context.Context, q sqlx.QueryerContext, id uint) (*fleet.Host, error) {
+	s.mu.Lock()
+	s.HostLiteWithContextFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostLiteWithContextFunc(ctx, q, id)
 }
 
 func (s *DataStore) UpdateHostOsqueryIntervals(ctx context.Context, hostID uint, intervals fleet.HostOsqueryIntervals) error {

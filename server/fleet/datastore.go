@@ -927,6 +927,9 @@ type Datastore interface {
 	// If the host doesn't exist, a NotFoundError is returned.
 	HostLite(ctx context.Context, hostID uint) (*Host, error)
 
+	// HostLiteWithContext is like HostLite but allows passing a custom sqlx.QueryerContext
+	HostLiteWithContext(ctx context.Context, q sqlx.QueryerContext, id uint) (*Host, error)
+
 	// UpdateHostOsqueryIntervals updates the osquery intervals of a host.
 	UpdateHostOsqueryIntervals(ctx context.Context, hostID uint, intervals HostOsqueryIntervals) error
 
@@ -1101,6 +1104,7 @@ type Datastore interface {
 	// EnrollOrbit will enroll a new orbit instance.
 	//	- If an entry for the host exists (osquery enrolled first) then it will update the host's orbit node key and team.
 	//	- If an entry for the host doesn't exist (osquery enrolls later) then it will create a new entry in the hosts table.
+	// This method returns a "lite" host.
 	EnrollOrbit(ctx context.Context, opts ...DatastoreEnrollOrbitOption) (*Host, error)
 
 	SerialUpdateHost(ctx context.Context, host *Host) error
