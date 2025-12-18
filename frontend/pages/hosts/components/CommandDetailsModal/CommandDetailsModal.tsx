@@ -4,8 +4,7 @@ import { formatDistanceToNow } from "date-fns";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
-import { IActivityDetails } from "interfaces/activity";
-import { ICommandResult } from "interfaces/command";
+import { ICommand, ICommandResult } from "interfaces/command";
 
 import commandApi, {
   IGetCommandResultsResponse,
@@ -157,12 +156,12 @@ const ModalContent = ({
 };
 
 interface ICommandResultsModalProps {
-  details: IActivityDetails;
+  command: ICommand;
   onDone: () => void;
 }
 
 const CommandResultsModal = ({
-  details: { host_uuid = "", command_uuid = "" },
+  command: { host_uuid: host_identifier, command_uuid },
   onDone,
 }: ICommandResultsModalProps) => {
   const { data, isLoading, error } = useQuery<
@@ -171,7 +170,7 @@ const CommandResultsModal = ({
     IGetCommandResultsResponse,
     IGetHostCommandResultsQueryKey[]
   >(
-    [{ scope: "command_results", host_uuid, command_uuid }],
+    [{ scope: "command_results", host_identifier, command_uuid }],
     ({ queryKey }) =>
       commandApi.getHostCommandResults(queryKey[0]).then((resp) => {
         if (!resp?.results) {

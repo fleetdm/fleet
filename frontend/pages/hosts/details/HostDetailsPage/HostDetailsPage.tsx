@@ -1588,7 +1588,7 @@ Observer plus must be checked against host's team id  */
           )}
           {!!mdmCommandDetails && (
             <CommandResultsModal
-              details={mdmCommandDetails}
+              command={mdmCommandDetails}
               onDone={onCancelMdmCommandDetailsModal}
             />
           )}

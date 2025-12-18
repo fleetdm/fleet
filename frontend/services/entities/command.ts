@@ -27,7 +27,7 @@ export interface IGetCommandResultsParams {
 }
 
 export interface IGetHostCommandResultsParams extends IGetCommandResultsParams {
-  host_uuid: string;
+  host_identifier: string;
 }
 
 export interface IGetHostCommandResultsQueryKey
@@ -54,11 +54,11 @@ export default {
   },
 
   getHostCommandResults: ({
-    host_uuid,
+    host_identifier,
     command_uuid,
   }: IGetHostCommandResultsParams): Promise<IGetCommandResultsResponse> => {
     const { COMMANDS_RESULTS } = endpoints;
-    const url = `${COMMANDS_RESULTS}?command_uuid=${command_uuid}&host_uuid=${host_uuid}`;
+    const url = `${COMMANDS_RESULTS}?command_uuid=${command_uuid}&host_identifier=${host_identifier}`;
     return sendRequest("GET", url);
   },
 };
