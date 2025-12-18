@@ -176,7 +176,7 @@ const AddCertModal = ({
         />
         <div className="modal-cta-wrap">
           <TooltipWrapper
-            tipContent="Complete all required fields to save"
+            tipContent="Complete all fields to save."
             underline={false}
             position="top"
             disableTooltip={formValidation.isValid}
