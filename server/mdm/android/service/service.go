@@ -848,7 +848,6 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		return ctxerr.Wrap(ctx, err, "amapi delete device")
 	}
 
-	// Emit activity: admin told Fleet to unenroll
 	return nil
 }
 
