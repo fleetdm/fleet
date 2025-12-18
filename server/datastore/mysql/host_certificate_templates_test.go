@@ -113,8 +113,8 @@ func testListAndroidHostUUIDsWithDeliverableCertificateTemplates(t *testing.T, d
 
 		// Insert host certificate template record (host already has this template)
 		_, err := ds.writer(ctx).ExecContext(ctx,
-			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
-			"test-host-uuid", setup.template.ID, "challenge", fleet.MDMDeliveryPending,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, name) VALUES (?, ?, ?, ?, ?)",
+			"test-host-uuid", setup.template.ID, "challenge", fleet.MDMDeliveryPending, setup.template.Name,
 		)
 		require.NoError(t, err)
 
@@ -218,8 +218,8 @@ func testListCertificateTemplatesForHosts(t *testing.T, ds *Datastore) {
 
 		// Insert host certificate template record for first template only
 		_, err = ds.writer(ctx).ExecContext(ctx,
-			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
-			"test-host-uuid", setup.template.ID, "challenge", fleet.CertificateTemplateDelivered,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, name) VALUES (?, ?, ?, ?, ?)",
+			"test-host-uuid", setup.template.ID, "challenge", fleet.CertificateTemplateDelivered, setup.template.Name,
 		)
 		require.NoError(t, err)
 
@@ -386,8 +386,8 @@ func testUpsertHostCertificateTemplateStatus(t *testing.T, ds *Datastore) {
 	// Create an initial record for the first template
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err = q.ExecContext(ctx,
-			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, fleet_challenge, operation_type) VALUES (?, ?, ?, ?, ?)",
-			hostUUID, setup.template.ID, fleet.MDMDeliveryPending, "some_challenge_value", fleet.MDMOperationTypeInstall)
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, fleet_challenge, operation_type, name) VALUES (?, ?, ?, ?, ?, ?)",
+			hostUUID, setup.template.ID, fleet.MDMDeliveryPending, "some_challenge_value", fleet.MDMOperationTypeInstall, setup.template.Name)
 		return err
 	})
 
@@ -566,10 +566,10 @@ func testListAndroidHostUUIDsWithPendingCertificateTemplates(t *testing.T, ds *D
 
 		// Insert records with various non-pending statuses
 		_, err := ds.writer(ctx).ExecContext(ctx,
-			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge) VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)",
-			"host-delivering", setup.template.ID, "delivering", "install", nil,
-			"host-delivered", setup.template.ID, "delivered", "install", "challenge1",
-			"host-verified", setup.template.ID, "verified", "install", "challenge2",
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name) VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?)",
+			"host-delivering", setup.template.ID, "delivering", "install", nil, setup.template.Name,
+			"host-delivered", setup.template.ID, "delivered", "install", "challenge1", setup.template.Name,
+			"host-verified", setup.template.ID, "verified", "install", "challenge2", setup.template.Name,
 		)
 		require.NoError(t, err)
 
@@ -585,8 +585,8 @@ func testListAndroidHostUUIDsWithPendingCertificateTemplates(t *testing.T, ds *D
 		// Insert pending records for 5 hosts
 		for i := range 5 {
 			_, err := ds.writer(ctx).ExecContext(ctx,
-				"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type) VALUES (?, ?, ?, ?)",
-				fmt.Sprintf("host-%d", i), setup.template.ID, "pending", "install",
+				"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, name) VALUES (?, ?, ?, ?, ?)",
+				fmt.Sprintf("host-%d", i), setup.template.ID, "pending", "install", setup.template.Name,
 			)
 			require.NoError(t, err)
 		}
@@ -777,15 +777,15 @@ func testRevertStaleCertificateTemplates(t *testing.T, ds *Datastore) {
 
 		// Insert a record in 'delivering' status with updated_at set to 7 hours ago
 		_, err := ds.writer(ctx).ExecContext(ctx,
-			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, updated_at) VALUES (?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL 7 HOUR))",
-			"stale-host", setup.template.ID, fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeInstall,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, updated_at, name) VALUES (?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL 7 HOUR), ?)",
+			"stale-host", setup.template.ID, fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeInstall, setup.template.Name,
 		)
 		require.NoError(t, err)
 
 		// Insert a record in 'delivering' status that is recent (1 hour ago)
 		_, err = ds.writer(ctx).ExecContext(ctx,
-			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, updated_at) VALUES (?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL 1 HOUR))",
-			"recent-host", setup.template.ID, fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeInstall,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, updated_at, name) VALUES (?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL 1 HOUR), ?)",
+			"recent-host", setup.template.ID, fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeInstall, setup.template.Name,
 		)
 		require.NoError(t, err)
 
@@ -825,8 +825,8 @@ func testRevertStaleCertificateTemplates(t *testing.T, ds *Datastore) {
 			fleet.CertificateTemplateFailed,
 		} {
 			_, err := ds.writer(ctx).ExecContext(ctx,
-				"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, updated_at) VALUES (?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL 7 HOUR))",
-				fmt.Sprintf("host-%s", status), setup.template.ID, status, fleet.MDMOperationTypeInstall,
+				"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, updated_at, name) VALUES (?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL 7 HOUR), ?)",
+				fmt.Sprintf("host-%s", status), setup.template.ID, status, fleet.MDMOperationTypeInstall, setup.template.Name,
 			)
 			require.NoError(t, err)
 		}
