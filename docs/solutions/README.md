@@ -1,5 +1,8 @@
 # Solutions Best Practices
 
+
+## General
+
 – Name the file what the profile does.
   - For example, instead of `googlePlayProtectVerifyApps.json` (the name of the
     Android policy for this control), describe what it does:
