@@ -1,7 +1,10 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
 
-import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
+import {
+  getSelfServiceTooltip,
+  normalizeSoftwareDisplayName,
+} from "pages/SoftwarePage/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
@@ -11,18 +14,6 @@ import LinkCell from "../LinkCell";
 import TooltipTruncatedTextCell from "../TooltipTruncatedTextCell";
 
 const baseClass = "software-name-cell";
-
-/**
- * Normalizes software names for display purposes.
- * Maps known problematic names to their user-friendly display names.
- */
-const normalizeSoftwareDisplayName = (name: string): string => {
-  // Handle cases where name might have version appended (e.g., "Microsoft.CompanyPortal, 11.2.1495.0")
-  if (name.startsWith("Microsoft.CompanyPortal")) {
-    return name.replace("Microsoft.CompanyPortal", "Company Portal");
-  }
-  return name;
-};
 
 type InstallType =
   | "manual"

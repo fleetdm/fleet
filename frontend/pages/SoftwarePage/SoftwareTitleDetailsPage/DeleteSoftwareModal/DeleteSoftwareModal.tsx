@@ -8,21 +8,9 @@ import { getErrorReason } from "interfaces/errors";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner";
+import { normalizeSoftwareDisplayName } from "pages/SoftwarePage/helpers";
 
 const baseClass = "delete-software-modal";
-
-/**
- * Normalizes software names for display purposes.
- * Maps known problematic names to their user-friendly display names.
- */
-const normalizeSoftwareDisplayName = (name: string | undefined): string => {
-  if (!name) return "";
-  // Handle cases where name might have version appended (e.g., "Microsoft.CompanyPortal, 11.2.1495.0")
-  if (name.startsWith("Microsoft.CompanyPortal")) {
-    return name.replace("Microsoft.CompanyPortal", "Company Portal");
-  }
-  return name;
-};
 
 const DELETE_SW_USED_BY_POLICY_ERROR_MSG =
   "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again.";

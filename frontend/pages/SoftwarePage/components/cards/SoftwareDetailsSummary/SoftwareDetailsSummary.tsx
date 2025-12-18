@@ -26,7 +26,10 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
-import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
+import {
+  isSafeImagePreviewUrl,
+  normalizeSoftwareDisplayName,
+} from "pages/SoftwarePage/helpers";
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 
 import SoftwareIcon from "../../icons/SoftwareIcon";
@@ -82,18 +85,6 @@ const buildActionOptions = (
 };
 
 const baseClass = "software-details-summary";
-
-/**
- * Normalizes software names for display purposes.
- * Maps known problematic names to their user-friendly display names.
- */
-const normalizeSoftwareDisplayName = (name: string): string => {
-  // Handle cases where name might have version appended (e.g., "Microsoft.CompanyPortal, 11.2.1495.0")
-  if (name.startsWith("Microsoft.CompanyPortal")) {
-    return name.replace("Microsoft.CompanyPortal", "Company Portal");
-  }
-  return name;
-};
 
 interface ISoftwareDetailsSummaryProps {
   /** Name displayed in UI */
