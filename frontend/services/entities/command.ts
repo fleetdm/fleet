@@ -16,6 +16,10 @@ export interface IGetCommandsRequest extends PaginationParams {
 export interface IGetCommandsResponse {
   count: number | null;
   results: ICommand[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
 }
 
 export interface IGetCommandResultsResponse {
