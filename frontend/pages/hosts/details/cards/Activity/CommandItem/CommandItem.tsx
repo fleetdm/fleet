@@ -28,7 +28,7 @@ const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
       break;
     case "ran":
     case "failed":
-      statusVerb = "ran";
+      statusVerb = command_status;
       break;
     default:
       statusVerb = "ran";
