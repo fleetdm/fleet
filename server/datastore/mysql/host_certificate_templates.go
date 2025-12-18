@@ -81,22 +81,19 @@ func (ds *Datastore) ListCertificateTemplatesForHosts(ctx context.Context, hostU
 func (ds *Datastore) GetCertificateTemplateForHost(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
 	const stmt = `
 		SELECT
-			hosts.uuid AS host_uuid,
-			certificate_templates.id AS certificate_template_id,
-			host_certificate_templates.fleet_challenge AS fleet_challenge,
-			host_certificate_templates.status AS status,
-			host_certificate_templates.operation_type AS operation_type,
-			certificate_authorities.type AS ca_type,
-			certificate_authorities.name AS ca_name
-		FROM certificate_templates
-		INNER JOIN hosts ON hosts.team_id = certificate_templates.team_id
-		INNER JOIN certificate_authorities ON certificate_authorities.id = certificate_templates.certificate_authority_id
-		LEFT JOIN host_certificate_templates
-			ON host_certificate_templates.host_uuid = hosts.uuid
-			AND host_certificate_templates.certificate_template_id = certificate_templates.id
+			hct.host_uuid AS host_uuid,
+			ct.id AS certificate_template_id,
+			hct.fleet_challenge AS fleet_challenge,
+			hct.status AS status,
+			hct.operation_type AS operation_type,
+			ca.type AS ca_type,
+			ca.name AS ca_name
+		FROM certificate_templates ct
+		INNER JOIN certificate_authorities ca ON ca.id = ct.certificate_authority_id
+		LEFT JOIN host_certificate_templates hct
+			ON hct.certificate_template_id = ct.id
 		WHERE
-			hosts.uuid = ? AND certificate_templates.id = ?
-	`
+			hct.host_uuid = ? AND ct.id = ?`
 
 	var result fleet.CertificateTemplateForHost
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, hostUUID, certificateTemplateID); err != nil {
