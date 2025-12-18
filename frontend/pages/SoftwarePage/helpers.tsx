@@ -170,8 +170,6 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
   },
 ];
 
-export const SOFTWARE_NAME_CELL_BASE_CLASS = "software-name-cell";
-
 export const getSelfServiceTooltip = (
   isIosOrIpadosApp: boolean,
   isAndroidPlayStoreApp: boolean
