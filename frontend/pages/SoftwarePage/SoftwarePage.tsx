@@ -191,6 +191,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     router,
     includeAllTeams: true,
     includeNoTeam: true,
+    // When switching to "All teams" context, remove any unsupported query params that might be set
+    overrideParamsOnTeamChange: {
+      available_for_install: (newTeamId: number | undefined) =>
+        newTeamId === APP_CONTEXT_ALL_TEAMS_ID,
+      self_service: (newTeamId: number | undefined) =>
+        newTeamId === APP_CONTEXT_ALL_TEAMS_ID,
+    },
   });
 
   // softwareConfig is either the global config or the team config of the
@@ -218,24 +225,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       select: (data) => ("team" in data ? data.team : data),
     }
   );
-
-  // When switching to "All teams" context, remove only unsupported query params in URL
-  useEffect(() => {
-    // teamIdForApi is undefined for "All teams"
-    if (teamIdForApi === undefined) {
-      const { available_for_install, self_service, ...rest } = location.query;
-
-      if (available_for_install !== undefined || self_service !== undefined) {
-        router.replace(
-          getNextLocationPath({
-            pathPrefix: location.pathname,
-            routeTemplate: "",
-            queryParams: rest,
-          })
-        );
-      }
-    }
-  }, [teamIdForApi, location.pathname, location.query, router]);
 
   const isSoftwareConfigLoaded =
     !isFetchingSoftwareConfig && !softwareConfigError && !!softwareConfig;
