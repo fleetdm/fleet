@@ -3113,17 +3113,18 @@ func (ds *Datastore) getIncludedHostUUIDMapForSoftware(ctx context.Context, tx s
 FROM
 		hosts h
 		JOIN android_devices ad ON ad.enterprise_specific_id = h.uuid
+		JOIN vpp_apps_teams vat ON vat.team_id <=> h.team_id AND vat.id = ?
 WHERE
 		EXISTS (%s)
-		AND platform = 'android'
+		AND h.platform = 'android'
 `, filter)
 
 	var queryResults []struct {
 		UUID            string  `db:"uuid"`
 		AppliedPolicyID *string `db:"applied_policy_id"`
 	}
-	if err := sqlx.SelectContext(ctx, tx, &queryResults, stmt, softwareID, softwareID, softwareID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing host uuids included in software scope")
+	if err := sqlx.SelectContext(ctx, tx, &queryResults, stmt, softwareID, softwareID, softwareID, softwareID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
 	}
 
 	res := make(map[string]string, len(queryResults))

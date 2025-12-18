@@ -1566,8 +1566,8 @@ type Datastore interface {
 	MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *MDMDeliveryStatus, detail string) error
 	MDMAppleSetRemoveDeclarationsAsPending(ctx context.Context, hostUUID string, declarationUUIDs []string) error
 	// GetMDMAppleOSUpdatesSettingsByHostSerial returns applicable Apple OS update settings (if any)
-	// for the host with the given serial number. The host must be DEP assigned to Fleet.
-	GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (*AppleOSUpdateSettings, error)
+	// for the host with the given serial number alongside the host's platform. The host must be DEP assigned to Fleet.
+	GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (string, *AppleOSUpdateSettings, error)
 
 	// InsertMDMConfigAssets inserts MDM related config assets, such as SCEP and APNS certs and keys.
 	// tx is optional and can be used to pass an existing transaction.
@@ -1774,7 +1774,7 @@ type Datastore interface {
 	// ListMDMCommands returns a list of MDM Apple commands that have been
 	// executed, based on the provided options.
 	// returns a non-nil count if filtering by command_status = pending
-	ListMDMCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMCommand, *int64, error)
+	ListMDMCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMCommand, *int64, *PaginationMetadata, error)
 
 	// GetMDMWindowsBitLockerSummary summarizes the current state of Windows disk encryption on
 	// each Windows host in the specified team (or, if no team is specified, each host that is not assigned
@@ -2348,10 +2348,6 @@ type Datastore interface {
 	// assigned to any team).
 	GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
-	// GetCertificateStatusSummary GetCertificateTemplatesSummary returns a summary of the current state of certificate templates on each host in
-	// the specified team (or, if no team is specified, each host that is not assigned to any team).
-	GetMDMProfileSummaryFromHostCertificateTemplates(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
-
 	// GetHostCertificateTemplates returns what certificate templates are currently associated with the specified host.
 	GetHostCertificateTemplates(ctx context.Context, hostUUID string) ([]HostCertificateTemplate, error)
 
@@ -2400,6 +2396,8 @@ type Datastore interface {
 	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*AndroidAppConfiguration, error)
 	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error)
 
+	SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error
+
 	// BulkGetAndroidAppConfigurations retrieves Android app configurations for
 	// all provided apps and returns them indexed by the app id.
 	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error)
@@ -2412,6 +2410,8 @@ type Datastore interface {
 
 	// DeleteAndroidAppConfiguration removes an Android app configuration.
 	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) error
+
+	ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
@@ -2454,6 +2454,8 @@ type Datastore interface {
 	ScimLastRequest(ctx context.Context) (*ScimLastRequest, error)
 	// UpdateScimLastRequest updates the last SCIM request info
 	UpdateScimLastRequest(ctx context.Context, lastRequest *ScimLastRequest) error
+	// MaybeAssociateHostWithScimUser links a host with a SCIM user based on MDM IdP and IdP user ID
+	MaybeAssociateHostWithScimUser(ctx context.Context, hostID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Challenges
@@ -2540,12 +2542,14 @@ type Datastore interface {
 	// processed together as upserts using INSERT...ON DUPLICATE KEY UPDATE.
 	BatchApplyCertificateAuthorities(ctx context.Context, ops CertificateAuthoritiesBatchOperations) error
 	// UpdateCertificateStatus allows a host to update the installation status of a certificate given its template.
-	UpsertCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status MDMDeliveryStatus, detail *string) error
+	UpsertCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status MDMDeliveryStatus, detail *string, operationType MDMOperationType) error
 
 	// BatchUpsertCertificateTemplates upserts a batch of certificates.
-	BatchUpsertCertificateTemplates(ctx context.Context, certificates []*CertificateTemplate) error
+	// Returns a map of team IDs that had certificates inserted or updated.
+	BatchUpsertCertificateTemplates(ctx context.Context, certificates []*CertificateTemplate) ([]uint, error)
 	// BatchDeleteCertificateTemplates deletes a batch of certificates.
-	BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) error
+	// Returns true if any rows were deleted.
+	BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) (bool, error)
 	// CreateCertificateTemplate creates a new certificate template.
 	CreateCertificateTemplate(ctx context.Context, certificateTemplate *CertificateTemplate) (*CertificateTemplateResponse, error)
 	// DeleteCertificateTemplate deletes a certificate template by its ID.
@@ -2574,9 +2578,10 @@ type Datastore interface {
 	// certificate templates in 'pending' status ready for delivery.
 	ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error)
 
-	// TransitionCertificateTemplatesToDelivering atomically transitions certificate templates
-	// from 'pending' to 'delivering' status. Returns the certificate template IDs that were transitioned.
-	TransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) ([]uint, error)
+	// GetAndTransitionCertificateTemplatesToDelivering retrieves all certificate templates
+	// with operation_type='install' for a host, transitions any pending ones to 'delivering' status.
+	// If there are no pending certificate templates, then nothing is returned.
+	GetAndTransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) (*HostCertificateTemplatesForDelivery, error)
 
 	// TransitionCertificateTemplatesToDelivered transitions templates from 'delivering' to 'delivered'
 	// and sets the fleet_challenge for each template.

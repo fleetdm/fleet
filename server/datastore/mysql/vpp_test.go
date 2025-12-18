@@ -2407,6 +2407,12 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Nil(t, res)
 
+	// set an unknown host install or an unknown app ID as pending due to config change has no effect
+	err = ds.SetAndroidAppInstallPendingApplyConfig(ctx, "no-such-host", vpp1.AdamID, 123)
+	require.NoError(t, err)
+	err = ds.SetAndroidAppInstallPendingApplyConfig(ctx, host1.Host.UUID, "no-such-app-id", 123)
+	require.NoError(t, err)
+
 	// list hosts filtering by vpp1 installed status
 	hosts, err := ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstalled)})
 	require.NoError(t, err)
@@ -2429,6 +2435,33 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, host3.Host.ID, hosts[0].ID)
+
+	// set vpp1 as pending due to config change on host1
+	err = ds.SetAndroidAppInstallPendingApplyConfig(ctx, host1.Host.UUID, vpp1.AdamID, 123)
+	require.NoError(t, err)
+
+	// now nothing is returned for Installed for vpp1
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstalled)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
+
+	// and host1 is returned for pending for vpp1
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: nil, SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallPending), ListOptions: fleet.ListOptions{OrderKey: "id"}})
+	require.NoError(t, err)
+	require.Len(t, hosts, 2)
+	require.Equal(t, host1.Host.ID, hosts[0].ID)
+	require.Equal(t, host3.Host.ID, hosts[1].ID)
+
+	// set vpp2 as pending due to config change on host2
+	err = ds.SetAndroidAppInstallPendingApplyConfig(ctx, host2.Host.UUID, vpp2.AdamID, 123)
+	require.NoError(t, err)
+
+	// has no effect because the install was failed, it stays failed
+	// list hosts filtering by vpp2 failed status
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: &tm.ID, SoftwareTitleIDFilter: &titleID2, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallFailed)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Equal(t, host2.Host.ID, hosts[0].ID)
 }
 
 func testGetVPPAppInstallStatusByCommandUUID(t *testing.T, ds *Datastore) {

@@ -13,7 +13,8 @@ func TestPackage_ShouldNotDependOn(t *testing.T) {
 	t.Run("Succeeds on non dependencies", func(t *testing.T) {
 		mockT := new(testingT)
 		NewPackageTest(mockT, packagePrefix+"testpackage").
-			ShouldNotDependOn(packagePrefix + "nodependency")
+			ShouldNotDependOn(packagePrefix + "nodependency").
+			Check()
 
 		assertNoError(t, mockT)
 	})
@@ -21,7 +22,8 @@ func TestPackage_ShouldNotDependOn(t *testing.T) {
 	t.Run("Fails on dependencies", func(t *testing.T) {
 		mockT := new(testingT)
 		NewPackageTest(mockT, packagePrefix+"testpackage").
-			ShouldNotDependOn(packagePrefix + "dependency")
+			ShouldNotDependOn(packagePrefix + "dependency").
+			Check()
 
 		assertError(t, mockT,
 			packagePrefix+"testpackage",
@@ -31,7 +33,8 @@ func TestPackage_ShouldNotDependOn(t *testing.T) {
 	t.Run("Supports testing against packages in the go root", func(t *testing.T) {
 		mockT := new(testingT)
 		NewPackageTest(mockT, packagePrefix+"testpackage").
-			ShouldNotDependOn("crypto")
+			ShouldNotDependOn("crypto").
+			Check()
 
 		assertError(t, mockT,
 			packagePrefix+"testpackage",
@@ -41,7 +44,8 @@ func TestPackage_ShouldNotDependOn(t *testing.T) {
 	t.Run("Fails on transative dependencies", func(t *testing.T) {
 		mockT := new(testingT)
 		NewPackageTest(mockT, packagePrefix+"testpackage").
-			ShouldNotDependOn(packagePrefix + "transative")
+			ShouldNotDependOn(packagePrefix + "transative").
+			Check()
 
 		assertError(t, mockT,
 			packagePrefix+"testpackage",
@@ -54,7 +58,8 @@ func TestPackage_ShouldNotDependOn(t *testing.T) {
 		NewPackageTest(mockT, packagePrefix+"dontdependonanything",
 			packagePrefix+"testpackage").
 			ShouldNotDependOn(packagePrefix+"nodependency",
-				packagePrefix+"dependency")
+				packagePrefix+"dependency").
+			Check()
 
 		assertError(t, mockT,
 			packagePrefix+"testpackage",
@@ -64,12 +69,14 @@ func TestPackage_ShouldNotDependOn(t *testing.T) {
 	t.Run("Supports wildcard matching", func(t *testing.T) {
 		mockT := new(testingT)
 		NewPackageTest(mockT, packagePrefix+"...").
-			ShouldNotDependOn(packagePrefix + "nodependency")
+			ShouldNotDependOn(packagePrefix + "nodependency").
+			Check()
 
 		assertNoError(t, mockT)
 
 		NewPackageTest(mockT, packagePrefix+"testpackage/nested/...").
-			ShouldNotDependOn(packagePrefix + "...")
+			ShouldNotDependOn(packagePrefix + "...").
+			Check()
 
 		assertError(t, mockT, packagePrefix+"testpackage/nested/dep",
 			packagePrefix+"nesteddependency")
@@ -79,13 +86,15 @@ func TestPackage_ShouldNotDependOn(t *testing.T) {
 		mockT := new(testingT)
 
 		NewPackageTest(mockT, packagePrefix+"testpackage/...").
-			ShouldNotDependOn(packagePrefix + "testfiledeps/testonlydependency")
+			ShouldNotDependOn(packagePrefix + "testfiledeps/testonlydependency").
+			Check()
 
 		assertNoError(t, mockT)
 
 		NewPackageTest(mockT, packagePrefix+"testpackage/...").
 			WithTests().
-			ShouldNotDependOn(packagePrefix + "testfiledeps/testonlydependency")
+			ShouldNotDependOn(packagePrefix + "testfiledeps/testonlydependency").
+			Check()
 
 		assertError(t, mockT,
 			packagePrefix+"testpackage/nested/dep",
@@ -97,13 +106,15 @@ func TestPackage_ShouldNotDependOn(t *testing.T) {
 		mockT := new(testingT)
 
 		NewPackageTest(mockT, packagePrefix+"testpackage/...").
-			ShouldNotDependOn(packagePrefix + "testfiledeps/testpkgdependency")
+			ShouldNotDependOn(packagePrefix + "testfiledeps/testpkgdependency").
+			Check()
 
 		assertNoError(t, mockT)
 
 		NewPackageTest(mockT, packagePrefix+"testpackage/...").
 			WithTests().
-			ShouldNotDependOn(packagePrefix + "testfiledeps/testpkgdependency")
+			ShouldNotDependOn(packagePrefix + "testfiledeps/testpkgdependency").
+			Check()
 
 		assertError(t, mockT,
 			packagePrefix+"testpackage/nested/dep_test",
@@ -111,12 +122,43 @@ func TestPackage_ShouldNotDependOn(t *testing.T) {
 		)
 	})
 
+	t.Run("WithTests only checks test imports from root packages", func(t *testing.T) {
+		mockT := new(testingT)
+
+		// testpackage depends on dependency, which has a test that imports transitivetestdep
+		// WithTests() should NOT catch transitivetestdep because it's in a transitive dependency's tests
+		NewPackageTest(mockT, packagePrefix+"testpackage").
+			WithTests().
+			ShouldNotDependOn(packagePrefix + "testfiledeps/transitivetestdep").
+			Check()
+
+		assertNoError(t, mockT)
+	})
+
+	t.Run("WithTestsRecursively checks test imports from all packages", func(t *testing.T) {
+		mockT := new(testingT)
+
+		// testpackage depends on dependency, which has a test that imports transitivetestdep
+		// WithTestsRecursively() SHOULD catch transitivetestdep because it checks all test imports
+		NewPackageTest(mockT, packagePrefix+"testpackage").
+			WithTestsRecursively().
+			ShouldNotDependOn(packagePrefix + "testfiledeps/transitivetestdep").
+			Check()
+
+		assertError(t, mockT,
+			packagePrefix+"testpackage",
+			packagePrefix+"dependency",
+			packagePrefix+"testfiledeps/transitivetestdep",
+		)
+	})
+
 	t.Run("Supports Ignoring packages", func(t *testing.T) {
 		mockT := new(testingT)
 
 		NewPackageTest(mockT, packagePrefix+"testpackage/nested/dep").
-			IgnorePackages(packagePrefix + "testpackage/nested/dep").
-			ShouldNotDependOn(packagePrefix + "nesteddependency")
+			ShouldNotDependOn(packagePrefix + "nesteddependency").
+			IgnoreRecursively(packagePrefix + "testpackage/nested/dep").
+			Check()
 
 		assertNoError(t, mockT)
 	})
@@ -125,9 +167,10 @@ func TestPackage_ShouldNotDependOn(t *testing.T) {
 		mockT := new(testingT)
 
 		NewPackageTest(mockT, packagePrefix+"testpackage").
-			IgnorePackages("github.com/this/is/verifying/multiple/exclusions", packagePrefix+"...").
-			IgnorePackages("github.com/this/is/verifying/chaining").
-			ShouldNotDependOn(packagePrefix + "transative")
+			ShouldNotDependOn(packagePrefix+"transative").
+			IgnoreRecursively("github.com/this/is/verifying/multiple/exclusions", packagePrefix+"...").
+			IgnoreRecursively("github.com/this/is/verifying/chaining").
+			Check()
 
 		assertNoError(t, mockT)
 	})
@@ -135,19 +178,22 @@ func TestPackage_ShouldNotDependOn(t *testing.T) {
 	t.Run("Fails on packages that do not exist", func(t *testing.T) {
 		mockT := new(testingT)
 		NewPackageTest(mockT, packagePrefix+"dontexist/sorry").
-			ShouldNotDependOn(packagePrefix + "dependency")
+			ShouldNotDependOn(packagePrefix + "dependency").
+			Check()
 
 		assertError(t, mockT)
 
 		mockT = new(testingT)
 		NewPackageTest(mockT, "DONT__WORK").
-			ShouldNotDependOn(packagePrefix + "dependency")
+			ShouldNotDependOn(packagePrefix + "dependency").
+			Check()
 
 		assertError(t, mockT)
 
 		mockT = new(testingT)
 		NewPackageTest(mockT, packagePrefix+"dontexist/...").
-			ShouldNotDependOn(packagePrefix + "dependency")
+			ShouldNotDependOn(packagePrefix + "dependency").
+			Check()
 
 		assertError(t, mockT)
 	})

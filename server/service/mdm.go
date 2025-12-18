@@ -933,9 +933,10 @@ type listMDMCommandsRequest struct {
 }
 
 type listMDMCommandsResponse struct {
-	Count   *int64              `json:"count"`
-	Results []*fleet.MDMCommand `json:"results"`
-	Err     error               `json:"error,omitempty"`
+	Meta    *fleet.PaginationMetadata `json:"meta"`
+	Count   *int64                    `json:"count"`
+	Results []*fleet.MDMCommand       `json:"results"`
+	Err     error                     `json:"error,omitempty"`
 }
 
 func (r listMDMCommandsResponse) Error() error { return r.Err }
@@ -984,7 +985,9 @@ func listMDMCommandsEndpoint(ctx context.Context, request interface{}, svc fleet
 		}
 	}
 
-	results, total, err := svc.ListMDMCommands(ctx, &fleet.MDMCommandListOptions{
+	req.ListOptions.IncludeMetadata = true
+
+	results, total, meta, err := svc.ListMDMCommands(ctx, &fleet.MDMCommandListOptions{
 		ListOptions: req.ListOptions,
 		Filters:     fleet.MDMCommandFilters{HostIdentifier: req.HostIdentifier, RequestType: req.RequestType, CommandStatuses: commandStatuses},
 	})
@@ -998,31 +1001,32 @@ func listMDMCommandsEndpoint(ctx context.Context, request interface{}, svc fleet
 	}
 
 	return listMDMCommandsResponse{
+		Meta:    meta,
 		Results: results,
 		Count:   total,
 	}, nil
 }
 
-func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, error) {
+func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error) {
 	// first, authorize that the user has the right to list hosts
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err)
+		return nil, nil, nil, ctxerr.Wrap(ctx, err)
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, nil, fleet.ErrNoContext
+		return nil, nil, nil, fleet.ErrNoContext
 	}
 
 	// get the list of commands so we know what hosts (and therefore what teams)
 	// we're dealing with. Including the observers as they are allowed to view
 	// MDM Apple commands.
-	results, total, err := svc.ds.ListMDMCommands(ctx, fleet.TeamFilter{
+	results, total, meta, err := svc.ds.ListMDMCommands(ctx, fleet.TeamFilter{
 		User:            vc.User,
 		IncludeObserver: true,
 	}, opts)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// collect the different team IDs and verify that the user has access to view
@@ -1080,10 +1084,10 @@ func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandL
 		_, err := svc.ds.HostLiteByIdentifier(ctx, opts.Filters.HostIdentifier)
 		var nve fleet.NotFoundError
 		if errors.As(err, &nve) {
-			return nil, nil, fleet.NewInvalidArgumentError("Invalid Host", fleet.HostIdentiferNotFound).WithStatus(http.StatusNotFound)
+			return nil, nil, nil, fleet.NewInvalidArgumentError("Invalid Host", fleet.HostIdentiferNotFound).WithStatus(http.StatusNotFound)
 		}
 	}
-	return results, total, nil
+	return results, total, meta, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1184,12 +1188,7 @@ func (svc *Service) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *ui
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	hcts, err := svc.ds.GetMDMProfileSummaryFromHostCertificateTemplates(ctx, teamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	return ps.Add(hcts), nil
+	return ps, nil
 }
 
 // authorizeAllHostsTeams is a helper function that loads the hosts
@@ -2490,11 +2489,7 @@ func getAppleProfiles(
 			return nil, nil, ctxerr.Wrap(ctx, iae)
 		}
 
-		if mdmProf.Name != prof.Name {
-			return nil, nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn't edit custom_settings. The name provided for the profile must match the profile PayloadDisplayName: %q", mdmProf.Name)),
-				"duplicate mobileconfig profile by name")
-		}
+		// Don't validate name here since we always use the PayloadDisplayName from the profile.
 
 		if _, ok := byName[mdmProf.Name]; ok {
 			return nil, nil, ctxerr.Wrap(ctx,

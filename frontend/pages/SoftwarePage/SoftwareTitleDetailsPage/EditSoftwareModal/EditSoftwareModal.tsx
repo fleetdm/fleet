@@ -55,6 +55,9 @@ interface IEditSoftwareModalProps {
   router: InjectedRouter;
   openViewYamlModal: () => void;
   isIosOrIpadosApp?: boolean;
+  name: string;
+  displayName: string;
+  source?: string;
 }
 
 const EditSoftwareModal = ({
@@ -67,6 +70,9 @@ const EditSoftwareModal = ({
   router,
   openViewYamlModal,
   isIosOrIpadosApp = false,
+  name,
+  displayName,
+  source,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
@@ -111,6 +117,7 @@ const EditSoftwareModal = ({
     categories: [],
   });
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [showFileProgressModal, setShowFileProgressModal] = useState(false);
 
   const { data: labels } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
@@ -138,7 +145,14 @@ const EditSoftwareModal = ({
     isUpdatingSoftware,
   ]);
 
+  /* 1. Delays showing the file progress modal until isUpdatingSoftware
+   * has been true for 3 seconds to prevent flashing modal on quick uploads
+   * 2. Prevents page unload during the upload
+   * 3. Cleans both up when uploading stops or the component unmounts */
   useEffect(() => {
+    // Timer for delayed modal
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
     const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       // Next line with e.returnValue is included for legacy support
@@ -146,18 +160,34 @@ const EditSoftwareModal = ({
       e.returnValue = true;
     };
 
-    // set up event listener to prevent user from leaving page while uploading
     if (isUpdatingSoftware) {
+      // only show modal if still uploading after 3 seconds
+      timeoutId = setTimeout(() => {
+        setShowFileProgressModal(true);
+      }, 3000);
+
+      // Prevents user from leaving page while uploading
       addEventListener("beforeunload", beforeUnloadHandler);
     } else {
-      removeEventListener("beforeunload", beforeUnloadHandler);
+      // upload finished: hide modal and reset
+      setShowFileProgressModal(false);
     }
 
-    // clean up event listener and timeout on component unmount
+    // Cleanup that runs when isUpdatingSoftware changes or component unmounts
     return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       removeEventListener("beforeunload", beforeUnloadHandler);
     };
   }, [isUpdatingSoftware]);
+
+  // Close confirm modal when file progress modal opens
+  useEffect(() => {
+    if (showFileProgressModal) {
+      setShowConfirmSaveChangesModal(false);
+    }
+  }, [showFileProgressModal]);
 
   const toggleConfirmSaveChangesModal = () => {
     setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
@@ -368,15 +398,20 @@ const EditSoftwareModal = ({
           softwareInstallerName={softwareInstaller?.name}
           installerType={installerType}
           onSaveChanges={onClickConfirmChanges}
+          isLoading={isUpdatingSoftware}
         />
       )}
       {showPreviewEndUserExperienceModal && (
         <CategoriesEndUserExperienceModal
+          name={name}
+          displayName={displayName}
+          source={source}
+          iconUrl={softwareInstaller.icon_url || undefined}
           onCancel={togglePreviewEndUserExperienceModal}
           isIosOrIpadosApp={isIosOrIpadosApp}
         />
       )}
-      {!!pendingPackageUpdates.software && isUpdatingSoftware && (
+      {!!pendingPackageUpdates.software && showFileProgressModal && (
         <FileProgressModal
           fileDetails={getFileDetails(pendingPackageUpdates.software, true)}
           fileProgress={uploadProgress}
