@@ -10,11 +10,6 @@ When creating software, handoffs between teams or contributors are one of the mo
 For a high-level view of where each category and stage stands today, see the [🧭 Product maturity assessment](https://fleetdm.com/handbook/company/product-maturity-assessment).
 
 
-## Product roadmap
-
-Fleet team members can read [Fleet's high-level product goals for the current quarter](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?usp=sharing) (confidential Google Sheet).
-
-
 ## What are product groups?
 
 Fleet organizes product development efforts into separate, cross-functional product groups that include product designers, developers, and quality engineers.  These product groups are organized by business goal, and designed to operate in parallel.
@@ -903,7 +898,7 @@ On the order form, customer promises are represented as [customer request](https
 - Review each proposed customer promise on the order form.
 - For each customer request, create user stories and [T-shirt size](https://fleetdm.com/handbook/company/product-groups#t-shirt-sizing-capacity-planning) them.
   - If necessary, the EM takes up to 1 business day to gather information necessary to T-shirt size.
-- Review the [release planning roadmap](https://github.com/orgs/fleetdm/projects/87/views/2) to determine available capacity in upcoming releases.
+- Review the [sprint planning project](https://github.com/orgs/fleetdm/projects/87/views/2) to determine available capacity in upcoming releases.
 - Decide which Fleet release can be targeted for each customer promise.
 - Update the order form to reflect targeted date of each release.
 
@@ -934,8 +929,7 @@ Start off cross-platform for every option, setting, and feature. If we **prove**
 
 Fleet product groups employ scrum, an agile methodology, as a core practice in software development. This process is designed around sprints, which last three weeks to align with our release cadence.
 
-New tickets are estimated, specified, and prioritized on the roadmap:
-- [Roadmap](https://github.com/orgs/fleetdm/projects/67/views/4)
+New tickets are estimated, specified, and prioritized on the [drafting board](https://github.com/orgs/fleetdm/projects/67).
 
 
 ### Scrum items
