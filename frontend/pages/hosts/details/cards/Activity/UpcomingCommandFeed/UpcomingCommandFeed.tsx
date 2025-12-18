@@ -26,7 +26,7 @@ const UpcomingCommandFeed = ({
   onPreviousPage,
 }: IUpcomingCommandFeedProps) => {
   const { meta, results } = commands;
-  if (results.length === 0) {
+  if (results === null || results.length === 0) {
     return (
       <EmptyFeed
         title="No MDM commands"
