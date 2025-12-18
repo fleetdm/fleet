@@ -629,7 +629,7 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 
 	var teamID, caID uint
 	var certificates []*fleet.CertificateTemplate
-	var err error
+
 	testCases := []struct {
 		name     string
 		before   func(ds *Datastore)
@@ -640,8 +640,10 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 			func(ds *Datastore) {},
 			func(t *testing.T, ds *Datastore) {
 				// Test with empty slice
-				err = ds.BatchUpsertCertificateTemplates(ctx, []*fleet.CertificateTemplate{})
+				teamsModified, err := ds.BatchUpsertCertificateTemplates(ctx, []*fleet.CertificateTemplate{})
 				require.NoError(t, err)
+
+				require.Empty(t, teamsModified)
 			},
 		},
 		{
@@ -678,13 +680,16 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 					},
 				}
 
-				err = ds.BatchUpsertCertificateTemplates(ctx, certificates)
+				teamsModified, err := ds.BatchUpsertCertificateTemplates(ctx, certificates)
 				require.NoError(t, err)
 
 				var count int
 				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates")
 				require.NoError(t, err)
 				require.Equal(t, 2, count)
+
+				require.Len(t, teamsModified, 1)
+				require.Equal(t, teamsModified[0], teamID)
 			},
 		},
 		{
@@ -724,17 +729,19 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 			},
 			func(t *testing.T, ds *Datastore) {
 				var count int
-				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates")
+				err := ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates")
 				require.NoError(t, err)
 				require.Equal(t, 1, count)
 
 				certificates[0].SubjectName = "Updated Subject"
-				err = ds.BatchUpsertCertificateTemplates(ctx, certificates)
+				teamsModified, err := ds.BatchUpsertCertificateTemplates(ctx, certificates)
 				require.NoError(t, err)
 
 				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates")
 				require.NoError(t, err)
 				require.Equal(t, 1, count)
+
+				require.Len(t, teamsModified, 0)
 
 				var subjectName string
 				err = ds.writer(ctx).GetContext(ctx, &subjectName, "SELECT subject_name FROM certificate_templates WHERE name = ?", "Cert1")
@@ -760,7 +767,7 @@ func testBatchDeleteCertificateTemplates(t *testing.T, ds *Datastore) {
 
 	var teamID, caID uint
 	var certificateTemplateIDs []uint
-	var err error
+
 	testCases := []struct {
 		name     string
 		before   func(ds *Datastore)
@@ -771,8 +778,10 @@ func testBatchDeleteCertificateTemplates(t *testing.T, ds *Datastore) {
 			func(ds *Datastore) {},
 			func(t *testing.T, ds *Datastore) {
 				// Test with empty slice
-				err = ds.BatchDeleteCertificateTemplates(ctx, []uint{})
+				generateActivity, err := ds.BatchDeleteCertificateTemplates(ctx, []uint{})
 				require.NoError(t, err)
+
+				require.False(t, generateActivity)
 			},
 		},
 		{
@@ -832,12 +841,14 @@ func testBatchDeleteCertificateTemplates(t *testing.T, ds *Datastore) {
 			},
 			func(t *testing.T, ds *Datastore) {
 				var count int
-				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates")
+				err := ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates")
 				require.NoError(t, err)
 				require.Equal(t, 2, count)
 
-				err = ds.BatchDeleteCertificateTemplates(ctx, certificateTemplateIDs)
+				generateActivity, err := ds.BatchDeleteCertificateTemplates(ctx, certificateTemplateIDs)
 				require.NoError(t, err)
+
+				require.True(t, generateActivity)
 
 				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates")
 				require.NoError(t, err)

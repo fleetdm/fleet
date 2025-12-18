@@ -189,6 +189,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCreatedAndroidProfile{},
 	ActivityTypeDeletedAndroidProfile{},
 	ActivityTypeEditedAndroidProfile{},
+	ActivityTypeEditedAndroidCertificate{},
 
 	ActivityTypeResentConfigurationProfile{},
 	ActivityTypeResentConfigurationProfileBatch{},
@@ -3173,6 +3174,25 @@ func (a ActivityTypeEditedAndroidProfile) Documentation() (activity, details, de
 		`This activity contains the following fields:
 - "team_id": The ID of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
 - "team_name": The name of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEditedAndroidCertificate struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEditedAndroidCertificate) ActivityName() string {
+	return "edited_android_certificate"
+}
+
+func (a ActivityTypeEditedAndroidCertificate) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user adds or removes Android certificate templates of a team (or no team) via the fleetctl CLI.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the certificate templates apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the certificate templates apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
   "team_id": 123,
   "team_name": "Workstations"
 }`

@@ -2539,12 +2539,14 @@ type Datastore interface {
 	// processed together as upserts using INSERT...ON DUPLICATE KEY UPDATE.
 	BatchApplyCertificateAuthorities(ctx context.Context, ops CertificateAuthoritiesBatchOperations) error
 	// UpdateCertificateStatus allows a host to update the installation status of a certificate given its template.
-	UpsertCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status MDMDeliveryStatus, detail *string) error
+	UpsertCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status MDMDeliveryStatus, detail *string, operationType MDMOperationType) error
 
 	// BatchUpsertCertificateTemplates upserts a batch of certificates.
-	BatchUpsertCertificateTemplates(ctx context.Context, certificates []*CertificateTemplate) error
+	// Returns a map of team IDs that had certificates inserted or updated.
+	BatchUpsertCertificateTemplates(ctx context.Context, certificates []*CertificateTemplate) ([]uint, error)
 	// BatchDeleteCertificateTemplates deletes a batch of certificates.
-	BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) error
+	// Returns true if any rows were deleted.
+	BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) (bool, error)
 	// CreateCertificateTemplate creates a new certificate template.
 	CreateCertificateTemplate(ctx context.Context, certificateTemplate *CertificateTemplate) (*CertificateTemplateResponse, error)
 	// DeleteCertificateTemplate deletes a certificate template by its ID.
@@ -2573,9 +2575,10 @@ type Datastore interface {
 	// certificate templates in 'pending' status ready for delivery.
 	ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error)
 
-	// TransitionCertificateTemplatesToDelivering atomically transitions certificate templates
-	// from 'pending' to 'delivering' status. Returns the certificate template IDs that were transitioned.
-	TransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) ([]uint, error)
+	// GetAndTransitionCertificateTemplatesToDelivering retrieves all certificate templates
+	// with operation_type='install' for a host, transitions any pending ones to 'delivering' status.
+	// If there are no pending certificate templates, then nothing is returned.
+	GetAndTransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) (*HostCertificateTemplatesForDelivery, error)
 
 	// TransitionCertificateTemplatesToDelivered transitions templates from 'delivering' to 'delivered'
 	// and sets the fleet_challenge for each template.
