@@ -93,7 +93,7 @@ func (ds *Datastore) ListMDMCommands(
 	ctx context.Context,
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
-) ([]*fleet.MDMCommand, *int64, error) {
+) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error) {
 	if listOpts != nil && listOpts.Filters.HostIdentifier != "" {
 		// separate codepath for more performant query by host identifier
 		return ds.listMDMCommandsByHostIdentifier(ctx, tmFilter, listOpts)
@@ -105,9 +105,18 @@ func (ds *Datastore) ListMDMCommands(
 	jointStmt, params = appendListOptionsWithCursorToSQL(jointStmt, params, &listOpts.ListOptions)
 	var results []*fleet.MDMCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, jointStmt, params...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "list commands")
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "list commands")
 	}
-	return results, nil, nil
+
+	var metaData *fleet.PaginationMetadata
+	if listOpts.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: listOpts.Page > 0}
+		if len(results) > int(listOpts.PerPage) { //nolint:gosec // dismiss G115
+			metaData.HasNextResults = true
+			results = results[:len(results)-1]
+		}
+	}
+	return results, nil, metaData, nil
 }
 
 // listMDMCommandsByHostIdentifier retrieves MDM commands by host identifier. It is implemented as a
@@ -122,9 +131,9 @@ func (ds *Datastore) listMDMCommandsByHostIdentifier(
 	ctx context.Context,
 	teamFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
-) ([]*fleet.MDMCommand, *int64, error) {
+) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error) {
 	if listOpts == nil || listOpts.Filters.HostIdentifier == "" {
-		return nil, nil, ctxerr.Wrap(ctx, errors.New("listMDMCommandsByHostIdentifier requires non-empty listOpts.Filters.HostIdentifier"))
+		return nil, nil, nil, ctxerr.Wrap(ctx, errors.New("listMDMCommandsByHostIdentifier requires non-empty listOpts.Filters.HostIdentifier"))
 	}
 
 	// First, search for host by identifier (hostname, uuid, or hardware_serial).
@@ -161,10 +170,10 @@ WHERE ` + whereTeam
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...)
 	switch {
 	case err != nil:
-		return nil, nil, ctxerr.Wrap(ctx, err, "get host by identifier for mdm")
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "get host by identifier for mdm")
 	case len(dest) == 0:
 		// TODO: should we return an empty slice or an error?
-		return []*fleet.MDMCommand{}, nil, nil
+		return []*fleet.MDMCommand{}, nil, nil, nil
 	case len(dest) > 1:
 		// TODO: how should we handle this unexpected case?
 		level.Debug(ds.logger).Log("msg", "list mdm commands: multiple hosts found for identifier",
@@ -173,7 +182,7 @@ WHERE ` + whereTeam
 	}
 
 	if dest[0].Platform == "windows" && len(listOpts.Filters.CommandStatuses) > 0 {
-		return nil, nil, &fleet.BadRequestError{
+		return nil, nil, nil, &fleet.BadRequestError{
 			Message: `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`,
 		}
 	}
@@ -230,7 +239,7 @@ WHERE
 		appleStmt, appleParams = addAppleCommandStatusFilter(appleStmt, &listOpts.Filters, appleParams)
 		appleStmt, appleParams, err = sqlx.In(appleStmt, appleParams...)
 		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Apple devices")
+			return nil, nil, nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Apple devices")
 		}
 	}
 
@@ -273,7 +282,7 @@ WHERE
 		winStmt, winParams = addRequestTypeFilter(winStmt, &listOpts.Filters, winParams)
 		winStmt, winParams, err = sqlx.In(winStmt, winParams...)
 		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Windows devices")
+			return nil, nil, nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Windows devices")
 		}
 	}
 
@@ -317,14 +326,14 @@ WHERE
 
 	var results []*fleet.MDMCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, params...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "list commands")
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "list commands")
 	}
 
 	var total *int64
 	if len(listOpts.Filters.CommandStatuses) == 1 && listOpts.Filters.CommandStatuses[0] == fleet.MDMCommandStatusFilterPending {
 		// Only get count if we only filter by pending
 		if err := sqlx.GetContext(ctx, ds.reader(ctx), &total, countStmt, params...); err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "count commands")
+			return nil, nil, nil, ctxerr.Wrap(ctx, err, "count commands")
 		}
 	}
 
@@ -336,7 +345,16 @@ WHERE
 		}
 	}
 
-	return results, total, nil
+	var metaData *fleet.PaginationMetadata
+	if listOpts.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: listOpts.Page > 0}
+		if len(results) > int(listOpts.PerPage) { //nolint:gosec // dismiss G115
+			metaData.HasNextResults = true
+			results = results[:len(results)-1]
+		}
+	}
+
+	return results, total, metaData, nil
 }
 
 func addRequestTypeFilter(stmt string, filter *fleet.MDMCommandFilters, params []interface{}) (string, []interface{}) {
