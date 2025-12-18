@@ -270,7 +270,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				Name: "My Setup Experience App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
 					AppStoreID:         "com.example.setup-experience-software",
-					Platform:           string(fleet.MacOSPlatform),
+					Platform:           string(fleet.AndroidPlatform),
 					InstallDuringSetup: ptr.Bool(true),
 				},
 				HashSHA256: ptr.String("app-setup-experience-hash"),
@@ -415,7 +415,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		return &fleet.SoftwareTitle{
 			ID: 6,
 			AppStoreApp: &fleet.VPPAppStoreApp{
-				VPPAppID:         fleet.VPPAppID{AdamID: "com.example.setup-experience-software", Platform: fleet.MacOSPlatform},
+				VPPAppID:         fleet.VPPAppID{AdamID: "com.example.setup-experience-software", Platform: fleet.AndroidPlatform},
 				LabelsExcludeAny: []fleet.SoftwareScopeLabel{},
 				SelfService:      true,
 			},
@@ -489,7 +489,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				Name: "My Setup Experience App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
 					AppStoreID:         "com.example.setup-experience-software",
-					Platform:           string(fleet.MacOSPlatform),
+					Platform:           string(fleet.AndroidPlatform),
 					InstallDuringSetup: ptr.Bool(true),
 				},
 				HashSHA256: ptr.String("app-setup-experience-hash"),
@@ -688,8 +688,6 @@ func TestGenerateGitops(t *testing.T) {
 	}, flagSet, nil)
 	err := action(cliContext)
 	require.NoError(t, err, buf.String())
-
-	// TODO(JK): update the testdata
 
 	compareDirs(t, "./testdata/generateGitops/test_dir_premium", tempDir)
 

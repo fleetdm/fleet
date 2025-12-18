@@ -82,8 +82,8 @@ software:
     self_service: true
   - app_store_id: com.example.setup-experience-software
     icon:
-      path: "../lib/team-a-👍/icons/my-setup-experience-app-darwin-icon.png"
-    platform: darwin
+      path: "../lib/team-a-👍/icons/my-setup-experience-app-android-icon.png"
+    platform: android
     self_service: true
     setup_experience: true
   packages:
