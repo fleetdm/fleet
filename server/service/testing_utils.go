@@ -862,8 +862,6 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
 		{"GET", "/api/latest/fleet/mdm/profiles/1", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles/1", false, false},
-		{"DELETE", "/api/latest/fleet/mdm/profiles/1", false, false},
-		{"DELETE", "/api/latest/fleet/configuration_profiles/1", false, false},
 		// TODO: those endpoints accept multipart/form data that gets
 		// parsed before the MDM check, we need to refactor this
 		// function to return more information to the caller, or find a
