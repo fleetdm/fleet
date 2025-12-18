@@ -1,4 +1,5 @@
 import { IConfigServerSettings } from "./config";
+import { HostAndroidCertStatus } from "./host";
 
 export interface IMdmApple {
   common_name: string;
@@ -185,7 +186,11 @@ export interface IHostMdmProfile {
   name: string;
   operation_type: ProfileOperationType | null;
   platform: ProfilePlatform;
-  status: MdmProfileStatus | MdmDDMProfileStatus | LinuxDiskEncryptionStatus;
+  status:
+    | MdmProfileStatus
+    | MdmDDMProfileStatus
+    | LinuxDiskEncryptionStatus
+    | HostAndroidCertStatus;
   detail: string;
   scope: ProfileScope | null;
   managed_local_account: string | null;
@@ -200,7 +205,7 @@ export type DiskEncryptionStatus =
   | "failed"
   | "removing_enforcement";
 
-/** Currently windows disk enxryption status will only be one of these four
+/** Currently windows disk encryption status will only be one of these four
 values. In the future we may add more. */
 export type WindowsDiskEncryptionStatus = Extract<
   DiskEncryptionStatus,

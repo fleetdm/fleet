@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"io"
+	"iter"
 	"net/url"
 	"sync"
 	"time"
@@ -210,6 +211,8 @@ type AuthenticateDeviceByCertificateFunc func(ctx context.Context, certSerial ui
 
 type AuthenticateIDeviceByURLFunc func(ctx context.Context, urlUUID string) (host *fleet.Host, debug bool, err error)
 
+type StreamHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hostIterator iter.Seq2[*fleet.Host, error], err error)
+
 type ListHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error)
 
 type GetHostFunc func(ctx context.Context, id uint, opts fleet.HostDetailOptions) (host *fleet.HostDetail, err error)
@@ -404,7 +407,7 @@ type ApplyCertificateTemplateSpecsFunc func(ctx context.Context, specs []*fleet.
 
 type DeleteCertificateTemplateSpecsFunc func(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
 
-type UpdateCertificateStatusFunc func(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error
+type UpdateCertificateStatusFunc func(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string, operationType *string) error
 
 type GlobalScheduleQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
 
@@ -692,7 +695,7 @@ type RunMDMCommandFunc func(ctx context.Context, rawBase64Cmd string, deviceIDs 
 
 type GetMDMCommandResultsFunc func(ctx context.Context, commandUUID string, hostIdentifier string) ([]*fleet.MDMCommandResult, error)
 
-type ListMDMCommandsFunc func(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, error)
+type ListMDMCommandsFunc func(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error)
 
 type SetOrUpdateDiskEncryptionKeyFunc func(ctx context.Context, encryptionKey string, clientError string) error
 
@@ -1156,6 +1159,9 @@ type Service struct {
 
 	AuthenticateIDeviceByURLFunc        AuthenticateIDeviceByURLFunc
 	AuthenticateIDeviceByURLFuncInvoked bool
+
+	StreamHostsFunc        StreamHostsFunc
+	StreamHostsFuncInvoked bool
 
 	ListHostsFunc        ListHostsFunc
 	ListHostsFuncInvoked bool
@@ -2819,6 +2825,13 @@ func (s *Service) AuthenticateIDeviceByURL(ctx context.Context, urlUUID string) 
 	return s.AuthenticateIDeviceByURLFunc(ctx, urlUUID)
 }
 
+func (s *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) (hostIterator iter.Seq2[*fleet.Host, error], err error) {
+	s.mu.Lock()
+	s.StreamHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.StreamHostsFunc(ctx, opt)
+}
+
 func (s *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error) {
 	s.mu.Lock()
 	s.ListHostsFuncInvoked = true
@@ -3498,11 +3511,11 @@ func (s *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certificat
 	return s.DeleteCertificateTemplateSpecsFunc(ctx, certificateTemplateIDs, teamID)
 }
 
-func (s *Service) UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error {
+func (s *Service) UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string, operationType *string) error {
 	s.mu.Lock()
 	s.UpdateCertificateStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateCertificateStatusFunc(ctx, certificateTemplateID, status, detail)
+	return s.UpdateCertificateStatusFunc(ctx, certificateTemplateID, status, detail, operationType)
 }
 
 func (s *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
@@ -4506,7 +4519,7 @@ func (s *Service) GetMDMCommandResults(ctx context.Context, commandUUID string, 
 	return s.GetMDMCommandResultsFunc(ctx, commandUUID, hostIdentifier)
 }
 
-func (s *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, error) {
+func (s *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListMDMCommandsFuncInvoked = true
 	s.mu.Unlock()

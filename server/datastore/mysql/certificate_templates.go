@@ -197,12 +197,10 @@ func (ds *Datastore) DeleteCertificateTemplate(ctx context.Context, id uint) err
 	return nil
 }
 
-func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certificateTemplates []*fleet.CertificateTemplate) error {
+func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certificateTemplates []*fleet.CertificateTemplate) ([]uint, error) {
 	if len(certificateTemplates) == 0 {
-		return nil
+		return nil, nil
 	}
-
-	const argsCountInsertCertificate = 4
 
 	const sqlInsertCertificate = `
 		INSERT INTO certificate_templates (
@@ -210,32 +208,35 @@ func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certif
 			team_id,
 			certificate_authority_id,
 			subject_name
-		) VALUES %s
+		) VALUES (?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			team_id = VALUES(team_id)
 	`
 
-	var placeholders strings.Builder
-	args := make([]interface{}, 0, len(certificateTemplates)*argsCountInsertCertificate)
-
+	teamsModifiedSet := make(map[uint]struct{})
 	for _, cert := range certificateTemplates {
-		args = append(args, cert.Name, cert.TeamID, cert.CertificateAuthorityID, cert.SubjectName)
-		placeholders.WriteString("(?,?,?,?),")
+		result, err := ds.writer(ctx).ExecContext(ctx, sqlInsertCertificate, cert.Name, cert.TeamID, cert.CertificateAuthorityID, cert.SubjectName)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "upserting certificate_template")
+		}
+
+		if insertOnDuplicateDidInsertOrUpdate(result) {
+			teamsModifiedSet[cert.TeamID] = struct{}{}
+		}
 	}
 
-	stmt := fmt.Sprintf(sqlInsertCertificate, strings.TrimSuffix(placeholders.String(), ","))
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "upserting certificate_templates")
+	teamsModified := make([]uint, 0, len(teamsModifiedSet))
+	for teamID := range teamsModifiedSet {
+		teamsModified = append(teamsModified, teamID)
 	}
 
-	return nil
+	return teamsModified, nil
 }
 
-func (ds *Datastore) BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) error {
+func (ds *Datastore) BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) (bool, error) {
 	if len(certificateTemplateIDs) == 0 {
-		return nil
+		return false, nil
 	}
 
 	const sqlDeleteCertificateTemplates = `
@@ -252,11 +253,13 @@ func (ds *Datastore) BatchDeleteCertificateTemplates(ctx context.Context, certif
 
 	stmt := fmt.Sprintf(sqlDeleteCertificateTemplates, strings.TrimSuffix(placeholders.String(), ","))
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting certificate_templates")
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "deleting certificate_templates")
 	}
 
-	return nil
+	rowsAffected, _ := result.RowsAffected()
+	return rowsAffected > 0, nil
 }
 
 func (ds *Datastore) GetHostCertificateTemplates(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error) {
@@ -347,62 +350,4 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 		return 0, ctxerr.Wrap(ctx, err, "create pending certificate templates for new host")
 	}
 	return result.RowsAffected()
-}
-
-func (ds *Datastore) GetMDMProfileSummaryFromHostCertificateTemplates(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
-	var stmt string
-	var args []interface{}
-
-	if teamID != nil {
-		stmt = `
-SELECT
-	hct.status AS status,
-	COUNT(DISTINCT hct.host_uuid) AS n
-FROM host_certificate_templates hct
-INNER JOIN certificate_templates ct ON hct.certificate_template_id = ct.id
-WHERE ct.team_id = ?
-GROUP BY hct.status`
-		args = append(args, *teamID)
-	} else {
-		stmt = `
-SELECT
-	hct.status AS status,
-	COUNT(DISTINCT hct.host_uuid) AS n
-FROM host_certificate_templates hct
-GROUP BY hct.status`
-	}
-
-	var dest []struct {
-		Count  uint   `db:"n"`
-		Status string `db:"status"`
-	}
-
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...); err != nil {
-		return nil, err
-	}
-
-	byStatus := make(map[string]uint)
-	for _, s := range dest {
-		if _, ok := byStatus[s.Status]; ok {
-			return nil, fmt.Errorf("duplicate status %s found", s.Status)
-		}
-		byStatus[s.Status] = s.Count
-	}
-
-	var res fleet.MDMProfilesSummary
-	for s, c := range byStatus {
-		switch fleet.CertificateTemplateStatus(s) {
-		case fleet.CertificateTemplateFailed:
-			res.Failed = c
-		case fleet.CertificateTemplatePending, fleet.CertificateTemplateDelivering, fleet.CertificateTemplateDelivered:
-			// All in-progress states count as pending
-			res.Pending += c
-		case fleet.CertificateTemplateVerified:
-			res.Verified = c
-		default:
-			return nil, fmt.Errorf("unknown status %s", s)
-		}
-	}
-
-	return &res, nil
 }

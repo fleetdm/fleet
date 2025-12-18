@@ -170,6 +170,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 
 	var (
 		macOSMinVersionUpdated        bool
+		updateNewHostsChanged         bool
 		iOSMinVersionUpdated          bool
 		iPadOSMinVersionUpdated       bool
 		windowsUpdatesUpdated         bool
@@ -182,9 +183,10 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			if err := payload.MDM.MacOSUpdates.Validate(); err != nil {
 				return nil, fleet.NewInvalidArgumentError("macos_updates", err.Error())
 			}
-			if payload.MDM.MacOSUpdates.MinimumVersion.Set || payload.MDM.MacOSUpdates.Deadline.Set {
+			if payload.MDM.MacOSUpdates.MinimumVersion.Set || payload.MDM.MacOSUpdates.Deadline.Set || payload.MDM.MacOSUpdates.UpdateNewHosts.Set {
 				macOSMinVersionUpdated = team.Config.MDM.MacOSUpdates.MinimumVersion.Value != payload.MDM.MacOSUpdates.MinimumVersion.Value ||
 					team.Config.MDM.MacOSUpdates.Deadline.Value != payload.MDM.MacOSUpdates.Deadline.Value
+				updateNewHostsChanged = team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value != payload.MDM.MacOSUpdates.UpdateNewHosts.Value
 				team.Config.MDM.MacOSUpdates = *payload.MDM.MacOSUpdates
 			}
 		}
@@ -192,6 +194,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			if err := payload.MDM.IOSUpdates.Validate(); err != nil {
 				return nil, fleet.NewInvalidArgumentError("ios_updates", err.Error())
 			}
+
 			if payload.MDM.IOSUpdates.MinimumVersion.Set || payload.MDM.IOSUpdates.Deadline.Set {
 				iOSMinVersionUpdated = team.Config.MDM.IOSUpdates.MinimumVersion.Value != payload.MDM.IOSUpdates.MinimumVersion.Value ||
 					team.Config.MDM.IOSUpdates.Deadline.Value != payload.MDM.IOSUpdates.Deadline.Value
@@ -373,6 +376,28 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team iPadOS min version edited")
+		}
+	}
+
+	if updateNewHostsChanged {
+		var activity fleet.ActivityDetails
+		activity = fleet.ActivityTypeEnabledMacosUpdateNewHosts{
+			TeamID:   &team.ID,
+			TeamName: &team.Name,
+		}
+		if payload.MDM != nil && payload.MDM.MacOSUpdates != nil && !payload.MDM.MacOSUpdates.UpdateNewHosts.Value {
+			activity = fleet.ActivityTypeDisabledMacosUpdateNewHosts{
+				TeamID:   &team.ID,
+				TeamName: &team.Name,
+			}
+		}
+
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			activity,
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team macOS update new hosts edited")
 		}
 	}
 

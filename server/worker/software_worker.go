@@ -31,10 +31,11 @@ func (v *SoftwareWorker) Name() string {
 }
 
 const (
-	makeAndroidAppsAvailableForHostTask    SoftwareWorkerTask = "make_android_apps_available_for_host"
-	makeAndroidAppAvailableTask            SoftwareWorkerTask = "make_android_app_available"
-	runAndroidSetupExperienceTask          SoftwareWorkerTask = "run_android_setup_experience"
-	bulkSetAndroidAppsAvailableForHostTask SoftwareWorkerTask = "bulk_set_android_apps_available_for_host"
+	makeAndroidAppsAvailableForHostTask     SoftwareWorkerTask = "make_android_apps_available_for_host"
+	makeAndroidAppAvailableTask             SoftwareWorkerTask = "make_android_app_available"
+	runAndroidSetupExperienceTask           SoftwareWorkerTask = "run_android_setup_experience"
+	bulkSetAndroidAppsAvailableForHostTask  SoftwareWorkerTask = "bulk_set_android_apps_available_for_host"
+	bulkSetAndroidAppsAvailableForHostsTask SoftwareWorkerTask = "bulk_set_android_apps_available_for_hosts"
 )
 
 type softwareWorkerArgs struct {
@@ -59,7 +60,8 @@ type softwareWorkerArgs struct {
 
 	// AppConfigChanged indicates if the android app configuration changed as part
 	// of the action that triggered this task.
-	AppConfigChanged bool `json:"app_config_changed,omitempty"`
+	AppConfigChanged bool            `json:"app_config_changed,omitempty"`
+	UUIDsToIDs       map[string]uint `json:"uuids_to_ids,omitempty"`
 }
 
 func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) error {
@@ -105,8 +107,16 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 		), "running %s task",
 			bulkSetAndroidAppsAvailableForHostTask)
 
+	case bulkSetAndroidAppsAvailableForHostsTask:
+		return ctxerr.Wrapf(ctx, v.bulkSetAndroidAppsAvailableForHosts(
+			ctx,
+			args.UUIDsToIDs,
+			args.EnterpriseName,
+		), "running %s task", bulkSetAndroidAppsAvailableForHostsTask)
+
 	default:
 		return ctxerr.Errorf(ctx, "unknown task: %v", args.Task)
+
 	}
 }
 
@@ -446,6 +456,64 @@ func QueueBulkSetAndroidAppsAvailableForHost(
 		PolicyID:       policyID,
 		EnterpriseName: enterpriseName,
 		ApplicationIDs: applicationIDs,
+	}
+
+	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "queueing job")
+	}
+
+	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	return nil
+}
+
+func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context, uuidsToIDs map[string]uint, enterpriseName string) error {
+	// for each host
+	// get the set of self-service apps that are in scope for it
+	for uuid, hostID := range uuidsToIDs {
+		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, uuid)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", uuid)
+		}
+
+		appIDs, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
+		if err != nil {
+			return ctxerr.WrapWithData(ctx, err, "get android apps in scope for host", map[string]any{"host_id": hostID})
+		}
+
+		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, appIDs, ptr.ValOrZero(androidHost.TeamID))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
+		}
+
+		appPolicies, err := buildApplicationPolicyWithConfig(ctx, appIDs, configsByAppID, "AVAILABLE")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building application policies with config")
+		}
+
+		err = v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{uuid: uuid})
+
+		if err != nil {
+			return ctxerr.WrapWithData(ctx, err, "set apps for android policy", map[string]any{"host_id": hostID})
+		}
+
+	}
+
+	return nil
+
+}
+
+func QueueBulkSetAndroidAppsAvailableForHosts(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	uuidsToIDs map[string]uint,
+	enterpriseName string) error {
+
+	args := &softwareWorkerArgs{
+		Task:           bulkSetAndroidAppsAvailableForHostsTask,
+		UUIDsToIDs:     uuidsToIDs,
+		EnterpriseName: enterpriseName,
 	}
 
 	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)

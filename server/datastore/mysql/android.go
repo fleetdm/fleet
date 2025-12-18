@@ -689,9 +689,9 @@ GROUP BY
 }
 
 // sqlJoinMDMAndroidProfilesStatus returns a SQL snippet that can be used to join a table derived from
-// host_mdm_android_profiles (grouped by host_uuid and status) and the hosts table. For each host_uuid,
-// it derives a boolean value for each status category. The value will be 1 if the host has any
-// profile in the given status category. The snippet assumes the hosts table to be aliased as 'h'.
+// host_mdm_android_profiles and host_certificate_templates (grouped by host_uuid and status) and the hosts table.
+// For each host_uuid, it derives a boolean value for each status category. The value will be 1 if the host has any
+// profile or certificate template in the given status category. The snippet assumes the hosts table to be aliased as 'h'.
 func sqlJoinMDMAndroidProfilesStatus() string {
 	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
 	// complicate usage in other queries (e.g., list hosts).
@@ -701,18 +701,45 @@ func sqlJoinMDMAndroidProfilesStatus() string {
 		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
 		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
 		install   = fmt.Sprintf("'%s'", string(fleet.MDMOperationTypeInstall))
+
+		// Certificate template statuses
+		certPending    = fmt.Sprintf("'%s'", string(fleet.CertificateTemplatePending))
+		certDelivering = fmt.Sprintf("'%s'", string(fleet.CertificateTemplateDelivering))
+		certDelivered  = fmt.Sprintf("'%s'", string(fleet.CertificateTemplateDelivered))
+		certFailed     = fmt.Sprintf("'%s'", string(fleet.CertificateTemplateFailed))
+		certVerified   = fmt.Sprintf("'%s'", string(fleet.CertificateTemplateVerified))
 	)
 	return `
 	LEFT JOIN (
-		-- profile statuses grouped by host uuid, boolean value will be 1 if host has any profile with the given status
+		-- profile and certificate template statuses grouped by host uuid
+		-- boolean value will be 1 if host has any profile or certificate template with the given status
 		SELECT
 			host_uuid,
-			MAX( IF(status IS NULL OR status = ` + pending + `, 1, 0)) AS android_prof_pending,
-			MAX( IF(status = ` + failed + `, 1, 0)) AS android_prof_failed,
-			MAX( IF(status = ` + verifying + ` AND operation_type = ` + install + `, 1, 0)) AS android_prof_verifying,
-			MAX( IF(status = ` + verified + ` AND operation_type = ` + install + `, 1, 0)) AS android_prof_verified
-		FROM
-			host_mdm_android_profiles
+			MAX(prof_pending) AS android_prof_pending,
+			MAX(prof_failed) AS android_prof_failed,
+			MAX(prof_verifying) AS android_prof_verifying,
+			MAX(prof_verified) AS android_prof_verified
+		FROM (
+			-- Android profiles
+			SELECT
+				host_uuid,
+				IF(status IS NULL OR status = ` + pending + `, 1, 0) AS prof_pending,
+				IF(status = ` + failed + `, 1, 0) AS prof_failed,
+				IF(status = ` + verifying + ` AND operation_type = ` + install + `, 1, 0) AS prof_verifying,
+				IF(status = ` + verified + ` AND operation_type = ` + install + `, 1, 0) AS prof_verified
+			FROM
+				host_mdm_android_profiles
+			UNION ALL
+			-- Certificate templates (delivering and delivered count as pending)
+			SELECT
+				host_uuid,
+				IF(status IS NULL OR status IN (` + certPending + `, ` + certDelivering + `, ` + certDelivered + `), 1, 0) AS prof_pending,
+				IF(status = ` + certFailed + `, 1, 0) AS prof_failed,
+				0 AS prof_verifying,
+				IF(status = ` + certVerified + ` AND operation_type = ` + install + `, 1, 0) AS prof_verified
+			FROM
+				host_certificate_templates
+		) combined
 		GROUP BY
 			host_uuid) hmgp ON h.uuid = hmgp.host_uuid
 `
@@ -1875,4 +1902,41 @@ func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sql
 		return ctxerr.Wrap(ctx, err, "updateAndroidAppConfiguration")
 	}
 	return nil
+}
+
+func (ds *Datastore) ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+
+	stmt := `
+SELECT
+	h.id AS id, h.uuid AS uuid
+FROM
+	hosts h
+	JOIN android_devices ad ON ad.host_id = h.id
+WHERE
+	h.id IN (?) AND
+	h.platform = 'android'
+`
+
+	stmt, args, err := sqlx.In(stmt, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare statement arguments")
+	}
+
+	var rows []struct {
+		ID   uint   `db:"id"`
+		UUID string `db:"uuid"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list mdm android uuids to host ids")
+	}
+
+	results := make(map[string]uint, len(rows))
+	for _, r := range rows {
+		results[r.UUID] = r.ID
+	}
+
+	return results, nil
 }

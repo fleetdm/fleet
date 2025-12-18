@@ -366,6 +366,15 @@ func testUpsertHostCertificateTemplateStatus(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// Create a third template for testing insert with operation type
+	templateThree, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "Cert3",
+		TeamID:                 setup.team.ID,
+		CertificateAuthorityID: setup.ca.ID,
+		SubjectName:            "CN=Test Subject 3",
+	})
+	require.NoError(t, err)
+
 	hostUUID := uuid.New().String()
 	_, err = ds.NewHost(ctx, &fleet.Host{
 		UUID:     hostUUID,
@@ -377,55 +386,82 @@ func testUpsertHostCertificateTemplateStatus(t *testing.T, ds *Datastore) {
 	// Create an initial record for the first template
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err = q.ExecContext(ctx,
-			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, fleet_challenge) VALUES (?, ?, ?, ?)",
-			hostUUID, setup.template.ID, "pending", "some_challenge_value")
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, fleet_challenge, operation_type) VALUES (?, ?, ?, ?, ?)",
+			hostUUID, setup.template.ID, fleet.MDMDeliveryPending, "some_challenge_value", fleet.MDMOperationTypeInstall)
 		return err
 	})
 
 	cases := []struct {
-		name             string
-		templateID       uint
-		newStatus        string
-		expectedErrorMsg string
-		detail           *string
+		name                  string
+		templateID            uint
+		newStatus             string
+		expectedErrorMsg      string
+		detail                *string
+		operationType         fleet.MDMOperationType
+		expectedOperationType string
 	}{
 		{
-			name:       "valid update",
-			templateID: setup.template.ID,
-			newStatus:  "verified",
+			name:                  "valid update with install operation type",
+			templateID:            setup.template.ID,
+			newStatus:             "verified",
+			operationType:         fleet.MDMOperationTypeInstall,
+			expectedOperationType: "install",
 		},
 		{
-			name:       "valid update with details",
-			templateID: setup.template.ID,
-			newStatus:  "failed",
-			detail:     ptr.String("some details"),
+			name:                  "valid update with details",
+			templateID:            setup.template.ID,
+			newStatus:             "failed",
+			detail:                ptr.String("some details"),
+			operationType:         fleet.MDMOperationTypeInstall,
+			expectedOperationType: "install",
 		},
 		{
 			name:             "invalid status",
 			templateID:       setup.template.ID,
 			newStatus:        "invalid_status",
+			operationType:    fleet.MDMOperationTypeInstall,
 			expectedErrorMsg: "Invalid status 'invalid_status'",
 		},
 		{
-			name:       "creates new record if does not exist",
-			templateID: templateTwo.ID,
-			newStatus:  "verified",
-			detail:     ptr.String("some details"),
+			name:                  "creates new record with install operation type",
+			templateID:            templateTwo.ID,
+			newStatus:             "verified",
+			detail:                ptr.String("some details"),
+			operationType:         fleet.MDMOperationTypeInstall,
+			expectedOperationType: "install",
+		},
+		{
+			name:                  "update operation type to remove",
+			templateID:            setup.template.ID,
+			newStatus:             "pending",
+			operationType:         fleet.MDMOperationTypeRemove,
+			expectedOperationType: "remove",
+		},
+		{
+			name:                  "creates new record with remove operation type",
+			templateID:            templateThree.ID,
+			newStatus:             "pending",
+			operationType:         fleet.MDMOperationTypeRemove,
+			expectedOperationType: "remove",
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := ds.UpsertCertificateStatus(ctx, hostUUID, tc.templateID, fleet.MDMDeliveryStatus(tc.newStatus), tc.detail)
+			err := ds.UpsertCertificateStatus(ctx, hostUUID, tc.templateID, fleet.MDMDeliveryStatus(tc.newStatus), tc.detail, tc.operationType)
 			if tc.expectedErrorMsg == "" {
 				require.NoError(t, err)
-				var status string
+				var result struct {
+					Status        string `db:"status"`
+					OperationType string `db:"operation_type"`
+				}
 				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-					return sqlx.GetContext(ctx, q, &status,
-						"SELECT status FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?",
+					return sqlx.GetContext(ctx, q, &result,
+						"SELECT status, operation_type FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?",
 						hostUUID, tc.templateID)
 				})
-				require.Equal(t, tc.newStatus, status)
+				require.Equal(t, tc.newStatus, result.Status)
+				require.Equal(t, tc.expectedOperationType, result.OperationType)
 			} else {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tc.expectedErrorMsg)
@@ -608,20 +644,23 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 	require.Equal(t, "android-host", hostUUIDs[0])
 
 	// Step 3: Transition to delivering
-	templateIDs, err := ds.TransitionCertificateTemplatesToDelivering(ctx, "android-host")
+	certTemplates, err := ds.GetAndTransitionCertificateTemplatesToDelivering(ctx, "android-host")
 	require.NoError(t, err)
-	require.Len(t, templateIDs, 2)
-	require.ElementsMatch(t, []uint{setup.template.ID, templateTwo.ID}, templateIDs)
+	require.Len(t, certTemplates.DeliveringTemplateIDs, 2)
+	require.ElementsMatch(t, []uint{setup.template.ID, templateTwo.ID}, certTemplates.DeliveringTemplateIDs)
+	require.Empty(t, certTemplates.OtherTemplateIDs) // No existing verified/delivered templates yet
 
 	// Verify host is no longer in pending list
 	hostUUIDs, err = ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 10)
 	require.NoError(t, err)
 	require.Len(t, hostUUIDs, 0)
 
-	// Second call should return empty (no more pending templates)
-	templateIDs, err = ds.TransitionCertificateTemplatesToDelivering(ctx, "android-host")
+	// Second call should return the already-delivering templates (no new pending ones to transition)
+	certTemplates, err = ds.GetAndTransitionCertificateTemplatesToDelivering(ctx, "android-host")
 	require.NoError(t, err)
-	require.Len(t, templateIDs, 0)
+	require.Len(t, certTemplates.DeliveringTemplateIDs, 2) // Already delivering from previous call
+	require.ElementsMatch(t, []uint{setup.template.ID, templateTwo.ID}, certTemplates.DeliveringTemplateIDs)
+	require.Empty(t, certTemplates.OtherTemplateIDs) // No delivered/verified/failed yet
 
 	// Verify database shows delivering status
 	records, err := ds.ListCertificateTemplatesForHosts(ctx, []string{"android-host"})
@@ -660,7 +699,7 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 	_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, setup.template.ID, setup.team.ID)
 	require.NoError(t, err)
 
-	_, err = ds.TransitionCertificateTemplatesToDelivering(ctx, "revert-test-host")
+	_, err = ds.GetAndTransitionCertificateTemplatesToDelivering(ctx, "revert-test-host")
 	require.NoError(t, err)
 
 	// Revert to pending

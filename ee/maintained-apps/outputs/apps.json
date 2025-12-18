@@ -436,6 +436,20 @@
       "description": "CotEditor is a plain-text editor for web pages, program source codes, and more."
     },
     {
+      "name": "CrashPlan",
+      "slug": "crashplan/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.crashplan.desktop",
+      "description": "CrashPlan is backup and recovery software."
+    },
+    {
+      "name": "CrashPlan",
+      "slug": "crashplan/windows",
+      "platform": "windows",
+      "unique_identifier": "CrashPlan",
+      "description": "CrashPlan is backup and recovery software."
+    },
+    {
       "name": "Cursor",
       "slug": "cursor/darwin",
       "platform": "darwin",
@@ -783,6 +797,13 @@
       "slug": "inkscape/darwin",
       "platform": "darwin",
       "unique_identifier": "org.inkscape.Inkscape",
+      "description": "Inkscape is a vector graphics editor."
+    },
+    {
+      "name": "Inkscape",
+      "slug": "inkscape/windows",
+      "platform": "windows",
+      "unique_identifier": "Inkscape",
       "description": "Inkscape is a vector graphics editor."
     },
     {
@@ -1358,6 +1379,20 @@
       "platform": "darwin",
       "unique_identifier": "eu.exelban.Stats",
       "description": "Stats is a system monitor for the menu bar."
+    },
+    {
+      "name": "Steam",
+      "slug": "steam/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.valvesoftware.steam",
+      "description": "Steam is a video game digital distribution service."
+    },
+    {
+      "name": "Steam",
+      "slug": "steam/windows",
+      "platform": "windows",
+      "unique_identifier": "Steam",
+      "description": "Steam is a video game digital distribution service."
     },
     {
       "name": "Sublime Merge",
