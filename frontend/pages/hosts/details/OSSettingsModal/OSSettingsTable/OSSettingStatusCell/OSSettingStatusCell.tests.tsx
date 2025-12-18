@@ -108,4 +108,46 @@ describe("OS setting status cell", () => {
       screen.getByText(/The host is running the command/)
     ).toBeInTheDocument();
   });
+  it("Displays Pending UI for 'delivering' status with optype 'remove'", async () => {
+    const customRender = createCustomRenderer();
+
+    const { user } = customRender(
+      <OSSettingStatusCell
+        profileName="Test cert"
+        status="delivering"
+        operationType="remove"
+        hostPlatform="android"
+        profileUUID={FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID}
+      />
+    );
+
+    const statusText = screen.getByText("Removing enforcement (pending)");
+    expect(statusText).toBeInTheDocument();
+
+    await user.hover(statusText);
+    expect(
+      screen.getByText(/The host is running the command/)
+    ).toBeInTheDocument();
+  });
+  it("Displays Pending UI for 'delivered' status with optype 'remove'", async () => {
+    const customRender = createCustomRenderer();
+
+    const { user } = customRender(
+      <OSSettingStatusCell
+        profileName="Test cert"
+        status="delivered"
+        operationType="remove"
+        hostPlatform="android"
+        profileUUID={FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID}
+      />
+    );
+
+    const statusText = screen.getByText("Removing enforcement (pending)");
+    expect(statusText).toBeInTheDocument();
+
+    await user.hover(statusText);
+    expect(
+      screen.getByText(/The host is running the command/)
+    ).toBeInTheDocument();
+  });
 });
