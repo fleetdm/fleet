@@ -1,9 +1,11 @@
 .empty-feed {
-  margin-top: $pad-xxlarge;
+  display: flex;
+  flex-direction: column;
+  gap: $pad-medium;
 
   p {
     font-size: $x-small;
-    margin: $pad-medium 0;
+    margin: 0;
   }
 
   &__title {

@@ -55,6 +55,9 @@ interface IEditSoftwareModalProps {
   router: InjectedRouter;
   openViewYamlModal: () => void;
   isIosOrIpadosApp?: boolean;
+  name: string;
+  displayName: string;
+  source?: string;
 }
 
 const EditSoftwareModal = ({
@@ -67,6 +70,9 @@ const EditSoftwareModal = ({
   router,
   openViewYamlModal,
   isIosOrIpadosApp = false,
+  name,
+  displayName,
+  source,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
@@ -372,6 +378,10 @@ const EditSoftwareModal = ({
       )}
       {showPreviewEndUserExperienceModal && (
         <CategoriesEndUserExperienceModal
+          name={name}
+          displayName={displayName}
+          source={source}
+          iconUrl={softwareInstaller.icon_url || undefined}
           onCancel={togglePreviewEndUserExperienceModal}
           isIosOrIpadosApp={isIosOrIpadosApp}
         />

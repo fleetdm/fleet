@@ -1187,21 +1187,22 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 	}
 
 	for _, hostUUID := range hostUUIDs {
-		// Step 1: Transition pending → delivering (atomically)
+		// Step 1: Get all install templates and transition pending → delivering (atomically)
 		// This prevents concurrent cron runs from processing the same templates
-		templateIDs, err := svc.fleetDS.TransitionCertificateTemplatesToDelivering(ctx, hostUUID)
+		certTemplates, err := svc.fleetDS.GetAndTransitionCertificateTemplatesToDelivering(ctx, hostUUID)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "failed to transition to delivering", "host_uuid", hostUUID, "err", err)
-			return ctxerr.Wrapf(ctx, err, "transition certificate templates to delivering for host %s", hostUUID)
+			level.Error(svc.logger).Log("msg", "failed to get and transition to delivering", "host_uuid", hostUUID, "err", err)
+			return ctxerr.Wrapf(ctx, err, "get and transition certificate templates to delivering for host %s", hostUUID)
 		}
 
-		if len(templateIDs) == 0 {
+		if len(certTemplates.DeliveringTemplateIDs) == 0 {
 			// No pending templates for this host (another process got them, or none exist)
 			if skipHostsWithoutNewCerts {
 				continue
 			}
 			// Send config without new certificates (needed for new host enrollment)
-			config, err := buildHostConfig(hostUUID, nil)
+			// There should be no other certificates either, but including them just in case.
+			config, err := buildHostConfig(hostUUID, certTemplates.OtherTemplateIDs)
 			if err != nil {
 				level.Error(svc.logger).Log("msg", "failed to build host config without certs", "host_uuid", hostUUID, "err", err)
 				return ctxerr.Wrapf(ctx, err, "build host config without certs for host %s", hostUUID)
@@ -1214,8 +1215,8 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			continue
 		}
 
-		// Step 2: Build and send config to AMAPI
-		config, err := buildHostConfig(hostUUID, templateIDs)
+		// Step 2: Build and send config to AMAPI with ALL certificate templates
+		config, err := buildHostConfig(hostUUID, append(certTemplates.DeliveringTemplateIDs, certTemplates.OtherTemplateIDs...))
 		if err != nil {
 			level.Error(svc.logger).Log("msg", "failed to build host config", "host_uuid", hostUUID, "err", err)
 			return ctxerr.Wrapf(ctx, err, "build host config for %s", hostUUID)
@@ -1225,18 +1226,18 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
 			// AMAPI call failed, revert to pending for retry later
 			level.Error(svc.logger).Log("msg", "failed to send to AMAPI", "host_uuid", hostUUID, "err", err)
-			if revertErr := svc.fleetDS.RevertHostCertificateTemplatesToPending(ctx, hostUUID, templateIDs); revertErr != nil {
+			if revertErr := svc.fleetDS.RevertHostCertificateTemplatesToPending(ctx, hostUUID, certTemplates.DeliveringTemplateIDs); revertErr != nil {
 				level.Error(svc.logger).Log("msg", "failed to revert to pending after AMAPI failure", "host_uuid", hostUUID, "err", revertErr)
 				return ctxerr.Wrapf(ctx, revertErr, "revert certificate templates to pending after AMAPI failure for host %s", hostUUID)
 			}
 			continue
 		}
 
-		// Step 3: AMAPI succeeded - generate challenges for each template
+		// Step 3: AMAPI succeeded - generate challenges for each newly delivering template
 		// Note: Android app may try to fetch the certificate, but status is still delivering and no challenge is generated yet.
 		// The app will retry until status turns to delivered.
 		challenges := make(map[uint]string)
-		for _, templateID := range templateIDs {
+		for _, templateID := range certTemplates.DeliveringTemplateIDs {
 			challenge, err := svc.fleetDS.NewChallenge(ctx)
 			if err != nil {
 				level.Error(svc.logger).Log("msg", "failed to generate challenge", "host_uuid", hostUUID, "template_id", templateID, "err", err)

@@ -245,6 +245,8 @@ type SoftwareTitleSummary struct {
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
 	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+	// ApplicationID is used by Android apps to match with VPP app titles.
+	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 }
 
 // SoftwareTitle represents a title backed by the `software_titles` table.
