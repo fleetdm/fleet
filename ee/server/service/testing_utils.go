@@ -148,6 +148,37 @@ func NewTestDynamicChallengeServer(t *testing.T) *httptest.Server {
 	return dynamicChallengeServer
 }
 
+//go:embed testdata/okta_challenge_response.html
+var oktaChallengeResponse []byte
+
+// NewTestOktaChallengeServer creates a mock Okta challenge server for testing.
+// Unlike NDES, Okta uses UTF-8 encoding (not UTF-16).
+func NewTestOktaChallengeServer(t *testing.T) *httptest.Server {
+	t.Helper()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify Basic Auth
+		username, password, ok := r.BasicAuth()
+		if !ok || username != "test-user" || password != "test-pass" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		// Verify GET method
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		// UTF-8 encoding (no conversion needed, unlike NDES)
+		_, err := w.Write(oktaChallengeResponse)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(server.Close)
+	return server
+}
+
 // utf16FromString returns the UTF-16 encoding of the UTF-8 string s, with a terminating NUL added.
 // If s contains a NUL byte at any location, it returns (nil, syscall.EINVAL).
 func utf16FromString(s string) ([]uint16, error) {

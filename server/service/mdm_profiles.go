@@ -345,6 +345,104 @@ func (cs *SmallstepVarsFound) SetRenewalID() (*SmallstepVarsFound, bool) {
 	return cs, !alreadyPresent
 }
 
+type OktaVarsFound struct {
+	urlCA          map[string]struct{}
+	challengeCA    map[string]struct{}
+	renewalIdFound bool
+}
+
+// Ok makes sure that both URL and Challenge variables are present and match the CA name.
+// Note: Okta does not support SCEP renewal, so renewal ID is not required.
+func (o *OktaVarsFound) Ok() bool {
+	if o == nil {
+		return true
+	}
+	if len(o.urlCA) == 0 {
+		return false
+	}
+	if len(o.challengeCA) == 0 {
+		return false
+	}
+	for ca := range o.challengeCA {
+		if _, ok := o.urlCA[ca]; !ok {
+			// Unable to find matching URL CA for Challenge CA
+			return false
+		}
+	}
+	// Okta doesn't support renewal, so we don't require renewalIdFound
+	return true
+}
+
+func (o *OktaVarsFound) Found() bool {
+	return o != nil
+}
+
+func (o *OktaVarsFound) RenewalOnly() bool {
+	return o != nil && len(o.urlCA) == 0 && len(o.challengeCA) == 0 && o.renewalIdFound
+}
+
+func (o *OktaVarsFound) CAs() []string {
+	if o == nil {
+		return nil
+	}
+	keys := make([]string, 0, len(o.urlCA))
+	for key := range o.urlCA {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func (o *OktaVarsFound) ErrorMessage() string {
+	if len(o.challengeCA) == 0 || len(o.urlCA) == 0 {
+		return fmt.Sprintf("SCEP profile for Okta certificate authority requires: $FLEET_VAR_%s<CA_NAME> and $FLEET_VAR_%s<CA_NAME> variables. Note: Okta does not support SCEP renewal.", fleet.FleetVarOktaSCEPChallengePrefix, fleet.FleetVarOktaSCEPProxyURLPrefix)
+	}
+	for ca := range o.challengeCA {
+		if _, ok := o.urlCA[ca]; !ok {
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarOktaSCEPProxyURLPrefix, ca)
+		}
+	}
+	for ca := range o.urlCA {
+		if _, ok := o.challengeCA[ca]; !ok {
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarOktaSCEPChallengePrefix, ca)
+		}
+	}
+	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s<ca_name> and $FLEET_VAR_%s<ca_name> in the profile.",
+		fleet.FleetVarOktaSCEPProxyURLPrefix, fleet.FleetVarOktaSCEPChallengePrefix)
+}
+
+func (o *OktaVarsFound) SetURL(value string) (*OktaVarsFound, bool) {
+	if o == nil {
+		o = &OktaVarsFound{}
+	}
+	if o.urlCA == nil {
+		o.urlCA = make(map[string]struct{})
+	}
+	_, alreadyPresent := o.urlCA[value]
+	o.urlCA[value] = struct{}{}
+	return o, !alreadyPresent
+}
+
+func (o *OktaVarsFound) SetChallenge(value string) (*OktaVarsFound, bool) {
+	if o == nil {
+		o = &OktaVarsFound{}
+	}
+	if o.challengeCA == nil {
+		o.challengeCA = make(map[string]struct{})
+	}
+	_, alreadyPresent := o.challengeCA[value]
+	o.challengeCA[value] = struct{}{}
+	return o, !alreadyPresent
+}
+
+func (o *OktaVarsFound) SetRenewalID() (*OktaVarsFound, bool) {
+	if o == nil {
+		o = &OktaVarsFound{}
+	}
+	alreadyPresent := o.renewalIdFound
+	o.renewalIdFound = true
+	return o, !alreadyPresent
+}
+
 // validateProfileCertificateAuthorityVariables checks that all Fleet variables
 // used in the given profile contents correspond to existing Certificate Authorities,
 // and that is mapped to a set of CA vars, that can later be used for validation.
@@ -355,6 +453,7 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 	additionalCustomSCEPValidation func(contents string, customSCEPVars *CustomSCEPVarsFound) error,
 	additionalNDESValidation func(contents string, ndesVars *NDESVarsFound) error,
 	additionalSmallstepValidation func(contents string, smallstepVars *SmallstepVarsFound) error,
+	additionalOktaValidation func(contents string, oktaVars *OktaVarsFound) error,
 ) error {
 	fleetVars := variables.FindKeepDuplicates(profileContents)
 	if len(fleetVars) == 0 {
@@ -371,6 +470,7 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 		ndesVars       *NDESVarsFound
 		smallstepVars  *SmallstepVarsFound
 		customSCEPVars *CustomSCEPVarsFound
+		oktaVars       *OktaVarsFound
 	)
 	for _, k := range fleetVars {
 		caFound := false
@@ -448,6 +548,30 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 			if !caFound {
 				ok = false
 			}
+		case strings.HasPrefix(k, string(fleet.FleetVarOktaSCEPProxyURLPrefix)):
+			caName := strings.TrimPrefix(k, string(fleet.FleetVarOktaSCEPProxyURLPrefix))
+			for _, ca := range groupedCAs.Okta {
+				if ca.Name == caName {
+					caFound = true
+					oktaVars, ok = oktaVars.SetURL(caName)
+					break
+				}
+			}
+			if !caFound {
+				ok = false
+			}
+		case strings.HasPrefix(k, string(fleet.FleetVarOktaSCEPChallengePrefix)):
+			caName := strings.TrimPrefix(k, string(fleet.FleetVarOktaSCEPChallengePrefix))
+			for _, ca := range groupedCAs.Okta {
+				if ca.Name == caName {
+					caFound = true
+					oktaVars, ok = oktaVars.SetChallenge(caName)
+					break
+				}
+			}
+			if !caFound {
+				ok = false
+			}
 		case k == string(fleet.FleetVarNDESSCEPProxyURL):
 			caFound = true
 			ndesVars, ok = ndesVars.SetURL()
@@ -456,14 +580,17 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 			ndesVars, ok = ndesVars.SetChallenge()
 		case k == string(fleet.FleetVarSCEPRenewalID):
 			caFound = true
-			// This is kind of a goofy way of doing things but essentially, since custom SCEP, NDES, and Smallstep
-			// share the renewal ID Fleet variable, we need to set the
+			// This is kind of a goofy way of doing things but essentially, since custom SCEP, NDES, Smallstep, and Okta
+			// share the renewal ID Fleet variable, we need to set the renewal ID on all of them
 
 			customSCEPVars, ok = customSCEPVars.SetRenewalID()
 			if ok {
 				ndesVars, ok = ndesVars.SetRenewalID()
 				if ok {
 					smallstepVars, ok = smallstepVars.SetRenewalID()
+					if ok {
+						oktaVars, ok = oktaVars.SetRenewalID()
+					}
 				}
 			}
 		}
@@ -494,8 +621,8 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 		}
 	}
 
-	// Since custom SCEP, NDES, and Smallstep share the renewal ID Fleet variable, we need to figure out which one to validate.
-	if customSCEPVars.Found() || ndesVars.Found() || smallstepVars.Found() {
+	// Since custom SCEP, NDES, Smallstep, and Okta share the renewal ID Fleet variable, we need to figure out which one to validate.
+	if customSCEPVars.Found() || ndesVars.Found() || smallstepVars.Found() || oktaVars.Found() {
 		if ndesVars.RenewalOnly() {
 			ndesVars = nil
 		}
@@ -505,9 +632,12 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 		if smallstepVars.RenewalOnly() {
 			smallstepVars = nil
 		}
+		if oktaVars.RenewalOnly() {
+			oktaVars = nil
+		}
 		// If only the renewal ID variable appeared without any of its associated variables, return an error. It is shared
-		// by the 3 CA types but is only allowed when CA vars are in use
-		if ndesVars == nil && smallstepVars == nil && customSCEPVars == nil {
+		// by the 4 CA types but is only allowed when CA vars are in use
+		if ndesVars == nil && smallstepVars == nil && customSCEPVars == nil && oktaVars == nil {
 			return &fleet.BadRequestError{Message: fleet.SCEPRenewalIDWithoutURLChallengeErrMsg}
 		}
 	}
@@ -540,6 +670,17 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 		}
 		if additionalSmallstepValidation != nil {
 			err := additionalSmallstepValidation(profileContents, smallstepVars)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	if oktaVars.Found() {
+		if !oktaVars.Ok() {
+			return &fleet.BadRequestError{Message: oktaVars.ErrorMessage()}
+		}
+		if additionalOktaValidation != nil {
+			err := additionalOktaValidation(profileContents, oktaVars)
 			if err != nil {
 				return err
 			}

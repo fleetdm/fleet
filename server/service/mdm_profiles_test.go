@@ -180,7 +180,7 @@ func TestValidateProfileCertificateAuthorityVariables(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Pass a premium license for testing (we're not testing license validation here)
 			premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-			err := validateProfileCertificateAuthorityVariables(tc.profile, premiumLic, groupedCAs, nil, nil, nil, nil)
+			err := validateProfileCertificateAuthorityVariables(tc.profile, premiumLic, groupedCAs, nil, nil, nil, nil, nil)
 			if tc.errMsg != "" {
 				require.ErrorContains(t, err, tc.errMsg)
 			} else {

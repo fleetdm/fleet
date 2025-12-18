@@ -579,6 +579,15 @@ func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.Gro
 				Password:     maskSecret("some-smallstep-password", includeSecrets),
 			},
 		},
+		Okta: []fleet.OktaSCEPProxyCA{
+			{
+				Name:         "some-okta-name",
+				URL:          "https://some-okta-url.com",
+				ChallengeURL: "https://some-okta-challenge-url.com",
+				Username:     "some-okta-username",
+				Password:     maskSecret("some-okta-password", includeSecrets),
+			},
+		},
 	}
 
 	return &res, nil

@@ -73,6 +73,9 @@ export enum ActivityType {
   AddedCustomESTProxy = "added_custom_est_proxy",
   DeletedCustomESTProxy = "deleted_custom_est_proxy",
   EditedCustomESTProxy = "edited_custom_est_proxy",
+  AddedOkta = "added_okta",
+  DeletedOkta = "deleted_okta",
+  EditedOkta = "edited_okta",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
@@ -406,6 +409,9 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Deleted certificate authority (CA): Smallstep",
   [ActivityType.EditedSmallstep]:
     "Edited certificate authority (CA): Smallstep",
+  [ActivityType.AddedOkta]: "Added certificate authority (CA): Okta",
+  [ActivityType.DeletedOkta]: "Deleted certificate authority (CA): Okta",
+  [ActivityType.EditedOkta]: "Edited certificate authority (CA): Okta",
   [ActivityType.AddedCustomESTProxy]:
     "Added certificate authority (CA): custom EST",
   [ActivityType.DeletedCustomESTProxy]:

@@ -36,3 +36,13 @@ func newMockSmallstepSCEPProxyCA(url, challengeURL, name string) fleet.Smallstep
 		Password:     "password",
 	}
 }
+
+func newMockOktaSCEPProxyCA(url, challengeURL, name string) fleet.OktaSCEPProxyCA {
+	return fleet.OktaSCEPProxyCA{
+		Name:         name,
+		URL:          url,
+		ChallengeURL: challengeURL,
+		Username:     "username",
+		Password:     "password",
+	}
+}

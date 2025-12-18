@@ -886,6 +886,16 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 				})
 			}
 		}
+
+		if okta, ok := result["okta"]; ok && okta != nil {
+			for _, intg := range okta.([]any) {
+				intg.(map[string]any)["password"] = cmd.AddComment(filePath, "TODO: Add your Okta password here")
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "certificate_authorities.okta.password",
+				})
+			}
+		}
 	}
 
 	return result, nil

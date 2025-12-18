@@ -77,6 +77,8 @@ const (
 	FleetVarCustomSCEPProxyURLPrefix     FleetVarName = "CUSTOM_SCEP_PROXY_URL_"
 	FleetVarSmallstepSCEPChallengePrefix FleetVarName = "SMALLSTEP_SCEP_CHALLENGE_"
 	FleetVarSmallstepSCEPProxyURLPrefix  FleetVarName = "SMALLSTEP_SCEP_PROXY_URL_"
+	FleetVarOktaSCEPChallengePrefix      FleetVarName = "OKTA_SCEP_CHALLENGE_"
+	FleetVarOktaSCEPProxyURLPrefix       FleetVarName = "OKTA_SCEP_PROXY_URL_"
 	FleetVarSCEPWindowsCertificateID     FleetVarName = "SCEP_WINDOWS_CERTIFICATE_ID" // nolint:gosec // G101: Potential hardcoded credentials
 
 	// OneTimeChallengeTTL is the time to live for one-time challenges.

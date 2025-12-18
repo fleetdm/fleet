@@ -38,6 +38,7 @@ const (
 	MessageSCEPProxyNotConfigured  = "SCEP proxy is not configured"
 	NDESChallengeInvalidAfter      = 57 * time.Minute
 	SmallstepChallengeInvalidAfter = 4 * time.Minute
+	OktaChallengeInvalidAfter      = 60 * time.Minute // Okta challenges expire in 60 minutes
 )
 
 // scepCertificateRequest abstracts the common operations needed for SCEP certificate
@@ -333,6 +334,27 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
 		}
 
+	case fleet.CAConfigOkta:
+		if len(groupedCAs.Okta) < 1 {
+			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
+		}
+		for _, ca := range groupedCAs.Okta {
+			if ca.Name == certReq.GetCAName() {
+				scepURL = ca.URL
+				break
+			}
+		}
+
+		challengeRetrievedAt := certReq.GetChallengeRetrievedAt()
+		if checkChallenge && challengeRetrievedAt != nil && challengeRetrievedAt.Add(OktaChallengeInvalidAfter).Before(time.Now()) {
+			// The challenge password was retrieved for this profile, and is now invalid.
+			// We need to resend the profile with a new challenge password.
+			if err := svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID); err != nil {
+				return "", ctxerr.Wrap(ctx, err, "resending host mdm profile")
+			}
+			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
+		}
+
 	case fleet.CAConfigCustomSCEPProxy:
 		if len(groupedCAs.CustomScepProxy) < 1 {
 			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
@@ -543,4 +565,50 @@ func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fl
 	}
 
 	return string(b), nil
+}
+
+// ValidateOktaChallengeURL validates that the Okta challenge URL is reachable and returns
+// a valid challenge with the provided credentials.
+func (s *SCEPConfigService) ValidateOktaChallengeURL(ctx context.Context, ca fleet.OktaSCEPProxyCA) error {
+	_, err := s.GetOktaSCEPChallenge(ctx, ca)
+	return err
+}
+
+// GetOktaSCEPChallenge retrieves a one-time SCEP challenge from Okta.
+// Okta returns challenges in NDES HTML format but uses HTTP Basic Auth (not NTLMSSP)
+// and UTF-8 encoding (not UTF-16 like Windows NDES).
+func (s *SCEPConfigService) GetOktaSCEPChallenge(ctx context.Context, ca fleet.OktaSCEPProxyCA) (string, error) {
+	client := fleethttp.NewClient(fleethttp.WithTimeout(*s.Timeout))
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ca.ChallengeURL, http.NoBody)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "creating Okta challenge request")
+	}
+
+	req.SetBasicAuth(ca.Username, ca.Password)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "sending Okta challenge request")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", ctxerr.Errorf(ctx, "Okta challenge request failed with status %d", resp.StatusCode)
+	}
+
+	// Read as UTF-8 (Okta uses UTF-8, not UTF-16 like Windows NDES)
+	bodyText, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "reading Okta challenge response")
+	}
+
+	// Parse HTML response using same regex as NDES (Okta uses same format)
+	matches := challengeRegex.FindStringSubmatch(string(bodyText))
+	if matches == nil {
+		return "", ctxerr.New(ctx, "Okta SCEP challenge not found in response")
+	}
+
+	challenge := matches[challengeRegex.SubexpIndex("password")]
+	return challenge, nil
 }

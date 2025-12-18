@@ -2000,6 +2000,51 @@ This activity contains the following fields:
 }
 ```
 
+## added_okta
+
+Generated when Okta certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "OKTA_WIFI"
+}
+```
+
+## deleted_okta
+
+Generated when Okta certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "OKTA_WIFI"
+}
+```
+
+## edited_okta
+
+Generated when Okta certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "OKTA_WIFI"
+}
+```
+
 ## enabled_activity_automations
 
 Generated when activity automations are enabled

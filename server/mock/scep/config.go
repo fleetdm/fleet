@@ -21,6 +21,10 @@ type ValidateSmallstepChallengeURLFunc func(ctx context.Context, ca fleet.Smalls
 
 type GetSmallstepSCEPChallengeFunc func(ctx context.Context, ca fleet.SmallstepSCEPProxyCA) (string, error)
 
+type ValidateOktaChallengeURLFunc func(ctx context.Context, ca fleet.OktaSCEPProxyCA) error
+
+type GetOktaSCEPChallengeFunc func(ctx context.Context, ca fleet.OktaSCEPProxyCA) (string, error)
+
 type SCEPConfigService struct {
 	ValidateNDESSCEPAdminURLFunc        ValidateNDESSCEPAdminURLFunc
 	ValidateNDESSCEPAdminURLFuncInvoked bool
@@ -36,6 +40,12 @@ type SCEPConfigService struct {
 
 	GetSmallstepSCEPChallengeFunc        GetSmallstepSCEPChallengeFunc
 	GetSmallstepSCEPChallengeFuncInvoked bool
+
+	ValidateOktaChallengeURLFunc        ValidateOktaChallengeURLFunc
+	ValidateOktaChallengeURLFuncInvoked bool
+
+	GetOktaSCEPChallengeFunc        GetOktaSCEPChallengeFunc
+	GetOktaSCEPChallengeFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -73,4 +83,18 @@ func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fl
 	s.GetSmallstepSCEPChallengeFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSmallstepSCEPChallengeFunc(ctx, ca)
+}
+
+func (s *SCEPConfigService) ValidateOktaChallengeURL(ctx context.Context, ca fleet.OktaSCEPProxyCA) error {
+	s.mu.Lock()
+	s.ValidateOktaChallengeURLFuncInvoked = true
+	s.mu.Unlock()
+	return s.ValidateOktaChallengeURLFunc(ctx, ca)
+}
+
+func (s *SCEPConfigService) GetOktaSCEPChallenge(ctx context.Context, ca fleet.OktaSCEPProxyCA) (string, error) {
+	s.mu.Lock()
+	s.GetOktaSCEPChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetOktaSCEPChallengeFunc(ctx, ca)
 }

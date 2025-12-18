@@ -170,12 +170,12 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		if ca.Type != string(fleet.CATypeNDESSCEPProxy) {
 			assert.Nil(t, ca.AdminURL)
 		}
-		if ca.Type != string(fleet.CATypeSmallstep) {
+		if ca.Type != string(fleet.CATypeSmallstep) && ca.Type != string(fleet.CATypeOkta) {
 			assert.Nil(t, ca.ChallengeURL)
 		}
 
-		// Since username and password is now shared for NDES and Smallstep
-		if ca.Type != string(fleet.CATypeNDESSCEPProxy) && ca.Type != string(fleet.CATypeSmallstep) {
+		// Since username and password is now shared for NDES, Smallstep, and Okta
+		if ca.Type != string(fleet.CATypeNDESSCEPProxy) && ca.Type != string(fleet.CATypeSmallstep) && ca.Type != string(fleet.CATypeOkta) {
 			assert.Nil(t, ca.Username)
 			assert.Nil(t, ca.Password)
 		}
@@ -209,6 +209,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 				ValidateSCEPURLFunc:               func(_ context.Context, _ string) error { return nil },
 				ValidateNDESSCEPAdminURLFunc:      func(_ context.Context, _ fleet.NDESSCEPProxyCA) error { return nil },
 				ValidateSmallstepChallengeURLFunc: func(_ context.Context, _ fleet.SmallstepSCEPProxyCA) error { return nil },
+				ValidateOktaChallengeURLFunc:      func(_ context.Context, _ fleet.OktaSCEPProxyCA) error { return nil },
 			},
 		}
 		svc.config.Server.PrivateKey = "supersecret"
@@ -1085,6 +1086,181 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createSmallstepRequest)
+		require.ErrorContains(t, err, "Invalid challenge URL or credentials.")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
+
+	// Okta SCEP CA Tests
+	t.Run("Create Okta SCEP CA - Happy path", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createOktaRequest := fleet.CertificateAuthorityPayload{
+			Okta: &fleet.OktaSCEPProxyCA{
+				Name:         "OktaWIFI",
+				URL:          "https://okta.example.com/scep",
+				ChallengeURL: "https://okta.example.com/challenge",
+				Username:     "okta_user",
+				Password:     "okta_password",
+			},
+		}
+
+		_, err := svc.NewCertificateAuthority(ctx, createOktaRequest)
+		require.EqualError(t, err, "mock error to avoid NewActivity panic")
+		require.Len(t, createdCAs, 1)
+		createdCA := createdCAs[0]
+
+		assert.Equal(t, createOktaRequest.Okta.Name, *createdCA.Name)
+		assert.Equal(t, createOktaRequest.Okta.URL, *createdCA.URL)
+		assert.Equal(t, string(fleet.CATypeOkta), createdCA.Type)
+		require.NotNil(t, createdCA.ChallengeURL)
+		assert.Equal(t, createOktaRequest.Okta.ChallengeURL, *createdCA.ChallengeURL)
+		require.NotNil(t, createdCA.Username)
+		assert.Equal(t, createOktaRequest.Okta.Username, *createdCA.Username)
+		require.NotNil(t, createdCA.Password)
+		assert.Equal(t, createOktaRequest.Okta.Password, *createdCA.Password)
+		verifyNilFieldsForType(t, createdCA)
+	})
+
+	t.Run("Create Okta SCEP CA - bad name", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createOktaRequest := fleet.CertificateAuthorityPayload{
+			Okta: &fleet.OktaSCEPProxyCA{
+				Name:         "Okta SCEP WIFI",
+				URL:          "https://okta.example.com/scep",
+				ChallengeURL: "https://okta.example.com/challenge",
+				Username:     "okta_user",
+				Password:     "okta_password",
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createOktaRequest)
+		require.ErrorContains(t, err, "Invalid characters in the \"name\" field.")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
+
+	t.Run("Create Okta SCEP CA - invalid URL format", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createOktaRequest := fleet.CertificateAuthorityPayload{
+			Okta: &fleet.OktaSCEPProxyCA{
+				Name:         "OktaSCEPWIFI",
+				URL:          "bozo",
+				ChallengeURL: "https://okta.example.com/challenge",
+				Username:     "okta_user",
+				Password:     "okta_password",
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createOktaRequest)
+		require.ErrorContains(t, err, "Invalid Okta SCEP URL.")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
+
+	t.Run("Create Okta SCEP CA - empty username", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createOktaRequest := fleet.CertificateAuthorityPayload{
+			Okta: &fleet.OktaSCEPProxyCA{
+				Name:         "OktaSCEPWIFI",
+				URL:          "https://okta.example.com/scep",
+				ChallengeURL: "https://okta.example.com/challenge",
+				Username:     "",
+				Password:     "okta_password",
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createOktaRequest)
+		require.ErrorContains(t, err, "Okta username cannot be empty")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
+
+	t.Run("Create Okta SCEP CA - empty password", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createOktaRequest := fleet.CertificateAuthorityPayload{
+			Okta: &fleet.OktaSCEPProxyCA{
+				Name:         "OktaSCEPWIFI",
+				URL:          "https://okta.example.com/scep",
+				ChallengeURL: "https://okta.example.com/challenge",
+				Username:     "okta_user",
+				Password:     "",
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createOktaRequest)
+		require.ErrorContains(t, err, "Okta password cannot be empty")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
+
+	t.Run("Create Okta SCEP CA - masked password", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createOktaRequest := fleet.CertificateAuthorityPayload{
+			Okta: &fleet.OktaSCEPProxyCA{
+				Name:         "OktaSCEPWIFI",
+				URL:          "https://okta.example.com/scep",
+				ChallengeURL: "https://okta.example.com/challenge",
+				Username:     "okta_user",
+				Password:     fleet.MaskedPassword,
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createOktaRequest)
+		require.ErrorContains(t, err, "Okta password cannot be empty")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
+
+	t.Run("Create Okta SCEP CA - invalid SCEP URL", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		svc.scepConfigService = &scep_mock.SCEPConfigService{
+			ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return errors.New("some error") },
+		}
+
+		createOktaRequest := fleet.CertificateAuthorityPayload{
+			Okta: &fleet.OktaSCEPProxyCA{
+				Name:         "OktaSCEPWIFI",
+				URL:          "https://okta.example.com/scep",
+				ChallengeURL: "https://okta.example.com/challenge",
+				Username:     "okta_user",
+				Password:     "okta_password",
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createOktaRequest)
+		require.ErrorContains(t, err, "Invalid SCEP URL. Please correct and try again.")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
+
+	t.Run("Create Okta SCEP CA - invalid challenge validation", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		svc.scepConfigService = &scep_mock.SCEPConfigService{
+			ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return nil },
+			ValidateOktaChallengeURLFunc: func(_ context.Context, _ fleet.OktaSCEPProxyCA) error {
+				return errors.New("some error")
+			},
+		}
+
+		createOktaRequest := fleet.CertificateAuthorityPayload{
+			Okta: &fleet.OktaSCEPProxyCA{
+				Name:         "OktaSCEPWIFI",
+				URL:          "https://okta.example.com/scep",
+				ChallengeURL: "bozo",
+				Username:     "okta_user",
+				Password:     "okta_password",
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createOktaRequest)
 		require.ErrorContains(t, err, "Invalid challenge URL or credentials.")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)

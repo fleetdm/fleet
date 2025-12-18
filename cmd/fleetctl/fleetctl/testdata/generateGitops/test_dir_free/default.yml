@@ -79,6 +79,12 @@ org_settings:
       password: # TODO: Add your NDES SCEP proxy password here
       url: https://some-ndes-scep-proxy-url.com
       username: some-ndes-username
+    okta:
+    - challenge_url: https://some-okta-challenge-url.com
+      name: some-okta-name
+      password: # TODO: Add your Okta password here
+      url: https://some-okta-url.com
+      username: some-okta-username
     smallstep:
     - challenge_url: https://some-smallstep-challenge-url.com
       name: some-smallstep-name
@@ -183,7 +189,7 @@ policies:
   critical: false
   description: This is a global policy
   install_software:
-    hash_sha256: ___GITOPS_COMMENT_15___
+    hash_sha256: ___GITOPS_COMMENT_16___
   labels_include_any:
   - Label A
   - Label B

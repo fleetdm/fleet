@@ -5923,6 +5923,10 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			newMockSmallstepSCEPProxyCA("https://example.com", "https://example.com/challenge", "smallstepName"),
 			newMockSmallstepSCEPProxyCA("https://example.com", "https://example.com/challenge", "smallstepName2"),
 		},
+		Okta: []fleet.OktaSCEPProxyCA{
+			newMockOktaSCEPProxyCA("https://example.com", "https://example.com/challenge", "oktaName"),
+			newMockOktaSCEPProxyCA("https://example.com", "https://example.com/challenge", "oktaName2"),
+		},
 	}
 
 	cases := []struct {

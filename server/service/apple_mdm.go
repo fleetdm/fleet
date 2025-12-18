@@ -523,13 +523,15 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) &&
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) &&
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) &&
-			!strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) {
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) &&
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarOktaSCEPProxyURLPrefix)) &&
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarOktaSCEPChallengePrefix)) {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles.", fleetVar)}
 		}
 	}
 
 	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs,
-		additionalDigiCertValidation, additionalCustomSCEPValidation, additionalNDESValidation, additionalSmallstepValidation)
+		additionalDigiCertValidation, additionalCustomSCEPValidation, additionalNDESValidation, additionalSmallstepValidation, nil)
 	// We avoid checking for all nil here (due to no variables, as we ran our own variable check above.)
 	if err != nil {
 		return nil, err
@@ -5031,6 +5033,7 @@ func preprocessProfileContents(
 		digiCertCAs   map[string]*fleet.DigiCertCA
 		customSCEPCAs map[string]*fleet.CustomSCEPProxyCA
 		smallstepCAs  map[string]*fleet.SmallstepSCEPProxyCA
+		oktaCAs       map[string]*fleet.OktaSCEPProxyCA
 	)
 
 	// this is used to cache the host ID corresponding to the UUID, so we don't
@@ -5147,6 +5150,25 @@ func preprocessProfileContents(
 					fleetVar)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking Smallstep SCEP configuration")
+				}
+				if !configured {
+					valid = false
+					break initialFleetVarLoop
+				}
+
+			case strings.HasPrefix(fleetVar, string(fleet.FleetVarOktaSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarOktaSCEPProxyURLPrefix)):
+				if oktaCAs == nil {
+					oktaCAs = make(map[string]*fleet.OktaSCEPProxyCA)
+				}
+				var caName string
+				var found bool
+				if caName, found = strings.CutPrefix(fleetVar, string(fleet.FleetVarOktaSCEPChallengePrefix)); !found {
+					caName, _ = strings.CutPrefix(fleetVar, string(fleet.FleetVarOktaSCEPProxyURLPrefix))
+				}
+				configured, err := isOktaSCEPConfigured(ctx, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, oktaCAs, profUUID, target, caName,
+					fleetVar)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "checking Okta SCEP configuration")
 				}
 				if !configured {
 					valid = false
@@ -5346,6 +5368,55 @@ func preprocessProfileContents(
 					hostContents, err = profiles.ReplaceExactFleetPrefixVariableInXML(string(fleet.FleetVarSmallstepSCEPProxyURLPrefix), caName, hostContents, proxyURL)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing Smallstep SCEP URL variable")
+					}
+
+				case strings.HasPrefix(fleetVar, string(fleet.FleetVarOktaSCEPChallengePrefix)):
+					caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarOktaSCEPChallengePrefix))
+					ca, ok := oktaCAs[caName]
+					if !ok {
+						level.Error(logger).Log("msg", "Okta SCEP CA not found. This error should never happen since we validated/populated CAs earlier")
+						continue
+					}
+					challenge, err := scepConfig.GetOktaSCEPChallenge(ctx, *ca)
+					if err != nil {
+						detail := fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s. %s", fleet.FleetVarOktaSCEPChallengePrefix, err.Error())
+						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+							CommandUUID:        target.cmdUUID,
+							HostUUID:           hostUUID,
+							Status:             &fleet.MDMDeliveryFailed,
+							Detail:             detail,
+							OperationType:      fleet.MDMOperationTypeInstall,
+							VariablesUpdatedAt: variablesUpdatedAt,
+						})
+						if err != nil {
+							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for Okta SCEP challenge")
+						}
+						failed = true
+						break fleetVarLoop
+					}
+					level.Info(logger).Log("msg", "retrieved SCEP challenge from Okta", "host_uuid", hostUUID, "profile_uuid", profUUID)
+
+					payload := &fleet.MDMManagedCertificate{
+						HostUUID:             hostUUID,
+						ProfileUUID:          profUUID,
+						ChallengeRetrievedAt: ptr.Time(time.Now()),
+						Type:                 fleet.CAConfigOkta,
+						CAName:               caName,
+					}
+					managedCertificatePayloads = append(managedCertificatePayloads, payload)
+					hostContents, err = profiles.ReplaceExactFleetPrefixVariableInXML(string(fleet.FleetVarOktaSCEPChallengePrefix), ca.Name, hostContents, challenge)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing Okta SCEP challenge variable")
+					}
+
+				case strings.HasPrefix(fleetVar, string(fleet.FleetVarOktaSCEPProxyURLPrefix)):
+					// Insert the SCEP URL into the profile contents
+					caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarOktaSCEPProxyURLPrefix))
+					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
+						url.PathEscape(fmt.Sprintf("%s,%s,%s", hostUUID, profUUID, caName)))
+					hostContents, err = profiles.ReplaceExactFleetPrefixVariableInXML(string(fleet.FleetVarOktaSCEPProxyURLPrefix), caName, hostContents, proxyURL)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing Okta SCEP URL variable")
 					}
 
 				case fleetVar == string(fleet.FleetVarHostEndUserEmailIDP):
@@ -5688,6 +5759,37 @@ func isSmallstepSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCer
 	}
 
 	existingSmallstepSCEPCAs[caName] = scepCA
+	return true, nil
+}
+
+func isOktaSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
+	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
+	userEnrollmentsToHostUUIDsMap map[string]string,
+	existingOktaSCEPCAs map[string]*fleet.OktaSCEPProxyCA, profUUID string, target *cmdTarget, caName string, fleetVar string,
+) (bool, error) {
+	if !license.IsPremium(ctx) {
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "Okta SCEP integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
+	}
+	if _, ok := existingOktaSCEPCAs[caName]; ok {
+		return true, nil
+	}
+	configured := false
+	var scepCA *fleet.OktaSCEPProxyCA
+	if len(groupedCAs.Okta) > 0 {
+		for _, ca := range groupedCAs.Okta {
+			if ca.Name == caName {
+				scepCA = &ca
+				configured = true
+				break
+			}
+		}
+	}
+	if !configured || scepCA == nil {
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID,
+			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName), ptr.Time(time.Now().UTC()))
+	}
+
+	existingOktaSCEPCAs[caName] = scepCA
 	return true, nil
 }
 

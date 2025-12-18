@@ -31,6 +31,7 @@ import SmallstepForm, {
 import CustomESTForm, {
   ICustomESTFormData,
 } from "../CustomESTForm/CustomESTForm";
+import OktaForm, { IOktaFormData } from "../OktaForm/OktaForm";
 
 export type ICertFormData =
   | IDigicertFormData
@@ -38,7 +39,8 @@ export type ICertFormData =
   | INDESFormData
   | ICustomSCEPFormData
   | ISmallstepFormData
-  | ICustomESTFormData;
+  | ICustomESTFormData
+  | IOktaFormData;
 
 const baseClass = "add-cert-authority-modal";
 
@@ -116,6 +118,14 @@ const AddCertAuthorityModal = ({
     password: "",
   });
 
+  const [oktaFormData, setOktaFormData] = useState<IOktaFormData>({
+    name: "",
+    scepURL: "",
+    challengeURL: "",
+    username: "",
+    password: "",
+  });
+
   const onChangeDropdown = (value: ICertificateAuthorityType) => {
     setCertAuthorityType(value);
   };
@@ -148,6 +158,10 @@ const AddCertAuthorityModal = ({
         setFormData = setCustomESTFormData;
         formData = customESTFormData;
         break;
+      case "okta":
+        setFormData = setOktaFormData;
+        formData = oktaFormData;
+        break;
       default:
         return;
     }
@@ -178,6 +192,9 @@ const AddCertAuthorityModal = ({
         break;
       case "custom_est_proxy":
         formData = customESTFormData;
+        break;
+      case "okta":
+        formData = oktaFormData;
         break;
       default:
         return;
@@ -268,6 +285,18 @@ const AddCertAuthorityModal = ({
         return (
           <CustomESTForm
             formData={customESTFormData}
+            certAuthorities={certAuthorities}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            onChange={onChangeForm}
+            onSubmit={onAddCertAuthority}
+            onCancel={onExit}
+          />
+        );
+      case "okta":
+        return (
+          <OktaForm
+            formData={oktaFormData}
             certAuthorities={certAuthorities}
             submitBtnText={submitBtnText}
             isSubmitting={isAdding}

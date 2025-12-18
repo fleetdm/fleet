@@ -224,6 +224,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedSmallstep{},
 	ActivityDeletedSmallstep{},
 	ActivityEditedSmallstep{},
+	ActivityAddedOkta{},
+	ActivityDeletedOkta{},
+	ActivityEditedOkta{},
 
 	ActivityTypeEnabledActivityAutomations{},
 	ActivityTypeEditedActivityAutomations{},
@@ -2748,6 +2751,51 @@ func (a ActivityEditedSmallstep) Documentation() (activity string, details strin
 	return "Generated when Smallstep certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
 - "name": Name of the certificate authority.`, `{
   "name": "SMALLSTEP_WIFI"
+}`
+}
+
+type ActivityAddedOkta struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedOkta) ActivityName() string {
+	return "added_okta"
+}
+
+func (a ActivityAddedOkta) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Okta certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "OKTA_WIFI"
+}`
+}
+
+type ActivityDeletedOkta struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedOkta) ActivityName() string {
+	return "deleted_okta"
+}
+
+func (a ActivityDeletedOkta) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Okta certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "OKTA_WIFI"
+}`
+}
+
+type ActivityEditedOkta struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedOkta) ActivityName() string {
+	return "edited_okta"
+}
+
+func (a ActivityEditedOkta) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Okta certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "OKTA_WIFI"
 }`
 }
 
