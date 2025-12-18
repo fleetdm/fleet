@@ -147,7 +147,7 @@ type AddLabelsToHostFunc func(ctx context.Context, hostID uint, labelIDs []uint)
 
 type RemoveLabelsFromHostFunc func(ctx context.Context, hostID uint, labelIDs []uint) error
 
-type UpdateLabelMembershipByHostIDsFunc func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
+type UpdateLabelMembershipByHostIDsFunc func(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
 
 type UpdateLabelMembershipByHostCriteriaFunc func(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error)
 
@@ -4651,11 +4651,11 @@ func (s *DataStore) RemoveLabelsFromHost(ctx context.Context, hostID uint, label
 	return s.RemoveLabelsFromHostFunc(ctx, hostID, labelIDs)
 }
 
-func (s *DataStore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+func (s *DataStore) UpdateLabelMembershipByHostIDs(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
 	s.mu.Lock()
 	s.UpdateLabelMembershipByHostIDsFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateLabelMembershipByHostIDsFunc(ctx, labelID, hostIds, teamFilter)
+	return s.UpdateLabelMembershipByHostIDsFunc(ctx, label, hostIds, teamFilter)
 }
 
 func (s *DataStore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error) {

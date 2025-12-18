@@ -1994,7 +1994,7 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// add hosts 1 and 2 to the label
-	label, hostIDs, err := ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{host1.ID, host2.ID}, filter)
+	label, hostIDs, err := ds.UpdateLabelMembershipByHostIDs(ctx, *label1, []uint{host1.ID, host2.ID}, filter)
 	require.NoError(t, err)
 
 	require.Equal(t, label.HostCount, 2)
@@ -2028,7 +2028,7 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.Len(t, labels, 0)
 
 	// modify the label to contain hosts 1 and 3, confirm
-	label, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{host1.ID, host3.ID}, filter)
+	label, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *label1, []uint{host1.ID, host3.ID}, filter)
 	require.NoError(t, err)
 
 	require.Equal(t, label.HostCount, 2)
@@ -2048,7 +2048,7 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.Equal(t, "label1", labels[0].Name)
 
 	// modify the label to contain hosts 2 and 3, confirm
-	label, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{host2.ID, host3.ID}, filter)
+	label, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *label1, []uint{host2.ID, host3.ID}, filter)
 	require.NoError(t, err)
 
 	require.Equal(t, label.HostCount, 2)
@@ -2068,7 +2068,7 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.Equal(t, "label1", labels[0].Name)
 
 	// modify the label to contain no hosts, confirm
-	label, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{}, filter)
+	label, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *label1, []uint{}, filter)
 	require.NoError(t, err)
 	require.Equal(t, label.HostCount, 0)
 
@@ -2085,7 +2085,7 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.Len(t, labels, 0)
 
 	// modify the label to contain all 3 hosts, confirm
-	label, hostIDs, err = ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{host1.ID, host2.ID, host3.ID}, filter)
+	label, hostIDs, err = ds.UpdateLabelMembershipByHostIDs(ctx, *label1, []uint{host1.ID, host2.ID, host3.ID}, filter)
 	require.NoError(t, err)
 
 	require.Equal(t, label.HostCount, 3)

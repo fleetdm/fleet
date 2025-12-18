@@ -536,8 +536,8 @@ func TestNewManualLabel(t *testing.T) {
 	}
 
 	t.Run("using hostnames", func(t *testing.T) {
-		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
-			require.Equal(t, uint(1), labelID)
+		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+			require.Equal(t, uint(1), label.ID)
 			require.Equal(t, []uint{99, 100}, hostIds)
 			return nil, nil, nil
 		}
@@ -549,8 +549,8 @@ func TestNewManualLabel(t *testing.T) {
 	})
 
 	t.Run("using IDs", func(t *testing.T) {
-		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
-			require.Equal(t, uint(1), labelID)
+		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+			require.Equal(t, uint(1), label.ID)
 			require.Equal(t, []uint{1, 2}, hostIds)
 			return nil, nil, nil
 		}
@@ -583,8 +583,8 @@ func TestModifyManualLabel(t *testing.T) {
 	}
 
 	t.Run("using hostnames", func(t *testing.T) {
-		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
-			require.Equal(t, uint(1), labelID)
+		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+			require.Equal(t, uint(1), label.ID)
 			require.Equal(t, []uint{99, 100}, hostIds)
 			return nil, nil, nil
 		}
@@ -595,8 +595,8 @@ func TestModifyManualLabel(t *testing.T) {
 	})
 
 	t.Run("using IDs", func(t *testing.T) {
-		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
-			require.Equal(t, uint(1), labelID)
+		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+			require.Equal(t, uint(1), label.ID)
 			require.Equal(t, []uint{1, 2}, hostIds)
 			return nil, nil, nil
 		}

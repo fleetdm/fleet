@@ -122,7 +122,7 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 				return nil, nil, err
 			}
 		}
-		return svc.ds.UpdateLabelMembershipByHostIDs(ctx, label.ID, hostIDs, filter)
+		return svc.ds.UpdateLabelMembershipByHostIDs(ctx, *label, hostIDs, filter)
 	}
 	return label, nil, nil
 }
@@ -211,7 +211,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	}
 
 	if hostIDs != nil {
-		if _, _, err := svc.ds.UpdateLabelMembershipByHostIDs(ctx, label.ID, hostIDs, filter); err != nil {
+		if _, _, err := svc.ds.UpdateLabelMembershipByHostIDs(ctx, label.Label, hostIDs, filter); err != nil {
 			return nil, nil, err
 		}
 	}
