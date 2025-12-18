@@ -188,28 +188,16 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(
-			ctx,
-			`INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`,
-			windowsEnrollment.ID,
-			"",
-		)
-		if err != nil {
-			return err
-		}
-		resID, _ := res.LastInsertId()
-		_, err = tx.ExecContext(
-			ctx,
-			`INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, status_code, response_id) VALUES (?, ?, ?, ?, ?)`,
-			windowsEnrollment.ID,
-			winCmd.CommandUUID,
-			"",
-			"200",
-			resID,
-		)
-		return err
-	})
+	err = ds.MDMWindowsSaveResponse(ctx, windowsEnrollment.MDMDeviceID, fleet.EnrichedSyncML{
+		SyncML: &fleet.SyncML{
+			Raw: []byte("<xml></xml>"),
+		},
+		CmdRefUUIDToStatus: map[string]fleet.SyncMLCmd{winCmd.CommandUUID: {
+			Data: ptr.String("200"),
+		}},
+		CmdRefUUIDs: []string{winCmd.CommandUUID},
+	}, []string{})
+	require.NoError(t, err)
 
 	// we get both commands
 	cmds, total, err = ds.ListMDMCommands(
@@ -340,6 +328,11 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 					},
 				},
 			)
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				DumpTable(t, q, "windows_mdm_command_queue")
+				DumpTable(t, q, "windows_mdm_command_results")
+				return nil
+			})
 			require.NoError(t, err)
 			require.Len(t, cmds, len(tc.expected))
 			var got []string
