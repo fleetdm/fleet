@@ -397,13 +397,17 @@ The following steps show how to connect end users to Wi-Fi or VPN with a [custom
 
 ### Step 1: Connect Fleet to a custom SCEP server
 
-1. In Fleet, head to **Settings > **Integrations > Certificates**.
+1. In Fleet, head to **Settings > Integrations > Certificates**.
 2. Select the **Add CA** button and select **Custom** in the dropdown.
 3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (for example, "WIFI_AUTHENTICATION"). This name will be used later as a variable name in a configuration profile.
 4. Add your **SCEP URL** and **Challenge**.
 6. Select **Add CA**. Your custom SCEP certificate authority (CA) should appear in the list in Fleet.
 
-### Step 2: Add SCEP configuration profile to Fleet
+### Step 2: Add SCEP configuration profile or create certificate in Fleet
+
+#### Apple (macOS, iOS, iPadOS) and Windows
+
+Certificates from the SCEP server are deployed through configuration profiles on Apple and Windows devices.
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`. For `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
 
@@ -415,7 +419,7 @@ The following steps show how to connect end users to Wi-Fi or VPN with a [custom
 
 When the profile is delivered to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
 
-#### Example configuration profiles
+##### Example configuration profiles
 
 <details>
 <summary>Apple configuration profile</summary>
@@ -600,6 +604,17 @@ You can add any other options listed under Device/SCEP in the [Microsoft documen
 
 > Currently only device scoped SCEP profiles are supported for Windows devices.
 </details>
+
+#### Android
+
+Create a certificate in Fleet to deploy to all hosts on the team.
+
+1. In Fleet, head to **Controls > OS settings > Certificates**
+2. Select **Add**
+3. Add the **Name**, select your custom SCEP CA, added in the [first step](#step-1-connect-fleet-to-a-custom-scep-server), and add the subject name. Subject name supports [variables](https://fleetdm.com/docs/configuration/yaml-files#variables).
+4. Once created, the certificate will have "Pending" status. You can check the certificate status on **Host details > OS settings**
+
+Certificate's name can be referenced in Android configuration profiles or in Android app configuration. For example, you can use it as `ClientCertKeyPairAlias` in a [network configuration profile](https://developers.google.com/android/management/configure-networks#eap_authentication).
 
 ## Custom EST (Enrollment over Secure Transport)
 
