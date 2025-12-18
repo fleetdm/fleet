@@ -14913,11 +14913,12 @@ INSERT INTO host_certificate_templates (
 	certificate_template_id,
 	status,
 	fleet_challenge,
-	operation_type
-) VALUES (?, ?, ?, ?, ?);
+	operation_type,
+	name
+) VALUES (?, ?, ?, ?, ?, ?);
 	`
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err = q.ExecContext(ctx, sql, host.UUID, certificateTemplateID, "pending", "some_challenge_value", "install")
+		_, err = q.ExecContext(ctx, sql, host.UUID, certificateTemplateID, "pending", "some_challenge_value", "install", savedTemplate.Name)
 		require.NoError(t, err)
 		return nil
 	})
