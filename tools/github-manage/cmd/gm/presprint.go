@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"fleetdm/gm/pkg/ghapi"
+	"fleetdm/gm/pkg/util"
 
 	"github.com/spf13/cobra"
 )
@@ -67,7 +67,7 @@ var preSprintReportCmd = &cobra.Command{
 			return fmt.Errorf("failed to resolve 'estimated' status in drafting project: %v", err)
 		}
 
-		stop := startSpinner("Fetching drafting items")
+		stop := util.StartSpinner("Fetching drafting items")
 		items, total, err := ghapi.GetProjectItemsWithTotal(draftingProjectID, preSprintLimit)
 		stop()
 		if err != nil {
@@ -96,15 +96,15 @@ var preSprintReportCmd = &cobra.Command{
 
 			for _, it := range items {
 				// status filter
-				if !statusMatches(it.Status, readyName, estimatedName) {
+				if !util.StatusMatches(it.Status, readyName, estimatedName) {
 					continue
 				}
 				// team label filter
-				if !hasLabel(it.Labels, teamLabel) {
+				if !util.HasLabel(it.Labels, teamLabel) {
 					continue
 				}
 				// bug filter
-				isBug := hasLabel(it.Labels, "bug")
+				isBug := util.HasLabel(it.Labels, "bug")
 				if !isBug {
 					continue
 				}
@@ -115,8 +115,8 @@ var preSprintReportCmd = &cobra.Command{
 				}
 				estBugPoints += est
 
-				isPriority := hasAnyLabel(it.Labels, "P0", "P1", "P2")
-				isCustomer := hasLabelPrefix(it.Labels, "customer-")
+				isPriority := util.HasAnyLabel(it.Labels, "P0", "P1", "P2")
+				isCustomer := util.HasLabelPrefix(it.Labels, "customer-")
 				if isPriority {
 					priorityBugPoints += est
 				}
@@ -151,67 +151,4 @@ func init() {
 	preSprintReportCmd.Flags().StringVar(&preSprintFormat, "format", "out", "Output format: out (default) or csv")
 }
 
-// Helpers
-func statusMatches(s string, names ...string) bool {
-	ls := strings.ToLower(strings.TrimSpace(s))
-	for _, n := range names {
-		if ls == strings.ToLower(strings.TrimSpace(n)) {
-			return true
-		}
-	}
-	return false
-}
-
-func hasLabel(labels []string, want string) bool {
-	lw := strings.ToLower(strings.TrimSpace(want))
-	for _, l := range labels {
-		if strings.ToLower(strings.TrimSpace(l)) == lw {
-			return true
-		}
-	}
-	return false
-}
-
-func hasAnyLabel(labels []string, wants ...string) bool {
-	for _, w := range wants {
-		if hasLabel(labels, w) {
-			return true
-		}
-	}
-	return false
-}
-
-func hasLabelPrefix(labels []string, prefix string) bool {
-	lp := strings.ToLower(strings.TrimSpace(prefix))
-	for _, l := range labels {
-		ll := strings.ToLower(strings.TrimSpace(l))
-		if strings.HasPrefix(ll, lp) {
-			return true
-		}
-	}
-	return false
-}
-
-// Simple CLI spinner
-func startSpinner(msg string) func() {
-	done := make(chan struct{})
-	go func() {
-		chars := []rune{'|', '/', '-', '\\'}
-		i := 0
-		for {
-			select {
-			case <-done:
-				fmt.Printf("\r%s... done.\n", msg)
-				return
-			default:
-				fmt.Printf("\r%s %c", msg, chars[i%len(chars)])
-				i++
-			}
-			// Small sleep
-			// Using time.Sleep without importing: add import
-			// We'll rely on pkg import at top
-			time.Sleep(100 * time.Millisecond)
-		}
-	}()
-	return func() { close(done) }
-}
+// Helpers moved to pkg/util

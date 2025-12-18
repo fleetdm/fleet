@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"fleetdm/gm/pkg/ghapi"
+	"fleetdm/gm/pkg/messages"
 )
 
 func (m *model) generateIssueContent(issue ghapi.Issue) string {
@@ -75,20 +76,21 @@ func (m *model) generateIssueContent(issue ghapi.Issue) string {
 }
 
 func (m model) RenderLoading() string {
-	var loadingMessage string
+	// Map command type to key for messages catalog
+	key := "issues"
 	switch m.commandType {
-	// newview add if non default message is preferred when loading
-	case IssuesCommand:
-		loadingMessage = "Fetching Issues..."
 	case ProjectCommand:
-		loadingMessage = fmt.Sprintf("Fetching Project Items (ID: %d)...", m.projectID)
+		key = "project"
 	case EstimatedCommand:
-		loadingMessage = fmt.Sprintf("Fetching Estimated Tickets (Project: %d)...", m.projectID)
+		key = "estimated"
+	case SprintCommand:
+		key = "sprint"
 	case MilestoneCommand:
-		loadingMessage = fmt.Sprintf("Fetching Milestone Issues (%s)...", m.search)
-	default:
-		loadingMessage = "Fetching Issues..."
+		key = "milestone"
+	case IssuesCommand:
+		key = "issues"
 	}
+	loadingMessage := messages.LoadingMessage(key, m.projectID, m.search)
 	return fmt.Sprintf("\n%s %s\n\n", m.spinner.View(), loadingMessage)
 }
 
@@ -254,7 +256,7 @@ func (m model) RenderIssueTable() string {
 	warningBanner := ""
 	if m.totalAvailable > 0 && m.totalAvailable > m.rawFetchedCount {
 		missing := m.totalAvailable - m.rawFetchedCount
-		warningBanner = errorStyle.Render(fmt.Sprintf("⚠ %d items not shown (limit=%d, total=%d). Increase --limit to include all issues.", missing, m.rawFetchedCount, m.totalAvailable)) + "\n\n"
+		warningBanner = errorStyle.Render(messages.LimitExceeded(missing, m.rawFetchedCount, m.totalAvailable)) + "\n\n"
 	}
 
 	s = warningBanner + headerText + fmt.Sprintf(" %-2d/%-2d Number Estimate  Type       Labels                              Title\n",
