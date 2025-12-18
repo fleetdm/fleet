@@ -15382,7 +15382,7 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 
 	// Delete both certificate templates via spec endpoint (batch delete)
 	var delBatchResp deleteCertificateTemplateSpecsResponse
-	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
 		"ids":     []uint{certTemplateID1, certTemplateID2},
 		"team_id": teamID,
 	}, http.StatusOK, &delBatchResp)
