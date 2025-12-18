@@ -328,11 +328,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 					},
 				},
 			)
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				DumpTable(t, q, "windows_mdm_command_queue")
-				DumpTable(t, q, "windows_mdm_command_results")
-				return nil
-			})
+
 			require.NoError(t, err)
 			require.Len(t, cmds, len(tc.expected))
 			var got []string
