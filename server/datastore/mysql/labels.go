@@ -207,15 +207,12 @@ func batchHostnames(hostnames []string) [][]string {
 }
 
 func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
-	labelID := label.ID
-	// TODO ensure host IDs are in the same team for a team label
-
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// delete all label membership
 		sql := `
 	DELETE FROM label_membership WHERE label_id = ?
 	`
-		_, err := tx.ExecContext(ctx, sql, labelID)
+		_, err := tx.ExecContext(ctx, sql, label.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "clear membership for ID")
 		}
@@ -226,13 +223,42 @@ func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, label f
 
 		// Split hostIds into batches to avoid parameter limit in MySQL.
 		for _, hostIds := range batchHostIds(hostIds) {
+			if label.TeamID != nil { // team labels can only be applied to hosts on that team
+				hostTeamCheckSql := `SELECT COUNT(id) FROM hosts WHERE team_id != ? AND id IN (` +
+					strings.TrimRight(strings.Repeat("?,", len(hostIds)), ",") + ")"
+				hostTeamCheckSql, args, err := sqlx.In(hostTeamCheckSql, label.TeamID, hostIds)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "build host team membership check IN statement")
+				}
+
+				rows, err := tx.QueryContext(ctx, hostTeamCheckSql, args...)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "execute host team membership check query")
+				}
+
+				rows.Next()
+				var hostCountOnWrongTeam int
+				if err := rows.Scan(&hostCountOnWrongTeam); err != nil {
+					return ctxerr.Wrap(ctx, err, "check host team membership")
+				}
+				if err := rows.Err(); err != nil {
+					return ctxerr.Wrap(ctx, err, "check host team membership")
+				}
+				if err := rows.Close(); err != nil { //nolint:sqlclosecheck
+					return ctxerr.Wrap(ctx, err, "close result set for host team membership")
+				}
+				if hostCountOnWrongTeam > 0 {
+					return ctxerr.Wrap(ctx, errors.New("supplied hosts are on a different team than the label"))
+				}
+			}
+
 			// Use ignore because duplicate hostIds could appear in
 			// different batches and would result in duplicate key errors.
-			values := []interface{}{}
-			placeholders := []string{}
+			var values []any
+			var placeholders []string
 
 			for _, hostID := range hostIds {
-				values = append(values, labelID, hostID)
+				values = append(values, label.ID, hostID)
 				placeholders = append(placeholders, "(?, ?)")
 			}
 
@@ -255,7 +281,7 @@ VALUES ` + strings.Join(placeholders, ", ")
 		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostIDs transaction")
 	}
 
-	updatedLabel, hostIDs, err := ds.labelDB(ctx, labelID, teamFilter, ds.writer(ctx))
+	updatedLabel, hostIDs, err := ds.labelDB(ctx, label.ID, teamFilter, ds.writer(ctx))
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostIDs get label after update")
 	}

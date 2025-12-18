@@ -1956,6 +1956,8 @@ func labelIDFromName(t *testing.T, ds fleet.Datastore, name string) uint {
 }
 
 func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
+	// TODO validate team label host validation behavior
+
 	ctx := context.Background()
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
