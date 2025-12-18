@@ -74,7 +74,7 @@ describe("AddCertModal", () => {
     expect(screen.getByText("Certificate authority (CA)")).toBeInTheDocument();
     expect(
       screen.getByPlaceholderText(
-        "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/O=Your Organization"
+        "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, O=Your Organization"
       )
     ).toBeInTheDocument();
     expect(screen.getByText("Create")).toBeInTheDocument();
@@ -210,7 +210,7 @@ describe("AddCertModal", () => {
     await user.type(nameInput, "Valid Name");
 
     const subjectNameInput = screen.getByPlaceholderText(
-      "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/O=Your Organization"
+      "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, O=Your Organization"
     );
     await user.type(subjectNameInput, "/CN=test/O=Org");
 
@@ -273,7 +273,7 @@ describe("AddCertModal", () => {
     await user.type(nameInput, "Valid Name");
 
     const subjectNameInput = screen.getByPlaceholderText(
-      "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/O=Your Organization"
+      "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, O=Your Organization"
     );
     await user.type(subjectNameInput, "/CN=test/O=Org");
 

@@ -1,8 +1,7 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { ICommand } from "interfaces/command";
+import { ICommand, ICommandResult } from "interfaces/command";
 import { getPathWithQueryParams } from "utilities/url";
-import { createMockGetCommandsResponse } from "__mocks__/commandMock";
 
 import { PaginationParams } from "./common";
 
@@ -19,6 +18,23 @@ export interface IGetCommandsResponse {
   results: ICommand[];
 }
 
+export interface IGetCommandResultsResponse {
+  results: ICommandResult[];
+}
+
+export interface IGetCommandResultsParams {
+  command_uuid: string;
+}
+
+export interface IGetHostCommandResultsParams extends IGetCommandResultsParams {
+  host_identifier: string;
+}
+
+export interface IGetHostCommandResultsQueryKey
+  extends IGetHostCommandResultsParams {
+  scope: "command_results";
+}
+
 export default {
   getCommands: (
     requestParams: IGetCommandsRequest
@@ -29,11 +45,20 @@ export default {
     return sendRequest("GET", url);
   },
 
-  // getCommandResults: (
-  //   command_uuid: string
-  // ): Promise<IGetMdmCommandResultsResponse> => {
-  //   const { COMMANDS_RESULTS: MDM_COMMANDS_RESULTS } = endpoints;
-  //   const url = `${MDM_COMMANDS_RESULTS}?command_uuid=${command_uuid}`;
-  //   return sendRequest("GET", url);
-  // },
+  getCommandResults: (
+    command_uuid: string
+  ): Promise<IGetCommandResultsResponse> => {
+    const { COMMANDS_RESULTS } = endpoints;
+    const url = `${COMMANDS_RESULTS}?command_uuid=${command_uuid}`;
+    return sendRequest("GET", url);
+  },
+
+  getHostCommandResults: ({
+    host_identifier,
+    command_uuid,
+  }: IGetHostCommandResultsParams): Promise<IGetCommandResultsResponse> => {
+    const { COMMANDS_RESULTS } = endpoints;
+    const url = `${COMMANDS_RESULTS}?command_uuid=${command_uuid}&host_identifier=${host_identifier}`;
+    return sendRequest("GET", url);
+  },
 };

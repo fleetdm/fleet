@@ -141,6 +141,7 @@ const AddCertModal = ({
           helpText="Letters, numbers, spaces, dashes, and underscores only. Name can be used as certificate alias to reference in configuration profiles."
           parseTarget
           placeholder="VPN certificate"
+          autofocus
         />
         <DropdownWrapper
           label="Certificate authority (CA)"
@@ -170,9 +171,9 @@ const AddCertModal = ({
           value={formData.subjectName}
           onChange={onInputChange}
           error={formValidation.subjectName?.message}
-          helpText='Separate subject fields by a "/". For example: /CN=john@example.com/O=Acme Inc.'
+          helpText='Separate subject fields by ", ". For example: CN=john@example.com, O=Acme Inc.'
           parseTarget
-          placeholder="/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/O=Your Organization"
+          placeholder="CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, O=Your Organization"
         />
         <div className="modal-cta-wrap">
           <TooltipWrapper

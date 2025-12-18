@@ -1,0 +1,12 @@
+.command-details-modal {
+  &__modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+    padding-bottom: $pad-small;
+
+    .textarea-wrapper {
+      gap: $pad-small;
+    }
+  }
+}
