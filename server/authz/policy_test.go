@@ -24,6 +24,7 @@ const (
 	selectiveRead      = fleet.ActionSelectiveRead
 	selectiveList      = fleet.ActionSelectiveList
 	cancelHostActivity = fleet.ActionCancelHostActivity
+	create             = fleet.ActionCreate
 )
 
 var auth *Authorizer
@@ -469,57 +470,75 @@ func TestAuthorizeLabel(t *testing.T) {
 	runTestCases(t, []authTestCase{
 		{user: nil, object: label, action: read, allow: false},
 		{user: nil, object: label, action: write, allow: false},
+		{user: nil, object: label, action: create, allow: false},
 
 		{user: test.UserNoRoles, object: label, action: read, allow: false},
 		{user: test.UserNoRoles, object: label, action: write, allow: false},
+		{user: test.UserNoRoles, object: label, action: create, allow: false},
 
 		{user: test.UserAdmin, object: label, action: read, allow: true},
 		{user: test.UserAdmin, object: label, action: write, allow: true},
+		{user: test.UserAdmin, object: label, action: create, allow: true},
 
 		{user: test.UserMaintainer, object: label, action: read, allow: true},
 		{user: test.UserMaintainer, object: label, action: write, allow: true},
+		{user: test.UserMaintainer, object: label, action: create, allow: true},
 
 		{user: test.UserObserver, object: label, action: read, allow: true},
 		{user: test.UserObserver, object: label, action: write, allow: false},
+		{user: test.UserObserver, object: label, action: create, allow: false},
 
 		{user: test.UserObserverPlus, object: label, action: read, allow: true},
 		{user: test.UserObserverPlus, object: label, action: write, allow: false},
+		{user: test.UserObserverPlus, object: label, action: create, allow: false},
 
 		{user: test.UserGitOps, object: label, action: read, allow: true},
 		{user: test.UserGitOps, object: label, action: write, allow: true},
+		{user: test.UserGitOps, object: label, action: create, allow: true},
 
 		{user: test.UserTeamObserverTeam1, object: label, action: read, allow: true},
 		{user: test.UserTeamObserverTeam1, object: label, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: label, action: create, allow: false},
 
 		{user: test.UserTeamObserverPlusTeam1, object: label, action: read, allow: true},
 		{user: test.UserTeamObserverPlusTeam1, object: label, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: label, action: create, allow: false},
 
 		{user: test.UserTeamGitOpsTeam1, object: label, action: read, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: label, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: label, action: create, allow: true},
 
 		{user: test.UserTeamAdminTeam1, object: label, action: read, allow: true},
 		{user: test.UserTeamAdminTeam1, object: label, action: write, allow: false},
+		{user: test.UserTeamAdminTeam1, object: label, action: create, allow: true},
 
 		{user: test.UserTeamMaintainerTeam1, object: label, action: read, allow: true},
 		{user: test.UserTeamMaintainerTeam1, object: label, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: label, action: create, allow: true},
 
 		{user: test.UserTeamObserverTeam1, object: authoredLabel(test.UserTeamObserverTeam1), action: read, allow: true},
 		{user: test.UserTeamObserverTeam1, object: authoredLabel(test.UserTeamObserverTeam1), action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: authoredLabel(test.UserTeamObserverTeam1), action: create, allow: false},
 
 		{user: test.UserTeamGitOpsTeam1, object: authoredLabel(test.UserTeamGitOpsTeam1), action: read, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: authoredLabel(test.UserTeamGitOpsTeam1), action: write, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: authoredLabel(test.UserTeamGitOpsTeam1), action: create, allow: true},
 
 		{user: test.UserTeamObserverTeam1, object: sameTeamLabel(test.UserTeamObserverTeam1), action: read, allow: true},
 		{user: test.UserTeamObserverTeam1, object: sameTeamLabel(test.UserTeamObserverTeam1), action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: sameTeamLabel(test.UserTeamObserverTeam1), action: create, allow: false},
 
 		{user: test.UserTeamGitOpsTeam1, object: sameTeamLabel(test.UserTeamGitOpsTeam1), action: read, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: sameTeamLabel(test.UserTeamGitOpsTeam1), action: write, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: sameTeamLabel(test.UserTeamGitOpsTeam1), action: create, allow: true},
 
 		{user: test.UserTeamObserverTeam1, object: differentTeamLabel(test.UserTeamObserverTeam1), action: read, allow: false},
 		{user: test.UserTeamObserverTeam1, object: differentTeamLabel(test.UserTeamObserverTeam1), action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: differentTeamLabel(test.UserTeamObserverTeam1), action: create, allow: false},
 
 		{user: test.UserTeamGitOpsTeam1, object: differentTeamLabel(test.UserTeamGitOpsTeam1), action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: differentTeamLabel(test.UserTeamGitOpsTeam1), action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: differentTeamLabel(test.UserTeamGitOpsTeam1), action: create, allow: false},
 	})
 }
 

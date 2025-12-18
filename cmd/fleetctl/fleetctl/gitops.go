@@ -223,6 +223,8 @@ func gitopsCommand() *cli.Command {
 						config.Controls = noTeamControls
 					}
 
+					// TODO GitOps move this to have team-specific and global names
+
 					// If config.Labels is nil, it means we plan on deleting all existing labels.
 					if config.Labels == nil {
 						proposedLabelNames = make([]string, 0)

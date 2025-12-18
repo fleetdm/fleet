@@ -48,7 +48,7 @@ func createLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.Label, []uint, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionCreate); err != nil {
 		return nil, nil, err
 	}
 	vc, ok := viewer.FromContext(ctx)
@@ -159,6 +159,7 @@ func modifyLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.LabelWithTeamName, []uint, error) {
+	// TODO revise auth to account for team labels
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
 		return nil, nil, err
 	}
@@ -262,6 +263,7 @@ func getLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Servic
 }
 
 func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.LabelWithTeamName, []uint, error) {
+	// authz intentionally casts a wide net here; we filter unauthorized labels out at the data store level
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
 		return nil, nil, err
 	}
@@ -495,6 +497,8 @@ func deleteLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
+	// TODO revise auth
+
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -533,6 +537,8 @@ func deleteLabelByIDEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
+	// TODO revise auth
+
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -563,6 +569,7 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type applyLabelSpecsRequest struct {
+	// TODO GitOps add team ID
 	Specs []*fleet.LabelSpec `json:"specs"`
 }
 
@@ -574,7 +581,7 @@ func (r applyLabelSpecsResponse) Error() error { return r.Err }
 
 func applyLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*applyLabelSpecsRequest)
-	err := svc.ApplyLabelSpecs(ctx, req.Specs)
+	err := svc.ApplyLabelSpecs(ctx, req.Specs) // TODO GitOps add team ID
 	if err != nil {
 		return applyLabelSpecsResponse{Err: err}, nil
 	}
@@ -582,6 +589,8 @@ func applyLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) error {
+	// TODO GitOps add team ID handling, including bailing if not premium
+
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -676,6 +685,7 @@ type getLabelSpecsResponse struct {
 func (r getLabelSpecsResponse) Error() error { return r.Err }
 
 func getLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	// TODO gitops allow filtering by team ID
 	specs, err := svc.GetLabelSpecs(ctx)
 	if err != nil {
 		return getLabelSpecsResponse{Err: err}, nil
@@ -688,6 +698,7 @@ func (svc *Service) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, erro
 		return nil, err
 	}
 
+	// TODO gitops allow filtering by team ID
 	return svc.ds.GetLabelSpecs(ctx)
 }
 
@@ -716,6 +727,7 @@ func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.Label
 		return nil, err
 	}
 
+	// TODO gitops filter by user access
 	return svc.ds.GetLabelSpec(ctx, name)
 }
 

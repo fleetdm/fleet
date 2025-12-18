@@ -13,6 +13,7 @@ import input.subject
 read := "read"
 list := "list"
 write := "write"
+create := "create" # only for labels right now
 write_host_label := "write_host_label"
 cancel_host_activity := "cancel_host_activity"
 
@@ -374,6 +375,21 @@ allow {
   action == write
 }
 
+# Global admins, maintainers and gitops can write labels
+allow {
+  object.type == "label"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == create
+}
+
+# Team admins, maintainers, and gitops can create global labels
+allow {
+  object.type == "label"
+  is_null(object.team_id)
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
+  action == create
+}
+
 # Team admins, maintainers, and gitops can write global labels they created
 allow {
   object.type == "label"
@@ -398,6 +414,14 @@ allow {
   not is_null(object.team_id)
   team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == write
+}
+
+# Team admins, maintainers, and gitops can create labels on their team
+allow {
+  object.type == "label"
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  action == create
 }
 
 ##

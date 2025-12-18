@@ -1875,6 +1875,7 @@ func (c *Client) DoGitOps(
 		delete(incoming.OrgSettings, "certificate_authorities")
 
 		// Labels
+		// TODO GitOps
 		if incoming.Labels == nil || len(incoming.Labels) > 0 {
 			labelsToDelete, err := c.doGitOpsLabels(incoming, logFn, dryRun)
 			if err != nil {
@@ -2655,6 +2656,7 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 	return nil
 }
 
+// TODO allow spec'ing labels by either "everything" or team-specific (team ID or name?)
 func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) ([]string, error) {
 	persistedLabels, err := c.GetLabels()
 	if err != nil {
