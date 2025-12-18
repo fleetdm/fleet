@@ -70,7 +70,6 @@ object CertificateOrchestrator {
     fun installedCertsFlow(context: Context): Flow<CertStatusMap> = context.prefDataStore.data.map { preferences ->
         try {
             val jsonStr = preferences[INSTALLED_CERTIFICATES_KEY]
-            Log.d("installedCertsFlow", "json: $jsonStr")
             json.decodeFromString(jsonStr!!)
         } catch (e: Exception) {
             Log.d("installedCertsFlow", e.toString())

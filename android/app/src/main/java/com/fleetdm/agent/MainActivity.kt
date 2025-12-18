@@ -106,7 +106,7 @@ fun AppNavigation() {
 
         composable<DebugDestination> {
             DebugScreen(
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { navController.navigateUp() },
             )
         }
     }
