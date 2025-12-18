@@ -2222,6 +2222,8 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		Hostname:       hostInfo.Hostname,
 		HardwareModel:  hostInfo.HardwareModel,
 		HardwareSerial: hostInfo.HardwareSerial,
+		Platform:       hostInfo.Platform,
+		PlatformLike:   hostInfo.PlatformLike,
 	}
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		serialToMatch := hostInfo.HardwareSerial
