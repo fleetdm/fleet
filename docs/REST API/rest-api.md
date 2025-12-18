@@ -3769,6 +3769,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "display_text": "Annas-MacBook-Pro.local",
     "self_service": true,
     "org_logo_url": "https://example.com/logo.jpg",
+    "conditional_access_snoozed": false,
     "license": {
       "tier": "free",
       "expiration": "2031-01-01T00:00:00Z"
