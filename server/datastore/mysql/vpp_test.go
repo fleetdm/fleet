@@ -2023,6 +2023,11 @@ func testGetAllVPPApps(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, app3, nil)
 	require.NoError(t, err)
 
+	// Include an Android app. it shouldn't show up since this is an Apple-only operation.
+	app4 := &fleet.VPPApp{Name: "vpp_app_4", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.an.android.app", Platform: fleet.AndroidPlatform}}, BundleIdentifier: "com.an.android.app"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app4, nil)
+	require.NoError(t, err)
+
 	// this method doesn't pull the VPPAppTeamID
 	app1.AppTeamID = 0
 	app2.AppTeamID = 0
