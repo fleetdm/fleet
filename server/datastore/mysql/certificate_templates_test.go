@@ -251,11 +251,12 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				certificateTemplateID = uint(lastID) //nolint:gosec
 
 				_, err = ds.writer(ctx).ExecContext(ctx,
-					"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
+					"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, name) VALUES (?, ?, ?, ?, ?)",
 					host.UUID,
 					certificateTemplateID,
 					"fleet-challenge",
 					fleet.CertificateTemplateDelivered,
+					certificateTemplate.Name,
 				)
 				require.NoError(t, err)
 			},
@@ -322,11 +323,12 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				certificateTemplateID = uint(lastID) //nolint:gosec
 
 				_, err = ds.writer(ctx).ExecContext(ctx,
-					"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
+					"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, name) VALUES (?, ?, ?, ?, ?)",
 					host.UUID,
 					certificateTemplateID,
 					"challenge",
 					fleet.CertificateTemplateVerified,
+					certificateTemplate.Name,
 				)
 				require.NoError(t, err)
 			},
