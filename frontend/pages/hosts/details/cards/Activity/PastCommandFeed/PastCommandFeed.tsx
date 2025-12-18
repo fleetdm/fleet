@@ -5,13 +5,15 @@ import { ICommand } from "interfaces/command";
 import Pagination from "components/Pagination";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
-import CommandItem from "../CommandItem/CommandItem";
+import CommandItem, {
+  ShowCommandDetailsHandler,
+} from "../CommandItem/CommandItem";
 
 const baseClass = "past-command-feed";
 
 interface IPastCommandFeedProps {
   commands: ICommand[];
-  onShowDetails: (commandUUID: string, hostUUID: string) => void;
+  onShowDetails: ShowCommandDetailsHandler;
   onNextPage: () => void;
   onPreviousPage: () => void;
 }

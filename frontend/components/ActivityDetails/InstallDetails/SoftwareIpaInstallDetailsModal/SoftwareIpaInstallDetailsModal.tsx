@@ -7,7 +7,9 @@ import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import { formatDistanceToNow } from "date-fns";
 
-import mdmApi, { IGetMdmCommandResultsResponse } from "services/entities/mdm";
+import commandAPI, {
+  IGetCommandResultsResponse,
+} from "services/entities/command";
 import deviceUserAPI, {
   IGetVppInstallCommandResultsResponse,
 } from "services/entities/device_user";
@@ -16,7 +18,7 @@ import {
   IHostSoftware,
   SoftwareInstallUninstallStatus,
 } from "interfaces/software";
-import { IMdmCommandResult } from "interfaces/mdm";
+import { ICommandResult } from "interfaces/command";
 
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 
@@ -235,16 +237,14 @@ export const SoftwareIpaInstallDetailsModal = ({
   };
 
   const responseHandler = (
-    response:
-      | IGetVppInstallCommandResultsResponse
-      | IGetMdmCommandResultsResponse
+    response: IGetVppInstallCommandResultsResponse | IGetCommandResultsResponse
   ) => {
     const results = response.results?.[0];
     if (!results) {
       // FIXME: It's currently possible that the command results API response is empty for pending
       // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
       // display some minimal pending UI. This should be removed once the API response is fixed.
-      return {} as IMdmCommandResult;
+      return {} as ICommandResult;
     }
     return {
       ...results,
@@ -254,7 +254,7 @@ export const SoftwareIpaInstallDetailsModal = ({
   };
 
   const { data: swInstallResult, isLoading, isError, error } = useQuery<
-    IMdmCommandResult,
+    ICommandResult,
     AxiosError
   >(
     ["mdm_command_results", commandUuid],
@@ -263,7 +263,7 @@ export const SoftwareIpaInstallDetailsModal = ({
         ? deviceUserAPI
             .getVppCommandResult(deviceAuthToken, commandUuid)
             .then(responseHandler)
-        : mdmApi.getCommandResults(commandUuid).then(responseHandler);
+        : commandAPI.getCommandResults(commandUuid).then(responseHandler);
     },
     {
       refetchOnWindowFocus: false,
