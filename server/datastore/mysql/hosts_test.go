@@ -1105,10 +1105,10 @@ func testHostListAndroidCertificateTemplatesOSSettings(t *testing.T, ds *Datasto
 			// Upsert the certificate template status
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				_, err := q.ExecContext(t.Context(),
-					`INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type)
-					VALUES (?, ?, ?, 'install')
+					`INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, name)
+					VALUES (?, ?, ?, 'install', ?)
 					ON DUPLICATE KEY UPDATE status = ?`,
-					newHost.Host.UUID, certTemplate.ID, tc.status, tc.status)
+					newHost.Host.UUID, certTemplate.ID, tc.status, certTemplate.Name, tc.status)
 				return err
 			})
 
@@ -8506,8 +8506,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
-		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type)
-		VALUES (?, 1, 'foo', 'pending', 'install')
+		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type, name)
+		VALUES (?, 1, 'foo', 'pending', 'install', 'test-cert')
 	`, host.UUID)
 	require.NoError(t, err)
 
