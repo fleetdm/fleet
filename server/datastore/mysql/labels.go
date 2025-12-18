@@ -543,11 +543,10 @@ func (ds *Datastore) labelDB(ctx context.Context, lid uint, teamFilter fleet.Tea
 		WHERE l.id = ?
 	`, ds.whereFilterHostsByTeams(teamFilter, "h"))
 
-	stmt, params, err := applyLabelTeamFilter(stmt, teamFilter, true)
+	stmt, params, err := applyLabelTeamFilter(stmt, teamFilter, []any{lid})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "building label select query")
 	}
-	params = append(params, lid)
 
 	var label fleet.LabelWithTeamName
 	if err := sqlx.GetContext(ctx, q, &label, stmt, params...); err != nil {
@@ -591,7 +590,7 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 		)
 	}
 
-	query, params, err := applyLabelTeamFilter(query, filter, false)
+	query, params, err := applyLabelTeamFilter(query, filter, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -614,31 +613,33 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 var errInaccessibleTeam = errors.New("The team ID you provided refers to a team that either does not exist or you do not have permission to access.")
 
 // applyLabelTeamFilter requires the labels table to be aliased as "l" to work
-func applyLabelTeamFilter(query string, filter fleet.TeamFilter, queryHasWHere bool) (string, []any, error) {
+func applyLabelTeamFilter(query string, filter fleet.TeamFilter, initialParams []any) (string, []any, error) {
+	// using this rather than a "contains a WHERE" check because some queries have subqueries
+	// but don't have any parameters for those subqueries
 	whereOrAnd := " WHERE "
-	if queryHasWHere { // passed rather than set via a contains check because some callers include subqueries
+	if len(initialParams) > 0 {
 		whereOrAnd = " AND "
 	}
 
 	if filter.User == nil { // fall back to safe (global-only) filter if this happens (it shouldn't)
-		return query + whereOrAnd + " l.team_id IS NULL", nil, nil
+		return query + whereOrAnd + " l.team_id IS NULL", initialParams, nil
 	}
 
 	if filter.TeamID != nil {
 		if *filter.TeamID == 0 { // global labels only; any user can see them
-			return query + whereOrAnd + " l.team_id IS NULL", nil, nil
+			return query + whereOrAnd + " l.team_id IS NULL", initialParams, nil
 		} else if !filter.UserCanAccessSelectedTeam() {
 			return "", nil, fleet.NewUserMessageError(errInaccessibleTeam, 403)
 		} // else user can see the team labels they're asking for; return global labels plus that team's labels
 
-		return query + whereOrAnd + " l.team_id IS NULL OR l.team_id = ?", []any{*filter.TeamID}, nil
+		return query + whereOrAnd + " l.team_id IS NULL OR l.team_id = ?", append(initialParams, *filter.TeamID), nil
 	}
 
 	if !filter.User.HasAnyGlobalRole() && filter.User.HasAnyTeamRole() { // filter to teams user can see
-		return sqlx.In(query+whereOrAnd+" l.team_id IS NULL OR l.team_id IN (?)", filter.User.TeamIDsWithAnyRole())
+		return sqlx.In(query+whereOrAnd+" l.team_id IS NULL OR l.team_id IN (?)", append(initialParams, filter.User.TeamIDsWithAnyRole())...)
 	} // else user exists and has a global role, so we don't need to filter out any team labels
 
-	return query, nil, nil
+	return query, initialParams, nil
 }
 
 func platformForHost(host *fleet.Host) string {
@@ -1424,7 +1425,7 @@ func (ds *Datastore) LabelsSummary(ctx context.Context, filter fleet.TeamFilter)
 	var labelsSummary []*fleet.LabelSummary
 
 	query := "SELECT id, name, description, label_type, team_id FROM labels l"
-	query, params, err := applyLabelTeamFilter(query, filter, false)
+	query, params, err := applyLabelTeamFilter(query, filter, nil)
 	if err != nil {
 		return nil, err
 	}
