@@ -19,7 +19,9 @@ import {
   LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG,
   PROFILE_DISPLAY_CONFIG,
   ProfileDisplayOption,
+  ProfileStatus,
   WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG,
+  WindowsDiskEncryptionDisplayStatus,
 } from "./helpers";
 
 const baseClass = "os-settings-status-cell";
@@ -52,17 +54,38 @@ const OSSettingStatusCell = ({
   ) {
     switch (status) {
       case "pending":
-        displayOption = {
-          statusText:
-            operationType === "install"
-              ? "Enforcing (pending)"
-              : "Removing enforcement (pending)",
-          iconName: "pending-outline",
-          tooltip: () =>
-            operationType === "install"
-              ? "The host is running the command to apply settings or will run it when the host comes online."
-              : "The host is running the command to remove settings or will run it when the host comes online.",
-        };
+        if (operationType === "install") {
+          displayOption = {
+            statusText: "Enforcing (pending)",
+            iconName: "pending-outline",
+            tooltip:
+              "The host is running the command to apply settings or will run it when the host comes online.",
+          };
+        } else {
+          displayOption = {
+            statusText: "Removing enforcement (pending)",
+            iconName: "pending-outline",
+            tooltip:
+              "The host is running the command to remove settings or will run it when the host comes online.",
+          };
+        }
+        break;
+      case "delivering":
+      case "delivered":
+        if (operationType === "install") {
+          // note that thise case is identical to the "pending" case above for install operation
+          // separation allows catching the below error case
+          displayOption = {
+            statusText: "Enforcing (pending)",
+            iconName: "pending-outline",
+            tooltip:
+              "The host is running the command to apply settings or will run it when the host comes online.",
+          };
+        } else {
+          throw new Error(
+            "Received unexpected 'delivering' or 'delivered' status for remove operation"
+          );
+        }
         break;
       case "verified":
         displayOption = {
@@ -90,9 +113,13 @@ const OSSettingStatusCell = ({
     status !== "success" &&
     status !== "acknowledged"
   ) {
-    displayOption = WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG[status];
+    displayOption =
+      WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG[
+        status as WindowsDiskEncryptionDisplayStatus
+      ];
   } else if (operationType) {
-    displayOption = PROFILE_DISPLAY_CONFIG[operationType]?.[status];
+    displayOption =
+      PROFILE_DISPLAY_CONFIG[operationType]?.[status as ProfileStatus];
   }
 
   const isDeviceUser = window.location.pathname

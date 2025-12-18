@@ -433,7 +433,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 		// upsert it if it does not exist or labels or SelfService or InstallDuringSetup flags are changed
 		existingApp, isExistingApp := existingApps[incomingApp.VPPAppID]
 		incomingApp.AppTeamID = existingApp.AppTeamID
-		var labelsChanged, categoriesChanged, displayNameChanged bool
+		var labelsChanged, categoriesChanged, displayNameChanged, configurationChanged bool
 		if isExistingApp {
 			existingLabels, err := ds.getExistingLabels(ctx, incomingApp.AppTeamID)
 			if err != nil {
@@ -453,6 +453,17 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			incomingDisplayName := ptr.ValOrZero(incomingApp.DisplayName)
 			displayNameChanged = existingDisplayName != incomingDisplayName
 
+			if incomingApp.Platform == fleet.AndroidPlatform {
+				configurationChanged, err = ds.HasAndroidAppConfigurationChanged(ctx, existingApp.AdamID, ptr.ValOrZero(teamID), incomingApp.Configuration)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "getting existing configuration for android app")
+				}
+				// Set configuration to empty if it exists and is provided as null
+				if configurationChanged && len(incomingApp.Configuration) == 0 {
+					incomingApp.Configuration = json.RawMessage("{}")
+				}
+			}
+
 		}
 
 		// Get the hosts that are NOT in label scope currently (before the update happens)
@@ -470,6 +481,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			labelsChanged ||
 			categoriesChanged ||
 			displayNameChanged ||
+			configurationChanged ||
 			incomingApp.InstallDuringSetup != nil &&
 				existingApp.InstallDuringSetup != nil &&
 				*incomingApp.InstallDuringSetup != *existingApp.InstallDuringSetup {
@@ -483,7 +495,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 		if teamID != nil && *teamID > 0 {
 			tm, err := ds.TeamLite(ctx, *teamID)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
+				return ctxerr.Wrap(ctx, err, "get team name for VPP app conflict error")
 			}
 			teamName = tm.Name
 		}
@@ -538,6 +550,12 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			if toAdd.DisplayName != nil {
 				if err := updateSoftwareTitleDisplayName(ctx, tx, teamID, appStoreAppIDsToTitleIDs[toAdd.VPPAppID.String()], *toAdd.DisplayName); err != nil {
 					return ctxerr.Wrap(ctx, err, "setting software title display name for vpp app")
+				}
+			}
+
+			if toAdd.Configuration != nil {
+				if err := ds.updateAndroidAppConfigurationTx(ctx, tx, teamID, toAdd.AdamID, toAdd.Configuration); err != nil {
+					return ctxerr.Wrap(ctx, err, "setting configuration for android app")
 				}
 			}
 
@@ -615,7 +633,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 		}
 	}
 
-	if vppToken != nil {
+	if vppToken != nil && app.Platform != fleet.AndroidPlatform {
 		vppTokenID = &vppToken.ID
 	}
 
@@ -825,6 +843,11 @@ func removeVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPA
 	_, err = tx.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE adam_id = ? AND global_or_team_id = ? AND platform = ?`, appID.AdamID, tmID, appID.Platform)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting vpp app from team")
+	}
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM android_app_configurations WHERE application_id = ? AND global_or_team_id = ?`, appID.AdamID, tmID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting android app configuration")
 	}
 
 	return nil
@@ -1905,10 +1928,15 @@ SELECT
 	name,
 	latest_version,
 	platform
-FROM vpp_apps`
+FROM vpp_apps WHERE platform IN (?)`
+
+	query, args, err := sqlx.In(query, fleet.ApplePlatforms)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get all vpp apps: building query")
+	}
 
 	var apps []*fleet.VPPApp
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &apps, query); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &apps, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting all VPP apps")
 	}
 
@@ -2227,6 +2255,7 @@ FROM (
 			0 AS count_host_updated_after_labels,
 			vpp_apps_teams.adam_id AS installable_id
 			FROM vpp_apps_teams
+			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
 			LEFT JOIN vpp_app_team_labels ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
 			WHERE vpp_app_team_labels.id IS NULL AND vpp_apps_teams.platform = 'android'
 
@@ -2241,6 +2270,7 @@ FROM (
 		FROM
 			vpp_app_team_labels vatl
 			LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
+			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
 		LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
 		AND lm.host_id = ?
 		WHERE vatl.exclude = 0 AND vpp_apps_teams.platform = 'android'
@@ -2277,6 +2307,7 @@ FROM (
 		FROM
 			vpp_app_team_labels vatl
 		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
+		JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
 		LEFT OUTER JOIN labels lbl ON lbl.id = vatl.label_id
 		LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
 			AND lm.host_id = ?
@@ -2288,7 +2319,7 @@ FROM (
 			AND count_host_labels = 0) t;
 	`
 
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &applicationIDs, stmt, hostID, hostID, hostID)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &applicationIDs, stmt, hostID, hostID, hostID, hostID, hostID, hostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get in android apps in scope for host")
 	}

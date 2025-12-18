@@ -1,0 +1,8 @@
+{
+  "name": "CrashPlan",
+  "unique_identifier": "com.crashplan.desktop",
+  "token": "crashplan",
+  "installer_format": "dmg",
+  "slug": "crashplan/darwin",
+  "default_categories": ["Productivity"]
+}

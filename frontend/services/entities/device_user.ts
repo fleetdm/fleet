@@ -10,7 +10,7 @@ import {
   getPathWithQueryParams,
 } from "utilities/url";
 
-import { IMdmCommandResult } from "interfaces/mdm";
+import { ICommandResult } from "interfaces/command";
 
 import { IHostSoftwareQueryParams } from "./hosts";
 
@@ -50,7 +50,7 @@ export interface IGetDeviceCertsRequestParams extends IListOptions {
 }
 
 export interface IGetVppInstallCommandResultsResponse {
-  results: IMdmCommandResult[];
+  results: ICommandResult[];
 }
 export interface IGetSetupExperienceStatusesResponse {
   setup_experience_results: {

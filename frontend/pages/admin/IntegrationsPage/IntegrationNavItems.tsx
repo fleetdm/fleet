@@ -44,8 +44,8 @@ const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
       Card: Sso,
     },
     {
-      title: "Certificates",
-      urlSection: "certificates",
+      title: "Certificate authorities",
+      urlSection: "certificate-authorities",
       path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
       Card: CertificateAuthorities,
     },

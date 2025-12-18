@@ -14,16 +14,20 @@ import (
 // It is used to ensure that packages do not depend on each other in a way that increases coupling and maintainability.
 // Based on https://github.com/matthewmcnew/archtest
 type PackageTest struct {
-	t                    TestingT
-	pkgs                 []string
-	includeRegex         *regexp.Regexp
-	ignorePkgs           map[string]struct{}
-	ignoreXTests         map[string]struct{}
-	exceptPkgs           map[string]struct{}
-	forbiddenPkgs        []string
+	t TestingT
+
+	pkgs         []string
+	includeRegex *regexp.Regexp
+	rootPkgs     map[string]struct{} // expanded root packages for WithTests check
+
 	withTests            bool
 	withTestsRecursively bool
-	rootPkgs             map[string]struct{} // expanded root packages for WithTests check
+
+	ignorePkgs            map[string]struct{}
+	ignoreRecursivelyPkgs map[string]struct{}
+	ignoreXTests          map[string]struct{}
+
+	forbiddenPkgs []string
 }
 
 // PackageTest will ignore dependency on this package.
@@ -48,11 +52,11 @@ func (pt *PackageTest) OnlyInclude(regex *regexp.Regexp) *PackageTest {
 // transitive dependencies are not traversed. Use this when you want to exclude
 // an entire dependency tree from the analysis.
 func (pt *PackageTest) IgnoreRecursively(pkgs ...string) *PackageTest {
-	if pt.ignorePkgs == nil {
-		pt.ignorePkgs = make(map[string]struct{}, len(pkgs))
+	if pt.ignoreRecursivelyPkgs == nil {
+		pt.ignoreRecursivelyPkgs = make(map[string]struct{}, len(pkgs))
 	}
 	for _, p := range pt.expandPackages(pkgs) {
-		pt.ignorePkgs[p] = struct{}{}
+		pt.ignoreRecursivelyPkgs[p] = struct{}{}
 	}
 	return pt
 }
@@ -75,11 +79,11 @@ func (pt *PackageTest) IgnoreXTests(pkgs ...string) *PackageTest {
 // traverses their transitive dependencies. Use this when you want to allow
 // a specific package but still verify what it imports.
 func (pt *PackageTest) IgnoreDeps(pkgs ...string) *PackageTest {
-	if pt.exceptPkgs == nil {
-		pt.exceptPkgs = make(map[string]struct{}, len(pkgs))
+	if pt.ignorePkgs == nil {
+		pt.ignorePkgs = make(map[string]struct{}, len(pkgs))
 	}
 	for _, p := range pt.expandPackages(pkgs) {
-		pt.exceptPkgs[p] = struct{}{}
+		pt.ignorePkgs[p] = struct{}{}
 	}
 	return pt
 }
@@ -101,7 +105,7 @@ func (pt *PackageTest) WithTestsRecursively() *PackageTest {
 }
 
 // ShouldNotDependOn specifies which packages are forbidden dependencies.
-// Call Execute() to run the test.
+// Call Check() to run the test.
 func (pt *PackageTest) ShouldNotDependOn(pkgs ...string) *PackageTest {
 	pt.forbiddenPkgs = append(pt.forbiddenPkgs, pkgs...)
 	return pt
@@ -111,7 +115,7 @@ func (pt *PackageTest) ShouldNotDependOn(pkgs ...string) *PackageTest {
 func (pt *PackageTest) Check() {
 	expandedPackages := pt.expandPackages(pt.forbiddenPkgs)
 	for dep := range pt.findDependencies(pt.pkgs) {
-		if _, excepted := pt.exceptPkgs[dep.name]; excepted {
+		if _, ignored := pt.ignorePkgs[dep.name]; ignored {
 			continue
 		}
 		if dep.isDependencyOn(expandedPackages) {
@@ -232,7 +236,7 @@ func (pt *PackageTest) skip(cache map[string]struct{}, dep *packageDependency) b
 		return true
 	}
 
-	if _, ignore := pt.ignorePkgs[dep.name]; ignore || dep.name == "C" || dep.name == thisPackage {
+	if _, ignored := pt.ignoreRecursivelyPkgs[dep.name]; ignored || dep.name == "C" || dep.name == thisPackage {
 		return true
 	}
 

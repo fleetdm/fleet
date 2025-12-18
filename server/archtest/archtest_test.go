@@ -122,6 +122,36 @@ func TestPackage_ShouldNotDependOn(t *testing.T) {
 		)
 	})
 
+	t.Run("WithTests only checks test imports from root packages", func(t *testing.T) {
+		mockT := new(testingT)
+
+		// testpackage depends on dependency, which has a test that imports transitivetestdep
+		// WithTests() should NOT catch transitivetestdep because it's in a transitive dependency's tests
+		NewPackageTest(mockT, packagePrefix+"testpackage").
+			WithTests().
+			ShouldNotDependOn(packagePrefix + "testfiledeps/transitivetestdep").
+			Check()
+
+		assertNoError(t, mockT)
+	})
+
+	t.Run("WithTestsRecursively checks test imports from all packages", func(t *testing.T) {
+		mockT := new(testingT)
+
+		// testpackage depends on dependency, which has a test that imports transitivetestdep
+		// WithTestsRecursively() SHOULD catch transitivetestdep because it checks all test imports
+		NewPackageTest(mockT, packagePrefix+"testpackage").
+			WithTestsRecursively().
+			ShouldNotDependOn(packagePrefix + "testfiledeps/transitivetestdep").
+			Check()
+
+		assertError(t, mockT,
+			packagePrefix+"testpackage",
+			packagePrefix+"dependency",
+			packagePrefix+"testfiledeps/transitivetestdep",
+		)
+	})
+
 	t.Run("Supports Ignoring packages", func(t *testing.T) {
 		mockT := new(testingT)
 
