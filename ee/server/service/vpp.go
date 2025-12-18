@@ -139,6 +139,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
 			}
 
+			// Block Fleet Agent apps from being added via GitOps
+			if payload.Platform == fleet.AndroidPlatform && strings.HasPrefix(payload.AppStoreID, fleetAgentPackagePrefix) {
+				return nil, fleet.NewInvalidArgumentError("app_store_id", "The Fleet agent cannot be added manually. "+
+					"It is automatically managed by Fleet when Android MDM is enabled.")
+			}
+
 			var err error
 			if payload.Platform.IsApplePlatform() && vppToken == "" {
 				vppToken, err = svc.getVPPToken(ctx, teamID)
