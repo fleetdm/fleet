@@ -491,6 +491,13 @@ func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certific
 		return nil
 	}
 
+	// Delete or mark the certificate templates as pending removal for all android hosts
+	for _, certificateTemplateID := range certificateTemplateIDs {
+		if err := svc.ds.SetHostCertificateTemplatesToPendingRemove(ctx, certificateTemplateID); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting host certificate templates to pending remove")
+		}
+	}
+
 	// Only create activity if rows were actually deleted
 	var tmID *uint
 	var tmName *string
