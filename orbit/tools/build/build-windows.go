@@ -145,7 +145,7 @@ func createVersionInfo(vParts []string, iconPath string, manifestPath string) (*
 		StringFileInfo: goversioninfo.StringFileInfo{
 			Comments:         "Fleet osquery",
 			CompanyName:      "Fleet Device Management (fleetdm.com)",
-			FileDescription:  "Orbit osquery runtime and autoupdater",
+			FileDescription:  "Fleet desktop",
 			FileVersion:      version,
 			InternalName:     "",
 			LegalCopyright:   copyright,
