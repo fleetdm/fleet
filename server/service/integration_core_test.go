@@ -15131,21 +15131,21 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplate() {
 
 	// Insert host_certificate_templates with various statuses
 	insertSQL := `
-		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name)
+		VALUES (?, ?, ?, ?, ?, ?)
 	`
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		// Pending status - should be deleted
-		_, err := q.ExecContext(ctx, insertSQL, hostPending.UUID, certificateTemplateID, "pending", "install", nil)
+		_, err := q.ExecContext(ctx, insertSQL, hostPending.UUID, certificateTemplateID, "pending", "install", nil, certTemplateName)
 		require.NoError(t, err)
 		// Delivered status - should be updated to pending/remove
-		_, err = q.ExecContext(ctx, insertSQL, hostDelivered.UUID, certificateTemplateID, "delivered", "install", "challenge1")
+		_, err = q.ExecContext(ctx, insertSQL, hostDelivered.UUID, certificateTemplateID, "delivered", "install", "challenge1", certTemplateName)
 		require.NoError(t, err)
 		// Verified status - should be updated to pending/remove
-		_, err = q.ExecContext(ctx, insertSQL, hostVerified.UUID, certificateTemplateID, "verified", "install", "challenge2")
+		_, err = q.ExecContext(ctx, insertSQL, hostVerified.UUID, certificateTemplateID, "verified", "install", "challenge2", certTemplateName)
 		require.NoError(t, err)
 		// Failed status - should be updated to pending/remove
-		_, err = q.ExecContext(ctx, insertSQL, hostFailed.UUID, certificateTemplateID, "failed", "install", "challenge3")
+		_, err = q.ExecContext(ctx, insertSQL, hostFailed.UUID, certificateTemplateID, "failed", "install", "challenge3", certTemplateName)
 		require.NoError(t, err)
 		return nil
 	})
@@ -15204,21 +15204,30 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplate() {
 	var deleteResp deleteCertificateTemplateResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", certificateTemplateID), nil, http.StatusOK, &deleteResp)
 
-	// After deletion, verify via GetHost API that the certificate template profile no longer appears
-	// for any of the hosts (the API uses INNER JOIN with certificate_templates, so deleted templates
-	// won't be visible). The host_certificate_templates records are kept in the database for the
-	// cron job to process the removal from devices.
+	// After deletion:
+	// - hostPending (pending/install) should have NO profile (record was deleted)
+	// - hostDelivered, hostVerified, hostFailed should have pending/remove profiles
+	//   (kept for cron job to process removal from devices)
+
+	// Verify hostPending has no profile after deletion
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostPending.ID), nil, http.StatusOK, &getHostResp)
+	profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
+	require.Nil(t, profile, "hostPending should not have certificate template profile after deletion")
+
+	// Verify hosts that had delivered/verified/failed status now have pending/remove profiles
 	for _, tc := range []struct {
 		host     *fleet.Host
 		hostName string
 	}{
-		{hostPending, "hostPending"},
 		{hostDelivered, "hostDelivered"},
 		{hostVerified, "hostVerified"},
 		{hostFailed, "hostFailed"},
 	} {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
 		profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
-		require.Nil(t, profile, "%s should not have certificate template profile %s after deletion", tc.hostName, certTemplateName)
+		require.NotNil(t, profile, "%s should have pending remove profile after deletion", tc.hostName)
+		require.NotNil(t, profile.Status, "%s profile status should not be nil", tc.hostName)
+		require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status, "%s profile status should be pending after deletion", tc.hostName)
+		require.Equal(t, fleet.MDMOperationTypeRemove, profile.OperationType, "%s profile operation_type should be remove after deletion", tc.hostName)
 	}
 }
