@@ -588,13 +588,13 @@ var errInaccessibleTeam = errors.New("The team ID you provided refers to a team 
 
 // applyLabelTeamFilter requires the labels table to be aliased as "l" to work
 func applyLabelTeamFilter(query string, filter fleet.TeamFilter, queryHasWHere bool) (string, []any, error) {
-	if filter.User == nil { // fall back to safe (global-only) filter if this happens (it shouldn't)
-		return query + " WHERE l.team_id IS NULL", nil, nil
-	}
-
 	whereOrAnd := " WHERE "
 	if queryHasWHere { // passed rather than set via a contains check because some callers include subqueries
 		whereOrAnd = " AND "
+	}
+
+	if filter.User == nil { // fall back to safe (global-only) filter if this happens (it shouldn't)
+		return query + whereOrAnd + " l.team_id IS NULL", nil, nil
 	}
 
 	if filter.TeamID != nil {
