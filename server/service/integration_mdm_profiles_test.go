@@ -3596,8 +3596,13 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	var deleteResp deleteMDMConfigProfileResponse
 	// delete existing Apple profiles
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", noTeamAppleProfUUID), nil, http.StatusOK, &deleteResp)
+
 	// turn off apple MDM
-	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.MDM.EnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", teamAppleProfUUID), nil, http.StatusOK, &deleteResp)
 	// delete non-existing Apple profile
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", "ano-such-profile"), nil, http.StatusNotFound, &deleteResp)
@@ -3628,7 +3633,11 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		0,
 	)
 	// turn off Android MDM
-	s.Do("DELETE", "/api/latest/fleet/android_enterprise", nil, http.StatusOK)
+	appCfg, err = s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", teamAndroidProfUUID), nil, http.StatusOK, &deleteResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDeletedAndroidProfile{}.ActivityName(),
@@ -3640,8 +3649,6 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 	// turn back on apple MDM
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, "UPDATE mdm_config_assets SET deleted_at = NULL, deletion_uuid = '' WHERE deleted_at IS NOT NULL")
-		require.NoError(t, err)
 		_, err = q.ExecContext(ctx, "UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.enabled_and_configured', true) ")
 		return err
 	})
@@ -5115,15 +5122,13 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	require.Greater(t, len(currentProfiles.Profiles), 0)
 
 	// Now we disable all three MDM's
-	filler := struct{}{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {"windows_enabled_and_configured": false}}`), http.StatusOK, &filler)
-	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
-	s.Do("DELETE", "/api/latest/fleet/android_enterprise", nil, http.StatusOK)
-
-	appCfg, _ := s.ds.AppConfig(ctx)
-	require.False(t, appCfg.MDM.EnabledAndConfigured)
-	require.False(t, appCfg.MDM.WindowsEnabledAndConfigured)
-	require.False(t, appCfg.MDM.AndroidEnabledAndConfigured)
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.MDM.EnabledAndConfigured = false
+	appCfg.MDM.WindowsEnabledAndConfigured = false
+	appCfg.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
 
 	// Now do a batch with profiles in it, to see it fails trying to add.
 	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
