@@ -3437,7 +3437,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	}, http.StatusOK, &putResp)
 
 	// Run worker to flush out no-op "make_android_app_available" tasks from adding the apps above
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	// list the available setup experience software and verify that only app 1 is installed at setup
 	var getResp getSetupExperienceSoftwareResponse
@@ -3460,7 +3460,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	// Google AMAPI hasn't been hit yet
 	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 	// run worker, should run the job that assigns the app to the host's MDM policy
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 	// should have hit the android API endpoint
 	require.True(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 
@@ -3572,7 +3572,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 
 		return &androidmanagement.Policy{Version: int64(patchAppsCallCount)}, nil
 	}
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	// the pending installs should show up in the host software
 	getHostSw = getHostSoftwareResponse{}
@@ -3670,7 +3670,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	host3, _, _ := s.createAndEnrollAndroidDevice(t, "test-3", nil)
 
 	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 	require.True(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 
 	// app install is pending
@@ -3682,8 +3682,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	require.EqualValues(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
 
 	// turn off MDM for that host, should fail the pending install
-	var unenrollResp android.DefaultResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm/unenroll", host1.ID), nil, http.StatusOK, &unenrollResp)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host1.ID), nil, http.StatusNoContent)
 
 	// app install is still pending as the device hasn't reported back its unenrollment yet
 	getHostSw = getHostSoftwareResponse{}
@@ -3849,7 +3848,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 
 	require.NotEqual(t, app1TitleID, app2TitleID)
 
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	// worker should have done nothing (no host to add apps to yet)
 	require.Len(t, patchAppsPolicies, 0)
@@ -3876,7 +3875,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 
 	s.createAndEnrollAndroidDevice(t, "test-android", nil)
 
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	// worker should have:
 	// 1. made each app available to the included hosts (for self-service), so 2 entries for that (from the PATCH apps to set the config)
@@ -3909,13 +3908,13 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	}, http.StatusOK, &addAppResp)
 	app3TitleID := addAppResp.TitleID
 
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	// worker should have:
-	// 1. made the apps available to the host (for self-service)
+	// 1. made the apps available to the host (for self-service), without any config provided
 	require.Len(t, patchAppsPolicies, 1)
 	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE"},
+		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage{}, WorkProfileWidgets: "WORK_PROFILE_WIDGETS_UNSPECIFIED"},
 	}, patchAppsPolicies[0])
 
 	patchAppsPolicies = nil
@@ -3926,7 +3925,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 		Configuration: json.RawMessage(`{"managedConfiguration": 3}`),
 	}, http.StatusOK, &patchAppResp)
 
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	// worker should have:
 	// 1. made the app available with its config
@@ -3943,9 +3942,387 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 		Configuration: json.RawMessage(`{"managedConfiguration": 3}`),
 	}, http.StatusOK, &patchAppResp)
 
-	s.runWorkerUntilDone()
+	s.runWorkerUntilDoneWithChecks(true)
 
 	require.Len(t, patchAppsPolicies, 0)
+
+	// patch with a different config just to trigger the worker
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
+		TeamID:        nil,
+		Configuration: json.RawMessage(`{}`),
+	}, http.StatusOK, &patchAppResp)
+
+	// delete directly the config from the DB (it seems like to clear the config from
+	// the API, an empty object needs to be passed, but that won't clear the config,
+	// it just won't change any managedConfig/widgets - to really clear the config
+	// from the API, the user would have to send something like:
+	// {
+	//   "managedConfiguration": null,
+	//   "workProfileWidgets": "WORK_PROFILE_WIDGETS_UNSPECIFIED"
+	// }
+	//
+	// Is that how we want it to work?
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(t.Context(), `DELETE FROM android_app_configurations WHERE application_id = ?`, app3.VPPAppID.AdamID)
+		return err
+	})
+
+	s.runWorkerUntilDoneWithChecks(true)
+
+	// worker should have:
+	// 1. made the app available with its config cleared
+	require.Len(t, patchAppsPolicies, 1)
+	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
+		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage{}, WorkProfileWidgets: "WORK_PROFILE_WIDGETS_UNSPECIFIED"},
+	}, patchAppsPolicies[0])
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() {
+	t := s.T()
+	ctx := t.Context()
+	s.setSkipWorkerJobs(t)
+
+	enterpriseID := s.enableAndroidMDM(t)
+
+	// add 2 android apps
+	app1 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.test1",
+				Platform: fleet.AndroidPlatform,
+			},
+		},
+		Name:             "Test1",
+		BundleIdentifier: "com.test1",
+		IconURL:          "https://example.com/1",
+	}
+	app2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.test2",
+				Platform: fleet.AndroidPlatform,
+			},
+		},
+		Name:             "Test2",
+		BundleIdentifier: "com.test2",
+		IconURL:          "https://example.com/2",
+	}
+
+	androidApps := []*fleet.VPPApp{app1, app2}
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		for _, app := range androidApps {
+			if app.AdamID == packageName {
+				return &androidmanagement.Application{IconUrl: app.IconURL, Title: app.Name}, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
+
+	var patchAppsCallCount int // no need for mutex, protected via runWorkerUntilDone
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		patchAppsCallCount++
+		return &androidmanagement.Policy{Version: int64(patchAppsCallCount)}, nil
+	}
+
+	// add Android app 1
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: app1.AdamID,
+		Platform:   fleet.AndroidPlatform,
+	}, http.StatusOK, &addAppResp)
+	app1TitleID := addAppResp.TitleID
+
+	// add Android app 2
+	addAppResp = addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: app2.AdamID,
+		Platform:   fleet.AndroidPlatform,
+	}, http.StatusOK, &addAppResp)
+	app2TitleID := addAppResp.TitleID
+
+	require.NotEqual(t, app1TitleID, app2TitleID)
+
+	// add app 1 to Android setup experience
+	var putResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+		Platform: string(fleet.AndroidPlatform),
+		TeamID:   0,
+		TitleIDs: []uint{app1TitleID},
+	}, http.StatusOK, &putResp)
+
+	s.runWorkerUntilDoneWithChecks(true)
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test team", Secrets: []*fleet.EnrollSecret{{Secret: uuid.NewString()}}})
+	require.NoError(t, err)
+
+	// enroll a couple android devices on no-team and one on a team
+	host1, deviceInfo1, pubSubToken := s.createAndEnrollAndroidDevice(t, "test-android1", nil)
+	host2, deviceInfo2, _ := s.createAndEnrollAndroidDevice(t, "test-android2", nil)
+	host3, _, _ := s.createAndEnrollAndroidDevice(t, "test-android3", &tm.ID)
+
+	s.runWorkerUntilDoneWithChecks(true)
+
+	// hosts 1 and 2 have app1 pending install
+	getHostSw := getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"order_key", "name")
+	require.Len(t, getHostSw.Software, 2)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+	app1Host1CmdUUID := getHostSw.Software[0].AppStoreApp.LastInstall.CommandUUID
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+	require.Nil(t, getHostSw.Software[1].Status)
+	require.NotEmpty(t, app1Host1CmdUUID)
+
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host2.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"order_key", "name")
+	require.Len(t, getHostSw.Software, 2)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+	app1Host2CmdUUID := getHostSw.Software[0].AppStoreApp.LastInstall.CommandUUID
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+	require.Nil(t, getHostSw.Software[1].Status)
+	require.NotEmpty(t, app1Host2CmdUUID)
+
+	// host 3 has no apps available to install
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host3.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"order_key", "name")
+	require.Len(t, getHostSw.Software, 0)
+
+	// make the software installed on host1, failed on host2
+	policyName := fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host1.UUID)
+	reportMsg := statusReportMessageWithEnterpriseSpecificID(
+		t,
+		androidmanagement.Device{
+			Name:                 deviceInfo1.Name,
+			EnrollmentTokenData:  deviceInfo1.EnrollmentTokenData,
+			AppliedPolicyName:    policyName,
+			AppliedPolicyVersion: 10,
+			ApplicationReports: []*androidmanagement.ApplicationReport{
+				{PackageName: app1.AdamID, State: "INSTALLED"},
+			},
+			LastPolicySyncTime: time.Now().Format(time.RFC3339Nano),
+		},
+		host1.UUID,
+	)
+	req := android_service.PubSubPushRequest{PubSubMessage: *reportMsg}
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
+
+	policyName = fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host2.UUID)
+	reportMsg = statusReportMessageWithEnterpriseSpecificID(
+		t,
+		androidmanagement.Device{
+			Name:                 deviceInfo2.Name,
+			EnrollmentTokenData:  deviceInfo2.EnrollmentTokenData,
+			AppliedPolicyName:    policyName,
+			AppliedPolicyVersion: 20,
+			NonComplianceDetails: []*androidmanagement.NonComplianceDetail{
+				{PackageName: app1.AdamID, NonComplianceReason: "APP_NOT_INSTALLED"},
+			},
+			LastPolicySyncTime: time.Now().Format(time.RFC3339Nano),
+		},
+		host2.UUID,
+	)
+	req = android_service.PubSubPushRequest{PubSubMessage: *reportMsg}
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
+
+	// the pending install should now be verified for host1
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"order_key", "name")
+	require.Len(t, getHostSw.Software, 2)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstalled, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+	require.Nil(t, getHostSw.Software[1].Status)
+
+	// the pending install should now be failed for host2
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host2.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"order_key", "name")
+	require.Len(t, getHostSw.Software, 2)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallFailed, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+	require.Nil(t, getHostSw.Software[1].Status)
+
+	// set a configuration for app1
+	var patchAppResp updateAppStoreAppResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app1TitleID), &updateAppStoreAppRequest{
+		TeamID:        nil,
+		Configuration: json.RawMessage(`{"managedConfiguration": 1}`),
+	}, http.StatusOK, &patchAppResp)
+
+	s.runWorkerUntilDoneWithChecks(true)
+
+	// the verified install should now be back to pending for host1
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"order_key", "name")
+	require.Len(t, getHostSw.Software, 2)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+	require.Nil(t, getHostSw.Software[1].Status)
+
+	// the failed install is still failed for host2
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host2.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"order_key", "name")
+	require.Len(t, getHostSw.Software, 2)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallFailed, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+	require.Nil(t, getHostSw.Software[1].Status)
+
+	// and still no apps for host3
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host3.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"order_key", "name")
+	require.Len(t, getHostSw.Software, 0)
+
+	getPolicyVersion := func(hostID uint, appID string) int64 {
+		var version int64
+		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, tx, &version, `
+				SELECT CAST(associated_event_id AS SIGNED) FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`,
+				hostID, appID)
+		})
+		return version
+	}
+	versionBefore := getPolicyVersion(host1.ID, app1.AdamID)
+
+	// update the configuration for app1
+	patchAppResp = updateAppStoreAppResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app1TitleID), &updateAppStoreAppRequest{
+		TeamID:        nil,
+		Configuration: json.RawMessage(`{"managedConfiguration": 2}`),
+	}, http.StatusOK, &patchAppResp)
+
+	s.runWorkerUntilDoneWithChecks(true)
+
+	// install for host1 will still be pending, but will now be verified only when that
+	// latest policy version will get reported
+	versionAfter := getPolicyVersion(host1.ID, app1.AdamID)
+	require.Greater(t, versionAfter, versionBefore)
+
+	// the pending install is still pending for host1
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"order_key", "name")
+	require.Len(t, getHostSw.Software, 2)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+	require.Nil(t, getHostSw.Software[1].Status)
+
+	// reporting it as installed with the previous policy version does not make it verified
+	policyName = fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host1.UUID)
+	reportMsg = statusReportMessageWithEnterpriseSpecificID(
+		t,
+		androidmanagement.Device{
+			Name:                 deviceInfo1.Name,
+			EnrollmentTokenData:  deviceInfo1.EnrollmentTokenData,
+			AppliedPolicyName:    policyName,
+			AppliedPolicyVersion: versionBefore,
+			ApplicationReports: []*androidmanagement.ApplicationReport{
+				{PackageName: app1.AdamID, State: "INSTALLED"},
+			},
+			LastPolicySyncTime: time.Now().Format(time.RFC3339Nano),
+		},
+		host1.UUID,
+	)
+	req = android_service.PubSubPushRequest{PubSubMessage: *reportMsg}
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
+
+	// still pending
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"order_key", "name")
+	require.Len(t, getHostSw.Software, 2)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+	require.Nil(t, getHostSw.Software[1].Status)
+
+	// reporting it as installed with the latest policy version makes it verified
+	policyName = fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host1.UUID)
+	reportMsg = statusReportMessageWithEnterpriseSpecificID(
+		t,
+		androidmanagement.Device{
+			Name:                 deviceInfo1.Name,
+			EnrollmentTokenData:  deviceInfo1.EnrollmentTokenData,
+			AppliedPolicyName:    policyName,
+			AppliedPolicyVersion: versionAfter,
+			ApplicationReports: []*androidmanagement.ApplicationReport{
+				{PackageName: app1.AdamID, State: "INSTALLED"},
+			},
+			LastPolicySyncTime: time.Now().Format(time.RFC3339Nano),
+		},
+		host1.UUID,
+	)
+	req = android_service.PubSubPushRequest{PubSubMessage: *reportMsg}
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
+
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"order_key", "name")
+	require.Len(t, getHostSw.Software, 2)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstalled, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+	require.Nil(t, getHostSw.Software[1].Status)
+
+	// update app1 again, but configuration stays the same
+	patchAppResp = updateAppStoreAppResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app1TitleID), &updateAppStoreAppRequest{
+		TeamID:        nil,
+		Configuration: json.RawMessage(`{"managedConfiguration": 2}`),
+	}, http.StatusOK, &patchAppResp)
+
+	s.runWorkerUntilDoneWithChecks(true)
+
+	// status stays installed
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+		"order_key", "name")
+	require.Len(t, getHostSw.Software, 2)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstalled, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+	require.Nil(t, getHostSw.Software[1].Status)
 }
 
 func (s *integrationMDMTestSuite) createAndEnrollAndroidDevice(t *testing.T, name string, teamID *uint) (host *fleet.Host, deviceInfo androidmanagement.Device, pubSubToken fleet.MDMConfigAsset) {

@@ -539,7 +539,7 @@ func getDeviceMDMCommandResultsEndpoint(ctx context.Context, request interface{}
 	}
 
 	req := request.(*getDeviceMDMCommandResultsRequest)
-	results, err := svc.GetMDMCommandResults(ctx, req.CommandUUID)
+	results, err := svc.GetMDMCommandResults(ctx, req.CommandUUID, "")
 	if err != nil {
 		return getMDMCommandResultsResponse{
 			Err: err,

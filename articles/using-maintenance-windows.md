@@ -1,7 +1,5 @@
 # Using maintenance windows (Fleet in your calendar)
 
-![Configuring maintenance windows in Fleet](../website/assets/images/articles/configuring-maintenance-windows-in-fleet-1600x900@2x.jpg)
-
 Fleet helps end users fix issues on their own by scheduling a maintenance window directly on their calendar—no IT ticket required.
 
 When a host fails a policy (e.g. MDM enrollment profile expired, disk encryption disabled, outdated software), Fleet can notify the user via a Google Calendar event. The event includes:

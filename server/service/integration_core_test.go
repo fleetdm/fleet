@@ -8001,6 +8001,9 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 		},
 	}, http.StatusNotFound, &applyResp)
 
+	activitiesBeforeInsert, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+
 	// valid templates - test team name (not team ID)
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
 		Specs: []*fleet.CertificateRequestSpec{
@@ -8019,11 +8022,44 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 		},
 	}, http.StatusOK, &applyResp)
 
+	// Only one activity per team
+	activitiesAfterInsert, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	require.Len(t, activitiesAfterInsert, len(activitiesBeforeInsert)+1, "expected exactly one new activity for the team")
+	s.lastActivityMatches(
+		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, team.Name),
+		0,
+	)
+
 	// list specs
 	var listCertifcatesResp listCertificateTemplatesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
 	require.Len(t, listCertifcatesResp.Certificates, 2)
 	assert.ElementsMatch(t, []string{"Template 1", "Template 2"}, []string{listCertifcatesResp.Certificates[0].Name, listCertifcatesResp.Certificates[1].Name})
+
+	lastActivityID := s.lastActivityMatches("", "", 0)
+
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Template 1",
+				Team:                   team.Name,
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			},
+			{
+				Name:                   "Template 2",
+				Team:                   team.Name,
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
+			},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// No new activities created
+	currentActivityID := s.lastActivityMatches("", "", 0)
+	assert.Equal(t, lastActivityID, currentActivityID, "no new activity should be created when re-applying same certificates")
 
 	// Create a host to get certificate get by id endpoint
 	host, err := s.ds.NewHost(ctx, &fleet.Host{
@@ -8047,6 +8083,18 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	require.NoError(t, err)
 	certID := savedCertificateTemplates[0].ID
 
+	// Create a host_certificate_templates record for this host (simulating what happens during Android enrollment)
+	// The endpoint /api/fleetd/certificates/{id} requires a host_certificate_templates record to exist
+	err = s.ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+		{
+			HostUUID:              host.UUID,
+			CertificateTemplateID: certID,
+			Status:                fleet.CertificateTemplateDelivered,
+			OperationType:         fleet.MDMOperationTypeInstall,
+		},
+	})
+	require.NoError(t, err)
+
 	var getCertResp getDeviceCertificateTemplateResponse
 
 	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusOK, map[string]string{
@@ -8054,7 +8102,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	})
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
 	require.NoError(t, resp.Body.Close())
-	require.Equal(t, *getCertResp.Certificate.Status, fleet.CertificateTemplateFailed)
+	require.Equal(t, getCertResp.Certificate.Status, fleet.CertificateTemplateFailed)
 
 	// Add an IDP user for the host
 	err = s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
@@ -8093,12 +8141,23 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	// batch delete certificate templates
 	var delBatchResp deleteCertificateTemplateSpecsResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
-		"ids": []uint{listCertifcatesResp.Certificates[0].ID, listCertifcatesResp.Certificates[1].ID},
+		"ids":     []uint{listCertifcatesResp.Certificates[0].ID, listCertifcatesResp.Certificates[1].ID},
+		"team_id": team.ID,
 	}, http.StatusOK, &delBatchResp)
+
+	// Verify activity was created for deleting certificates
+	s.lastActivityMatches(
+		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, team.Name),
+		0,
+	)
 
 	// list specs
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
 	require.Len(t, listCertifcatesResp.Certificates, 0)
+
+	activitiesBeforeNoTeam, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
 
 	// certificate templates for "No team"
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
@@ -8123,6 +8182,16 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 			},
 		},
 	}, http.StatusOK, &applyResp)
+
+	// Only one activity was created for "No team"
+	activitiesAfterNoTeam, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	require.Len(t, activitiesAfterNoTeam, len(activitiesBeforeNoTeam)+1, "expected exactly one new activity for no team")
+	s.lastActivityMatches(
+		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
+		`{"team_id": null, "team_name": null}`,
+		0,
+	)
 
 	// list specs for "no team" (team_id 0)
 	var noTeamCertificatesResp listCertificateTemplatesResponse
@@ -8163,6 +8232,17 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	require.NoError(t, err)
 	require.Len(t, savedNoTeamCertTemplates, 3)
 	noTeamCertID := savedNoTeamCertTemplates[0].ID
+
+	// Create a host_certificate_templates record for this no-team host
+	err = s.ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+		{
+			HostUUID:              noTeamHost.UUID,
+			CertificateTemplateID: noTeamCertID,
+			Status:                fleet.CertificateTemplateDelivered,
+			OperationType:         fleet.MDMOperationTypeInstall,
+		},
+	})
+	require.NoError(t, err)
 
 	// Get certificate with orbit node_key (should return replaced variables)
 	var getNoTeamCertResp getDeviceCertificateTemplateResponse
@@ -14525,6 +14605,7 @@ func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uin
 			GigsTotalDiskSpace:        128.0, // 64GB system + 64GB external
 			GigsDiskSpaceAvailable:    35.0,  // 10GB + 25GB available
 			PercentDiskSpaceAvailable: 27.34, // 35/128 * 100
+			UUID:                      uuid.NewString(),
 		},
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
@@ -14833,11 +14914,12 @@ INSERT INTO host_certificate_templates (
 	certificate_template_id,
 	status,
 	fleet_challenge,
-	operation_type
-) VALUES (?, ?, ?, ?, ?);
+	operation_type,
+	name
+) VALUES (?, ?, ?, ?, ?, ?);
 	`
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err = q.ExecContext(ctx, sql, host.UUID, certificateTemplateID, "pending", "some_challenge_value", "install")
+		_, err = q.ExecContext(ctx, sql, host.UUID, certificateTemplateID, "pending", "some_challenge_value", "install", savedTemplate.Name)
 		require.NoError(t, err)
 		return nil
 	})
@@ -14865,6 +14947,7 @@ INSERT INTO host_certificate_templates (
 	require.Len(t, *getHostResp.Host.MDM.Profiles, 1)
 	profile := (*getHostResp.Host.MDM.Profiles)[0]
 	require.Equal(t, savedTemplate.Name, profile.Name)
+	require.Equal(t, fleet.AndroidCertificateTemplateProfileID, profile.ProfileUUID)
 	require.Equal(t, fleet.MDMOperationTypeInstall, profile.OperationType, "operation_type should be populated for certificate templates")
 
 	// Test cases
@@ -14872,6 +14955,7 @@ INSERT INTO host_certificate_templates (
 		name                    string
 		templateID              uint
 		newStatus               string
+		newOperationType        *string
 		detail                  *string
 		expectedResponseStatus  int
 		expectedResponseMessage string
@@ -14924,13 +15008,55 @@ INSERT INTO host_certificate_templates (
 				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
 			},
 		},
+		{
+			name:                   "with operation_type install",
+			templateID:             certificateTemplateID,
+			newStatus:              "verified",
+			expectedResponseStatus: http.StatusOK,
+			newOperationType:       ptr.String("install"),
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
+		},
+		{
+			name:                   "with operation_type remove",
+			templateID:             certificateTemplateID,
+			newStatus:              "verified",
+			expectedResponseStatus: http.StatusOK,
+			newOperationType:       ptr.String("remove"),
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
+		},
+		{
+			name:                   "with operation_type empty string",
+			templateID:             certificateTemplateID,
+			newStatus:              "verified",
+			expectedResponseStatus: http.StatusOK,
+			newOperationType:       ptr.String(""),
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
+		},
+		{
+			name:                    "with invalid operation_type",
+			templateID:              certificateTemplateID,
+			newStatus:               "verified",
+			expectedResponseStatus:  http.StatusUnprocessableEntity,
+			expectedResponseMessage: "must be 'install' or 'remove'",
+			newOperationType:        ptr.String("invalid_operation"),
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("TestUpdateHostCertificateTemplate:%s", tc.name), func(t *testing.T) {
 			req, err := json.Marshal(updateCertificateStatusRequest{
-				Status: tc.newStatus,
-				Detail: tc.detail,
+				Status:        tc.newStatus,
+				Detail:        tc.detail,
+				OperationType: tc.newOperationType,
 			})
 			require.NoError(t, err)
 

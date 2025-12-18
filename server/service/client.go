@@ -881,7 +881,15 @@ func (c *Client) ApplyGroup(
 					return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", app.AppStoreID, app.Icon.Path, err)
 				}
 
-				appPayloads = append(appPayloads, fleet.VPPBatchPayload{
+				var androidConfig json.RawMessage
+				if app.Platform == string(fleet.AndroidPlatform) {
+					androidConfig, err = getAndroidAppConfig(app.Configuration.Path)
+					if err != nil {
+						return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", app.AppStoreID, app.Configuration.Path, err)
+					}
+				}
+
+				payload := fleet.VPPBatchPayload{
 					AppStoreID:         app.AppStoreID,
 					SelfService:        app.SelfService,
 					InstallDuringSetup: installDuringSetup,
@@ -892,7 +900,12 @@ func (c *Client) ApplyGroup(
 					IconPath:           app.Icon.Path,
 					IconHash:           iconHash,
 					Platform:           fleet.InstallableDevicePlatform(app.Platform),
-				})
+				}
+				if androidConfig != nil {
+					payload.Configuration = androidConfig
+				}
+				appPayloads = append(appPayloads, payload)
+
 				// can be referenced by macos_setup.software.app_store_id
 				if tmSoftwareAppsByAppID[tmName] == nil {
 					tmSoftwareAppsByAppID[tmName] = make(map[string]fleet.TeamSpecAppStoreApp, len(apps))
@@ -1282,6 +1295,26 @@ func getIconHashIfValid(path string) (string, error) {
 	}
 	hash := hex.EncodeToString(h.Sum(nil))
 	return hash, nil
+}
+
+func getAndroidAppConfig(path string) (json.RawMessage, error) {
+	if path == "" {
+		return nil, nil
+	}
+
+	configReader, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading android app configuration file: %w", err)
+	}
+
+	config := json.RawMessage(configReader)
+
+	err = fleet.ValidateAndroidAppConfiguration(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return config, nil
 }
 
 func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
@@ -1969,7 +2002,7 @@ func (c *Client) DoGitOps(
 
 		// Put in default value for volume_purchasing_program to clear the configuration if it's not set.
 		if v, ok := mdmAppConfig["volume_purchasing_program"]; !ok || v == nil {
-			mdmAppConfig["volume_purchasing_program"] = []interface{}{}
+			mdmAppConfig["volume_purchasing_program"] = []any{}
 		}
 
 		// Put in default values for macos_migration
@@ -2158,6 +2191,13 @@ func (c *Client) DoGitOps(
 		if deadline, ok := macOSUpdates["deadline"]; !ok || deadline == nil {
 			macOSUpdates["deadline"] = ""
 		}
+
+		// To keep things backward compatible, if a minimum_version and deadline are both set,
+		// then we also set update_new_hosts
+		if macOSUpdates["minimum_version"] != "" && macOSUpdates["deadline"] != "" {
+			macOSUpdates["update_new_hosts"] = true
+		}
+
 		// Put in default values for ios_updates
 		if incoming.Controls.IOSUpdates != nil {
 			mdmAppConfig["ios_updates"] = incoming.Controls.IOSUpdates
@@ -2171,6 +2211,9 @@ func (c *Client) DoGitOps(
 		if deadline, ok := iOSUpdates["deadline"]; !ok || deadline == nil {
 			iOSUpdates["deadline"] = ""
 		}
+		// update_new_hosts is only used for macOS so ignore any values posted for iOS
+		iOSUpdates["update_new_hosts"] = nil
+
 		// Put in default values for ipados_updates
 		if incoming.Controls.IPadOSUpdates != nil {
 			mdmAppConfig["ipados_updates"] = incoming.Controls.IPadOSUpdates
@@ -2184,6 +2227,9 @@ func (c *Client) DoGitOps(
 		if deadline, ok := iPadOSUpdates["deadline"]; !ok || deadline == nil {
 			iPadOSUpdates["deadline"] = ""
 		}
+		// update_new_hosts is only used for macOS so ignore any values posted for iPadOS
+		iPadOSUpdates["update_new_hosts"] = nil
+
 		// Put in default values for macos_setup
 		if incoming.Controls.MacOSSetup != nil {
 			incoming.Controls.MacOSSetup.SetDefaultsIfNeeded()
@@ -2483,7 +2529,15 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", vppApp.AppStoreID, vppApp.Icon.Path, err)
 			}
 
-			appsPayload = append(appsPayload, fleet.VPPBatchPayload{
+			var androidConfig json.RawMessage
+			if vppApp.Platform == string(fleet.AndroidPlatform) {
+				androidConfig, err = getAndroidAppConfig(vppApp.Configuration.Path)
+				if err != nil {
+					return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", vppApp.AppStoreID, vppApp.Configuration.Path, err)
+				}
+			}
+
+			payload := fleet.VPPBatchPayload{
 				AppStoreID:         vppApp.AppStoreID,
 				SelfService:        vppApp.SelfService,
 				InstallDuringSetup: &installDuringSetup,
@@ -2491,7 +2545,11 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				IconPath:           vppApp.Icon.Path,
 				IconHash:           iconHash,
 				Platform:           fleet.InstallableDevicePlatform(vppApp.Platform),
-			})
+			}
+			if androidConfig != nil {
+				payload.Configuration = androidConfig
+			}
+			appsPayload = append(appsPayload, payload)
 		}
 	}
 

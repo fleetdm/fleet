@@ -103,20 +103,43 @@ jobs:
               per_page: 100
             });
             const matchingPRs = pullRequests.filter(pr => 
-              (pr.title.includes('Update latest macOS versions') || 
-               pr.title.includes('Update latest macOS version') ||
-               pr.title.includes('Update 1Password macOS version')) &&
+              (pr.title.includes('Update macOS policy versions') || 
+               pr.title.includes('Update 1Password macOS policy version') ||
+               pr.title.includes('Update macOS and 1Password policy versions') ||
+               pr.title.includes('Update latest macOS versions') || 
+               pr.title.includes('Update latest macOS version')) &&
               pr.user.login === 'github-actions[bot]'
             );
             return matchingPRs.map(pr => pr.number);
 
-      - name: Get current date and time
+      - name: Determine update type and generate branch name
         if: steps.update-macos.outputs.changed == 'true' || steps.update-1password.outputs.changed == 'true'
-        id: date
+        id: update-info
         run: |
           BRANCH_DATE=$(date +'%y%m%d%H%M')
-          echo "date=$BRANCH_DATE" >> $GITHUB_OUTPUT
-          echo "Generated branch name: update-macos-policy-versions-$BRANCH_DATE"
+          MACOS_CHANGED="${{ steps.update-macos.outputs.changed }}"
+          ONEPASSWORD_CHANGED="${{ steps.update-1password.outputs.changed }}"
+          
+          # Determine what changed and create appropriate branch name and title
+          if [ "$MACOS_CHANGED" == "true" ] && [ "$ONEPASSWORD_CHANGED" == "true" ]; then
+            BRANCH_NAME="update-macos-and-1password-policy-versions-$BRANCH_DATE"
+            PR_TITLE="Update macOS and 1Password policy versions"
+            PR_BODY="This PR automatically updates both macOS version policies and 1Password macOS version policy for dogfood."
+          elif [ "$ONEPASSWORD_CHANGED" == "true" ]; then
+            BRANCH_NAME="update-1password-policy-version-$BRANCH_DATE"
+            PR_TITLE="Update 1Password macOS policy version"
+            PR_BODY="This PR automatically updates the 1Password macOS version policy for dogfood."
+          else
+            BRANCH_NAME="update-macos-policy-versions-$BRANCH_DATE"
+            PR_TITLE="Update macOS policy versions"
+            PR_BODY="This PR automatically updates macOS version policies for dogfood."
+          fi
+          
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
+          echo "pr_body=$PR_BODY" >> $GITHUB_OUTPUT
+          echo "Generated branch name: $BRANCH_NAME"
+          echo "PR title: $PR_TITLE"
 
       - name: Create Pull Request
         if: steps.update-macos.outputs.changed == 'true' || steps.update-1password.outputs.changed == 'true'
@@ -125,15 +148,15 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: |
-            Update macOS policy versions
+            ${{ steps.update-info.outputs.pr_title }}
 
-            Automatically updated macOS version policies for dogfood.
-          title: Update macOS policy versions
+            Automatically updated policy versions for dogfood.
+          title: ${{ steps.update-info.outputs.pr_title }}
           body: |
-            This PR automatically updates macOS version policies for dogfood.
+            ${{ steps.update-info.outputs.pr_body }}
 
             The changes were generated automatically by the [dogfood-automated-policy-updates workflow](https://github.com/${{ github.repository }}/actions/workflows/dogfood-automated-policy-updates.yml).
-          branch: update-macos-policy-versions-${{ steps.date.outputs.date }}
+          branch: ${{ steps.update-info.outputs.branch_name }}
           delete-branch: true
           assignees: allenhouchins
 

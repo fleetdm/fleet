@@ -70,7 +70,7 @@ export interface IFormValidation {
 
 interface IFleetAppDetailsFormProps {
   labels: ILabelSummary[] | null;
-  categories?: SoftwareCategory[];
+  categories?: SoftwareCategory[] | null;
   name: string;
   defaultInstallScript: string;
   defaultPostInstallScript: string;

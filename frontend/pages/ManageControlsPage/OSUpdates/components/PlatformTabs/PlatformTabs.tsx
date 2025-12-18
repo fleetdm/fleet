@@ -19,6 +19,7 @@ interface IPlatformTabsProps {
   currentTeamId: number;
   defaultMacOSVersion: string;
   defaultMacOSDeadline: string;
+  defaultMacOSUpdateNewHosts: boolean;
   defaultIOSVersion: string;
   defaultIOSDeadline: string;
   defaultIPadOSVersion: string;
@@ -37,6 +38,7 @@ const PlatformTabs = ({
   currentTeamId,
   defaultMacOSDeadline,
   defaultMacOSVersion,
+  defaultMacOSUpdateNewHosts,
   defaultIOSDeadline,
   defaultIOSVersion,
   defaultIPadOSDeadline,
@@ -99,6 +101,7 @@ const PlatformTabs = ({
               applePlatform="darwin"
               defaultMinOsVersion={defaultMacOSVersion}
               defaultDeadline={defaultMacOSDeadline}
+              defaultUpdateNewHosts={defaultMacOSUpdateNewHosts}
               key={currentTeamId}
               refetchAppConfig={refetchAppConfig}
               refetchTeamConfig={refetchTeamConfig}

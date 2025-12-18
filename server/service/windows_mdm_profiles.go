@@ -1,9 +1,12 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"slices"
 	"strings"
@@ -58,7 +61,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err, "validate profile")
 	}
 
-	labelMap, err := svc.validateProfileLabels(ctx, labels)
+	labelMap, err := svc.validateProfileLabels(ctx, &teamID, labels)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating labels")
 	}
@@ -139,6 +142,7 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostUUID,
 	fleet.FleetVarHostHardwareSerial,
 	fleet.FleetVarSCEPWindowsCertificateID,
+	fleet.FleetVarSCEPRenewalID,
 	fleet.FleetVarHostEndUserIDPUsername,
 	fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 	fleet.FleetVarHostEndUserIDPFullname,
@@ -167,7 +171,7 @@ func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInf
 		}
 	}
 
-	err := validateProfileCertificateAuthorityVariables(contents, lic, fleet.MDMPlatformMicrosoft, groupedCAs, nil, nil, nil, nil)
+	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs, nil, additionalCustomSCEPValidationForWindowsProfiles, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -175,4 +179,46 @@ func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInf
 	// Do additional validation that both custom SCEP URL and challenge vars are provided and not using different CA names etc.
 
 	return foundVars, nil
+}
+
+func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCEPVars *CustomSCEPVarsFound) error {
+	if customSCEPVars == nil {
+		return nil
+	}
+
+	var cmdMsg *fleet.SyncMLCmd
+	dec := xml.NewDecoder(bytes.NewReader(bytes.TrimSpace([]byte(contents))))
+	for {
+		if err := dec.Decode(&cmdMsg); err != nil { // EOF is fine in this case
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return fmt.Errorf("The payload isn't valid XML: %w", err)
+		}
+		if cmdMsg == nil {
+			break
+		}
+
+		// cmdMsg represents a top-level command (<Replace>...</Replace>)
+		// so we look through all items, often there is only one item per command.
+		for _, cmd := range cmdMsg.Items {
+			if cmd.Target == nil {
+				continue
+			}
+
+			if strings.HasSuffix(*cmd.Target, "/Install/SubjectName") {
+				// SubjectName item found, check that it contains the expected renewal ID variable
+				if cmd.Data == nil {
+					return errors.New("SubjectName item is missing data")
+				}
+
+				if !strings.Contains(cmd.Data.Content, "OU="+fleet.FleetVarSCEPRenewalID.WithPrefix()) && !strings.Contains(cmd.Data.Content, "OU="+fleet.FleetVarSCEPRenewalID.WithBraces()) {
+					// Does not contain the renewal ID in any of it's two fleet var forms as the OU field
+					return fmt.Errorf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarSCEPRenewalID.WithPrefix())
+				}
+			}
+		}
+	}
+
+	return nil
 }

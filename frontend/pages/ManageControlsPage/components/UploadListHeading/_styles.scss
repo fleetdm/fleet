@@ -1,0 +1,18 @@
+.upload-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: $x-small;
+  font-weight: $bold;
+
+  &__upload-name-heading {
+    align-content: center;
+  }
+
+  &__actions-heading {
+    margin: -$pad-medium 0; // Remove vertical padding of button increasing container height
+  }
+  &__add-button {
+    vertical-align: middle;
+  }
+}

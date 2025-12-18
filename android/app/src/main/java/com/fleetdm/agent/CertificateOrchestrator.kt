@@ -60,6 +60,8 @@ object CertificateOrchestrator {
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
+        // Treat a missing field like a null field for optional types
+        explicitNulls = false
     }
 
     // Mutex to protect concurrent access to certificate storage
@@ -454,6 +456,13 @@ object CertificateOrchestrator {
         }
 
         Log.d(TAG, "Successfully fetched certificate template: ${template.name}")
+
+        if (template.status != "delivered") {
+            // The certificate template hasn't failed on the device, but isn't ready to be processed yet.
+            // Retry next time we fetch but don't mark as failed locally
+            Log.i(TAG, "Certificate template ${template.name} does not have status \"delivered\": status \"${template.status}\"")
+            return CertificateEnrollmentHandler.EnrollmentResult.Success(template.name)
+        }
 
         // Step 3: Create certificate installer (use provided or create default)
         val installer = certificateInstaller ?: AndroidCertificateInstaller(context)

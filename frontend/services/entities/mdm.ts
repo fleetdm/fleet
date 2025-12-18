@@ -2,7 +2,6 @@ import {
   IBootstrapPackageAggregate,
   IBootstrapPackageMetadata,
   IHostMdmProfile,
-  IMdmCommandResult,
   IMdmProfile,
   IMdmSSOReponse,
   MdmProfileStatus,
@@ -14,12 +13,6 @@ import { SetupExperiencePlatform } from "interfaces/platform";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
-
-import {
-  createMockSetupExperienceSoftware,
-  createMockSoftwarePackage,
-  createMockSoftwareTitle,
-} from "__mocks__/softwareMock";
 
 import { ISoftwareTitlesResponse } from "./software";
 import { PaginationParams } from "./common";
@@ -85,10 +78,6 @@ export interface IMDMAppleEnrollmentProfileParams {
   token: string;
   ref?: string;
   deviceinfo?: string;
-}
-
-export interface IGetMdmCommandResultsResponse {
-  results: IMdmCommandResult[];
 }
 
 export interface IGetSetupExperienceScriptResponse {
@@ -362,14 +351,6 @@ const mdmService = {
       { team_id: teamId }
     )}`;
     return sendRequest("DELETE", path);
-  },
-
-  getCommandResults: (
-    command_uuid: string
-  ): Promise<IGetMdmCommandResultsResponse> => {
-    const { COMMANDS_RESULTS: MDM_COMMANDS_RESULTS } = endpoints;
-    const url = `${MDM_COMMANDS_RESULTS}?command_uuid=${command_uuid}`;
-    return sendRequest("GET", url);
   },
 
   downloadManualEnrollmentProfile: (token: string) => {

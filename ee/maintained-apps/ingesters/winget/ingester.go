@@ -50,6 +50,11 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string, sl
 			continue
 		}
 
+		// Skip non-JSON files (e.g., .DS_Store on macOS)
+		if !strings.HasSuffix(f.Name(), ".json") {
+			continue
+		}
+
 		fileBytes, err := os.ReadFile(path.Join(inputsPath, f.Name()))
 		if err != nil {
 			return nil, ctxerr.WrapWithData(ctx, err, "reading app input file", map[string]any{"file_name": f.Name()})
@@ -219,8 +224,12 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		if scope == "" {
 			scope = installer.Scope
 			if scope == "" {
-				if installerType == installerTypeMSI {
+				switch installerType {
+				case installerTypeMSI:
 					scope = machineScope
+				case installerTypeMSIX, "zip":
+					// AppX/MSIX packages and zip files containing AppX are typically user-scoped
+					scope = userScope
 				}
 			}
 		}
@@ -374,6 +383,7 @@ var fileTypes = map[string]struct{}{
 	installerTypeMSI:  {},
 	installerTypeMSIX: {},
 	installerTypeExe:  {},
+	"zip":             {},
 }
 
 func isFileType(installerType string) bool {

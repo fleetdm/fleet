@@ -987,7 +987,6 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob("renew_host_mdm_managed_certificates", func(ctx context.Context) error {
-			// TODO(MHJ): Move this datastore method to shared space, for when windows renewal is being worked on.
 			return ds.RenewMDMManagedCertificates(ctx)
 		}),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
@@ -1069,6 +1068,19 @@ func newCleanupsAndAggregationSchedule(
 		}),
 		schedule.WithJob("cleanup_android_enterprise", func(ctx context.Context) error {
 			return androidSvc.VerifyExistingEnterpriseIfAny(ctx)
+		}),
+		schedule.WithJob("revert_stale_android_certificate_templates", func(ctx context.Context) error {
+			// Revert certificate templates stuck in 'delivering' status for too long
+			// back to 'pending'. This is a safety net for server crashes during AMAPI calls.
+			const staleThreshold = 12 * time.Hour
+			affected, err := ds.RevertStaleCertificateTemplates(ctx, staleThreshold)
+			if err != nil {
+				return err
+			}
+			if affected > 0 {
+				level.Info(logger).Log("msg", "reverted stale certificate templates", "count", affected)
+			}
+			return nil
 		}),
 	)
 

@@ -1,0 +1,153 @@
+<div id="case-study" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+    <div purpose="article-title-and-quote">
+      <div purpose="article-title">
+        <div purpose="case-study-logo" v-if="thisPage.meta.companyLogoFilename"><img alt="Logo" src="/images/<%=thisPage.meta.companyLogoFilename %>"></div>
+        <h1><%=thisPage.meta.articleTitle %></h1>
+      </div>
+      <div purpose="case-study-quote" v-if="thisPage.meta.quoteContent">
+        <div purpose="quote-author-image">
+          <img alt="<%= thisPage.meta.quoteAuthorName %>" src="/images/<%= thisPage.meta.quoteAuthorImageFilename %>">
+        </div>
+        <div purpose="quote" >
+          <p purpose="quote-text"><%= thisPage.meta.quoteContent %></p>
+          <p purpose="quote-author-name"><%= thisPage.meta.quoteAuthorName %></p>
+          <p purpose="quote-author-job-title"><%= thisPage.meta.quoteAuthorJobTitle %></p>
+        </div>
+      </div>
+    </div>
+    <div purpose="summary-and-sidebar" class="d-flex flex-row justify-content-between">
+      <div purpose="summary">
+        <h3>Challenge</h3>
+        <p><%= thisPage.meta.summaryChallenge %></p>
+        <h3>Solution</h3>
+        <p><%= thisPage.meta.summarySolution %></p>
+        <h3>Key results</h3>
+        <ul>
+          <% for(let result of thisPage.meta.summaryKeyResults.split('; ')){%>
+            <li><%=result %></li>
+          <% }%>
+        </ul>
+      </div>
+      <div purpose="sidebar-container" class="d-md-flex d-none">
+        <div purpose="right-sidebar" class="d-flex flex-column">
+          <div class="d-md-flex d-none flex-column order-lg-2 order-1">
+            <div purpose="company-information" v-if="thisPage.meta.companyName && thisPage.meta.companyInfo">
+              <h4>About <%= thisPage.meta.companyName %></h4>
+              <p>
+                <%= thisPage.meta.companyInfo %>
+              </p>
+              <p v-if="thisPage.meta.companyInfoLineTwo">
+                <%= thisPage.meta.companyInfoLineTwo %>
+              </p>
+            </div>
+            <div>
+              <h4>More customer stories</h4>
+              <div purpose="case-study-links" >
+                <a href="/case-study/foursquare" purpose="case-study-link" v-if="thisPage.url !== '/case-study/foursquare'">
+                  <div purpose="link-image">
+                    <img alt="Foursquare" src="/images/nav-icon-foursquare-40x40@2x.png">
+                  </div>
+                  <div purpose="link-text">
+                    <p><strong>Foursquare</strong></p>
+                    <p>Foursquare cut costs and gained 114% ROI with Fleet</p>
+                  </div>
+                </a>
+                <a href="/case-study/stripe" purpose="case-study-link" v-if="thisPage.url !== '/case-study/stripe'">
+                  <div purpose="link-image">
+                    <img alt="Stripe" src="/images/nav-icon-stripe-40x40@2x.png">
+                  </div>
+                  <div purpose="link-text">
+                    <p><strong>Stripe</strong></p>
+                    <p>Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually</p>
+                  </div>
+                </a>
+                <a href="/case-study/faire" purpose="case-study-link" v-if="thisPage.url !== '/case-study/faire'">
+                  <div purpose="link-image">
+                    <img alt="Faire" src="/images/nav-icon-faire-40x40@2x.png">
+                  </div>
+                  <div purpose="link-text">
+                    <p><strong>Faire</strong></p>
+                    <p>Faire keeps Macs secure with CIS benchmarks using Fleet</p>
+                  </div>
+                </a>
+              </div>
+              <div purpose="edit-link">
+                <a purpose="sidebar-link" :href="'https://github.com/fleetdm/fleet/edit/main/articles/'+thisPage.sectionRelativeRepoPath"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Suggest an edit</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div purpose="article-container">
+      <div class="d-block d-md-none" purpose="company-information" v-if="thisPage.meta.companyName && thisPage.meta.companyInfo">
+        <h2>About <%= thisPage.meta.companyName %></h2>
+        <p>
+          <%= thisPage.meta.companyInfo %>
+        </p>
+        <p v-if="thisPage.meta.companyInfoLineTwo">
+          <%= thisPage.meta.companyInfoLineTwo %>
+        </p>
+      </div>
+      <div purpose="article-content" parasails-has-no-page-script>
+        <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, thisPage.htmlId)))) %>
+        <hr>
+      </div>
+      <div purpose="about-fleet-section">
+        <h2>About Fleet</h2>
+
+        <p>Fleet is an Open Device Management platform.  Manage configuration, application deployment, and patching from a single console.  Fleet supports multiple operating systems, including macOS, iOS, Android, Windows, Linux, ChromeOS, and AWS, as well as Google Cloud, Azure Data Centers, and containers.</p>
+
+        <p>For security and IT teams, Fleet delivers interoperability and easy automation through open standards, flexible deployment, transparent controls, and real-time visibility of your inventory.</p>
+
+        <p>For end users, Fleet builds trust through data transparency and clarity.  Devices remain reliable and well-managed, minimizing disruptions and ensuring maximum productivity.</p>
+        <div purpose="button-row">
+          <a purpose="cta-button" href="/contact">Get a demo</a>
+          <signup-button :signed-in="this.me"></signup-button>
+        </div>
+      </div>
+      <div purpose="bottom-case-study-links" class="d-flex d-md-none flex-column">
+        <div>
+          <h4>More customer stories</h4>
+          <div purpose="case-study-links" >
+            <a href="/case-study/foursquare" purpose="case-study-link" v-if="thisPage.url !== '/case-study/foursquare'">
+              <div purpose="link-image">
+                <img alt="Foursquare" src="/images/nav-icon-foursquare-40x40@2x.png">
+              </div>
+              <div purpose="link-text">
+                <p><strong>Foursquare</strong></p>
+                <p>Foursquare cut costs and gained 114% ROI with Fleet</p>
+              </div>
+            </a>
+            <a href="/case-study/stripe" purpose="case-study-link" v-if="thisPage.url !== '/case-study/stripe'">
+              <div purpose="link-image">
+                <img alt="Stripe" src="/images/nav-icon-stripe-40x40@2x.png">
+              </div>
+              <div purpose="link-text">
+                <p><strong>Stripe</strong></p>
+                <p>Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually</p>
+              </div>
+            </a>
+            <a href="/case-study/faire" purpose="case-study-link" v-if="thisPage.url !== '/case-study/faire'">
+              <div purpose="link-image">
+                <img alt="Faire" src="/images/nav-icon-faire-40x40@2x.png">
+              </div>
+              <div purpose="link-text">
+                <p><strong>Faire</strong></p>
+                <p>Faire keeps Macs secure with CIS benchmarks using Fleet</p>
+              </div>
+            </a>
+          </div>
+          <div purpose="edit-link">
+            <a purpose="sidebar-link" :href="'https://github.com/fleetdm/fleet/edit/main/articles/'+thisPage.sectionRelativeRepoPath"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Suggest an edit</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+  <signup-modal></signup-modal>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
