@@ -20,6 +20,7 @@ controls:
   macos_settings:
     custom_settings:
       - path: ../lib/ios/declaration-profiles/Passcode settings.json
+      - path: ../lib/ios/configuration-profiles/self-service.mobileconfig
   macos_setup:
     enable_end_user_authentication: true
   scripts:
