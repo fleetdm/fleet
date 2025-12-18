@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"fleetdm/gm/pkg/ghapi"
+	"fleetdm/gm/pkg/logger"
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -538,8 +539,12 @@ func (m *model) executeWorkflow() tea.Cmd {
 		assigneeOrUnassigned := func(issue ghapi.Issue) string {
 			if len(issue.Assignees) > 0 {
 				user, err := ghapi.GetUserName(issue.Assignees[0].Login)
-				if err == nil && user.Name != "" {
-					return user.Name
+				if err == nil {
+					if user.Name != "" {
+						return user.Name
+					} else {
+						return user.Login
+					}
 				}
 			}
 			return "unassigned"
