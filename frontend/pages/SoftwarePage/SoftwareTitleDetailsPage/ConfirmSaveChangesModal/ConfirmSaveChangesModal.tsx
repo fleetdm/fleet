@@ -12,6 +12,7 @@ export interface IConfirmSaveChangesModalProps {
   softwareInstallerName?: string;
   installerType: InstallerType;
   onClose: () => void;
+  isLoading: boolean;
 }
 
 const ConfirmSaveChangesModal = ({
@@ -19,6 +20,7 @@ const ConfirmSaveChangesModal = ({
   softwareInstallerName,
   installerType,
   onClose,
+  isLoading,
 }: IConfirmSaveChangesModalProps) => {
   const warningText =
     installerType === "package" ? (
@@ -55,6 +57,7 @@ const ConfirmSaveChangesModal = ({
             type="button"
             onClick={onSaveChanges}
             className="save-loading"
+            isLoading={isLoading}
           >
             Save
           </Button>
