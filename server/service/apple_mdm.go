@@ -2198,11 +2198,6 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return nil // no-op for non-Apple hosts
 	}
 
-	info, err := svc.ds.GetHostMDMCheckinInfo(ctx, host.UUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting mdm checkin info for mdm apple remove profile command")
-	}
-
 	nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting mdm enrollment status for mdm apple remove profile command")
@@ -2217,20 +2212,10 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "enqueuing mdm apple remove profile command")
 	}
 
-	if err := svc.NewActivity(
-		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
-			HostSerial:       host.HardwareSerial,
-			HostDisplayName:  host.DisplayName(),
-			InstalledFromDEP: info.InstalledFromDEP,
-			Platform:         host.Platform,
-		}); err != nil {
-		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
-	}
-
 	mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, newActivity)
 	err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 		Action:   mdmlifecycle.HostActionTurnOff,
-		Platform: info.Platform,
+		Platform: host.Platform,
 		UUID:     host.UUID,
 	})
 	if err != nil {

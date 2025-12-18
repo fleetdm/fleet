@@ -3599,20 +3599,43 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 		return err
 	}
 
+	installedFromDEP := false
 	switch host.Platform {
 	case "windows":
 		return &fleet.BadRequestError{
 			Message: fleet.CantTurnOffMDMForWindowsHostsMessage,
 		}
 	case "ios", "ipados", "darwin":
-		return svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, host)
+		if err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, host); err != nil {
+			return ctxerr.Wrap(ctx, err, "unenrolling apple host")
+		}
+
+		// We only use this call for activity logging purposes later.
+		info, err := svc.ds.GetHostMDMCheckinInfo(ctx, host.UUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting mdm checkin info for mdm apple remove profile command")
+		}
+		installedFromDEP = info.InstalledFromDEP
 	case "android":
 		// We need to pass host ID and let android look it up again, to avoid refercing the fleet. type for import cycles.
-		return svc.androidSvc.UnenrollAndroidHost(ctx, host.ID)
+		if err := svc.androidSvc.UnenrollAndroidHost(ctx, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "unenrolling android host")
+		}
 	default:
 		level.Debug(svc.logger).Log("msg", "MDM unenrollment requested for host with unknown platform", "host_id", host.ID, "platform", host.Platform)
 		return &fleet.BadRequestError{
 			Message: "MDM unenrollment is not supported for this host platform",
 		}
 	}
+
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
+			HostSerial:       host.HardwareSerial,
+			HostDisplayName:  host.DisplayName(),
+			InstalledFromDEP: installedFromDEP,
+			Platform:         host.Platform,
+		}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
+	}
+	return nil
 }
