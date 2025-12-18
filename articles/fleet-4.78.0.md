@@ -27,7 +27,6 @@ You can now install managed work apps like Slack, Gmail, Zoom, and GlobalProtect
 
 You can now install certificates from any [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) certificate authority to the user scope on Windows hosts. This helps you connect your end users to Wi-Fi, VPN, and other tools.
 
-Also, you can now deploy SCEP certificates to Android devices using Fleet's [best practice GitOps](). Support for deploying Android certificates using Fleet's UI is coming soon.
 
 This means you can now install certificates on macOS, Windows, Linux, iOS/iPadOS, and Android hosts. See all certificate authorities supported by Fleet in [the guide](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate).
 
