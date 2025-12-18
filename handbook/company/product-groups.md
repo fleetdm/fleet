@@ -62,12 +62,11 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 
 **Areas of expertise**:
 - MDM protocol & configuration
+- Configuration profiles
 - New device onboarding
 - Scripts
-- Certificate Authorities (CAs)
-- Certificate delivery & renewal
 - Setup experience
-- OS updates
+- OS configuration & updates
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
 
@@ -139,10 +138,11 @@ The goal of the security and compliance group is to increase and exceed Fleet's 
 - Software inventory ingestion
 - CVE/CPE ingestion & matching
 - Vulnerability reporting
-- CIS benchmarks 
-- PCI ASV
-- Application blocking
+- Conditional access
+- Certificate Authorities (CAs)
+- Certificate delivery & renewal
 - Encryption
+- CIS benchmarks 
 
 
 ### Product group capacity 
