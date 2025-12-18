@@ -398,7 +398,7 @@ func (m model) selectedWorkflowDescription() string {
 	case BulkSprintKickoff:
 		desc = "Add selected issues to a project and set initial sprint kickoff fields (status, estimate sync, labels)."
 	case BulkMilestoneClose:
-		desc = "Add to drafting and set to confirm and celebrate, removes :release label and adds :product label for selected issues (features/bugs)."
+		desc = "Add to drafting and set to confirm and celebrate, removes :release label and adds :product label for selected issues (features/bugs). Does not filter by label, should only be used on stories, does not affect the milestone in any way."
 	case BulkKickOutOfSprint:
 		desc = "Remove selected issues from a project and reset sprint-related fields (status, labels)."
 	case BulkDemoSummary:
