@@ -2395,12 +2395,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		return nil, err
 	}
 
-	// Refetch host from the db.
-	updatedHost, err := ds.HostLiteWithContext(ctx, ds.writer(ctx), host.ID)
-	if err != nil {
-		return nil, err
-	}
-	return updatedHost, nil
+	return &host, nil
 }
 
 // EnrollOsquery enrolls the osquery agent to Fleet.
@@ -5166,16 +5161,12 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-func (ds *Datastore) HostLite(ctx context.Context, id uint) (*fleet.Host, error) {
-	return ds.HostLiteWithContext(ctx, ds.reader(ctx), id)
-}
-
 // HostLite will load the primary data of the host with the given id.
 // We define "primary data" as all host information except the
 // details (like cpu, memory, gigs_disk_space_available, etc.).
 //
 // If the host doesn't exist, a NotFoundError is returned.
-func (ds *Datastore) HostLiteWithContext(ctx context.Context, q sqlx.QueryerContext, id uint) (*fleet.Host, error) {
+func (ds *Datastore) HostLite(ctx context.Context, id uint) (*fleet.Host, error) {
 	query, args, err := dialect.From(goqu.I("hosts")).Select(
 		"id",
 		"created_at",
@@ -5204,7 +5195,7 @@ func (ds *Datastore) HostLiteWithContext(ctx context.Context, q sqlx.QueryerCont
 		return nil, ctxerr.Wrap(ctx, err, "sql build")
 	}
 	var host fleet.Host
-	if err := sqlx.GetContext(ctx, q, &host, query, args...); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &host, query, args...); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Host").WithID(id))
 		}
