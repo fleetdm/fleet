@@ -504,11 +504,6 @@ type UserMessageError struct {
 	ErrorWithUUID
 }
 
-// Unwrap returns the wrapped error for use with errors.Is and errors.As.
-func (e UserMessageError) Unwrap() error {
-	return e.error
-}
-
 // NewUserMessageError creates a UserMessageError that will translate the
 // error message of err to a user-friendly form. If statusCode is > 0, it
 // will be used as the HTTP status code for the error, otherwise it defaults

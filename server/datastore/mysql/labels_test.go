@@ -1203,7 +1203,7 @@ func testLabelsSummaryAndListTeamFiltering(t *testing.T, db *Datastore) {
 		t.Run(tc.name+" summary", func(t *testing.T) {
 			ls, err := db.LabelsSummary(context.Background(), tc.filter)
 			if tc.expectedErr != nil {
-				require.ErrorIs(t, err, tc.expectedErr)
+				require.ErrorContains(t, err, tc.expectedErr.Error())
 				return
 			}
 			require.NoError(t, err)
@@ -1224,7 +1224,7 @@ func testLabelsSummaryAndListTeamFiltering(t *testing.T, db *Datastore) {
 		t.Run(tc.name+" list", func(t *testing.T) {
 			ls, err := db.ListLabels(context.Background(), tc.filter, fleet.ListOptions{}, false)
 			if tc.expectedErr != nil {
-				require.ErrorIs(t, err, tc.expectedErr)
+				require.ErrorContains(t, err, tc.expectedErr.Error())
 				return
 			}
 			require.NoError(t, err)
