@@ -22,6 +22,8 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 }
 
 func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
+	// TODO update to take teams into account
+
 	// First, get existing labels to detect platform changes
 	labelNames := make([]string, 0, len(specs))
 	for _, s := range specs {
@@ -262,6 +264,8 @@ VALUES ` + strings.Join(placeholders, ", ")
 
 // Update label membership for a host vitals label.
 func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error) {
+	// TODO take teams into account
+
 	// Get the label data.
 	label := hvl.GetLabel()
 
@@ -325,6 +329,8 @@ func batchHostIds(hostIds []uint) [][]uint {
 }
 
 func (ds *Datastore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
+	// TODO take teams into account
+
 	var specs []*fleet.LabelSpec
 	// Get basic specs
 	query := "SELECT id, name, description, query, platform, label_type, label_membership_type, criteria FROM labels"
@@ -345,6 +351,8 @@ func (ds *Datastore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, err
 }
 
 func (ds *Datastore) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
+	// TODO take teams into account
+
 	var specs []*fleet.LabelSpec
 	query := `
 SELECT id, name, description, query, platform, label_type, label_membership_type
@@ -508,8 +516,14 @@ func (ds *Datastore) labelDB(ctx context.Context, lid uint, teamFilter fleet.Tea
 		WHERE l.id = ?
 	`, ds.whereFilterHostsByTeams(teamFilter, "h"))
 
+	stmt, params, err := applyLabelTeamFilter(stmt, teamFilter)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "building label select query")
+	}
+	params = append(params, lid)
+
 	var label fleet.LabelWithTeamName
-	if err := sqlx.GetContext(ctx, q, &label, stmt, lid); err != nil {
+	if err := sqlx.GetContext(ctx, q, &label, stmt, params...); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil, ctxerr.Wrap(ctx, notFound("Label").WithID(lid))
 		}
@@ -550,7 +564,7 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 		)
 	}
 
-	query, params, err := applyLabelListTeamFilter(query, filter)
+	query, params, err := applyLabelTeamFilter(query, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -571,24 +585,29 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 
 var errInaccessibleTeam = errors.New("The team ID you provided refers to a team that either does not exist or you do not have permission to access.")
 
-// applyLabelListTeamFilter requires labels to be aliased as "l" to work
-func applyLabelListTeamFilter(query string, filter fleet.TeamFilter) (string, []any, error) {
+// applyLabelTeamFilter requires the labels table to be aliased as "l" to work
+func applyLabelTeamFilter(query string, filter fleet.TeamFilter) (string, []any, error) {
 	if filter.User == nil { // fall back to safe (global-only) filter if this happens (it shouldn't)
 		return query + " WHERE l.team_id IS NULL", nil, nil
 	}
 
+	whereOrAnd := " WHERE "
+	if strings.Contains(strings.ToLower(query), "where") {
+		whereOrAnd = " AND "
+	}
+
 	if filter.TeamID != nil {
 		if *filter.TeamID == 0 { // global labels only; any user can see them
-			return query + " WHERE l.team_id IS NULL", nil, nil
+			return query + whereOrAnd + " l.team_id IS NULL", nil, nil
 		} else if !filter.UserCanAccessSelectedTeam() {
 			return "", nil, fleet.NewUserMessageError(errInaccessibleTeam, 403)
 		} // else user can see the team labels they're asking for; return global labels plus that team's labels
 
-		return query + " WHERE l.team_id IS NULL OR l.team_id = ?", []any{*filter.TeamID}, nil
+		return query + whereOrAnd + " l.team_id IS NULL OR l.team_id = ?", []any{*filter.TeamID}, nil
 	}
 
 	if !filter.User.HasAnyGlobalRole() && filter.User.HasAnyTeamRole() { // filter to teams user can see
-		return sqlx.In(query+" WHERE l.team_id IS NULL OR l.team_id IN (?)", filter.User.TeamIDsWithAnyRole())
+		return sqlx.In(query+whereOrAnd+" l.team_id IS NULL OR l.team_id IN (?)", filter.User.TeamIDsWithAnyRole())
 	} // else user exists and has a global role, so we don't need to filter out any team labels
 
 	return query, nil, nil
@@ -750,6 +769,8 @@ func (ds *Datastore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.
 // ListHostsInLabel returns a list of fleet.Host that are associated
 // with fleet.Label referenced by Label ID
 func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	// TODO make sure label isn't visible if team filter would filter it out
+
 	queryFmt := `
     SELECT
       h.id,
@@ -997,6 +1018,8 @@ func (ds *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFil
 }
 
 func (ds *Datastore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error) {
+	// TODO make sure label isn't visible if team filter would filter it out
+
 	if len(labels) == 0 {
 		return []*fleet.Host{}, nil
 	}
@@ -1069,6 +1092,8 @@ func (ds *Datastore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.T
 }
 
 func (ds *Datastore) searchLabelsWithOmits(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
+	// TODO make sure label isn't visible if team filter would filter it out
+
 	transformedQuery := transformQuery(query)
 
 	sqlStatement := fmt.Sprintf(`
@@ -1189,6 +1214,8 @@ func (ds *Datastore) searchLabelsDefault(ctx context.Context, filter fleet.TeamF
 
 // SearchLabels performs wildcard searches on fleet.Label name
 func (ds *Datastore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
+	// TODO add auth
+
 	transformedQuery := transformQuery(query)
 	if !queryMinLength(transformedQuery) {
 		return ds.searchLabelsDefault(ctx, filter, omit...)
@@ -1233,6 +1260,8 @@ func (ds *Datastore) LabelIDsByName(ctx context.Context, names []string) (map[st
 		return map[string]uint{}, nil
 	}
 
+	// TODO add auth
+
 	sqlStatement := `
 		SELECT id, name FROM labels
 		WHERE name IN (?)
@@ -1260,6 +1289,8 @@ func (ds *Datastore) LabelsByName(ctx context.Context, names []string) (map[stri
 	if len(names) == 0 {
 		return map[string]*fleet.Label{}, nil
 	}
+
+	// TODO add auth
 
 	sqlStatement := `
 		SELECT * FROM labels
@@ -1365,7 +1396,7 @@ func (ds *Datastore) LabelsSummary(ctx context.Context, filter fleet.TeamFilter)
 	var labelsSummary []*fleet.LabelSummary
 
 	query := "SELECT id, name, description, label_type, team_id FROM labels l"
-	query, params, err := applyLabelListTeamFilter(query, filter)
+	query, params, err := applyLabelTeamFilter(query, filter)
 	if err != nil {
 		return nil, err
 	}
