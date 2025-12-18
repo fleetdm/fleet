@@ -602,8 +602,6 @@ type RenewABMTokenFunc func(ctx context.Context, token io.Reader, tokenID uint) 
 
 type EnqueueMDMAppleCommandFunc func(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error)
 
-type EnqueueMDMAppleCommandRemoveEnrollmentProfileFunc func(ctx context.Context, host *fleet.Host) error
-
 type BatchSetMDMAppleProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error
 
 type MDMApplePreassignProfileFunc func(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error
@@ -1746,9 +1744,6 @@ type Service struct {
 
 	EnqueueMDMAppleCommandFunc        EnqueueMDMAppleCommandFunc
 	EnqueueMDMAppleCommandFuncInvoked bool
-
-	EnqueueMDMAppleCommandRemoveEnrollmentProfileFunc        EnqueueMDMAppleCommandRemoveEnrollmentProfileFunc
-	EnqueueMDMAppleCommandRemoveEnrollmentProfileFuncInvoked bool
 
 	BatchSetMDMAppleProfilesFunc        BatchSetMDMAppleProfilesFunc
 	BatchSetMDMAppleProfilesFuncInvoked bool
@@ -4194,13 +4189,6 @@ func (s *Service) EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd strin
 	s.EnqueueMDMAppleCommandFuncInvoked = true
 	s.mu.Unlock()
 	return s.EnqueueMDMAppleCommandFunc(ctx, rawBase64Cmd, deviceIDs)
-}
-
-func (s *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, host *fleet.Host) error {
-	s.mu.Lock()
-	s.EnqueueMDMAppleCommandRemoveEnrollmentProfileFuncInvoked = true
-	s.mu.Unlock()
-	return s.EnqueueMDMAppleCommandRemoveEnrollmentProfileFunc(ctx, host)
 }
 
 func (s *Service) BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error {

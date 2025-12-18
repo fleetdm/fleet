@@ -1379,12 +1379,12 @@ func TestAppleMDMUnenrollment(t *testing.T) {
 	}
 
 	t.Run("Unenrolls macos device", func(t *testing.T) {
-		err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, hostGlobal) // global host
+		err := svc.UnenrollMDM(ctx, hostGlobal.ID) // global host
 		require.NoError(t, err)
 	})
 
 	t.Run("Unenrolls personal ios device", func(t *testing.T) {
-		err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, hostOne) // personal host
+		err := svc.UnenrollMDM(ctx, hostOne.ID) // personal host
 		require.NoError(t, err)
 	})
 }

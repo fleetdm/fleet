@@ -2192,7 +2192,9 @@ func (svc *Service) mdmPushCertTopic(ctx context.Context) (string, error) {
 	return mdmPushCertTopic, nil
 }
 
-func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, host *fleet.Host) error {
+// enqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a RemoveProfile MDM command for the given host.
+// It is a no-op for non-Apple hosts.
+func (svc *Service) enqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, host *fleet.Host) error {
 	if !fleet.IsApplePlatform(host.Platform) {
 		level.Debug(svc.logger).Log("msg", "Skipping mdm apple remove profile command for non-Apple host", "host_id", host.ID, "platform", host.Platform)
 		return nil // no-op for non-Apple hosts
@@ -2210,16 +2212,6 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	err = svc.mdmAppleCommander.RemoveProfile(ctx, []string{nanoEnroll.ID}, apple_mdm.FleetPayloadIdentifier, cmdUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing mdm apple remove profile command")
-	}
-
-	mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, newActivity)
-	err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
-		Action:   mdmlifecycle.HostActionTurnOff,
-		Platform: host.Platform,
-		UUID:     host.UUID,
-	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "running turn off action in mdm lifecycle")
 	}
 
 	return nil
