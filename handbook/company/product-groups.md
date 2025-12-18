@@ -362,7 +362,7 @@ Anyone in the product group can initiate an air guitar session.
 
 #### T-shirt sizing (capacity planning)
 
-T-shirt sizes represent a rough estimate on the effort required to complete a task for a given team. Sometimes, T-shirt sizes are used to understand the level-of-effort before the task has gone through drafting.
+T-shirt sizes represent a rough estimate on the effort required to complete a task for a given team. T-shirt sizes are used to understand the level-of-effort before the task has gone through drafting. That way, we can [plan sprints](https://github.com/orgs/fleetdm/projects/87) weeks in advance.
 
 [Estimation points](https://fleetdm.com/handbook/company/communications#estimation-points) are used if a task has already gone through drafting.
 
