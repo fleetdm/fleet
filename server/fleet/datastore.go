@@ -2587,6 +2587,11 @@ type Datastore interface {
 	// RevertHostCertificateTemplatesToPending reverts specific host certificate templates from 'delivering' back to 'pending'.
 	RevertHostCertificateTemplatesToPending(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error
 
+	// SetHostCertificateTemplatesToPendingRemove prepares certificate templates for removal.
+	// For a given certificate template ID, it deletes any rows with status=pending and
+	// updates all other rows to status=pending, operation_type=remove.
+	SetHostCertificateTemplatesToPendingRemove(ctx context.Context, certificateTemplateID uint) error
+
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
 

@@ -283,6 +283,10 @@ func (svc *Service) DeleteCertificateTemplate(ctx context.Context, certificateTe
 		return ctxerr.Wrap(ctx, err, "deleting certificate template")
 	}
 
+	if err := svc.ds.SetHostCertificateTemplatesToPendingRemove(ctx, certificateTemplateID); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting host certificate templates to pending remove")
+	}
+
 	activity := fleet.ActivityTypeDeletedCertificateTemplate{
 		Name: certificate.Name,
 	}
