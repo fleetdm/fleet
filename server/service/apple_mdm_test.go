@@ -1068,9 +1068,9 @@ func TestMDMCommandAuthz(t *testing.T) {
 	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		switch hostID {
 		case 1:
-			return &fleet.Host{UUID: "test-host-team-1", TeamID: ptr.Uint(1)}, nil
+			return &fleet.Host{UUID: "test-host-team-1", TeamID: ptr.Uint(1), Platform: "darwin"}, nil
 		default:
-			return &fleet.Host{UUID: "test-host-no-team"}, nil
+			return &fleet.Host{UUID: "test-host-no-team", Platform: "darwin"}, nil
 		}
 	}
 
@@ -1173,7 +1173,7 @@ func TestMDMCommandAuthz(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			mdmEnabled.Store(true)
-			err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, 42) // global host
+			err := svc.UnenrollMDM(ctx, 42) // global host
 			if !tt.shouldFailGlobal {
 				require.NoError(t, err)
 			} else {
@@ -1182,7 +1182,7 @@ func TestMDMCommandAuthz(t *testing.T) {
 			}
 
 			mdmEnabled.Store(true)
-			err = svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, 1) // host belongs to team 1
+			err = svc.UnenrollMDM(ctx, 1) // host belongs to team 1
 			if !tt.shouldFailTeam {
 				require.NoError(t, err)
 			} else {
@@ -1348,16 +1348,21 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 	require.True(t, ds.MDMResetEnrollmentFuncInvoked)
 }
 
-func TestMDMUnenrollment(t *testing.T) {
+func TestAppleMDMUnenrollment(t *testing.T) {
 	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
+	hostOne := &fleet.Host{ID: 1, UUID: "test-host-no-team-2", Platform: "ios"}
+	hostGlobal := &fleet.Host{ID: 42, UUID: "test-host-no-team", Platform: "darwin"}
+
 	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		switch hostID {
-		case 1:
-			return &fleet.Host{UUID: "test-host-no-team-2"}, nil
+		case hostOne.ID:
+			return hostOne, nil
+		case hostGlobal.ID:
+			return hostGlobal, nil
 		default:
-			return &fleet.Host{UUID: "test-host-no-team"}, nil
+			return nil, errors.New("not found")
 		}
 	}
 
@@ -1385,12 +1390,12 @@ func TestMDMUnenrollment(t *testing.T) {
 	}
 
 	t.Run("Unenrolls macos device", func(t *testing.T) {
-		err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, 42) // global host
+		err := svc.UnenrollMDM(ctx, hostGlobal.ID) // global host
 		require.NoError(t, err)
 	})
 
 	t.Run("Unenrolls personal ios device", func(t *testing.T) {
-		err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, 1) // personal host
+		err := svc.UnenrollMDM(ctx, hostOne.ID) // personal host
 		require.NoError(t, err)
 	})
 }
