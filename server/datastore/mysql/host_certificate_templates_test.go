@@ -855,16 +855,16 @@ func testSetHostCertificateTemplatesToPendingRemove(t *testing.T, ds *Datastore)
 
 		// Insert records with various statuses for the same template
 		_, err := ds.writer(ctx).ExecContext(ctx, `
-			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge) VALUES
-			(?, ?, ?, ?, ?),
-			(?, ?, ?, ?, ?),
-			(?, ?, ?, ?, ?),
-			(?, ?, ?, ?, ?)
+			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name) VALUES
+			(?, ?, ?, ?, ?, ?),
+			(?, ?, ?, ?, ?, ?),
+			(?, ?, ?, ?, ?, ?),
+			(?, ?, ?, ?, ?, ?)
 		`,
-			"host-pending", setup.template.ID, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall, nil,
-			"host-delivered", setup.template.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "challenge1",
-			"host-verified", setup.template.ID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, "challenge2",
-			"host-failed", setup.template.ID, fleet.CertificateTemplateFailed, fleet.MDMOperationTypeInstall, "challenge3",
+			"host-pending", setup.template.ID, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall, nil, setup.template.Name,
+			"host-delivered", setup.template.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "challenge1", setup.template.Name,
+			"host-verified", setup.template.ID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, "challenge2", setup.template.Name,
+			"host-failed", setup.template.ID, fleet.CertificateTemplateFailed, fleet.MDMOperationTypeInstall, "challenge3", setup.template.Name,
 		)
 		require.NoError(t, err)
 
@@ -910,12 +910,12 @@ func testSetHostCertificateTemplatesToPendingRemove(t *testing.T, ds *Datastore)
 
 		// Insert records for both templates
 		_, err = ds.writer(ctx).ExecContext(ctx, `
-			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge) VALUES
-			(?, ?, ?, ?, ?),
-			(?, ?, ?, ?, ?)
+			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name) VALUES
+			(?, ?, ?, ?, ?, ?),
+			(?, ?, ?, ?, ?, ?)
 		`,
-			"host-1", setup.template.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "challenge1",
-			"host-1", templateTwo.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "challenge2",
+			"host-1", setup.template.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "challenge1", setup.template.Name,
+			"host-1", templateTwo.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "challenge2", templateTwo.Name,
 		)
 		require.NoError(t, err)
 
