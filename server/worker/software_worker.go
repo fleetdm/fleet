@@ -366,11 +366,6 @@ func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context
 		return ctxerr.Wrap(ctx, err, "make android apps available")
 	}
 
-	// TODO(JK): think about setup experience
-	// From what I can see, it's enough to just set install_during_setup
-	// since setup experience will create the policy from the database info every time
-	// (for every host)
-
 	return nil
 }
 

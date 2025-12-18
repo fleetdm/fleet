@@ -1414,7 +1414,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	}
 
 	setupSoftwareBySoftwareTitle := make(map[uint]struct{})
-	setupSoftwareByPlatformAndApp := make(map[string]struct{})
+	setupSoftwareByPlatformAndID := make(map[string]struct{})
 
 	// Fill in InstallDuringSetup for software, as that information is only available
 	// from the setup experience endpoint
@@ -1432,7 +1432,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		if software.AppStoreApp != nil {
 			appStoreApp := software.AppStoreApp
 			if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
-				setupSoftwareByPlatformAndApp[strings.Join([]string{appStoreApp.Platform, appStoreApp.AppStoreID}, "_")] = struct{}{}
+				setupSoftwareByPlatformAndID[strings.Join([]string{appStoreApp.Platform, appStoreApp.AppStoreID}, "_")] = struct{}{}
 			}
 		}
 	}
@@ -1654,7 +1654,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				labels = softwareTitle.AppStoreApp.LabelsExcludeAny
 				labelKey = "labels_exclude_any"
 			}
-			if _, exists := setupSoftwareByPlatformAndApp[platformAndAppID]; exists {
+			if _, exists := setupSoftwareByPlatformAndID[platformAndAppID]; exists {
 				softwareSpec["setup_experience"] = true
 			}
 		}

@@ -449,7 +449,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			setupExperienceChanged = true
 		}
 
-		if changed.Anything {
+		if changed.Any {
 			toAddApps = append(toAddApps, incomingApp)
 		}
 	}
@@ -555,6 +555,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 
 		return nil
 	})
+
 	return setupExperienceChanged, err
 }
 
@@ -2312,7 +2313,7 @@ WHERE
 }
 
 type appStoreAppChanges struct {
-	Anything           bool
+	Any                bool
 	Categories         bool
 	Labels             bool
 	InstallDuringSetup bool
@@ -2362,7 +2363,7 @@ func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, in
 			*incomingApp.InstallDuringSetup != *existingApp.InstallDuringSetup
 	}
 
-	// Added a new app with setup experience enabled
+	// New app added with setup experience enabled
 	if !isExistingApp && incomingApp.InstallDuringSetup != nil && *incomingApp.InstallDuringSetup {
 		installDuringSetupChanged = true
 	}

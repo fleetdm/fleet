@@ -42,7 +42,6 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 		if sw.CountsUpdatedAt != nil && !sw.CountsUpdatedAt.IsZero() && sw.CountsUpdatedAt.After(latest) {
 			latest = *sw.CountsUpdatedAt
 		}
-
 		// we dont want to include the InstallDuringSetup field in the response
 		// for software titles list.
 		if sw.SoftwarePackage != nil {
