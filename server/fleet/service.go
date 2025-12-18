@@ -954,10 +954,6 @@ type Service interface {
 	// devices. Note that a deviceID is the same as a host's UUID.
 	EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *CommandEnqueueResult, err error)
 
-	// EnqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a command to remove the
-	// profile used for Fleet MDM enrollment from the specified device.
-	EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostID uint) error
-
 	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
 	// team or for hosts with no team.
 	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error
@@ -1399,6 +1395,9 @@ type Service interface {
 	BatchApplyCertificateAuthorities(ctx context.Context, groupedCAs GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error
 	// GetGroupedCertificateAuthorities retrieves the grouped certificate authorities
 	GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*GroupedCertificateAuthorities, error)
+
+	// UnenrollMDM unenrolls the host from MDM
+	UnenrollMDM(ctx context.Context, hostID uint) error
 }
 
 type KeyValueStore interface {

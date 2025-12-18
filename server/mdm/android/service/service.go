@@ -800,35 +800,32 @@ func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *an
 	}
 }
 
-// Admin-initiated Android unenroll
-// Request decoder for POST /api/_version_/fleet/hosts/{id}/mdm/unenroll
-type androidHostUnenrollRequest struct {
-	HostID uint `url:"id"`
-}
-
-func unenrollAndroidHostEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
-	req := request.(*androidHostUnenrollRequest)
-	err := svc.UnenrollAndroidHost(ctx, req.HostID)
-	return android.DefaultResponse{Err: err}
-}
-
-// UnenrollAndroidHost calls AMAPI to delete the device (work profile) and emits an activity.
+// UnenrollAndroidHost calls AMAPI to delete the device (work profile).
 // The actual MDM status flip to Off is performed when Pub/Sub sends DELETED for the device.
 func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error {
-	// Load host and authorize based on team
-	h, err := svc.fleetDS.HostLite(ctx, hostID)
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+
+	host, err := svc.fleetDS.HostLite(ctx, hostID)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "getting host for android unenrollment")
 	}
-	if err := svc.authz.Authorize(ctx, h, fleet.ActionWrite); err != nil {
-		return err
+
+	if !fleet.IsAndroidPlatform(host.Platform) {
+		level.Debug(svc.logger).Log("msg", "Skipping Android unenrollment for non-Android host", "host_id", host.ID, "platform", host.Platform)
+		return nil // no-op for non-Android hosts
 	}
-	if strings.ToLower(h.Platform) != "android" {
-		return &fleet.BadRequestError{Message: "host is not an android device"}
+
+	// Check authorization again based on host info for team-based permissions.
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{
+		TeamID: host.TeamID,
+	}, fleet.ActionWrite); err != nil {
+		return err
 	}
 
 	// Resolve Android device and enterprise
-	ah, err := svc.ds.AndroidHostLiteByHostUUID(ctx, h.UUID)
+	ah, err := svc.ds.AndroidHostLiteByHostUUID(ctx, host.UUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting android host by uuid")
 	}
@@ -851,16 +848,6 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		return ctxerr.Wrap(ctx, err, "amapi delete device")
 	}
 
-	// Emit activity: admin told Fleet to unenroll
-	displayName := fleet.HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
-	if err := svc.activityModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeMDMUnenrolled{
-		HostSerial:       h.HardwareSerial,
-		HostDisplayName:  displayName,
-		InstalledFromDEP: false,
-		Platform:         "android",
-	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "create android unenroll activity")
-	}
 	return nil
 }
 
