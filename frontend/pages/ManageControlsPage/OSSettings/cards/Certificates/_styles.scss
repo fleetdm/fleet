@@ -2,7 +2,6 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  height: px-to-rem(340);
 
   &__mdm-disabled-message {
     border: 1px solid $ui-fleet-black-10;
