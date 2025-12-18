@@ -340,10 +340,7 @@ object CertificateOrchestrator {
      * @param currentCertificateIds List of certificate IDs from current managed configuration
      * @return Map of certificate ID to cleanup result
      */
-    suspend fun cleanupRemovedCertificates(
-        context: Context,
-        currentCertificateIds: List<Int>,
-    ): Map<Int, CleanupResult> {
+    suspend fun cleanupRemovedCertificates(context: Context, currentCertificateIds: List<Int>): Map<Int, CleanupResult> {
         Log.d(TAG, "Starting certificate cleanup. Current IDs: $currentCertificateIds")
 
         // Get all installed certificates from DataStore
@@ -379,7 +376,8 @@ object CertificateOrchestrator {
                 // Report successful removal to server
                 ApiClient.updateCertificateStatus(
                     certificateId = certificateId,
-                    status = "deleted",
+                    status = UpdateCertificateStatusStatus.FAILED,
+                    operationType = UpdateCertificateStatusOperation.REMOVE,
                 ).onFailure { error ->
                     Log.e(TAG, "Failed to report certificate removal status for ID $certificateId: ${error.message}", error)
                 }
@@ -394,7 +392,8 @@ object CertificateOrchestrator {
                 val errorDetail = "Failed to remove certificate keypair from device"
                 ApiClient.updateCertificateStatus(
                     certificateId = certificateId,
-                    status = "failed",
+                    status = UpdateCertificateStatusStatus.FAILED,
+                    operationType = UpdateCertificateStatusOperation.REMOVE,
                     detail = errorDetail,
                 ).onFailure { error ->
                     Log.e(TAG, "Failed to report certificate removal failure for ID $certificateId: ${error.message}", error)
@@ -482,7 +481,8 @@ object CertificateOrchestrator {
                 Log.i(TAG, "Certificate enrollment successful for ID $certificateId with alias: ${result.alias}")
                 ApiClient.updateCertificateStatus(
                     certificateId = certificateId,
-                    status = "verified",
+                    status = UpdateCertificateStatusStatus.VERIFIED,
+                    operationType = UpdateCertificateStatusOperation.INSTALL,
                 ).onFailure { error ->
                     Log.e(TAG, "Failed to update certificate status to verified for ID $certificateId: ${error.message}", error)
                 }
@@ -496,7 +496,8 @@ object CertificateOrchestrator {
                     Log.e(TAG, "Certificate enrollment failed for ID $certificateId: ${result.reason}", result.exception)
                     ApiClient.updateCertificateStatus(
                         certificateId = certificateId,
-                        status = "failed",
+                        status = UpdateCertificateStatusStatus.FAILED,
+                        operationType = UpdateCertificateStatusOperation.INSTALL,
                         detail = result.reason,
                     ).onFailure { error ->
                         Log.e(TAG, "Failed to update certificate status to failed for ID $certificateId: ${error.message}", error)

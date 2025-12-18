@@ -230,10 +230,19 @@ object ApiClient {
         )
     }
 
-    suspend fun updateCertificateStatus(certificateId: Int, status: String, detail: String? = null): Result<Unit> = makeRequest(
+    suspend fun updateCertificateStatus(
+        certificateId: Int,
+        status: UpdateCertificateStatusStatus,
+        operationType: UpdateCertificateStatusOperation,
+        detail: String? = null,
+    ): Result<Unit> = makeRequest(
         endpoint = "/api/fleetd/certificates/$certificateId/status",
         method = "PUT",
-        body = UpdateCertificateStatusRequest(status = status, detail = detail),
+        body = UpdateCertificateStatusRequest(
+            status = status,
+            operationType = operationType,
+            detail = detail,
+        ),
         bodySerializer = UpdateCertificateStatusRequest.serializer(),
         responseSerializer = UpdateCertificateStatusResponse.serializer(),
     ).fold(
@@ -410,10 +419,30 @@ private data class GetCertificateTemplateRequest(
 @Serializable
 data class UpdateCertificateStatusRequest(
     @SerialName("status")
-    val status: String,
+    val status: UpdateCertificateStatusStatus,
+    @SerialName("operation_type")
+    val operationType: UpdateCertificateStatusOperation,
     @SerialName("detail")
     val detail: String? = null,
 )
+
+@Serializable
+enum class UpdateCertificateStatusStatus {
+    @SerialName("verified")
+    VERIFIED,
+
+    @SerialName("failed")
+    FAILED,
+}
+
+@Serializable
+enum class UpdateCertificateStatusOperation {
+    @SerialName("install")
+    INSTALL,
+
+    @SerialName("remove")
+    REMOVE,
+}
 
 @Serializable
 private data class UpdateCertificateStatusResponse(
