@@ -637,7 +637,7 @@ org_settings:
 
 The `fleet_desktop` section lets you customize the Fleet Desktop experience by overriding default URLs.
 - `transparency_url` directs end users to a custom URL when they select **About Fleet** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
-- `alternative_browser_host_url` is a custom URL that my hosts will access Fleet Desktop from (default: `server_url`).
+- `alternative_browser_host_url` is a custom URL that my hosts will access Fleet Desktop from.
 
 Can only be configured for all teams (`org_settings`).
 
