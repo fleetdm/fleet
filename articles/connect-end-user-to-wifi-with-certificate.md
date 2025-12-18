@@ -613,6 +613,12 @@ Create a certificate in Fleet to deploy to all hosts on the team.
 2. Select **Add**
 3. Add the **Name**, select your custom SCEP CA, added in the [first step](#step-1-connect-fleet-to-a-custom-scep-server), and add the subject name. Subject name supports [variables](https://fleetdm.com/docs/configuration/yaml-files#variables).
 4. Once created, the certificate will have "Pending" status. You can check the certificate status on **Host details > OS settings**
+5. [Add configuration profile](https://fleetdm.com/guides/custom-os-settings#enforce) below to allow certificate to be used in work profile.
+  ```json
+  {
+    "privateKeySelectionEnabled": true,
+  }  
+  ```
 
 Certificate's name can be referenced in Android configuration profiles or in Android app configuration. For example, you can use it as `ClientCertKeyPairAlias` in a [network configuration profile](https://developers.google.com/android/management/configure-networks#eap_authentication).
 

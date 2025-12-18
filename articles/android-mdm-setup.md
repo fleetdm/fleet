@@ -46,6 +46,8 @@ Now you have managed Google domain with an Android Enterprise subscription. Opti
 
 Learn how to enroll Android hosts in the [enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui).
 
+Fleet agent app is automatically installed during enrollment. Fleet deploys certificates to [connect end users to corporate networks](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#android).
+
 ## Migration
 
 To migrate hosts from other MDM solution, you must first unenroll hosts from your old solution and share a link with your end users so they can enroll to Fleet. Learn how to find your enrollment link in the [enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui).
