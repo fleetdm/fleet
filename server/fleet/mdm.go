@@ -529,6 +529,15 @@ const (
 	MDMOperationTypeRemove  MDMOperationType = "remove"
 )
 
+func (o MDMOperationType) IsValid() bool {
+	switch o {
+	case MDMOperationTypeInstall, MDMOperationTypeRemove:
+		return true
+	default:
+		return false
+	}
+}
+
 // MDMConfigProfileAuthz is used to check user authorization to read/write an
 // MDM configuration profile.
 type MDMConfigProfileAuthz struct {

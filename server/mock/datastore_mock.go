@@ -1163,7 +1163,7 @@ type GetLinuxDiskEncryptionSummaryFunc func(ctx context.Context, teamID *uint) (
 
 type GetMDMCommandPlatformFunc func(ctx context.Context, commandUUID string) (string, error)
 
-type ListMDMCommandsFunc func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, error)
+type ListMDMCommandsFunc func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error)
 
 type GetMDMWindowsBitLockerSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error)
 
@@ -1655,7 +1655,7 @@ type UpdateCertificateAuthorityByIDFunc func(ctx context.Context, id uint, certi
 
 type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error
 
-type UpsertCertificateStatusFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error
+type UpsertCertificateStatusFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string, operationType fleet.MDMOperationType) error
 
 type BatchUpsertCertificateTemplatesFunc func(ctx context.Context, certificates []*fleet.CertificateTemplate) ([]uint, error)
 
@@ -1685,7 +1685,7 @@ type DeleteHostCertificateTemplatesFunc func(ctx context.Context, hostCertTempla
 
 type ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
 
-type TransitionCertificateTemplatesToDeliveringFunc func(ctx context.Context, hostUUID string) ([]uint, error)
+type GetAndTransitionCertificateTemplatesToDeliveringFunc func(ctx context.Context, hostUUID string) (*fleet.HostCertificateTemplatesForDelivery, error)
 
 type TransitionCertificateTemplatesToDeliveredFunc func(ctx context.Context, hostUUID string, challenges map[uint]string) error
 
@@ -4193,8 +4193,8 @@ type DataStore struct {
 	ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc        ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc
 	ListAndroidHostUUIDsWithPendingCertificateTemplatesFuncInvoked bool
 
-	TransitionCertificateTemplatesToDeliveringFunc        TransitionCertificateTemplatesToDeliveringFunc
-	TransitionCertificateTemplatesToDeliveringFuncInvoked bool
+	GetAndTransitionCertificateTemplatesToDeliveringFunc        GetAndTransitionCertificateTemplatesToDeliveringFunc
+	GetAndTransitionCertificateTemplatesToDeliveringFuncInvoked bool
 
 	TransitionCertificateTemplatesToDeliveredFunc        TransitionCertificateTemplatesToDeliveredFunc
 	TransitionCertificateTemplatesToDeliveredFuncInvoked bool
@@ -8207,7 +8207,7 @@ func (s *DataStore) GetMDMCommandPlatform(ctx context.Context, commandUUID strin
 	return s.GetMDMCommandPlatformFunc(ctx, commandUUID)
 }
 
-func (s *DataStore) ListMDMCommands(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, error) {
+func (s *DataStore) ListMDMCommands(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListMDMCommandsFuncInvoked = true
 	s.mu.Unlock()
@@ -9929,11 +9929,11 @@ func (s *DataStore) BatchApplyCertificateAuthorities(ctx context.Context, ops fl
 	return s.BatchApplyCertificateAuthoritiesFunc(ctx, ops)
 }
 
-func (s *DataStore) UpsertCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error {
+func (s *DataStore) UpsertCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string, operationType fleet.MDMOperationType) error {
 	s.mu.Lock()
 	s.UpsertCertificateStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpsertCertificateStatusFunc(ctx, hostUUID, certificateTemplateID, status, detail)
+	return s.UpsertCertificateStatusFunc(ctx, hostUUID, certificateTemplateID, status, detail, operationType)
 }
 
 func (s *DataStore) BatchUpsertCertificateTemplates(ctx context.Context, certificates []*fleet.CertificateTemplate) ([]uint, error) {
@@ -10034,11 +10034,11 @@ func (s *DataStore) ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx cont
 	return s.ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc(ctx, offset, limit)
 }
 
-func (s *DataStore) TransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) ([]uint, error) {
+func (s *DataStore) GetAndTransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) (*fleet.HostCertificateTemplatesForDelivery, error) {
 	s.mu.Lock()
-	s.TransitionCertificateTemplatesToDeliveringFuncInvoked = true
+	s.GetAndTransitionCertificateTemplatesToDeliveringFuncInvoked = true
 	s.mu.Unlock()
-	return s.TransitionCertificateTemplatesToDeliveringFunc(ctx, hostUUID)
+	return s.GetAndTransitionCertificateTemplatesToDeliveringFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) TransitionCertificateTemplatesToDelivered(ctx context.Context, hostUUID string, challenges map[uint]string) error {

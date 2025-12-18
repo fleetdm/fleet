@@ -407,7 +407,7 @@ type ApplyCertificateTemplateSpecsFunc func(ctx context.Context, specs []*fleet.
 
 type DeleteCertificateTemplateSpecsFunc func(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
 
-type UpdateCertificateStatusFunc func(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error
+type UpdateCertificateStatusFunc func(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string, operationType *string) error
 
 type GlobalScheduleQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
 
@@ -695,7 +695,7 @@ type RunMDMCommandFunc func(ctx context.Context, rawBase64Cmd string, deviceIDs 
 
 type GetMDMCommandResultsFunc func(ctx context.Context, commandUUID string, hostIdentifier string) ([]*fleet.MDMCommandResult, error)
 
-type ListMDMCommandsFunc func(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, error)
+type ListMDMCommandsFunc func(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error)
 
 type SetOrUpdateDiskEncryptionKeyFunc func(ctx context.Context, encryptionKey string, clientError string) error
 
@@ -3511,11 +3511,11 @@ func (s *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certificat
 	return s.DeleteCertificateTemplateSpecsFunc(ctx, certificateTemplateIDs, teamID)
 }
 
-func (s *Service) UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string) error {
+func (s *Service) UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string, operationType *string) error {
 	s.mu.Lock()
 	s.UpdateCertificateStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateCertificateStatusFunc(ctx, certificateTemplateID, status, detail)
+	return s.UpdateCertificateStatusFunc(ctx, certificateTemplateID, status, detail, operationType)
 }
 
 func (s *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
@@ -4519,7 +4519,7 @@ func (s *Service) GetMDMCommandResults(ctx context.Context, commandUUID string, 
 	return s.GetMDMCommandResultsFunc(ctx, commandUUID, hostIdentifier)
 }
 
-func (s *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, error) {
+func (s *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListMDMCommandsFuncInvoked = true
 	s.mu.Unlock()

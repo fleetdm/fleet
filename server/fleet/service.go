@@ -648,7 +648,7 @@ type Service interface {
 	DeleteCertificateTemplate(ctx context.Context, id uint) error
 	ApplyCertificateTemplateSpecs(ctx context.Context, specs []*CertificateRequestSpec) error
 	DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
-	UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status MDMDeliveryStatus, detail *string) error
+	UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status MDMDeliveryStatus, detail *string, operationType *string) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalScheduleService
@@ -1112,7 +1112,7 @@ type Service interface {
 	GetMDMCommandResults(ctx context.Context, commandUUID string, hostIdentifier string) ([]*MDMCommandResult, error)
 
 	// ListMDMCommands returns MDM commands based on the provided options.
-	ListMDMCommands(ctx context.Context, opts *MDMCommandListOptions) ([]*MDMCommand, *int64, error)
+	ListMDMCommands(ctx context.Context, opts *MDMCommandListOptions) ([]*MDMCommand, *int64, *PaginationMetadata, error)
 
 	// Set or update the disk encryption key for a host.
 	SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error

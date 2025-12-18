@@ -108,7 +108,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 	adminTeamFilter := fleet.TeamFilter{
 		User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 	}
-	acctCmds, _, err := svc.ds.ListMDMCommands(ctx, adminTeamFilter, &fleet.MDMCommandListOptions{
+	acctCmds, _, _, err := svc.ds.ListMDMCommands(ctx, adminTeamFilter, &fleet.MDMCommandListOptions{
 		Filters: fleet.MDMCommandFilters{
 			HostIdentifier: host.UUID,
 			RequestType:    "AccountConfiguration",

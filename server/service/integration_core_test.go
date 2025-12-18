@@ -14953,6 +14953,7 @@ INSERT INTO host_certificate_templates (
 		name                    string
 		templateID              uint
 		newStatus               string
+		newOperationType        *string
 		detail                  *string
 		expectedResponseStatus  int
 		expectedResponseMessage string
@@ -15005,13 +15006,55 @@ INSERT INTO host_certificate_templates (
 				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
 			},
 		},
+		{
+			name:                   "with operation_type install",
+			templateID:             certificateTemplateID,
+			newStatus:              "verified",
+			expectedResponseStatus: http.StatusOK,
+			newOperationType:       ptr.String("install"),
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
+		},
+		{
+			name:                   "with operation_type remove",
+			templateID:             certificateTemplateID,
+			newStatus:              "verified",
+			expectedResponseStatus: http.StatusOK,
+			newOperationType:       ptr.String("remove"),
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
+		},
+		{
+			name:                   "with operation_type empty string",
+			templateID:             certificateTemplateID,
+			newStatus:              "verified",
+			expectedResponseStatus: http.StatusOK,
+			newOperationType:       ptr.String(""),
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
+		},
+		{
+			name:                    "with invalid operation_type",
+			templateID:              certificateTemplateID,
+			newStatus:               "verified",
+			expectedResponseStatus:  http.StatusUnprocessableEntity,
+			expectedResponseMessage: "must be 'install' or 'remove'",
+			newOperationType:        ptr.String("invalid_operation"),
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("TestUpdateHostCertificateTemplate:%s", tc.name), func(t *testing.T) {
 			req, err := json.Marshal(updateCertificateStatusRequest{
-				Status: tc.newStatus,
-				Detail: tc.detail,
+				Status:        tc.newStatus,
+				Detail:        tc.detail,
+				OperationType: tc.newOperationType,
 			})
 			require.NoError(t, err)
 

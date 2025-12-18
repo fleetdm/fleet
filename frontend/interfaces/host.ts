@@ -97,7 +97,7 @@ export interface IMunkiData {
 
 export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
 
-export type HostCertStatus =
+export type HostAndroidCertStatus =
   | "verified"
   | "failed"
   //  all below display "pending" in UI
@@ -105,9 +105,9 @@ export type HostCertStatus =
   | "delivering"
   | "delivered";
 
-export interface IHostCert {
+export interface IHostAndroidCert {
   name: string;
-  status: HostCertStatus;
+  status: HostAndroidCertStatus;
   operation_type: "install" | "remove";
   detail: string;
 }
@@ -117,7 +117,7 @@ export interface IOSSettings {
     status: DiskEncryptionStatus | null;
     detail: string;
   };
-  certificates: IHostCert[];
+  certificates: IHostAndroidCert[];
 }
 
 interface IMdmMacOsSettings {
