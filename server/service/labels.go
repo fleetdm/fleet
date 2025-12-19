@@ -598,8 +598,9 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type applyLabelSpecsRequest struct {
-	// TODO GitOps add team ID
-	Specs []*fleet.LabelSpec `json:"specs"`
+	Specs       []*fleet.LabelSpec `json:"specs"`
+	TeamID      *uint              `json:"-" query:"team_id,optional"`
+	NamesToMove []string           `json:"names_to_move,omitempty"`
 }
 
 type applyLabelSpecsResponse struct {

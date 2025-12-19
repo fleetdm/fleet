@@ -1003,7 +1003,7 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, db.DeleteLabel(ctx, l.Name))
+	require.NoError(t, db.DeleteLabel(ctx, l.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
 
 	newP, err := db.Pack(ctx, p.ID)
 	require.NoError(t, err)

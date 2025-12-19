@@ -1063,7 +1063,7 @@ func TestStreamHosts(t *testing.T) {
 		hostIterator := func() iter.Seq2[*fleet.HostResponse, error] {
 			return func(yield func(*fleet.HostResponse, error) bool) {
 				for i := 1; i <= 3; i++ {
-					host := &fleet.HostResponse{Host: &fleet.Host{ID: uint(i)}}
+					host := &fleet.HostResponse{Host: &fleet.Host{ID: uint(i)}} // nolint:gosec
 					if !yield(host, nil) {
 						return
 					}
