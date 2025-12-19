@@ -457,3 +457,34 @@ func (ds *Datastore) RevertStaleCertificateTemplates(
 	}
 	return result.RowsAffected()
 }
+
+// SetHostCertificateTemplatesToPendingRemove prepares certificate templates for removal.
+// For a given certificate template ID, it deletes any rows with status=pending and
+// updates all other rows to status=pending, operation_type=remove.
+func (ds *Datastore) SetHostCertificateTemplatesToPendingRemove(
+	ctx context.Context,
+	certificateTemplateID uint,
+) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Delete rows with status=pending
+		deleteStmt := fmt.Sprintf(`
+			DELETE FROM host_certificate_templates
+			WHERE certificate_template_id = ? AND status = '%s'
+		`, fleet.CertificateTemplatePending)
+		if _, err := tx.ExecContext(ctx, deleteStmt, certificateTemplateID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete pending host certificate templates")
+		}
+
+		// Update all remaining rows to status=pending, operation_type=remove
+		updateStmt := fmt.Sprintf(`
+			UPDATE host_certificate_templates
+			SET status = '%s', operation_type = '%s'
+			WHERE certificate_template_id = ?
+		`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeRemove)
+		if _, err := tx.ExecContext(ctx, updateStmt, certificateTemplateID); err != nil {
+			return ctxerr.Wrap(ctx, err, "update host certificate templates to pending remove")
+		}
+
+		return nil
+	})
+}
