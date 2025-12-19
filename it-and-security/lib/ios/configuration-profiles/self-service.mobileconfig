@@ -114,7 +114,7 @@
 		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
-	<string>iOS self-service</string>
+	<string>iOS Self-service</string>
 	<key>PayloadIdentifier</key>
 	<string>com.fleetdm.self-service.webclip</string>
 	<key>PayloadType</key>
