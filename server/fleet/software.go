@@ -299,6 +299,16 @@ type SoftwareTitle struct {
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	// DisplayName is an end-user friendly name.
 	DisplayName string `json:"display_name" db:"display_name"`
+	// AutoUpdateEnabled indicates if auto-update is enabled for this software title.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateEnabled *bool `json:"auto_update_enabled,omitempty" db:"-"`
+	// AutoUpdateStartTime is the beginning of the maintenance window for the software title.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateStartTime *string `json:"auto_update_start_time,omitempty" db:"-"`
+	// AutoUpdateStartTime is the end of the maintenance window for the software title.
+	// If the end time is less than the start time, the window wraps to the next day.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateEndTime *string `json:"auto_update_end_time,omitempty" db:"-"`
 }
 
 // populateBrowserField populates the browser field for backwards compatibility
@@ -384,6 +394,16 @@ type SoftwareTitleListResult struct {
 	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	DisplayName string  `json:"display_name" db:"display_name"`
+	// AutoUpdateEnabled indicates if auto-update is enabled for this software title.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateEnabled *bool `json:"auto_update_enabled,omitempty" db:"-"`
+	// AutoUpdateStartTime is the beginning of the maintenance window for the software title.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateStartTime *string `json:"auto_update_start_time,omitempty" db:"-"`
+	// AutoUpdateStartTime is the end of the maintenance window for the software title.
+	// If the end time is less than the start time, the window wraps to the next day.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateEndTime *string `json:"auto_update_end_time,omitempty" db:"-"`
 }
 
 type SoftwareTitleListOptions struct {
