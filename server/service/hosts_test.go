@@ -1288,31 +1288,46 @@ func TestListHostsSoftwareTitleIDFilter(t *testing.T) {
 		return []*fleet.Host{{ID: 1, Hostname: "test"}}, nil
 	}
 
-	// Case: Not found on team, not found globally - SoftwareTitle should be nil
-	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
-		require.Equal(t, titleID, id)
-		return nil, notFoundErr{}
-	}
 	req := &listHostsRequest{
 		Opts: fleet.HostListOptions{
 			TeamFilter:            &teamID,
 			SoftwareTitleIDFilter: &titleID,
 		},
 	}
+
+	// Case 1: Not found on team, not found globally, but name helper finds a name
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, tmID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+		require.Equal(t, titleID, id)
+		return nil, notFoundErr{}
+	}
+	ds.SoftwareTitleNameForHostFilterFunc = func(ctx context.Context, id uint) (string, error) {
+		require.Equal(t, titleID, id)
+		return "FallbackName", nil
+	}
+
 	resp_, err := listHostsEndpoint(test.UserContext(ctx, test.UserAdmin), req, svc)
 	require.NoError(t, err)
 	resp := resp_.(listHostsResponse)
 	require.NotNil(t, resp.SoftwareTitle)
 	require.Equal(t, titleID, resp.SoftwareTitle.ID)
-	require.Equal(t, "", resp.SoftwareTitle.Name)
+	require.Equal(t, "FallbackName", resp.SoftwareTitle.Name)
 
-	// Case: Not found on team, but found globally
-	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
-		if teamID != nil {
+	// Case 2: Not found on team, but found globally
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, tmID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+		require.Equal(t, titleID, id)
+		if tmID != nil {
+			// team-scoped call
 			return nil, notFoundErr{}
 		}
+		// global fallback
 		return &fleet.SoftwareTitle{ID: id, Name: "GlobalTitle"}, nil
 	}
+	// Name helper should not be used in this case, but set it defensively anyway.
+	ds.SoftwareTitleNameForHostFilterFunc = func(ctx context.Context, id uint) (string, error) {
+		t.Fatalf("SoftwareTitleNameForHostFilter should not be called when global title exists")
+		return "", nil
+	}
+
 	resp_, err = listHostsEndpoint(test.UserContext(ctx, test.UserAdmin), req, svc)
 	require.NoError(t, err)
 	resp = resp_.(listHostsResponse)
@@ -1320,14 +1335,21 @@ func TestListHostsSoftwareTitleIDFilter(t *testing.T) {
 	require.Equal(t, titleID, resp.SoftwareTitle.ID)
 	require.Equal(t, "GlobalTitle", resp.SoftwareTitle.Name)
 
-	// Case: Found on team first, should NOT fall back
-	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
-		if teamID != nil {
+	// Case 3: Found on team first, should NOT fall back
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, tmID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+		require.Equal(t, titleID, id)
+		if tmID != nil {
+			// team hit
 			return &fleet.SoftwareTitle{ID: id, Name: "TeamTitle"}, nil
 		}
 		t.Fatal("should not call global fallback if team result is found")
 		return nil, nil
 	}
+	ds.SoftwareTitleNameForHostFilterFunc = func(ctx context.Context, id uint) (string, error) {
+		t.Fatalf("SoftwareTitleNameForHostFilter should not be called when team title exists")
+		return "", nil
+	}
+
 	resp_, err = listHostsEndpoint(test.UserContext(ctx, test.UserAdmin), req, svc)
 	require.NoError(t, err)
 	resp = resp_.(listHostsResponse)
