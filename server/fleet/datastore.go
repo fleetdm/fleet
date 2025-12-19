@@ -2348,8 +2348,9 @@ type Datastore interface {
 	// assigned to any team).
 	GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
-	// GetHostCertificateTemplates returns what certificate templates are currently associated with the specified host.
-	GetHostCertificateTemplates(ctx context.Context, hostUUID string) ([]HostCertificateTemplate, error)
+	// GetActiveHostCertificateTemplates returns certificate templates currently associated with the specified host,
+	// excluding templates that have been verified as removed (status=verified and operation_type=remove).
+	GetActiveHostCertificateTemplates(ctx context.Context, hostUUID string) ([]HostCertificateTemplate, error)
 
 	// CreatePendingCertificateTemplatesForExistingHosts creates pending certificate template records
 	// for all enrolled Android hosts in the team when a new certificate template is added.

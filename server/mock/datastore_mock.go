@@ -1533,7 +1533,7 @@ type DeleteMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID str
 
 type GetMDMAndroidProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
-type GetHostCertificateTemplatesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error)
+type GetActiveHostCertificateTemplatesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error)
 
 type CreatePendingCertificateTemplatesForExistingHostsFunc func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error)
 
@@ -3967,8 +3967,8 @@ type DataStore struct {
 	GetMDMAndroidProfilesSummaryFunc        GetMDMAndroidProfilesSummaryFunc
 	GetMDMAndroidProfilesSummaryFuncInvoked bool
 
-	GetHostCertificateTemplatesFunc        GetHostCertificateTemplatesFunc
-	GetHostCertificateTemplatesFuncInvoked bool
+	GetActiveHostCertificateTemplatesFunc        GetActiveHostCertificateTemplatesFunc
+	GetActiveHostCertificateTemplatesFuncInvoked bool
 
 	CreatePendingCertificateTemplatesForExistingHostsFunc        CreatePendingCertificateTemplatesForExistingHostsFunc
 	CreatePendingCertificateTemplatesForExistingHostsFuncInvoked bool
@@ -9507,11 +9507,11 @@ func (s *DataStore) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *ui
 	return s.GetMDMAndroidProfilesSummaryFunc(ctx, teamID)
 }
 
-func (s *DataStore) GetHostCertificateTemplates(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error) {
+func (s *DataStore) GetActiveHostCertificateTemplates(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error) {
 	s.mu.Lock()
-	s.GetHostCertificateTemplatesFuncInvoked = true
+	s.GetActiveHostCertificateTemplatesFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetHostCertificateTemplatesFunc(ctx, hostUUID)
+	return s.GetActiveHostCertificateTemplatesFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) CreatePendingCertificateTemplatesForExistingHosts(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {

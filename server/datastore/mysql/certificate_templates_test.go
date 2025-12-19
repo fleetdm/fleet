@@ -26,7 +26,7 @@ func TestCertificates(t *testing.T) {
 		{"DeleteCertificateTemplate", testDeleteCertificateTemplate},
 		{"BatchUpsertCertificates", testBatchUpsertCertificates},
 		{"BatchDeleteCertificateTemplates", testBatchDeleteCertificateTemplates},
-		{"GetHostCertificateTemplates", testGetHostCertificateTemplates},
+		{"GetActiveHostCertificateTemplates", testGetActiveHostCertificateTemplates},
 		{"GetCertificateTemplateForHost", testGetCertificateTemplateForHost},
 	}
 
@@ -870,7 +870,7 @@ func testBatchDeleteCertificateTemplates(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
+func testGetActiveHostCertificateTemplates(t *testing.T, ds *Datastore) {
 	defer TruncateTables(t, ds)
 
 	ctx := context.Background()
@@ -931,7 +931,7 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 		{
 			"hostUUID is not provided",
 			func(t *testing.T, ds *Datastore) {
-				_, err := ds.GetHostCertificateTemplates(ctx, "")
+				_, err := ds.GetActiveHostCertificateTemplates(ctx, "")
 				require.Error(t, err)
 			},
 		},
@@ -939,7 +939,7 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 		{
 			"No certificate templates found",
 			func(t *testing.T, ds *Datastore) {
-				templates, err := ds.GetHostCertificateTemplates(ctx, h1.UUID)
+				templates, err := ds.GetActiveHostCertificateTemplates(ctx, h1.UUID)
 				require.NoError(t, err)
 				require.Empty(t, templates)
 			},
@@ -947,7 +947,7 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 		{
 			"Returns the certificates available for the host",
 			func(t *testing.T, datastore *Datastore) {
-				templates, err := ds.GetHostCertificateTemplates(ctx, h2.UUID)
+				templates, err := ds.GetActiveHostCertificateTemplates(ctx, h2.UUID)
 				require.NoError(t, err)
 				require.Len(t, templates, 2)
 
@@ -962,6 +962,54 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 				require.Equal(t, fleet.CertificateTemplateFailed, templates[1].Status)
 				require.Equal(t, "some error yooo", *templates[1].Detail)
 				require.Equal(t, fleet.MDMOperationTypeInstall, templates[1].OperationType)
+			},
+		},
+		{
+			"Excludes templates with status=verified and operation_type=remove",
+			func(t *testing.T, ds *Datastore) {
+				// Create a template that has been verified as removed
+				ct3, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+					Name:                   "CCC",
+					TeamID:                 team.ID,
+					CertificateAuthorityID: ca.ID,
+					SubjectName:            "CN=Test Subject 3",
+				})
+				require.NoError(t, err)
+
+				// Insert a verified+remove record (should be excluded)
+				_, err = ds.writer(ctx).ExecContext(ctx,
+					"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type, name) VALUES (?, ?, ?, ?, ?, ?)",
+					h2.UUID, ct3.ID, "test-challenge", fleet.CertificateTemplateVerified, fleet.MDMOperationTypeRemove, ct3.Name,
+				)
+				require.NoError(t, err)
+
+				// Query should still only return the 2 original templates (AAA and BBB), not CCC
+				templates, err := ds.GetActiveHostCertificateTemplates(ctx, h2.UUID)
+				require.NoError(t, err)
+				require.Len(t, templates, 2)
+
+				// Verify CCC is not in the results
+				for _, tmpl := range templates {
+					require.NotEqual(t, "CCC", tmpl.Name, "Template with status=verified and operation_type=remove should be excluded")
+				}
+			},
+		},
+		{
+			"Includes templates with status=verified but operation_type=install",
+			func(t *testing.T, ds *Datastore) {
+				// ct1 already has status=verified and operation_type=install
+				// It should be included in results
+				templates, err := ds.GetActiveHostCertificateTemplates(ctx, h2.UUID)
+				require.NoError(t, err)
+
+				found := false
+				for _, tmpl := range templates {
+					if tmpl.Name == ct1.Name && tmpl.Status == fleet.CertificateTemplateVerified && tmpl.OperationType == fleet.MDMOperationTypeInstall {
+						found = true
+						break
+					}
+				}
+				require.True(t, found, "Template with status=verified and operation_type=install should be included")
 			},
 		},
 	}
