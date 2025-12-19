@@ -103,7 +103,7 @@ describe("AddCertModal", () => {
     await user.hover(createButton);
     await waitFor(() => {
       expect(
-        screen.getByText("Complete all required fields to save")
+        screen.getByText("Complete all fields to save.")
       ).toBeInTheDocument();
     });
   });

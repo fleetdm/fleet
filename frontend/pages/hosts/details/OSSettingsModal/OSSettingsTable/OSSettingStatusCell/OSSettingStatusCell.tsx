@@ -54,6 +54,8 @@ const OSSettingStatusCell = ({
   ) {
     switch (status) {
       case "pending":
+      case "delivering":
+      case "delivered":
         if (operationType === "install") {
           displayOption = {
             statusText: "Enforcing (pending)",
@@ -68,23 +70,6 @@ const OSSettingStatusCell = ({
             tooltip:
               "The host is running the command to remove settings or will run it when the host comes online.",
           };
-        }
-        break;
-      case "delivering":
-      case "delivered":
-        if (operationType === "install") {
-          // note that thise case is identical to the "pending" case above for install operation
-          // separation allows catching the below error case
-          displayOption = {
-            statusText: "Enforcing (pending)",
-            iconName: "pending-outline",
-            tooltip:
-              "The host is running the command to apply settings or will run it when the host comes online.",
-          };
-        } else {
-          throw new Error(
-            "Received unexpected 'delivering' or 'delivered' status for remove operation"
-          );
         }
         break;
       case "verified":

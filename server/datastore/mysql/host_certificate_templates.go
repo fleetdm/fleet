@@ -19,7 +19,7 @@ func (ds *Datastore) ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx
 		SELECT DISTINCT
 			hosts.uuid
 		FROM certificate_templates
-		INNER JOIN hosts ON hosts.team_id = certificate_templates.team_id
+		INNER JOIN hosts ON (hosts.team_id = certificate_templates.team_id OR (hosts.team_id IS NULL AND certificate_templates.team_id = 0))
 		INNER JOIN host_mdm ON host_mdm.host_id = hosts.id
 		LEFT JOIN host_certificate_templates
 			ON host_certificate_templates.host_uuid = hosts.uuid
@@ -56,7 +56,7 @@ func (ds *Datastore) ListCertificateTemplatesForHosts(ctx context.Context, hostU
 			certificate_authorities.type AS ca_type,
 			certificate_authorities.name AS ca_name
 		FROM certificate_templates
-		INNER JOIN hosts ON hosts.team_id = certificate_templates.team_id
+		INNER JOIN hosts ON (hosts.team_id = certificate_templates.team_id OR (hosts.team_id IS NULL AND certificate_templates.team_id = 0))
 		INNER JOIN certificate_authorities ON certificate_authorities.id = certificate_templates.certificate_authority_id
 		LEFT JOIN host_certificate_templates
 			ON host_certificate_templates.host_uuid = hosts.uuid
@@ -89,7 +89,7 @@ func (ds *Datastore) GetCertificateTemplateForHost(ctx context.Context, hostUUID
 			certificate_authorities.type AS ca_type,
 			certificate_authorities.name AS ca_name
 		FROM certificate_templates
-		INNER JOIN hosts ON hosts.team_id = certificate_templates.team_id
+		INNER JOIN hosts ON (hosts.team_id = certificate_templates.team_id OR (hosts.team_id IS NULL AND certificate_templates.team_id = 0))
 		INNER JOIN certificate_authorities ON certificate_authorities.id = certificate_templates.certificate_authority_id
 		LEFT JOIN host_certificate_templates
 			ON host_certificate_templates.host_uuid = hosts.uuid
@@ -115,7 +115,7 @@ func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hos
 		return nil
 	}
 
-	const argsCount = 5
+	const argsCount = 6
 
 	const sqlInsert = `
 		INSERT INTO host_certificate_templates (
@@ -123,7 +123,8 @@ func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hos
 			certificate_template_id,
 			fleet_challenge,
 			status,
-			operation_type
+			operation_type,
+			name
 		) VALUES %s
 	`
 
@@ -131,8 +132,8 @@ func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hos
 	args := make([]interface{}, 0, len(hostCertTemplates)*argsCount)
 
 	for _, hct := range hostCertTemplates {
-		args = append(args, hct.HostUUID, hct.CertificateTemplateID, hct.FleetChallenge, hct.Status, hct.OperationType)
-		placeholders.WriteString("(?,?,?,?,?),")
+		args = append(args, hct.HostUUID, hct.CertificateTemplateID, hct.FleetChallenge, hct.Status, hct.OperationType, hct.Name)
+		placeholders.WriteString("(?,?,?,?,?,?),")
 	}
 
 	stmt := fmt.Sprintf(sqlInsert, strings.TrimSuffix(placeholders.String(), ","))
@@ -208,8 +209,12 @@ func (ds *Datastore) UpsertCertificateStatus(
 	if rowsAffected == 0 {
 		// We need to check whether the certificate template exists ... we do this way because
 		// there are no FK constraints between host_certificate_templates and certificate_templates.
-		var result uint
-		err := ds.writer(ctx).GetContext(ctx, &result, `SELECT id FROM certificate_templates WHERE id = ?`, certificateTemplateID)
+		// Also get the name for insertion.
+		var templateInfo struct {
+			ID   uint   `db:"id"`
+			Name string `db:"name"`
+		}
+		err := ds.writer(ctx).GetContext(ctx, &templateInfo, `SELECT id, name FROM certificate_templates WHERE id = ?`, certificateTemplateID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return ctxerr.Wrap(ctx, notFound("CertificateTemplate").WithMessage(fmt.Sprintf("No certificate template found for template ID '%d'",
@@ -219,9 +224,10 @@ func (ds *Datastore) UpsertCertificateStatus(
 		}
 
 		insertStmt := `
-			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge, operation_type)
-			VALUES (?, ?, ?, ?, ?, ?)`
-		params := []any{hostUUID, certificateTemplateID, status, detail, "", operationType}
+			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge, operation_type, name)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`
+		params := []any{hostUUID, certificateTemplateID, status, detail, "", operationType, templateInfo.Name}
+
 		if _, err := ds.writer(ctx).ExecContext(ctx, insertStmt, params...); err != nil {
 			return ctxerr.Wrap(ctx, err, "could not insert new host certificate template")
 		}

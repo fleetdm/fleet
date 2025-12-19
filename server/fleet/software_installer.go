@@ -717,6 +717,17 @@ func (s *SoftwarePackageOrApp) GetAppStoreID() string {
 	return s.AppStoreID
 }
 
+// Returns unique name by Platform + AppStoreID/Name
+func (s *SoftwarePackageOrApp) FullyQualifiedName() string {
+	if s.AppStoreID != "" {
+		return fmt.Sprintf(`%s_%s`, s.AppStoreID, s.Platform)
+	}
+	if s.Name != "" {
+		return fmt.Sprintf(`%s_%s`, s.Name, s.Platform)
+	}
+	return ""
+}
+
 type SoftwarePackageSpec struct {
 	URL                string                `json:"url"`
 	SelfService        bool                  `json:"self_service"`

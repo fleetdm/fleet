@@ -26,3 +26,7 @@ app_store_apps:
     - Utilities
     self_service: true
     platform: darwin
+  - app_store_id: com.example.setup-experience-software
+    platform: android
+    self_service: true
+    setup_experience: true

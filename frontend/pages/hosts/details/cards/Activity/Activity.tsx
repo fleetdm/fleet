@@ -3,7 +3,6 @@ import classnames from "classnames";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import { IHostUpcomingActivity } from "interfaces/activity";
-import { isAppleDevice } from "interfaces/platform";
 import {
   IHostPastActivitiesResponse,
   IHostUpcomingActivitiesResponse,
@@ -23,6 +22,8 @@ import UpcomingActivityFeed from "./UpcomingActivityFeed";
 import MDMCommandsToggle from "./MDMCommandsToggle";
 import PastCommandFeed from "./PastCommandFeed";
 import UpcomingCommandFeed from "./UpcomingCommandFeed";
+import CommandFeed from "./CommandFeed";
+import { ShowCommandDetailsHandler } from "./CommandItem/CommandItem";
 
 const baseClass = "host-activity-card";
 
@@ -61,7 +62,7 @@ interface IActivityProps {
   onNextPage: () => void;
   onPreviousPage: () => void;
   onShowDetails: ShowActivityDetailsHandler;
-  onShowCommandDetails: (commandUUID: string, hostUUID: string) => void;
+  onShowCommandDetails: ShowCommandDetailsHandler;
   onCancel: (activity: IHostUpcomingActivity) => void;
   onShowMDMCommands: () => void;
   onHideMDMCommands: () => void;
@@ -128,9 +129,10 @@ const Activity = ({
                 }
               />
             )}
-            {showMDMCommands ? (
-              <PastCommandFeed
-                commands={commands?.results ?? []}
+            {showMDMCommands && commands ? (
+              <CommandFeed
+                commands={commands}
+                emptyDescription="Completed MDM commands will appear here."
                 onShowDetails={onShowCommandDetails}
                 onNextPage={onNextPage}
                 onPreviousPage={onPreviousPage}
@@ -157,9 +159,10 @@ const Activity = ({
                 }
               />
             )}
-            {showMDMCommands ? (
-              <UpcomingCommandFeed
-                commands={commands?.results ?? []}
+            {showMDMCommands && commands ? (
+              <CommandFeed
+                commands={commands}
+                emptyDescription="Pending MDM commands will appear here."
                 onShowDetails={onShowCommandDetails}
                 onNextPage={onNextPage}
                 onPreviousPage={onPreviousPage}

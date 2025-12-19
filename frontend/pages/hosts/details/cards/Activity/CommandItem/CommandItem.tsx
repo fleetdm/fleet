@@ -6,19 +6,20 @@ import FeedListItem from "components/FeedListItem";
 
 const baseClass = "command-item";
 
+/**
+ * Handler that will show the details of a command. This is used to pass
+ * the details of a command to the parent component to show the details of
+ * the command.
+ */
+export type ShowCommandDetailsHandler = (cmd: ICommand) => void;
+
 interface ICommandItemProps {
   command: ICommand;
-  onShowDetails: (commandUUID: string, hostUUID: string) => void;
+  onShowDetails: ShowCommandDetailsHandler;
 }
 
 const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
-  const {
-    command_status,
-    command_uuid,
-    host_uuid,
-    request_type,
-    updated_at,
-  } = command;
+  const { command_status, request_type, updated_at } = command;
 
   let statusVerb = "";
   switch (command_status) {
@@ -27,7 +28,7 @@ const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
       break;
     case "ran":
     case "failed":
-      statusVerb = "ran";
+      statusVerb = command_status;
       break;
     default:
       statusVerb = "ran";
@@ -35,7 +36,7 @@ const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
 
   const onShowCommandDetails = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    onShowDetails(command_uuid, host_uuid);
+    onShowDetails(command);
   };
 
   return (

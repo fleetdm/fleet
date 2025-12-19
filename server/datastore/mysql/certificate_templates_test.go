@@ -251,11 +251,12 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				certificateTemplateID = uint(lastID) //nolint:gosec
 
 				_, err = ds.writer(ctx).ExecContext(ctx,
-					"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
+					"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, name) VALUES (?, ?, ?, ?, ?)",
 					host.UUID,
 					certificateTemplateID,
 					"fleet-challenge",
 					fleet.CertificateTemplateDelivered,
+					certificateTemplate.Name,
 				)
 				require.NoError(t, err)
 			},
@@ -322,11 +323,12 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				certificateTemplateID = uint(lastID) //nolint:gosec
 
 				_, err = ds.writer(ctx).ExecContext(ctx,
-					"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
+					"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, name) VALUES (?, ?, ?, ?, ?)",
 					host.UUID,
 					certificateTemplateID,
 					"challenge",
 					fleet.CertificateTemplateVerified,
+					certificateTemplate.Name,
 				)
 				require.NoError(t, err)
 			},
@@ -911,14 +913,14 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 
 	// Set the installation status on the certificate templates
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type) VALUES (?, ?, ?, ?, ?)",
-		h2.UUID, ct1.ID, "test-challenge", fleet.OSSettingsVerified, fleet.MDMOperationTypeInstall,
+		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type, name) VALUES (?, ?, ?, ?, ?, ?)",
+		h2.UUID, ct1.ID, "test-challenge", fleet.OSSettingsVerified, fleet.MDMOperationTypeInstall, ct1.Name,
 	)
 
 	require.NoError(t, err)
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, detail, operation_type) VALUES (?, ?, ?, ?, ?, ?)",
-		h2.UUID, ct2.ID, "test-challenge", fleet.OSSettingsFailed, "some error yooo", fleet.MDMOperationTypeInstall,
+		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, detail, operation_type, name) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		h2.UUID, ct2.ID, "test-challenge", fleet.OSSettingsFailed, "some error yooo", fleet.MDMOperationTypeInstall, ct2.Name,
 	)
 	require.NoError(t, err)
 

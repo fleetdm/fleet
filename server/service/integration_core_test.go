@@ -14605,6 +14605,7 @@ func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uin
 			GigsTotalDiskSpace:        128.0, // 64GB system + 64GB external
 			GigsDiskSpaceAvailable:    35.0,  // 10GB + 25GB available
 			PercentDiskSpaceAvailable: 27.34, // 35/128 * 100
+			UUID:                      uuid.NewString(),
 		},
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
@@ -14913,11 +14914,12 @@ INSERT INTO host_certificate_templates (
 	certificate_template_id,
 	status,
 	fleet_challenge,
-	operation_type
-) VALUES (?, ?, ?, ?, ?);
+	operation_type,
+	name
+) VALUES (?, ?, ?, ?, ?, ?);
 	`
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err = q.ExecContext(ctx, sql, host.UUID, certificateTemplateID, "pending", "some_challenge_value", "install")
+		_, err = q.ExecContext(ctx, sql, host.UUID, certificateTemplateID, "pending", "some_challenge_value", "install", savedTemplate.Name)
 		require.NoError(t, err)
 		return nil
 	})
