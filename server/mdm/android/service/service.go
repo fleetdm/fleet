@@ -1046,6 +1046,10 @@ func (svc *Service) MigrateToPerDevicePolicy(ctx context.Context) error {
 
 	enterprise, err := svc.ds.GetEnterprise(ctx)
 	if err != nil {
+		if fleet.IsNotFound(err) {
+			// Android MDM is not on, so no-opq
+			return nil
+		}
 		return err
 	}
 
