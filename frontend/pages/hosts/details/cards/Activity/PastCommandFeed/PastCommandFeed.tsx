@@ -1,6 +1,7 @@
 import React from "react";
 
 import { ICommand } from "interfaces/command";
+import { IGetCommandsResponse } from "services/entities/command";
 
 import Pagination from "components/Pagination";
 
@@ -12,7 +13,7 @@ import CommandItem, {
 const baseClass = "past-command-feed";
 
 interface IPastCommandFeedProps {
-  commands: ICommand[];
+  commands: IGetCommandsResponse;
   onShowDetails: ShowCommandDetailsHandler;
   onNextPage: () => void;
   onPreviousPage: () => void;
@@ -24,7 +25,8 @@ const PastCommandFeed = ({
   onNextPage,
   onPreviousPage,
 }: IPastCommandFeedProps) => {
-  if (commands.length === 0) {
+  const { meta, results } = commands;
+  if (results === null || results.length === 0) {
     return (
       <EmptyFeed
         title="No MDM commands"
@@ -37,7 +39,7 @@ const PastCommandFeed = ({
   return (
     <div className={baseClass}>
       <div>
-        {commands.map((command: ICommand) => {
+        {results.map((command: ICommand) => {
           return (
             <CommandItem
               key={`${command.command_uuid}+${command.host_uuid}`}
@@ -47,13 +49,13 @@ const PastCommandFeed = ({
           );
         })}
       </div>
-      {/* <Pagination */}
-      {/*   disablePrev={!meta.has_previous_results} */}
-      {/*   disableNext={!meta.has_next_results} */}
-      {/*   hidePagination={!meta.has_next_results && !meta.has_previous_results} */}
-      {/*   onPrevPage={onPreviousPage} */}
-      {/*   onNextPage={onNextPage} */}
-      {/* /> */}
+      <Pagination
+        disablePrev={!meta.has_previous_results}
+        disableNext={!meta.has_next_results}
+        hidePagination={!meta.has_next_results && !meta.has_previous_results}
+        onPrevPage={onPreviousPage}
+        onNextPage={onNextPage}
+      />
     </div>
   );
 };

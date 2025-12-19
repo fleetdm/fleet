@@ -149,6 +149,8 @@ const BYOD_SW_INSTALL_LEARN_MORE_LINK =
 const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/install-google-play-apps";
 
+const ACTIVITY_CARD_DATA_STALE_TIME = 5000; // 5 seconds
+
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
   location: {
@@ -524,7 +526,7 @@ const HostDetailsPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
-      staleTime: 2000,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
@@ -563,7 +565,7 @@ const HostDetailsPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
-      staleTime: 2000,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
@@ -594,6 +596,8 @@ const HostDetailsPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isAppleDevice(host?.platform),
+      keepPreviousData: true,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
@@ -625,6 +629,8 @@ const HostDetailsPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isAppleDevice(host?.platform),
+      keepPreviousData: true,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
@@ -818,6 +824,7 @@ const HostDetailsPage = ({
             // the host object if it's available.
             hostDisplayName:
               host?.display_name || details?.host_display_name || "",
+            platform: details?.host_platform || host?.platform,
           });
           break;
         default: // do nothing
@@ -1002,7 +1009,9 @@ const HostDetailsPage = ({
     !host ||
     isLoadingHost ||
     pastActivitiesIsLoading ||
-    upcomingActivitiesIsLoading
+    upcomingActivitiesIsLoading ||
+    pastMDMCommandsIsLoading ||
+    upcomingMDMCommandsIsLoading
   ) {
     return <Spinner />;
   }
@@ -1364,9 +1373,11 @@ Observer plus must be checked against host's team id  */
                     showMDMCommandsToggle={isAppleDevice(host.platform)}
                     showMDMCommands={showMDMCommands}
                     onShowMDMCommands={() => {
+                      setActivityPage(0);
                       setShowMDMCommands(true);
                     }}
                     onHideMDMCommands={() => {
+                      setActivityPage(0);
                       setShowMDMCommands(false);
                     }}
                     upcomingCount={

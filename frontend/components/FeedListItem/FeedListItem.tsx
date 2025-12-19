@@ -5,10 +5,7 @@ import { noop, uniqueId } from "lodash";
 
 import { COLORS } from "styles/var/colors";
 import { dateAgo } from "utilities/date_format";
-import {
-  addGravatarUrlToResource,
-  internationalTimeFormat,
-} from "utilities/helpers";
+import { internationalTimeFormat } from "utilities/helpers";
 
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
@@ -102,6 +99,7 @@ const FeedListItem = ({
               className={`${baseClass}__action-button`}
               variant="icon"
               onClick={onClickFeedItem}
+              ariaLabel="show info"
             >
               <Icon name="info-outline" />
             </Button>
@@ -112,6 +110,7 @@ const FeedListItem = ({
               variant="icon"
               onClick={onClickCancel}
               disabled={disableCancel}
+              ariaLabel="cancel action"
             >
               <Icon
                 name="close"

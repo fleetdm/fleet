@@ -19,7 +19,7 @@ func (ds *Datastore) ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx
 		SELECT DISTINCT
 			hosts.uuid
 		FROM certificate_templates
-		INNER JOIN hosts ON hosts.team_id = certificate_templates.team_id
+		INNER JOIN hosts ON (hosts.team_id = certificate_templates.team_id OR (hosts.team_id IS NULL AND certificate_templates.team_id = 0))
 		INNER JOIN host_mdm ON host_mdm.host_id = hosts.id
 		LEFT JOIN host_certificate_templates
 			ON host_certificate_templates.host_uuid = hosts.uuid
@@ -56,7 +56,7 @@ func (ds *Datastore) ListCertificateTemplatesForHosts(ctx context.Context, hostU
 			certificate_authorities.type AS ca_type,
 			certificate_authorities.name AS ca_name
 		FROM certificate_templates
-		INNER JOIN hosts ON hosts.team_id = certificate_templates.team_id
+		INNER JOIN hosts ON (hosts.team_id = certificate_templates.team_id OR (hosts.team_id IS NULL AND certificate_templates.team_id = 0))
 		INNER JOIN certificate_authorities ON certificate_authorities.id = certificate_templates.certificate_authority_id
 		LEFT JOIN host_certificate_templates
 			ON host_certificate_templates.host_uuid = hosts.uuid
@@ -89,7 +89,7 @@ func (ds *Datastore) GetCertificateTemplateForHost(ctx context.Context, hostUUID
 			certificate_authorities.type AS ca_type,
 			certificate_authorities.name AS ca_name
 		FROM certificate_templates
-		INNER JOIN hosts ON hosts.team_id = certificate_templates.team_id
+		INNER JOIN hosts ON (hosts.team_id = certificate_templates.team_id OR (hosts.team_id IS NULL AND certificate_templates.team_id = 0))
 		INNER JOIN certificate_authorities ON certificate_authorities.id = certificate_templates.certificate_authority_id
 		LEFT JOIN host_certificate_templates
 			ON host_certificate_templates.host_uuid = hosts.uuid

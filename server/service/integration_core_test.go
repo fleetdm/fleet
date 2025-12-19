@@ -14605,6 +14605,7 @@ func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uin
 			GigsTotalDiskSpace:        128.0, // 64GB system + 64GB external
 			GigsDiskSpaceAvailable:    35.0,  // 10GB + 25GB available
 			PercentDiskSpaceAvailable: 27.34, // 35/128 * 100
+			UUID:                      uuid.NewString(),
 		},
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),

@@ -30,6 +30,9 @@ export interface ICommandResult {
   payload: string;
   /** Base64-encoded string containing the MDM command response */
   result: string;
+  /** ResultsMetadata contains command-specific metadata.
+   * VPP install commands includes a "software_installed" boolean. */
+  results_metadata?: Record<string, unknown>;
 }
 
 export type IMDMCommandResult = ICommandResult;

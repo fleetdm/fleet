@@ -22,6 +22,7 @@ const (
 	ProjectCommand
 	EstimatedCommand
 	SprintCommand
+	MilestoneCommand
 )
 
 type WorkflowState int
@@ -202,6 +203,8 @@ func RunTUI(commandType CommandType, projectID int, limit int, search string) {
 		mm = initializeModelForSprint(projectID, limit)
 	case IssuesCommand:
 		mm = initializeModelForIssues(search)
+	case MilestoneCommand:
+		mm = initializeModelForMilestone(search, limit)
 	default:
 		// error and exit
 		fmt.Println("Unsupported command type for TUI")
@@ -304,6 +307,14 @@ func initializeModelForSprint(projectID, limit int) model {
 	return m
 }
 
+func initializeModelForMilestone(title string, limit int) model {
+	m := initializeModel()
+	m.commandType = MilestoneCommand
+	m.limit = limit
+	m.search = title // reuse search to carry milestone title
+	return m
+}
+
 // newview Add a corresponding issue fetcher
 func fetchIssues(search string) tea.Cmd {
 	return func() tea.Msg {
@@ -360,6 +371,27 @@ func fetchPreviousSprintItems(projectID, limit int) tea.Cmd {
 	}
 }
 
+func fetchMilestoneItems(title string, limit int) tea.Cmd {
+	return func() tea.Msg {
+		// Get open-issue count for this milestone to drive warning banner
+		totalCount, cntErr := ghapi.GetMilestoneOpenIssueCount(title)
+		// Fetch up to 'limit' open issues for the milestone
+		issues, exceeded, err := ghapi.GetIssuesByMilestoneLimited(title, limit)
+		if err != nil {
+			return err
+		}
+		// Prefer accurate total from GraphQL; fallback to limit+1 sentinel when cntErr occurs
+		total := totalCount
+		if cntErr != nil {
+			total = len(issues)
+			if exceeded {
+				total = limit + 1
+			}
+		}
+		return issuesLoadedMsg{issues: issues, totalAvailable: total, rawFetched: limit}
+	}
+}
+
 // newview add command type / fetcher to switch
 func (m model) Init() tea.Cmd {
 	var fetchCmd tea.Cmd
@@ -377,6 +409,8 @@ func (m model) Init() tea.Cmd {
 		} else {
 			fetchCmd = fetchSprintItems(m.projectID, m.limit)
 		}
+	case MilestoneCommand:
+		fetchCmd = fetchMilestoneItems(m.search, m.limit)
 	default:
 		fetchCmd = fetchIssues("")
 	}
@@ -504,8 +538,12 @@ func (m *model) executeWorkflow() tea.Cmd {
 		assigneeOrUnassigned := func(issue ghapi.Issue) string {
 			if len(issue.Assignees) > 0 {
 				user, err := ghapi.GetUserName(issue.Assignees[0].Login)
-				if err == nil && user.Name != "" {
-					return user.Name
+				if err == nil {
+					if user.Name != "" {
+						return user.Name
+					} else {
+						return user.Login
+					}
 				}
 			}
 			return "unassigned"
