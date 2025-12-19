@@ -159,25 +159,32 @@ func modifyLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.LabelWithTeamName, []uint, error) {
-	// TODO revise auth to account for team labels
-	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
-		return nil, nil, err
-	}
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
+		svc.SkipAuth(ctx)
 		return nil, nil, fleet.ErrNoContext
 	}
 
 	if len(payload.Hosts) > 0 && len(payload.HostIDs) > 0 {
+		svc.SkipAuth(ctx)
 		return nil, nil, fleet.NewInvalidArgumentError("hosts", `Only one of either "hosts" or "host_ids" can be included in the request.`)
 	}
 
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
+	// DB query will filter labels the user can't see; auth check filters labels the user can't write
 	label, _, err := svc.ds.Label(ctx, id, filter)
 	if err != nil {
+		// If we get a retrieval error, 403-wrap it if a user can't write global labels so we don't leak info
+		if authErr := svc.authz.Authorize(ctx, fleet.Label{}, fleet.ActionWrite); authErr != nil {
+			return nil, nil, authErr
+		}
 		return nil, nil, err
 	}
+	if err := svc.authz.Authorize(ctx, label, fleet.ActionWrite); err != nil {
+		return nil, nil, err
+	}
+
 	if label.LabelType == fleet.LabelTypeBuiltIn {
 		return nil, nil, fleet.NewInvalidArgumentError("label_type", fmt.Sprintf("cannot modify built-in label '%s'", label.Name))
 	}
@@ -497,20 +504,36 @@ func deleteLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
-	// TODO revise auth
-
-	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
-		return err
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		svc.SkipAuth(ctx)
+		return fleet.ErrNoContext
 	}
 
 	// check if the label is a built-in label
 	for n := range fleet.ReservedLabelNames() {
 		if n == name {
+			svc.SkipAuth(ctx)
 			return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", name))
 		}
 	}
 
-	return svc.ds.DeleteLabel(ctx, name)
+	filter := fleet.TeamFilter{User: vc.User}
+
+	// need to grab the label first to see if we have permission to delete it;
+	// if the label doesn't exist global users will see the true 404, other users will get a 403
+	label, err := svc.ds.LabelByName(ctx, name, filter)
+	if err != nil {
+		if authError := svc.authz.Authorize(ctx, label, fleet.ActionWrite); authError != nil {
+			return authError
+		}
+		return err
+	}
+	if err := svc.authz.Authorize(ctx, label, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	return svc.ds.DeleteLabel(ctx, name, filter)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -537,21 +560,27 @@ func deleteLabelByIDEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
-	// TODO revise auth
-
-	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
-		return err
-	}
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
+		svc.SkipAuth(ctx)
 		return fleet.ErrNoContext
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
+	// need to grab the label first to see if we have permission to delete it;
+	// if the label doesn't exist global users will see the true 404, other users will get a 403
 	label, _, err := svc.ds.Label(ctx, id, filter)
 	if err != nil {
+		// If we get a retrieval error, 403-wrap it if a user can't write global labels so we don't leak info
+		if authErr := svc.authz.Authorize(ctx, fleet.Label{}, fleet.ActionWrite); authErr != nil {
+			return authErr
+		}
 		return err
 	}
+	if err := svc.authz.Authorize(ctx, label, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	if label.LabelType == fleet.LabelTypeBuiltIn {
 		return fleet.NewInvalidArgumentError("label_type", fmt.Sprintf("cannot delete built-in label '%s'", label.Name))
 	}
@@ -561,7 +590,7 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 		}
 	}
 
-	return svc.ds.DeleteLabel(ctx, label.Name)
+	return svc.ds.DeleteLabel(ctx, label.Name, filter)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

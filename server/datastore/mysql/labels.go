@@ -481,10 +481,16 @@ func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilt
 }
 
 // DeleteLabel deletes a fleet.Label
-func (ds *Datastore) DeleteLabel(ctx context.Context, name string) error {
+func (ds *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.TeamFilter) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var labelID uint
-		err := sqlx.GetContext(ctx, tx, &labelID, `select id FROM labels WHERE name = ?`, name)
+
+		query, params, err := applyLabelTeamFilter(`select id FROM labels WHERE name = ?`, filter, []any{name})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting label id to delete")
+		}
+
+		err = sqlx.GetContext(ctx, tx, &labelID, query, params...)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return ctxerr.Wrap(ctx, notFound("Label").WithName(name))
@@ -529,7 +535,25 @@ func deleteLabelsInTx(ctx context.Context, tx sqlx.ExtContext, labelIDs []uint) 
 	return nil
 }
 
-// Label returns a fleet.Label identified by lid if one exists.
+// LabelByName returns a fleet.Label identified by name if one exists and is accessible to the specified user.
+func (ds *Datastore) LabelByName(ctx context.Context, name string, teamFilter fleet.TeamFilter) (*fleet.Label, error) {
+	stmt, params, err := applyLabelTeamFilter("SELECT l.* FROM labels l WHERE l.name = ?", teamFilter, []any{name})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building label select query")
+	}
+
+	var label fleet.Label
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &label, stmt, params...); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Label").WithName(name))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "selecting label")
+	}
+
+	return &label, nil
+}
+
+// Label returns a fleet.LabelWithTeamName identified by lid if one exists and is accessible to the specified user.
 func (ds *Datastore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 	return ds.labelDB(ctx, lid, teamFilter, ds.reader(ctx))
 }

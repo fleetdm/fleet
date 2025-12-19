@@ -1012,7 +1012,7 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 	require.NoError(t, db.DeletePack(ctx, newP.Name))
 
 	// delete a non-existing label
-	err = db.DeleteLabel(ctx, "no-such-label")
+	err = db.DeleteLabel(ctx, "no-such-label", fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.Error(t, err)
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
@@ -1046,7 +1046,7 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 	})
 
 	// try to delete that label referenced by software installer
-	err = db.DeleteLabel(ctx, l2.Name)
+	err = db.DeleteLabel(ctx, l2.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.Error(t, err)
 	require.True(t, fleet.IsForeignKey(err))
 }

@@ -153,7 +153,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 	require.NoError(t, err)
 	for _, lbl := range lbls {
 		if lbl.LabelType != fleet.LabelTypeBuiltIn {
-			err := s.DS.DeleteLabel(ctx, lbl.Name)
+			err := s.DS.DeleteLabel(ctx, lbl.Name, fleet.TeamFilter{User: test.UserAdmin})
 			require.NoError(t, err)
 		}
 	}

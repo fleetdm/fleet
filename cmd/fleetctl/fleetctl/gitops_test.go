@@ -988,7 +988,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 		return nil
 	}
 
-	ds.DeleteLabelFunc = func(ctx context.Context, name string) error {
+	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
 		deletedLabels = append(deletedLabels, name)
 		return nil
 	}

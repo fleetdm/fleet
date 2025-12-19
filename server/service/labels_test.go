@@ -8,6 +8,7 @@ import (
 	"time"
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
@@ -34,14 +35,24 @@ func TestLabelsAuth(t *testing.T) {
 	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 		return &fleet.LabelWithTeamName{Label: *lbl}, nil, nil
 	}
-	ds.DeleteLabelFunc = func(ctx context.Context, nm string) error {
+	ds.DeleteLabelFunc = func(ctx context.Context, nm string, filter fleet.TeamFilter) error {
 		return nil
 	}
 	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
 		return nil
 	}
 	ds.LabelFunc = func(ctx context.Context, id uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
-		return &fleet.LabelWithTeamName{}, nil, nil
+		switch id {
+		case uint(1):
+			return &fleet.LabelWithTeamName{Label: fleet.Label{ID: id, AuthorID: &filter.User.ID}}, nil, nil
+		case uint(2):
+			return &fleet.LabelWithTeamName{Label: fleet.Label{ID: id}}, nil, nil
+		}
+
+		return nil, nil, ctxerr.Wrap(ctx, notFoundErr{"label", fleet.ErrorWithUUID{}})
+	}
+	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+		return &fleet.Label{ID: 2, Name: name}, nil // for deletes, TODO add cases for authorship/team differences
 	}
 	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
 		return nil, nil
@@ -114,7 +125,7 @@ func TestLabelsAuth(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			myLabel, _, err := svc.NewLabel(ctx, fleet.LabelPayload{Name: t.Name(), Query: `SELECT 1`})
-			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			checkAuthErr(t, tt.shouldFailGlobalWriteIfAuthor, err) // team write users can still create global labels
 
 			_, _, err = svc.ModifyLabel(ctx, otherLabel.ID, fleet.ModifyLabelPayload{})
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
