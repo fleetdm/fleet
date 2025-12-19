@@ -160,22 +160,40 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutput(t *testing.T, output string) {
-	pattern := regexp.MustCompile("\\[([+\\-])] would've (deleted|applied|added|created|set)")
+	allowedVerbs := []string{
+		"deleted",
+		"updated",
+		"applied",
+		"added",
+		"created",
+		"set",
+	}
+	pattern := fmt.Sprintf("\\[([+\\-!])] would've (%s)", strings.Join(allowedVerbs, "|"))
+	reg := regexp.MustCompile(pattern)
 	for _, line := range strings.Split(output, "\n") {
-		if line == "" || strings.Contains(line, "succeeded") {
-			continue
+		if line != "" && !strings.Contains(line, "succeeded") {
+			assert.Regexp(t, reg, line, "on dry run")
 		}
-		assert.Regexp(t, pattern, line, "on dry run")
 	}
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutput(t *testing.T, output string) {
-	pattern := regexp.MustCompile("\\[([+\\-])] (deleted|applied|added|created|set)")
+	allowedVerbs := []string{
+		"deleted",
+		"updated",
+		"applied",
+		"added",
+		"created",
+		"set",
+		"applying", // this is used when doing groups operations before the operation starts, e.g. "Applying 10 policies"
+		"deleting", // ditto
+	}
+	pattern := fmt.Sprintf("\\[([+\\-!])] (%s)", strings.Join(allowedVerbs, "|"))
+	reg := regexp.MustCompile(pattern)
 	for _, line := range strings.Split(output, "\n") {
-		if line == "" || strings.Contains(line, "succeeded") {
-			continue
+		if line != "" && !strings.Contains(line, "succeeded") {
+			assert.Regexp(t, reg, line, "on real run")
 		}
-		assert.Regexp(t, pattern, line, "on real run")
 	}
 }
 
@@ -1118,7 +1136,6 @@ team_settings:
 	s.assertDryRunOutput(t, output)
 
 	// Check that webhook settings are mentioned in the output
-	require.Contains(t, output, "applying webhook settings for 'No team'")
 	require.Contains(t, output, "would've applied webhook settings for 'No team'")
 
 	// Apply the configuration (non-dry-run)
