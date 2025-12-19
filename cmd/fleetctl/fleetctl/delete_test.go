@@ -18,6 +18,9 @@ func TestDeleteLabel(t *testing.T) {
 		deletedLabel = name
 		return nil
 	}
+	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+		return &fleet.Label{Name: name}, nil
+	}
 
 	name := writeTmpYml(t, `---
 apiVersion: v1

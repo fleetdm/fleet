@@ -1110,6 +1110,7 @@ spec:
   name: label1
   platform: windows
   query: select 1;
+  team_id: null
 ---
 apiVersion: v1
 kind: label
@@ -1121,9 +1122,10 @@ spec:
   name: label2
   platform: linux
   query: select 42;
+  team_id: null
 `
-	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null}}
-{"kind":"label","apiVersion":"v1","spec":{"id":33,"name":"label2","description":"some other description","query":"select 42;","platform":"linux","label_membership_type":"dynamic","hosts":null}}
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null,"team_id":null}}
+{"kind":"label","apiVersion":"v1","spec":{"id":33,"name":"label2","description":"some other description","query":"select 42;","platform":"linux","label_membership_type":"dynamic","hosts":null,"team_id":null}}
 `
 
 	assert.Equal(t, expected, RunAppForTest(t, []string{"get", "labels"}))
@@ -1158,8 +1160,9 @@ spec:
   name: label1
   platform: windows
   query: select 1;
+  team_id: null
 `
-	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null}}
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null,"team_id":null}}
 `
 
 	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "label", "label1"}))
