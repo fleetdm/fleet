@@ -1,3 +1,14 @@
+"""
+Script to automatically update rustfs/rustfs Docker image tags in docker-compose.yml files.
+
+This script:
+1. Fetches all available tags for rustfs/rustfs from Docker Hub
+2. Identifies the latest version (excluding 'latest' tag)
+3. Compares with current version in docker-compose.yml files
+4. Updates all docker-compose.yml files if a newer version is available
+
+Used by the update-rustfs-docker-tag.yml GitHub Actions workflow.
+"""
 import os
 import re
 import json
