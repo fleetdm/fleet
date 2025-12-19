@@ -16,11 +16,12 @@ def fetch_latest_rustfs_tag() -> Optional[str]:
     """
     Fetch the latest rustfs/rustfs tag from Docker Hub API.
     Returns the newest tag (excluding 'latest').
+    Note: Only fetches the first 100 tags. If more tags exist, pagination would be needed.
     """
     conn = http.client.HTTPSConnection('hub.docker.com')
     
     # Docker Hub API v2 endpoint for rustfs/rustfs tags
-    # We'll fetch multiple pages if needed
+    # We'll fetch the first page with 100 results
     url = '/v2/repositories/rustfs/rustfs/tags?page_size=100'
     conn.request('GET', url, headers={"User-Agent": "Fleet/rustfs-checker"})
     resp = conn.getresponse()
@@ -29,6 +30,7 @@ def fetch_latest_rustfs_tag() -> Optional[str]:
     
     if resp.status != 200:
         print(f"Error fetching tags: HTTP {resp.status}")
+        print(f"Response: {content.decode('utf-8', errors='ignore')[:200]}")
         return None
     
     data = json.loads(content.decode('utf-8'))
@@ -49,23 +51,26 @@ def fetch_latest_rustfs_tag() -> Optional[str]:
         return None
     
     # Sort version tags to get the newest (assuming semantic versioning)
-    # For alpha versions like 1.0.0-alpha.73, we need to sort carefully
-    # Stable versions should be preferred over alpha/beta/rc versions
+    # For pre-release versions like 1.0.0-alpha.73, we need to sort carefully
+    # Stable versions should be preferred over alpha versions
     def version_key(tag: str) -> tuple:
         """Parse version for sorting."""
-        # Match pattern like 1.0.0-alpha.73
-        match = re.match(r'(\d+)\.(\d+)\.(\d+)-alpha\.(\d+)', tag)
+        # Match pattern like 1.0.0-alpha.73, 1.0.0-beta.5, 1.0.0-rc.2
+        match = re.match(r'(\d+)\.(\d+)\.(\d+)-(alpha|beta|rc)\.(\d+)', tag)
         if match:
-            # Alpha versions: use 0 as pre-release indicator, then alpha number
+            # Pre-release versions: use 0 as pre-release indicator
+            # Then sort by pre-release type (alpha < beta < rc) and number
+            prerelease_order = {'alpha': 0, 'beta': 1, 'rc': 2}
+            prerelease_type = prerelease_order.get(match.group(4), 0)
             return (int(match.group(1)), int(match.group(2)), 
-                   int(match.group(3)), 0, int(match.group(4)))
+                   int(match.group(3)), 0, prerelease_type, int(match.group(5)))
         # Fallback for regular stable versions
-        match = re.match(r'(\d+)\.(\d+)\.(\d+)', tag)
+        match = re.match(r'(\d+)\.(\d+)\.(\d+)$', tag)
         if match:
-            # Stable versions: use 1 as pre-release indicator (higher than alpha's 0)
+            # Stable versions: use 1 as pre-release indicator (higher than pre-release's 0)
             return (int(match.group(1)), int(match.group(2)), 
-                   int(match.group(3)), 1, 0)
-        return (0, 0, 0, 0, 0)
+                   int(match.group(3)), 1, 0, 0)
+        return (0, 0, 0, 0, 0, 0)
     
     version_tags.sort(key=version_key, reverse=True)
     latest_tag = version_tags[0]
@@ -88,8 +93,8 @@ def find_current_rustfs_version() -> Optional[str]:
         content = f.read()
     
     # Find rustfs/rustfs image with version
-    # Match versions like 1.0.0-alpha.73 or 1.0.0
-    match = re.search(r'rustfs/rustfs:(\d+\.\d+\.\d+(?:-\w+\.\d+)?)', content)
+    # Match versions like 1.0.0-alpha.73, 1.0.0-beta.5, 1.0.0-rc.2, or 1.0.0
+    match = re.search(r'rustfs/rustfs:(\d+\.\d+\.\d+(?:-(alpha|beta|rc)\.\d+)?)', content)
     if match:
         current_version = match.group(1)
         print(f"Current rustfs/rustfs version in docker-compose.yml: {current_version}")
