@@ -167,7 +167,7 @@ func validateJSONAgentOptionsExtensions(ctx context.Context, ds Datastore, optsE
 			return ErrMissingLicense
 		}
 		for _, labelName := range extensionInfo.Labels {
-			switch _, err := ds.GetLabelSpec(ctx, TeamFilter{}, labelName); {
+			switch _, err := ds.GetLabelSpec(ctx, TeamFilter{}, labelName); { // TODO make this work with team labels
 			case err == nil:
 				// OK
 			case IsNotFound(err):
