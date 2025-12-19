@@ -16,6 +16,7 @@ These API endpoints in this document are only used when contributing to Fleet. T
 - [Setup](#setup)
 - [Scripts](#scripts)
 - [Software](#software)
+- [Certificates](#certificates)
 - [Users](#users)
 - [Conditional access](#conditional-access)
 - [Host identity](#host-identity)
@@ -4877,6 +4878,76 @@ Body: <blob>
 ```
 
 ---
+
+## Certificates
+
+### Apply certificate templates
+
+_Available in Fleet Premium_
+
+`POST /api/latest/fleet/spec/certificates`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| specs     | array  | body  | **Required**. An array of objects with the certificate templates. Each item must contain `name` with the certificate template name, a `team` with a team name,  `certificate_authority_id` with the certificate authority id, and `subject_name` with the certificate's subject name.   |
+
+> Any existing certificate template that is not included in the list will be removed, and existing templates with the same name as the new template will be edited. Providing an empty list of certificate templates will remove existing scripts.
+
+#### Example
+
+`POST /api/latest/fleet/spec/certificates`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "WIFI_CERTIFICATE",
+      "team": "workstations",
+      "certificate_authority_id": 1,
+      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+    },
+    {
+      "name": "WIFI_CERTIFICATE_TEST",
+      "team": "workstations-canary",
+      "certificate_authority_id": 1,
+      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Delete certificate templates
+
+`DELETE /api/latest/fleet/spec/certificates`
+
+#### Parameters
+
+| Name      | Type    | In    | Description                                                                            |
+|-----------|---------|-------|----------------------------------------------------------------------------------------|
+| ids       | array   | body  | **Required**. An array of certificate template ids to be deleted                       |
+| team_id   | integer | body  | **Required**. The team_id which the certificate templates you want to delete belong to |
+
+#### Example
+
+`DELETE /api/latest/fleet/spec/certificates`
+```json
+{
+  "ids": [1, 2, 3, 4],
+  "team_id": 1
+}
+```
+
+##### Default response
+
+`Status: 200`
 
 ## Users
 
