@@ -1,1 +1,0 @@
-* Added better error messages when using build-in labels on GitOps and on the LabelSpecs endpoint.
