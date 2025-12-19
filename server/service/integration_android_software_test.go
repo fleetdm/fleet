@@ -69,6 +69,22 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	)
 	require.Contains(t, extractServerErrorText(r.Body), "Application ID must be a valid Android application ID")
 
+	// Fleet agent app: should fail (cannot be added manually)
+	for _, fleetAgentPkg := range []string{
+		"com.fleetdm.agent",
+		"com.fleetdm.agent.pingali",
+		"com.fleetdm.agent.private.testuser",
+	} {
+		r = s.Do(
+			"POST",
+			"/api/latest/fleet/software/app_store_apps",
+			&addAppStoreAppRequest{AppStoreID: fleetAgentPkg, Platform: fleet.AndroidPlatform},
+			http.StatusUnprocessableEntity,
+		)
+		require.Contains(t, extractServerErrorText(r.Body), "The Fleet agent cannot be added manually",
+			"expected Fleet Agent package %s to be blocked", fleetAgentPkg)
+	}
+
 	// Missing platform: should fail
 	r = s.Do(
 		"POST",
