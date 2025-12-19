@@ -375,7 +375,7 @@ object CertificateOrchestrator {
                 // Report successful removal to server
                 ApiClient.updateCertificateStatus(
                     certificateId = certificateId,
-                    status = UpdateCertificateStatusStatus.FAILED,
+                    status = UpdateCertificateStatusStatus.VERIFIED,
                     operationType = UpdateCertificateStatusOperation.REMOVE,
                 ).onFailure { error ->
                     Log.e(TAG, "Failed to report certificate removal status for ID $certificateId: ${error.message}", error)
