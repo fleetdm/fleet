@@ -440,9 +440,13 @@ func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hv
 		return nil, ctxerr.New(ctx, "label query is empty after calculating host vitals query")
 	}
 
+	labelSelect := fmt.Sprintf("%d as label_id, hosts.id as host_id", label.ID)
+	labelQuery := fmt.Sprintf(query, labelSelect, "hosts")
+	if label.TeamID != nil {
+		labelQuery = fmt.Sprintf(query, labelSelect, fmt.Sprintf("hosts JOIN (SELECT %d team_id) label_team ON label_team.team_id = hosts.team_id", *label.TeamID))
+	}
+
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		labelSelect := fmt.Sprintf("%d as label_id, hosts.id as host_id", label.ID)
-		labelQuery := fmt.Sprintf(query, labelSelect, "hosts")
 		// Insert new label membership based on the label query.
 		sql := fmt.Sprintf(`INSERT INTO label_membership (label_id, host_id) SELECT candidate.label_id, candidate.host_id FROM (%s) as candidate ON DUPLICATE KEY UPDATE host_id = label_membership.host_id`, labelQuery)
 		_, err := tx.ExecContext(ctx, sql, queryVals...)

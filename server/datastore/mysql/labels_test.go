@@ -2336,8 +2336,20 @@ func (t *TestHostVitalsLabel) GetLabel() *fleet.Label {
 func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
 	hosts := make([]*fleet.Host, 4)
 	for i := 1; i <= 4; i++ {
+		var teamID *uint
+		if i == 1 || i == 2 {
+			teamID = &team1.ID
+		} else if i == 3 {
+			teamID = &team2.ID
+		}
+
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			OsqueryHostID:  ptr.String(fmt.Sprintf("%d", i)),
 			NodeKey:        ptr.String(fmt.Sprintf("%d", i)),
@@ -2345,6 +2357,7 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 			Hostname:       fmt.Sprintf("host%d.local", i),
 			HardwareSerial: fmt.Sprintf("hwd%d", i),
 			Platform:       "darwin",
+			TeamID:         teamID,
 		})
 		require.NoError(t, err)
 		hosts[i-1] = host
@@ -2372,43 +2385,74 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	var id uint
+	var ids []uint
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		result, err := q.ExecContext(context.Background(),
-			"INSERT INTO labels (name, description, platform, label_type, label_membership_type, query) VALUES (?, ?, ?, ?, ?, ?)",
-			"test host vitals label", "test", "", fleet.LabelTypeRegular, fleet.LabelMembershipTypeHostVitals, "")
-		if err != nil {
-			return err
+		for _, teamID := range []*uint{nil, &team1.ID, &team2.ID} {
+			result, err := q.ExecContext(context.Background(),
+				"INSERT INTO labels (name, description, platform, label_type, label_membership_type, query, team_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+				fmt.Sprintf("test host vitals label %d", teamID), "test", "", fleet.LabelTypeRegular, fleet.LabelMembershipTypeHostVitals, "", teamID)
+			if err != nil {
+				return err
+			}
+			id64, err := result.LastInsertId()
+			if err != nil {
+				return err
+			}
+			ids = append(ids, uint(id64)) // nolint:gosec
 		}
-		id64, err := result.LastInsertId()
-		if err != nil {
-			return err
-		}
-		id = uint(id64) // nolint:gosec
 		return nil
 	})
 
-	label := &TestHostVitalsLabel{
-		Label: fleet.Label{
-			ID:                  id,
-			Name:                "Test Host Vitals Label",
-			LabelType:           fleet.LabelTypeRegular,
-			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-			HostVitalsCriteria:  ptr.RawMessage(criteria),
+	testCases := []struct {
+		LabelID       uint
+		TeamID        *uint
+		BeforeHostIDs []uint
+		AfterHostIDs  []uint
+	}{
+		{
+			ids[0],
+			nil,
+			[]uint{hosts[0].ID, hosts[2].ID}, // Only hosts 1 and 3 should match the criteria (user1)
+			[]uint{hosts[1].ID, hosts[2].ID, hosts[3].ID}, // Only hosts 2, 3 and 4 should match the criteria (user1)
 		},
+		{
+			ids[1],
+			&team1.ID,
+			[]uint{hosts[0].ID}, // Only host 1 is on the team affected by the label
+			[]uint{hosts[1].ID}, // Only host 2 is on the team affected by the label after vitals changes
+		},
+	}
+
+	makeLabel := func(id uint, teamID *uint) *TestHostVitalsLabel {
+		return &TestHostVitalsLabel{
+			Label: fleet.Label{
+				ID:                  id,
+				TeamID:              teamID,
+				Name:                fmt.Sprintf("Test Host Vitals Label %d", teamID),
+				LabelType:           fleet.LabelTypeRegular,
+				LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+				HostVitalsCriteria:  ptr.RawMessage(criteria),
+			},
+		}
 	}
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
-	updatedLabel, err := ds.UpdateLabelMembershipByHostCriteria(ctx, label)
-	require.NoError(t, err)
-	require.Equal(t, 2, updatedLabel.HostCount)
+	for _, tt := range testCases {
+		updatedLabel, err := ds.UpdateLabelMembershipByHostCriteria(ctx, makeLabel(tt.LabelID, tt.TeamID))
+		require.NoError(t, err)
+		require.Equal(t, len(tt.BeforeHostIDs), updatedLabel.HostCount)
 
-	// Check that the label has the correct hosts
-	hostsInLabel, err := ds.ListHostsInLabel(ctx, filter, label.ID, fleet.HostListOptions{})
-	require.NoError(t, err)
-	require.Len(t, hostsInLabel, 2) // Only hosts 1 and 3 should match the criteria (user1)
-	require.ElementsMatch(t, []uint{hosts[0].ID, hosts[2].ID}, []uint{hostsInLabel[0].ID, hostsInLabel[1].ID})
+		// Check that the label has the correct hosts
+		hostsInLabel, err := ds.ListHostsInLabel(ctx, filter, tt.LabelID, fleet.HostListOptions{})
+		require.NoError(t, err)
+		require.Len(t, hostsInLabel, len(tt.BeforeHostIDs))
+		labelHostIDs := make([]uint, 0, len(hostsInLabel))
+		for _, host := range hostsInLabel {
+			labelHostIDs = append(labelHostIDs, host.ID)
+		}
+		require.ElementsMatch(t, tt.BeforeHostIDs, labelHostIDs)
+	}
 
 	// Update host users.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -2428,15 +2472,22 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 			hosts[0].ID, 1) // Remove user1 from host 1
 		return err
 	})
-	updatedLabel, err = ds.UpdateLabelMembershipByHostCriteria(ctx, label)
-	require.NoError(t, err)
-	require.Equal(t, 3, updatedLabel.HostCount)
 
-	// Check that the label has the correct hosts
-	hostsInLabel, err = ds.ListHostsInLabel(ctx, filter, label.ID, fleet.HostListOptions{})
-	require.NoError(t, err)
-	require.Len(t, hostsInLabel, 3) // Only hosts 2, 3 and 4 should match the criteria (user1)
-	require.ElementsMatch(t, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID}, []uint{hostsInLabel[0].ID, hostsInLabel[1].ID, hostsInLabel[2].ID})
+	for _, tt := range testCases {
+		updatedLabel, err := ds.UpdateLabelMembershipByHostCriteria(ctx, makeLabel(tt.LabelID, tt.TeamID))
+		require.NoError(t, err)
+		require.Equal(t, len(tt.AfterHostIDs), updatedLabel.HostCount)
+
+		// Check that the label has the correct hosts
+		hostsInLabel, err := ds.ListHostsInLabel(ctx, filter, tt.LabelID, fleet.HostListOptions{})
+		require.NoError(t, err)
+		require.Len(t, hostsInLabel, len(tt.AfterHostIDs))
+		labelHostIDs := make([]uint, 0, len(hostsInLabel))
+		for _, host := range hostsInLabel {
+			labelHostIDs = append(labelHostIDs, host.ID)
+		}
+		require.ElementsMatch(t, tt.AfterHostIDs, labelHostIDs)
+	}
 }
 
 func testTeamLabels(t *testing.T, ds *Datastore) {

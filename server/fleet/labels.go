@@ -357,7 +357,7 @@ func (l *Label) CalculateHostVitalsQuery() (query string, values []any, err erro
 	// We'll use a set to gather the foreign vitals groups we need to join on,
 	// so that we can avoid duplicates.
 	foreignVitalsGroups := make(map[*HostForeignVitalGroup]struct{})
-	// Hold values to be substituted in the paramerized query.
+	// Hold values to be substituted in the parameterized query.
 	values = make([]any, 0)
 	// Recursively parse the criteria to build the WHERE clause.
 	whereClause, err := parseHostVitalCriteria(criteria, foreignVitalsGroups, &values)
