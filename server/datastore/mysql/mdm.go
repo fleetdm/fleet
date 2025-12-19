@@ -235,7 +235,7 @@ WHERE
 	}
 
 	if len(winUUIDs) > 0 {
-		winParams = []any{winUUIDs, winUUIDs}
+		winParams = []any{winUUIDs}
 		winStmt = `
 	SELECT
 		mwe.host_uuid,
@@ -251,6 +251,8 @@ WHERE
 
 	WHERE
 		mwe.host_uuid IN (?)
+
+		%[1]s
 
 	UNION
 
@@ -285,9 +287,20 @@ WHERE
 	WHERE
 		mwe.host_uuid IN (?)
 
+		%[1]s
+
 	`
 
-		winStmt, winParams = addRequestTypeFilter(winStmt, &listOpts.Filters, winParams)
+		var filterSQL string
+		if listOpts.Filters.RequestType != "" {
+			filterSQL = " AND wc.target_loc_uri = ?"
+			winParams = append(winParams, listOpts.Filters.RequestType, winUUIDs, listOpts.Filters.RequestType)
+		} else {
+			winParams = append(winParams, winUUIDs)
+		}
+
+		winStmt = fmt.Sprintf(winStmt, filterSQL)
+
 		winStmt, winParams, err = sqlx.In(winStmt, winParams...)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Windows devices")

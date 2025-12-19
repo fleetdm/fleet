@@ -274,6 +274,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		identifier    string
 		commandStatus *fleet.MDMCommandStatusFilter
 		expected      []string
+		requestType   string
 	}{
 		{
 			name:       "windows host by hostname ambiguous with macOS host",
@@ -287,6 +288,12 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 			name:       "windows host by UUID",
 			identifier: windowsH.UUID,
 			expected:   []string{winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
+		},
+		{
+			name:        "windows host by UUID, filter by request type",
+			identifier:  windowsH.UUID,
+			expected:    []string{winCmd2.CommandUUID},
+			requestType: "./test/uri2",
 		},
 		{
 			name:       "windows host by hardware serial",
@@ -325,6 +332,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 					Filters: fleet.MDMCommandFilters{
 						HostIdentifier:  tc.identifier,
 						CommandStatuses: commandStatuses,
+						RequestType:     tc.requestType,
 					},
 				},
 			)
