@@ -32,7 +32,7 @@ const CommandFeed = ({
     return (
       <EmptyFeed
         title="No MDM commands"
-        message={description}
+        message={emptyDescription}
         className={`${baseClass}__empty-feed`}
       />
     );
