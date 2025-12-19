@@ -128,9 +128,9 @@ const Activity = ({
                 }
               />
             )}
-            {showMDMCommands ? (
+            {showMDMCommands && commands ? (
               <PastCommandFeed
-                commands={commands?.results ?? []}
+                commands={commands}
                 onShowDetails={onShowCommandDetails}
                 onNextPage={onNextPage}
                 onPreviousPage={onPreviousPage}
@@ -157,9 +157,9 @@ const Activity = ({
                 }
               />
             )}
-            {showMDMCommands ? (
+            {showMDMCommands && commands ? (
               <UpcomingCommandFeed
-                commands={commands?.results ?? []}
+                commands={commands}
                 onShowDetails={onShowCommandDetails}
                 onNextPage={onNextPage}
                 onPreviousPage={onPreviousPage}

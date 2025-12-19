@@ -818,6 +818,7 @@ const HostDetailsPage = ({
             // the host object if it's available.
             hostDisplayName:
               host?.display_name || details?.host_display_name || "",
+            platform: details?.host_platform || host?.platform,
           });
           break;
         default: // do nothing
@@ -1364,9 +1365,11 @@ Observer plus must be checked against host's team id  */
                     showMDMCommandsToggle={isAppleDevice(host.platform)}
                     showMDMCommands={showMDMCommands}
                     onShowMDMCommands={() => {
+                      setActivityPage(0);
                       setShowMDMCommands(true);
                     }}
                     onHideMDMCommands={() => {
+                      setActivityPage(0);
                       setShowMDMCommands(false);
                     }}
                     upcomingCount={
