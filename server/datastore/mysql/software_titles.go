@@ -822,6 +822,6 @@ WHERE
 	return titleExists, nil
 }
 
-func (ds *Datastore) UpdateAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config fleet.AutoUpdateConfig) error {
+func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config fleet.AutoUpdateConfig) error {
 	return nil
 }

@@ -453,7 +453,7 @@ type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFi
 
 type UpdateSoftwareTitleNameFunc func(ctx context.Context, id uint, name string) error
 
-type UpdateAutoUpdateConfigFunc func(ctx context.Context, titleID uint, teamID *uint, config fleet.AutoUpdateConfig) error
+type UpdateSoftwareTitleAutoUpdateConfigFunc func(ctx context.Context, titleID uint, teamID *uint, config fleet.AutoUpdateConfig) error
 
 type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error)
 
@@ -2349,7 +2349,7 @@ type DataStore struct {
 	UpdateSoftwareTitleNameFunc        UpdateSoftwareTitleNameFunc
 	UpdateSoftwareTitleNameFuncInvoked bool
 
-	UpdateAutoUpdateConfigFunc        UpdateAutoUpdateConfigFunc
+	UpdateAutoUpdateConfigFunc        UpdateSoftwareTitleAutoUpdateConfigFunc
 	UpdateAutoUpdateConfigFuncInvoked bool
 
 	InsertSoftwareInstallRequestFunc        InsertSoftwareInstallRequestFunc
@@ -5732,7 +5732,7 @@ func (s *DataStore) UpdateSoftwareTitleName(ctx context.Context, id uint, name s
 	return s.UpdateSoftwareTitleNameFunc(ctx, id, name)
 }
 
-func (s *DataStore) UpdateAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config fleet.AutoUpdateConfig) error {
+func (s *DataStore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config fleet.AutoUpdateConfig) error {
 	s.mu.Lock()
 	s.UpdateAutoUpdateConfigFuncInvoked = true
 	s.mu.Unlock()
