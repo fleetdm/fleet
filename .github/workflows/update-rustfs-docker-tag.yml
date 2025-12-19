@@ -27,9 +27,6 @@ jobs:
         with:
           python-version: "3.13.1"
       
-      - name: Install packaging library
-        run: pip install packaging
-      
       - name: Update rustfs version in docker-compose files
         run: python .github/scripts/update_rustfs_version.py
       

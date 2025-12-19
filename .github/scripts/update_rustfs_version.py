@@ -3,9 +3,9 @@ Script to automatically update rustfs/rustfs Docker image tags in docker-compose
 
 This script:
 1. Fetches all available tags for rustfs/rustfs from Docker Hub
-2. Identifies the latest version (excluding 'latest' tag)
-3. Compares with current version in docker-compose.yml files
-4. Updates all docker-compose.yml files if a newer version is available
+2. Uses the newest tag (excluding 'latest' tag)
+3. Compares with current tag in docker-compose.yml files
+4. Updates all docker-compose.yml files if the tag is different
 
 Used by the update-rustfs-docker-tag.yml GitHub Actions workflow.
 """
@@ -13,7 +13,6 @@ import os
 import re
 import json
 import http.client
-from packaging import version
 
 # Use GITHUB_WORKSPACE to get the root of your repository
 repo_root = os.environ.get('GITHUB_WORKSPACE', '')
@@ -58,29 +57,17 @@ def fetch_rustfs_tags():
             pass
 
 
-def get_latest_version(tags):
-    """Get the latest version from a list of tags."""
-    # Filter out non-version tags and parse versions
-    valid_versions = []
-    tag_map = {}  # Map normalized version to original tag
+def get_newest_tag(tags):
+    """Get the newest tag from a list of tags.
     
-    for tag in tags:
-        # Match semver-like versions (e.g., 1.0.0-alpha.73)
-        if re.match(r'^\d+\.\d+\.\d+', tag):
-            try:
-                parsed = version.parse(tag)
-                valid_versions.append(parsed)
-                tag_map[parsed] = tag
-            except (ValueError, TypeError) as e:
-                # Skip tags that cannot be parsed as versions
-                continue
-    
-    if not valid_versions:
+    Docker Hub API returns tags in reverse chronological order,
+    so the first tag is the newest.
+    """
+    if not tags:
         return None
     
-    # Return the original tag string for the latest version
-    latest = max(valid_versions)
-    return tag_map[latest]
+    # Return the first tag (newest)
+    return tags[0]
 
 
 def get_current_version_from_file(filepath):
@@ -135,46 +122,40 @@ def main():
     
     print(f"Found {len(tags)} tags")
     
-    latest_version = get_latest_version(tags)
-    if not latest_version:
-        print("Error: Could not determine latest version")
+    newest_tag = get_newest_tag(tags)
+    if not newest_tag:
+        print("Error: Could not determine newest tag")
         return
     
-    print(f"Latest version: {latest_version}")
+    print(f"Newest tag: {newest_tag}")
     
-    # Get current version from the first file
-    current_version = None
+    # Get current tag from the first file
+    current_tag = None
     for filepath in DOCKER_COMPOSE_FILES:
-        ver = get_current_version_from_file(filepath)
-        if ver:
-            current_version = ver
+        tag = get_current_version_from_file(filepath)
+        if tag:
+            current_tag = tag
             break
     
-    if not current_version:
-        print("Error: Could not find current version in docker-compose files")
+    if not current_tag:
+        print("Error: Could not find current tag in docker-compose files")
         return
     
-    print(f"Current version: {current_version}")
+    print(f"Current tag: {current_tag}")
     
-    # Compare versions
-    try:
-        current_ver = version.parse(current_version)
-        latest_ver = version.parse(latest_version)
+    # Compare tags
+    if newest_tag != current_tag:
+        print(f"Update available: {current_tag} -> {newest_tag}")
         
-        if latest_ver > current_ver:
-            print(f"Update available: {current_version} -> {latest_version}")
-            
-            # Update all files
-            updated_count = 0
-            for filepath in DOCKER_COMPOSE_FILES:
-                if update_version_in_file(filepath, current_version, latest_version):
-                    updated_count += 1
-            
-            print(f"Updated {updated_count} file(s)")
-        else:
-            print(f"Already using latest version ({current_version})")
-    except Exception as e:
-        print(f"Error comparing versions: {e}")
+        # Update all files
+        updated_count = 0
+        for filepath in DOCKER_COMPOSE_FILES:
+            if update_version_in_file(filepath, current_tag, newest_tag):
+                updated_count += 1
+        
+        print(f"Updated {updated_count} file(s)")
+    else:
+        print(f"Already using newest tag ({current_tag})")
 
 
 if __name__ == "__main__":
