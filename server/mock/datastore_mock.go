@@ -1679,6 +1679,8 @@ type ListCertificateTemplatesForHostsFunc func(ctx context.Context, hostUUIDs []
 
 type GetCertificateTemplateForHostFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error)
 
+type GetHostCertificateTemplateRecordFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.HostCertificateTemplate, error)
+
 type BulkInsertHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
 
 type DeleteHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
@@ -4183,6 +4185,9 @@ type DataStore struct {
 
 	GetCertificateTemplateForHostFunc        GetCertificateTemplateForHostFunc
 	GetCertificateTemplateForHostFuncInvoked bool
+
+	GetHostCertificateTemplateRecordFunc        GetHostCertificateTemplateRecordFunc
+	GetHostCertificateTemplateRecordFuncInvoked bool
 
 	BulkInsertHostCertificateTemplatesFunc        BulkInsertHostCertificateTemplatesFunc
 	BulkInsertHostCertificateTemplatesFuncInvoked bool
@@ -10011,6 +10016,13 @@ func (s *DataStore) GetCertificateTemplateForHost(ctx context.Context, hostUUID 
 	s.GetCertificateTemplateForHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCertificateTemplateForHostFunc(ctx, hostUUID, certificateTemplateID)
+}
+
+func (s *DataStore) GetHostCertificateTemplateRecord(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.HostCertificateTemplate, error) {
+	s.mu.Lock()
+	s.GetHostCertificateTemplateRecordFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostCertificateTemplateRecordFunc(ctx, hostUUID, certificateTemplateID)
 }
 
 func (s *DataStore) BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error {
