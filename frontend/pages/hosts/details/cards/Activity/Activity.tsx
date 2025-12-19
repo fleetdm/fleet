@@ -132,6 +132,7 @@ const Activity = ({
             {showMDMCommands && commands ? (
               <CommandFeed
                 commands={commands}
+                emptyDescription="Completed MDM commands will appear here."
                 onShowDetails={onShowCommandDetails}
                 onNextPage={onNextPage}
                 onPreviousPage={onPreviousPage}
@@ -161,6 +162,7 @@ const Activity = ({
             {showMDMCommands && commands ? (
               <CommandFeed
                 commands={commands}
+                emptyDescription="Pending MDM commands will appear here."
                 onShowDetails={onShowCommandDetails}
                 onNextPage={onNextPage}
                 onPreviousPage={onPreviousPage}

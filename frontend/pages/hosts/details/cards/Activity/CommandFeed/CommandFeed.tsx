@@ -14,6 +14,7 @@ const baseClass = "command-feed";
 
 interface ICommandFeedProps {
   commands: IGetCommandsResponse;
+  emptyDescription: string;
   onShowDetails: ShowCommandDetailsHandler;
   onNextPage: () => void;
   onPreviousPage: () => void;
@@ -21,6 +22,7 @@ interface ICommandFeedProps {
 
 const CommandFeed = ({
   commands,
+  emptyDescription,
   onShowDetails,
   onNextPage,
   onPreviousPage,
@@ -30,7 +32,7 @@ const CommandFeed = ({
     return (
       <EmptyFeed
         title="No MDM commands"
-        message="Completed MDM commands will appear here."
+        message={description}
         className={`${baseClass}__empty-feed`}
       />
     );
