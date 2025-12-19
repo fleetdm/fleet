@@ -108,6 +108,7 @@ type updateAppStoreAppRequest struct {
 	Categories       []string        `json:"categories"`
 	Configuration    json.RawMessage `json:"configuration,omitempty"`
 	DisplayName      *string         `json:"display_name"`
+	fleet.AutoUpdateConfig
 }
 
 type updateAppStoreAppResponse struct {
@@ -131,6 +132,13 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 	if err != nil {
 		return updateAppStoreAppResponse{Err: err}, nil
 	}
+
+	// Update AutoUpdateConfig separately
+	err = svc.UpdateVPPAppAutoUpdateConfig(ctx, req.TitleID, req.TeamID, fleet.AutoUpdateConfig{
+		AutoUpdateEnabled:   req.AutoUpdateEnabled,
+		AutoUpdateStartTime: req.AutoUpdateStartTime,
+		AutoUpdateEndTime:   req.AutoUpdateEndTime,
+	})
 
 	return updateAppStoreAppResponse{AppStoreApp: updatedApp}, nil
 }

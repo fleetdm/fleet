@@ -287,3 +287,15 @@ func (svc *Service) UpdateSoftwareName(ctx context.Context, titleID uint, name s
 
 	return svc.ds.UpdateSoftwareTitleName(ctx, titleID, name)
 }
+
+func (svc *Service) UpdateAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config fleet.AutoUpdateConfig) error {
+	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	if err := svc.ds.UpdateAutoUpdateConfig(ctx, titleID, teamID, config); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
+	}
+
+	return nil
+}

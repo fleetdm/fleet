@@ -705,6 +705,9 @@ type Service interface {
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
 
+	// UpdateAutoUpdateConfig updates the auto-update configuration for a software title.
+	UpdateAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config AutoUpdateConfig) error
+
 	// GetVPPTokenIfCanInstallVPPApps returns the host team's VPP token if the host can be a target for VPP apps
 	GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) (string, error)
 

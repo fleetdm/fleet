@@ -30,6 +30,7 @@ func TestSoftwareTitles(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"TestUpdateAutoUpdateConfig", testUpdateAutoUpdateConfig},
 		{"SyncHostsSoftwareTitles", testSoftwareSyncHostsSoftwareTitles},
 		{"OrderSoftwareTitles", testOrderSoftwareTitles},
 		{"TeamFilterSoftwareTitles", testTeamFilterSoftwareTitles},
@@ -2590,4 +2591,52 @@ func testListSoftwareTitlesByPlatform(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Zero(t, counts)
 	require.Empty(t, titles)
+}
+
+func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
+	//
+	// All tests below are in hosts in "No team".
+	//
+
+	ctx := context.Background()
+
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	software1 := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", ExtensionFor: "chrome"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", ExtensionFor: "chrome"},
+		{Name: "foo", Version: "0.0.3", Source: "deb_packages"},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+	}
+
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+
+	// create a software installer with an install request on host1
+	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "installer2",
+		Source:          "apps",
+		InstallScript:   "echo",
+		Filename:        "installer2.pkg",
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// primary sort is "hosts_count DESC", followed by "name ASC, source ASC, extension_for ASC"
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		TeamID: ptr.Uint(0),
+	}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	title := titles[0]
+	require.Equal(t, "foo", title.Name)
+	require.Equal(t, "chrome_extensions", title.Source)
+	require.Equal(t, "chrome", title.ExtensionFor)
+	require.Nil(t, title.SoftwarePackage)
+	require.Nil(t, title.AppStoreApp)
 }
