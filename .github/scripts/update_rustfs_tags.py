@@ -119,7 +119,7 @@ def update_rustfs_version(old_version: str, new_version: str) -> int:
     Update rustfs/rustfs version in all docker-compose files.
     Returns the number of files updated.
     """
-    pattern = f'rustfs/rustfs:{re.escape(old_version)}'
+    pattern = f'rustfs/rustfs:{old_version}'
     replacement = f'rustfs/rustfs:{new_version}'
     
     compose_files = find_docker_compose_files()
