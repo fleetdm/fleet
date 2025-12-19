@@ -26,7 +26,7 @@ type ErrWithLogFields interface {
 	error
 	// LogFields returns the additional log fields to add, which should come in
 	// key, value pairs (as used in go-kit log).
-	LogFields() []interface{}
+	LogFields() []any
 }
 
 // ErrorUUIDer defines an interface for errors that have a UUID for tracking.
@@ -336,7 +336,7 @@ const ForbiddenErrorMessage = "forbidden"
 // CheckMissing is the error to return when no authorization check was performed
 // by the service.
 type CheckMissing struct {
-	response interface{}
+	response any
 
 	ErrorWithUUID
 }
@@ -344,7 +344,7 @@ type CheckMissing struct {
 // CheckMissingWithResponse creates a new error indicating the authorization
 // check was missed, and including the response for further analysis by the error
 // encoder.
-func CheckMissingWithResponse(response interface{}) *CheckMissing {
+func CheckMissingWithResponse(response any) *CheckMissing {
 	return &CheckMissing{response: response}
 }
 
@@ -360,6 +360,6 @@ func (e *CheckMissing) Internal() string {
 
 // Response returns the response that was generated before the authorization
 // check was found to be missing.
-func (e *CheckMissing) Response() interface{} {
+func (e *CheckMissing) Response() any {
 	return e.response
 }
