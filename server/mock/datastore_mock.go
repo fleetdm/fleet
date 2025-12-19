@@ -139,6 +139,8 @@ type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec) err
 
 type ApplyLabelSpecsWithAuthorFunc func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error
 
+type SetAsideLabelsFunc func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error
+
 type GetLabelSpecsFunc func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error)
 
 type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, error)
@@ -1875,6 +1877,9 @@ type DataStore struct {
 
 	ApplyLabelSpecsWithAuthorFunc        ApplyLabelSpecsWithAuthorFunc
 	ApplyLabelSpecsWithAuthorFuncInvoked bool
+
+	SetAsideLabelsFunc        SetAsideLabelsFunc
+	SetAsideLabelsFuncInvoked bool
 
 	GetLabelSpecsFunc        GetLabelSpecsFunc
 	GetLabelSpecsFuncInvoked bool
@@ -4626,6 +4631,13 @@ func (s *DataStore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*flee
 	s.ApplyLabelSpecsWithAuthorFuncInvoked = true
 	s.mu.Unlock()
 	return s.ApplyLabelSpecsWithAuthorFunc(ctx, specs, authorId)
+}
+
+func (s *DataStore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+	s.mu.Lock()
+	s.SetAsideLabelsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAsideLabelsFunc(ctx, notOnTeamID, names, user)
 }
 
 func (s *DataStore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {

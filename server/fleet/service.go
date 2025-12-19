@@ -253,8 +253,9 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// LabelService
 
-	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore, creating and updating labels as necessary.
-	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec) error
+	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore, creating and updating labels as necessary,
+	// plus rename existing labels *on other teams* to avoid name conflicts
+	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec, teamID *uint, namesToMove []string) error
 	// GetLabelSpecs returns global labels, plus either all team labels a user can see or just ones in the specified team ID.
 	GetLabelSpecs(ctx context.Context, teamID *uint) ([]*LabelSpec, error)
 	// GetLabelSpec gets the spec for the label with the given name.

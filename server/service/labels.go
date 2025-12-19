@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -611,23 +612,26 @@ func (r applyLabelSpecsResponse) Error() error { return r.Err }
 
 func applyLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*applyLabelSpecsRequest)
-	err := svc.ApplyLabelSpecs(ctx, req.Specs) // TODO GitOps add team ID
+	err := svc.ApplyLabelSpecs(ctx, req.Specs, req.TeamID, req.NamesToMove)
 	if err != nil {
 		return applyLabelSpecsResponse{Err: err}, nil
 	}
 	return applyLabelSpecsResponse{}, nil
 }
 
-func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) error {
+func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, namesToMove []string) error {
 	// TODO GitOps add team ID handling, including bailing if not premium
 
-	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
 	regularSpecs := make([]*fleet.LabelSpec, 0, len(specs))
 	var builtInSpecs []*fleet.LabelSpec
 	var builtInSpecNames []string
+
+	var specLabelNamesNeedingMoving []string // should match namesToMove once specs have been checked
+
 	for _, spec := range specs {
 		if spec.LabelMembershipType == fleet.LabelMembershipTypeDynamic && len(spec.Hosts) > 0 {
 			return fleet.NewUserMessageError(
@@ -667,7 +671,20 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 			}
 		}
 
+		if slices.Contains(namesToMove, spec.Name) {
+			specLabelNamesNeedingMoving = append(specLabelNamesNeedingMoving, spec.Name)
+		}
+
+		// make sure we're only upserting labels on the team we specified; individual spec teams aren't used on writes
+		spec.TeamID = teamID
 		regularSpecs = append(regularSpecs, spec)
+	}
+
+	if len(specLabelNamesNeedingMoving) != len(namesToMove) {
+		return fleet.NewUserMessageError(
+			ctxerr.New(ctx, "label names to move list was not a subset of specified labels"),
+			http.StatusConflict,
+		)
 	}
 
 	// If built-in labels have been provided, ensure that they are not attempted to be modified
@@ -694,8 +711,17 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		return nil
 	}
 
-	// Get the user from the context.
 	user, ok := viewer.FromContext(ctx)
+	if ok && user.User != nil {
+		if err := svc.ds.SetAsideLabels(ctx, teamID, namesToMove, *user.User); err != nil {
+			return ctxerr.Wrap(ctx, err, "cleaning up conflicting other team labels")
+		}
+	} else if len(namesToMove) > 0 {
+		return fleet.NewUserMessageError(
+			ctxerr.New(ctx, "cannot move labels out of the way without user authentication"), http.StatusForbidden,
+		)
+	}
+
 	// If we have a user, mark them as the label's author.
 	if ok {
 		return svc.ds.ApplyLabelSpecsWithAuthor(ctx, regularSpecs, ptr.Uint(user.UserID()))

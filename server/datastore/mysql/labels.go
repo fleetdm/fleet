@@ -355,6 +355,10 @@ func batchHostIds(hostIds []uint) [][]uint {
 	return batches
 }
 
+func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+	return nil // TODO
+}
+
 func (ds *Datastore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
 	// Get basic specs

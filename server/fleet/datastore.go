@@ -190,6 +190,9 @@ type Datastore interface {
 	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec) error
 	// ApplyLabelSpecs does the same as ApplyLabelSpecs, additionally allowing an author ID to be set for the labels.
 	ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*LabelSpec, authorId *uint) error
+	// SetAsideLabels moves a set of labels out of the way if those labels *aren't* on the specified team and *are*
+	// writable by the specified user
+	SetAsideLabels(ctx context.Context, notOnTeamID *uint, names []string, user User) error
 	// GetLabelSpecs returns all of the stored LabelSpecs that the user can see.
 	GetLabelSpecs(ctx context.Context, filter TeamFilter) ([]*LabelSpec, error)
 	// GetLabelSpec returns the spec for the named label.

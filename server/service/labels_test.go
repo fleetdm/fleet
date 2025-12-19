@@ -135,7 +135,7 @@ func TestLabelsAuth(t *testing.T) {
 				checkAuthErr(t, tt.shouldFailGlobalWriteIfAuthor, err)
 			}
 
-			err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{})
+			err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{}, nil, nil)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
 			_, _, err = svc.GetLabel(ctx, otherLabel.ID)
@@ -287,7 +287,7 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 	}
 
 	// all good
-	err := svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec})
+	err := svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec}, nil, nil)
 	require.NoError(t, err)
 
 	// trying to add a regular label with the same name as a built-in label should fail
@@ -299,7 +299,7 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 				Query:       query,
 				LabelType:   fleet.LabelTypeRegular,
 			},
-		})
+		}, nil, nil)
 		assert.ErrorContains(t, err,
 			fmt.Sprintf("cannot add label '%s' because it conflicts with the name of a built-in label", name))
 	}
@@ -307,31 +307,31 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 	const errorMessage = "cannot modify or add built-in label"
 	// not ok -- built-in label name doesn't exist
 	name = "not-foo"
-	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec})
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec}, nil, nil)
 	assert.ErrorContains(t, err, errorMessage)
 	name = "foo"
 
 	// not ok -- description does not match
 	description = "not-bar"
-	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec})
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec}, nil, nil)
 	assert.ErrorContains(t, err, errorMessage)
 	description = "bar"
 
 	// not ok -- query does not match
 	query = "select * from not-foo;"
-	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec})
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec}, nil, nil)
 	assert.ErrorContains(t, err, errorMessage)
 	query = "select * from foo;"
 
 	// not ok -- label type does not match
 	labelType = fleet.LabelTypeRegular
-	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec})
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec}, nil, nil)
 	assert.ErrorContains(t, err, errorMessage)
 	labelType = fleet.LabelTypeBuiltIn
 
 	// not ok -- label membership type does not match
 	labelMembershipType = fleet.LabelMembershipTypeManual
-	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec})
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec}, nil, nil)
 	assert.ErrorContains(t, err, errorMessage)
 	labelMembershipType = fleet.LabelMembershipTypeDynamic
 
@@ -339,7 +339,7 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
 		return nil, assert.AnError
 	}
-	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec})
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec}, nil, nil)
 	assert.ErrorIs(t, err, assert.AnError)
 }
 
