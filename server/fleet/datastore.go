@@ -2576,6 +2576,9 @@ type Datastore interface {
 	// DeleteHostCertificateTemplates deletes specific host_certificate_templates records
 	// identified by (host_uuid, certificate_template_id) pairs.
 	DeleteHostCertificateTemplates(ctx context.Context, hostCertTemplates []HostCertificateTemplate) error
+	// DeleteHostCertificateTemplate deletes a single host_certificate_template record
+	// identified by host_uuid and certificate_template_id.
+	DeleteHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) error
 
 	// ListAndroidHostUUIDsWithPendingCertificateTemplates returns hosts that have
 	// certificate templates in 'pending' status ready for delivery.

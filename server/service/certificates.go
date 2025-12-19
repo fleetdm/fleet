@@ -592,5 +592,10 @@ func (svc *Service) UpdateCertificateStatus(
 		return nil
 	}
 
+	// If operation_type is "remove" and status is "verified", delete the host_certificate_template row
+	if opType == fleet.MDMOperationTypeRemove && status == fleet.MDMDeliveryVerified {
+		return svc.ds.DeleteHostCertificateTemplate(ctx, host.UUID, certificateTemplateID)
+	}
+
 	return svc.ds.UpsertCertificateStatus(ctx, host.UUID, certificateTemplateID, status, detail, opType)
 }
