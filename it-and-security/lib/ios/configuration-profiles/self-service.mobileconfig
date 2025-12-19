@@ -116,7 +116,7 @@
 	<key>PayloadDisplayName</key>
 	<string>iOS self-service</string>
 	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.self-service.645C16D4-E033-4FBA-A6DF-3E4E9D0038A4</string>
+	<string>com.fleetdm.self-service.webclip</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
