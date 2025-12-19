@@ -169,7 +169,11 @@ func DecodeURLTagValue(r *http.Request, field reflect.Value, urlTagValue string,
 	return nil
 }
 
-func DecodeQueryTagValue(r *http.Request, fp fieldPair) error {
+// QueryFieldDecoder decodes a query parameter value into the target field.
+// It returns true if it handled the field, false if default handling should be used.
+type QueryFieldDecoder func(queryTagName, queryVal string, field reflect.Value) (handled bool, err error)
+
+func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder QueryFieldDecoder) error {
 	queryTagValue, ok := fp.Sf.Tag.Lookup("query")
 
 	if ok {
@@ -193,6 +197,18 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair) error {
 			field.Set(reflect.New(field.Type().Elem()))
 			field = field.Elem()
 		}
+
+		// Try custom decoder first if provided
+		if customDecoder != nil {
+			handled, err := customDecoder(queryTagValue, queryVal, field)
+			if err != nil {
+				return err
+			}
+			if handled {
+				return nil
+			}
+		}
+
 		switch field.Kind() {
 		case reflect.String:
 			field.SetString(queryVal)
@@ -211,22 +227,9 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair) error {
 		case reflect.Bool:
 			field.SetBool(queryVal == "1" || queryVal == "true")
 		case reflect.Int:
-			queryValInt := 0
-			switch queryTagValue {
-			case "order_direction", "inherited_order_direction":
-				switch queryVal {
-				case "desc":
-					queryValInt = int(platform_http.OrderDescending)
-				case "asc":
-					queryValInt = int(platform_http.OrderAscending)
-				default:
-					return &platform_http.BadRequestError{Message: "unknown order_direction: " + queryVal}
-				}
-			default:
-				queryValInt, err = strconv.Atoi(queryVal)
-				if err != nil {
-					return BadRequestErr("parsing int from query", err)
-				}
+			queryValInt, err := strconv.Atoi(queryVal)
+			if err != nil {
+				return BadRequestErr("parsing int from query", err)
 			}
 			field.SetInt(int64(queryValInt))
 		default:
@@ -363,6 +366,7 @@ func MakeDecoder(
 	parseCustomTags func(urlTagValue string, r *http.Request, field reflect.Value) (bool, error),
 	isBodyDecoder func(reflect.Value) bool,
 	decodeBody func(ctx context.Context, r *http.Request, v reflect.Value, body io.Reader) error,
+	customQueryDecoder QueryFieldDecoder,
 ) kithttp.DecodeRequestFunc {
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -450,7 +454,7 @@ func MakeDecoder(
 				return nil, platform_http.NewUserMessageError(errors.New("Expected Content-Type \"application/json\""), http.StatusUnsupportedMediaType)
 			}
 
-			err = DecodeQueryTagValue(r, fp)
+			err = DecodeQueryTagValue(r, fp, customQueryDecoder)
 			if err != nil {
 				return nil, err
 			}
