@@ -40,7 +40,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +56,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -117,7 +117,7 @@ fun MainScreen(onNavigateToDebug: () -> Unit) {
     val context = LocalContext.current
 
     var versionClicks by remember { mutableStateOf(0) }
-    val installedCerts by CertificateOrchestrator.installedCertsFlow(context).collectAsState(initial = emptyMap())
+    val installedCerts by CertificateOrchestrator.installedCertsFlow(context).collectAsStateWithLifecycle(initialValue = emptyMap())
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -180,8 +180,8 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
         grantedPermissions.toList()
     }
     val fleetBaseUrl = remember { appRestrictions.getString("server_url") }
-    val baseUrl by ApiClient.baseUrlFlow.collectAsState(initial = null)
-    val installedCerts by CertificateOrchestrator.installedCertsFlow(context).collectAsState(initial = emptyMap())
+    val baseUrl by ApiClient.baseUrlFlow.collectAsStateWithLifecycle(initialValue = null)
+    val installedCerts by CertificateOrchestrator.installedCertsFlow(context).collectAsStateWithLifecycle(initialValue = emptyMap())
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
