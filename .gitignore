@@ -117,3 +117,7 @@ fleet_tables_*.ext
 .env
 .tool-versions
 .zed/
+
+# Python cache
+__pycache__/
+*.pyc
