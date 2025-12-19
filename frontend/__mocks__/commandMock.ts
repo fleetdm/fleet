@@ -19,6 +19,10 @@ export const createMockCommand = (overrides?: Partial<ICommand>): ICommand => ({
 const DEFAULT_GET_COMMANDS_RESPONSE_MOCK: IGetCommandsResponse = {
   count: 1,
   results: [DEFAULT_COMMAND_MOCK],
+  meta: {
+    has_next_results: false,
+    has_previous_results: false,
+  },
 };
 
 export const createMockGetCommandsResponse = (
