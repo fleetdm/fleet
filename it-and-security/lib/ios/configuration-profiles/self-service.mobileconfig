@@ -100,7 +100,7 @@
 			<key>Label</key>
 			<string>Self-service</string>
 			<key>PayloadDisplayName</key>
-			<string>Web Clip</string>
+			<string>Self-service</string>
 			<key>PayloadIdentifier</key>
 			<string>com.apple.webClip.managed.9970D9CF-831B-4831-9A72-E284EFF5730B</string>
 			<key>PayloadType</key>
@@ -116,7 +116,7 @@
 	<key>PayloadDisplayName</key>
 	<string>iOS self-service</string>
 	<key>PayloadIdentifier</key>
-	<string>iMazing-Profile-Editor.645C16D4-E033-4FBA-A6DF-3E4E9D0038A4</string>
+	<string>com.fleetdm.self-service.645C16D4-E033-4FBA-A6DF-3E4E9D0038A4</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
