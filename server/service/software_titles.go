@@ -293,7 +293,12 @@ func (svc *Service) UpdateAutoUpdateConfig(ctx context.Context, titleID uint, te
 		return err
 	}
 
-	if err := svc.ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, teamID, config); err != nil {
+	// Coerce nil teamID to 0.
+	var tID uint
+	if teamID != nil {
+		tID = *teamID
+	}
+	if err := svc.ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, tID, config); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
 	}
 

@@ -2647,23 +2647,16 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	title := titles[0]
 	require.NotNil(t, title.AppStoreApp)
 	require.False(t, title.AutoUpdateEnabled)
-	require.Nil(t, title.AutoUpdateStartTime)
-	require.Nil(t, title.AutoUpdateEndTime)
+	require.Empty(t, title.AutoUpdateStartTime)
+	require.Empty(t, title.AutoUpdateEndTime)
 
-	// Try to enable the auto-update without start and end times (should fail).
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, ptr.Uint(0), fleet.AutoUpdateConfig{
-		AutoUpdateEnabled: true,
-	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "start and end times must be provided")
-
-	// Enable auto-update with valid start and end times.
+	// Enable auto-update.
 	startTime := time.Duration(2 * time.Hour)
 	endTime := time.Duration(4 * time.Hour)
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, ptr.Uint(0), fleet.AutoUpdateConfig{
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, 0, fleet.AutoUpdateConfig{
 		AutoUpdateEnabled:   true,
-		AutoUpdateStartTime: &startTime,
-		AutoUpdateEndTime:   &endTime,
+		AutoUpdateStartTime: startTime,
+		AutoUpdateEndTime:   endTime,
 	})
 	require.NoError(t, err)
 
@@ -2676,15 +2669,15 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.NotNil(t, title.AppStoreApp)
 	require.True(t, title.AutoUpdateEnabled)
 	require.NotNil(t, title.AutoUpdateStartTime)
-	require.Equal(t, startTime, *title.AutoUpdateStartTime)
+	require.Equal(t, startTime, title.AutoUpdateStartTime)
 	require.NotNil(t, title.AutoUpdateEndTime)
-	require.Equal(t, endTime, *title.AutoUpdateEndTime)
+	require.Equal(t, endTime, title.AutoUpdateEndTime)
 
-	// Disable auto-update with valid start and end times.
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, ptr.Uint(0), fleet.AutoUpdateConfig{
+	// Disable auto-update.
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, 0, fleet.AutoUpdateConfig{
 		AutoUpdateEnabled:   false,
-		AutoUpdateStartTime: &startTime,
-		AutoUpdateEndTime:   &endTime,
+		AutoUpdateStartTime: startTime,
+		AutoUpdateEndTime:   endTime,
 	})
 	require.NoError(t, err)
 
@@ -2697,7 +2690,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.NotNil(t, title.AppStoreApp)
 	require.False(t, title.AutoUpdateEnabled)
 	require.NotNil(t, title.AutoUpdateStartTime)
-	require.Equal(t, startTime, *title.AutoUpdateStartTime)
+	require.Equal(t, startTime, title.AutoUpdateStartTime)
 	require.NotNil(t, title.AutoUpdateEndTime)
-	require.Equal(t, endTime, *title.AutoUpdateEndTime)
+	require.Equal(t, endTime, title.AutoUpdateEndTime)
 }

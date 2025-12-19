@@ -822,6 +822,30 @@ WHERE
 	return titleExists, nil
 }
 
-func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config fleet.AutoUpdateConfig) error {
+func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.AutoUpdateConfig) error {
+	stmt := `
+INSERT INTO software_update_schedules
+	(title_id, team_id, enabled, start_time, end_time)
+VALUES (?, ?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+	enabled = VALUES(enabled),
+	start_time = VALUES(start_time),
+	end_time = VALUES(end_time)
+`
+	formattedStartTime := fmt.Sprintf("%02d:%02d:%02d",
+		int(config.AutoUpdateStartTime.Hours()),
+		int(config.AutoUpdateStartTime.Minutes())%60,
+		int(config.AutoUpdateStartTime.Seconds())%60,
+	)
+
+	formattedEndTime := fmt.Sprintf("%02d:%02d:%02d",
+		int(config.AutoUpdateEndTime.Hours()),
+		int(config.AutoUpdateEndTime.Minutes())%60,
+		int(config.AutoUpdateEndTime.Seconds())%60,
+	)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, titleID, teamID, config.AutoUpdateEnabled, formattedStartTime, formattedEndTime)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
+	}
 	return nil
 }
