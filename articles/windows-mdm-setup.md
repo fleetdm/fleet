@@ -81,7 +81,7 @@ In order to connect Fleet to Microsoft Entra ID, the IT admin (you) needs a Micr
 
 ### Step 2: Connect Fleet to Microsoft Entra ID
 
-For instructions on how to connect Fleet to Microsoft Entra ID, in the Fleet UI, select the avatar on the right side of the top navigation and select **Settings > Integrations > Mobile device management (MDM)**. Then, next to **Windows automatic enrollment** select **Details**.
+> TODO: Bring in instructions here
 
 ### Step 3: Test automatic enrollment
 
