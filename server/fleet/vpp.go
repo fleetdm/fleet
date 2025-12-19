@@ -177,3 +177,19 @@ type AppStoreAppUpdatePayload struct {
 	DisplayName      *string
 	Configuration    json.RawMessage
 }
+
+type AppStoreAppChanges struct {
+	Any                bool
+	Categories         bool
+	Labels             bool
+	InstallDuringSetup bool
+	DisplayName        bool
+	Configuration      bool
+}
+
+type SetTeamAppStoreAppsOpts struct {
+	Changed               AppStoreAppChanges
+	VPPTokenID            *uint
+	TeamName              string
+	AppsWithChangedLabels map[uint]map[uint]struct{}
+}

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -48,6 +49,66 @@ func (svc *Service) getVPPToken(ctx context.Context, teamID *uint) (string, erro
 }
 
 var isAdamID = regexp.MustCompile(`^[0-9]+$`)
+
+type appStoreAppChanges struct {
+	Any                bool
+	Categories         bool
+	Labels             bool
+	InstallDuringSetup bool
+	DisplayName        bool
+	Configuration      bool
+}
+
+func (svc *Service) hasAppStoreAppChanged(ctx context.Context, teamID *uint, incomingApp fleet.VPPAppTeam, existingApp fleet.VPPAppTeam, isExistingApp bool) (fleet.AppStoreAppChanges, error) {
+	var categoriesChanged, labelsChanged, installDuringSetupChanged, displayNameChanged, configurationChanged bool
+
+	if isExistingApp {
+		existingLabels, err := ds.getExistingLabels(ctx, incomingApp.AppTeamID)
+		if err != nil {
+			return fleet.AppStoreAppChanges{}, ctxerr.Wrap(ctx, err, "getting existing labels for vpp app")
+		}
+
+		labelsChanged = !existingLabels.Equal(incomingApp.ValidatedLabels)
+
+		existingCatIDs, err := ds.getVPPAppTeamCategoryIDs(ctx, incomingApp.AppTeamID)
+		if err != nil {
+			return fleet.AppStoreAppChanges{}, ctxerr.Wrap(ctx, err, "getting existing categories for vpp app")
+		}
+
+		categoriesChanged = !slices.Equal(existingCatIDs, incomingApp.CategoryIDs)
+
+		existingDisplayName := ptr.ValOrZero(existingApp.DisplayName)
+		incomingDisplayName := ptr.ValOrZero(incomingApp.DisplayName)
+		displayNameChanged = existingDisplayName != incomingDisplayName
+
+		if incomingApp.Platform == fleet.AndroidPlatform {
+			configurationChanged, err = svc.ds.HasAndroidAppConfigurationChanged(ctx, existingApp.AdamID, ptr.ValOrZero(teamID), incomingApp.Configuration)
+			if err != nil {
+				return fleet.AppStoreAppChanges{}, ctxerr.Wrap(ctx, err, "getting existing configuration for android app")
+			}
+			// Set configuration to empty if it exists and is provided as null
+			if configurationChanged && len(incomingApp.Configuration) == 0 {
+				incomingApp.Configuration = json.RawMessage("{}")
+			}
+		}
+
+		installDuringSetupChanged = incomingApp.InstallDuringSetup != nil &&
+			existingApp.InstallDuringSetup != nil &&
+			*incomingApp.InstallDuringSetup != *existingApp.InstallDuringSetup
+	}
+
+	// New app added with setup experience enabled
+	if !isExistingApp && incomingApp.InstallDuringSetup != nil && *incomingApp.InstallDuringSetup {
+		installDuringSetupChanged = true
+	}
+
+	if !isExistingApp || existingApp.SelfService != incomingApp.SelfService || labelsChanged ||
+		categoriesChanged || displayNameChanged || configurationChanged || installDuringSetupChanged {
+		return fleet.AppStoreAppChanges{true, categoriesChanged, labelsChanged, installDuringSetupChanged, displayNameChanged, configurationChanged}, nil
+	}
+
+	return fleet.AppStoreAppChanges{}, nil
+}
 
 func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
@@ -295,6 +356,117 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		for _, app := range appStoreApps {
 			allPlatformApps = append(allPlatformApps, app.VPPAppTeam)
 		}
+	}
+
+	// calculate diff between incoming and existing apps
+	// write the diff to the DB
+
+	calculateDiff := func(incomingApps []fleet.VPPAppTeam) (toAddApps []fleet.VPPAppTeam, toRemoveApps []fleet.VPPAppID, o fleet.SetTeamAppStoreAppsOpts, err error) {
+		existingApps, err := svc.ds.GetAssignedVPPApps(ctx, teamID)
+		if err != nil {
+			return nil, nil, fleet.SetTeamAppStoreAppsOpts{}, ctxerr.Wrap(ctx, err, "SetTeamVPPApps getting list of existing apps")
+		}
+
+		// if we're batch-setting apps and replacing the ones installed during setup
+		// in the same go, no need to validate that we don't delete one marked as
+		// install during setup (since we're overwriting those). This is always
+		// called from fleetctl gitops, so it should always be the case anyway.
+		var replacingInstallDuringSetup bool
+		if len(incomingApps) == 0 || incomingApps[0].InstallDuringSetup != nil {
+			replacingInstallDuringSetup = true
+		}
+
+		// var toAddApps []fleet.VPPAppTeam
+		// var toRemoveApps []fleet.VPPAppID
+
+		for existingApp, appTeamInfo := range existingApps {
+			var found bool
+			for _, appFleet := range incomingApps {
+				// Self service value doesn't matter for removing app from team
+				if existingApp == appFleet.VPPAppID {
+					found = true
+				}
+			}
+			if !found {
+				// if app is marked as install during setup, prevent deletion unless we're replacing those.
+				if !replacingInstallDuringSetup && appTeamInfo.InstallDuringSetup != nil && *appTeamInfo.InstallDuringSetup {
+					return nil, nil, fleet.SetTeamAppStoreAppsOpts{}, errors.New("oops")
+				}
+				toRemoveApps = append(toRemoveApps, existingApp)
+			}
+		}
+
+		appsWithChangedLabels := make(map[uint]map[uint]struct{})
+		var vppTokenRequired, setupExperienceChanged bool
+		for _, incomingApp := range incomingApps {
+			if incomingApp.Platform.IsApplePlatform() {
+				vppTokenRequired = true
+			}
+			// upsert the app if anything changed
+			existingApp, isExistingApp := existingApps[incomingApp.VPPAppID]
+			incomingApp.AppTeamID = existingApp.AppTeamID
+
+			changed, err := svc.hasAppStoreAppChanged(ctx, teamID, incomingApp, existingApp, isExistingApp)
+			if err != nil {
+				return nil, nil, fleet.SetTeamAppStoreAppsOpts{}, ctxerr.Wrap(ctx, err, "checking if app store app changed")
+			}
+
+			// Get the hosts that are NOT in label scope currently (before the update happens)
+			if changed.Labels {
+				hostsNotInScope, err := svc.ds.GetExcludedHostIDMapForVPPApp(ctx, incomingApp.AppTeamID)
+				if err != nil {
+					return nil, nil, fleet.SetTeamAppStoreAppsOpts{}, ctxerr.Wrap(ctx, err, "getting hosts not in scope for vpp app")
+				}
+				appsWithChangedLabels[incomingApp.AppTeamID] = hostsNotInScope
+			}
+
+			if changed.InstallDuringSetup {
+				setupExperienceChanged = true
+			}
+
+			if changed.Any {
+				toAddApps = append(toAddApps, incomingApp)
+			}
+
+			o.Changed = changed
+		}
+
+		// TODO: should these be some opts for the next call?
+		_ = vppTokenRequired
+		_ = setupExperienceChanged
+
+		var teamName string
+		if len(toAddApps) > 0 {
+			teamName = fleet.TeamNameNoTeam
+			if teamID != nil && *teamID > 0 {
+				tm, err := svc.ds.TeamLite(ctx, *teamID)
+				if err != nil {
+					return nil, nil, opts{}, ctxerr.Wrap(ctx, err, "get team name for VPP app conflict error")
+				}
+				teamName = tm.Name
+			}
+
+			var vppToken *fleet.VPPTokenDB
+			if len(incomingApps) > 0 && vppTokenRequired {
+				vppToken, err = svc.ds.GetVPPTokenByTeamID(ctx, teamID)
+				if err != nil {
+					return nil, nil, opts{}, ctxerr.Wrap(ctx, err, "SetTeamVPPApps retrieve VPP token ID")
+				}
+			}
+
+			o.vppTokenID = &vppToken.ID
+		}
+
+		_ = teamName
+
+		o.teamName = teamName
+
+		return toAddApps, toRemoveApps, o, nil
+	}
+
+	toAddApps, toRemoveApps, o, err := calculateDiff(allPlatformApps)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "")
 	}
 
 	setupExperienceChanged, err := svc.ds.SetTeamVPPApps(ctx, teamID, allPlatformApps, appStoreIDToTitleID)
