@@ -272,7 +272,7 @@ Fixing small inconsistencies quickly is worth it. When we tolerate and overlook 
 
 ## Why t-shirt size customer promises before committing? 
 
-[Customer promises](https://fleetdm.com/handbook/company/product-groups#new-customer-promise-s) are one of the ways we collaborate with our customers to improve Fleet. We [t-shirt size](https://fleetdm.com/handbook/company/product-groups#t-shirt-sizing-capacity-planning) all customer promises and place them on our [sprint planning project](https://github.com/orgs/fleetdm/projects/87) before committing to them. This allows us to make sure there is available product design and engineering capacity to deliver the promise before we commit to a delivery date.
+[Customer promises](https://fleetdm.com/handbook/company/product-groups#new-customer-promise-s) are one of the ways we collaborate with our customers to improve Fleet. We [t-shirt size](https://fleetdm.com/handbook/company/product-groups#t-shirt-sizing-capacity-planning) all customer promises and place them on our [release planning project](https://github.com/orgs/fleetdm/projects/87) before committing to them. This allows us to make sure there is available product design and engineering capacity to deliver the promise before we commit to a delivery date.
 
 
 ## Why make it obvious when stuff breaks?
