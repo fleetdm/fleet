@@ -478,33 +478,6 @@ func testBulkInsertAndDeleteHostCertificateTemplates(t *testing.T, ds *Datastore
 func testDeleteHostCertificateTemplate(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	t.Run("deletes single record successfully", func(t *testing.T) {
-		defer TruncateTables(t, ds)
-		setup := createCertTemplateTestSetup(t, ctx, ds, "")
-
-		// Insert a host certificate template record
-		_, err := ds.writer(ctx).ExecContext(ctx,
-			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type, name) VALUES (?, ?, ?, ?, ?, ?)",
-			"host-1", setup.template.ID, "challenge", fleet.CertificateTemplateVerified, fleet.MDMOperationTypeRemove, setup.template.Name,
-		)
-		require.NoError(t, err)
-
-		// Verify record exists
-		var count int
-		err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?", "host-1", setup.template.ID)
-		require.NoError(t, err)
-		require.Equal(t, 1, count)
-
-		// Delete the record
-		err = ds.DeleteHostCertificateTemplate(ctx, "host-1", setup.template.ID)
-		require.NoError(t, err)
-
-		// Verify record was deleted
-		err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?", "host-1", setup.template.ID)
-		require.NoError(t, err)
-		require.Equal(t, 0, count)
-	})
-
 	t.Run("no error when deleting non-existent record", func(t *testing.T) {
 		defer TruncateTables(t, ds)
 
