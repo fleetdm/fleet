@@ -123,7 +123,7 @@ const EditConfigurationModal = ({
         <CustomLink
           newTab
           text="Learn more"
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}/ui-gitops-mode`}
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/android-software-managed-configuration`}
         />
       </div>
     );
