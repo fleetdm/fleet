@@ -79,16 +79,17 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	for _, payload := range payloads {
 		if payload.Platform == "" && isAdamID.MatchString(payload.AppStoreID) {
 			// add all possible Apple platforms, we'll remove the ones that this app doesn't support later
-			payloadsWithPlatform = append(payloadsWithPlatform, fleet.VPPBatchPayloadWithPlatform{
-				AppStoreID:         payload.AppStoreID,
-				SelfService:        payload.SelfService,
-				InstallDuringSetup: payload.InstallDuringSetup,
-				Platform:           fleet.MacOSPlatform,
-				LabelsExcludeAny:   payload.LabelsExcludeAny,
-				LabelsIncludeAny:   payload.LabelsIncludeAny,
-				Categories:         payload.Categories,
-				DisplayName:        payload.DisplayName,
-			},
+			payloadsWithPlatform = append(payloadsWithPlatform,
+				fleet.VPPBatchPayloadWithPlatform{
+					AppStoreID:         payload.AppStoreID,
+					SelfService:        payload.SelfService,
+					InstallDuringSetup: payload.InstallDuringSetup,
+					Platform:           fleet.MacOSPlatform,
+					LabelsExcludeAny:   payload.LabelsExcludeAny,
+					LabelsIncludeAny:   payload.LabelsIncludeAny,
+					Categories:         payload.Categories,
+					DisplayName:        payload.DisplayName,
+				},
 				fleet.VPPBatchPayloadWithPlatform{
 					AppStoreID:         payload.AppStoreID,
 					SelfService:        payload.SelfService,
@@ -296,7 +297,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
-	if err := svc.ds.SetTeamVPPApps(ctx, teamID, allPlatformApps, appStoreIDToTitleID); err != nil {
+	setupExperienceChanged, err := svc.ds.SetTeamVPPApps(ctx, teamID, allPlatformApps, appStoreIDToTitleID)
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "no vpp token to set team vpp assets"), http.StatusUnprocessableEntity)
 		}
@@ -350,6 +352,13 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					},
 				)
 			}
+		}
+	}
+
+	if setupExperienceChanged {
+		err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedSetupExperienceSoftware{TeamID: ptr.ValOrZero(teamID), TeamName: teamName})
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create edited setup experience activity")
 		}
 	}
 

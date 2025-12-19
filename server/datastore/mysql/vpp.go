@@ -389,10 +389,10 @@ func (ds *Datastore) getVPPAppTeamCategoryIDs(ctx context.Context, vppAppTeamID 
 	return ids, nil
 }
 
-func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingApps []fleet.VPPAppTeam, appStoreAppIDsToTitleIDs map[string]uint) error {
+func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingApps []fleet.VPPAppTeam, appStoreAppIDsToTitleIDs map[string]uint) (bool, error) {
 	existingApps, err := ds.GetAssignedVPPApps(ctx, teamID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "SetTeamVPPApps getting list of existing apps")
+		return false, ctxerr.Wrap(ctx, err, "SetTeamVPPApps getting list of existing apps")
 	}
 
 	// if we're batch-setting apps and replacing the ones installed during setup
@@ -418,73 +418,41 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 		if !found {
 			// if app is marked as install during setup, prevent deletion unless we're replacing those.
 			if !replacingInstallDuringSetup && appTeamInfo.InstallDuringSetup != nil && *appTeamInfo.InstallDuringSetup {
-				return errDeleteInstallerInstalledDuringSetup
+				return false, errDeleteInstallerInstalledDuringSetup
 			}
 			toRemoveApps = append(toRemoveApps, existingApp)
 		}
 	}
 
 	appsWithChangedLabels := make(map[uint]map[uint]struct{})
-	var vppTokenRequired bool
+	var vppTokenRequired, setupExperienceChanged bool
 	for _, incomingApp := range incomingApps {
 		if incomingApp.Platform.IsApplePlatform() {
 			vppTokenRequired = true
 		}
-		// upsert it if it does not exist or labels or SelfService or InstallDuringSetup flags are changed
+		// upsert the app if anything changed
 		existingApp, isExistingApp := existingApps[incomingApp.VPPAppID]
 		incomingApp.AppTeamID = existingApp.AppTeamID
-		var labelsChanged, categoriesChanged, displayNameChanged, configurationChanged bool
-		if isExistingApp {
-			existingLabels, err := ds.getExistingLabels(ctx, incomingApp.AppTeamID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting existing labels for vpp app")
-			}
 
-			labelsChanged = !existingLabels.Equal(incomingApp.ValidatedLabels)
-
-			existingCatIDs, err := ds.getVPPAppTeamCategoryIDs(ctx, incomingApp.AppTeamID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting existing categories for vpp app")
-			}
-
-			categoriesChanged = !slices.Equal(existingCatIDs, incomingApp.CategoryIDs)
-
-			existingDisplayName := ptr.ValOrZero(existingApp.DisplayName)
-			incomingDisplayName := ptr.ValOrZero(incomingApp.DisplayName)
-			displayNameChanged = existingDisplayName != incomingDisplayName
-
-			if incomingApp.Platform == fleet.AndroidPlatform {
-				configurationChanged, err = ds.HasAndroidAppConfigurationChanged(ctx, existingApp.AdamID, ptr.ValOrZero(teamID), incomingApp.Configuration)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "getting existing configuration for android app")
-				}
-				// Set configuration to empty if it exists and is provided as null
-				if configurationChanged && len(incomingApp.Configuration) == 0 {
-					incomingApp.Configuration = json.RawMessage("{}")
-				}
-			}
-
+		changed, err := ds.hasAppStoreAppChanged(ctx, teamID, incomingApp, existingApp, isExistingApp)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "checking if app store app changed")
 		}
 
 		// Get the hosts that are NOT in label scope currently (before the update happens)
-		if labelsChanged {
+		if changed.Labels {
 			hostsNotInScope, err := ds.GetExcludedHostIDMapForVPPApp(ctx, incomingApp.AppTeamID)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting hosts not in scope for vpp app")
+				return false, ctxerr.Wrap(ctx, err, "getting hosts not in scope for vpp app")
 			}
 			appsWithChangedLabels[incomingApp.AppTeamID] = hostsNotInScope
-
 		}
 
-		if !isExistingApp ||
-			existingApp.SelfService != incomingApp.SelfService ||
-			labelsChanged ||
-			categoriesChanged ||
-			displayNameChanged ||
-			configurationChanged ||
-			incomingApp.InstallDuringSetup != nil &&
-				existingApp.InstallDuringSetup != nil &&
-				*incomingApp.InstallDuringSetup != *existingApp.InstallDuringSetup {
+		if changed.InstallDuringSetup {
+			setupExperienceChanged = true
+		}
+
+		if changed.Any {
 			toAddApps = append(toAddApps, incomingApp)
 		}
 	}
@@ -495,7 +463,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 		if teamID != nil && *teamID > 0 {
 			tm, err := ds.TeamLite(ctx, *teamID)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "get team name for VPP app conflict error")
+				return false, ctxerr.Wrap(ctx, err, "get team name for VPP app conflict error")
 			}
 			teamName = tm.Name
 		}
@@ -505,11 +473,11 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 	if len(incomingApps) > 0 && vppTokenRequired {
 		vppToken, err = ds.GetVPPTokenByTeamID(ctx, teamID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "SetTeamVPPApps retrieve VPP token ID")
+			return false, ctxerr.Wrap(ctx, err, "SetTeamVPPApps retrieve VPP token ID")
 		}
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, toAdd := range toAddApps {
 			var tokenID *uint
 			if vppToken != nil {
@@ -590,6 +558,8 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 
 		return nil
 	})
+
+	return setupExperienceChanged, err
 }
 
 func (ds *Datastore) checkConflictingSoftwareInstallerForVPPApp(
@@ -2375,4 +2345,65 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get VPP apps to install during setup experience")
 	}
 	return ids, nil
+}
+
+type appStoreAppChanges struct {
+	Any                bool
+	Categories         bool
+	Labels             bool
+	InstallDuringSetup bool
+	DisplayName        bool
+	Configuration      bool
+}
+
+func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, incomingApp fleet.VPPAppTeam, existingApp fleet.VPPAppTeam, isExistingApp bool) (appStoreAppChanges, error) {
+
+	var categoriesChanged, labelsChanged, installDuringSetupChanged, displayNameChanged, configurationChanged bool
+
+	if isExistingApp {
+		existingLabels, err := ds.getExistingLabels(ctx, incomingApp.AppTeamID)
+		if err != nil {
+			return appStoreAppChanges{}, ctxerr.Wrap(ctx, err, "getting existing labels for vpp app")
+		}
+
+		labelsChanged = !existingLabels.Equal(incomingApp.ValidatedLabels)
+
+		existingCatIDs, err := ds.getVPPAppTeamCategoryIDs(ctx, incomingApp.AppTeamID)
+		if err != nil {
+			return appStoreAppChanges{}, ctxerr.Wrap(ctx, err, "getting existing categories for vpp app")
+		}
+
+		categoriesChanged = !slices.Equal(existingCatIDs, incomingApp.CategoryIDs)
+
+		existingDisplayName := ptr.ValOrZero(existingApp.DisplayName)
+		incomingDisplayName := ptr.ValOrZero(incomingApp.DisplayName)
+		displayNameChanged = existingDisplayName != incomingDisplayName
+
+		if incomingApp.Platform == fleet.AndroidPlatform {
+			configurationChanged, err = ds.HasAndroidAppConfigurationChanged(ctx, existingApp.AdamID, ptr.ValOrZero(teamID), incomingApp.Configuration)
+			if err != nil {
+				return appStoreAppChanges{}, ctxerr.Wrap(ctx, err, "getting existing configuration for android app")
+			}
+			// Set configuration to empty if it exists and is provided as null
+			if configurationChanged && len(incomingApp.Configuration) == 0 {
+				incomingApp.Configuration = json.RawMessage("{}")
+			}
+		}
+
+		installDuringSetupChanged = incomingApp.InstallDuringSetup != nil &&
+			existingApp.InstallDuringSetup != nil &&
+			*incomingApp.InstallDuringSetup != *existingApp.InstallDuringSetup
+	}
+
+	// New app added with setup experience enabled
+	if !isExistingApp && incomingApp.InstallDuringSetup != nil && *incomingApp.InstallDuringSetup {
+		installDuringSetupChanged = true
+	}
+
+	if !isExistingApp || existingApp.SelfService != incomingApp.SelfService || labelsChanged ||
+		categoriesChanged || displayNameChanged || configurationChanged || installDuringSetupChanged {
+		return appStoreAppChanges{true, categoriesChanged, labelsChanged, installDuringSetupChanged, displayNameChanged, configurationChanged}, nil
+	}
+
+	return appStoreAppChanges{}, nil
 }
