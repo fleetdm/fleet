@@ -341,17 +341,14 @@ type requestValidator interface {
 }
 
 // MakeDecoder creates a decoder for the type for the struct passed on. If the
-// struct has at least 1 json tag it'll unmarshall the body. If the struct has
-// a `url` tag with value list_options it'll gather fleet.ListOptions from the
-// URL (similarly for host_options, carve_options, user_options that derive
-// from the common list_options). Note that these behaviors do not work for embedded structs.
+// struct has at least 1 json tag it'll unmarshall the body. Custom `url` tag
+// values can be handled by providing a parseCustomTags function. Note that
+// these behaviors do not work for embedded structs.
 //
-// Finally, any other `url` tag will be treated as a path variable (of the form
+// Any other `url` tag will be treated as a path variable (of the form
 // /path/{name} in the route's path) from the URL path pattern, and it'll be
 // decoded and set accordingly. Variables can be optional by setting the tag as
 // follows: `url:"some-id,optional"`.
-// The "list_options" are optional by default and it'll ignore the optional
-// portion of the tag.
 //
 // If iface implements the RequestDecoder interface, it returns a function that
 // calls iface.DecodeRequest(ctx, r) - i.e. the value itself fully controls its
@@ -360,6 +357,9 @@ type requestValidator interface {
 // If iface implements the bodyDecoder interface, it calls iface.DecodeBody
 // after having decoded any non-body fields (such as url and query parameters)
 // into the struct.
+//
+// The customQueryDecoder parameter allows services to inject domain-specific
+// query parameter decoding logic.
 func MakeDecoder(
 	iface interface{},
 	jsonUnmarshal func(body io.Reader, req any) error,
