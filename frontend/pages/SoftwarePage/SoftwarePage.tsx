@@ -103,6 +103,7 @@ interface ISoftwarePageProps {
     query: {
       team_id?: string;
       available_for_install?: string;
+      self_service?: string;
       vulnerable?: string;
       exploit?: string;
       min_cvss_score?: string;
@@ -190,6 +191,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     router,
     includeAllTeams: true,
     includeNoTeam: true,
+    // When switching to "All teams" context, remove any unsupported query params that might be set
+    overrideParamsOnTeamChange: {
+      available_for_install: (newTeamId: number | undefined) =>
+        newTeamId === APP_CONTEXT_ALL_TEAMS_ID,
+      self_service: (newTeamId: number | undefined) =>
+        newTeamId === APP_CONTEXT_ALL_TEAMS_ID,
+    },
   });
 
   // softwareConfig is either the global config or the team config of the

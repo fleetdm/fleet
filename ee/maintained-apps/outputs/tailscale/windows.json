@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "1.92.1",
+      "version": "1.92.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Tailscale' AND publisher = 'Tailscale Inc.';"
       },
-      "installer_url": "https://pkgs.tailscale.com/stable/tailscale-setup-1.92.1-amd64.msi",
+      "installer_url": "https://pkgs.tailscale.com/stable/tailscale-setup-1.92.3-amd64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "b9d2f3d7",
-      "sha256": "90f51d4849a906b3759fb5a56e957fdca16e31b1200a5de808fd36f588093279",
+      "sha256": "d838d3bbf944fe75d570f4f2bd7a55de8c1196b805451714607ee7078dcc82e9",
       "default_categories": [
         "Productivity"
       ],

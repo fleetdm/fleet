@@ -38,7 +38,7 @@ controls:
   macos_updates:
     deadline: "2020-12-31"
     minimum_version: "95.1"
-    update_new_hosts:
+    update_new_hosts: true
   scripts:
   - path: "../lib/team-a-👍/scripts/Script B.ps1"
   windows_enabled_and_configured: true
@@ -80,6 +80,12 @@ software:
     - Label D
     platform: darwin
     self_service: true
+  - app_store_id: com.example.setup-experience-software
+    icon:
+      path: "../lib/team-a-👍/icons/my-setup-experience-app-android-icon.png"
+    platform: android
+    self_service: true
+    setup_experience: true
   packages:
   - categories:
     - Browsers

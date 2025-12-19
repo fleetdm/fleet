@@ -51,6 +51,7 @@ export interface IButtonProps {
     | "grid"
     | "dialog";
   ariaExpanded?: boolean;
+  ariaLabel?: string;
   /** Small: 1/2 the padding */
   size?: "small" | "default";
 }
@@ -126,6 +127,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       iconStroke,
       ariaHasPopup,
       ariaExpanded,
+      ariaLabel,
       size,
     } = this.props;
     const fullClassName = classnames(
@@ -157,6 +159,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         ref={setRef}
         aria-haspopup={ariaHasPopup}
         aria-expanded={ariaExpanded}
+        aria-label={ariaLabel}
       >
         <div className={isLoading ? "transparent-text" : "children-wrapper"}>
           {children}

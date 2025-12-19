@@ -93,7 +93,7 @@ func (ds *Datastore) ListMDMCommands(
 	ctx context.Context,
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
-) ([]*fleet.MDMCommand, *int64, error) {
+) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error) {
 	if listOpts != nil && listOpts.Filters.HostIdentifier != "" {
 		// separate codepath for more performant query by host identifier
 		return ds.listMDMCommandsByHostIdentifier(ctx, tmFilter, listOpts)
@@ -105,9 +105,18 @@ func (ds *Datastore) ListMDMCommands(
 	jointStmt, params = appendListOptionsWithCursorToSQL(jointStmt, params, &listOpts.ListOptions)
 	var results []*fleet.MDMCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, jointStmt, params...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "list commands")
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "list commands")
 	}
-	return results, nil, nil
+
+	var metaData *fleet.PaginationMetadata
+	if listOpts.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: listOpts.Page > 0}
+		if len(results) > int(listOpts.PerPage) { //nolint:gosec // dismiss G115
+			metaData.HasNextResults = true
+			results = results[:len(results)-1]
+		}
+	}
+	return results, nil, metaData, nil
 }
 
 // listMDMCommandsByHostIdentifier retrieves MDM commands by host identifier. It is implemented as a
@@ -122,9 +131,9 @@ func (ds *Datastore) listMDMCommandsByHostIdentifier(
 	ctx context.Context,
 	teamFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
-) ([]*fleet.MDMCommand, *int64, error) {
+) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error) {
 	if listOpts == nil || listOpts.Filters.HostIdentifier == "" {
-		return nil, nil, ctxerr.Wrap(ctx, errors.New("listMDMCommandsByHostIdentifier requires non-empty listOpts.Filters.HostIdentifier"))
+		return nil, nil, nil, ctxerr.Wrap(ctx, errors.New("listMDMCommandsByHostIdentifier requires non-empty listOpts.Filters.HostIdentifier"))
 	}
 
 	// First, search for host by identifier (hostname, uuid, or hardware_serial).
@@ -161,10 +170,10 @@ WHERE ` + whereTeam
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...)
 	switch {
 	case err != nil:
-		return nil, nil, ctxerr.Wrap(ctx, err, "get host by identifier for mdm")
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "get host by identifier for mdm")
 	case len(dest) == 0:
 		// TODO: should we return an empty slice or an error?
-		return []*fleet.MDMCommand{}, nil, nil
+		return []*fleet.MDMCommand{}, nil, nil, nil
 	case len(dest) > 1:
 		// TODO: how should we handle this unexpected case?
 		level.Debug(ds.logger).Log("msg", "list mdm commands: multiple hosts found for identifier",
@@ -173,7 +182,7 @@ WHERE ` + whereTeam
 	}
 
 	if dest[0].Platform == "windows" && len(listOpts.Filters.CommandStatuses) > 0 {
-		return nil, nil, &fleet.BadRequestError{
+		return nil, nil, nil, &fleet.BadRequestError{
 			Message: `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`,
 		}
 	}
@@ -230,19 +239,38 @@ WHERE
 		appleStmt, appleParams = addAppleCommandStatusFilter(appleStmt, &listOpts.Filters, appleParams)
 		appleStmt, appleParams, err = sqlx.In(appleStmt, appleParams...)
 		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Apple devices")
+			return nil, nil, nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Apple devices")
 		}
 	}
 
 	if len(winUUIDs) > 0 {
 		winParams = []any{winUUIDs}
 		winStmt = `
-SELECT
-	mwe.host_uuid,
-	wq.command_uuid,
-	COALESCE(wcr.updated_at, wc.created_at) AS updated_at,
-	COALESCE(NULLIF(wcr.status_code, ''), '101') AS status,
-	CASE
+	SELECT
+		mwe.host_uuid,
+		wq.command_uuid,
+		wc.created_at AS updated_at,
+		'101' AS status,
+		'pending' AS command_status,
+		wc.target_loc_uri AS request_type
+	FROM
+		windows_mdm_command_queue wq
+		JOIN mdm_windows_enrollments mwe ON mwe.id = wq.enrollment_id
+		JOIN windows_mdm_commands wc ON wc.command_uuid = wq.command_uuid
+
+	WHERE
+		mwe.host_uuid IN (?)
+
+		%[1]s
+
+	UNION
+
+	SELECT
+		mwe.host_uuid,
+		wcr.command_uuid,
+		COALESCE(wcr.updated_at, wc.created_at) AS updated_at,
+		COALESCE(NULLIF(wcr.status_code, ''), '101') AS status,
+		CASE
         WHEN COALESCE(
             NULLIF(wcr.status_code, ''),
             '101'
@@ -252,7 +280,7 @@ SELECT
                 NULLIF(wcr.status_code, ''),
                 '101'
             ) AS UNSIGNED
-        ) BETWEEN 200 AND 399  THEN 'ran'
+        ) BETWEEN 200 AND 399 THEN 'ran'
         WHEN CAST(
             COALESCE(
                 NULLIF(wcr.status_code, ''),
@@ -260,20 +288,31 @@ SELECT
             ) AS UNSIGNED
         ) >= 400 THEN 'failed'
     END AS command_status,
-	wc.target_loc_uri AS request_type
-FROM
-	windows_mdm_command_queue wq
-	JOIN mdm_windows_enrollments mwe ON mwe.id = wq.enrollment_id
-	JOIN windows_mdm_commands wc ON wc.command_uuid = wq.command_uuid
-	LEFT JOIN windows_mdm_command_results wcr ON wcr.command_uuid = wq.command_uuid
-		AND wcr.enrollment_id = wq.enrollment_id
-WHERE
-	mwe.host_uuid IN (?)`
+		wc.target_loc_uri AS request_type
+	FROM
+		windows_mdm_command_results wcr
+		JOIN mdm_windows_enrollments mwe ON mwe.id = wcr.enrollment_id
+		JOIN windows_mdm_commands wc ON wc.command_uuid = wcr.command_uuid
+	WHERE
+		mwe.host_uuid IN (?)
 
-		winStmt, winParams = addRequestTypeFilter(winStmt, &listOpts.Filters, winParams)
+		%[1]s
+
+	`
+
+		var filterSQL string
+		if listOpts.Filters.RequestType != "" {
+			filterSQL = " AND wc.target_loc_uri = ?"
+			winParams = append(winParams, listOpts.Filters.RequestType, winUUIDs, listOpts.Filters.RequestType)
+		} else {
+			winParams = append(winParams, winUUIDs)
+		}
+
+		winStmt = fmt.Sprintf(winStmt, filterSQL)
+
 		winStmt, winParams, err = sqlx.In(winStmt, winParams...)
 		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Windows devices")
+			return nil, nil, nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Windows devices")
 		}
 	}
 
@@ -299,6 +338,7 @@ WHERE
 	// TODO: Maybe move this to the service method? What about pagination metadata?
 	if listOpts.OrderKey == "" {
 		listOpts.OrderKey = "updated_at"
+		listOpts.OrderDirection = fleet.OrderDescending
 	}
 	// // FIXME: We probably ought to modify how listOptionsFromRequest in transport.go applies the
 	// // default order direction. Defaulting to ascending doesn't make sense for date fields like
@@ -317,14 +357,14 @@ WHERE
 
 	var results []*fleet.MDMCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, params...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "list commands")
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "list commands")
 	}
 
 	var total *int64
 	if len(listOpts.Filters.CommandStatuses) == 1 && listOpts.Filters.CommandStatuses[0] == fleet.MDMCommandStatusFilterPending {
 		// Only get count if we only filter by pending
 		if err := sqlx.GetContext(ctx, ds.reader(ctx), &total, countStmt, params...); err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "count commands")
+			return nil, nil, nil, ctxerr.Wrap(ctx, err, "count commands")
 		}
 	}
 
@@ -336,7 +376,16 @@ WHERE
 		}
 	}
 
-	return results, total, nil
+	var metaData *fleet.PaginationMetadata
+	if listOpts.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: listOpts.Page > 0}
+		if len(results) > int(listOpts.PerPage) { //nolint:gosec // dismiss G115
+			metaData.HasNextResults = true
+			results = results[:len(results)-1]
+		}
+	}
+
+	return results, total, metaData, nil
 }
 
 func addRequestTypeFilter(stmt string, filter *fleet.MDMCommandFilters, params []interface{}) (string, []interface{}) {
@@ -2729,6 +2778,92 @@ func (ds *Datastore) ListHostMDMManagedCertificates(ctx context.Context, hostUUI
 	WHERE host_uuid = ?
 	`, hostUUID)
 	return hostCertsToRenew, ctxerr.Wrap(ctx, err, "get mdm managed certificates for host")
+}
+
+// RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
+func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
+	totalHostCertsToRenew := 0
+	hostCertTypesToRenew := fleet.ListCATypesWithRenewalSupport()
+	// Map is used to take advantage of Go map iteration order randomization so that
+	// if a customer is issuing certs across multiple platforms we will not bias renewals
+	// toward a specific platform
+	hostProfileTables := map[string]string{
+		"apple":   "host_mdm_apple_profiles",
+		"windows": "host_mdm_windows_profiles",
+	}
+	for _, hostCertType := range hostCertTypesToRenew {
+		// Limit to 1000 renewals per CA type per run across all platforms
+		limit := 1000
+		for hostPlatform, table := range hostProfileTables {
+			if limit == 0 {
+				level.Debug(ds.logger).Log("msg", "Skipping check of %s certificates on %s hosts to renew - limit exceeded by prior platform", hostCertType, hostPlatform)
+				continue
+			}
+			// This will trigger a resend next time profiles are checked
+			updateQuery := `UPDATE ` + table + ` SET status = NULL WHERE status IS NOT NULL AND operation_type = ? AND (`
+			hostProfileClause := ``
+			values := []any{fleet.MDMOperationTypeInstall}
+			hostCertsToRenew := []struct {
+				HostUUID       string    `db:"host_uuid"`
+				ProfileUUID    string    `db:"profile_uuid"`
+				NotValidAfter  time.Time `db:"not_valid_after"`
+				ValidityPeriod int       `db:"validity_period"`
+			}{}
+			// Fetch all MDM Managed certificates of the given type that aren't already queued for
+			// resend(hmap.status=null) and which
+			// * Have a validity period > 30 days and are expiring in the next 30 days
+			// * Have a validity period <= 30 days and are within half the validity period of expiration
+			// nb: we SELECT not_valid_after and validity_period here so we can use them in the HAVING clause, but
+			// we don't actually need them for the update logic.
+			err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
+	SELECT
+		hmmc.host_uuid,
+		hmmc.profile_uuid,
+		hmmc.not_valid_after,
+		DATEDIFF(hmmc.not_valid_after, hmmc.not_valid_before) AS validity_period
+	FROM
+		host_mdm_managed_certificates hmmc
+	INNER JOIN
+		`+table+` hp
+		ON hmmc.host_uuid = hp.host_uuid AND hmmc.profile_uuid = hp.profile_uuid
+	WHERE
+		hmmc.type = ? AND hp.status IS NOT NULL AND hp.operation_type = ?
+	HAVING
+		validity_period IS NOT NULL AND
+		((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
+		(validity_period <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
+	LIMIT ?`, hostCertType, fleet.MDMOperationTypeInstall, limit)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
+			}
+			if len(hostCertsToRenew) == 0 {
+				level.Debug(ds.logger).Log("msg", "No %s certificates on %s hosts to renew", hostCertType, hostPlatform)
+				continue
+			}
+			limit -= len(hostCertsToRenew)
+			totalHostCertsToRenew += len(hostCertsToRenew)
+
+			for _, hostCertToRenew := range hostCertsToRenew {
+				hostProfileClause += `(host_uuid = ? AND profile_uuid = ?) OR `
+				values = append(values, hostCertToRenew.HostUUID, hostCertToRenew.ProfileUUID)
+			}
+			hostProfileClause = strings.TrimSuffix(hostProfileClause, " OR ")
+
+			level.Info(ds.logger).Log("msg", "Renewing MDM managed certificates", "len", len(hostCertsToRenew), "type", hostCertType, "platform", hostPlatform)
+			err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+				_, err := tx.ExecContext(ctx, updateQuery+hostProfileClause+")", values...)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "updating mdm managed certificates to renew")
+				}
+				return nil
+			})
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "renewing mdm managed certificates")
+			}
+		}
+	}
+
+	return nil
 }
 
 // GetHostMDMIdentifiers searches for a host by identifier (hostname, uuid, or hardware_serial).

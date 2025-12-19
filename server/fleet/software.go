@@ -245,6 +245,8 @@ type SoftwareTitleSummary struct {
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
 	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+	// ApplicationID is used by Android apps to match with VPP app titles.
+	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 }
 
 // SoftwareTitle represents a title backed by the `software_titles` table.
@@ -656,11 +658,12 @@ type VPPBatchPayload struct {
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories  []string                  `json:"categories"`
-	DisplayName string                    `json:"display_name"`
-	IconPath    string                    `json:"-"`
-	IconHash    string                    `json:"-"`
-	Platform    InstallableDevicePlatform `json:"platform"`
+	Categories    []string                  `json:"categories"`
+	DisplayName   string                    `json:"display_name"`
+	IconPath      string                    `json:"-"`
+	IconHash      string                    `json:"-"`
+	Platform      InstallableDevicePlatform `json:"platform"`
+	Configuration json.RawMessage           `json:"configuration,omitempty"`
 }
 
 func (v VPPBatchPayload) GetPlatform() string {
@@ -681,8 +684,9 @@ type VPPBatchPayloadWithPlatform struct {
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
 	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
-	CategoryIDs []uint `json:"-"`
-	DisplayName string `json:"display_name"`
+	CategoryIDs   []uint          `json:"-"`
+	DisplayName   string          `json:"display_name"`
+	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 
 type SoftwareCategory struct {

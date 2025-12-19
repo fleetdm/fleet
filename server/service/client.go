@@ -281,8 +281,6 @@ func (c *Client) authenticatedRequestWithQuery(params interface{}, verb string, 
 	if err != nil {
 		return fmt.Errorf("%s %s: %w", verb, path, err)
 	}
-	defer response.Body.Close()
-
 	return c.parseResponse(verb, path, response, responseDest)
 }
 
@@ -515,9 +513,10 @@ func numberWithPluralization(n int, singular string, plural string) string {
 }
 
 const (
-	dryRunAppliedFormat = "[+] would've applied %s\n"
-	appliedFormat       = "[+] applied %s\n"
-	applyingTeamFormat  = "[+] applying %s for team %s\n"
+	dryRunAppliedFormat     = "[+] would've applied %s\n"
+	appliedFormat           = "[+] applied %s\n"
+	applyingTeamFormat      = "[+] applying %s for team %s\n"
+	dryRunAppliedTeamFormat = "[+] would've applied %s for team %s\n"
 )
 
 // ApplyGroup applies the given spec group to Fleet.
@@ -881,7 +880,15 @@ func (c *Client) ApplyGroup(
 					return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", app.AppStoreID, app.Icon.Path, err)
 				}
 
-				appPayloads = append(appPayloads, fleet.VPPBatchPayload{
+				var androidConfig json.RawMessage
+				if app.Platform == string(fleet.AndroidPlatform) {
+					androidConfig, err = getAndroidAppConfig(app.Configuration.Path)
+					if err != nil {
+						return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", app.AppStoreID, app.Configuration.Path, err)
+					}
+				}
+
+				payload := fleet.VPPBatchPayload{
 					AppStoreID:         app.AppStoreID,
 					SelfService:        app.SelfService,
 					InstallDuringSetup: installDuringSetup,
@@ -892,7 +899,12 @@ func (c *Client) ApplyGroup(
 					IconPath:           app.Icon.Path,
 					IconHash:           iconHash,
 					Platform:           fleet.InstallableDevicePlatform(app.Platform),
-				})
+				}
+				if androidConfig != nil {
+					payload.Configuration = androidConfig
+				}
+				appPayloads = append(appPayloads, payload)
+
 				// can be referenced by macos_setup.software.app_store_id
 				if tmSoftwareAppsByAppID[tmName] == nil {
 					tmSoftwareAppsByAppID[tmName] = make(map[string]fleet.TeamSpecAppStoreApp, len(apps))
@@ -945,7 +957,11 @@ func (c *Client) ApplyGroup(
 				if opts.DryRun && (teamID == 0 || !ok) {
 					logfn("[+] would've applied MDM profiles for new team %s\n", tmName)
 				} else {
-					logfn("[+] applying MDM profiles for team %s\n", tmName)
+					if opts.DryRun {
+						logfn("[+] would've applied MDM profiles for new team %s\n", tmName)
+					} else {
+						logfn("[+] applying MDM profiles for team %s\n", tmName)
+					}
 					if err := c.ApplyTeamProfiles(currentTeamName, profs, teamOpts); err != nil {
 						return nil, nil, nil, nil, fmt.Errorf("applying custom settings for team %q: %w", tmName, err)
 					}
@@ -1006,6 +1022,10 @@ func (c *Client) ApplyGroup(
 				}
 			}
 		}
+		format := applyingTeamFormat
+		if opts.DryRun {
+			format = dryRunAppliedTeamFormat
+		}
 		if len(tmScriptsPayloads) > 0 {
 			for tmName, scripts := range tmScriptsPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
@@ -1021,7 +1041,7 @@ func (c *Client) ApplyGroup(
 			for tmName, software := range tmSoftwarePackagesPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
-				logfn(applyingTeamFormat, numberWithPluralization(len(software), "software package", "software packages"), tmName)
+				logfn(format, numberWithPluralization(len(software), "software package", "software packages"), tmName)
 				installers, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
@@ -1033,7 +1053,7 @@ func (c *Client) ApplyGroup(
 			for tmName, apps := range tmSoftwareAppsPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
-				logfn(applyingTeamFormat, numberWithPluralization(len(apps), "app store app", "app store apps"), tmName)
+				logfn(format, numberWithPluralization(len(apps), "app store app", "app store apps"), tmName)
 				appsResponse, err := c.ApplyTeamAppStoreAppsAssociation(currentTeamName, apps, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying app store apps for team: %q: %w", tmName, err)
@@ -1282,6 +1302,26 @@ func getIconHashIfValid(path string) (string, error) {
 	}
 	hash := hex.EncodeToString(h.Sum(nil))
 	return hash, nil
+}
+
+func getAndroidAppConfig(path string) (json.RawMessage, error) {
+	if path == "" {
+		return nil, nil
+	}
+
+	configReader, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading android app configuration file: %w", err)
+	}
+
+	config := json.RawMessage(configReader)
+
+	err = fleet.ValidateAndroidAppConfiguration(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return config, nil
 }
 
 func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
@@ -2158,6 +2198,13 @@ func (c *Client) DoGitOps(
 		if deadline, ok := macOSUpdates["deadline"]; !ok || deadline == nil {
 			macOSUpdates["deadline"] = ""
 		}
+
+		// To keep things backward compatible, if a minimum_version and deadline are both set,
+		// then we also set update_new_hosts
+		if macOSUpdates["minimum_version"] != "" && macOSUpdates["deadline"] != "" {
+			macOSUpdates["update_new_hosts"] = true
+		}
+
 		// Put in default values for ios_updates
 		if incoming.Controls.IOSUpdates != nil {
 			mdmAppConfig["ios_updates"] = incoming.Controls.IOSUpdates
@@ -2171,6 +2218,9 @@ func (c *Client) DoGitOps(
 		if deadline, ok := iOSUpdates["deadline"]; !ok || deadline == nil {
 			iOSUpdates["deadline"] = ""
 		}
+		// update_new_hosts is only used for macOS so ignore any values posted for iOS
+		iOSUpdates["update_new_hosts"] = nil
+
 		// Put in default values for ipados_updates
 		if incoming.Controls.IPadOSUpdates != nil {
 			mdmAppConfig["ipados_updates"] = incoming.Controls.IPadOSUpdates
@@ -2184,6 +2234,9 @@ func (c *Client) DoGitOps(
 		if deadline, ok := iPadOSUpdates["deadline"]; !ok || deadline == nil {
 			iPadOSUpdates["deadline"] = ""
 		}
+		// update_new_hosts is only used for macOS so ignore any values posted for iPadOS
+		iPadOSUpdates["update_new_hosts"] = nil
+
 		// Put in default values for macos_setup
 		if incoming.Controls.MacOSSetup != nil {
 			incoming.Controls.MacOSSetup.SetDefaultsIfNeeded()
@@ -2345,7 +2398,7 @@ func (c *Client) DoGitOps(
 				return nil, nil, err
 			}
 			logFn(
-				"[+] Set icons on %s and deleted icons on %s\n",
+				"[+] set icons on %s and deleted icons on %s\n",
 				numberWithPluralization(len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), "software title", "software titles"),
 				numberWithPluralization(len(iconUpdates.TitleIDsToRemoveIconsFrom), "title", "titles"),
 			)
@@ -2483,7 +2536,15 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", vppApp.AppStoreID, vppApp.Icon.Path, err)
 			}
 
-			appsPayload = append(appsPayload, fleet.VPPBatchPayload{
+			var androidConfig json.RawMessage
+			if vppApp.Platform == string(fleet.AndroidPlatform) {
+				androidConfig, err = getAndroidAppConfig(vppApp.Configuration.Path)
+				if err != nil {
+					return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", vppApp.AppStoreID, vppApp.Configuration.Path, err)
+				}
+			}
+
+			payload := fleet.VPPBatchPayload{
 				AppStoreID:         vppApp.AppStoreID,
 				SelfService:        vppApp.SelfService,
 				InstallDuringSetup: &installDuringSetup,
@@ -2491,7 +2552,11 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				IconPath:           vppApp.Icon.Path,
 				IconHash:           iconHash,
 				Platform:           fleet.InstallableDevicePlatform(vppApp.Platform),
-			})
+			}
+			if androidConfig != nil {
+				payload.Configuration = androidConfig
+			}
+			appsPayload = append(appsPayload, payload)
 		}
 	}
 
@@ -2513,20 +2578,24 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		}
 	}
 
-	logFn(applyingTeamFormat, numberWithPluralization(len(swPkgPayload), "software package", "software packages"), "'No team'")
+	format := applyingTeamFormat
+	if dryRun {
+		format = dryRunAppliedTeamFormat
+	}
+
+	logFn(format, numberWithPluralization(len(swPkgPayload), "software package", "software packages"), "'No team'")
 	softwareInstallers, err = c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
 	}
-	logFn(applyingTeamFormat, numberWithPluralization(len(appsPayload), "app store app", "app store apps"), "'No team'")
+
+	logFn(format, numberWithPluralization(len(appsPayload), "app store app", "app store apps"), "'No team'")
 	vppApps, err := c.ApplyNoTeamAppStoreAppsAssociation(appsPayload, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying app store apps: %w", err)
 	}
 
-	if dryRun {
-		logFn("[+] would've applied 'No Team' software packages\n")
-	} else {
+	if !dryRun {
 		logFn("[+] applied 'No Team' software packages\n")
 	}
 	return softwareInstallers, vppApps, nil
@@ -2580,9 +2649,8 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 		}
 	}
 
-	logFn("[+] applying webhook settings for 'No team'\n")
-
 	if !dryRun {
+		logFn("[+] applying webhook settings for 'No team'\n")
 		// Apply the webhook settings to team ID 0 using the PATCH endpoint
 		var teamResp interface{}
 		err := c.authenticatedRequest(teamPayload, "PATCH", "/api/latest/fleet/teams/0", &teamResp)
@@ -2628,7 +2696,12 @@ func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, a
 		return nil, nil
 	}
 
-	logFn("[+] syncing %s (%d new and %d updated)\n", numberWithPluralization(len(config.Labels), "label", "labels"), len(config.Labels)-numUpdates, numUpdates)
+	if dryRun {
+		logFn("[+] would've applied %s (%d new and %d updated)\n", numberWithPluralization(len(config.Labels), "label", "labels"), len(config.Labels)-numUpdates, numUpdates)
+	} else {
+		logFn("[+] applying %s (%d new and %d updated)\n", numberWithPluralization(len(config.Labels), "label", "labels"), len(config.Labels)-numUpdates, numUpdates)
+	}
+
 	err = c.ApplyLabels(config.Labels)
 	if err != nil {
 		return nil, err
@@ -2751,7 +2824,12 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 
 	if len(config.Policies) > 0 {
 		numPolicies := len(config.Policies)
-		logFn("[+] syncing %s\n", numberWithPluralization(numPolicies, "policy", "policies"))
+		if dryRun {
+			logFn("[+] would've applied %s\n", numberWithPluralization(numPolicies, "policy", "policies"))
+		} else {
+			logFn("[+] applying %s\n", numberWithPluralization(numPolicies, "policy", "policies"))
+		}
+
 		if !dryRun {
 			totalApplied := 0
 			for i := 0; i < len(config.Policies); i += batchSize {
@@ -2769,7 +2847,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				if err := c.ApplyPolicies(policiesSpec); err != nil {
 					return fmt.Errorf("error applying policies: %w", err)
 				}
-				logFn("[+] synced %s\n", numberWithPluralization(totalApplied, "policy", "policies"))
+				logFn("[+] applied %s\n", numberWithPluralization(totalApplied, "policy", "policies"))
 			}
 		}
 	}
@@ -2792,7 +2870,11 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		}
 	}
 	if len(policiesToDelete) > 0 {
-		logFn("[-] deleting %s\n", numberWithPluralization(len(policiesToDelete), "policy", "policies"))
+		if dryRun {
+			logFn("[-] would've deleted %s\n", numberWithPluralization(len(policiesToDelete), "policy", "policies"))
+		} else {
+			logFn("[-] deleting %s\n", numberWithPluralization(len(policiesToDelete), "policy", "policies"))
+		}
 		if !dryRun {
 			totalDeleted := 0
 			for i := 0; i < len(policiesToDelete); i += batchSize {
@@ -2829,7 +2911,11 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 	}
 	if len(config.Queries) > 0 {
 		numQueries := len(config.Queries)
-		logFn("[+] syncing %s\n", numberWithPluralization(numQueries, "query", "queries"))
+		if dryRun {
+			logFn("[+] would've applied %s\n", numberWithPluralization(numQueries, "query", "queries"))
+		} else {
+			logFn("[+] applying %s\n", numberWithPluralization(numQueries, "query", "queries"))
+		}
 		if !dryRun {
 			appliedCount := 0
 			for i := 0; i < len(config.Queries); i += batchSize {
@@ -2842,7 +2928,7 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 				if err := c.ApplyQueries(config.Queries[i:end]); err != nil {
 					return fmt.Errorf("error applying queries: %w", err)
 				}
-				logFn("[+] synced %s\n", numberWithPluralization(appliedCount, "query", "queries"))
+				logFn("[+] applied %s\n", numberWithPluralization(appliedCount, "query", "queries"))
 			}
 		}
 	}
@@ -2865,8 +2951,10 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 		}
 	}
 	if len(queriesToDelete) > 0 {
-		logFn("[-] deleting %s\n", numberWithPluralization(len(queriesToDelete), "query", "queries"))
-		if !dryRun {
+		if dryRun {
+			logFn("[-] would've deleted %s\n", numberWithPluralization(len(queriesToDelete), "query", "queries"))
+		} else {
+			logFn("[-] deleting %s\n", numberWithPluralization(len(queriesToDelete), "query", "queries"))
 			deleteCount := 0
 			for i := 0; i < len(queriesToDelete); i += batchSize {
 				end := i + batchSize

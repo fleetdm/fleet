@@ -30,6 +30,13 @@
       "description": "1Password is a password manager that keeps all passwords secure behind one password."
     },
     {
+      "name": "7-zip",
+      "slug": "7-zip/windows",
+      "platform": "windows",
+      "unique_identifier": "7-Zip 25.01 (x64)",
+      "description": "7-zip is a file archiver."
+    },
+    {
       "name": "8x8 Work",
       "slug": "8x8-work/darwin",
       "platform": "darwin",
@@ -86,11 +93,39 @@
       "description": "Adobe Digital Editions is an E-book reader."
     },
     {
+      "name": "Adobe DNG Converter",
+      "slug": "adobe-dng-converter/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adobe.DNGConverter",
+      "description": "Adobe DNG Conver is a DNG file converter."
+    },
+    {
       "name": "Aircall",
       "slug": "aircall/darwin",
       "platform": "darwin",
       "unique_identifier": "io.aircall.phone",
       "description": "Aircall is cloud-based call center and phone system software."
+    },
+    {
+      "name": "Aircall",
+      "slug": "aircall/windows",
+      "platform": "windows",
+      "unique_identifier": "Aircall",
+      "description": "Aircall is cloud-based call center and phone system software."
+    },
+    {
+      "name": "Airtame",
+      "slug": "airtame/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.airtame.airtame-application",
+      "description": "Airtame is an app that makes shared screens easy to use — for screen sharing, conferencing, digital signage, and alerts."
+    },
+    {
+      "name": "Airtame",
+      "slug": "airtame/windows",
+      "platform": "windows",
+      "unique_identifier": "Airtame 4.15.0",
+      "description": "Airtame is an app that makes shared screens easy to use — for screen sharing, conferencing, digital signage, and alerts."
     },
     {
       "name": "Amazon Chime",
@@ -126,6 +161,13 @@
       "platform": "darwin",
       "unique_identifier": "com.mothersruin.Apparency",
       "description": "Apparency is an app to inspect application bundles."
+    },
+    {
+      "name": "AppCleaner",
+      "slug": "appcleaner/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.freemacsoft.AppCleaner",
+      "description": "AppCleaner is an application uninstaller."
     },
     {
       "name": "Arc",
@@ -254,6 +296,13 @@
       "description": "Bruno is an open source IDE for exploring and testing APIs."
     },
     {
+      "name": "calibre",
+      "slug": "calibre/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.kovidgoyal.calibre",
+      "description": "calibre is e-book management software."
+    },
+    {
       "name": "Camtasia",
       "slug": "camtasia/darwin",
       "platform": "darwin",
@@ -373,11 +422,32 @@
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
+      "name": "Company Portal",
+      "slug": "company-portal/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft.CompanyPortal",
+      "description": "Microsoft Company Portal is the app for accessing company resources and managing devices in a secure environment."
+    },
+    {
       "name": "CotEditor",
       "slug": "coteditor/darwin",
       "platform": "darwin",
       "unique_identifier": "com.coteditor.CotEditor",
       "description": "CotEditor is a plain-text editor for web pages, program source codes, and more."
+    },
+    {
+      "name": "CrashPlan",
+      "slug": "crashplan/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.crashplan.desktop",
+      "description": "CrashPlan is backup and recovery software."
+    },
+    {
+      "name": "CrashPlan",
+      "slug": "crashplan/windows",
+      "platform": "windows",
+      "unique_identifier": "CrashPlan",
+      "description": "CrashPlan is backup and recovery software."
     },
     {
       "name": "Cursor",
@@ -406,6 +476,13 @@
       "platform": "windows",
       "unique_identifier": "Cyberduck",
       "description": "Cyberduck is a server and cloud storage browser."
+    },
+    {
+      "name": "Dash",
+      "slug": "dash/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.kapeli.dashdoc",
+      "description": "Dash is an API documentation browser and code snippet manager."
     },
     {
       "name": "DataGrip",
@@ -720,6 +797,13 @@
       "slug": "inkscape/darwin",
       "platform": "darwin",
       "unique_identifier": "org.inkscape.Inkscape",
+      "description": "Inkscape is a vector graphics editor."
+    },
+    {
+      "name": "Inkscape",
+      "slug": "inkscape/windows",
+      "platform": "windows",
+      "unique_identifier": "Inkscape",
       "description": "Inkscape is a vector graphics editor."
     },
     {
@@ -1297,6 +1381,20 @@
       "description": "Stats is a system monitor for the menu bar."
     },
     {
+      "name": "Steam",
+      "slug": "steam/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.valvesoftware.steam",
+      "description": "Steam is a video game digital distribution service."
+    },
+    {
+      "name": "Steam",
+      "slug": "steam/windows",
+      "platform": "windows",
+      "unique_identifier": "Steam",
+      "description": "Steam is a video game digital distribution service."
+    },
+    {
       "name": "Sublime Merge",
       "slug": "sublime-merge/darwin",
       "platform": "darwin",
@@ -1400,6 +1498,13 @@
       "platform": "darwin",
       "unique_identifier": "com.gravitational.teleport.tsh",
       "description": "Teleport Suite is a modern SSH server for teams managing distributed infrastructure."
+    },
+    {
+      "name": "TextExpander",
+      "slug": "textexpander/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.smileonmymac.textexpander",
+      "description": "TextExpander is an application that let's you create and insert pre-made snippets of text anywhere."
     },
     {
       "name": "Thunderbird",

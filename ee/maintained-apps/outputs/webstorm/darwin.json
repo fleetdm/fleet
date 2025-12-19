@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2025.3",
+      "version": "2025.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.WebStorm';"
       },
-      "installer_url": "https://download.jetbrains.com/webstorm/WebStorm-2025.3-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/webstorm/WebStorm-2025.3.1-aarch64.dmg",
       "install_script_ref": "c4bf0a63",
       "uninstall_script_ref": "5532054b",
-      "sha256": "a9e5f96f2697ff40f1dcbe98de6bc6b26156b66ae308bd46dcb7c2bd83f0675e",
+      "sha256": "1c21990cee2bbbffdd8f6c90e8071bc03ec7fe5a3662e51931c15222d4b7ccb2",
       "default_categories": [
         "Developer tools"
       ]

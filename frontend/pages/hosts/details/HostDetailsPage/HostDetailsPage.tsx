@@ -19,6 +19,7 @@ import hostAPI, {
   IGetHostCertsRequestParams,
 } from "services/entities/hosts";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
+import commandAPI from "services/entities/command";
 
 import {
   IHost,
@@ -44,6 +45,7 @@ import {
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
 import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
+import { ICommand } from "interfaces/command";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
@@ -90,6 +92,8 @@ import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
+
+import CommandResultsModal from "pages/hosts/components/CommandDetailsModal";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -144,6 +148,8 @@ const BYOD_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/byod-hosts-vpp-install";
 const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/install-google-play-apps";
+
+const ACTIVITY_CARD_DATA_STALE_TIME = 5000; // 5 seconds
 
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
@@ -246,6 +252,9 @@ const HostDetailsPage = ({
     activityVPPInstallDetails,
     setActivityVPPInstallDetails,
   ] = useState<IVppInstallDetails | null>(null);
+  const [mdmCommandDetails, setMdmCommandDetails] = useState<ICommand | null>(
+    null
+  );
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
@@ -271,6 +280,7 @@ const HostDetailsPage = ({
     "past" | "upcoming"
   >("past");
   const [activityPage, setActivityPage] = useState(0);
+  const [showMDMCommands, setShowMDMCommands] = useState(false);
 
   // certificates states
   const [
@@ -514,8 +524,9 @@ const HostDetailsPage = ({
       );
     },
     {
+      ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
-      staleTime: 2000,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
@@ -554,7 +565,72 @@ const HostDetailsPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
-      staleTime: 2000,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
+    }
+  );
+
+  const {
+    data: pastMDMCommands,
+    isError: pastMDMCommandsIsError,
+    isFetching: pastMDMCommandsIsFetching,
+    isLoading: pastMDMCommandsIsLoading,
+  } = useQuery(
+    [
+      {
+        scope: "host-past-mdm-commands",
+        pageIndex: activityPage,
+        perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
+        hostUUID: host?.uuid,
+        activeTab: activeActivityTab,
+        commandStatus: "ran,failed",
+      },
+    ],
+    ({ queryKey: [{ pageIndex, perPage, hostUUID, commandStatus }] }) => {
+      return commandAPI.getCommands({
+        page: pageIndex,
+        per_page: perPage,
+        host_identifier: hostUUID,
+        command_status: commandStatus,
+      });
+    },
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isAppleDevice(host?.platform),
+      keepPreviousData: true,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
+    }
+  );
+
+  // request to get the host mdm commands
+  const {
+    data: upcomingMDMCommands,
+    isError: upcomingMDMCommandsIsError,
+    isFetching: upcomingMDMCommandsIsFetching,
+    isLoading: upcomingMDMCommandsIsLoading,
+  } = useQuery(
+    [
+      {
+        scope: "host-upcoming-mdm-commands",
+        pageIndex: activityPage,
+        perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
+        hostUUID: host?.uuid,
+        activeTab: activeActivityTab,
+        commandStatus: "pending",
+      },
+    ],
+    ({ queryKey: [{ pageIndex, perPage, hostUUID, commandStatus }] }) => {
+      return commandAPI.getCommands({
+        page: pageIndex,
+        per_page: perPage,
+        host_identifier: hostUUID,
+        command_status: commandStatus,
+      });
+    },
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isAppleDevice(host?.platform),
+      keepPreviousData: true,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
@@ -748,6 +824,7 @@ const HostDetailsPage = ({
             // the host object if it's available.
             hostDisplayName:
               host?.display_name || details?.host_display_name || "",
+            platform: details?.host_platform || host?.platform,
           });
           break;
         default: // do nothing
@@ -792,6 +869,10 @@ const HostDetailsPage = ({
 
   const onCancelVppInstallDetailsModal = useCallback(() => {
     setActivityVPPInstallDetails(null);
+  }, []);
+
+  const onCancelMdmCommandDetailsModal = useCallback(() => {
+    setMdmCommandDetails(null);
   }, []);
 
   const onTransferHostSubmit = async (team: ITeam) => {
@@ -928,7 +1009,9 @@ const HostDetailsPage = ({
     !host ||
     isLoadingHost ||
     pastActivitiesIsLoading ||
-    upcomingActivitiesIsLoading
+    upcomingActivitiesIsLoading ||
+    pastMDMCommandsIsLoading ||
+    upcomingMDMCommandsIsLoading
   ) {
     return <Spinner />;
   }
@@ -1004,7 +1087,7 @@ const HostDetailsPage = ({
   );
 
   /*  Context team id might be different that host's team id
-  Observer plus must be checked against host's team id  */
+Observer plus must be checked against host's team id  */
   const isGlobalOrHostsTeamObserverPlus =
     currentUser && host?.team_id
       ? permissions.isObserverPlus(currentUser, host.team_id)
@@ -1264,15 +1347,22 @@ const HostDetailsPage = ({
                         ? pastActivities
                         : upcomingActivities
                     }
+                    commands={
+                      activeActivityTab === "past"
+                        ? pastMDMCommands
+                        : upcomingMDMCommands
+                    }
                     isLoading={
                       activeActivityTab === "past"
-                        ? pastActivitiesIsFetching
-                        : upcomingActivitiesIsFetching
+                        ? pastActivitiesIsFetching || pastMDMCommandsIsFetching
+                        : upcomingActivitiesIsFetching ||
+                          upcomingMDMCommandsIsFetching
                     }
                     isError={
                       activeActivityTab === "past"
-                        ? pastActivitiesIsError
-                        : upcomingActivitiesIsError
+                        ? pastActivitiesIsError || pastMDMCommandsIsError
+                        : upcomingActivitiesIsError ||
+                          upcomingMDMCommandsIsError
                     }
                     canCancelActivities={
                       isGlobalAdmin ||
@@ -1280,11 +1370,25 @@ const HostDetailsPage = ({
                       isHostTeamAdmin ||
                       isHostTeamMaintainer
                     }
-                    upcomingCount={upcomingActivities?.count || 0}
+                    showMDMCommandsToggle={isAppleDevice(host.platform)}
+                    showMDMCommands={showMDMCommands}
+                    onShowMDMCommands={() => {
+                      setActivityPage(0);
+                      setShowMDMCommands(true);
+                    }}
+                    onHideMDMCommands={() => {
+                      setActivityPage(0);
+                      setShowMDMCommands(false);
+                    }}
+                    upcomingCount={
+                      (upcomingActivities?.count || 0) +
+                      (upcomingMDMCommands?.count || 0)
+                    }
                     onChangeTab={onChangeActivityTab}
                     onNextPage={() => setActivityPage(activityPage + 1)}
                     onPreviousPage={() => setActivityPage(activityPage - 1)}
                     onShowDetails={onShowActivityDetails}
+                    onShowCommandDetails={setMdmCommandDetails}
                     onCancel={onCancelActivity}
                   />
                 )}
@@ -1491,6 +1595,12 @@ const HostDetailsPage = ({
             <VppInstallDetailsModal
               details={activityVPPInstallDetails}
               onCancel={onCancelVppInstallDetailsModal}
+            />
+          )}
+          {!!mdmCommandDetails && (
+            <CommandResultsModal
+              command={mdmCommandDetails}
+              onDone={onCancelMdmCommandDetailsModal}
             />
           )}
           {showLockHostModal && (

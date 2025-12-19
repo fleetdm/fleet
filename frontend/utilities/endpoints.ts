@@ -181,8 +181,6 @@ export default {
   MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/mdm/setup/eula`,
   MDM_EULA_METADATA: `/${API_VERSION}/fleet/mdm/setup/eula/metadata`,
   HOST_MDM: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/mdm`,
-  HOST_MDM_UNENROLL: (id: number) =>
-    `/${API_VERSION}/fleet/mdm/hosts/${id}/unenroll`,
   HOST_ENCRYPTION_KEY: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/encryption_key`,
 
@@ -299,6 +297,9 @@ export default {
   SCRIPT_RUN_BATCH_SUMMARIES: `/${API_VERSION}/fleet/scripts/batch`,
   SCRIPT_BATCH_HOST_RESULTS: (id: string) =>
     `/${API_VERSION}/fleet/scripts/batch/${id}/host-results`,
+
+  // Command endpoints
+  COMMANDS: `/${API_VERSION}/fleet/commands`,
   COMMANDS_RESULTS: `/${API_VERSION}/fleet/commands/results`,
 
   // idp endpoints
@@ -310,6 +311,7 @@ export default {
   CONFIG_PROFILE_STATUS: (uuid: string) =>
     `/${API_VERSION}/fleet/configuration_profiles/${uuid}/status`,
   CONFIG_PROFILE_BATCH_RESEND: `/${API_VERSION}/fleet/configuration_profiles/resend/batch`,
+  CERTIFICATES: `/${API_VERSION}/fleet/certificates`,
 
   // Certificate authority endpoints
   CERTIFICATE_AUTHORITIES: `/${API_VERSION}/fleet/certificate_authorities`,

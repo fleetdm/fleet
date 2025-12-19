@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -1413,25 +1414,25 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	}
 
 	setupSoftwareBySoftwareTitle := make(map[uint]struct{})
-	setupSoftwareByVppApp := make(map[string]struct{})
+	setupSoftwareByPlatformAndAppID := make(map[string]struct{})
 
-	for _, platform := range []string{"macos", "windows", "linux"} {
-		// See if the team has setup software configured.
-		setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(platform, teamID)
-		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
-			return nil, err
+	// Fill in InstallDuringSetup for software, as that information is only available
+	// from the setup experience endpoint
+	platforms := "macos,windows,linux,ios,ipados,android"
+	setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(platforms, teamID)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
+		return nil, err
+	}
+	for _, software := range setupSoftware {
+		pkg := software.SoftwarePackage
+		if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
+			setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
 		}
-		for _, software := range setupSoftware {
-			pkg := software.SoftwarePackage
-			if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
-				setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
-			}
-			if platform == "macos" {
-				appStoreApp := software.AppStoreApp
-				if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
-					setupSoftwareByVppApp[appStoreApp.AppStoreID] = struct{}{}
-				}
+		if software.AppStoreApp != nil {
+			appStoreApp := software.AppStoreApp
+			if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
+				setupSoftwareByPlatformAndAppID[appStoreApp.FullyQualifiedName()] = struct{}{}
 			}
 		}
 	}
@@ -1596,7 +1597,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
 				fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
 				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["icon"] = map[string]interface{}{
+				softwareSpec["icon"] = map[string]any{
 					"path": path,
 				}
 				icon, err := cmd.Client.GetSoftwareTitleIcon(softwareTitle.ID, teamID)
@@ -1607,6 +1608,25 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 				// TODO write files immediately rather than queueing them up
 				cmd.FilesToWrite[fileName] = icon
+			}
+
+			config := softwareTitle.AppStoreApp.Configuration
+			if config != nil && !slices.Equal(config, json.RawMessage("{}")) {
+				fileName := fmt.Sprintf("lib/%s/configs/%s", teamFilename, filenamePrefix+"-config.json")
+				path := fmt.Sprintf("../%s", fileName)
+				softwareSpec["configuration"] = map[string]any{
+					"path": path,
+				}
+
+				// format config because it is received with incorrect indentation
+				var buf bytes.Buffer
+				err := json.Indent(&buf, softwareTitle.AppStoreApp.Configuration, "", "  ")
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error formatting android app configuration %s: %s\n", sw.Name, err)
+					return nil, err
+				}
+
+				cmd.FilesToWrite[fileName] = buf.Bytes()
 			}
 		}
 
@@ -1625,6 +1645,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				softwareSpec["setup_experience"] = true
 			}
 		} else {
+			platformAndAppID := softwareTitle.AppStoreApp.VPPAppID.String()
+
 			if len(softwareTitle.AppStoreApp.LabelsIncludeAny) > 0 {
 				labels = softwareTitle.AppStoreApp.LabelsIncludeAny
 				labelKey = "labels_include_any"
@@ -1633,7 +1655,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				labels = softwareTitle.AppStoreApp.LabelsExcludeAny
 				labelKey = "labels_exclude_any"
 			}
-			if _, exists := setupSoftwareByVppApp[softwareTitle.AppStoreApp.AdamID]; exists {
+			if _, exists := setupSoftwareByPlatformAndAppID[platformAndAppID]; exists {
 				softwareSpec["setup_experience"] = true
 			}
 		}
