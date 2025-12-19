@@ -53,7 +53,8 @@ def fetch_rustfs_tags():
     finally:
         try:
             conn.close()
-        except:
+        except Exception:
+            # Silently ignore connection close errors
             pass
 
 
