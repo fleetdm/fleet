@@ -1,3 +1,6 @@
+# Automatically checks for new rustfs/rustfs Docker image tags and creates a PR to update docker-compose files.
+# The workflow fetches the latest version from Docker Hub (excluding 'latest' tag), compares it with the
+# current version in docker-compose.yml, and updates all docker-compose files if a newer version is available.
 name: Update rustfs/rustfs Docker tags
 
 on:
