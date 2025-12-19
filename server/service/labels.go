@@ -524,7 +524,7 @@ func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
 	// if the label doesn't exist global users will see the true 404, other users will get a 403
 	label, err := svc.ds.LabelByName(ctx, name, filter)
 	if err != nil {
-		if authError := svc.authz.Authorize(ctx, label, fleet.ActionWrite); authError != nil {
+		if authError := svc.authz.Authorize(ctx, fleet.Label{}, fleet.ActionWrite); authError != nil {
 			return authError
 		}
 		return err
