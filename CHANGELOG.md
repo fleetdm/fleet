@@ -1,3 +1,50 @@
+## Fleet 4.79.0 (Dec 19, 2025)
+
+### Bug fixes
+
+- Added support for resending Windows MDM profiles.
+- Added support for renewal of custom SCEP profiles for Windows.
+- Added support for ingesting Windows certificates via osquery.
+- Updated the refresh_vpp_app_versions cron job to only attempt to refresh versions for Apple app store apps.
+* Added messaging around vpp update failures due to the application being open
+- Implemented ability to create, list, and delete Android certs from the UI
+- Fleet UI: Improve Edit VPP UX by disabling a form that hasn't been edited
+* Fixed host query report to display "Report clipped" when a query has reached the 1k result limit.
+- Added note to descriptions on schema tables using "count" as column name.
+- Aligned Android MDM unenrollment endpoint with the already existing endpoint, `DELETE /api/latest/fleet/hosts/{id}/mdm`, for consistency across MDM platforms.
+- Fleet UI: Improved software upload progress modal
+* Changed iOS/iPadOS and Android enrollment links on Add hosts modal to monospaced font to improve readability.
+- Updated the `migrate_to_per_host_policy` cron job to no-op if Android MDM is not enabled.
+- Fleet UI: Software table viewing a team and switching to All teams will remove any unsupported url params for the All teams view
+- fix ui error message on adding software to a team with a duplicate title.
+- Improved unclear error message when uploading an APNS certificate if the CSR was not downloaded
+* Added backend support for team labels.
+Refactored server RDS IAM authentication logic into a dedicated `rdsauth` package.
+- Implemented streaming for the `GET /hosts` ("list hosts") API to improve performance.
+- Fixed an issue where batch uploading mobileconfig profiles failed due to display name checks.
+* Applied the Android app configuration to the devices.
+Modified the automatic enrollment profile verification logic to only verify with Apple when a profile changes
+- Added feature for viewing past and upcoming MDM commands for a host in Fleet.
+- Added ability to indicate that new MacOS hosts enrolling via ADE should be updated to the latest operating system version.
+* Changed the Host details page to hide builtin labels in line with other areas such as the label filter
+- Added loading state to turn off Android modal UI.
+- add ability to resend windows profiles on the host details and my device pages
+* Made `gitops` output language consistent.
+- Fixed an issue where certificate details modal overflowed the screen.
+* Added activities for when certificates templates are created/deleted.
+- Updated S3 username/password when running in dev mode to remove outdated mentions of MinIO
+* Updated backend and GitOps to handle AppleOSUpdateSettings.UpdateNewHosts.
+* Updated logic used for determining whether to update a macOS host during DEP enrollment based solely on UpdateNewHosts flag.
+- Fleet UI: Add ability to search teams in dropdown for transferring teams
+* Created migration for adding 'update_new_hosts' flag to both App and Team configs.
+- add pagination metadata to the GET /mdm/commands endpoint
+- Fleet UI: Fixed click area of edit software file button
+- Fleet UI: Hid option to transfer hosts to their current team.
+- Fleet UI: Setup experience links point to add software page relevant to platform
+* Fleet UI: Add ability to edit Android software config
+- Fixed an issue where GitOps would fail if $FLEET_SECRET contained XML characters in XML files, due to not escaping the value.
+- Updated query behind `fleetctl get mdm-commands` to correctly get completed Windows MDM commands.
+
 ## Fleet 4.78.0 (Dec 19, 2025)
 
 ### IT Admins
