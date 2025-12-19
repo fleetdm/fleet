@@ -10834,6 +10834,7 @@ Add app store apps from the Apple App Store or the Google Play store.
 | ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
+| configuration | object | body | For Android apps only. Managed configuration for the Android app. Supports `managedConfiguration` (object) for app-specific settings and `workProfileWidgets` (string, set to `"WORK_PROFILE_WIDGETS_ALLOWED"`) for enabling widgets in work profile. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -10864,6 +10865,37 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 }
 ```
 
+##### Add Android app with configuration
+
+`POST /api/v1/fleet/software/app_store_apps`
+
+##### Request body
+
+```json
+{
+  "app_store_id": "us.zoom.videomeetings",
+  "team_id": 2,
+  "platform": "android",
+  "self_service": true,
+  "configuration": {
+    "managedConfiguration": {
+      "DisableDirectShare": true,
+      "ForceLoginWithSSO": false
+    }
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title_id": 456
+}
+```
+
 ### Update app store app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -10884,6 +10916,7 @@ Modify an Apple app store (VPP) or a Google Play app's options.
 | categories | string[] | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
+| configuration | object | body | For Android apps only. Managed configuration for the Android app. Supports `managedConfiguration` (object) for app-specific settings and `workProfileWidgets` (string, set to `"WORK_PROFILE_WIDGETS_ALLOWED"`) for enabling widgets in work profile. Setting to `{}` clears the configuration. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -10902,6 +10935,26 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
     "Product",
     "Marketing"
   ]
+}
+```
+
+##### Update Android app configuration
+
+`PATCH /api/v1/fleet/software/titles/456/app_store_app`
+
+##### Request body
+
+```json
+{
+  "team_id": 2,
+  "self_service": true,
+  "configuration": {
+    "managedConfiguration": {
+      "DisableDirectShare": true,
+      "ForceLoginWithSSO": true
+    },
+    "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"
+  }
 }
 ```
 
