@@ -846,9 +846,6 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			err := sqlx.GetContext(ctx, q, &count, `SELECT COUNT(id) FROM activities WHERE activity_type = 'edited_setup_experience_software'`)
 			require.NoError(t, err)
-
-			mysql.DumpTable(t, q, "vpp_apps_teams")
-			mysql.DumpTable(t, q, "activities")
 			return nil
 		})
 		require.Equal(t, 3, count)

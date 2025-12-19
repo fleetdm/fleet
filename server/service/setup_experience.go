@@ -53,7 +53,7 @@ func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform str
 }
 
 type getSetupExperienceSoftwareRequest struct {
-	// platform can be a comma separated list
+	// Platforms can be a comma separated list
 	Platforms string `query:"platform,optional"`
 	fleet.ListOptions
 	TeamID uint `query:"team_id"`
