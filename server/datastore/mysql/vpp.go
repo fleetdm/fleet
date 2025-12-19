@@ -389,6 +389,89 @@ func (ds *Datastore) getVPPAppTeamCategoryIDs(ctx context.Context, vppAppTeamID 
 	return ids, nil
 }
 
+func (ds *Datastore) SetTeamAppStoreApps(ctx context.Context, teamID *uint, toAddApps []fleet.VPPAppTeam, toRemoveApps []fleet.VPPAppID, opts fleet.SetTeamAppStoreAppsOpts) error {
+
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		for _, toAdd := range toAddApps {
+			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, opts.VPPTokenID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
+			}
+
+			// check if the vpp app conflicts with an existing software installer
+			// already associated with the software title for the same platform
+			// (macos).
+			if toAdd.Platform == fleet.MacOSPlatform {
+				exists, conflictingTitle, err := ds.checkConflictingSoftwareInstallerForVPPApp(ctx, tx, teamID, toAdd.VPPAppID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "checking for conflicting software installer")
+				}
+				if exists {
+					return ctxerr.Wrap(ctx, fleet.ConflictError{
+						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
+							conflictingTitle, teamName)}, "vpp app conflicts with existing software installer")
+				}
+			}
+
+			if toAdd.ValidatedLabels != nil {
+				if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, vppAppTeamID, *toAdd.ValidatedLabels, softwareTypeVPP); err != nil {
+					return ctxerr.Wrap(ctx, err, "failed to update labels on vpp apps batch operation")
+				}
+			}
+
+			if toAdd.CategoryIDs != nil {
+				if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, vppAppTeamID, toAdd.CategoryIDs, softwareTypeVPP); err != nil {
+					return ctxerr.Wrap(ctx, err, "failed to update categories on vpp apps batch operation")
+				}
+			}
+
+			if toAdd.DisplayName != nil {
+				if err := updateSoftwareTitleDisplayName(ctx, tx, teamID, appStoreAppIDsToTitleIDs[toAdd.VPPAppID.String()], *toAdd.DisplayName); err != nil {
+					return ctxerr.Wrap(ctx, err, "setting software title display name for vpp app")
+				}
+			}
+
+			if toAdd.Configuration != nil {
+				if err := ds.updateAndroidAppConfigurationTx(ctx, tx, teamID, toAdd.AdamID, toAdd.Configuration); err != nil {
+					return ctxerr.Wrap(ctx, err, "setting configuration for android app")
+				}
+			}
+
+			if hostsNotInScope, ok := opts.appsWithChangedLabels[toAdd.AppTeamID]; ok {
+				hostsInScope, err := ds.GetIncludedHostIDMapForVPPAppTx(ctx, tx, toAdd.AppTeamID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "getting hosts in scope for vpp app")
+				}
+
+				var hostsToClear []uint
+				for id := range hostsInScope {
+					if _, ok := hostsNotInScope[id]; ok {
+						// it was not in scope but now it is, so we should clear policy status
+						hostsToClear = append(hostsToClear, id)
+					}
+				}
+
+				// We clear the policy status here because otherwise the policy automation machinery
+				// won't pick this up and the software won't install.
+				if err := ds.ClearVPPAppAutoInstallPolicyStatusForHostsTx(ctx, tx, toAdd.AppTeamID, hostsToClear); err != nil {
+					return ctxerr.Wrap(ctx, err, "failed to clear auto install policy status for host")
+				}
+			}
+
+		}
+
+		for _, toRemove := range toRemoveApps {
+			if err := removeVPPAppTeams(ctx, tx, toRemove, teamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps removing vpp app from team")
+			}
+		}
+
+		return nil
+	})
+
+	return err
+}
+
 func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingApps []fleet.VPPAppTeam, appStoreAppIDsToTitleIDs map[string]uint) (bool, error) {
 	existingApps, err := ds.GetAssignedVPPApps(ctx, teamID)
 	if err != nil {

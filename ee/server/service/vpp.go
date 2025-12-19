@@ -63,14 +63,14 @@ func (svc *Service) hasAppStoreAppChanged(ctx context.Context, teamID *uint, inc
 	var categoriesChanged, labelsChanged, installDuringSetupChanged, displayNameChanged, configurationChanged bool
 
 	if isExistingApp {
-		existingLabels, err := ds.getExistingLabels(ctx, incomingApp.AppTeamID)
+		existingLabels, err := svc.ds.getExistingLabels(ctx, incomingApp.AppTeamID)
 		if err != nil {
 			return fleet.AppStoreAppChanges{}, ctxerr.Wrap(ctx, err, "getting existing labels for vpp app")
 		}
 
 		labelsChanged = !existingLabels.Equal(incomingApp.ValidatedLabels)
 
-		existingCatIDs, err := ds.getVPPAppTeamCategoryIDs(ctx, incomingApp.AppTeamID)
+		existingCatIDs, err := svc.ds.getVPPAppTeamCategoryIDs(ctx, incomingApp.AppTeamID)
 		if err != nil {
 			return fleet.AppStoreAppChanges{}, ctxerr.Wrap(ctx, err, "getting existing categories for vpp app")
 		}
@@ -429,6 +429,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			}
 
 			o.Changed = changed
+
 		}
 
 		// TODO: should these be some opts for the next call?
