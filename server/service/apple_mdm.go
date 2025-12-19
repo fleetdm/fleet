@@ -4656,14 +4656,23 @@ func ReconcileAppleProfiles(
 				return err
 			}
 			if userEnrollmentID == "" {
-				level.Warn(logger).Log("msg", "host does not have a user enrollment, failing profile installation",
-					"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
+				var errorDetail string
+				if p.HostPlatform == "ios" || p.HostPlatform == "ipados" {
+					errorDetail = "This setting couldn't be enforced because the user channel isn't available on iOS and iPadOS hosts."
+				} else {
+					errorDetail = "This setting couldn't be enforced because the user channel doesn't exist for this host. Currently, Fleet creates the user channel for hosts that automatically enroll."
+					level.Warn(logger).Log("msg", "host does not have a user enrollment, failing profile installation",
+						"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
+				}
+
+				fmt.Println("Skipping empty user enrollment", p.ProfileIdentifier, p.HostUUID)
+
 				hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
 					ProfileUUID:       p.ProfileUUID,
 					HostUUID:          p.HostUUID,
 					OperationType:     fleet.MDMOperationTypeInstall,
 					Status:            &fleet.MDMDeliveryFailed,
-					Detail:            "This setting couldn't be enforced because the user channel doesn't exist for this host. Currently, Fleet creates the user channel for hosts that automatically enroll.",
+					Detail:            errorDetail,
 					CommandUUID:       "",
 					ProfileIdentifier: p.ProfileIdentifier,
 					ProfileName:       p.ProfileName,
