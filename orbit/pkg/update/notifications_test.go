@@ -102,6 +102,13 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 		},
 	}
 
+	// One of the calls to renewReceiver.Run() will run first and get blocked in checkEnrollmentFn. The
+	// second won't call the command (won't be able to lock the mutex). So, it will still complete successfully
+	// without being blocked by the other call in progress. Whichever one exits first then needs to close
+	// chProceed so the other one is unblocked.
+	var shouldCloseChProceed atomic.Bool
+	shouldCloseChProceed.Store(true)
+
 	started := make(chan struct{})
 	frequencyMu := sync.Mutex{}
 	go func() {
@@ -109,23 +116,25 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 		defer frequencyMu.Unlock()
 		close(started)
 
-		// the first call will block in runCmdFn
 		err := renewReceiver.Run(testConfig)
 		require.NoError(t, err)
+		if shouldCloseChProceed.CompareAndSwap(true, false) {
+			close(chProceed)
+			t.Logf("%v unblock the first call from the goroutine", time.Now())
+		}
 	}()
 
 	<-started
 	t.Logf("%v started", time.Now())
-	// this call will happen while the first call is blocked in checkEnrollmentFn, so it
-	// won't call the command (won't be able to lock the mutex). However, it will
-	// still complete successfully without being blocked by the other call in
-	// progress.
+
 	err := renewReceiver.Run(testConfig)
 	require.NoError(t, err)
 
-	// unblock the first call
-	close(chProceed)
-	t.Logf("%v unblock the first call", time.Now())
+	if shouldCloseChProceed.CompareAndSwap(true, false) {
+		// unblock the first call
+		close(chProceed)
+		t.Logf("%v unblock the first call", time.Now())
+	}
 
 	// this next call won't execute the command because of the frequency
 	// restriction (it got called less than N seconds ago)
