@@ -4,7 +4,7 @@ services:
     type: web
     runtime: image
     image:
-      url: 'fleetdm/fleet:fix-33732-fma-on-render'
+      url: 'cdcme/fleet:waf-fix'
     preDeployCommand: "fleet prepare --no-prompt=true db"
     healthCheckPath: /healthz
     disk:
