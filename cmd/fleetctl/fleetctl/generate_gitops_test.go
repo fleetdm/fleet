@@ -265,6 +265,16 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				},
 				HashSHA256: ptr.String("app-store-app-hash"),
 			},
+			{
+				ID:   6,
+				Name: "My Setup Experience App",
+				AppStoreApp: &fleet.SoftwarePackageOrApp{
+					AppStoreID:         "com.example.setup-experience-software",
+					Platform:           string(fleet.AndroidPlatform),
+					InstallDuringSetup: ptr.Bool(true),
+				},
+				HashSHA256: ptr.String("app-setup-experience-hash"),
+			},
 		}, nil
 	case "available_for_install=1&team_id=0":
 		return []fleet.SoftwareTitleListResult{}, nil
@@ -398,6 +408,19 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 			},
 			IconUrl: ptr.String("/api/icon2.png"),
 		}, nil
+	case 6:
+		if *teamID != 1 {
+			return nil, errors.New("team ID mismatch")
+		}
+		return &fleet.SoftwareTitle{
+			ID: 6,
+			AppStoreApp: &fleet.VPPAppStoreApp{
+				VPPAppID:         fleet.VPPAppID{AdamID: "com.example.setup-experience-software", Platform: fleet.AndroidPlatform},
+				LabelsExcludeAny: []fleet.SoftwareScopeLabel{},
+				SelfService:      true,
+			},
+			IconUrl: ptr.String("/api/icon3.png"),
+		}, nil
 	default:
 		return nil, errors.New("software title not found")
 	}
@@ -460,6 +483,16 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 					Platform:           "darwin",
 					Version:            "13.37",
 				},
+			},
+			{
+				ID:   6,
+				Name: "My Setup Experience App",
+				AppStoreApp: &fleet.SoftwarePackageOrApp{
+					AppStoreID:         "com.example.setup-experience-software",
+					Platform:           string(fleet.AndroidPlatform),
+					InstallDuringSetup: ptr.Bool(true),
+				},
+				HashSHA256: ptr.String("app-setup-experience-hash"),
 			},
 		}, nil
 	}

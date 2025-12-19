@@ -78,7 +78,7 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 		return nil, ctxerr.Wrap(ctx, err, "creating pending certificate templates for existing hosts")
 	}
 
-	activity := fleet.ActivityTypeCreatedCertificateTemplate{
+	activity := fleet.ActivityTypeCreatedCertificate{
 		Name: name,
 	}
 	if teamID != 0 {
@@ -287,7 +287,7 @@ func (svc *Service) DeleteCertificateTemplate(ctx context.Context, certificateTe
 		return ctxerr.Wrap(ctx, err, "setting host certificate templates to pending remove")
 	}
 
-	activity := fleet.ActivityTypeDeletedCertificateTemplate{
+	activity := fleet.ActivityTypeDeletedCertificate{
 		Name: certificate.Name,
 	}
 	if certificate.TeamID != 0 {
