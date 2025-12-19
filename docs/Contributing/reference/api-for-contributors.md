@@ -4915,7 +4915,7 @@ _Available in Fleet Premium_
       "team": "workstations-canary",
       "certificate_authority_id": 1,
       "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
-    },
+    }
   ]
 }
 ```
