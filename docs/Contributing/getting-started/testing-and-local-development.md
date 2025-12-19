@@ -4,11 +4,13 @@
   - [License key](#license-key)
   - [Simulated hosts](#simulated-hosts)
   - [Test suite](#test-suite)
+    - [Redis cluster on macOS](#redis-cluster-on-macos)
     - [Go unit tests](#go-unit-tests)
     - [Go linters](#go-linters)
     - [Javascript unit and integration tests](#javascript-unit-and-integration-tests)
     - [Javascript linters](#javascript-linters)
     - [MySQL tests](#mysql-tests)
+      - [Configuring MySQL test port](#configuring-mysql-test-port)
     - [Email tests](#email-tests)
     - [Network tests](#network-tests)
     - [Viewing test coverage](#viewing-test-coverage)
@@ -28,16 +30,30 @@
   - [Redis REPL](#redis-repl)
   - [Testing SSO](#testing-sso)
     - [Configuration](#configuration)
-  - [Testing Kinesis Logging](#testing-kinesis-logging)
-  - [Testing pre-built installers](#testing-pre-built-installers)
+    - [Testing IdP initiated login](#testing-idp-initiated-login)
+  - [Testing End-User Authentication](#testing-end-user-authentication)
+    - [Configuration](#configuration-1)
+  - [Testing Kinesis logging](#testing-kinesis-logging)
+  - [Testing Firehose logging](#testing-firehose-logging)
   - [Telemetry](#telemetry)
   - [Fleetd Chrome extension](#fleetd-chrome-extension)
+    - [Debugging the service Worker](#debugging-the-service-worker)
   - [fleetd-base installers](#fleetd-base-installers)
+    - [Building your own non-signed fleetd-base installer](#building-your-own-non-signed-fleetd-base-installer)
+    - [Building and serving your own signed fleetd-base.pkg installer for macOS](#building-and-serving-your-own-signed-fleetd-basepkg-installer-for-macos)
+      - [Pre-requisites](#pre-requisites)
+      - [Building a signed fleetd-base installer from `edge`](#building-a-signed-fleetd-base-installer-from-edge)
+      - [Building a signed fleetd-base installer from `local TUF` and signing with Apple Developer Account](#building-a-signed-fleetd-base-installer-from-local-tuf-and-signing-with-apple-developer-account)
+      - [Serving the signed fleetd-base.pkg installer](#serving-the-signed-fleetd-basepkg-installer)
+    - [Building and serving your own fleetd-base.msi installer for Windows](#building-and-serving-your-own-fleetd-basemsi-installer-for-windows)
+      - [Pre-requisites](#pre-requisites-1)
+      - [Step 1 Option A: Building a signed fleetd-base.msi installer from `edge`](#step-1-option-a-building-a-signed-fleetd-basemsi-installer-from-edge)
+      - [Step 1 Option B: Building a fleetd-base.msi installer from local components](#step-1-option-b-building-a-fleetd-basemsi-installer-from-local-components)
+      - [Serving the fleetd-base.msi installer](#serving-the-fleetd-basemsi-installer)
   - [MDM setup and testing](#mdm-setup-and-testing)
     - [ABM setup](#abm-setup)
-      - [Private key, certificate, and encrypted token](#private-key-certificate-and-encrypted-token)
     - [APNs and SCEP setup](#apns-and-scep-setup)
-    - [Running the server](#running-the-server)
+    - [Runing a local SCEP server](#runing-a-local-scep-server)
     - [Testing MDM](#testing-mdm)
       - [Testing manual enrollment](#testing-manual-enrollment)
       - [Testing DEP enrollment](#testing-dep-enrollment)
@@ -1000,6 +1016,17 @@ Note that:
 2. You must be logged in to Fleet as a global admin. See [Building Fleet](./Building-Fleet.md) for details on getting Fleet setup locally.
 3. To login into https://identity.apple.com/pushcert you can use your ABM account generated in the previous step.
 4. Save the token and certificate in a safe place.
+
+### Runing a local SCEP server
+
+To facilitate testing a variety of Fleet's features, it may be useful to set up a local SCEP certificate authority. To do so using a [MicroMDM SCEP server](https://github.com/micromdm/scep) on an arm64 macOS workstation:
+1. `git clone https://github.com/micromdm/scep.git && cd scep`
+2. `make`
+3. `./scepserver-darwin-arm64 ca -init`
+4. `./scepserver-darwin-arm64 -depot depot -port <choosen_port> -challenge=<chosen_challenge>
+5. In a separate terminal window, get your local IP by running `ipconfig getifaddr en0`
+
+Your SCEP server is now running and ready for use with your <chosen_challenge> at: http://<ip_from_previous_step>:<chosen_port>/scep
 
 ### Testing MDM
 
