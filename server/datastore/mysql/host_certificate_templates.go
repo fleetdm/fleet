@@ -176,6 +176,18 @@ func (ds *Datastore) DeleteHostCertificateTemplates(ctx context.Context, hostCer
 	return nil
 }
 
+// DeleteHostCertificateTemplate deletes a single host_certificate_template record
+// identified by host_uuid and certificate_template_id.
+func (ds *Datastore) DeleteHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) error {
+	const stmt = `DELETE FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, certificateTemplateID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host_certificate_template")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) UpsertCertificateStatus(
 	ctx context.Context,
 	hostUUID string,

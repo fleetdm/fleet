@@ -1685,6 +1685,8 @@ type BulkInsertHostCertificateTemplatesFunc func(ctx context.Context, hostCertTe
 
 type DeleteHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
 
+type DeleteHostCertificateTemplateFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint) error
+
 type ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
 
 type GetAndTransitionCertificateTemplatesToDeliveringFunc func(ctx context.Context, hostUUID string) (*fleet.HostCertificateTemplatesForDelivery, error)
@@ -4194,6 +4196,9 @@ type DataStore struct {
 
 	DeleteHostCertificateTemplatesFunc        DeleteHostCertificateTemplatesFunc
 	DeleteHostCertificateTemplatesFuncInvoked bool
+
+	DeleteHostCertificateTemplateFunc        DeleteHostCertificateTemplateFunc
+	DeleteHostCertificateTemplateFuncInvoked bool
 
 	ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc        ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc
 	ListAndroidHostUUIDsWithPendingCertificateTemplatesFuncInvoked bool
@@ -10037,6 +10042,13 @@ func (s *DataStore) DeleteHostCertificateTemplates(ctx context.Context, hostCert
 	s.DeleteHostCertificateTemplatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostCertificateTemplatesFunc(ctx, hostCertTemplates)
+}
+
+func (s *DataStore) DeleteHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) error {
+	s.mu.Lock()
+	s.DeleteHostCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostCertificateTemplateFunc(ctx, hostUUID, certificateTemplateID)
 }
 
 func (s *DataStore) ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {

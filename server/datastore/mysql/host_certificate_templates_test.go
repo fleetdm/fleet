@@ -24,6 +24,7 @@ func TestHostCertificateTemplates(t *testing.T) {
 		{"ListCertificateTemplatesForHosts", testListCertificateTemplatesForHosts},
 		{"GetCertificateTemplateForHostNoTeam", testGetCertificateTemplateForHostNoTeam},
 		{"BulkInsertAndDeleteHostCertificateTemplates", testBulkInsertAndDeleteHostCertificateTemplates},
+		{"DeleteHostCertificateTemplate", testDeleteHostCertificateTemplate},
 		{"UpsertHostCertificateTemplateStatus", testUpsertHostCertificateTemplateStatus},
 		{"CreatePendingCertificateTemplatesForExistingHosts", testCreatePendingCertificateTemplatesForExistingHosts},
 		{"CreatePendingCertificateTemplatesForNewHost", testCreatePendingCertificateTemplatesForNewHost},
@@ -471,6 +472,90 @@ func testBulkInsertAndDeleteHostCertificateTemplates(t *testing.T, ds *Datastore
 
 		err = ds.DeleteHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{})
 		require.NoError(t, err)
+	})
+}
+
+func testDeleteHostCertificateTemplate(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("deletes single record successfully", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		// Insert a host certificate template record
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type, name) VALUES (?, ?, ?, ?, ?, ?)",
+			"host-1", setup.template.ID, "challenge", fleet.CertificateTemplateVerified, fleet.MDMOperationTypeRemove, setup.template.Name,
+		)
+		require.NoError(t, err)
+
+		// Verify record exists
+		var count int
+		err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?", "host-1", setup.template.ID)
+		require.NoError(t, err)
+		require.Equal(t, 1, count)
+
+		// Delete the record
+		err = ds.DeleteHostCertificateTemplate(ctx, "host-1", setup.template.ID)
+		require.NoError(t, err)
+
+		// Verify record was deleted
+		err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?", "host-1", setup.template.ID)
+		require.NoError(t, err)
+		require.Equal(t, 0, count)
+	})
+
+	t.Run("no error when deleting non-existent record", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+
+		err := ds.DeleteHostCertificateTemplate(ctx, "non-existent-host", 999)
+		require.NoError(t, err)
+	})
+
+	t.Run("only deletes specified record", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		templateTwo, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Cert2",
+			TeamID:                 setup.team.ID,
+			CertificateAuthorityID: setup.ca.ID,
+			SubjectName:            "CN=Test Subject 2",
+		})
+		require.NoError(t, err)
+
+		// Insert multiple host certificate template records
+		hostCerts := []fleet.HostCertificateTemplate{
+			{HostUUID: "host-1", CertificateTemplateID: setup.template.ID, FleetChallenge: ptr.String("challenge-1"), Status: fleet.CertificateTemplateVerified, OperationType: fleet.MDMOperationTypeRemove, Name: setup.template.Name},
+			{HostUUID: "host-1", CertificateTemplateID: templateTwo.ID, FleetChallenge: ptr.String("challenge-2"), Status: fleet.CertificateTemplateVerified, OperationType: fleet.MDMOperationTypeInstall, Name: templateTwo.Name},
+			{HostUUID: "host-2", CertificateTemplateID: setup.template.ID, FleetChallenge: ptr.String("challenge-3"), Status: fleet.CertificateTemplateVerified, OperationType: fleet.MDMOperationTypeRemove, Name: setup.template.Name},
+		}
+		err = ds.BulkInsertHostCertificateTemplates(ctx, hostCerts)
+		require.NoError(t, err)
+
+		// Delete only host-1's first certificate
+		err = ds.DeleteHostCertificateTemplate(ctx, "host-1", setup.template.ID)
+		require.NoError(t, err)
+
+		// Verify only 2 records remain
+		var count int
+		err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_certificate_templates")
+		require.NoError(t, err)
+		require.Equal(t, 2, count)
+
+		// Verify the correct records remain
+		var remaining []struct {
+			HostUUID              string `db:"host_uuid"`
+			CertificateTemplateID uint   `db:"certificate_template_id"`
+		}
+		err = ds.writer(ctx).SelectContext(ctx, &remaining,
+			"SELECT host_uuid, certificate_template_id FROM host_certificate_templates ORDER BY host_uuid, certificate_template_id")
+		require.NoError(t, err)
+		require.Len(t, remaining, 2)
+		require.Equal(t, "host-1", remaining[0].HostUUID)
+		require.Equal(t, templateTwo.ID, remaining[0].CertificateTemplateID)
+		require.Equal(t, "host-2", remaining[1].HostUUID)
+		require.Equal(t, setup.template.ID, remaining[1].CertificateTemplateID)
 	})
 }
 
