@@ -44,6 +44,7 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 	}
 
 	errCannotSetAside := ctxerr.New(ctx, "one or more specified labels to set aside do not exist or cannot be set aside")
+	errGlobal := ctxerr.New(ctx, "one or more specified labels to set aside is on the same team as you are trying to modify")
 
 	if len(labels) != len(names) {
 		return errCannotSetAside
@@ -85,11 +86,9 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 	}
 
 	for _, label := range labels {
-		if label.TeamID == nil {
-			// Global label
-			if notOnTeamID == nil {
-				// Can't set aside a global label if we're not moving to a new team
-				return errCannotSetAside
+		if label.TeamID == nil { // Global label
+			if notOnTeamID == nil { // Disallow moving aside since the label is on the same team
+				return errGlobal
 			}
 
 			if hasGlobalWriteRole() {
@@ -102,33 +101,32 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 
 			// User doesn't have permission to set aside this global label
 			return errCannotSetAside
-		} else {
-			// Team label
-			if notOnTeamID != nil && *notOnTeamID == *label.TeamID {
-				// Can't set aside a label that's on the team we're excluding
-				return errCannotSetAside
-			}
-
-			if hasGlobalWriteRole() {
-				continue
-			}
-
-			if hasWriteRoleAnywhere() && label.AuthorID != nil && *label.AuthorID == user.ID {
-				continue
-			}
-
-			if hasWriteRoleOnTeam(*label.TeamID) {
-				continue
-			}
-
-			// User doesn't have permission to set aside this team label
-			return errCannotSetAside
 		}
+
+		// Team label
+		if notOnTeamID != nil && *notOnTeamID == *label.TeamID { // label is on the same team we're applying specs for
+			return errCannotSetAside // generic error here because label may not be visible to the user
+		}
+
+		if hasGlobalWriteRole() {
+			continue
+		}
+
+		if hasWriteRoleAnywhere() && label.AuthorID != nil && *label.AuthorID == user.ID {
+			continue
+		}
+
+		if hasWriteRoleOnTeam(*label.TeamID) {
+			continue
+		}
+
+		// User doesn't have permission to set aside this team label
+		return errCannotSetAside
 	}
 
 	// Bulk update to rename labels by appending __team_{team_id} (or __team_0 for global labels)
-	updateStmt := `UPDATE labels SET name = CONCAT(name, '__team_', COALESCE(team_id, 0)) WHERE name IN (?) AND label_type != ?`
-	updateStmt, updateArgs, err := sqlx.In(updateStmt, names, uint(fleet.LabelTypeBuiltIn))
+	updateStmt := `UPDATE labels SET name = CONCAT(name, '__team_', COALESCE(team_id, 0)) WHERE name IN (?)`
+	updateStmt, updateArgs, err := sqlx.In(updateStmt, names)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build update labels query")
 	}
