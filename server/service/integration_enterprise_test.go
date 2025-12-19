@@ -4507,7 +4507,7 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
 	require.Len(t, resp.Hosts, 3)
 
-	allHostsLabel, err := s.ds.GetLabelSpec(context.Background(), "All hosts")
+	allHostsLabel, err := s.ds.GetLabelSpec(context.Background(), fleet.TeamFilter{}, "All hosts")
 	require.NoError(t, err)
 	for _, h := range resp.Hosts {
 		err = s.ds.RecordLabelQueryExecutions(
@@ -7611,7 +7611,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
 		Query: "SELECT 1;",
 	})
 	require.NoError(t, err)
-	allHostsLabel, err := s.ds.GetLabelSpec(ctx, "All hosts")
+	allHostsLabel, err := s.ds.GetLabelSpec(ctx, fleet.TeamFilter{}, "All hosts")
 	require.NoError(t, err)
 
 	orbitDarwinClient := createOrbitEnrolledHost(t, "darwin", "foobar1", s.ds)

@@ -195,8 +195,8 @@ type Datastore interface {
 	SetAsideLabels(ctx context.Context, notOnTeamID *uint, names []string, user User) error
 	// GetLabelSpecs returns all of the stored LabelSpecs that the user can see.
 	GetLabelSpecs(ctx context.Context, filter TeamFilter) ([]*LabelSpec, error)
-	// GetLabelSpec returns the spec for the named label.
-	GetLabelSpec(ctx context.Context, name string) (*LabelSpec, error)
+	// GetLabelSpec returns the spec for the named label, filtered by the provided team filter.
+	GetLabelSpec(ctx context.Context, filter TeamFilter, name string) (*LabelSpec, error)
 
 	// AddLabelsToHost adds the given label IDs membership to the host.
 	// If a host is already a member of the label then this will update the row's updated_at.

@@ -143,7 +143,7 @@ type SetAsideLabelsFunc func(ctx context.Context, notOnTeamID *uint, names []str
 
 type GetLabelSpecsFunc func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error)
 
-type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, error)
+type GetLabelSpecFunc func(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error)
 
 type AddLabelsToHostFunc func(ctx context.Context, hostID uint, labelIDs []uint) error
 
@@ -4652,11 +4652,11 @@ func (s *DataStore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter) 
 	return s.GetLabelSpecsFunc(ctx, filter)
 }
 
-func (s *DataStore) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
+func (s *DataStore) GetLabelSpec(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error) {
 	s.mu.Lock()
 	s.GetLabelSpecFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetLabelSpecFunc(ctx, name)
+	return s.GetLabelSpecFunc(ctx, filter, name)
 }
 
 func (s *DataStore) AddLabelsToHost(ctx context.Context, hostID uint, labelIDs []uint) error {

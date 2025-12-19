@@ -803,7 +803,7 @@ func testLabelsGetSpec(t *testing.T, ds *Datastore) {
 	expectedSpecs := setupLabelSpecsTest(t, ds)
 
 	for _, s := range expectedSpecs {
-		spec, err := ds.GetLabelSpec(context.Background(), s.Name)
+		spec, err := ds.GetLabelSpec(context.Background(), fleet.TeamFilter{}, s.Name)
 		require.Nil(t, err)
 
 		require.True(t, cmp.Equal(s, spec, cmp.FilterPath(func(p cmp.Path) bool {
@@ -2009,7 +2009,7 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.Equal(t, host1.ID, hostIDs[0])
 	require.Equal(t, host2.ID, hostIDs[1])
 
-	labelSpec, err := ds.GetLabelSpec(ctx, label1.Name)
+	labelSpec, err := ds.GetLabelSpec(ctx, fleet.TeamFilter{}, label1.Name)
 	require.NoError(t, err)
 	// label.Hosts contains hostnames
 	require.Len(t, labelSpec.Hosts, 2)
@@ -2115,7 +2115,7 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.Equal(t, host2.ID, hostIDs[1])
 	require.Equal(t, host3.ID, hostIDs[2])
 
-	labelSpec, err = ds.GetLabelSpec(ctx, label1.Name)
+	labelSpec, err = ds.GetLabelSpec(ctx, fleet.TeamFilter{}, label1.Name)
 	require.NoError(t, err)
 
 	// label.Hosts contains hostnames

@@ -792,8 +792,12 @@ func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.Label
 		return nil, err
 	}
 
-	// TODO gitops filter by user access
-	return svc.ds.GetLabelSpec(ctx, name)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	return svc.ds.GetLabelSpec(ctx, fleet.TeamFilter{User: vc.User, IncludeObserver: true}, name)
 }
 
 func (svc *Service) BatchValidateLabels(ctx context.Context, teamID *uint, labelNames []string) (map[string]fleet.LabelIdent, error) {

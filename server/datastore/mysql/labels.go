@@ -511,16 +511,20 @@ func (ds *Datastore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter)
 	return specs, nil
 }
 
-func (ds *Datastore) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
-	// TODO take teams into account
-
+func (ds *Datastore) GetLabelSpec(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
-	query := `
-SELECT id, name, description, query, platform, label_type, label_membership_type
-FROM labels
-WHERE name = ?
+	// Use alias l to be compatible with applyLabelTeamFilter
+	base := `
+SELECT l.id, l.name, l.description, l.query, l.platform, l.label_type, l.label_membership_type
+FROM labels l
+WHERE l.name = ?
 `
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &specs, query, name); err != nil {
+	query, params, err := applyLabelTeamFilter(base, filter, []any{name})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query for getting label spec")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &specs, query, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get label")
 	}
 	if len(specs) == 0 {
