@@ -113,6 +113,6 @@ describe("FeedListItem", () => {
     );
 
     const cancelIcon = screen.getByRole("button", { name: "cancel action" });
-    expect(closeButton).toBeDisabled();
+    expect(cancelIcon).toBeDisabled();
   });
 });
