@@ -27,20 +27,34 @@ DOCKER_COMPOSE_FILES = [
 
 def fetch_rustfs_tags():
     """Fetch all tags for rustfs/rustfs from Docker Hub API."""
-    conn = http.client.HTTPSConnection('hub.docker.com')
-    
-    # Docker Hub API endpoint for tags
-    conn.request('GET', '/v2/repositories/rustfs/rustfs/tags?page_size=100', 
-                 headers={"User-Agent": "Fleet/rustfs-checker"})
-    resp = conn.getresponse()
-    content = resp.read()
-    conn.close()
-    
-    data = json.loads(content.decode('utf-8'))
-    
-    # Extract tag names, excluding 'latest'
-    tags = [tag['name'] for tag in data.get('results', []) if tag['name'] != 'latest']
-    return tags
+    try:
+        conn = http.client.HTTPSConnection('hub.docker.com')
+        
+        # Docker Hub API endpoint for tags
+        conn.request('GET', '/v2/repositories/rustfs/rustfs/tags?page_size=100', 
+                     headers={"User-Agent": "Fleet/rustfs-checker"})
+        resp = conn.getresponse()
+        
+        if resp.status != 200:
+            print(f"Error: Docker Hub API returned status {resp.status}")
+            return []
+        
+        content = resp.read()
+        conn.close()
+        
+        data = json.loads(content.decode('utf-8'))
+        
+        # Extract tag names, excluding 'latest'
+        tags = [tag['name'] for tag in data.get('results', []) if tag['name'] != 'latest']
+        return tags
+    except (http.client.HTTPException, OSError, json.JSONDecodeError) as e:
+        print(f"Error fetching tags from Docker Hub: {e}")
+        return []
+    finally:
+        try:
+            conn.close()
+        except:
+            pass
 
 
 def get_latest_version(tags):
@@ -56,7 +70,8 @@ def get_latest_version(tags):
                 parsed = version.parse(tag)
                 valid_versions.append(parsed)
                 tag_map[parsed] = tag
-            except:
+            except (ValueError, TypeError) as e:
+                # Skip tags that cannot be parsed as versions
                 continue
     
     if not valid_versions:
