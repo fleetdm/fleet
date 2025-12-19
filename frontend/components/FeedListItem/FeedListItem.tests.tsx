@@ -99,7 +99,7 @@ describe("FeedListItem", () => {
     // so using fireEvent.click for this test. I think it has to do with
     // the icon not being shown until the user hovers over the button but we
     // were not able to fix this so we use fireEvent.click instead.
-    const cancelIcon = screen.getByRole("button", { name: "cancel" });
+    const cancelIcon = screen.getByRole("button", { name: "cancel action" });
     await fireEvent.click(cancelIcon);
 
     expect(onClickCancel).toHaveBeenCalledTimes(1);
@@ -112,7 +112,7 @@ describe("FeedListItem", () => {
       </FeedListItem>
     );
 
-    const closeButton = screen.getByTestId("close-icon").closest("button");
+    const cancelIcon = screen.getByRole("button", { name: "cancel action" });
     expect(closeButton).toBeDisabled();
   });
 });

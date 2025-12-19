@@ -99,7 +99,7 @@ const FeedListItem = ({
               className={`${baseClass}__action-button`}
               variant="icon"
               onClick={onClickFeedItem}
-              ariaLabel="info"
+              ariaLabel="show info"
             >
               <Icon name="info-outline" />
             </Button>
@@ -110,7 +110,7 @@ const FeedListItem = ({
               variant="icon"
               onClick={onClickCancel}
               disabled={disableCancel}
-              ariaLabel="cancel"
+              ariaLabel="cancel action"
             >
               <Icon
                 name="close"
