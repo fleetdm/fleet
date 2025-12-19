@@ -22,6 +22,7 @@ import UpcomingActivityFeed from "./UpcomingActivityFeed";
 import MDMCommandsToggle from "./MDMCommandsToggle";
 import PastCommandFeed from "./PastCommandFeed";
 import UpcomingCommandFeed from "./UpcomingCommandFeed";
+import CommandFeed from "./CommandFeed";
 import { ShowCommandDetailsHandler } from "./CommandItem/CommandItem";
 
 const baseClass = "host-activity-card";
@@ -129,8 +130,9 @@ const Activity = ({
               />
             )}
             {showMDMCommands && commands ? (
-              <PastCommandFeed
+              <CommandFeed
                 commands={commands}
+                emptyDescription="Completed MDM commands will appear here."
                 onShowDetails={onShowCommandDetails}
                 onNextPage={onNextPage}
                 onPreviousPage={onPreviousPage}
@@ -158,8 +160,9 @@ const Activity = ({
               />
             )}
             {showMDMCommands && commands ? (
-              <UpcomingCommandFeed
+              <CommandFeed
                 commands={commands}
+                emptyDescription="Pending MDM commands will appear here."
                 onShowDetails={onShowCommandDetails}
                 onNextPage={onNextPage}
                 onPreviousPage={onPreviousPage}
