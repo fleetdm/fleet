@@ -50,19 +50,22 @@ def fetch_latest_rustfs_tag() -> Optional[str]:
     
     # Sort version tags to get the newest (assuming semantic versioning)
     # For alpha versions like 1.0.0-alpha.73, we need to sort carefully
+    # Stable versions should be preferred over alpha/beta/rc versions
     def version_key(tag: str) -> tuple:
         """Parse version for sorting."""
         # Match pattern like 1.0.0-alpha.73
         match = re.match(r'(\d+)\.(\d+)\.(\d+)-alpha\.(\d+)', tag)
         if match:
+            # Alpha versions: use 0 as pre-release indicator, then alpha number
             return (int(match.group(1)), int(match.group(2)), 
-                   int(match.group(3)), int(match.group(4)))
-        # Fallback for regular versions
+                   int(match.group(3)), 0, int(match.group(4)))
+        # Fallback for regular stable versions
         match = re.match(r'(\d+)\.(\d+)\.(\d+)', tag)
         if match:
+            # Stable versions: use 1 as pre-release indicator (higher than alpha's 0)
             return (int(match.group(1)), int(match.group(2)), 
-                   int(match.group(3)), 999999)
-        return (0, 0, 0, 0)
+                   int(match.group(3)), 1, 0)
+        return (0, 0, 0, 0, 0)
     
     version_tags.sort(key=version_key, reverse=True)
     latest_tag = version_tags[0]
@@ -85,7 +88,8 @@ def find_current_rustfs_version() -> Optional[str]:
         content = f.read()
     
     # Find rustfs/rustfs image with version
-    match = re.search(r'rustfs/rustfs:([\d\.\-\w]+)', content)
+    # Match versions like 1.0.0-alpha.73 or 1.0.0
+    match = re.search(r'rustfs/rustfs:(\d+\.\d+\.\d+(?:-\w+\.\d+)?)', content)
     if match:
         current_version = match.group(1)
         print(f"Current rustfs/rustfs version in docker-compose.yml: {current_version}")
