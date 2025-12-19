@@ -21,6 +21,53 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 	return ds.ApplyLabelSpecsWithAuthor(ctx, specs, nil)
 }
 
+func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+	type existingLabel struct {
+		ID       uint  `db:"id"`
+		AuthorID *uint `db:"author_id"`
+		TeamID   *uint `db:"team_id"`
+	}
+
+	stmt := `SELECT id, author_id, team_id FROM labels WHERE name IN (?) AND label_type != ?`
+	stmt, args, err := sqlx.In(stmt, names, uint(fleet.LabelTypeBuiltIn))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build labels query")
+	}
+
+	var labels []existingLabel
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &labels, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "query existing labels")
+	}
+
+	errCannotSetAside := ctxerr.New(ctx, "one or more specified labels to set aside do not exist or cannot be set aside")
+
+	if len(labels) != len(names) {
+		return errCannotSetAside
+	}
+
+	for _, label := range labels {
+		if label.TeamID == nil {
+			// TODO if notOnTeamID is nil, bail
+
+			// TODO if user has global write role, pass
+
+			// TODO if user has a write role anywhere and authored the label, pass
+		} else {
+			// TODO if notOnTeamID is not nil and matches the label team ID, bail
+
+			// TODO if user has a global write role, pass
+
+			// TODO if user has a write role anywhere and authored the label, pass
+
+			// TODO if the user has a write role on the team, pass
+		}
+	}
+
+	// TODO run bulk update for where-in on names to rename labels, appending `__team_{COALESCE(team_id, '0")}` to all labels with the specified names
+
+	return nil // TODO
+}
+
 func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 	// First, get existing labels to detect platform changes
 	labelNames := make([]string, 0, len(specs))
@@ -366,10 +413,6 @@ func batchHostIds(hostIds []uint) [][]uint {
 	}
 	batches = append(batches, hostIds)
 	return batches
-}
-
-func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
-	return nil // TODO
 }
 
 func (ds *Datastore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
