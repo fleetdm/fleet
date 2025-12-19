@@ -714,22 +714,30 @@ type getLabelSpecsResponse struct {
 
 func (r getLabelSpecsResponse) Error() error { return r.Err }
 
+type getLabelSpecsRequest struct {
+	TeamID *uint `query:"team_id,optional"`
+}
+
 func getLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	// TODO gitops allow filtering by team ID
-	specs, err := svc.GetLabelSpecs(ctx)
+	req := request.(*getLabelSpecsRequest)
+	specs, err := svc.GetLabelSpecs(ctx, req.TeamID)
 	if err != nil {
 		return getLabelSpecsResponse{Err: err}, nil
 	}
 	return getLabelSpecsResponse{Specs: specs}, nil
 }
 
-func (svc *Service) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
+func (svc *Service) GetLabelSpecs(ctx context.Context, teamID *uint) ([]*fleet.LabelSpec, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	// TODO gitops allow filtering by team ID
-	return svc.ds.GetLabelSpecs(ctx)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	return svc.ds.GetLabelSpecs(ctx, fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID})
 }
 
 ////////////////////////////////////////////////////////////////////////////////

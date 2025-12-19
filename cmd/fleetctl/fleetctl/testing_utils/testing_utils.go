@@ -722,7 +722,7 @@ func (m *MemKeyValueStore) Get(ctx context.Context, key string) (*string, error)
 
 func AddLabelMocks(ds *mock.Store) {
 	var deletedLabels []string
-	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 		return []*fleet.LabelSpec{
 			{
 				Name:                "a",

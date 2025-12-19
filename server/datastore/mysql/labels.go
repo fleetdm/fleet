@@ -355,13 +355,17 @@ func batchHostIds(hostIds []uint) [][]uint {
 	return batches
 }
 
-func (ds *Datastore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
-	// TODO take teams into account
-
+func (ds *Datastore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
 	// Get basic specs
-	query := "SELECT id, name, description, query, platform, label_type, label_membership_type, criteria FROM labels"
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &specs, query); err != nil {
+	query, params, err := applyLabelTeamFilter(`SELECT id, name, description, query, platform,
+       label_type, label_membership_type, criteria, team_id
+		FROM labels l`, filter, nil)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query for getting label specs")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &specs, query, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get labels")
 	}
 

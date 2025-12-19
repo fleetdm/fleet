@@ -814,15 +814,16 @@ func testLabelsGetSpec(t *testing.T, ds *Datastore) {
 
 func testLabelsApplySpecsRoundtrip(t *testing.T, ds *Datastore) {
 	expectedSpecs := setupLabelSpecsTest(t, ds)
+	globalOnlyFilter := fleet.TeamFilter{}
 
-	specs, err := ds.GetLabelSpecs(context.Background())
+	specs, err := ds.GetLabelSpecs(context.Background(), globalOnlyFilter)
 	require.Nil(t, err)
 	test.ElementsMatchSkipTimestampsID(t, expectedSpecs, specs)
 
 	// Should be idempotent
 	err = ds.ApplyLabelSpecs(context.Background(), expectedSpecs)
 	require.Nil(t, err)
-	specs, err = ds.GetLabelSpecs(context.Background())
+	specs, err = ds.GetLabelSpecs(context.Background(), globalOnlyFilter)
 	require.Nil(t, err)
 	test.ElementsMatchSkipTimestampsID(t, expectedSpecs, specs)
 }

@@ -63,7 +63,7 @@ func TestLabelsAuth(t *testing.T) {
 	ds.ListHostsInLabelFunc = func(ctx context.Context, filter fleet.TeamFilter, lid uint, opts fleet.HostListOptions) ([]*fleet.Host, error) {
 		return nil, nil
 	}
-	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 		return nil, nil
 	}
 	ds.GetLabelSpecFunc = func(ctx context.Context, name string) (*fleet.LabelSpec, error) {
@@ -141,7 +141,7 @@ func TestLabelsAuth(t *testing.T) {
 			_, _, err = svc.GetLabel(ctx, otherLabel.ID)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
-			_, err = svc.GetLabelSpecs(ctx)
+			_, err = svc.GetLabelSpecs(ctx, nil)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			_, err = svc.GetLabelSpec(ctx, "abc")

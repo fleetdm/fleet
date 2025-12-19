@@ -106,7 +106,7 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 				}, nil
 			}
 
-			ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 				return []*fleet.LabelSpec{
 					{
 						Name:                "a",
@@ -387,7 +387,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 					Teams:     nil,
 				}, nil
 			}
-			ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 				return []*fleet.LabelSpec{
 					{
 						Name:                "a",
@@ -522,7 +522,7 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 				}, nil
 			}
 
-			ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 				return []*fleet.LabelSpec{
 					{
 						Name:                "label 1",

@@ -141,7 +141,7 @@ type ListPacksForHostFunc func(ctx context.Context, hid uint) (packs []*fleet.Pa
 
 type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec) error
 
-type GetLabelSpecsFunc func(ctx context.Context) ([]*fleet.LabelSpec, error)
+type GetLabelSpecsFunc func(ctx context.Context, teamID *uint) ([]*fleet.LabelSpec, error)
 
 type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, error)
 
@@ -2580,11 +2580,11 @@ func (s *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec)
 	return s.ApplyLabelSpecsFunc(ctx, specs)
 }
 
-func (s *Service) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
+func (s *Service) GetLabelSpecs(ctx context.Context, teamID *uint) ([]*fleet.LabelSpec, error) {
 	s.mu.Lock()
 	s.GetLabelSpecsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetLabelSpecsFunc(ctx)
+	return s.GetLabelSpecsFunc(ctx, teamID)
 }
 
 func (s *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
