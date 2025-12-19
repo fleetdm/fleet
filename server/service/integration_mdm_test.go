@@ -11440,8 +11440,7 @@ func (s *integrationMDMTestSuite) TestConnectedToFleetWithoutCheckout() {
 }
 
 type appStoreApp interface {
-	GetPlatform() string
-	GetAppStoreID() string
+	FullyQualifiedName() string
 }
 
 func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
@@ -11910,19 +11909,14 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	setDisplayNames := func(expectedAppCount int, expectedApps ...fleet.VPPBatchPayload) {
 		displayNameToAppStoreID := make(map[string]string)
 
-		// Make a unique key that uses the id + the platform
-		key := func(v appStoreApp) string {
-			return fmt.Sprintf(`%s_%s`, v.GetAppStoreID(), v.GetPlatform())
-		}
-
 		for _, e := range expectedApps {
 			if e.Platform == "" {
 				for _, p := range []fleet.InstallableDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform} {
 					e.Platform = p
-					displayNameToAppStoreID[key(e)] = e.DisplayName
+					displayNameToAppStoreID[e.FullyQualifiedName()] = e.DisplayName
 				}
 			}
-			displayNameToAppStoreID[key(e)] = e.DisplayName
+			displayNameToAppStoreID[e.FullyQualifiedName()] = e.DisplayName
 		}
 
 		s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: expectedApps}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
@@ -11933,7 +11927,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		require.Len(t, assoc, expectedAppCount)
 
 		for _, a := range assoc {
-			assert.Contains(t, displayNameToAppStoreID, key(a))
+			assert.Contains(t, displayNameToAppStoreID, a.FullyQualifiedName())
 		}
 
 		time.Sleep(time.Second)
@@ -11945,7 +11939,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 		s.Assert().Len(listSwTitles.SoftwareTitles, expectedAppCount)
 		for _, sw := range listSwTitles.SoftwareTitles {
-			id, ok := displayNameToAppStoreID[key(sw.AppStoreApp)]
+			id, ok := displayNameToAppStoreID[sw.AppStoreApp.FullyQualifiedName()]
 			s.Assert().True(ok)
 			s.Assert().Equal(id, sw.DisplayName)
 		}

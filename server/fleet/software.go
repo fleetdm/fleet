@@ -666,12 +666,8 @@ type VPPBatchPayload struct {
 	Configuration json.RawMessage           `json:"configuration,omitempty"`
 }
 
-func (v VPPBatchPayload) GetPlatform() string {
-	return string(v.Platform)
-}
-
-func (v VPPBatchPayload) GetAppStoreID() string {
-	return v.AppStoreID
+func (v VPPBatchPayload) FullyQualifiedName() string {
+	return fmt.Sprintf("%s_%s", v.AppStoreID, v.Platform)
 }
 
 type VPPBatchPayloadWithPlatform struct {
