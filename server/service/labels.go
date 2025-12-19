@@ -620,10 +620,11 @@ func applyLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, namesToMove []string) error {
-	// TODO GitOps add team ID handling, including bailing if not premium
-
 	if err := svc.authz.Authorize(ctx, &fleet.Label{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
+	}
+	if !license.IsPremium(ctx) && teamID != nil && *teamID > 0 {
+		return fleet.ErrMissingLicense
 	}
 
 	regularSpecs := make([]*fleet.LabelSpec, 0, len(specs))

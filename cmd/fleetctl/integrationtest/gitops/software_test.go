@@ -295,6 +295,9 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 					},
 				}, nil
 			}
+			ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+				return nil
+			}
 			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 				return []uint{}, nil
 			}
@@ -402,6 +405,9 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 						Query:               "SELECT 1 from osquery_info",
 					},
 				}, nil
+			}
+			ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+				return nil
 			}
 			labelToIDs := map[string]uint{
 				fleet.BuiltinLabelMacOS14Plus: 1,

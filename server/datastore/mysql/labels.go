@@ -22,8 +22,6 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 }
 
 func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
-	// TODO update to take teams into account
-
 	// First, get existing labels to detect platform changes
 	labelNames := make([]string, 0, len(specs))
 	for _, s := range specs {
@@ -36,8 +34,13 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 		ID       uint   `db:"id"`
 		Name     string `db:"name"`
 		Platform string `db:"platform"`
+		TeamID   *uint  `db:"team_id"`
 	}
 	existingLabels := make(map[string]existingLabel, len(specs))
+
+	// NOTE: Thie assumes the caller has verified that label specs are all writable by the user, either for authorship
+	// or team affiliation. We'll catch cases where a user is attempting to move the label between teams (which
+	// should've been cleaned up by SetAsideLabels).
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// TODO: do we want to allow on duplicate updating label_type or
@@ -46,7 +49,7 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 		// are not changed?
 
 		if len(labelNames) > 0 {
-			stmt := `SELECT id, name, platform FROM labels WHERE name IN (?)`
+			stmt := `SELECT id, name, platform, team_id FROM labels WHERE name IN (?)`
 			stmt, args, err := sqlx.In(stmt, labelNames)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build existing labels query")
@@ -58,7 +61,16 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 			}
 
 			for _, label := range labels {
-				existingLabels[label.Name] = label
+				existingLabels[strings.ToLower(label.Name)] = label
+			}
+
+			for _, spec := range specs {
+				if existingLabel, ok := existingLabels[strings.ToLower(spec.Name)]; ok &&
+					(existingLabel.TeamID != nil && spec.TeamID == nil ||
+						existingLabel.TeamID == nil && spec.TeamID != nil ||
+						(existingLabel.TeamID != nil && spec.TeamID != nil && *existingLabel.TeamID != *spec.TeamID)) {
+					return ctxerr.Wrap(ctx, err, "one or more specified labels exists on another team")
+				}
 			}
 		}
 
@@ -71,7 +83,8 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 			label_type,
 			label_membership_type,
 			criteria,
-			author_id
+			author_id,
+			team_id
 		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ? )
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
@@ -103,7 +116,7 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 			}
 
 			// Check if this is an existing label and platform changed -> clean up memberships if needed
-			if existing, ok := existingLabels[s.Name]; ok && existing.Platform != s.Platform {
+			if existing, ok := existingLabels[strings.ToLower(s.Name)]; ok && existing.Platform != s.Platform {
 				// When a label's platform changes, we delete all existing memberships.
 				// This ensures a clean slate - the label's query will be re-evaluated
 				// by Fleet's label execution system, and only hosts matching the new
@@ -124,7 +137,7 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 
 			// For manual labels, we need the label ID to update membership
 			var labelID uint
-			if existing, ok := existingLabels[s.Name]; ok {
+			if existing, ok := existingLabels[strings.ToLower(s.Name)]; ok {
 				// Use the existing label ID
 				labelID = existing.ID
 			} else {
