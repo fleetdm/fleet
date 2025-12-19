@@ -283,7 +283,7 @@ func (svc *Service) DeleteCertificateTemplate(ctx context.Context, certificateTe
 		return ctxerr.Wrap(ctx, err, "deleting certificate template")
 	}
 
-	activity := fleet.ActivityTypeDeletedCertificateTemplate{
+	activity := fleet.ActivityTypeDeletedCertificate{
 		Name: certificate.Name,
 	}
 	if certificate.TeamID != 0 {

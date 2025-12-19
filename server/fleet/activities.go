@@ -3242,17 +3242,17 @@ func (a ActivityTypeCreatedCertificate) Documentation() (activity string, detail
 }`
 }
 
-type ActivityTypeDeletedCertificateTemplate struct {
+type ActivityTypeDeletedCertificate struct {
 	Name     string  `json:"name"`
 	TeamID   *uint   `json:"team_id"`
 	TeamName *string `json:"team_name"`
 }
 
-func (a ActivityTypeDeletedCertificateTemplate) ActivityName() string {
-	return "deleted_certificate_template"
+func (a ActivityTypeDeletedCertificate) ActivityName() string {
+	return "deleted_certificate"
 }
 
-func (a ActivityTypeDeletedCertificateTemplate) Documentation() (activity string, details string, detailsExample string) {
+func (a ActivityTypeDeletedCertificate) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when an user deletes a Certificate Template.`,
 		`This activity contains the following fields:
 - "name"": Name of the certificate.
