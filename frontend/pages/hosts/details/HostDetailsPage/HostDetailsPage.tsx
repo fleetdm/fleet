@@ -818,6 +818,7 @@ const HostDetailsPage = ({
             // the host object if it's available.
             hostDisplayName:
               host?.display_name || details?.host_display_name || "",
+            platform: details?.host_platform || host?.platform,
           });
           break;
         default: // do nothing
