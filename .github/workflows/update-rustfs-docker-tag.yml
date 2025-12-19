@@ -1,0 +1,43 @@
+name: Update rustfs Docker tag
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Run daily at midnight UTC
+  workflow_dispatch: # Allow manual triggering
+
+permissions:
+  contents: read
+
+jobs:
+  update-rustfs-tag:
+    permissions:
+      contents: write # for peter-evans/create-pull-request to create branch
+      pull-requests: write # for peter-evans/create-pull-request to create a PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@cb605e52c26070c328afc4562f0b4ada7618a84e # v2.10.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+      
+      - name: Set up Python
+        uses: actions/setup-python@65d7f2d534ac1bc67fcd62888c5f4f3d2cb2b236 # v4.7.1
+        with:
+          python-version: "3.13.1"
+      
+      - name: Install packaging library
+        run: pip install packaging
+      
+      - name: Update rustfs version in docker-compose files
+        run: python .github/scripts/update_rustfs_version.py
+      
+      - name: PR changes
+        uses: peter-evans/create-pull-request@4e1beaa7521e8b457b572c090b25bd3db56bf1c5 # v5.0.3
+        with:
+          commit-message: Update rustfs/rustfs Docker tag
+          title: "Update rustfs/rustfs Docker tag to latest version"
+          body: "Automated update of rustfs/rustfs Docker tag in docker-compose.yml files to the latest available version from Docker Hub."
+          branch: update-rustfs-docker-tag
+          delete-branch: true
