@@ -3220,17 +3220,17 @@ func (a ActivityTypeEditedHostIdpData) Documentation() (activity, details, detai
 }`
 }
 
-type ActivityTypeCreatedCertificateTemplate struct {
+type ActivityTypeCreatedCertificate struct {
 	Name     string  `json:"name"`
 	TeamID   *uint   `json:"team_id"`
 	TeamName *string `json:"team_name"`
 }
 
-func (a ActivityTypeCreatedCertificateTemplate) ActivityName() string {
-	return "created_certificate_template"
+func (a ActivityTypeCreatedCertificate) ActivityName() string {
+	return "created_certificate"
 }
 
-func (a ActivityTypeCreatedCertificateTemplate) Documentation() (activity string, details string, detailsExample string) {
+func (a ActivityTypeCreatedCertificate) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when an user creates a Certificate Template.`,
 		`This activity contains the following fields:
 - "name": Name of the certificate.
