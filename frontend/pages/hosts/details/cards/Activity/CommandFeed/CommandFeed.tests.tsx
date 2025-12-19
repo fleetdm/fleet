@@ -11,6 +11,7 @@ describe("CommandFeed", () => {
   const mockOnPreviousPage = jest.fn();
 
   const defaultProps = {
+    emptyDescription: "Completed MDM commands will appear here.",
     onShowDetails: mockOnShowDetails,
     onNextPage: mockOnNextPage,
     onPreviousPage: mockOnPreviousPage,
