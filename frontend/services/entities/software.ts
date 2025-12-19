@@ -732,6 +732,10 @@ export default {
   ) => {
     const { SOFTWARE_FLEET_MAINTAINED_APPS } = endpoints;
 
+    // DEBUG: Log branch name to verify correct deployment
+    // eslint-disable-next-line no-console
+    console.log("[WAF-FIX-BRANCH] addFleetMaintainedApp called - branch: cdcme/fix-fleet-maintained-windows-apps-on-render");
+
     // Base64 encode script fields to bypass WAF rules that block script patterns
     const body: IAddFleetMaintainedAppPostBody = {
       team_id: teamId,

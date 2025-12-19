@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -31,6 +32,9 @@ type addFleetMaintainedAppRequest struct {
 func (addFleetMaintainedAppRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	var req addFleetMaintainedAppRequest
 
+	// DEBUG: Log branch name to verify correct deployment
+	fmt.Println("[WAF-FIX-BRANCH] DecodeRequest called - branch: cdcme/fix-fleet-maintained-windows-apps-on-render")
+
 	// Decode JSON body
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, &fleet.BadRequestError{
@@ -38,6 +42,10 @@ func (addFleetMaintainedAppRequest) DecodeRequest(ctx context.Context, r *http.R
 			InternalErr: err,
 		}
 	}
+
+	// DEBUG: Log header presence
+	headerValue := r.Header.Get(ScriptsEncodedHeader)
+	fmt.Printf("[WAF-FIX-BRANCH] X-Fleet-Scripts-Encoded header: %q, isScriptsEncoded: %v\n", headerValue, isScriptsEncoded(r))
 
 	// Check if scripts are base64 encoded
 	if isScriptsEncoded(r) {
