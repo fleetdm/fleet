@@ -582,18 +582,20 @@ func (svc *Service) UpdateCertificateStatus(
 		return fleet.NewInvalidArgumentError("operation_type", string(opType))
 	}
 
-	certificate, err := svc.ds.GetCertificateTemplateForHost(ctx, host.UUID, certificateTemplateID)
+	// Use GetHostCertificateTemplateRecord to query the host_certificate_templates table directly,
+	// allowing status updates even when the parent certificate_template has been deleted.
+	record, err := svc.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certificateTemplateID)
 	if err != nil {
 		return err
 	}
 
-	if certificate.Status != nil && *certificate.Status != fleet.CertificateTemplateDelivered {
-		level.Info(svc.logger).Log("msg", "ignoring certificate status update for non-delivered certificate", "host_uuid", host.UUID, "certificate_template_id", certificateTemplateID, "current_status", certificate.Status, "new_status", status)
+	if record.Status != fleet.CertificateTemplateDelivered {
+		level.Info(svc.logger).Log("msg", "ignoring certificate status update for non-delivered certificate", "host_uuid", host.UUID, "certificate_template_id", certificateTemplateID, "current_status", record.Status, "new_status", status)
 		return nil
 	}
 
-	if certificate.OperationType != nil && *certificate.OperationType != opType {
-		level.Info(svc.logger).Log("msg", "ignoring certificate status update for different operation type", "host_uuid", host.UUID, "certificate_template_id", certificateTemplateID, "current_operation_type", certificate.OperationType, "new_operation_type", opType)
+	if record.OperationType != opType {
+		level.Info(svc.logger).Log("msg", "ignoring certificate status update for different operation type", "host_uuid", host.UUID, "certificate_template_id", certificateTemplateID, "current_operation_type", record.OperationType, "new_operation_type", opType)
 		return nil
 	}
 

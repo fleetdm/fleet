@@ -109,6 +109,36 @@ func (ds *Datastore) GetCertificateTemplateForHost(ctx context.Context, hostUUID
 	return &result, nil
 }
 
+// GetHostCertificateTemplateRecord returns the host_certificate_templates record directly without
+// requiring the parent certificate_template to exist. Used for status updates on orphaned records.
+func (ds *Datastore) GetHostCertificateTemplateRecord(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.HostCertificateTemplate, error) {
+	const stmt = `
+		SELECT
+			id,
+			name,
+			host_uuid,
+			certificate_template_id,
+			fleet_challenge,
+			status,
+			operation_type,
+			detail,
+			created_at,
+			updated_at
+		FROM host_certificate_templates
+		WHERE host_uuid = ? AND certificate_template_id = ?
+	`
+
+	var result fleet.HostCertificateTemplate
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, hostUUID, certificateTemplateID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("HostCertificateTemplate"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host certificate template record")
+	}
+
+	return &result, nil
+}
+
 // BulkInsertHostCertificateTemplates inserts multiple host_certificate_templates records
 func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error {
 	if len(hostCertTemplates) == 0 {
