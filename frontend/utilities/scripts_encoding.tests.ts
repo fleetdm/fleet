@@ -1,7 +1,4 @@
-import {
-  encodeScriptBase64,
-  SCRIPTS_ENCODED_HEADER,
-} from "./scripts_encoding";
+import { encodeScriptBase64, SCRIPTS_ENCODED_HEADER } from "./scripts_encoding";
 
 describe("scripts_encoding", () => {
   describe("SCRIPTS_ENCODED_HEADER", () => {

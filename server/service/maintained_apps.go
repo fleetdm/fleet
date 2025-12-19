@@ -28,7 +28,7 @@ type addFleetMaintainedAppRequest struct {
 // script fields. This allows bypassing WAF rules that may block requests containing
 // shell/PowerShell script patterns. When the X-Fleet-Scripts-Encoded header is set
 // to "base64", the script fields are decoded from base64.
-func (addFleetMaintainedAppRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (addFleetMaintainedAppRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	var req addFleetMaintainedAppRequest
 
 	// Decode JSON body

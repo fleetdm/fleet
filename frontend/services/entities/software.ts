@@ -1,7 +1,6 @@
 import { AxiosProgressEvent } from "axios";
 
 import sendRequest, {
-  sendRequestWithProgress,
   sendRequestWithHeaders,
   sendRequestWithProgressAndHeaders,
 } from "services";
@@ -273,10 +272,22 @@ const handleEditPackageForm = (
   data.software && formData.append("software", data.software);
   formData.append("self_service", data.selfService.toString());
   // Base64 encode script fields to bypass WAF rules that block script patterns
-  formData.append("install_script", encodeScriptBase64(data.installScript) || "");
-  formData.append("pre_install_query", encodeScriptBase64(data.preInstallQuery || "") || "");
-  formData.append("post_install_script", encodeScriptBase64(data.postInstallScript || "") || "");
-  formData.append("uninstall_script", encodeScriptBase64(data.uninstallScript || "") || "");
+  formData.append(
+    "install_script",
+    encodeScriptBase64(data.installScript) || ""
+  );
+  formData.append(
+    "pre_install_query",
+    encodeScriptBase64(data.preInstallQuery || "") || ""
+  );
+  formData.append(
+    "post_install_script",
+    encodeScriptBase64(data.postInstallScript || "") || ""
+  );
+  formData.append(
+    "uninstall_script",
+    encodeScriptBase64(data.uninstallScript || "") || ""
+  );
   if (data.categories) {
     data.categories.forEach((category) => {
       formData.append("categories", category);
@@ -469,13 +480,25 @@ export default {
     formData.append("self_service", data.selfService.toString());
     // Base64 encode script fields to bypass WAF rules that block script patterns
     data.installScript &&
-      formData.append("install_script", encodeScriptBase64(data.installScript) || "");
+      formData.append(
+        "install_script",
+        encodeScriptBase64(data.installScript) || ""
+      );
     data.uninstallScript &&
-      formData.append("uninstall_script", encodeScriptBase64(data.uninstallScript) || "");
+      formData.append(
+        "uninstall_script",
+        encodeScriptBase64(data.uninstallScript) || ""
+      );
     data.preInstallQuery &&
-      formData.append("pre_install_query", encodeScriptBase64(data.preInstallQuery) || "");
+      formData.append(
+        "pre_install_query",
+        encodeScriptBase64(data.preInstallQuery) || ""
+      );
     data.postInstallScript &&
-      formData.append("post_install_script", encodeScriptBase64(data.postInstallScript) || "");
+      formData.append(
+        "post_install_script",
+        encodeScriptBase64(data.postInstallScript) || ""
+      );
     data.automaticInstall &&
       formData.append("automatic_install", data.automaticInstall.toString());
     teamId && formData.append("team_id", teamId.toString());
@@ -731,8 +754,13 @@ export default {
       }
     }
 
-    return sendRequestWithHeaders("POST", SOFTWARE_FLEET_MAINTAINED_APPS, body, {
-      [SCRIPTS_ENCODED_HEADER]: "base64",
-    });
+    return sendRequestWithHeaders(
+      "POST",
+      SOFTWARE_FLEET_MAINTAINED_APPS,
+      body,
+      {
+        [SCRIPTS_ENCODED_HEADER]: "base64",
+      }
+    );
   },
 };
