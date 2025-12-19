@@ -25,10 +25,23 @@ func attachFleetAPIRoutes(r *mux.Router, svc activity.Service, authMiddleware en
 
 	// Ping endpoint: hello world for the activity bounded context
 	ue.GET("/api/_version_/fleet/activity/ping", pingEndpoint, nil)
+
+	// List activities endpoint
+	ue.GET("/api/_version_/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
 }
 
 func apiVersions() []string {
 	return []string{"v1"}
+}
+
+// //////////////////////////////////////////
+// Request types
+
+type listActivitiesRequest struct {
+	ListOptions    activity.ListOptions `url:"list_options"`
+	ActivityType   string               `query:"activity_type,optional"`
+	StartCreatedAt string               `query:"start_created_at,optional"`
+	EndCreatedAt   string               `query:"end_created_at,optional"`
 }
 
 // //////////////////////////////////////////
@@ -39,4 +52,18 @@ func pingEndpoint(ctx context.Context, _ any, svc activity.Service) platform_htt
 		return activity.DefaultResponse{Err: err}
 	}
 	return activity.PingResponse{Message: "ping"}
+}
+
+func listActivitiesEndpoint(ctx context.Context, request any, svc activity.Service) platform_http.Errorer {
+	req := request.(*listActivitiesRequest)
+	activities, metadata, err := svc.ListActivities(ctx, activity.ListActivitiesOptions{
+		ListOptions:    req.ListOptions,
+		ActivityType:   req.ActivityType,
+		StartCreatedAt: req.StartCreatedAt,
+		EndCreatedAt:   req.EndCreatedAt,
+	})
+	if err != nil {
+		return activity.ListActivitiesResponse{DefaultResponse: activity.DefaultResponse{Err: err}}
+	}
+	return activity.ListActivitiesResponse{Meta: metadata, Activities: activities}
 }

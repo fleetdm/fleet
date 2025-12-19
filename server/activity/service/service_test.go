@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/activity"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,6 +15,14 @@ type mockStore struct {
 
 func (m *mockStore) Ping(_ context.Context) error {
 	return m.pingErr
+}
+
+func (m *mockStore) ListActivities(_ context.Context, _ activity.ListActivitiesOptions) ([]*activity.Activity, *activity.PaginationMetadata, error) {
+	return nil, nil, nil
+}
+
+func (m *mockStore) ListUsers(_ context.Context, _ activity.UserListOptions) ([]*activity.User, error) {
+	return nil, nil
 }
 
 // mockAuthorizer implements activity.Authorizer for testing.

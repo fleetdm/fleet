@@ -21,8 +21,15 @@ func NewService(authz activity.Authorizer, store Datastore) *Service {
 }
 
 // Ping verifies the service is healthy.
-// This is a placeholder method for the scaffold phase.
 func (svc *Service) Ping(ctx context.Context) error {
 	svc.authz.SkipAuthorization(ctx)
 	return svc.store.Ping(ctx)
+}
+
+// ListActivities returns a paginated list of activities for the organization.
+func (svc *Service) ListActivities(ctx context.Context, opt activity.ListActivitiesOptions) ([]*activity.Activity, *activity.PaginationMetadata, error) {
+	if err := svc.authz.Authorize(ctx, &activity.Activity{}, activity.ActionRead); err != nil {
+		return nil, nil, err
+	}
+	return svc.store.ListActivities(ctx, opt)
 }
