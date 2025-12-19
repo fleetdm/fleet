@@ -23,6 +23,7 @@ describe("scripts_encoding", () => {
     });
 
     it("should encode PowerShell patterns with dollar brace", () => {
+      // eslint-disable-next-line no-template-curly-in-string
       const encoded = encodeScriptBase64("${env:TEMP}");
       // "${env:TEMP}" in base64 is "JHtlbnY6VEVNUH0="
       expect(encoded).toBe("JHtlbnY6VEVNUH0=");
@@ -37,6 +38,7 @@ describe("scripts_encoding", () => {
 
     it("should encode multiline PowerShell scripts", () => {
       const script =
+        // eslint-disable-next-line no-template-curly-in-string
         '$logFile = "${env:TEMP}/fleet-install.log"\nStart-Process msiexec.exe';
       const encoded = encodeScriptBase64(script);
       // Verify it's valid base64 and decodes back correctly
@@ -53,11 +55,17 @@ describe("scripts_encoding", () => {
 
     it("should produce valid base64 that Go can decode", () => {
       // Test the specific WAF-triggering patterns
+      // eslint-disable-next-line no-template-curly-in-string
+      const envTemp = "${env:TEMP}";
+      // eslint-disable-next-line no-template-curly-in-string
+      const envInstallerPath = "${env:INSTALLER_PATH}";
+      // eslint-disable-next-line no-template-curly-in-string
+      const logFileScript = '$logFile = "${env:TEMP}/fleet-install.log"';
       const testCases = [
-        "${env:TEMP}",
-        "${env:INSTALLER_PATH}",
+        envTemp,
+        envInstallerPath,
         "Start-Process msiexec.exe",
-        '$logFile = "${env:TEMP}/fleet-install.log"',
+        logFileScript,
       ];
 
       testCases.forEach((script) => {

@@ -4,7 +4,7 @@ services:
     type: web
     runtime: image
     image:
-      url: 'cdcme/fleet:waf-fix'
+      url: 'fleetdm/fleet:latest'
     preDeployCommand: "fleet prepare --no-prompt=true db"
     healthCheckPath: /healthz
     disk:
