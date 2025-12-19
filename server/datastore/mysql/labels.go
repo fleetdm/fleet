@@ -22,6 +22,10 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 }
 
 func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+	if len(names) == 0 {
+		return nil
+	}
+
 	type existingLabel struct {
 		ID       uint  `db:"id"`
 		AuthorID *uint `db:"author_id"`
@@ -45,27 +49,95 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 		return errCannotSetAside
 	}
 
+	// Helper function to check if user has a global write role (admin, maintainer, or gitops)
+	hasGlobalWriteRole := func() bool {
+		if user.GlobalRole == nil {
+			return false
+		}
+		return *user.GlobalRole == fleet.RoleAdmin ||
+			*user.GlobalRole == fleet.RoleMaintainer ||
+			*user.GlobalRole == fleet.RoleGitOps
+	}
+
+	// Helper function to check if user has a write role on any team
+	hasWriteRoleAnywhere := func() bool {
+		for _, team := range user.Teams {
+			if team.Role == fleet.RoleAdmin ||
+				team.Role == fleet.RoleMaintainer ||
+				team.Role == fleet.RoleGitOps {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Helper function to check if user has a write role on a specific team
+	hasWriteRoleOnTeam := func(teamID uint) bool {
+		for _, team := range user.Teams {
+			if team.ID == teamID &&
+				(team.Role == fleet.RoleAdmin ||
+					team.Role == fleet.RoleMaintainer ||
+					team.Role == fleet.RoleGitOps) {
+				return true
+			}
+		}
+		return false
+	}
+
 	for _, label := range labels {
 		if label.TeamID == nil {
-			// TODO if notOnTeamID is nil, bail
+			// Global label
+			if notOnTeamID == nil {
+				// Can't set aside a global label if we're not moving to a new team
+				return errCannotSetAside
+			}
 
-			// TODO if user has global write role, pass
+			if hasGlobalWriteRole() {
+				continue
+			}
 
-			// TODO if user has a write role anywhere and authored the label, pass
+			if hasWriteRoleAnywhere() && label.AuthorID != nil && *label.AuthorID == user.ID {
+				continue
+			}
+
+			// User doesn't have permission to set aside this global label
+			return errCannotSetAside
 		} else {
-			// TODO if notOnTeamID is not nil and matches the label team ID, bail
+			// Team label
+			if notOnTeamID != nil && *notOnTeamID == *label.TeamID {
+				// Can't set aside a label that's on the team we're excluding
+				return errCannotSetAside
+			}
 
-			// TODO if user has a global write role, pass
+			if hasGlobalWriteRole() {
+				continue
+			}
 
-			// TODO if user has a write role anywhere and authored the label, pass
+			if hasWriteRoleAnywhere() && label.AuthorID != nil && *label.AuthorID == user.ID {
+				continue
+			}
 
-			// TODO if the user has a write role on the team, pass
+			if hasWriteRoleOnTeam(*label.TeamID) {
+				continue
+			}
+
+			// User doesn't have permission to set aside this team label
+			return errCannotSetAside
 		}
 	}
 
-	// TODO run bulk update for where-in on names to rename labels, appending `__team_{COALESCE(team_id, '0")}` to all labels with the specified names
+	// Bulk update to rename labels by appending __team_{team_id} (or __team_0 for global labels)
+	updateStmt := `UPDATE labels SET name = CONCAT(name, '__team_', COALESCE(team_id, 0)) WHERE name IN (?) AND label_type != ?`
+	updateStmt, updateArgs, err := sqlx.In(updateStmt, names, uint(fleet.LabelTypeBuiltIn))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build update labels query")
+	}
 
-	return nil // TODO
+	if _, err := ds.writer(ctx).ExecContext(ctx, updateStmt, updateArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "rename labels to set aside")
+	}
+
+	return nil
 }
 
 func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
