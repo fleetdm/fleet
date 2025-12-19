@@ -262,23 +262,19 @@ func (ds *Datastore) BatchDeleteCertificateTemplates(ctx context.Context, certif
 	return rowsAffected > 0, nil
 }
 
-// GetActiveHostCertificateTemplates returns certificate templates currently associated with the specified host,
-// excluding templates that have been verified as removed (status=verified and operation_type=remove).
-func (ds *Datastore) GetActiveHostCertificateTemplates(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error) {
+func (ds *Datastore) GetHostCertificateTemplates(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error) {
 	if hostUUID == "" {
 		return nil, errors.New("hostUUID cannot be empty")
 	}
 
-	stmt := fmt.Sprintf(`
+	stmt := `
 SELECT
 	name,
 	status,
 	detail,
 	operation_type
 FROM host_certificate_templates
-WHERE host_uuid = ?
-	AND NOT (status = '%s' AND operation_type = '%s')`,
-		fleet.CertificateTemplateVerified, fleet.MDMOperationTypeRemove)
+WHERE host_uuid = ?`
 
 	var hTemplates []fleet.HostCertificateTemplate
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hTemplates, stmt, hostUUID); err != nil {
