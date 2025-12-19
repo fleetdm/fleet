@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"fleetdm/gm/pkg/ghapi"
-	"fleetdm/gm/pkg/logger"
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
