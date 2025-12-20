@@ -1,7 +1,7 @@
 import { ICertificate } from "services/entities/certificates";
-import { IAddCertFormData } from "./AddCertificateModal";
+import { ICreateCertFormData } from "./CreateCertificateModal";
 
-export interface IAddCertFormValidation {
+export interface ICreateCertFormValidation {
   isValid: boolean;
   name?: { isValid: boolean; message?: string };
   certAuthorityId?: { isValid: boolean; message?: string };
@@ -13,13 +13,13 @@ export const INVALID_NAME_MSG =
 export const USED_NAME_MSG = "Name is already used by another certificate.";
 export const NAME_TOO_LONG_MSG = "Name is too long. Maximum is 255 characters.";
 
-type IMessageFunc = (formData: IAddCertFormData) => string;
+type IMessageFunc = (formData: ICreateCertFormData) => string;
 type IValidationMessage = string | IMessageFunc;
-type IFormValidationKey = keyof Omit<IAddCertFormValidation, "isValid">;
+type IFormValidationKey = keyof Omit<ICreateCertFormValidation, "isValid">;
 
 interface IValidation {
   name: string;
-  isValid: (formData: IAddCertFormData) => boolean;
+  isValid: (formData: ICreateCertFormData) => boolean;
   message?: IValidationMessage;
 }
 
@@ -36,20 +36,20 @@ export const generateFormValidations = (
       validations: [
         {
           name: "required",
-          isValid: (formData: IAddCertFormData) => {
+          isValid: (formData: ICreateCertFormData) => {
             return formData.name.length > 0;
           },
         },
         {
           name: "invalidCharacters",
-          isValid: (formData: IAddCertFormData) => {
+          isValid: (formData: ICreateCertFormData) => {
             return /^[a-zA-Z0-9 \-_]+$/.test(formData.name);
           },
           message: INVALID_NAME_MSG,
         },
         {
           name: "unique",
-          isValid: (formData: IAddCertFormData) => {
+          isValid: (formData: ICreateCertFormData) => {
             return (
               existingCerts.find(
                 (cert) =>
@@ -61,7 +61,7 @@ export const generateFormValidations = (
         },
         {
           name: "maxLength",
-          isValid: (formData: IAddCertFormData) => {
+          isValid: (formData: ICreateCertFormData) => {
             return formData.name.length <= 255;
           },
           message: NAME_TOO_LONG_MSG,
@@ -72,7 +72,7 @@ export const generateFormValidations = (
       validations: [
         {
           name: "required",
-          isValid: (formData: IAddCertFormData) => {
+          isValid: (formData: ICreateCertFormData) => {
             return formData.certAuthorityId !== "";
           },
           // no error message specified
@@ -83,7 +83,7 @@ export const generateFormValidations = (
       validations: [
         {
           name: "required",
-          isValid: (formData: IAddCertFormData) => {
+          isValid: (formData: ICreateCertFormData) => {
             return formData.subjectName.length > 0;
           },
         },
@@ -95,7 +95,7 @@ export const generateFormValidations = (
 };
 
 const getErrorMessage = (
-  formData: IAddCertFormData,
+  formData: ICreateCertFormData,
   message?: IValidationMessage
 ) => {
   if (message === undefined || typeof message === "string") {
@@ -105,10 +105,10 @@ const getErrorMessage = (
 };
 
 export const validateFormData = (
-  formData: IAddCertFormData,
+  formData: ICreateCertFormData,
   validationConfig: IFormValidations
-): IAddCertFormValidation => {
-  const formValidation: IAddCertFormValidation = {
+): ICreateCertFormValidation => {
+  const formValidation: ICreateCertFormValidation = {
     isValid: true,
   };
 

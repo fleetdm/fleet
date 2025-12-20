@@ -36,7 +36,7 @@ import certAPI, {
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 import AddCertCard from "./components/AddCertificateCard/AddCertificateCard";
 import DeleteCertModal from "./components/DeleteCertificateModal";
-import AddCertModal from "./components/AddCertificateModal";
+import CreateCertModal from "./components/CreateCertificateModal";
 
 const baseClass = "certificates";
 
@@ -50,7 +50,7 @@ const Certificates = ({
   currentPage = 0,
   onMutation,
 }: ICertificatesProps) => {
-  const [showAddCertModal, setShowAddCertModal] = useState(false);
+  const [showCreateCertModal, setShowCreateCertModal] = useState(false);
   const [certToDelete, setCertToDelete] = useState<null | ICertificate>(null);
   const { config, isPremiumTier } = useContext(AppContext);
 
@@ -129,7 +129,7 @@ const Certificates = ({
     }
 
     if (!certs.length) {
-      return <AddCertCard setShowModal={setShowAddCertModal} />;
+      return <AddCertCard setShowModal={setShowCreateCertModal} />;
     }
 
     return (
@@ -141,7 +141,7 @@ const Certificates = ({
             <UploadListHeading
               entityName="Certificate"
               createEntityText="Create"
-              onClickAdd={() => setShowAddCertModal(true)}
+              onClickAdd={() => setShowCreateCertModal(true)}
             />
           )}
           ListItemComponent={({ listItem }) => {
@@ -210,10 +210,10 @@ const Certificates = ({
         }
       />
       {renderContent()}
-      {showAddCertModal && (
-        <AddCertModal
+      {showCreateCertModal && (
+        <CreateCertModal
           existingCerts={certs}
-          onExit={() => setShowAddCertModal(false)}
+          onExit={() => setShowCreateCertModal(false)}
           onSuccess={onUpdateSuccess}
           currentTeamId={currentTeamId}
         />

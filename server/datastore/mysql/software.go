@@ -1264,6 +1264,7 @@ func (ds *Datastore) reconcileExistingTitleEmptyUpgradeCodes(
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			result, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
+				// Err: Duplicate entry '{9B0BAA88-E15F-3A1F-ACC0-B206E9DDF71C}-programs-' for key 'software_titles.idx_unique_sw_titles'
 				return ctxerr.Wrapf(ctx, err, "updating upgrade_code for software_title id: %d", titleID)
 			}
 

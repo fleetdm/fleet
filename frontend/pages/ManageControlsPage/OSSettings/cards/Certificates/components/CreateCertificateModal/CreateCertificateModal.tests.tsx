@@ -6,7 +6,7 @@ import { ICertificate } from "services/entities/certificates";
 import mockServer from "test/mock-server";
 import { baseUrl, createCustomRenderer } from "test/test-utils";
 
-import AddCertModal from "./AddCertificateModal";
+import CreateCertModal from "./CreateCertificateModal";
 import { INVALID_NAME_MSG, NAME_TOO_LONG_MSG, USED_NAME_MSG } from "./helpers";
 
 const mockOnExit = jest.fn();
@@ -44,7 +44,7 @@ const mockExistingCerts: ICertificate[] = [
   },
 ];
 
-describe("AddCertModal", () => {
+describe("CreateCertModal", () => {
   beforeEach(() => {
     mockServer.use(getCAsHandler);
     mockServer.use(createCertHandler);
@@ -58,7 +58,7 @@ describe("AddCertModal", () => {
       withBackendMock: true,
     });
     render(
-      <AddCertModal
+      <CreateCertModal
         existingCerts={[]}
         onExit={mockOnExit}
         onSuccess={mockOnSuccess}
@@ -69,7 +69,7 @@ describe("AddCertModal", () => {
       expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
     });
 
-    expect(screen.getByText("Add certificate")).toBeInTheDocument();
+    expect(screen.getByText("Create certificate")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("VPN certificate")).toBeInTheDocument();
     expect(screen.getByText("Certificate authority (CA)")).toBeInTheDocument();
     expect(
@@ -86,7 +86,7 @@ describe("AddCertModal", () => {
       withBackendMock: true,
     });
     const { user } = render(
-      <AddCertModal
+      <CreateCertModal
         existingCerts={[]}
         onExit={mockOnExit}
         onSuccess={mockOnSuccess}
@@ -113,7 +113,7 @@ describe("AddCertModal", () => {
       withBackendMock: true,
     });
     const { user } = render(
-      <AddCertModal
+      <CreateCertModal
         existingCerts={[]}
         onExit={mockOnExit}
         onSuccess={mockOnSuccess}
@@ -140,7 +140,7 @@ describe("AddCertModal", () => {
       withBackendMock: true,
     });
     const { user } = render(
-      <AddCertModal
+      <CreateCertModal
         existingCerts={mockExistingCerts}
         onExit={mockOnExit}
         onSuccess={mockOnSuccess}
@@ -167,7 +167,7 @@ describe("AddCertModal", () => {
       withBackendMock: true,
     });
     const { user } = render(
-      <AddCertModal
+      <CreateCertModal
         existingCerts={mockExistingCerts}
         onExit={mockOnExit}
         onSuccess={mockOnSuccess}
@@ -195,7 +195,7 @@ describe("AddCertModal", () => {
       withBackendMock: true,
     });
     const { user } = render(
-      <AddCertModal
+      <CreateCertModal
         existingCerts={mockExistingCerts}
         onExit={mockOnExit}
         onSuccess={mockOnSuccess}
@@ -223,7 +223,7 @@ describe("AddCertModal", () => {
       withBackendMock: true,
     });
     const { user } = render(
-      <AddCertModal
+      <CreateCertModal
         existingCerts={[]}
         onExit={mockOnExit}
         onSuccess={mockOnSuccess}
@@ -257,7 +257,7 @@ describe("AddCertModal", () => {
       withBackendMock: true,
     });
     const { user } = render(
-      <AddCertModal
+      <CreateCertModal
         existingCerts={[]}
         onExit={mockOnExit}
         onSuccess={mockOnSuccess}
@@ -299,7 +299,7 @@ describe("AddCertModal", () => {
       withBackendMock: true,
     });
     const { user } = render(
-      <AddCertModal
+      <CreateCertModal
         existingCerts={[]}
         onExit={mockOnExit}
         onSuccess={mockOnSuccess}

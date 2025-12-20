@@ -23,34 +23,34 @@ import { CustomOptionType } from "components/forms/fields/DropdownWrapper/Dropdo
 import {
   validateFormData,
   generateFormValidations,
-  IAddCertFormValidation,
+  ICreateCertFormValidation,
 } from "./helpers";
 
-const baseClass = "add-ct-modal";
+const baseClass = "create-ct-modal";
 
-export interface IAddCertFormData {
+export interface ICreateCertFormData {
   name: string;
   certAuthorityId: string;
   subjectName: string;
 }
 
-interface IAddCertModalProps {
+interface ICreateCertModalProps {
   existingCerts: ICertificate[];
   onExit: () => void;
   onSuccess: () => void;
   currentTeamId?: number;
 }
 
-const AddCertModal = ({
+const CreateCertModal = ({
   existingCerts: existingCTs,
   onExit,
   onSuccess,
   currentTeamId,
-}: IAddCertModalProps) => {
+}: ICreateCertModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const [isUpdating, setIsUpdating] = useState(false);
-  const [formData, setFormData] = useState<IAddCertFormData>({
+  const [formData, setFormData] = useState<ICreateCertFormData>({
     name: "",
     certAuthorityId: "",
     subjectName: "",
@@ -61,8 +61,11 @@ const AddCertModal = ({
     [existingCTs]
   );
 
-  const [formValidation, setFormValidation] = useState<IAddCertFormValidation>(
-    () => validateFormData(formData, validations)
+  const [
+    formValidation,
+    setFormValidation,
+  ] = useState<ICreateCertFormValidation>(() =>
+    validateFormData(formData, validations)
   );
 
   const {
@@ -202,7 +205,7 @@ const AddCertModal = ({
   return (
     <Modal
       className={baseClass}
-      title="Add certificate"
+      title="Create certificate"
       width="large"
       onExit={onExit}
       isContentDisabled={isUpdating}
@@ -212,4 +215,4 @@ const AddCertModal = ({
   );
 };
 
-export default AddCertModal;
+export default CreateCertModal;
