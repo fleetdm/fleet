@@ -881,53 +881,140 @@ func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName s
 	return hostToPolicyRequest, errors.Join(errs...)
 }
 
-// AddFleetAgentToAndroidPolicy adds the Fleet Agent to the Android policy for the given enterprise.
+// getFleetAgentPackageInfo returns the Fleet agent package name and SHA256 fingerprint.
+// Returns empty strings if the package is not configured, or an error if the package is configured but SHA256 is missing.
+func getFleetAgentPackageInfo(ctx context.Context) (packageName, sha256Fingerprint string, err error) {
+	packageName = os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
+	if packageName == "" {
+		return "", "", nil
+	}
+
+	sha256Fingerprint = os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
+	if sha256Fingerprint == "" {
+		return "", "", ctxerr.New(ctx, "FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256 must be set when FLEET_DEV_ANDROID_AGENT_PACKAGE is set")
+	}
+
+	return packageName, sha256Fingerprint, nil
+}
+
+// buildFleetAgentAppPolicy builds an ApplicationPolicy for the Fleet agent from the given managed configuration.
+func buildFleetAgentAppPolicy(packageName, sha256Fingerprint string, managedConfig android.AgentManagedConfiguration) (*androidmanagement.ApplicationPolicy, error) {
+	managedConfigJSON, err := json.Marshal(managedConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return &androidmanagement.ApplicationPolicy{
+		PackageName:             packageName,
+		InstallType:             "FORCE_INSTALLED",
+		DefaultPermissionPolicy: "GRANT",
+		DelegatedScopes:         []string{"CERT_INSTALL"},
+		ManagedConfiguration:    managedConfigJSON,
+		SigningKeyCerts: []*androidmanagement.ApplicationSigningKeyCert{
+			{
+				SigningKeyCertFingerprintSha256: sha256Fingerprint,
+			},
+		},
+		Roles: []*androidmanagement.Role{
+			{
+				RoleType: "COMPANION_APP",
+			},
+		},
+	}, nil
+}
+
+// AddFleetAgentToAndroidPolicy adds the Fleet agent to the Android policy for the given enterprise.
 // hostConfigs maps host UUIDs to managed configurations for the Fleet Agent.
 // The UUID is BOTH the hostUUID and the policyID. We assume that the host UUID is the same as the policy ID.
 func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterpriseName string,
 	hostConfigs map[string]android.AgentManagedConfiguration,
 ) error {
+	packageName, sha256Fingerprint, err := getFleetAgentPackageInfo(ctx)
+	if err != nil {
+		return err
+	}
+	if packageName == "" {
+		return nil
+	}
+
 	var errs []error
-	if packageName := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE"); packageName != "" {
-		sha256Fingerprint := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
-		if sha256Fingerprint == "" {
-			return ctxerr.New(ctx, "FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256 must be set when FLEET_DEV_ANDROID_AGENT_PACKAGE is set")
+	for uuid, managedConfig := range hostConfigs {
+		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, uuid)
+
+		fleetAgentApp, err := buildFleetAgentAppPolicy(packageName, sha256Fingerprint, managedConfig)
+		if err != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "build fleet agent app policy for host %s", uuid))
+			continue
 		}
-		for uuid, managedConfig := range hostConfigs {
-			policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, uuid)
 
-			// Marshal managed configuration to JSON
-			managedConfigJSON, err := json.Marshal(managedConfig)
-			if err != nil {
-				errs = append(errs, ctxerr.Wrapf(ctx, err, "marshal managed configuration for host %s", uuid))
-				continue
-			}
-
-			fleetAgentApp := &androidmanagement.ApplicationPolicy{
-				PackageName:             packageName,
-				InstallType:             "FORCE_INSTALLED",
-				DefaultPermissionPolicy: "GRANT",
-				DelegatedScopes:         []string{"CERT_INSTALL"},
-				ManagedConfiguration:    managedConfigJSON,
-				SigningKeyCerts: []*androidmanagement.ApplicationSigningKeyCert{
-					{
-						SigningKeyCertFingerprintSha256: sha256Fingerprint,
-					},
-				},
-				Roles: []*androidmanagement.Role{
-					{
-						RoleType: "COMPANION_APP",
-					},
-				},
-			}
-			_, err = svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName,
-				[]*androidmanagement.ApplicationPolicy{fleetAgentApp})
-			if err != nil {
-				errs = append(errs, ctxerr.Wrapf(ctx, err, "google api: modify fleet agent application for host %s", uuid))
-			}
+		_, err = svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName,
+			[]*androidmanagement.ApplicationPolicy{fleetAgentApp})
+		if err != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "google api: modify fleet agent application for host %s", uuid))
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// BuildFleetAgentApplicationPolicy builds the ApplicationPolicy for the Fleet agent for the given host.
+func (svc *Service) BuildFleetAgentApplicationPolicy(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
+	packageName, sha256Fingerprint, err := getFleetAgentPackageInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if packageName == "" {
+		return nil, nil
+	}
+
+	// Build the managed configuration for this host
+	managedConfig, err := svc.buildAgentManagedConfig(ctx, hostUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	return buildFleetAgentAppPolicy(packageName, sha256Fingerprint, *managedConfig)
+}
+
+// buildAgentManagedConfig builds the AgentManagedConfiguration for the given host.
+// This includes the server URL, enroll secret, and certificate template IDs.
+func (svc *Service) buildAgentManagedConfig(ctx context.Context, hostUUID string) (*android.AgentManagedConfiguration, error) {
+	appConfig, err := svc.fleetDS.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	androidHost, err := svc.ds.AndroidHostLiteByHostUUID(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "get android host %s", hostUUID)
+	}
+
+	enrollSecrets, err := svc.fleetDS.GetEnrollSecrets(ctx, androidHost.Host.TeamID)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "get enroll secrets for team %v", androidHost.Host.TeamID)
+	}
+	if len(enrollSecrets) == 0 {
+		return nil, ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
+	}
+
+	// Get certificate templates for the host (all templates, regardless of status)
+	certTemplates, err := svc.fleetDS.ListCertificateTemplatesForHosts(ctx, []string{hostUUID})
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "get certificate templates for host %s", hostUUID)
+	}
+
+	var certificateTemplateIDs []android.AgentCertificateTemplate
+	for _, ct := range certTemplates {
+		certificateTemplateIDs = append(certificateTemplateIDs, android.AgentCertificateTemplate{
+			ID: ct.CertificateTemplateID,
+		})
+	}
+
+	return &android.AgentManagedConfiguration{
+		ServerURL:              appConfig.ServerSettings.ServerURL,
+		HostUUID:               hostUUID,
+		EnrollSecret:           enrollSecrets[0].Secret,
+		CertificateTemplateIDs: certificateTemplateIDs,
+	}, nil
 }
 
 func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
