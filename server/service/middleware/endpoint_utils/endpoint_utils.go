@@ -169,11 +169,11 @@ func DecodeURLTagValue(r *http.Request, field reflect.Value, urlTagValue string,
 	return nil
 }
 
-// QueryFieldDecoder decodes a query parameter value into the target field.
+// DomainQueryFieldDecoder decodes a query parameter value into the target field.
 // It returns true if it handled the field, false if default handling should be used.
-type QueryFieldDecoder func(queryTagName, queryVal string, field reflect.Value) (handled bool, err error)
+type DomainQueryFieldDecoder func(queryTagName, queryVal string, field reflect.Value) (handled bool, err error)
 
-func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder QueryFieldDecoder) error {
+func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder DomainQueryFieldDecoder) error {
 	queryTagValue, ok := fp.Sf.Tag.Lookup("query")
 
 	if ok {
@@ -366,7 +366,7 @@ func MakeDecoder(
 	parseCustomTags func(urlTagValue string, r *http.Request, field reflect.Value) (bool, error),
 	isBodyDecoder func(reflect.Value) bool,
 	decodeBody func(ctx context.Context, r *http.Request, v reflect.Value, body io.Reader) error,
-	customQueryDecoder QueryFieldDecoder,
+	customQueryDecoder DomainQueryFieldDecoder,
 ) kithttp.DecodeRequestFunc {
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -735,6 +735,7 @@ func EncodeCommonResponse(
 	w http.ResponseWriter,
 	response interface{},
 	jsonMarshal func(w http.ResponseWriter, response interface{}) error,
+	domainErrorEncoder DomainErrorEncoder,
 ) error {
 	if cs, ok := response.(cookieSetter); ok {
 		cs.SetCookies(ctx, w)
@@ -753,7 +754,7 @@ func EncodeCommonResponse(
 	}
 
 	if e, ok := response.(platform_http.Errorer); ok && e.Error() != nil {
-		EncodeError(ctx, e.Error(), w)
+		EncodeError(ctx, e.Error(), w, domainErrorEncoder)
 		return nil
 	}
 

@@ -84,21 +84,6 @@ func TestHandlesErrorsCode(t *testing.T) {
 			http.StatusUnprocessableEntity,
 		},
 		{
-			"mail error",
-			MailError{},
-			http.StatusInternalServerError,
-		},
-		{
-			"osquery error - invalid node",
-			&OsqueryError{nodeInvalid: true},
-			http.StatusUnauthorized,
-		},
-		{
-			"osquery error - valid node",
-			&OsqueryError{},
-			http.StatusInternalServerError,
-		},
-		{
 			"data not found",
 			&notFoundError{},
 			http.StatusNotFound,
@@ -123,7 +108,7 @@ func TestHandlesErrorsCode(t *testing.T) {
 	for _, tt := range errorTests {
 		t.Run(tt.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
-			EncodeError(context.Background(), tt.err, recorder)
+			EncodeError(context.Background(), tt.err, recorder, nil)
 			assert.Equal(t, recorder.Code, tt.code)
 		})
 	}

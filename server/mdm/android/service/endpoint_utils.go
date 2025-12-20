@@ -22,6 +22,7 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 		func(w http.ResponseWriter, response interface{}) error {
 			return json.MarshalWrite(w, response, jsontext.WithIndent("  "))
 		},
+		nil, // no domain-specific error encoder
 	)
 }
 

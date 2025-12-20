@@ -25,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
@@ -34,12 +33,12 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func newOsqueryErrorWithInvalidNode(msg string) *endpoint_utils.OsqueryError {
-	return endpoint_utils.NewOsqueryError(msg, true)
+func newOsqueryErrorWithInvalidNode(msg string) *OsqueryError {
+	return NewOsqueryError(msg, true)
 }
 
-func newOsqueryError(msg string) *endpoint_utils.OsqueryError {
-	return endpoint_utils.NewOsqueryError(msg, false)
+func newOsqueryError(msg string) *OsqueryError {
+	return NewOsqueryError(msg, false)
 }
 
 func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
