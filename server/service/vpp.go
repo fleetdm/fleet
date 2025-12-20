@@ -134,7 +134,7 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 	}
 
 	// Update AutoUpdateConfig separately
-	err = svc.UpdateAutoUpdateConfig(ctx, req.TitleID, req.TeamID, fleet.AutoUpdateConfig{
+	err = svc.UpdateSoftwareTitleAutoUpdateConfig(ctx, req.TitleID, req.TeamID, fleet.AutoUpdateConfig{
 		AutoUpdateEnabled:   req.AutoUpdateEnabled,
 		AutoUpdateStartTime: req.AutoUpdateStartTime,
 		AutoUpdateEndTime:   req.AutoUpdateEndTime,
