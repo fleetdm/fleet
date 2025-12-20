@@ -28,6 +28,7 @@ type Service interface {
 	// not additive/PATCH semantics.
 	SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error
 	AddFleetAgentToAndroidPolicy(ctx context.Context, enterpriseName string, hostConfigs map[string]AgentManagedConfiguration) error
+	BuildFleetAgentApplicationPolicy(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error)
 	// BuildAndSendFleetAgentConfig builds the complete AgentManagedConfiguration for the given hosts
 	// (including certificate templates) and sends it to the Android Management API.
 	// This is the centralized function that should be used by all callers to avoid race conditions.
