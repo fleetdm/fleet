@@ -153,7 +153,7 @@ const Certificates = ({
 
             const details = (
               <>
-                {caName} &bull; Uploaded{" "}
+                {caName} &bull; Created{" "}
                 {formatDistanceToNow(new Date(created_at))} ago
               </>
             );
