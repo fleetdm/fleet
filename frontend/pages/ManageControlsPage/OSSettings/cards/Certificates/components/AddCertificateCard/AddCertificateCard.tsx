@@ -4,17 +4,17 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Card from "components/Card";
 import Button from "components/buttons/Button";
 
-const baseClass = "add-cert-card";
+const baseClass = "create-cert-card";
 
-interface IAddCertCardProps {
+interface ICreateCertCardProps {
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const AddCertCard = ({ setShowModal }: IAddCertCardProps) => (
+const CreateCertCard = ({ setShowModal }: ICreateCertCardProps) => (
   <Card className={baseClass}>
     <div className={`${baseClass}__content-wrap`}>
       <div className={`${baseClass}__text`}>
-        <b>Add certificate</b>
+        <b>Create certificate</b>
         <p>Help your end users connect to your corporate network.</p>
       </div>
       <GitOpsModeTooltipWrapper
@@ -22,11 +22,11 @@ const AddCertCard = ({ setShowModal }: IAddCertCardProps) => (
         renderChildren={(disableChildren) => (
           <Button
             disabled={disableChildren}
-            className={`${baseClass}__card--add-button`}
+            className={`${baseClass}__card--create-button`}
             type="button"
             onClick={() => setShowModal(true)}
           >
-            Add
+            Create
           </Button>
         )}
       />
@@ -34,4 +34,4 @@ const AddCertCard = ({ setShowModal }: IAddCertCardProps) => (
   </Card>
 );
 
-export default AddCertCard;
+export default CreateCertCard;
