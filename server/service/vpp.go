@@ -139,6 +139,9 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 		AutoUpdateStartTime: req.AutoUpdateStartTime,
 		AutoUpdateEndTime:   req.AutoUpdateEndTime,
 	})
+	if err != nil {
+		return updateAppStoreAppResponse{Err: err}, nil
+	}
 
 	return updateAppStoreAppResponse{AppStoreApp: updatedApp}, nil
 }
