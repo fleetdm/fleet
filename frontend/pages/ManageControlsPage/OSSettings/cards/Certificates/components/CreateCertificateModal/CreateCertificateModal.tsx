@@ -115,11 +115,11 @@ const CreateCertModal = ({
         subjectName: formData.subjectName,
         teamId: currentTeamId,
       });
-      renderFlash("success", "Successfully added your certificate.");
+      renderFlash("success", "Successfully created your certificate.");
       onSuccess();
       onExit();
     } catch (e) {
-      renderFlash("error", "Couldn't add certificate. Please try again.");
+      renderFlash("error", "Couldn't create certificate. Please try again.");
     } finally {
       setIsUpdating(false);
     }
