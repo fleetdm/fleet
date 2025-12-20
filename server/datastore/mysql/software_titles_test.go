@@ -2650,9 +2650,31 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Empty(t, title.AutoUpdateStartTime)
 	require.Empty(t, title.AutoUpdateEndTime)
 
+	// Attempt to enable auto-update with invalid start time.
+	startTime := "26:00"
+	endTime := "12:00"
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, 0, fleet.AutoUpdateConfig{
+		AutoUpdateEnabled:   true,
+		AutoUpdateStartTime: startTime,
+		AutoUpdateEndTime:   endTime,
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid auto-update time format")
+
+	// Attempt to enable auto-update with invalid end time.
+	startTime = "12:00"
+	endTime = "abc"
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, 0, fleet.AutoUpdateConfig{
+		AutoUpdateEnabled:   true,
+		AutoUpdateStartTime: startTime,
+		AutoUpdateEndTime:   endTime,
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid auto-update time format")
+
 	// Enable auto-update.
-	startTime := time.Duration(2 * time.Hour)
-	endTime := time.Duration(4 * time.Hour)
+	startTime = "02:00"
+	endTime = "04:00"
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, 0, fleet.AutoUpdateConfig{
 		AutoUpdateEnabled:   true,
 		AutoUpdateStartTime: startTime,

@@ -452,8 +452,8 @@ SELECT
 		,iha.storage_id as in_house_app_storage_id
 		,iha.self_service as in_house_app_self_service
 		,COALESCE(sus.enabled, FALSE) as auto_update_enabled
-		,COALESCE(sus.start_time, "00:00") as auto_update_start_time
-		,COALESCE(sus.end_time, "00:00") as auto_update_end_time
+		,COALESCE(sus.start_time, '') as auto_update_start_time
+		,COALESCE(sus.end_time, '') as auto_update_end_time
 	{{end}}
 FROM software_titles st
 	{{if hasTeamID .}}
@@ -827,6 +827,18 @@ WHERE
 }
 
 func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.AutoUpdateConfig) error {
+	// Validate start and end time.
+	invalidTimeErr := "invalid auto-update time format: must be in HH:MM 24-hour format"
+	for _, t := range []string{config.AutoUpdateStartTime, config.AutoUpdateEndTime} {
+		duration, err := time.Parse("15:04", t)
+		if err != nil {
+			return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
+		}
+		if duration.Hour() < 0 || duration.Hour() > 23 || duration.Minute() < 0 || duration.Minute() > 59 {
+			return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
+		}
+	}
+
 	stmt := `
 INSERT INTO software_update_schedules
 	(title_id, team_id, enabled, start_time, end_time)
@@ -836,18 +848,7 @@ ON DUPLICATE KEY UPDATE
 	start_time = VALUES(start_time),
 	end_time = VALUES(end_time)
 `
-	formattedStartTime := fmt.Sprintf("%02d:%02d:%02d",
-		int(config.AutoUpdateStartTime.Hours()),
-		int(config.AutoUpdateStartTime.Minutes())%60,
-		int(config.AutoUpdateStartTime.Seconds())%60,
-	)
-
-	formattedEndTime := fmt.Sprintf("%02d:%02d:%02d",
-		int(config.AutoUpdateEndTime.Hours()),
-		int(config.AutoUpdateEndTime.Minutes())%60,
-		int(config.AutoUpdateEndTime.Seconds())%60,
-	)
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, titleID, teamID, config.AutoUpdateEnabled, formattedStartTime, formattedEndTime)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, titleID, teamID, config.AutoUpdateEnabled, config.AutoUpdateStartTime, config.AutoUpdateEndTime)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
 	}

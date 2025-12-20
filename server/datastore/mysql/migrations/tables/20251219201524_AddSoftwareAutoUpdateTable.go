@@ -15,8 +15,8 @@ func Up_20251219201524(tx *sql.Tx) error {
 			team_id INT UNSIGNED NOT NULL,
 			title_id INT UNSIGNED NOT NULL,
 			enabled BOOLEAN NOT NULL DEFAULT FALSE,
-			start_time TIME NOT NULL,
-			end_time TIME NOT NULL,
+			start_time char(5) NOT NULL,
+			end_time char(5) NOT NULL,
 
 			PRIMARY KEY (id),
 			UNIQUE KEY idx_team_title (team_id, title_id),
