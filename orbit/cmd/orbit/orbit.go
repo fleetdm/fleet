@@ -1836,6 +1836,18 @@ func newDesktopRunner(
 func (d *desktopRunner) Execute() error {
 	defer close(d.executeDoneCh)
 
+	// Check if Fleet Desktop launch should be skipped (token-only mode).
+	// This allows token generation/rotation without launching the UI.
+	// Note: Token rotation runs as an independent goroutine started earlier (via trw.StartRotation()),
+	// so it continues regardless of what desktopRunner does. We block here just to keep this
+	// subsystem "running" in the run.Group, but token rotation doesn't depend on this.
+	if os.Getenv("ORBIT_FLEET_DESKTOP_TOKEN_ONLY") == "true" {
+		log.Info().Msg("Fleet Desktop launch skipped (token-only mode enabled). Token generation/rotation continues independently.")
+		// Block forever to keep this subsystem running in the run.Group
+		<-d.interruptCh
+		return nil
+	}
+
 	log.Info().Str("path", d.desktopPath).Msg("opening")
 	url, err := url.Parse(d.fleetURL)
 	if err != nil {
