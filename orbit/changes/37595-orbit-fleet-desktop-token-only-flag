@@ -1,1 +1,1 @@
-* Added new environment variable called `ORBIT_FLEET_DESKTOP_TOKEN_ONLY` to allow Fleet Desktop to be hidden from the menubar but still generate and rotate the device token for scripts. 
+* Added new environment variable `ORBIT_DEVICE_TOKEN_ONLY_MODE` to allow Fleet Desktop to be hidden from the menubar but still generate device tokens for scripts.

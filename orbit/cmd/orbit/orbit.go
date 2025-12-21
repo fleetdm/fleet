@@ -1192,7 +1192,7 @@ func main() {
 		// Start token rotation if fleet-desktop is enabled OR if token-only mode is enabled.
 		// Token-only mode allows token generation/rotation without launching the UI.
 		fleetDesktopEnabled := c.Bool("fleet-desktop")
-		tokenOnlyModeEnabled := os.Getenv("ORBIT_FLEET_DESKTOP_TOKEN_ONLY") == "true"
+		tokenOnlyModeEnabled := os.Getenv("ORBIT_DEVICE_TOKEN_ONLY_MODE") == "true"
 		log.Info().
 			Bool("fleet-desktop-enabled", fleetDesktopEnabled).
 			Bool("token-only-mode", tokenOnlyModeEnabled).
@@ -1848,7 +1848,7 @@ func (d *desktopRunner) Execute() error {
 	defer close(d.executeDoneCh)
 
 	// Note: If we reach this point, ORBIT_FLEET_DESKTOP=true, so we always launch Fleet Desktop.
-	// Token-only mode (ORBIT_FLEET_DESKTOP_TOKEN_ONLY=true) only prevents launch when
+	// Token-only mode (ORBIT_DEVICE_TOKEN_ONLY_MODE=true) only prevents launch when
 	// ORBIT_FLEET_DESKTOP=false, which means desktopRunner wouldn't be created in the first place.
 
 	log.Info().Str("path", d.desktopPath).Msg("opening")
