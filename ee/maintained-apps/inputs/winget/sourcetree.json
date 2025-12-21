@@ -3,6 +3,7 @@
   "slug": "sourcetree/windows",
   "package_identifier": "Atlassian.Sourcetree",
   "unique_identifier": "Sourcetree Enterprise",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/sourcetree_install.ps1",
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",
