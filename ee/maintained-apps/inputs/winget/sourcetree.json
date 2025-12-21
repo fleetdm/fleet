@@ -1,0 +1,10 @@
+{
+  "name": "Sourcetree",
+  "slug": "sourcetree/windows",
+  "package_identifier": "Atlassian.Sourcetree",
+  "unique_identifier": "Sourcetree Enterprise",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}
