@@ -1271,6 +1271,13 @@ module.exports.routes = {
   'GET /api/v1/microsoft-compliance-partner/device/message': { action: 'microsoft-proxy/get-one-compliance-status-result', },
   'GET /api/v1/microsoft-compliance-partner/adminconsent': { action: 'microsoft-proxy/receive-redirect-from-microsoft', },
 
+  //
+  //  ╦  ╦╔═╗╔═╗  ╔╦╗╔═╗╔╦╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
+  //  ╚╗╔╝╠═╝╠═╝  ║║║║╣  ║ ╠═╣ ║║╠═╣ ║ ╠═╣  ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
+  //   ╚╝ ╩  ╩    ╩ ╩╚═╝ ╩ ╩ ╩═╩╝╩ ╩ ╩ ╩ ╩  ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
+  'POST /api/v1/vpp/register': { action: 'vpp/register-or-update-one-fleet-instance-using-vpp', csrf: false },
+  'GET /api/v1/vpp/metadata': { action: 'vpp/get-vpp-app-metadata' },
+
   // Well known resources https://datatracker.ietf.org/doc/html/rfc8615
   // =============================================================================================================
   //
