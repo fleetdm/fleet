@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -67,12 +68,39 @@ type getTeamResponse struct {
 
 func (r getTeamResponse) Error() error { return r.Err }
 
+type defaultTeamResponse struct {
+	Team *fleet.DefaultTeam `json:"team"`
+	Err  error              `json:"error,omitempty"`
+}
+
+func (r defaultTeamResponse) Error() error { return r.Err }
+
 func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getTeamRequest)
+
 	team, err := svc.GetTeam(ctx, req.ID)
 	if err != nil {
 		return getTeamResponse{Err: err}, nil
 	}
+
+	// Special handling for team ID 0 - return DefaultTeam structure
+	if team.ID == 0 {
+		defaultTeam := &fleet.DefaultTeam{
+			ID:   team.ID,
+			Name: team.Name,
+			DefaultTeamConfig: fleet.DefaultTeamConfig{
+				WebhookSettings: fleet.DefaultTeamWebhookSettings{
+					FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
+				},
+				Integrations: fleet.DefaultTeamIntegrations{
+					Jira:    team.Config.Integrations.Jira,
+					Zendesk: team.Config.Integrations.Zendesk,
+				},
+			},
+		}
+		return defaultTeamResponse{Team: defaultTeam}, nil
+	}
+
 	return getTeamResponse{Team: team}, nil
 }
 
@@ -128,10 +156,41 @@ type modifyTeamRequest struct {
 
 func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyTeamRequest)
+
+	// AppleOSUpdateSettings.UpdateNewHosts is only used in macOS ... so ignore any values sent for iOS/iPadOS
+	if req.TeamPayload.MDM != nil {
+		if req.TeamPayload.MDM.IOSUpdates != nil {
+			req.TeamPayload.MDM.IOSUpdates.UpdateNewHosts = optjson.Bool{}
+		}
+		if req.TeamPayload.MDM.IPadOSUpdates != nil {
+			req.TeamPayload.MDM.IPadOSUpdates.UpdateNewHosts = optjson.Bool{}
+		}
+	}
+
 	team, err := svc.ModifyTeam(ctx, req.ID, req.TeamPayload)
 	if err != nil {
 		return teamResponse{Err: err}, nil
 	}
+
+	// Special handling for team ID 0 - return limited fields
+	if req.ID == 0 {
+		// Convert to DefaultTeam with limited fields
+		defaultTeam := &fleet.DefaultTeam{
+			ID:   team.ID,
+			Name: team.Name,
+			DefaultTeamConfig: fleet.DefaultTeamConfig{
+				WebhookSettings: fleet.DefaultTeamWebhookSettings{
+					FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
+				},
+				Integrations: fleet.DefaultTeamIntegrations{
+					Jira:    team.Config.Integrations.Jira,
+					Zendesk: team.Config.Integrations.Zendesk,
+				},
+			},
+		}
+		return defaultTeamResponse{Team: defaultTeam}, nil
+	}
+
 	return teamResponse{Team: team}, err
 }
 

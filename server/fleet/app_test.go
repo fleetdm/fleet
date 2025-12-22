@@ -271,51 +271,6 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 	}
 }
 
-func TestAtLeastOnePlatformEnabledAndConfigured(t *testing.T) {
-	tests := []struct {
-		name                        string
-		macOSEnabledAndConfigured   bool
-		windowsEnabledAndConfigured bool
-		expectedResult              bool
-	}{
-		{
-			name:                        "None enabled",
-			macOSEnabledAndConfigured:   false,
-			windowsEnabledAndConfigured: false,
-			expectedResult:              false,
-		},
-		{
-			name:                        "MacOS enabled",
-			macOSEnabledAndConfigured:   true,
-			windowsEnabledAndConfigured: false,
-			expectedResult:              true,
-		},
-		{
-			name:                        "Both enabled",
-			macOSEnabledAndConfigured:   true,
-			windowsEnabledAndConfigured: true,
-			expectedResult:              true,
-		},
-		{
-			name:                        "Windows enabled",
-			macOSEnabledAndConfigured:   false,
-			windowsEnabledAndConfigured: true,
-			expectedResult:              true,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			mdm := MDM{
-				EnabledAndConfigured:        test.macOSEnabledAndConfigured,
-				WindowsEnabledAndConfigured: test.windowsEnabledAndConfigured,
-			}
-			result := mdm.AtLeastOnePlatformEnabledAndConfigured()
-			require.Equal(t, test.expectedResult, result)
-		})
-	}
-}
-
 func TestFeaturesCopy(t *testing.T) {
 	t.Run("nil receiver", func(t *testing.T) {
 		var f *Features
@@ -406,6 +361,89 @@ func TestMDMUrl(t *testing.T) {
 				ServerSettings: ServerSettings{ServerURL: tc.serverURL},
 			}
 			require.Equal(t, tc.want, appConfig.MDMUrl())
+		})
+	}
+}
+
+func TestAppConfig_ConditionalAccessIdPSSOURL(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name      string
+		serverURL string
+		envVar    string
+		want      string
+		wantErr   bool
+	}{
+		{
+			name:      "transforms hostname with okta prefix",
+			serverURL: "https://fleet.example.com",
+			want:      "https://okta.fleet.example.com",
+			wantErr:   false,
+		},
+		{
+			name:      "preserves port in URL",
+			serverURL: "https://fleet.example.com:8080",
+			want:      "https://okta.fleet.example.com:8080",
+			wantErr:   false,
+		},
+		{
+			name:      "handles http scheme",
+			serverURL: "http://fleet.localhost",
+			want:      "http://okta.fleet.localhost",
+			wantErr:   false,
+		},
+		{
+			name:      "handles subdomain",
+			serverURL: "https://my.fleet.example.com",
+			want:      "https://okta.my.fleet.example.com",
+			wantErr:   false,
+		},
+		{
+			name:      "dev override takes precedence",
+			serverURL: "https://fleet.example.com",
+			envVar:    "https://dev.okta.example.com",
+			want:      "https://dev.okta.example.com",
+			wantErr:   false,
+		},
+		{
+			name:      "empty server URL returns error",
+			serverURL: "",
+			want:      "",
+			wantErr:   true,
+		},
+		{
+			name:      "invalid URL returns error",
+			serverURL: "://invalid-url",
+			want:      "",
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a mock getenv function
+			getenv := func(key string) string {
+				if key == "FLEET_DEV_OKTA_SSO_SERVER_URL" {
+					return tt.envVar
+				}
+				return ""
+			}
+
+			appConfig := &AppConfig{
+				ServerSettings: ServerSettings{
+					ServerURL: tt.serverURL,
+				},
+			}
+
+			got, err := appConfig.ConditionalAccessIdPSSOURL(getenv)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
 		})
 	}
 }

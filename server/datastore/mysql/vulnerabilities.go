@@ -20,7 +20,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 	eeSelectStmt := `
 		SELECT DISTINCT
 			cm.cve,
-			COALESCE(LEAST(osv.created_at, sc.created_at), NOW()) AS created_at,
+			LEAST(COALESCE(osv.created_at, NOW()), COALESCE(sc.created_at, NOW())) AS created_at,
 			COALESCE(osv.source, sc.source, 0) AS source,
 			cm.cvss_score,
 			cm.epss_probability,
@@ -34,9 +34,9 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 			SELECT cve
 			FROM software_cve
 			WHERE cve = ?
-			
+
 			UNION
-			
+
 			SELECT cve
 			FROM operating_system_vulnerabilities
 			WHERE cve = ?
@@ -49,7 +49,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 	freeSelectStmt := `
 		SELECT DISTINCT
 			union_cve.cve,
-			COALESCE(LEAST(osv.created_at, sc.created_at), NOW()) AS created_at,
+			LEAST(COALESCE(osv.created_at, NOW()), COALESCE(sc.created_at, NOW())) AS created_at,
 			COALESCE(osv.source, sc.source, 0) AS source,
 			COALESCE(vhc.host_count, 0) as hosts_count,
 			COALESCE(vhc.updated_at, NOW()) as hosts_count_updated_at
@@ -57,9 +57,9 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 			SELECT cve, created_at, source
 			FROM operating_system_vulnerabilities
 			WHERE cve = ?
-			
+
 			UNION
-			
+
 			SELECT cve, created_at, source
 			FROM software_cve
 			WHERE cve = ?
@@ -184,7 +184,7 @@ func (ds *Datastore) SoftwareByCVE(ctx context.Context, cve string, teamID *uint
 			s.name,
 			s.version,
 			s.source,
-			s.browser,
+			s.extension_for,
 			COALESCE(scpe.cpe, '') as generated_cpe,
 			COALESCE(shc.hosts_count, 0) as hosts_count,
 			COALESCE(sc.resolved_in_version, '') as resolved_in_version
@@ -219,11 +219,27 @@ func (ds *Datastore) SoftwareByCVE(ctx context.Context, cve string, teamID *uint
 
 func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
 	// Define base select statements for EE and Free versions
+	//
+	// created_at: Use MIN() to get earliest discovery date across both tables.
+	// This is important because users can sort by this field, and in production (Dogfood)
+	// data shows significant differences (>1 year) between tables.
+	// Note: created_at can be NULL in schema but never is in practice.
+	//
+	// source: Pick first match, prioritizing software_cve.
+	// This field is not exposed in the API (json:"-").
+	// Note: source can be NULL in schema but never is in practice.
 	eeSelectStmt := `
 		SELECT
-			combined.cve as cve,
-			MIN(combined.created_at) as created_at,
-			MIN(combined.source) as source,
+			vhc.cve as cve,
+			(SELECT MIN(created_at) FROM (
+				SELECT created_at FROM software_cve WHERE cve = vhc.cve
+				UNION ALL
+				SELECT created_at FROM operating_system_vulnerabilities WHERE cve = vhc.cve
+			) AS combined_dates) as created_at,
+			COALESCE(
+				(SELECT source FROM software_cve WHERE cve = vhc.cve LIMIT 1),
+				(SELECT source FROM operating_system_vulnerabilities WHERE cve = vhc.cve LIMIT 1)
+			) as source,
 			cm.cvss_score,
 			cm.epss_probability,
 			cm.cisa_known_exploit,
@@ -231,29 +247,34 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 			cm.description,
 			vhc.host_count as hosts_count,
 			vhc.updated_at as hosts_count_updated_at
-		FROM (
-			SELECT cve, created_at, source FROM software_cve
-			UNION
-			SELECT cve, created_at, source FROM operating_system_vulnerabilities
-		) AS combined
-		INNER JOIN vulnerability_host_counts vhc ON vhc.cve = combined.cve
-		LEFT JOIN cve_meta cm ON cm.cve = combined.cve
+		FROM vulnerability_host_counts vhc
+		LEFT JOIN cve_meta cm ON cm.cve = vhc.cve
 		WHERE vhc.host_count > 0
+		AND (
+			EXISTS (SELECT 1 FROM software_cve WHERE cve = vhc.cve)
+			OR EXISTS (SELECT 1 FROM operating_system_vulnerabilities WHERE cve = vhc.cve)
+		)
 		`
 	freeSelectStmt := `
 		SELECT
-			combined.cve as cve,
-			MIN(combined.created_at) as created_at,
-			MIN(combined.source) as source,
+			vhc.cve as cve,
+			(SELECT MIN(created_at) FROM (
+				SELECT created_at FROM software_cve WHERE cve = vhc.cve
+				UNION ALL
+				SELECT created_at FROM operating_system_vulnerabilities WHERE cve = vhc.cve
+			) AS combined_dates) as created_at,
+			COALESCE(
+				(SELECT source FROM software_cve WHERE cve = vhc.cve LIMIT 1),
+				(SELECT source FROM operating_system_vulnerabilities WHERE cve = vhc.cve LIMIT 1)
+			) as source,
 			vhc.host_count as hosts_count,
 			vhc.updated_at as hosts_count_updated_at
-		FROM (
-			SELECT cve, created_at, source FROM software_cve
-			UNION
-			SELECT cve, created_at, source FROM operating_system_vulnerabilities
-		) AS combined
-		INNER JOIN vulnerability_host_counts vhc ON vhc.cve = combined.cve
+		FROM vulnerability_host_counts vhc
 		WHERE vhc.host_count > 0
+		AND (
+			EXISTS (SELECT 1 FROM software_cve WHERE cve = vhc.cve)
+			OR EXISTS (SELECT 1 FROM operating_system_vulnerabilities WHERE cve = vhc.cve)
+		)
 		`
 
 	// Choose the appropriate select statement based on EE or Free
@@ -281,9 +302,6 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
 	}
 
-	// Append group by statement
-	selectStmt += " GROUP BY cve, host_count, updated_at"
-
 	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
 	selectStmt, args = appendListOptionsWithCursorToSQL(selectStmt, args, &opt.ListOptions)
 
@@ -309,21 +327,20 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 func (ds *Datastore) CountVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) (uint, error) {
 	selectStmt := `
 		SELECT
-			COUNT(*)
-		FROM (
-			SELECT cve, created_at, source FROM software_cve
-			UNION
-			SELECT cve, created_at, source FROM operating_system_vulnerabilities
-		) AS combined
-		INNER JOIN vulnerability_host_counts vhc ON vhc.cve = combined.cve
-		LEFT JOIN cve_meta cm ON cm.cve = combined.cve
+			COUNT(DISTINCT vhc.cve)
+		FROM vulnerability_host_counts vhc
+		LEFT JOIN cve_meta cm ON cm.cve = vhc.cve
 		WHERE vhc.host_count > 0
+		AND (
+			EXISTS (SELECT 1 FROM software_cve WHERE cve = vhc.cve)
+			OR EXISTS (SELECT 1 FROM operating_system_vulnerabilities WHERE cve = vhc.cve)
+		)
 	`
 	var args []interface{}
 	if opt.TeamID == nil {
-		selectStmt += " AND global_stats = 1"
+		selectStmt += " AND vhc.global_stats = 1"
 	} else {
-		selectStmt += " AND global_stats = 0 AND vhc.team_id = ?"
+		selectStmt += " AND vhc.global_stats = 0 AND vhc.team_id = ?"
 		args = append(args, opt.TeamID)
 	}
 
@@ -523,20 +540,9 @@ func getVulnHostCountQuery(scope CountScope) string {
 }
 
 func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context, maxRoutines int) error {
-	// set all counts to 0 to later identify rows to delete
-	_, err := ds.writer(ctx).ExecContext(ctx, "UPDATE vulnerability_host_counts SET host_count = 0")
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "initializing vulnerability host counts")
-	}
-
 	globalHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, GlobalCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching global vulnerability host counts")
-	}
-
-	err = ds.batchInsertHostCounts(ctx, globalHostCounts)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting global vulnerability host counts")
 	}
 
 	teamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, TeamCount, maxRoutines)
@@ -544,27 +550,18 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context, maxRouti
 		return ctxerr.Wrap(ctx, err, "fetching team vulnerability host counts")
 	}
 
-	err = ds.batchInsertHostCounts(ctx, teamHostCounts)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
-	}
-
 	noTeamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, NoTeamCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching no team vulnerability host counts")
 	}
 
-	err = ds.batchInsertHostCounts(ctx, noTeamHostCounts)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
+	counts := vulnerabilityCounts{
+		Global: globalHostCounts,
+		Team:   teamHostCounts,
+		NoTeam: noTeamHostCounts,
 	}
 
-	err = ds.cleanupVulnerabilityHostCounts(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleaning up vulnerability host counts")
-	}
-
-	return nil
+	return ds.atomicTableSwapVulnerabilityCounts(ctx, counts)
 }
 
 type hostCount struct {
@@ -574,46 +571,109 @@ type hostCount struct {
 	GlobalStats bool   `db:"global_stats"`
 }
 
-func (ds *Datastore) cleanupVulnerabilityHostCounts(ctx context.Context) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, "DELETE FROM vulnerability_host_counts WHERE host_count = 0")
-	if err != nil {
-		return fmt.Errorf("deleting zero host count entries: %w", err)
-	}
-
-	return nil
+type vulnerabilityCounts struct {
+	Global []hostCount
+	Team   []hostCount
+	NoTeam []hostCount
 }
 
-func (ds *Datastore) batchInsertHostCounts(ctx context.Context, counts []hostCount) error {
+const (
+	vulnerabilityHostCountsSwapTable       = "vulnerability_host_counts_swap"
+	vulnerabilityHostCountsSwapTableSchema = `CREATE TABLE IF NOT EXISTS ` + vulnerabilityHostCountsSwapTable + ` LIKE vulnerability_host_counts`
+)
+
+// atomicTableSwapVulnerabilityCounts implements atomic table swap pattern
+// 1. Populate swap table with new data
+// 2. Atomically rename tables to swap them
+// 3. Clean up old table
+func (ds *Datastore) atomicTableSwapVulnerabilityCounts(ctx context.Context, counts vulnerabilityCounts) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Create/recreate the swap table fresh
+		_, err := tx.ExecContext(ctx, "DROP TABLE IF EXISTS "+vulnerabilityHostCountsSwapTable)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "dropping existing swap table")
+		}
+
+		_, err = tx.ExecContext(ctx, vulnerabilityHostCountsSwapTableSchema)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "creating swap table")
+		}
+
+		// Insert each group of counts separately
+		if len(counts.Global) > 0 {
+			err = ds.insertHostCountsIntoTable(ctx, tx, counts.Global, vulnerabilityHostCountsSwapTable)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "populating swap table with global counts")
+			}
+		}
+
+		if len(counts.Team) > 0 {
+			err = ds.insertHostCountsIntoTable(ctx, tx, counts.Team, vulnerabilityHostCountsSwapTable)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "populating swap table with team counts")
+			}
+		}
+
+		if len(counts.NoTeam) > 0 {
+			err = ds.insertHostCountsIntoTable(ctx, tx, counts.NoTeam, vulnerabilityHostCountsSwapTable)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "populating swap table with no-team counts")
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Atomic table swap using RENAME TABLE
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, fmt.Sprintf(`
+			RENAME TABLE
+				vulnerability_host_counts TO vulnerability_host_counts_old,
+				%s TO vulnerability_host_counts
+		`, vulnerabilityHostCountsSwapTable))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "atomic table swap")
+		}
+
+		// Clean up old table (drop it)
+		_, err = tx.ExecContext(ctx, "DROP TABLE vulnerability_host_counts_old")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "dropping old table")
+		}
+
+		return nil
+	})
+}
+
+// insertHostCountsIntoTable inserts counts into specified table
+func (ds *Datastore) insertHostCountsIntoTable(ctx context.Context, tx sqlx.ExtContext, counts []hostCount, tableName string) error {
 	if len(counts) == 0 {
 		return nil
 	}
 
-	insertStmt := "INSERT INTO vulnerability_host_counts (team_id, cve, host_count, global_stats) VALUES "
-	var insertArgs []interface{}
+	insertStmt := fmt.Sprintf("INSERT INTO %s (team_id, cve, host_count, global_stats) VALUES ", tableName)
 
-	chunkSize := 100
+	// Use smaller chunks to avoid parameter limits
+	chunkSize := 500
 	for i := 0; i < len(counts); i += chunkSize {
-		end := i + chunkSize
-		if end > len(counts) {
-			end = len(counts)
-		}
+		end := min(i+chunkSize, len(counts))
 
-		valueStrings := make([]string, 0, chunkSize)
+		valueStrings := make([]string, 0, end-i)
+		chunkArgs := make([]interface{}, 0, (end-i)*4)
+
 		for _, count := range counts[i:end] {
 			valueStrings = append(valueStrings, "(?, ?, ?, ?)")
-			insertArgs = append(insertArgs, count.TeamID, count.CVE, count.HostCount, count.GlobalStats)
+			chunkArgs = append(chunkArgs, count.TeamID, count.CVE, count.HostCount, count.GlobalStats)
 		}
 
-		insertStmt += strings.Join(valueStrings, ", ")
-		insertStmt += " ON DUPLICATE KEY UPDATE host_count = VALUES(host_count);"
-
-		_, err := ds.writer(ctx).ExecContext(ctx, insertStmt, insertArgs...)
+		fullStmt := insertStmt + strings.Join(valueStrings, ", ")
+		_, err := tx.ExecContext(ctx, fullStmt, chunkArgs...)
 		if err != nil {
-			return fmt.Errorf("inserting host counts: %w", err)
+			return fmt.Errorf("inserting host counts chunk %d-%d into %s: %w", i, end-1, tableName, err)
 		}
-
-		insertStmt = "INSERT INTO vulnerability_host_counts (team_id, cve, host_count, global_stats) VALUES "
-		insertArgs = nil
 	}
 
 	return nil

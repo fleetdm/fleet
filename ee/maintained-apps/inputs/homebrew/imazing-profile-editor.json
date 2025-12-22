@@ -1,0 +1,8 @@
+{
+  "name": "iMazing Profile Editor",
+  "unique_identifier": "com.DigiDNA.iMazingProfileEditorMac",
+  "token": "imazing-profile-editor",
+  "installer_format": "dmg",
+  "slug": "imazing-profile-editor/darwin",
+  "default_categories": ["Developer tools"]
+}

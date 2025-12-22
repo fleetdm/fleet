@@ -25,17 +25,18 @@ const CreateLinuxKeyModal = ({
           setup.
         </li>
         <li>
-          Close this window and select <b>Refetch</b> on your <b>My device</b>{" "}
-          page. This shares the new key with your organization.
+          You&apos;re done. The yellow <b>Disk Encryption</b> banner will go
+          away in 1 hour. To remove this banner sooner, wait 10 minutes for
+          Fleet to create a new key. Then, close this window and select{" "}
+          <b>Refetch</b> on your <b>My Device</b> page.
+        </li>
+        <li>
+          If the banner doesn&apos;t go away after 1 hour, please contact your
+          IT admin.
         </li>
       </ol>
       <div className="modal-cta-wrap">
-        <Button
-          type="submit"
-          variant="brand"
-          onClick={onExit}
-          className="save-loading"
-        >
+        <Button type="submit" onClick={onExit} className="save-loading">
           Done
         </Button>
       </div>

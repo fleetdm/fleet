@@ -11,6 +11,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// ensure all Linuxes are in one of the three package support groups
+func TestHostLinuxPlatformPackageCompatibility(t *testing.T) {
+	for _, os := range HostLinuxOSs {
+		h := &Host{Platform: os}
+		_, isNeitherDebNorRpm := HostNeitherDebNorRpmPackageOSs[h.Platform]
+		if isNeitherDebNorRpm {
+			continue
+		}
+
+		require.True(t, h.PlatformSupportsDebPackages() || h.PlatformSupportsRpmPackages())
+	}
+}
+
 func TestHostStatus(t *testing.T) {
 	mockClock := clock.NewMockClock()
 
@@ -194,12 +207,16 @@ func TestMDMEnrollmentStatus(t *testing.T) {
 		expected string
 	}{
 		{
-			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: true},
+			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: true, IsPersonalEnrollment: false},
 			expected: "On (automatic)",
 		},
 		{
-			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: false},
+			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: false, IsPersonalEnrollment: false},
 			expected: "On (manual)",
+		},
+		{
+			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: false, IsPersonalEnrollment: true},
+			expected: "On (personal)",
 		},
 		{
 			hostMDM:  HostMDM{Enrolled: false, InstalledFromDep: true},

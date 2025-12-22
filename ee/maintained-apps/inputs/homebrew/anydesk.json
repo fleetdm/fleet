@@ -1,0 +1,8 @@
+{
+  "name": "AnyDesk",
+  "unique_identifier": "com.philandro.anydesk",
+  "token": "anydesk",
+  "installer_format": "dmg",
+  "slug": "anydesk/darwin",
+  "default_categories": ["Productivity"]
+}

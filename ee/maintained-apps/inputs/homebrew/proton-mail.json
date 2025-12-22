@@ -1,0 +1,8 @@
+{
+  "name": "Proton Mail",
+  "unique_identifier": "ch.protonmail.desktop",
+  "token": "proton-mail",
+  "installer_format": "dmg",
+  "slug": "proton-mail/darwin",
+  "default_categories": ["Communication"]
+}

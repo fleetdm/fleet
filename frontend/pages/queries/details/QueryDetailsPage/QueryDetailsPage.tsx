@@ -25,9 +25,10 @@ import { DOCUMENT_TITLE_SUFFIX, SUPPORT_LINK } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
+import Icon from "components/Icon";
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import QueryAutomationsStatusIndicator from "pages/queries/ManageQueriesPage/components/QueryAutomationsStatusIndicator/QueryAutomationsStatusIndicator";
@@ -36,6 +37,7 @@ import LogDestinationIndicator from "components/LogDestinationIndicator/LogDesti
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
 import ShowQueryModal from "components/modals/ShowQueryModal";
+import PageDescription from "components/PageDescription";
 import QueryReport from "../components/QueryReport/QueryReport";
 import NoResults from "../components/NoResults/NoResults";
 
@@ -260,43 +262,24 @@ const QueryDetailsPage = ({
     return (
       <>
         <div className={`${baseClass}__header-links`}>
-          <BackLink text="Back to queries" path={backToQueriesPath()} />
+          <BackButton text="Back to queries" path={backToQueriesPath()} />
         </div>
-        <div className={`${baseClass}__header-details`}>
-          {!isLoading && !isApiError && (
+        {!isLoading && !isApiError && (
+          <>
             <div className={`${baseClass}__title-bar`}>
               <div className="name-description">
                 <h1 className={`${baseClass}__query-name`}>
                   {lastEditedQueryName}
                 </h1>
-                <p className={`${baseClass}__query-description`}>
-                  {lastEditedQueryDescription}
-                </p>
               </div>
               <div className={`${baseClass}__action-button-container`}>
                 <Button
                   className={`${baseClass}__show-query-btn`}
                   onClick={onShowQueryModal}
-                  variant="text-icon"
+                  variant="inverse"
                 >
                   Show query
                 </Button>
-                {canEditQuery && (
-                  <Button
-                    onClick={() => {
-                      queryId &&
-                        router.push(
-                          getPathWithQueryParams(PATHS.EDIT_QUERY(queryId), {
-                            team_id: currentTeamId,
-                          })
-                        );
-                    }}
-                    className={`${baseClass}__manage-automations button`}
-                    variant="brand"
-                  >
-                    Edit query
-                  </Button>
-                )}
                 {canLiveQuery && (
                   <div
                     className={`button-wrap ${baseClass}__button-wrap--new-query`}
@@ -309,7 +292,7 @@ const QueryDetailsPage = ({
                     >
                       <Button
                         className={`${baseClass}__run`}
-                        variant="blue-green"
+                        variant="inverse"
                         onClick={() => {
                           queryId &&
                             router.push(
@@ -324,7 +307,7 @@ const QueryDetailsPage = ({
                         }}
                         disabled={isLiveQueryDisabled}
                       >
-                        Live query
+                        Live query <Icon name="run" />
                       </Button>
                     </div>
                     <ReactTooltip
@@ -339,10 +322,27 @@ const QueryDetailsPage = ({
                     </ReactTooltip>
                   </div>
                 )}
+                {canEditQuery && (
+                  <Button
+                    onClick={() => {
+                      queryId &&
+                        router.push(
+                          getPathWithQueryParams(PATHS.EDIT_QUERY(queryId), {
+                            team_id: currentTeamId,
+                          })
+                        );
+                    }}
+                    className={`${baseClass}__manage-automations button`}
+                  >
+                    Edit query
+                  </Button>
+                )}
               </div>
             </div>
-          )}
-          {!isLoading && !isApiError && (
+            <PageDescription
+              className={`${baseClass}__query-description`}
+              content={lastEditedQueryDescription}
+            />
             <div className={`${baseClass}__settings`}>
               <div className={`${baseClass}__automations`}>
                 <TooltipWrapper
@@ -352,7 +352,7 @@ const QueryDetailsPage = ({
                       destination on a schedule. When automations are <b>
                         on
                       </b>, <br />
-                      data is sent according to a query&apos;s frequency.
+                      data is sent according to a query&apos;s interval.
                     </>
                   }
                 >
@@ -367,11 +367,15 @@ const QueryDetailsPage = ({
                 <strong>Log destination:</strong>{" "}
                 <LogDestinationIndicator
                   logDestination={config?.logging.result.plugin || ""}
+                  filesystemDestination={
+                    config?.logging.result.config?.result_log_file
+                  }
+                  webhookDestination={config?.logging.result.config?.result_url}
                 />
               </div>
             </div>
-          )}
-        </div>
+          </>
+        )}
       </>
     );
   };
@@ -402,12 +406,10 @@ const QueryDetailsPage = ({
       disabledCachingGlobally || lastEditedQueryDiscardData || !loggingSnapshot;
     const emptyCache = (queryReport?.results?.length ?? 0) === 0;
 
-    // Loading state
     if (isLoading) {
       return <Spinner />;
     }
 
-    // Error state
     if (isApiError) {
       return <DataError />;
     }
@@ -430,7 +432,7 @@ const QueryDetailsPage = ({
 
   return (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
+      <>
         {renderHeader()}
         {isClipped && renderClippedBanner()}
         {renderReport()}
@@ -440,7 +442,7 @@ const QueryDetailsPage = ({
             onCancel={onShowQueryModal}
           />
         )}
-      </div>
+      </>
     </MainContent>
   );
 };

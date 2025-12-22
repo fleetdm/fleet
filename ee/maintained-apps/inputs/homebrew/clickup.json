@@ -1,0 +1,8 @@
+{
+  "name": "ClickUp",
+  "unique_identifier": "com.clickup.desktop-app",
+  "token": "clickup",
+  "installer_format": "dmg",
+  "slug": "clickup/darwin",
+  "default_categories": ["Productivity"]
+}

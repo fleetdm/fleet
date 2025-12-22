@@ -89,7 +89,7 @@ describe("ResetPasswordForm - component", () => {
   });
 
   it("does not submit the form if the password is invalid", async () => {
-    const invalidPassword = "invalid";
+    const invalidPassword = "invalidpassword";
     const { user } = renderWithSetup(
       <ResetPasswordForm handleSubmit={submitSpy} />
     );

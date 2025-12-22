@@ -9,6 +9,7 @@ on:
       - "schema/**"
       - "articles/**"
       - ".github/workflows/test-website.yml"
+      - "ee/maintained-apps/outputs/**"
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -45,8 +46,9 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      # Download top-level dependencies and build Storybook in the website's assets/ folder.
-      - run: npm install --legacy-peer-deps && npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
+      # 2025-08-07: The Storybook steps in website workflows have been temporarily disabled until a compatability issue with the @storybook/test-runner has been resolved. See https://github.com/fleetdm/fleet/issues/31720 for more information.
+      # # Download top-level dependencies and build Storybook in the website's assets/ folder.
+      # - run: npm install --legacy-peer-deps && npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
 
       # Now start building!
       # > …but first, get a little crazy for a sec and delete the top-level package.json file
@@ -64,6 +66,14 @@ jobs:
 
       # Run sanity checks
       - run: cd website/ && npm test
+
+      # Scan for malicious packages
+      # - name: Security Scan with Shai-Hulud Detector
+#         run: |
+          # git clone https://github.com/Cobenian/shai-hulud-detect
+#          cd shai-hulud-detect
+#          chmod +x shai-hulud-detector.sh
+# #          ./shai-hulud-detector.sh --paranoid ../ # Pipeline will automatically fail on exit codes 1 or 2
 
       # Compile assets
       - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.FLEET_GITHUB_TOKEN_FOR_WEBSITE_TEST }}" npm run build-for-prod

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"regexp"
 	"strconv"
@@ -17,18 +18,21 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	condaccessdepot "github.com/fleetdm/fleet/v4/ee/server/service/condaccess/depot"
+	hostidscepdepot "github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/depot"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/rdsauth"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	android_mysql "github.com/fleetdm/fleet/v4/server/mdm/android/mysql"
 	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
@@ -37,9 +41,22 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
+// Compile-time interface check
+var _ activities.ActivityStore = (*Datastore)(nil)
+
 const (
 	defaultSelectLimit   = 1000000
 	mySQLTimestampFormat = "2006-01-02 15:04:05" // %Y/%m/%d %H:%M:%S
+
+	// Migration IDs needed for fixing broken migrations that some customers encountered with fleet v4.73.2
+	// See https://github.com/fleetdm/fleet/issues/33562
+	fleet4732BadMigrationID1  = 20250918154557 // was 20250918154557_AddKernelHostCountsIndexForVulnQueries.go
+	fleet4732GoodMigrationID1 = 20250817154557 // 20250817154557_AddKernelHostCountsIndexForVulnQueries.go
+
+	fleet4732BadMigrationID2  = 20250904115553 // was 20250904115553_OptimizeHostScriptResultsIndex.go
+	fleet4732GoodMigrationID2 = 20250816115553 // 20250816115553_OptimizeHostScriptResultsIndex.go
+
+	fleet4731GoodMigrationID = 20250815130115
 )
 
 // Matches all non-word and '-' characters for replacement
@@ -78,28 +95,6 @@ type Datastore struct {
 	// for tests set to override the default batch size.
 	testSelectMDMProfilesBatchSize int
 
-	// set this in tests to simulate an error at various stages in the
-	// batchSetMDMAppleProfilesDB execution: if the string starts with "insert", it
-	// will be in the insert/upsert stage, "delete" for deletion, "select" to load
-	// existing ones, "reselect" to reload existing ones after insert, and "labels"
-	// to simulate an error in batch setting the profile label associations.
-	// "inselect", "inreselect", "indelete", etc. can also be used to fail the
-	// sqlx.In before the corresponding statement.
-	//
-	//	e.g.: testBatchSetMDMAppleProfilesErr = "insert:fail"
-	testBatchSetMDMAppleProfilesErr string
-
-	// set this in tests to simulate an error at various stages in the
-	// batchSetMDMWindowsProfilesDB execution: if the string starts with "insert",
-	// it will be in the insert/upsert stage, "delete" for deletion, "select" to
-	// load existing ones, "reselect" to reload existing ones after insert, and
-	// "labels" to simulate an error in batch setting the profile label
-	// associations. "inselect", "inreselect", "indelete", etc. can also be used to
-	// fail the sqlx.In before the corresponding statement.
-	//
-	//	e.g.: testBatchSetMDMWindowsProfilesErr = "insert:fail"
-	testBatchSetMDMWindowsProfilesErr string
-
 	// set this to the execution ids of activities that should be activated in
 	// the next call to activateNextUpcomingActivity, instead of picking the next
 	// available activity based on normal prioritization and creation date
@@ -133,11 +128,11 @@ func (ds *Datastore) writer(ctx context.Context) *sqlx.DB {
 	return ds.primary
 }
 
-// loadOrPrepareStmt will load a statement from the statements cache.
+// loadOrPrepareStmt will load a statement from the statement cache.
 // If not available, it will attempt to prepare (create) it.
 // Returns nil if it failed to prepare a statement.
 //
-// IMPORTANT: Adding prepare statements consumes MySQL server resources, and is limited by MySQL max_prepared_stmt_count
+// IMPORTANT: Adding prepare statements consumes MySQL server resources and is limited by the MySQL max_prepared_stmt_count
 // system variable. This method may create 1 prepare statement for EACH database connection. Customers must be notified
 // to update their MySQL configurations when additional prepare statements are added.
 // For more detail, see: https://github.com/fleetdm/fleet/issues/15476
@@ -183,10 +178,22 @@ func (ds *Datastore) deleteCachedStmt(query string) {
 	}
 }
 
-// NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore
+// NewSCEPDepot returns a scep_depot.Depot that uses the Datastore
 // underlying MySQL writer *sql.DB.
 func (ds *Datastore) NewSCEPDepot() (scep_depot.Depot, error) {
 	return newSCEPDepot(ds.primary.DB, ds)
+}
+
+// NewHostIdentitySCEPDepot returns a scep_depot.Depot for host identity certs that uses the Datastore
+// underlying MySQL writer *sql.DB.
+func (ds *Datastore) NewHostIdentitySCEPDepot(logger log.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
+	return hostidscepdepot.NewHostIdentitySCEPDepot(ds.primary, ds, logger, cfg)
+}
+
+// NewConditionalAccessSCEPDepot returns a new conditional access SCEP depot that uses the
+// underlying MySQL writer *sql.DB.
+func (ds *Datastore) NewConditionalAccessSCEPDepot(logger log.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
+	return condaccessdepot.NewConditionalAccessSCEPDepot(ds.primary, ds, logger, cfg)
 }
 
 type entity struct {
@@ -211,8 +218,21 @@ func (ds *Datastore) withTx(ctx context.Context, fn common_mysql.TxFn) (err erro
 	return common_mysql.WithTxx(ctx, ds.writer(ctx), fn, ds.logger)
 }
 
+// withReadTx runs fn in a read-only transaction with a consistent snapshot of the DB
+// for executing multiple SELECT queries in an isolated fashion. It should be preferred
+// over withTx for these usecases as mysql applies some optimizations to transactions
+// declared as read-only versus.
+func (ds *Datastore) withReadTx(ctx context.Context, fn common_mysql.ReadTxFn) (err error) {
+	reader := ds.reader(ctx)
+	readerDB, ok := reader.(*sqlx.DB)
+	if !ok {
+		return ctxerr.New(ctx, "failed to cast reader to *sqlx.DB")
+	}
+	return common_mysql.WithReadOnlyTxx(ctx, readerDB, fn, ds.logger)
+}
+
 // New creates an MySQL datastore.
-func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
+func New(conf config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
 	options := &common_mysql.DBOptions{
 		MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 		MaxAttempts:         defaultMaxAttempts,
@@ -227,7 +247,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		}
 	}
 
-	if err := checkConfig(&config); err != nil {
+	if err := checkConfig(&conf); err != nil {
 		return nil, err
 	}
 	if options.ReplicaConfig != nil {
@@ -236,13 +256,25 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		}
 	}
 
-	dbWriter, err := NewDB(&config, options)
+	// Set up IAM authentication connector factory if needed
+	if err := setupIAMAuthIfNeeded(&conf, options); err != nil {
+		return nil, err
+	}
+
+	dbWriter, err := NewDB(&conf, options)
 	if err != nil {
 		return nil, err
 	}
 	dbReader := dbWriter
 	if options.ReplicaConfig != nil {
-		dbReader, err = NewDB(options.ReplicaConfig, options)
+		// Set up IAM auth for replica if needed (may have different region/credentials)
+		replicaOptions := *options
+		// Reset ConnectorFactory - replica may have different auth requirements than primary
+		replicaOptions.ConnectorFactory = nil
+		if err := setupIAMAuthIfNeeded(options.ReplicaConfig, &replicaOptions); err != nil {
+			return nil, fmt.Errorf("replica: %w", err)
+		}
+		dbReader, err = NewDB(options.ReplicaConfig, &replicaOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -253,13 +285,13 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		replica:             dbReader,
 		logger:              options.Logger,
 		clock:               c,
-		config:              config,
+		config:              conf,
 		readReplicaConfig:   options.ReplicaConfig,
 		writeCh:             make(chan itemToWrite),
 		stmtCache:           make(map[string]*sqlx.Stmt),
 		minLastOpenedAtDiff: options.MinLastOpenedAtDiff,
 		serverPrivateKey:    options.PrivateKey,
-		Datastore:           android_mysql.New(options.Logger, dbWriter, dbReader),
+		Datastore:           NewAndroidDatastore(options.Logger, dbWriter, dbReader),
 	}
 
 	go ds.writeChanLoop()
@@ -363,6 +395,28 @@ func checkConfig(conf *config.MysqlConfig) error {
 	return nil
 }
 
+// setupIAMAuthIfNeeded configures IAM authentication for RDS if the config
+// indicates it should be used (no password provided but region is set).
+func setupIAMAuthIfNeeded(conf *config.MysqlConfig, opts *common_mysql.DBOptions) error {
+	if conf.Password != "" || conf.PasswordPath != "" || conf.Region == "" {
+		return nil
+	}
+
+	// Parse host and port from address
+	host, port, err := net.SplitHostPort(conf.Address)
+	if err != nil {
+		host = conf.Address
+		port = "3306"
+	}
+
+	factory, err := rdsauth.NewConnectorFactory(conf, host, port)
+	if err != nil {
+		return fmt.Errorf("failed to create RDS IAM auth connector factory: %w", err)
+	}
+	opts.ConnectorFactory = factory
+	return nil
+}
+
 func (ds *Datastore) MigrateTables(ctx context.Context) error {
 	return tables.MigrationClient.Up(ds.writer(ctx).DB, "")
 }
@@ -415,12 +469,73 @@ func (ds *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatu
 	if err != nil {
 		return nil, fmt.Errorf("cannot load migrations: %w", err)
 	}
+	// This will only return a non-nil status if we detect the specific broken state from v4.73.2
+	status := ds.CheckFleetv4732BadMigrations(appliedTable)
+	if status != nil {
+		return status, nil
+	}
 	return compareMigrations(
 		tables.MigrationClient.Migrations,
 		data.MigrationClient.Migrations,
 		appliedTable,
 		appliedData,
 	), nil
+}
+
+// Checks for misnumbered migrations introduced in some released fleet v4.73.2 versions
+func (ds *Datastore) CheckFleetv4732BadMigrations(appliedTable []int64) *fleet.MigrationStatus {
+	if len(appliedTable) == 0 {
+		return nil
+	}
+	// If the last 3 migrations are the "bad" 4.73.2 migrations and then the good 4.73.1 migration, in that order,
+	// we are in the known-bad 4.73.2 state and should apply the fix
+	if len(appliedTable) > 2 &&
+		appliedTable[len(appliedTable)-1] == fleet4732BadMigrationID1 &&
+		appliedTable[len(appliedTable)-2] == fleet4732BadMigrationID2 &&
+		appliedTable[len(appliedTable)-3] == fleet4731GoodMigrationID {
+		return &fleet.MigrationStatus{
+			StatusCode: fleet.NeedsFleetv4732Fix,
+		}
+	}
+	for _, v := range appliedTable {
+		if v == fleet4732BadMigrationID1 || v == fleet4732BadMigrationID2 {
+			return &fleet.MigrationStatus{
+				StatusCode: fleet.UnknownFleetv4732State,
+			}
+		}
+	}
+	return nil
+}
+
+func (ds *Datastore) FixFleetv4732Migrations(ctx context.Context) error {
+	// Update version ID of the bad migrations to the renumbered version IDs. Exactly 1 row should be affected
+	// by each query
+	stmt := `UPDATE ` + tables.MigrationClient.TableName + ` SET version_id = ? WHERE version_id = ?`
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		result, err := tx.ExecContext(ctx, stmt, fleet4732GoodMigrationID1, fleet4732BadMigrationID1)
+		if err != nil {
+			return err
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if affected != 1 {
+			return ctxerr.Errorf(ctx, "expected to affect 1 row for migration %d, affected %d", fleet4732BadMigrationID1, affected)
+		}
+		result, err = tx.ExecContext(ctx, stmt, fleet4732GoodMigrationID2, fleet4732BadMigrationID2)
+		if err != nil {
+			return err
+		}
+		affected, err = result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if affected != 1 {
+			return ctxerr.Errorf(ctx, "expected to affect 1 row for migration %d, affected %d", fleet4732BadMigrationID2, affected)
+		}
+		return nil
+	})
 }
 
 // It assumes some deployments may have performed migrations out of order.

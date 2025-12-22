@@ -205,12 +205,14 @@ func testCollectLabelQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fle
 
 			// run the collection
 			var stats collectorExecStats
-			task := NewTask(nil, nil, clock.C, config.OsqueryConfig{
-				AsyncHostInsertBatch:        batchSizes,
-				AsyncHostUpdateBatch:        batchSizes,
-				AsyncHostDeleteBatch:        batchSizes,
-				AsyncHostRedisPopCount:      batchSizes,
-				AsyncHostRedisScanKeysCount: 10,
+			task := NewTask(nil, nil, clock.C, &config.FleetConfig{
+				Osquery: config.OsqueryConfig{
+					AsyncHostInsertBatch:        batchSizes,
+					AsyncHostUpdateBatch:        batchSizes,
+					AsyncHostDeleteBatch:        batchSizes,
+					AsyncHostRedisPopCount:      batchSizes,
+					AsyncHostRedisScanKeysCount: 10,
+				},
 			})
 			err := task.collectLabelQueryExecutions(ctx, ds, pool, &stats)
 			require.NoError(t, err)
@@ -252,12 +254,14 @@ func testCollectLabelQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fle
 	// update host 1, label 1, already existing
 	setupTest(t, map[int]map[int]bool{1: {1: true}})
 	var stats collectorExecStats
-	task := NewTask(nil, nil, clock.C, config.OsqueryConfig{
-		AsyncHostInsertBatch:        batchSizes,
-		AsyncHostUpdateBatch:        batchSizes,
-		AsyncHostDeleteBatch:        batchSizes,
-		AsyncHostRedisPopCount:      batchSizes,
-		AsyncHostRedisScanKeysCount: 10,
+	task := NewTask(nil, nil, clock.C, &config.FleetConfig{
+		Osquery: config.OsqueryConfig{
+			AsyncHostInsertBatch:        batchSizes,
+			AsyncHostUpdateBatch:        batchSizes,
+			AsyncHostDeleteBatch:        batchSizes,
+			AsyncHostRedisPopCount:      batchSizes,
+			AsyncHostRedisScanKeysCount: 10,
+		},
 	})
 	err := task.collectLabelQueryExecutions(ctx, ds, pool, &stats)
 	require.NoError(t, err)
@@ -287,7 +291,7 @@ func testRecordLabelQueryExecutionsSync(t *testing.T, ds *mock.Store, pool fleet
 	results := map[uint]*bool{1: &yes, 2: &yes, 3: &no, 4: nil}
 	keySet, keyTs := fmt.Sprintf(labelMembershipHostKey, host.ID), fmt.Sprintf(labelMembershipReportedKey, host.ID)
 
-	task := NewTask(ds, pool, clock.C, config.OsqueryConfig{})
+	task := NewTask(ds, pool, clock.C, nil)
 
 	labelReportedAt := task.GetHostLabelReportedAt(ctx, host)
 	require.True(t, labelReportedAt.Equal(lastYear))
@@ -330,13 +334,15 @@ func testRecordLabelQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool flee
 	results := map[uint]*bool{1: &yes, 2: &yes, 3: &no, 4: nil}
 	keySet, keyTs := fmt.Sprintf(labelMembershipHostKey, host.ID), fmt.Sprintf(labelMembershipReportedKey, host.ID)
 
-	task := NewTask(ds, pool, clock.C, config.OsqueryConfig{
-		EnableAsyncHostProcessing:   "true",
-		AsyncHostInsertBatch:        3,
-		AsyncHostUpdateBatch:        3,
-		AsyncHostDeleteBatch:        3,
-		AsyncHostRedisPopCount:      3,
-		AsyncHostRedisScanKeysCount: 10,
+	task := NewTask(ds, pool, clock.C, &config.FleetConfig{
+		Osquery: config.OsqueryConfig{
+			EnableAsyncHostProcessing:   "true",
+			AsyncHostInsertBatch:        3,
+			AsyncHostUpdateBatch:        3,
+			AsyncHostDeleteBatch:        3,
+			AsyncHostRedisPopCount:      3,
+			AsyncHostRedisScanKeysCount: 10,
+		},
 	})
 
 	labelReportedAt := task.GetHostLabelReportedAt(ctx, host)

@@ -51,6 +51,7 @@ const SetupAssistantProfileUploader = ({
               text="Learn more"
               className={`${baseClass}__new-tab`}
               newTab
+              variant="flash-message-link"
             />
           </>
         );

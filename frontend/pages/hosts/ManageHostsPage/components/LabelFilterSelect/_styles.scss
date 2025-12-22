@@ -1,5 +1,5 @@
 .label-filter-select {
-  width: 300px;
+  width: 305px;
 
   svg {
     transition: transform 0.25s ease;
@@ -9,33 +9,34 @@
     // no access to hover state from react-select in JS so this is done here.
     .custom-dropdown-indicator {
       & path {
-        stroke: $core-vibrant-blue;
+        stroke: $ui-fleet-black-75;
       }
     }
 
     .filter-icon {
       & path {
-        fill: $core-vibrant-blue;
+        fill: $ui-fleet-black-75;
       }
     }
   }
 
   .label-filter-select__control {
     border: 1px solid $ui-fleet-black-10;
-    background-color: $ui-light-grey;
+    background-color: $core-fleet-white;
     border-radius: $border-radius;
-    height: 40px;
+    height: 36px;
 
-    :hover {
+    &:hover {
       cursor: pointer;
+      border: 1px solid $ui-fleet-black-50;
     }
 
     &--is-focused,
-    &--menu-is-open,
-    &:hover {
+    &--menu-is-open {
       box-shadow: none;
-      border: 1px solid $core-vibrant-blue;
+      border: 1px solid $core-fleet-black;
     }
+
     &--menu-is-open {
       .custom-dropdown-indicator {
         svg {
@@ -45,7 +46,7 @@
       }
       .filter-icon {
         & path {
-          fill: $core-vibrant-blue;
+          fill: $ui-fleet-black-75;
         }
       }
     }
@@ -60,7 +61,7 @@
   .label-filter-select__single-value,
   .label-filter-select__placeholder {
     color: $core-fleet-black;
-    font-size: $small;
+    font-size: $x-small;
   }
 
   .label-filter-select__single-value {
@@ -120,10 +121,10 @@
     }
 
     &--is-focused {
-      background-color: $ui-vibrant-blue-10;
+      background-color: $ui-fleet-black-5;
 
       &:active {
-        background-color: $ui-vibrant-blue-25;
+        background-color: $ui-fleet-black-10;
       }
     }
 
@@ -135,6 +136,9 @@
   }
 
   .label-filter-select__group-heading {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
     padding: 0;
   }
 
@@ -165,7 +169,7 @@
 
 @media (min-width: $table-controls-break) {
   .label-filter-select {
-    min-width: 220px;
+    min-width: 305px;
 
     &__single-value {
       max-width: 210px !important; // Must override default styling of .css-qc6sy-singleValue

@@ -108,14 +108,60 @@ kind: built-in
 spec:
   name: Disk space
   platform: linux, darwin
-  description: Retrieves total amount of free disk space on a host.
+  description: Retrieves total amount of free disk space, percentage of free disk space, and total available disk space on a host.
   query: |
-    SELECT 
-      (blocks_available * 100 / blocks) AS percent_disk_space_available,
+    SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
-      round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
-    FROM mounts
-    WHERE path = '/' LIMIT 1
+      round((blocks * blocks_size * 10e-10),2) AS gigs_total_disk_space,
+      (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts WHERE
+    -- exclude mounts with no space
+    blocks > 0
+    AND blocks_size > 0
+
+    -- exclude external storage
+    AND path NOT LIKE '/media%' AND path NOT LIKE '/mnt%'
+    -- exclude device drivers
+    AND path NOT LIKE '/dev%' 
+
+    -- exclude kernel-related mounts
+    AND path NOT LIKE '/proc%'
+    AND path NOT LIKE '/sys%'
+
+    -- exclude process files
+    AND path NOT LIKE '/run%'
+    AND path NOT LIKE '/var/run%'
+
+    -- exclude boot files
+    AND path NOT LIKE '/boot%' 
+
+    -- exclude snap packages
+    AND path NOT LIKE '/snap%' AND path NOT LIKE '/var/snap%'
+
+    -- exclude virtualized mounts, would double-count bare metal storage
+    AND path NOT LIKE '/var/lib/docker%'
+    AND path NOT LIKE '/var/lib/containers%'
+
+    AND type IN (
+    'ext4', 
+    'ext3', 
+    'ext2', 
+    'xfs', 
+    'btrfs', 
+    'ntfs', 
+    'vfat',
+    'fuseblk', --seen on NTFS and exFAT volumes mounted via FUSE
+    'zfs' --also valid storage
+    )
+    AND (
+    device LIKE '/dev/sd%' 
+    OR device LIKE '/dev/hd%' 
+    OR device LIKE '/dev/vd%' 
+    OR device LIKE '/dev/nvme%' 
+    OR device LIKE '/dev/mapper%'
+    OR device LIKE '/dev/md%'
+    OR device LIKE '/dev/dm-%'
+    )) AS gigs_all_disk_space
+    FROM mounts WHERE path = '/' LIMIT 1;
   bash: df -P / | awk 'NR==2 { blocks=$2; blocks_available=$4; blocks_size=$2/$3 } END { printf "percent_disk_space_available=%.2f\n", (blocks_available * 100 / blocks); printf "gigs_disk_space_available=%.2f\n", (blocks_available * blocks_size * 10e-10); printf "gigs_total_disk_space=%.2f\n", (blocks * blocks_size * 10e-10) }'
   purpose: Informational
   tags: built-in
@@ -194,6 +240,37 @@ spec:
   discovery: google_chrome_profiles
   purpose: Informational
   tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Host certificates (macOS)
+  platform: darwin
+  description: Retrieves certificates from an Apple device.
+  query: |
+   SELECT
+      ca, common_name, subject, issuer,
+      key_algorithm, key_strength, key_usage, signing_algorithm,
+      not_valid_after, not_valid_before,
+      serial, sha1, "system" as source,
+      path
+    FROM
+      certificates
+    WHERE
+      path = '/Library/Keychains/System.keychain'
+    UNION
+    SELECT
+      ca, common_name, subject, issuer,
+      key_algorithm, key_strength, key_usage, signing_algorithm,
+      not_valid_after, not_valid_before,
+      serial, sha1, "user" as source,
+      path
+    FROM
+      certificates
+    WHERE
+      path LIKE '/Users/%/Library/Keychains/login.keychain-db';
+  purpose: Informational
+  tags: built-in
 # --- # Note: this vital is commented out because it requires the kubequery osquery extension.
 # apiVersion: v1
 # kind: built-in
@@ -227,10 +304,21 @@ spec:
   platform: darwin
   description: Retrieves information about mobile device management (MDM) configuration profiles installed on a macOS device.
   query: |
-    SELECT 
-      display_name, identifier, install_date 
-    FROM macos_profiles 
-    WHERE type = "Configuration"
+    SELECT 1
+    WHERE EXISTS (
+        SELECT 1
+        FROM osquery_registry
+        WHERE active = true
+          AND registry = 'table'
+          AND name = 'macos_profiles'
+    )
+    AND NOT EXISTS (
+        SELECT 1
+        FROM osquery_registry
+        WHERE active = true
+          AND registry = 'table'
+          AND name = 'macos_user_profiles'
+    );
   discovery: macos_profiles
   purpose: Informational
   tags: built-in
@@ -273,35 +361,43 @@ spec:
   description: Retrieves information about the mobile device management (MDM) solution a windows device is enrolled in.
   query: |
     WITH registry_keys AS (
-                            SELECT *
-                            FROM registry
-                            WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
-                        ),
-                        enrollment_info AS (
-                            SELECT
-                                MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
-                                MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
-                                MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
-                                MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
-                                MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
-                            FROM registry_keys
-                            GROUP BY key
-                        ),
-                        installation_info AS (
-                            SELECT data AS installation_type
-                            FROM registry
-                            WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
-                            LIMIT 1
-                        )
-                        SELECT
-                            e.aad_resource_id,
-                            e.discovery_service_url,
-                            e.provider_id,
-                            i.installation_type
-                        FROM installation_info i
-                        LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
-                        WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
-                        LIMIT 1
+                SELECT *
+                FROM registry
+                WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
+              ),
+              enrollment_info AS (
+                SELECT
+                  MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
+                  MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
+                  MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
+                  MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
+                  MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
+                FROM registry_keys
+                GROUP BY key
+              ),
+              installation_info AS (
+                SELECT data AS installation_type
+                FROM registry
+                WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
+                LIMIT 1
+              )
+              SELECT
+                e.aad_resource_id,
+                e.discovery_service_url,
+                e.provider_id,
+                i.installation_type
+              FROM installation_info i
+              LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
+          -- coalesce to 'unknown' and keep that state in the list
+          -- in order to account for hosts that might not have this
+          -- key, and servers
+              WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
+          -- old enrollments that aren't completely cleaned up may still be around
+          -- in the registry so we want to make sure we return the one with an actual
+          -- discovery URL set if there is one. LENGTH is used here to prefer those
+          -- with actual URLs over empty string/null if there are multiple
+              ORDER BY LENGTH(e.discovery_service_url) DESC
+              LIMIT 1;
   powershell: >-
     $installationKey = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
 
@@ -355,7 +451,7 @@ kind: built-in
 spec:
   name: Munki info
   platform: darwin
-  description: Retrives information about the last Munki run on a macOS device.
+  description: Retrieves information about the last Munki run on a macOS device.
   query: |
     SELECT 
       version, errors, warnings 
@@ -370,7 +466,7 @@ kind: built-in
 spec:
   name: Network interfaces (Chrome)
   platform: chrome
-  description: Retrives information about a ChromeOS device's current network.
+  description: Retrieves information about a ChromeOS device's current network.
   query: |
     SELECT 
     ipv4 AS address, mac 
@@ -519,7 +615,7 @@ kind: built-in
 spec:
   name: Orbit information
   platform: darwin, linux, windows
-  description: Retreives configuration information the osquery version and configuration manager running on a device.
+  description: Retrieves configuration information the osquery version and configuration manager running on a device.
   query: SELECT * FROM orbit_info
   purpose: Informational
   tags: built-in
@@ -786,11 +882,11 @@ spec:
   description: Gathers information about software installed on a device running macOS.
   query: |
     WITH cached_users AS (WITH cached_groups AS (select * from groups)
-     SELECT uid, username, type, groupname, shell
+     SELECT uid, uuid, username, type, groupname, shell
      FROM users LEFT JOIN cached_groups USING (gid)
      WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
     SELECT
-      name AS name,
+      COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
       COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
       bundle_identifier AS bundle_identifier,
       '' AS extension_id,
@@ -875,7 +971,7 @@ spec:
   description: Gathers information about software installed on a device running linux.
   query: |
     WITH cached_users AS (WITH cached_groups AS (select * from groups)
-     SELECT uid, username, type, groupname, shell
+     SELECT uid, uuid, username, type, groupname, shell
      FROM users LEFT JOIN cached_groups USING (gid)
      WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
     SELECT
@@ -949,19 +1045,7 @@ spec:
       '' AS vendor,
       '' AS arch,
       path AS installed_path
-    FROM cached_users CROSS JOIN firefox_addons USING (uid)
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'python_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      path AS installed_path
-    FROM python_packages
+    FROM cached_users CROSS JOIN firefox_addons USING (uid);
   purpose: Informational
   tags: built-in
 ---
@@ -972,94 +1056,10 @@ spec:
   platform: darwin
   description: A software override query to append codesign information to macOS software entries. Requires fleetd
   query: |
-    WITH cached_users AS (WITH cached_groups AS (select * from groups)
-     SELECT uid, username, type, groupname, shell
-     FROM users LEFT JOIN cached_groups USING (gid)
-     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'deb_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      '' AS installed_path
-    FROM deb_packages
-    WHERE status LIKE '% ok installed'
-    UNION
-    SELECT
-      package AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'portage_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      '' AS installed_path
-    FROM portage_packages
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'rpm_packages' AS source,
-      release AS release,
-      vendor AS vendor,
-      arch AS arch,
-      '' AS installed_path
-    FROM rpm_packages
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'npm_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      path AS installed_path
-    FROM npm_packages
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      identifier AS extension_id,
-      browser_type AS browser,
-      'chrome_extensions' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      path AS installed_path
-    FROM cached_users CROSS JOIN chrome_extensions USING (uid)
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      identifier AS extension_id,
-      'firefox' AS browser,
-      'firefox_addons' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      path AS installed_path
-    FROM cached_users CROSS JOIN firefox_addons USING (uid)
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'python_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      path AS installed_path
-    FROM python_packages
+    SELECT c.*
+        FROM apps a
+        JOIN codesign c ON a.path = c.path
+  discovery: codesign
   purpose: Informational
   tags: built-in
 ---
@@ -1104,12 +1104,56 @@ spec:
 apiVersion: v1
 kind: built-in
 spec:
+  name: Software Python packages
+  platform: darwin, windows, linux
+  description: Retrieves python packages installed on a host.
+  query: |
+    SELECT
+          name AS name,
+          version AS version,
+          '' AS extension_id,
+          '' AS browser,
+          'python_packages' AS source,
+          '' AS vendor,
+          path AS installed_path
+        FROM python_packages;
+  discovery: osquery_info
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software Python packages including user directory
+  platform: darwin, windows, linux
+  description: Retrieves python packages installed on a host. As of osquery version 5.16.0, the python_packages table searches user directories with support from a cross join on users. See <a href="https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table">this guide</a> for more information.
+  query: |
+    WITH cached_users AS (WITH cached_groups AS (select * from groups)
+     SELECT uid, uuid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+        SELECT
+          name AS name,
+          version AS version,
+          '' AS extension_id,
+          '' AS browser,
+          'python_packages' AS source,
+          '' AS vendor,
+          path AS installed_path
+        FROM cached_users CROSS JOIN python_packages USING (uid);
+  discovery: osquery_info
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
   name: VScode extensions
   platform: darwin, windows, linux
   description: Gathers information about Visual Studio Code extensions installed on a device.
   query: |
     WITH cached_users AS (WITH cached_groups AS (select * from groups)
-     SELECT uid, username, type, groupname, shell
+     SELECT uid, uuid, username, type, groupname, shell
      FROM users LEFT JOIN cached_groups USING (gid)
      WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
     SELECT
@@ -1236,7 +1280,7 @@ spec:
   description: Gathers information about software installed on a device running Windows.
   query: |
     WITH cached_users AS (WITH cached_groups AS (select * from groups)
-     SELECT uid, username, type, groupname, shell
+     SELECT uid, uuid, username, type, groupname, shell
      FROM users LEFT JOIN cached_groups USING (gid)
      WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
     SELECT
@@ -1248,16 +1292,6 @@ spec:
       publisher AS vendor,
       install_location AS installed_path
     FROM programs
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'python_packages' AS source,
-      '' AS vendor,
-      path AS installed_path
-    FROM python_packages
     UNION
     SELECT
       name AS name,
@@ -1532,7 +1566,7 @@ spec:
   description: Retrieves information about user accounts.
   query: |
     WITH cached_groups AS (select * from groups)
-     SELECT uid, username, type, groupname, shell
+     SELECT uid, uuid, username, type, groupname, shell
      FROM users LEFT JOIN cached_groups USING (gid)
      WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')
   powershell: >-
@@ -1600,6 +1634,64 @@ spec:
   purpose: Informational
   tags: built-in
 ---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Microsoft device ID (macOS)
+  platform: darwin
+  description: Retrieves the Microsoft device ID of a macOS device.
+  query: |
+    SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';
+  discovery: app_sso_platform
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Microsoft device ID (Windows)
+  platform: windows
+  description: Retrieves the Microsoft device ID of a Windows device.
+  query: |
+    SELECT name, data
+    FROM registry
+    WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Provisioning\OMADM\MDMDeviceID\DeviceClientId';
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software last opened at (Windows)
+  platform: windows
+  description: A software override query to append last_opened_at information to Windows software entries.
+  query: |
+    SELECT
+      MAX(last_run_time) AS last_opened_at,
+      REGEX_MATCH(accessed_files, "VOLUME[^\\]+([^,]+" || REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(filename, '\', '\\'), '.', '\.'), '*', '\*'), '+', '\+'), '?', '\?'), '[', '\['), ']', '\]'), '{', '\{'), '}', '\}'), '(', '\('), ')', '\)'), '|', '\|') || ")", 1) AS executable_path
+    FROM prefetch
+    GROUP BY executable_path
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software last opened at (Linux)
+  platform: linux
+  description: A software override query to append last_opened_at information to Linux DEB software entries. The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
+  query: |
+    SELECT
+        package,
+        MAX(atime) AS last_opened_at
+    FROM deb_package_files
+    CROSS JOIN file USING (path)
+    WHERE type = 'regular'
+      AND regex_match(file.mode, '[1357]', 0)
+    GROUP BY package;
+  discovery: deb_package_files
+  purpose: Informational
+  tags: built-in
 #  
 #   ██████╗ ██╗   ██╗███████╗██████╗ ██╗███████╗███████╗
 #  ██╔═══██╗██║   ██║██╔════╝██╔══██╗██║██╔════╝██╔════╝
@@ -1609,6 +1701,18 @@ spec:
 #   ╚══▀▀═╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝
 #                                                       
 # From docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect if Apple Intelligence is enabled
+  platform: darwin
+  description: Detects if Apple Intelligence has been enabled. Value = 1 is on, 0 is off.
+  query: SELECT * FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.CloudSubscriptionFeatures.optIn.plist';
+  purpose: Informational
+  tags: inventory
+  contributors: allenhouchins
+---
 apiVersion: v1
 kind: query
 spec:
@@ -2299,7 +2403,7 @@ spec:
   name: Get Docker contained processes on a system
   platform: darwin, linux
   description: Docker containers Processes, can be used on normal systems or a kubenode.
-  query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);
+  query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c JOIN docker_container_processes p ON c.id = p.id;
   bash: echo "id,name,image,image_id,command,created,state,status,cmdline"; for id in $(docker ps -q); do cont=$(docker inspect --format='{{.Id}},{{.Name}},{{.Config.Image}},{{.Image}},{{.Path}} {{range .Args}}{{.}} {{end}},{{.Created}},{{.State.Status}},{{.State.ExitCode}}' "$id"); docker top "$id" aux | sed '1d' | while IFS= read -r proc; do echo "$cont,\"$proc\""; done; done
   purpose: Informational
   tags: built-in, containers, inventory
@@ -2583,7 +2687,7 @@ spec:
   name: Get Shimcache table
   platform: windows
   description: Returns forensic data showing evidence of likely file execution, in addition to the last modified timestamp of the file, order of execution, full file path order of execution, and the order in which files were executed.
-  query: select * from Shimcache
+  query: select * from shimcache
   purpose: Informational
   tags: hunting
   contributors: puffyCid
@@ -2934,8 +3038,7 @@ spec:
   name: Get a list of Visual Studio Code extensions
   platform: darwin, linux, windows
   description: Get a list of installed VS Code extensions (requires osquery > 5.11.0).
-  query: |
-    SELECT u.username, vs.* FROM users u CROSS JOIN vscode_extensions vs USING (uid);
+  query: SELECT u.username, vs.* FROM users u JOIN vscode_extensions vs ON u.uid = vs.uid;
   bash: echo "username,extension_name" && for u in /Users/*; do [ -d "$u/.vscode/extensions" ] && for ext in "$u/.vscode/extensions"/*; do [ -d "$ext" ] && echo "$(basename "$u"),$(basename "$ext")"; done; done
   powershell: >
     $users = @(
@@ -2978,3 +3081,89 @@ spec:
   purpose: Informational
   tags: fleet, osquery, table, schema
   contributors: nonpunctual
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get MCP client configurations
+  platform: darwin, linux, windows
+  description: |
+    Retrieves Model Context Protocol (MCP) client configurations from supported AI applications.
+    Only global (not project-specific) configurations are returned.
+    
+    Supported applications: Cursor (macOS/Linux/Windows), Claude Desktop (macOS/Windows), Claude Code (macOS/Linux), VSCode (macOS/Linux/Windows), Windsurf (macOS), Gemini CLI (macOS/Linux/Windows), LMStudio (macOS/Linux/Windows)
+  query: |
+        /* ----------------------------------------------------------
+      1️⃣  Get MCP client configurations from your endpoints.
+          (including the two new VS Code extensions: RooCode & Augment)
+      ---------------------------------------------------------- */
+    WITH path_suffixes(path) AS (
+      VALUES 
+        -- Cursor
+        ('/.cursor/mcp.json'),
+
+        -- Claude Desktop (macOS)
+        ('/Library/Application Support/Claude/claude_desktop_config.json'),
+
+        -- Claude Desktop (Windows)
+        ('\\AppData\\Roaming\\Claude\\claude_desktop_config.json'),
+
+        -- Claude Code
+        ('/.claude.json'),
+
+        /* ───── VS Code (original paths) ────────────────────── */
+        ('/Library/Application Support/Code/User/mcp.json'),              -- macOS
+        ('/.config/Code/User/mcp.json'),                                   -- Linux / Ubuntu
+        ('\\AppData\\Roaming\\Code\User\\mcp.json'),                       -- Windows
+
+        /* ───── VS Code – RooCode & Augment (new paths) ────────── */
+        -- RooCode
+        ('/Library/Application Support/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/mcp_settings.json'),          -- macOS
+        ('/.config/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/mcp_settings.json'),                              -- Linux / Ubuntu
+        ('\\AppData\\Roaming\\Code\User\\globalStorage\\rooveterinaryinc.roo-cline\\settings\\mcp_settings.json'),              -- Windows
+
+        -- Augment
+        ('/Library/Application Support/Code/User/globalStorage/augment.vscode-augment/augment-global-state/mcpServers.json'),    -- macOS
+        ('/.config/Code/User/globalStorage/augment.vscode-augment/augment-global-state/mcpServers.json'),                        -- Linux / Ubuntu
+        ('\\AppData\\Roaming\\Code\User\\globalStorage\\augment.vscode-augment\\augment-global-state\\mcpServers.json'),          -- Windows
+
+        /* ───── Other apps ─────────────────────────────────── */
+        ('/.gemini/settings.json'),   -- Gemini CLI (macOS/Linux/Windows)
+        ('/.lmstudio/mcp.json')       -- LMStudio (macOS/Linux/Windows)
+    ),
+
+    /* ----------------------------------------------------------
+      2️⃣  Build absolute file paths for every user + suffix
+      ---------------------------------------------------------- */
+    full_paths AS (
+      SELECT u.directory || p.path  AS full_path,
+            p.path                 AS suffix
+      FROM users   u
+      JOIN path_suffixes p ON 1=1     
+    ),
+
+    /* ----------------------------------------------------------
+      3️⃣  Read only the files that actually exist and concat them
+      ---------------------------------------------------------- */
+    config_files AS (
+      SELECT f.path,
+            group_concat(f.line, '') AS contents
+      FROM file_lines f
+      JOIN full_paths fp ON f.path = fp.full_path   
+      GROUP BY f.path
+    )
+
+    /* ----------------------------------------------------------
+      4️⃣  Parse JSON & pull out each MCP server configuration
+      ---------------------------------------------------------- */
+    SELECT cf.path,
+          je.key  AS name,          
+          je.value AS mcp_config   
+    FROM config_files cf
+    JOIN json_each(
+          COALESCE(json_extract(cf.contents, '$.mcpServers'),
+                  json_extract(cf.contents, '$.servers'))
+        ) AS je;  
+  purpose: Informational
+  tags: fleet, osquery, mcp, ai, agents, llm, inventory
+  contributors: zwass

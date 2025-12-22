@@ -463,7 +463,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         isPremiumTier={isPremiumTier || false}
         smtpConfigured={config?.smtp_settings?.configured || false}
         sesConfigured={config?.email?.backend === "ses" || false}
-        canUseSso={config?.sso_settings.enable_sso || false}
+        canUseSso={config?.sso_settings?.enable_sso || false}
         isSsoEnabled={userData?.sso_enabled}
         isMfaEnabled={userData?.mfa_enabled}
         isApiOnly={userData?.api_only || false}
@@ -487,7 +487,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         isPremiumTier={isPremiumTier || false}
         smtpConfigured={config?.smtp_settings?.configured || false}
         sesConfigured={config?.email?.backend === "ses" || false}
-        canUseSso={config?.sso_settings.enable_sso || false}
+        canUseSso={config?.sso_settings?.enable_sso || false}
         isUpdatingUsers={isUpdatingUsers}
         isModifiedByGlobalAdmin
       />
@@ -554,7 +554,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   return (
     <>
       {tableDataError ? (
-        <TableDataError />
+        <TableDataError verticalPaddingSize="pad-xxxlarge" />
       ) : (
         <TableContainer
           columnConfigs={tableHeaders}
@@ -566,7 +566,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           actionButton={{
             name: "add user",
             buttonText: "Add user",
-            onActionButtonClick: toggleAddUserModal,
+            onClick: toggleAddUserModal,
           }}
           onQueryChange={onTableQueryChange}
           resultsTitle="users"

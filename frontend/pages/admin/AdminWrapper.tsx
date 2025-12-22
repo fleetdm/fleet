@@ -77,9 +77,9 @@ const AdminWrapper = ({
 
   return (
     <MainContent className={classNames}>
-      <div className={`${baseClass}_wrapper`}>
+      <>
+        <h1 className="page-header">Settings</h1>
         <TabNav>
-          <h1>Settings</h1>
           <Tabs
             selectedIndex={getTabIndex(pathname)}
             onSelect={(i) => navigateToNav(i)}
@@ -98,7 +98,7 @@ const AdminWrapper = ({
           </Tabs>
         </TabNav>
         {children}
-      </div>
+      </>
     </MainContent>
   );
 };

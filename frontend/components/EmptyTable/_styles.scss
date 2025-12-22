@@ -5,7 +5,11 @@
     align-items: center;
     margin: 96px auto; // 96px to top of div
     max-width: 500px; // standard empty state width
-    gap: $pad-medium; // 16px between image, text, and buttons
+    gap: $pad-large;
+
+    &--mobile {
+      margin: auto;
+    }
   }
 
   &__inner {
@@ -48,7 +52,7 @@
   &__cta-buttons {
     display: flex;
     justify-content: center;
-    gap: $pad-medium; // 16px between buttons
+    gap: $pad-large;
   }
 }
 

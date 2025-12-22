@@ -13,3 +13,19 @@ global.ResizeObserver = jest.fn().mockImplementation(() => ({
 beforeAll(() => mockServer.listen());
 afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
+
+// suppress the opacity console warnings for react-tooltip. The code for assigning the
+// opacity is correct but there is still an unnecessary warning in the console when
+// the jest tests are run. This may be react-tooltip and JSdom not playing well together.
+beforeAll(() => {
+  const originalConsoleWarning = console.warn;
+  console.warn = (...args) => {
+    if (
+      args[0]?.includes("[react-tooltip]") &&
+      args[0]?.includes("is not a valid `opacity`")
+    ) {
+      return;
+    }
+    originalConsoleWarning(...args);
+  };
+});

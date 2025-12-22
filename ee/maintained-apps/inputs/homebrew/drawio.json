@@ -1,0 +1,8 @@
+{
+  "name": "draw.io",
+  "unique_identifier": "com.jgraph.drawio.desktop",
+  "token": "drawio",
+  "installer_format": "dmg",
+  "slug": "drawio/darwin",
+  "default_categories": ["Productivity"]
+}

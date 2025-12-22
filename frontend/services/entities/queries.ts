@@ -29,6 +29,9 @@ export interface IQueryKeyLoadQueries extends ILoadQueriesParams {
   scope: "queries";
 }
 
+interface ICreateQueryResponse {
+  query: ISchedulableQuery;
+}
 export interface IQueriesResponse {
   queries: ISchedulableQuery[];
   count: number;
@@ -39,7 +42,9 @@ export interface IQueriesResponse {
 }
 
 export default {
-  create: (createQueryRequestBody: ICreateQueryRequestBody) => {
+  create: (
+    createQueryRequestBody: ICreateQueryRequestBody
+  ): Promise<ICreateQueryResponse> => {
     const { QUERIES } = endpoints;
     if (createQueryRequestBody.name) {
       createQueryRequestBody.name = createQueryRequestBody.name.trim();

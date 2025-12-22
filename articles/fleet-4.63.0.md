@@ -15,15 +15,15 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 ### Automatically install software
 
-Fleet can now automatically install App Store (VPP) apps when a macOS host fails a policy. This removes the need for third-party automation tools, making large-scale app deployment easier and more reliable. Learn more about installing software [here](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+Fleet can now [automatically install App Store (VPP) apps](https://fleetdm.com/guides/automatic-software-install-in-fleet) when a macOS host fails a policy. This removes the need for third-party automation tools, making large-scale app deployment easier and more reliable.
 
 ### Faster employee onboarding
 
-During new employee onboarding, Macs can now optionally download bootstrap packages and software from the nearest CloudFront region. This speeds up onboarding for organizations that onboard new employees at different headquarters across the world. Learn more [here](https://fleetdm.com/guides/cdn-signed-urls).
+During new employee onboarding, Macs can now optionally [download bootstrap packages and software from the nearest CloudFront region](https://fleetdm.com/guides/cdn-signed-urls). This speeds up onboarding for organizations that onboard new employees at different headquarters across the world.
 
 ### GitHub (SLSA) attestation
 
-Fleet and Fleet's agent (`fleetd`) release binaries and images now include Supply-chain Level Software Attestation (SLSA). This allows security-conscious teams to verify that the artifacts they deploy are the exact ones produced by Fleet’s official GitHub workflows, ensuring integrity and preventing tampering. Learn more [here](https://fleetdm.com/guides/fleet-software-attestation). 
+Fleet and Fleet's agent (`fleetd`) release binaries and images now include [Supply-chain Level Software Attestation (SLSA)](https://fleetdm.com/guides/fleet-software-attestation). This allows security-conscious teams to verify that the artifacts they deploy are the exact ones produced by Fleet’s official GitHub workflows, ensuring integrity and preventing tampering. 
 
 ## Changes
 

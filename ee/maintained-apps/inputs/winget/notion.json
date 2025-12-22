@@ -2,5 +2,11 @@
   "name": "Notion",
   "slug": "notion/windows",
   "package_identifier": "Notion.Notion",
-  "unique_identifier": "Notion"
+  "unique_identifier": "Notion 6.1.0",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/notion_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/notion_uninstall.ps1"
 }

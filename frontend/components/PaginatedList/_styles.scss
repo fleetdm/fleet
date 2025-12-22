@@ -1,9 +1,12 @@
 .paginated-list {
+  gap: $pad-medium;
+
   &__header {
     padding: $pad-medium $pad-large;
     font-size: $x-small;
     border-bottom: 1px solid $ui-fleet-black-10;
     background-color: $ui-off-white;
+    min-height: 24px; // Include padding: 40px;
   }
 
   .loading-overlay {
@@ -68,8 +71,7 @@
       min-width: 0;
       /* This is crucial for proper shrinking */
     }
-
-    &:hover {
+    &:not(.paginated-list__row--disabled):hover {
       background: $ui-off-white;
       cursor: pointer;
 
@@ -101,5 +103,9 @@
     &--disabled {
       @include disabled;
     }
+  }
+
+  .pagination {
+    margin-top: 0;
   }
 }

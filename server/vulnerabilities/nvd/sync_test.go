@@ -32,7 +32,18 @@ func TestDownloadCISAKnownExploitsFeed(t *testing.T) {
 
 	tempDir := t.TempDir()
 
-	err := DownloadCISAKnownExploitsFeed(tempDir)
+	err := DownloadCISAKnownExploitsFeed(tempDir, "")
+	require.NoError(t, err)
+
+	assert.FileExists(t, filepath.Join(tempDir, cisaKnownExploitsFilename))
+}
+
+func TestDownloadCISAKnownExploitsFeedMirror(t *testing.T) {
+	nettest.Run(t)
+
+	tempDir := t.TempDir()
+
+	err := DownloadCISAKnownExploitsFeed(tempDir, "https://raw.githubusercontent.com/EugenMayer/cisa-known-exploited-mirror/main/known_exploited_vulnerabilities.json")
 	require.NoError(t, err)
 
 	assert.FileExists(t, filepath.Join(tempDir, cisaKnownExploitsFilename))

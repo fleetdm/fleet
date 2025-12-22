@@ -8,7 +8,9 @@ In Fleet, you can enforce disk encryption for your macOS and Windows hosts, and 
 
 When disk encryption is enforced, hosts' disk encryption keys will be stored in Fleet.
 
-For macOS hosts that automatically enroll, disk encryption is enforced during Setup Assistant. For Windows, currently disk encryption is enforced on the C: volume (default system/OS drive) only on hosts with a [TPM chip](https://support.microsoft.com/en-us/topic/what-s-a-trusted-platform-module-tpm-705f241d-025d-4470-80c5-4feeb24fa1ee). For Linux, encryption requires end user interaction.
+For macOS hosts that automatically enroll, end users are forced to enable disk encryption during Setup Assistant. For hosts that manually enroll, end users are forced to enable disk encryption the next time they log out and log back in. For both enroll methods, end users can't defer. 
+
+For Windows, currently disk encryption is enforced on the C: volume (default system/OS drive) only on hosts with a [TPM chip](https://support.microsoft.com/en-us/topic/what-s-a-trusted-platform-module-tpm-705f241d-025d-4470-80c5-4feeb24fa1ee). For Linux, encryption requires end user interaction.
 
 ## Enforce disk encryption
 
@@ -24,13 +26,13 @@ You can enforce disk encryption using the Fleet UI, Fleet API, or [Fleet's GitOp
 
 #### Fleet API: 
 
-API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#update-disk-encryption-enforcement).
+You can use the [Update disk encryption enforcement API endpoint](https://fleetdm.com/docs/rest-api/rest-api#update-disk-encryption-enforcement) to manage disk encryption settings via the API.
 
 ### Disk encryption status
 
 In the Fleet UI, head to the **Controls > OS settings > Disk encryption** tab. You will see a table that shows the status of disk encryption on your hosts. 
 
-* Verified: the host turned disk encryption on and sent their key to Fleet. Fleet verified with osquery. See instructions for viewing the disk encryption key [here](#view-disk-encryption-key).
+* Verified: the host turned disk encryption on and sent their key to Fleet, and Fleet has verified the key with osquery. The [encryption key can be viewed within Fleet](#view-disk-encryption-key).
 
 * Verifying: the host acknowledged the MDM command to install the disk encryption profile. Fleet is verifying with osquery and retrieving the disk encryption key.
 
@@ -48,7 +50,7 @@ You can click each status to view the list of hosts for that status.
 
 ## Enforce disk encryption on Linux
 
-Fleet supports Linux Unified Key Setup (LUKS) for encrypting volumes to enforce disk encryption on Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts.
+Fleet supports Linux Unified Key Setup version 2 (LUKS2) for encrypting volumes to enforce disk encryption on Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts.
 
 1. Share [this step-by-step guide](https://fleetdm.com/learn-more-about/encrypt-linux-device) with end users setting up a work computer running Ubuntu Linux, Kubuntu Linux or Fedora Linux.
 
@@ -94,7 +96,7 @@ First, in Fleet, head to the host's **Host details** page in Fleet and check it'
 
 #### On (automatic)
 
-1. Login to [Microsoft Azure](portal.azure.com) (Entra) and navigate to the **Users** page.
+1. Login to [Microsoft Azure](https://portal.azure.com) (Entra) and navigate to the **Users** page.
 
 2. Select the end user's user and select **Reset password**.
 
@@ -126,7 +128,7 @@ passwd -d <username>
 
 ## Migrate macOS hosts
 
-When migrating macOS hosts from another MDM solution, in order to complete the process of encrypting the hard drive and escrowing the key in Fleet, your end users must log out or restart their Mac.
+When migrating macOS hosts from another MDM solution, in order to complete the process of encrypting the hard drive and escrowing the key in Fleet, your end users must log out and log back in.
 
 Share [these guided instructions](https://fleetdm.com/guides/mdm-migration#how-to-turn-on-disk-encryption) with your end users.
 

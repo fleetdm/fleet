@@ -98,7 +98,7 @@ const RenewAbmModal = ({
                 className={`${baseClass}__file-uploader`}
                 accept=".p7m"
                 buttonMessage="Choose file"
-                buttonType="link"
+                buttonType="brand-inverse-icon"
                 graphicName="file-p7m"
                 message="ABM token (.p7m)"
                 onFileUpload={onSelectFile}
@@ -112,7 +112,6 @@ const RenewAbmModal = ({
             className={`${baseClass}__submit-button ${
               isUploading ? `uploading` : ""
             }`}
-            variant="brand"
             disabled={!tokenFile || isUploading}
             isLoading={isUploading}
             type="button"

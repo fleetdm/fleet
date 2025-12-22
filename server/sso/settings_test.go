@@ -43,17 +43,23 @@ rICQDchR6/cxoQCkoyf+/YTpY492MafV</ds:X509Certificate>
 `
 
 func TestParseMetadata(t *testing.T) {
-	settings, err := parseMetadata(metadata)
+	settings, err := ParseMetadata([]byte(metadata))
 	require.Nil(t, err)
 
 	assert.Equal(t, "http://www.okta.com/exka4zkf6dxm8pF220h7", settings.EntityID)
-	assert.Len(t, settings.IDPSSODescriptor.NameIDFormats, 2)
-	require.Len(t, settings.IDPSSODescriptor.KeyDescriptors, 1)
-	assert.True(t, settings.IDPSSODescriptor.KeyDescriptors[0].KeyInfo.X509Data.X509Certificates[0].Data != "")
-	require.Len(t, settings.IDPSSODescriptor.SingleSignOnService, 2)
-	assert.Equal(t, "https://dev-132038.oktapreview.com/app/dev132038_1/exka4zkf6dxm8pF220h7/sso/saml",
-		settings.IDPSSODescriptor.SingleSignOnService[0].Location)
-	assert.Equal(t, "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST", settings.IDPSSODescriptor.SingleSignOnService[0].Binding)
+	require.Len(t, settings.IDPSSODescriptors, 1)
+	assert.Len(t, settings.IDPSSODescriptors[0].NameIDFormats, 2)
+	require.Len(t, settings.IDPSSODescriptors[0].KeyDescriptors, 1)
+	assert.True(t, settings.IDPSSODescriptors[0].KeyDescriptors[0].KeyInfo.X509Data.X509Certificates[0].Data != "")
+	require.Len(t, settings.IDPSSODescriptors[0].SingleSignOnServices, 2)
+	assert.Equal(t,
+		"https://dev-132038.oktapreview.com/app/dev132038_1/exka4zkf6dxm8pF220h7/sso/saml",
+		settings.IDPSSODescriptors[0].SingleSignOnServices[0].Location,
+	)
+	assert.Equal(t,
+		"urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
+		settings.IDPSSODescriptors[0].SingleSignOnServices[0].Binding,
+	)
 }
 
 func TestGetMetadata(t *testing.T) {
@@ -61,14 +67,22 @@ func TestGetMetadata(t *testing.T) {
 		_, err := w.Write([]byte(metadata))
 		require.NoError(t, err)
 	}))
-	settings, err := getMetadata(ts.URL)
-	require.Nil(t, err)
+	xmlMetadata, err := getMetadata(ts.URL)
+	require.NoError(t, err)
+	settings, err := ParseMetadata(xmlMetadata)
+	require.NoError(t, err)
 	assert.Equal(t, "http://www.okta.com/exka4zkf6dxm8pF220h7", settings.EntityID)
-	assert.Len(t, settings.IDPSSODescriptor.NameIDFormats, 2)
-	require.Len(t, settings.IDPSSODescriptor.KeyDescriptors, 1)
-	assert.True(t, settings.IDPSSODescriptor.KeyDescriptors[0].KeyInfo.X509Data.X509Certificates[0].Data != "")
-	require.Len(t, settings.IDPSSODescriptor.SingleSignOnService, 2)
-	assert.Equal(t, "https://dev-132038.oktapreview.com/app/dev132038_1/exka4zkf6dxm8pF220h7/sso/saml",
-		settings.IDPSSODescriptor.SingleSignOnService[0].Location)
-	assert.Equal(t, "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST", settings.IDPSSODescriptor.SingleSignOnService[0].Binding)
+	assert.Len(t, settings.IDPSSODescriptors, 1)
+	assert.Len(t, settings.IDPSSODescriptors[0].NameIDFormats, 2)
+	require.Len(t, settings.IDPSSODescriptors[0].KeyDescriptors, 1)
+	assert.True(t, settings.IDPSSODescriptors[0].KeyDescriptors[0].KeyInfo.X509Data.X509Certificates[0].Data != "")
+	require.Len(t, settings.IDPSSODescriptors[0].SingleSignOnServices, 2)
+	assert.Equal(t,
+		"https://dev-132038.oktapreview.com/app/dev132038_1/exka4zkf6dxm8pF220h7/sso/saml",
+		settings.IDPSSODescriptors[0].SingleSignOnServices[0].Location,
+	)
+	assert.Equal(t,
+		"urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
+		settings.IDPSSODescriptors[0].SingleSignOnServices[0].Binding,
+	)
 }

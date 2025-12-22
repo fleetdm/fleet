@@ -294,6 +294,7 @@ type OsqueryCommandLineFlagsWindows struct {
 	NtfsEventPublisherDebug          bool   `json:"ntfs_event_publisher_debug"`
 	WindowsEventChannels             string `json:"windows_event_channels"`
 	UsnJournalReaderDebug            bool   `json:"usn_journal_reader_debug"`
+	EnableDNSLookupEvents            bool   `json:"enable_dns_lookup_events"`
 }
 
 type OsqueryCommandLineFlagsMacOS struct {
@@ -324,6 +325,7 @@ type OsqueryCommandLineFlagsHidden struct {
 	AuditShowPartialFIMEvents     bool   `json:"audit_show_partial_fim_events"`
 	AuditShowUntrackedResWarnings bool   `json:"audit_show_untracked_res_warnings"`
 	AuditFIMShowAccesses          bool   `json:"audit_fim_show_accesses"`
+	VModule                       string `json:"vmodule"`
 }
 
 // while ValidateJSONAgentOptions validates an entire Agent Options payload,

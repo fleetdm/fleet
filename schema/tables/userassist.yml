@@ -1,4 +1,10 @@
 name: userassist
+columns:
+  - name: count
+    description: |-
+      Number of times the application has been executed. 
+      _Note that `count` is a reserved word and should be wrapped in quotes when referencing this column in a query._
+    type: INTEGER
 examples: |-
   The User Assist featureset allows Windows to keep track of most recently used applications. Because of that, it is a useful datasource to pull from during investigations and incident response. The following example queries the userassist table and converts the last_execution_time into a human readable format (using UTC) and then sorts the results by this column, descending. It also joins the users table to change the user SID into a human readable username.  The output from this query displays most recently used applications, sorted by most recent timestamp as well as the username of who ran it.
   

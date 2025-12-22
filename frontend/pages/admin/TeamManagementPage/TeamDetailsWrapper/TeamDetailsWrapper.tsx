@@ -26,7 +26,7 @@ import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import TeamsDropdown from "components/TeamsDropdown";
 import MainContent from "components/MainContent";
 import DeleteTeamModal from "../components/DeleteTeamModal";
@@ -100,6 +100,7 @@ const TeamDetailsWrapper = ({
     setAvailableTeams,
     setUserSettings,
     setCurrentUser,
+    config,
   } = useContext(AppContext);
 
   const {
@@ -390,7 +391,7 @@ const TeamDetailsWrapper = ({
       <>
         {isGlobalAdmin ? (
           <div className={`${baseClass}__header-links`}>
-            <BackLink text="Back to teams" path={PATHS.ADMIN_TEAMS} />
+            <BackButton text="Back to teams" path={PATHS.ADMIN_TEAMS} />
           </div>
         ) : (
           <></>
@@ -404,7 +405,7 @@ const TeamDetailsWrapper = ({
                 selectedTeamId={currentTeamId}
                 currentUserTeams={userTeams || []}
                 isDisabled={isLoadingTeams}
-                includeAll={false}
+                includeAllTeams={false}
                 onChange={handleTeamChange}
               />
             )}
@@ -425,24 +426,24 @@ const TeamDetailsWrapper = ({
               {
                 type: "secondary",
                 label: "Manage enroll secrets",
-                buttonVariant: "text-icon",
-                iconSvg: "eye",
+                buttonVariant: "inverse",
+                iconName: "eye",
                 onClick: toggleManageEnrollSecretsModal,
                 gitOpsModeCompatible: true,
               },
               {
                 type: "secondary",
                 label: "Rename team",
-                buttonVariant: "text-icon",
-                iconSvg: "pencil",
+                buttonVariant: "inverse",
+                iconName: "pencil",
                 onClick: toggleRenameTeamModal,
                 gitOpsModeCompatible: true,
               },
               {
                 type: "secondary",
                 label: "Delete team",
-                buttonVariant: "text-icon",
-                iconSvg: "trash",
+                buttonVariant: "inverse",
+                iconName: "trash",
                 hideAction: !isGlobalAdmin,
                 onClick: toggleDeleteTeamModal,
                 gitOpsModeCompatible: true,
@@ -483,7 +484,8 @@ const TeamDetailsWrapper = ({
         )}
         {showManageEnrollSecretsModal && (
           <EnrollSecretModal
-            selectedTeam={teamIdForApi || 0} // TODO: confirm teamIdForApi vs currentTeamId throughout
+            selectedTeamId={teamIdForApi || 0} // TODO: confirm teamIdForApi vs currentTeamId throughout
+            primoMode={config?.partnerships?.enable_primo || false}
             teams={teams || []} // TODO: confirm teams vs available teams throughout
             onReturnToApp={toggleManageEnrollSecretsModal}
             toggleSecretEditorModal={toggleSecretEditorModal}
@@ -504,8 +506,6 @@ const TeamDetailsWrapper = ({
         {showDeleteSecretModal && (
           <DeleteSecretModal
             onDeleteSecret={onDeleteSecret}
-            selectedTeam={teamIdForApi || 0}
-            teams={teams || []}
             toggleDeleteSecretModal={toggleDeleteSecretModal}
             isUpdatingSecret={isUpdatingSecret}
           />

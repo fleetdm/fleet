@@ -2,9 +2,7 @@ package service
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"io"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,10 +10,13 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/go-kit/kit/log/level"
 )
 
 // noCheckHash is used by homebrew to signal that a hash shouldn't be checked, and FMA carries this convention over
@@ -39,7 +40,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	// validate labels before we do anything else
-	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, labelsIncludeAny, labelsExcludeAny)
+	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, labelsIncludeAny, labelsExcludeAny)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "validating software labels")
 	}
@@ -73,7 +74,6 @@ func (svc *Service) AddFleetMaintainedApp(
 	if v := os.Getenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT"); v != "" {
 		timeout, _ = time.ParseDuration(v)
 	}
-
 	client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
 	installerTFR, filename, err := maintained_apps.DownloadInstaller(ctx, app.InstallerURL, client)
 	if err != nil {
@@ -81,9 +81,10 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 	defer installerTFR.Close()
 
-	h := sha256.New()
-	_, _ = io.Copy(h, installerTFR) // writes to a Hash can never fail
-	gotHash := hex.EncodeToString(h.Sum(nil))
+	gotHash, err := file.SHA256FromTempFileReader(installerTFR)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "calculating SHA256 hash")
+	}
 
 	// Validate the bytes we got are what we expected, if a valid SHA is supplied
 	if app.SHA256 != noCheckHash {
@@ -94,9 +95,6 @@ func (svc *Service) AddFleetMaintainedApp(
 		app.SHA256 = gotHash
 	}
 
-	if err := installerTFR.Rewind(); err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "rewind installer reader")
-	}
 	extension := strings.TrimLeft(filepath.Ext(filename), ".")
 
 	installScript = file.Dos2UnixNewlines(installScript)
@@ -115,17 +113,42 @@ func (svc *Service) AddFleetMaintainedApp(
 		maintainedAppID = nil // don't set app as maintained if scripts have been modified
 	}
 
+	// For platforms other than macOS, installer name has to match what we see in software inventory,
+	// so we have the UniqueIdentifier field to indicate what that should be (independent of the name we
+	// display when listing the FMA). For macOS, unique identifier is bundle name, and we use bundle
+	// identifier to link installers with inventory, so we set the name to the FMA's display name instead.
+	appName := app.UniqueIdentifier
+	if app.Platform == "darwin" || appName == "" {
+		appName = app.Name
+	}
+
+	version := app.Version
+	if version == "latest" { // download URL isn't version-pinned; extract version from installer
+		meta, err := file.ExtractInstallerMetadata(installerTFR)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "extracting installer metadata")
+		}
+
+		// reset the reader (it was consumed to extract metadata)
+		if err := installerTFR.Rewind(); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "resetting installer file reader")
+		}
+
+		version = meta.Version
+	}
+
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallerFile:         installerTFR,
-		Title:                 app.Name,
+		Title:                 appName,
 		UserID:                vc.UserID(),
 		TeamID:                teamID,
-		Version:               app.Version,
+		Version:               version,
 		Filename:              filename,
 		Platform:              app.Platform,
 		Source:                app.Source(),
 		Extension:             extension,
 		BundleIdentifier:      app.BundleIdentifier(),
+		UpgradeCode:           app.UpgradeCode,
 		StorageID:             app.SHA256,
 		FleetMaintainedAppID:  maintainedAppID,
 		PreInstallQuery:       preInstallQuery,
@@ -136,7 +159,24 @@ func (svc *Service) AddFleetMaintainedApp(
 		ValidatedLabels:       validatedLabels,
 		AutomaticInstall:      automaticInstall,
 		AutomaticInstallQuery: app.AutomaticInstallQuery,
+		Categories:            app.Categories,
+		URL:                   app.InstallerURL,
 	}
+
+	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
+	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "getting software category ids")
+	}
+
+	if len(catIDs) != len(payload.Categories) {
+		return 0, &fleet.BadRequestError{
+			Message:     "some or all of the categories provided don't exist",
+			InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
+		}
+	}
+
+	payload.CategoryIDs = catIDs
 
 	// Create record in software installers table
 	_, titleID, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
@@ -152,7 +192,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	// Create activity
 	var teamName *string
 	if payload.TeamID != nil && *payload.TeamID != 0 {
-		t, err := svc.ds.Team(ctx, *payload.TeamID)
+		t, err := svc.ds.TeamLite(ctx, *payload.TeamID)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "getting team")
 		}
@@ -171,6 +211,17 @@ func (svc *Service) AddFleetMaintainedApp(
 		LabelsExcludeAny: actLabelsExcl,
 	}); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "creating activity for added software")
+	}
+
+	if automaticInstall && payload.AddedAutomaticInstallPolicy != nil {
+		policyAct := fleet.ActivityTypeCreatedPolicy{
+			ID:   payload.AddedAutomaticInstallPolicy.ID,
+			Name: payload.AddedAutomaticInstallPolicy.Name,
+		}
+
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
+			level.Warn(svc.logger).Log("msg", "failed to create activity for create automatic install policy for FMA", "err", err)
+		}
 	}
 
 	return titleID, nil

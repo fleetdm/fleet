@@ -1,6 +1,7 @@
 import PropTypes from "prop-types";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { IScript } from "./script";
+import { ILabelPolicy } from "./label";
 
 // Legacy PropTypes used on host interface
 export default PropTypes.shape({
@@ -12,7 +13,7 @@ export default PropTypes.shape({
   id: PropTypes.number.isRequired,
   name: PropTypes.string.isRequired,
   query: PropTypes.string.isRequired,
-  resoluton: PropTypes.string.isRequired,
+  resolution: PropTypes.string.isRequired,
   critical: PropTypes.bool,
   response: PropTypes.string,
   team_id: PropTypes.number,
@@ -42,11 +43,15 @@ export interface IPolicy {
   updated_at: string;
   critical: boolean;
   calendar_events_enabled: boolean;
+  conditional_access_enabled: boolean;
   install_software?: IPolicySoftwareToInstall;
   run_script?: Pick<IScript, "id" | "name">;
+  labels_include_any?: ILabelPolicy[];
+  labels_exclude_any?: ILabelPolicy[];
 }
 export interface IPolicySoftwareToInstall {
   name: string;
+  display_name?: string;
   software_title_id: number;
 }
 
@@ -105,9 +110,12 @@ export interface IPolicyFormData {
   team_id?: number | null;
   id?: number;
   calendar_events_enabled?: boolean;
+  conditional_access_enabled?: boolean;
   software_title_id?: number | null;
   // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
   script_id?: number | null;
+  labels_include_any?: string[];
+  labels_exclude_any?: string[];
 }
 
 export interface IPolicyNew {

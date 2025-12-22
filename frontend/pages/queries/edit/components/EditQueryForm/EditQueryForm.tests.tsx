@@ -1,6 +1,11 @@
-import React, { ReactNode } from "react";
+import React from "react";
+
 import { screen, waitFor, within } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import {
+  createCustomRenderer,
+  createMockRouter,
+  createMockLocation,
+} from "test/test-utils";
 import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
 import userEvent from "@testing-library/user-event";
@@ -9,7 +14,6 @@ import createMockQuery from "__mocks__/queryMock";
 import createMockUser from "__mocks__/userMock";
 import createMockConfig from "__mocks__/configMock";
 
-import queryAPI from "services/entities/queries";
 import EditQueryForm from "./EditQueryForm";
 
 jest.mock("services/entities/queries");
@@ -40,17 +44,8 @@ const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () => {
 });
 
 const mockQuery = createMockQuery();
-const mockRouter = {
-  push: jest.fn(),
-  replace: jest.fn(),
-  goBack: jest.fn(),
-  goForward: jest.fn(),
-  go: jest.fn(),
-  setRouteLeaveHook: jest.fn(),
-  isActive: jest.fn(),
-  createHref: jest.fn(),
-  createPath: jest.fn(),
-};
+const mockRouter = createMockRouter();
+const mockLocation = createMockLocation();
 
 describe("EditQueryForm - component", () => {
   it("disables save button for missing query name", async () => {
@@ -94,9 +89,9 @@ describe("EditQueryForm - component", () => {
     render(
       <EditQueryForm
         router={mockRouter}
+        location={mockLocation}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
-        teamNameForQuery="Apples"
         showOpenSchemaActionText
         storedQuery={createMockQuery({ name: "" })} // empty name
         isStoredQueryLoading={false}
@@ -162,9 +157,9 @@ describe("EditQueryForm - component", () => {
     const { container, user } = render(
       <EditQueryForm
         router={mockRouter}
+        location={mockLocation}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
-        teamNameForQuery="Apples"
         showOpenSchemaActionText
         storedQuery={createMockQuery({ name: "Mock query" })}
         isStoredQueryLoading={false}
@@ -185,9 +180,11 @@ describe("EditQueryForm - component", () => {
 
     await user.hover(screen.getByRole("button", { name: "Live query" }));
 
-    expect(container.querySelector("#live-query-button")).toHaveTextContent(
-      /live queries are disabled/i
-    );
+    expect(
+      await screen.findByText(
+        /live queries are disabled in organization settings/i
+      )
+    ).toBeInTheDocument();
   });
 
   it("shows automations warning icon when query frequency is set to 0", async () => {
@@ -228,12 +225,12 @@ describe("EditQueryForm - component", () => {
       },
     });
 
-    const { user } = render(
+    render(
       <EditQueryForm
         router={mockRouter}
+        location={mockLocation}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
-        teamNameForQuery="Apples"
         showOpenSchemaActionText
         storedQuery={createMockQuery({ interval: 0 })}
         isStoredQueryLoading={false}
@@ -250,15 +247,15 @@ describe("EditQueryForm - component", () => {
       />
     );
 
-    // Find the frequency dropdown
-    const frequencyDropdown = screen
-      .getByText("Frequency")
+    // Find the interval dropdown
+    const intervalDropdown = screen
+      .getByText("Interval")
       .closest(".form-field--dropdown") as HTMLElement;
-    expect(frequencyDropdown).toBeInTheDocument();
+    expect(intervalDropdown).toBeInTheDocument();
 
-    // Check if the frequency is set to "Never"
-    const selectedFrequency = within(frequencyDropdown).getByText("Never");
-    expect(selectedFrequency).toBeInTheDocument();
+    // Check if the interval is set to "Never"
+    const selectedInterval = within(intervalDropdown).getByText("Never");
+    expect(selectedInterval).toBeInTheDocument();
 
     // Find the automations slider
     const automationsSlider = screen
@@ -267,7 +264,7 @@ describe("EditQueryForm - component", () => {
     expect(automationsSlider).toBeInTheDocument();
 
     // Check if the automations are enabled
-    const automationsButton = within(automationsSlider).getByRole("button");
+    const automationsButton = within(automationsSlider).getByRole("switch");
     expect(automationsButton).toHaveClass("fleet-slider--active");
 
     // Check if the warning icon is present
@@ -317,9 +314,9 @@ describe("EditQueryForm - component", () => {
     render(
       <EditQueryForm
         router={mockRouter}
+        location={mockLocation}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
-        teamNameForQuery="Apples"
         showOpenSchemaActionText
         storedQuery={createMockQuery({ name: "" })} // empty name
         isStoredQueryLoading={false}
@@ -387,9 +384,9 @@ describe("EditQueryForm - component", () => {
 
     const props = {
       router: mockRouter,
+      location: mockLocation,
       queryIdForEdit: 1,
       apiTeamIdForQuery: 1,
-      teamNameForQuery: "Apples",
       showOpenSchemaActionText: true,
       storedQuery: createMockQuery(),
       isStoredQueryLoading: false,
@@ -502,57 +499,6 @@ describe("EditQueryForm - component", () => {
       await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
       expect(onUpdate.mock.calls[0][0].labels_include_any).toEqual([]);
-    });
-
-    it("should send labels when saving a new query in Custom target mode", async () => {
-      // Mock the create query API with a never-returning promise, so we can just
-      // spy on the request without having to mock anything else.
-      const createFn = jest
-        .spyOn(queryAPI, "create")
-        .mockImplementation(() => new Promise(jest.fn()));
-      const testProps = {
-        ...props,
-        storedQuery: createMockQuery({
-          labels_include_any: [{ name: "Fun", id: 1 }],
-        }),
-      };
-      render(<EditQueryForm {...testProps} />);
-      await waitFor(() => {
-        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
-      });
-
-      await userEvent.click(
-        screen.getByRole("button", { name: "Save as new" })
-      );
-
-      expect(createFn.mock.calls[0][0].labels_include_any).toEqual(["Fun"]);
-    });
-
-    it("should clear labels when saving a new query in All hosts target mode", async () => {
-      // Mock the create query API with a never-returning promise, so we can just
-      // spy on the request without having to mock anything else.
-      const createFn = jest
-        .spyOn(queryAPI, "create")
-        .mockImplementation(() => new Promise(jest.fn()));
-      const testProps = {
-        ...props,
-        storedQuery: createMockQuery({
-          labels_include_any: [{ name: "Fun", id: 1 }],
-        }),
-      };
-      render(<EditQueryForm {...testProps} />);
-      let allHosts;
-      await waitFor(() => {
-        allHosts = screen.getByLabelText("All hosts");
-        expect(allHosts).toBeInTheDocument();
-      });
-      allHosts && (await userEvent.click(allHosts));
-
-      await userEvent.click(
-        screen.getByRole("button", { name: "Save as new" })
-      );
-
-      expect(createFn.mock.calls[0][0].labels_include_any).toEqual([]);
     });
   });
 });

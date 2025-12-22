@@ -20,17 +20,20 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type teamPolicyRequest struct {
-	TeamID                uint   `url:"team_id"`
-	QueryID               *uint  `json:"query_id"`
-	Query                 string `json:"query"`
-	Name                  string `json:"name"`
-	Description           string `json:"description"`
-	Resolution            string `json:"resolution"`
-	Platform              string `json:"platform"`
-	Critical              bool   `json:"critical" premium:"true"`
-	CalendarEventsEnabled bool   `json:"calendar_events_enabled"`
-	SoftwareTitleID       *uint  `json:"software_title_id"`
-	ScriptID              *uint  `json:"script_id"`
+	TeamID                   uint     `url:"team_id"`
+	QueryID                  *uint    `json:"query_id"`
+	Query                    string   `json:"query"`
+	Name                     string   `json:"name"`
+	Description              string   `json:"description"`
+	Resolution               string   `json:"resolution"`
+	Platform                 string   `json:"platform"`
+	Critical                 bool     `json:"critical" premium:"true"`
+	CalendarEventsEnabled    bool     `json:"calendar_events_enabled"`
+	SoftwareTitleID          *uint    `json:"software_title_id"`
+	ScriptID                 *uint    `json:"script_id"`
+	LabelsIncludeAny         []string `json:"labels_include_any"`
+	LabelsExcludeAny         []string `json:"labels_exclude_any"`
+	ConditionalAccessEnabled bool     `json:"conditional_access_enabled"`
 }
 
 type teamPolicyResponse struct {
@@ -43,16 +46,19 @@ func (r teamPolicyResponse) Error() error { return r.Err }
 func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*teamPolicyRequest)
 	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, fleet.NewTeamPolicyPayload{
-		QueryID:               req.QueryID,
-		Name:                  req.Name,
-		Query:                 req.Query,
-		Description:           req.Description,
-		Resolution:            req.Resolution,
-		Platform:              req.Platform,
-		Critical:              req.Critical,
-		CalendarEventsEnabled: req.CalendarEventsEnabled,
-		SoftwareTitleID:       req.SoftwareTitleID,
-		ScriptID:              req.ScriptID,
+		QueryID:                  req.QueryID,
+		Name:                     req.Name,
+		Query:                    req.Query,
+		Description:              req.Description,
+		Resolution:               req.Resolution,
+		Platform:                 req.Platform,
+		Critical:                 req.Critical,
+		CalendarEventsEnabled:    req.CalendarEventsEnabled,
+		SoftwareTitleID:          req.SoftwareTitleID,
+		ScriptID:                 req.ScriptID,
+		LabelsIncludeAny:         req.LabelsIncludeAny,
+		LabelsExcludeAny:         req.LabelsExcludeAny,
+		ConditionalAccessEnabled: req.ConditionalAccessEnabled,
 	})
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil
@@ -84,6 +90,11 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
 	}
+
+	if err := verifyLabelsToAssociate(ctx, svc.ds, &teamID, append(tp.LabelsIncludeAny, tp.LabelsExcludeAny...)); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
+	}
+
 	policy, err := svc.ds.NewTeamPolicy(ctx, teamID, ptr.Uint(vc.UserID()), p)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating policy")
@@ -96,14 +107,46 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
 	}
 
+	if teamID == 0 {
+		noTeamID := int64(0)
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeCreatedPolicy{
+				ID:       policy.ID,
+				Name:     policy.Name,
+				TeamID:   &noTeamID,
+				TeamName: nil,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for no-team policy creation")
+		}
+		return policy, nil
+	}
+
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
+
+	var teamName *string
+	if teamID != 0 {
+		if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
+			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "fetching team details")
+			}
+			teamName = &team.Name
+		}
+	}
+
+	teamIDPtr := int64(teamID)
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedPolicy{
-			ID:   policy.ID,
-			Name: policy.Name,
+			ID:       policy.ID,
+			Name:     policy.Name,
+			TeamID:   &teamIDPtr,
+			TeamName: teamName,
 		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for team policy creation")
@@ -120,6 +163,7 @@ func (svc *Service) populatePolicyInstallSoftware(ctx context.Context, p *fleet.
 		p.InstallSoftware = &fleet.PolicySoftwareTitle{
 			SoftwareTitleID: *installerMetadata.TitleID,
 			Name:            installerMetadata.SoftwareTitle,
+			DisplayName:     installerMetadata.DisplayName,
 		}
 		return nil
 	} else if p.VPPAppsTeamsID != nil {
@@ -151,17 +195,20 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		return fleet.PolicyPayload{}, err
 	}
 	return fleet.PolicyPayload{
-		QueryID:               p.QueryID,
-		Name:                  p.Name,
-		Query:                 p.Query,
-		Critical:              p.Critical,
-		Description:           p.Description,
-		Resolution:            p.Resolution,
-		Platform:              p.Platform,
-		CalendarEventsEnabled: p.CalendarEventsEnabled,
-		SoftwareInstallerID:   softwareInstallerID,
-		VPPAppsTeamsID:        vppAppsTeamsID,
-		ScriptID:              p.ScriptID,
+		QueryID:                  p.QueryID,
+		Name:                     p.Name,
+		Query:                    p.Query,
+		Critical:                 p.Critical,
+		Description:              p.Description,
+		Resolution:               p.Resolution,
+		Platform:                 p.Platform,
+		CalendarEventsEnabled:    p.CalendarEventsEnabled,
+		SoftwareInstallerID:      softwareInstallerID,
+		VPPAppsTeamsID:           vppAppsTeamsID,
+		ScriptID:                 p.ScriptID,
+		LabelsIncludeAny:         p.LabelsIncludeAny,
+		LabelsExcludeAny:         p.LabelsExcludeAny,
+		ConditionalAccessEnabled: p.ConditionalAccessEnabled,
 	}, nil
 }
 
@@ -214,7 +261,7 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	}
 
 	if teamID > 0 {
-		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+		if _, err := svc.ds.TeamLite(ctx, teamID); err != nil { // TODO see if we can use TeamExists here instead
 			return nil, nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 		}
 	}
@@ -285,7 +332,7 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 	}
 
 	if teamID > 0 {
-		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+		if _, err := svc.ds.TeamLite(ctx, teamID); err != nil { // TODO see if we can use TeamExists here instead
 			return 0, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 		}
 	}
@@ -381,7 +428,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	}
 
 	if teamID > 0 {
-		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+		if _, err := svc.ds.TeamLite(ctx, teamID); err != nil { // TODO see if we can use TeamExists here instead
 			return nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 		}
 	}
@@ -410,15 +457,49 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 		return nil, err
 	}
 
+	if teamID == 0 {
+		noTeamID := int64(0)
+		for _, id := range deletedIDs {
+			if err := svc.NewActivity(
+				ctx,
+				authz.UserFromContext(ctx),
+				fleet.ActivityTypeDeletedPolicy{
+					ID:       id,
+					Name:     policiesByID[id].Name,
+					TeamID:   &noTeamID,
+					TeamName: nil,
+				},
+			); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for no-team policy deletion")
+			}
+		}
+		return ids, nil
+	}
+
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
+
+	var teamName *string
+	if teamID != 0 {
+		if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
+			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "fetching team details")
+			}
+			teamName = &team.Name
+		}
+	}
+
 	for _, id := range deletedIDs {
+		teamIDPtr := int64(teamID)
 		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeDeletedPolicy{
-				ID:   id,
-				Name: policiesByID[id].Name,
+				ID:       id,
+				Name:     policiesByID[id].Name,
+				TeamID:   &teamIDPtr,
+				TeamName: teamName,
 			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for policy deletion")
@@ -489,6 +570,10 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
+	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, append(p.LabelsIncludeAny, p.LabelsExcludeAny...)); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
+	}
+
 	var removeAllMemberships bool
 	var removeStats bool
 	if p.Name != nil {
@@ -518,6 +603,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 	if p.CalendarEventsEnabled != nil {
 		policy.CalendarEventsEnabled = *p.CalendarEventsEnabled
+	}
+	if p.ConditionalAccessEnabled != nil {
+		policy.ConditionalAccessEnabled = *p.ConditionalAccessEnabled
 	}
 	if removeStats {
 		policy.FailingHostCount = 0
@@ -554,6 +642,18 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 			policy.ScriptID = &p.ScriptID.Value
 		}
 	}
+	if p.LabelsIncludeAny != nil {
+		policy.LabelsIncludeAny = make([]fleet.LabelIdent, 0, len(p.LabelsIncludeAny))
+		for _, label := range p.LabelsIncludeAny {
+			policy.LabelsIncludeAny = append(policy.LabelsIncludeAny, fleet.LabelIdent{LabelName: label})
+		}
+	}
+	if p.LabelsExcludeAny != nil {
+		policy.LabelsExcludeAny = make([]fleet.LabelIdent, 0, len(p.LabelsExcludeAny))
+		for _, label := range p.LabelsExcludeAny {
+			policy.LabelsExcludeAny = append(policy.LabelsExcludeAny, fleet.LabelIdent{LabelName: label})
+		}
+	}
 
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 
@@ -569,14 +669,68 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
 	}
 
+	if teamID == nil {
+		globalTeamID := int64(-1)
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedPolicy{
+				ID:       policy.ID,
+				Name:     policy.Name,
+				TeamID:   &globalTeamID,
+				TeamName: nil,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for global policy modification")
+		}
+		return policy, nil
+	}
+
+	// Add a special case for handling "No Team" (teamID = 0) in ModifyTeamPolicy
+	if *teamID == 0 {
+		noTeamID := int64(0)
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedPolicy{
+				ID:       policy.ID,
+				Name:     policy.Name,
+				TeamID:   &noTeamID,
+				TeamName: nil,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for no-team policy modification")
+		}
+		return policy, nil
+	}
+
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
+
+	var teamName *string
+	if *teamID != 0 {
+		if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
+			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, teamID, nil)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "fetching team details")
+			}
+			teamName = &team.Name
+		}
+	}
+
+	// Convert *uint to *int64 for the activity
+	var activityTeamID *int64
+	teamIDInt64 := int64(*teamID)
+	activityTeamID = &teamIDInt64
+
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeEditedPolicy{
-			ID:   policy.ID,
-			Name: policy.Name,
+			ID:       policy.ID,
+			Name:     policy.Name,
+			TeamID:   activityTeamID,
+			TeamName: teamName,
 		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for policy modification")

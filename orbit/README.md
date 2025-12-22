@@ -4,10 +4,6 @@ Orbit is a lightweight osquery installer and autoupdater. With Orbit, it's easy 
 
 Orbit is the recommended agent for Fleet. But Orbit can be used with or without Fleet, and Fleet can be used with or without Orbit.
 
-# Documentation
-
-- [Releasing Orbit](docs/Releasing-Orbit.md)
-
 ## How to build from source
 
 To build orbit we use [goreleaser](https://goreleaser.com/).
@@ -19,6 +15,7 @@ For reference, here are the build configuration files:
     - [goreleaser-linux-arm64.yml](./goreleaser-linux-arm64.yml)
     - [goreleaser-macos.yml](./goreleaser-macos.yml)
     - [goreleaser-windows.yml](./goreleaser-windows.yml)
+    - [goreleaser-windows.yml](./goreleaser-windows-arm64.yml)
 
 Following are the commands to build in case you can't use goreleaser.
 
@@ -61,13 +58,17 @@ go build \
 
 ## Bugs
 
-To report a bug or request a feature, [click here](https://github.com/fleetdm/fleet/issues).
+To report a bug or request a feature, [create an issue in the `fleet` GitHub repository](https://github.com/fleetdm/fleet/issues).
 
 ## Orbit Development
 
 ### Run Orbit From Source
 
-To execute orbit from source directly, run the following command:
+To execute orbit from source, use the following commands:
+
+#### Connect to a Fleet server
+
+Modify the `fleet-url` and `enroll-secret` as appropriate:
 
 ```sh
 go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
@@ -80,13 +81,28 @@ go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
     -- --verbose
 ```
 
-Or, using a `flagfile.txt` for osqueryd:
+#### Using a custom flagfile
+
+With a `flagfile.txt` for osqueryd:
+
 ```sh 
 go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
     --dev-mode \
     --disable-updates \
     --root-dir /tmp/orbit \
     -- --flagfile=flagfile.txt --verbose
+```
+
+#### Open an interactive shell to run SQL
+
+This can be useful for building/testing extension tables:
+
+```sh
+go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
+    --dev-mode \
+    --disable-updates \
+    --root-dir /tmp/orbit \
+    shell
 ```
 
 ### Generate Installer Packages from Orbit Source
@@ -111,8 +127,8 @@ Additionally, Orbit aims to tackle problems out of scope for Launcher:
 
 - Configure updates via release channels, providing more granular control over agent versioning.
 - Manage osquery startup flags from a remote (Fleet) server.
-- Support for deploying and updating osquery extensions (🔜).
-- Manage osquery versions from a remote (Fleet) server (🔜).
+- Support for deploying and updating osquery extensions.
+- Manage osquery versions from a remote (Fleet) server.
 
 ### Is Orbit Free?
 

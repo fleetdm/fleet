@@ -9,6 +9,7 @@ import (
 	"github.com/VividCortex/mysqlerr"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -17,6 +18,9 @@ import (
 var DoRetryErr = errors.New("fleet datastore retry")
 
 type TxFn func(tx sqlx.ExtContext) error
+
+// ReadTxFn is the read-only variant of TxFn, with tx only exposing the read methods
+type ReadTxFn func(tx fleet.DBReadTx) error
 
 // WithRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
 func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error {
@@ -73,10 +77,10 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) 
 	return backoff.Retry(operation, bo)
 }
 
-// retryableError determines whether a MySQL error can be retried. By default
+// RetryableError determines whether a MySQL error can be retried. By default
 // errors are considered non-retryable. Only errors that we know have a
 // possibility of succeeding on a retry should return true in this function.
-func retryableError(err error) bool {
+func RetryableError(err error) bool {
 	base := ctxerr.Cause(err)
 	if b, ok := base.(*mysql.MySQLError); ok {
 		switch b.Number {
@@ -90,4 +94,10 @@ func retryableError(err error) bool {
 	}
 
 	return false
+}
+
+// retryableError is the internal (non-exported) version that calls RetryableError.
+// Kept for backwards compatibility with existing callers in this package.
+func retryableError(err error) bool {
+	return RetryableError(err)
 }

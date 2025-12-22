@@ -1,0 +1,10 @@
+macos_settings:
+  custom_settings:
+  - path: ../lib/some_team/profiles/team-macos-mobileconfig-profile.mobileconfig
+scripts:
+- path: ../lib/some_team/scripts/Script B.ps1
+android_settings:
+  certificates:
+  - certificate_authority_name: DIGIDOO
+    name: my_certypoo
+    subject_name: CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL

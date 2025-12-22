@@ -26,11 +26,12 @@ import (
 )
 
 type SyncOptions struct {
-	VulnPath           string
-	CPEDBURL           string
-	CPETranslationsURL string
-	CVEFeedPrefixURL   string
-	Debug              bool
+	VulnPath             string
+	CPEDBURL             string
+	CPETranslationsURL   string
+	CVEFeedPrefixURL     string
+	CISAKnownExploitsURL string
+	Debug                bool
 }
 
 // Sync downloads all the vulnerability data sources.
@@ -58,7 +59,7 @@ func Sync(opts SyncOptions, logger log.Logger) error {
 		return fmt.Errorf("sync EPSS CVE feed: %w", err)
 	}
 
-	if err := DownloadCISAKnownExploitsFeed(opts.VulnPath); err != nil {
+	if err := DownloadCISAKnownExploitsFeed(opts.VulnPath, opts.CISAKnownExploitsURL); err != nil {
 		return fmt.Errorf("sync CISA known exploits feed: %w", err)
 	}
 
@@ -141,8 +142,8 @@ func parseEPSSScoresFile(path string) ([]epssScore, error) {
 }
 
 const (
-	cisaKnownExploitsURL      = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
-	cisaKnownExploitsFilename = "known_exploited_vulnerabilities.json"
+	defaultCisaKnownExploitsURL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+	cisaKnownExploitsFilename   = "known_exploited_vulnerabilities.json"
 )
 
 // knownExploitedVulnerabilitiesCatalog represents the CISA Catalog of Known Exploited Vulnerabilities.
@@ -168,8 +169,12 @@ type knownExploitedVulnerability struct {
 }
 
 // DownloadCISAKnownExploitsFeed downloads the CISA known exploited vulnerabilities feed.
-func DownloadCISAKnownExploitsFeed(vulnPath string) error {
+func DownloadCISAKnownExploitsFeed(vulnPath string, cisaKnownExploitsURL string) error {
 	path := filepath.Join(vulnPath, cisaKnownExploitsFilename)
+
+	if cisaKnownExploitsURL == "" {
+		cisaKnownExploitsURL = defaultCisaKnownExploitsURL
+	}
 
 	u, err := url.Parse(cisaKnownExploitsURL)
 	if err != nil {

@@ -2,7 +2,7 @@ import React from "react";
 import { screen } from "@testing-library/react";
 import { noop } from "lodash";
 
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import mockServer from "test/mock-server";
 import {
   activityHandlerHasMoreActivities,
@@ -22,6 +22,7 @@ describe("Activity Feed", () => {
         setShowActivityFeedTitle={noop}
         setRefetchActivities={noop}
         isPremiumTier
+        router={createMockRouter()}
       />
     );
 
@@ -43,6 +44,7 @@ describe("Activity Feed", () => {
         setShowActivityFeedTitle={noop}
         setRefetchActivities={noop}
         isPremiumTier
+        router={createMockRouter()}
       />
     );
 
@@ -65,6 +67,7 @@ describe("Activity Feed", () => {
         setShowActivityFeedTitle={noop}
         setRefetchActivities={noop}
         isPremiumTier
+        router={createMockRouter()}
       />
     );
 
@@ -86,6 +89,7 @@ describe("Activity Feed", () => {
         setShowActivityFeedTitle={noop}
         setRefetchActivities={noop}
         isPremiumTier
+        router={createMockRouter()}
       />
     );
 

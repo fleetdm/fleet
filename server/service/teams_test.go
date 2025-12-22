@@ -32,7 +32,10 @@ func TestTeamAuth(t *testing.T) {
 	) error {
 		return nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
+	}
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{}, nil
 	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -71,6 +74,17 @@ func TestTeamAuth(t *testing.T) {
 		default:
 			return &fleet.Team{ID: 2}, nil
 		}
+	}
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return nil, &notFoundError{}
+	}
+
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, nil, nil
+	}
+
+	ds.SetHostCertificateTemplatesToPendingRemoveFunc = func(ctx context.Context, teamID uint) error {
+		return nil
 	}
 
 	testCases := []struct {
@@ -286,6 +300,9 @@ func TestApplyTeamSpecs(t *testing.T) {
 					require.Len(t, act.Teams, 1)
 					return nil
 				}
+				ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+					return nil, &notFoundError{}
+				}
 
 				_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}}, fleet.ApplyTeamSpecOptions{})
 				require.NoError(t, err)
@@ -428,7 +445,7 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 		ds.NewTeamFuncInvoked = false
 
 		// Dry run -- secret already used
-		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 			return false, nil
 		}
 		_, err := svc.ApplyTeamSpecs(
@@ -438,7 +455,7 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 		assert.ErrorContains(t, err, "is already being used")
 
 		// Normal dry run
-		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 			return true, nil
 		}
 		_, err = svc.ApplyTeamSpecs(

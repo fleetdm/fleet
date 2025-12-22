@@ -7,20 +7,17 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 )
 
 const kdialogProcessName = "kdialog"
 
 type KDialog struct {
 	cmdWithOutput func(timeout time.Duration, args ...string) ([]byte, int, error)
-	cmdWithCancel func(args ...string) (cancelFunc func() error, err error)
 }
 
 func New() *KDialog {
 	return &KDialog{
 		cmdWithOutput: execCmdWithOutput,
-		cmdWithCancel: execCmdWithCancel,
 	}
 }
 
@@ -48,23 +45,6 @@ func (k *KDialog) ShowEntry(opts dialog.EntryOptions) ([]byte, error) {
 	output = []byte(strings.TrimSuffix(string(output), "\n"))
 
 	return output, nil
-}
-
-func (k *KDialog) ShowProgress(opts dialog.ProgressOptions) (func() error, error) {
-	args := []string{"--msgbox"}
-	if opts.Text != "" {
-		args = append(args, opts.Text)
-	}
-	if opts.Title != "" {
-		args = append(args, "--title", opts.Title)
-	}
-
-	cancel, err := k.cmdWithCancel(args...)
-	if err != nil {
-		return nil, err
-	}
-
-	return cancel, nil
 }
 
 func (k *KDialog) ShowInfo(opts dialog.InfoOptions) error {
@@ -105,25 +85,4 @@ func execCmdWithOutput(timeout time.Duration, args ...string) ([]byte, int, erro
 	}
 
 	return output, exitCode, nil
-}
-
-func execCmdWithCancel(args ...string) (func() error, error) {
-	var opts []execuser.Option
-	for _, arg := range args {
-		opts = append(opts, execuser.WithArg(arg, "")) // using empty value for positional args
-	}
-
-	_, err := execuser.Run(kdialogProcessName, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	killFunc := func() error {
-		if _, err := platform.KillAllProcessByName(kdialogProcessName); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	return killFunc, nil
 }

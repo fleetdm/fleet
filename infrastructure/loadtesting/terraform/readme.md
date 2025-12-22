@@ -20,7 +20,7 @@ terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_
 ### Deploying your code to the loadtesting environment
 
 > IMPORTANT:
-> - We advice to use a separate clone of the https://github.com/fleetdm/fleet repository because `terraform` operations are lengthy. Terraform uses the local files as the configuration files.
+> - We advise to use a separate clone of the https://github.com/fleetdm/fleet repository because `terraform` operations are lengthy. Terraform uses the local files as the configuration files.
 > - When performing a load test you target a specific branch and not `main` (referenced below as `$BRANCH_NAME`). The `main` branch changes often and it might trigger rebuilts of the images. The cloned repository that you will use to run the terraform operations doesn't need to be in `$BRANCH_NAME`, such `$BRANCH_NAME` is the Fleet version that will be deployed to the load test environment.
 > - These scripts were tested with terraform 1.10.4.
 
@@ -74,6 +74,135 @@ This has an impact on real devices because they will not be notified of any comm
 - `-mdm_prob 1.0`
 - `-mdm_scep_challenge` set to the same value as `FLEET_MDM_APPLE_SCEP_CHALLENGE` above.
 
+### Enabling Cloudfront
+
+> Do not commit your `BRANCH_NAME` if any files exist in `resources/TERRAFORM_WORKSPACE/` without a .encrypted extension.
+> This step assumes that you've already successfully executed terraform apply and have a `kms_key_id` from the output of the terraform apply command.
+
+1. Under the terraform directory, create directory `resources/TERRAFORM_WORKSPACE/`. Your `TERRAFORM_WORKSPACE` value can be retrieved with `terraform workspace show`.
+
+2. Change directory to `resources/TERRAFORM_WORKSPACE/`
+
+3. Create your keys
+
+```
+openssl genrsa -out cloudfront.key 2048
+openssl rsa -pubout -in cloudfront.key -out cloudfront.pem
+```
+
+4. Create `encrypt.sh` (store the script in in the terraform directory, two directories up `../..`)
+
+```
+#!/bin/bash
+
+set -e
+
+function usage() {
+	cat <<-EOUSAGE
+	
+	Usage: $(basename ${0}) <KMS_KEY_ID> <SOURCE> <DESTINATION> [AWS_PROFILE]
+	
+		This script encrypts an plaintext file from SOURCE into an
+		AWS KMS encrypted DESTINATION file.  Optionally you
+		may provide the AWS_PROFILE you wish to use to run the aws kms
+		commands.
+
+	EOUSAGE
+	exit 1
+}
+
+[ $# -lt 3 ] && usage
+
+if [ -n "${4}" ]; then
+	export AWS_PROFILE=${4}
+fi
+
+aws kms encrypt --key-id "${1:?}" --plaintext fileb://<(cat "${2:?}") --output text --query CiphertextBlob > "${3:?}"
+```
+
+5. Make the script executable by running `chmod +x ../../encrypt.sh`
+6. Encrypt the objects using `encrypt.sh`
+
+```
+for i in *; do ../../encrypt.sh <KMS_KEY_ID> $i $i.encrypted; done
+for i in *.encrypted; do rm ${i/.encrypted/}; done
+```
+
+6. Change back to the terraform directory (two directories up ../..)
+
+7. If the name of your public/private cloudfront key is not `cloudfront.pem|.key`, update `locals.tf`
+
+```
+# Set the following variable value to the base name of your cloudfront key, no extension.
+cloudfront_key_basename = cloudfront
+```
+
+8. Copy and make `cloudfront.tf`
+
+```
+cp template/cloudfront.tf.disabled cloudfront.tf
+```
+
+9. In `locals.tf` uncomment the following line, under `extra_secrets`
+
+```
+module.cloudfront-software-installers.extra_secrets,
+```
+
+Example: You should end up with something that looks like the following block
+
+```
+  extra_secrets = merge(
+    module.cloudfront-software-installers.extra_secrets
+  )
+```
+
+10. Initialize terraform and upgrade any necessary dependencies
+
+```
+terraform init -upgrade
+```
+
+11. Apply the terraform
+
+```
+terraform apply -var tag=BRANCH_NAME
+```
+
+12. In `locals.tf` uncomment the following line, under `extra_execution_iam_policies`.
+
+```
+module.cloudfront-software-installers.extra_execution_iam_policies,
+```
+
+You should end up with something that looks like this.
+
+```
+  extra_execution_iam_policies = concat(
+    module.cloudfront-software-installers.extra_execution_iam_policies,
+    []
+  )
+```
+
+13. Apply the terraform
+
+```
+terraform apply -var tag=BRANCH_NAME
+```
+
+14. Cloudfront should now be enabled.
+
+15. If you had previously uploaded any software installers, they need to be re-encrypted by finding and targeting your bucket with the following commands.
+
+```
+# List buckets matching your BRANCH_NAME
+aws s3 ls | grep BRANCH_NAME
+
+# Replace <bucket-name> with the software_instalelrs bucket name.
+aws s3 cp s3://<bucket-name>/ s3://<bucket-name>/ --recursive
+```
+
+
 ### Running a loadtest
 
 We run simulated hosts in containers of 500 at a time. Once the infrastructure is running, you can run the following command:
@@ -112,6 +241,21 @@ docker images | grep 'BRANCH_NAME' | awk '{print $3}'
 # you will end up with twice the hosts enrolled (half online, half offline).
 terraform apply -var tag=BRANCH_NAME -var loadtest_containers=XXX -target=aws_ecs_service.fleet -target=aws_ecs_task_definition.backend -target=aws_ecs_task_definition.migration -target=aws_s3_bucket_acl.osquery-results -target=aws_s3_bucket_acl.osquery-status -target=docker_registry_image.fleet
 ```
+
+NOTE: When performing a migration test, set `-var fleet_containers=0` and `-var loadtest_containers=XXX` where `XXX` is the current number of loadtest containers, when running the above command. This will bring down any running fleet containers during the migration, while leaving the loadtest containers up and running. 
+Once the re-deploy on the new branch is finished, you will need to run migrations again:
+
+```sh
+aws ecs run-task --region us-east-2 --cluster fleet-"$(terraform workspace show)"-backend --task-definition fleet-"$(terraform workspace show)"-migrate:"$(terraform output -raw fleet_migration_revision)" --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets="$(terraform output -raw fleet_migration_subnets)",securityGroups="$(terraform output -raw fleet_migration_security_groups)"}"
+```
+
+Once the migrations have completed, run the following command to bring the fleet containers back up (substituing in the correct `BRANCH_NAME`, `loadtest_containers` and `fleet_containers` values):
+
+```sh
+terraform apply -var tag=BRANCH_NAME -var loadtest_containers=XXX -var fleet_containers=XX -target=aws_ecs_service.fleet -target=aws_ecs_task_definition.backend -target=aws_ecs_task_definition.migration -target=aws_s3_bucket_acl.osquery-results -target=aws_s3_bucket_acl.osquery-status -target=docker_registry_image.fleet -target=aws_appautoscaling_target.ecs_target
+```
+
+Using `-target=aws_appautoscaling_target.ecs_target` will prevent your instance from shutting down prematurely if there are performance issues, to allow for further investigation.
 
 ### Deploying code changes to osquery-perf
 

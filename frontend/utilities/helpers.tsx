@@ -37,7 +37,6 @@ import {
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
 
-import PATHS from "router/paths";
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
 import {
@@ -49,10 +48,10 @@ import {
   INITIAL_FLEET_DATE,
   PLATFORM_LABEL_DISPLAY_TYPES,
   isPlatformLabelNameFromAPI,
-  PolicyResponse,
 } from "utilities/constants";
 import { ISchedulableQueryStats } from "interfaces/schedulable_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import CustomLink from "components/CustomLink";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -897,6 +896,32 @@ export function getCustomDropdownOptions(
       ];
 }
 
+export const getGitOpsModeTipContent = (repoURL: string) => {
+  let url = "";
+  try {
+    url = new URL(repoURL).toString();
+  } catch {
+    // Invalid URL submitted before validation was required, missing protocol
+    url = `https://${repoURL}`;
+  }
+  return (
+    <>
+      <span>
+        Manage in{" "}
+        <CustomLink newTab text="YAML" variant="tooltip-link" url={url} />
+        <br />
+      </span>
+      <span>(GitOps mode enabled)</span>
+    </>
+  );
+};
+
+/** Returns true if the passed in ISO 8601 date-time string represents a date and time in the past,
+ * false otherwise */
+export const isDateTimePast = (dt: string) => {
+  return new Date(dt) < new Date();
+};
+
 export default {
   addGravatarUrlToResource,
   removeOSPrefix,
@@ -939,4 +964,5 @@ export default {
   normalizeEmptyValues,
   wait,
   wrapFleetHelper,
+  isDateTimePast,
 };

@@ -16,7 +16,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 
-import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
+import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -43,7 +43,7 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { id, name, source } = cellProps.row.original;
+        const { id, name, display_name, source } = cellProps.row.original;
 
         const softwareVersionDetailsPath = getPathWithQueryParams(
           PATHS.SOFTWARE_VERSION_DETAILS(id.toString()),
@@ -55,7 +55,9 @@ const generateTableHeaders = (
         return (
           <SoftwareNameCell
             name={name}
+            display_name={display_name}
             source={source}
+            // iconUrl does not exist on ISoftwareVersion
             path={softwareVersionDetailsPath}
             router={router}
           />

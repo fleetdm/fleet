@@ -369,8 +369,8 @@ const OtherWorkflowsModal = ({
                 setNewPolicyIds(updatedPolicyIds);
                 return item;
               }}
-              footer={
-                <p className={`${baseClass}__help-text`}>
+              helpText={
+                <>
                   The workflow will be triggered when hosts fail these policies.{" "}
                   <CustomLink
                     url="https://www.fleetdm.com/learn-more-about/policy-automations"
@@ -378,13 +378,13 @@ const OtherWorkflowsModal = ({
                     newTab
                     disableKeyboardNavigation={!isPolicyAutomationsEnabled}
                   />
-                </p>
+                </>
               }
               isUpdating={isUpdating}
               onSubmit={onUpdateOtherWorkflows}
               onCancel={onExit}
               teamId={teamId}
-              disabled={!isPolicyAutomationsEnabled}
+              disableList={!isPolicyAutomationsEnabled}
             />
           ) : (
             <>

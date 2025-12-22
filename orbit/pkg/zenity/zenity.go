@@ -14,8 +14,6 @@ const zenityProcessName = "zenity"
 type Zenity struct {
 	// cmdWithOutput can be set in tests to mock execution of the dialog.
 	cmdWithOutput func(args ...string) ([]byte, int, error)
-	// cmdWithWait can be set in tests to mock execution of the dialog.
-	cmdWithCancel func(args ...string) (func() error, error)
 }
 
 // New creates a new Zenity dialog instance for zenity v4 on Linux.
@@ -23,7 +21,6 @@ type Zenity struct {
 func New() *Zenity {
 	return &Zenity{
 		cmdWithOutput: execCmdWithOutput,
-		cmdWithCancel: execCmdWithCancel,
 	}
 }
 
@@ -85,34 +82,6 @@ func (z *Zenity) ShowInfo(opts dialog.InfoOptions) error {
 	return nil
 }
 
-// ShowProgress starts a Zenity pulsating progress dialog with the given options.
-// It returns a cancel function that can be used to cancel the dialog.
-func (z *Zenity) ShowProgress(opts dialog.ProgressOptions) (func() error, error) {
-	args := []string{"--progress"}
-	if opts.Title != "" {
-		args = append(args, fmt.Sprintf("--title=%s", opts.Title))
-	}
-	if opts.Text != "" {
-		args = append(args, fmt.Sprintf("--text=%s", opts.Text))
-	}
-
-	// --pulsate shows a pulsating progress bar
-	args = append(args, "--pulsate")
-
-	// --no-cancel disables the cancel button
-	args = append(args, "--no-cancel")
-
-	// --auto-close automatically closes the dialog when stdin is closed
-	args = append(args, "--auto-close")
-
-	cancel, err := z.cmdWithCancel(args...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start progress dialog: %w", err)
-	}
-
-	return cancel, nil
-}
-
 func execCmdWithOutput(args ...string) ([]byte, int, error) {
 	var opts []execuser.Option
 	for _, arg := range args {
@@ -125,18 +94,4 @@ func execCmdWithOutput(args ...string) ([]byte, int, error) {
 	output = bytes.TrimSuffix(output, []byte("\n"))
 
 	return output, exitCode, err
-}
-
-func execCmdWithCancel(args ...string) (func() error, error) {
-	var opts []execuser.Option
-	for _, arg := range args {
-		opts = append(opts, execuser.WithArg(arg, "")) // Using empty value for positional args
-	}
-
-	stdin, err := execuser.RunWithStdin(zenityProcessName, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	return stdin.Close, err
 }

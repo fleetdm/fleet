@@ -1,0 +1,37 @@
+.software-details-summary {
+  display: flex;
+  gap: $pad-medium;
+
+  .software-icon {
+    width: 96px;
+    height: 96px;
+  }
+
+  &__info {
+    flex-grow: 1;
+    align-self: center;
+    min-width: 0; // Required to truncate name with edit icon
+
+    .truncated-tooltip {
+      font-weight: $regular;
+    }
+  }
+
+  &__title-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  h1 {
+    font-size: $pad-large;
+    font-weight: bold;
+    overflow: hidden; // Required to truncate name with edit icon
+  }
+
+  &__description-list {
+    display: flex;
+    flex-direction: row;
+    gap: $pad-xxlarge;
+  }
+}

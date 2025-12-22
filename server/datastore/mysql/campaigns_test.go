@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"sort"
 	"testing"
@@ -25,6 +26,8 @@ func TestCampaigns(t *testing.T) {
 		{"CleanupDistributedQuery", testCampaignsCleanupDistributedQuery},
 		{"SaveDistributedQuery", testCampaignsSaveDistributedQuery},
 		{"CompletedCampaigns", testCompletedCampaigns},
+		{"CleanupCompletedCampaignTargets", testCleanupCompletedCampaignTargets},
+		{"CleanupCompletedCampaignTargetsLargeBatch", testCleanupCompletedCampaignTargetsLargeBatch},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -202,6 +205,126 @@ func testCampaignsSaveDistributedQuery(t *testing.T, ds *Datastore) {
 	gotC, err = ds.DistributedQueryCampaign(context.Background(), c1.ID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.QueryComplete, gotC.Status)
+}
+
+func testCleanupCompletedCampaignTargets(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	mockClock := clock.NewMockClock() // not actually necessary here since we're not testing time progression, but using for consistency
+
+	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
+	query := test.NewQuery(t, ds, nil, "Test Query", "SELECT 1", user.ID, false)
+
+	host1 := test.NewHost(t, ds, "host1", "192.168.1.1", "host1_key", "host1_uuid", mockClock.Now())
+	host2 := test.NewHost(t, ds, "host2", "192.168.1.2", "host2_key", "host2_uuid", mockClock.Now())
+
+	// Create an old completed campaign (should be cleaned up)
+	oldCampaign := test.NewCampaign(t, ds, query.ID, fleet.QueryComplete, mockClock.Now().Add(-48*time.Hour))
+
+	// Manually update the updated_at timestamp for testing
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		"UPDATE distributed_query_campaigns SET updated_at = ? WHERE id = ?",
+		mockClock.Now().Add(-48*time.Hour), oldCampaign.ID)
+	require.NoError(t, err)
+
+	// Add targets to the old campaign
+	test.AddHostToCampaign(t, ds, oldCampaign.ID, host1.ID)
+	test.AddHostToCampaign(t, ds, oldCampaign.ID, host2.ID)
+
+	// Create a recent completed campaign (should NOT be cleaned up)
+	recentCampaign := test.NewCampaign(t, ds, query.ID, fleet.QueryComplete, mockClock.Now().Add(-1*time.Hour))
+
+	// Add targets to the recent campaign
+	test.AddHostToCampaign(t, ds, recentCampaign.ID, host1.ID)
+
+	// Create a running campaign (should NOT be cleaned up regardless of age)
+	runningCampaign := test.NewCampaign(t, ds, query.ID, fleet.QueryRunning, mockClock.Now().Add(-48*time.Hour))
+
+	// Add targets to the running campaign
+	test.AddHostToCampaign(t, ds, runningCampaign.ID, host1.ID)
+
+	// Verify initial state - all targets exist
+	oldTargets, err := ds.DistributedQueryCampaignTargetIDs(ctx, oldCampaign.ID)
+	require.NoError(t, err)
+	assert.Len(t, oldTargets.HostIDs, 2)
+
+	recentTargets, err := ds.DistributedQueryCampaignTargetIDs(ctx, recentCampaign.ID)
+	require.NoError(t, err)
+	assert.Len(t, recentTargets.HostIDs, 1)
+
+	runningTargets, err := ds.DistributedQueryCampaignTargetIDs(ctx, runningCampaign.ID)
+	require.NoError(t, err)
+	assert.Len(t, runningTargets.HostIDs, 1)
+
+	// Run cleanup for campaigns older than 24 hours
+	deleted, err := ds.CleanupCompletedCampaignTargets(ctx, mockClock.Now().Add(-24*time.Hour))
+	require.NoError(t, err)
+	assert.Equal(t, uint(2), deleted) // Should delete 2 targets from old campaign
+
+	// Verify old campaign targets are deleted
+	oldTargets, err = ds.DistributedQueryCampaignTargetIDs(ctx, oldCampaign.ID)
+	require.NoError(t, err)
+	assert.Len(t, oldTargets.HostIDs, 0)
+
+	// Verify recent campaign targets are NOT deleted
+	recentTargets, err = ds.DistributedQueryCampaignTargetIDs(ctx, recentCampaign.ID)
+	require.NoError(t, err)
+	assert.Len(t, recentTargets.HostIDs, 1)
+
+	// Verify running campaign targets are NOT deleted
+	runningTargets, err = ds.DistributedQueryCampaignTargetIDs(ctx, runningCampaign.ID)
+	require.NoError(t, err)
+	assert.Len(t, runningTargets.HostIDs, 1)
+
+	// Run cleanup again - should delete nothing
+	deleted, err = ds.CleanupCompletedCampaignTargets(ctx, mockClock.Now().Add(-24*time.Hour))
+	require.NoError(t, err)
+	assert.Equal(t, uint(0), deleted)
+}
+
+func testCleanupCompletedCampaignTargetsLargeBatch(t *testing.T, ds *Datastore) {
+	t.Skip("Skipping large batch test due to long test runtime (~1 minute). Only run manually.")
+	ctx := t.Context()
+	mockClock := clock.NewMockClock()
+
+	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
+	query := test.NewQuery(t, ds, nil, "Test Query", "SELECT 1", user.ID, false)
+
+	// Create an old completed campaign
+	oldCampaign := test.NewCampaign(t, ds, query.ID, fleet.QueryComplete, mockClock.Now().Add(-48*time.Hour))
+
+	// Manually update the updated_at timestamp for testing
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		"UPDATE distributed_query_campaigns SET updated_at = ? WHERE id = ?",
+		mockClock.Now().Add(-48*time.Hour), oldCampaign.ID)
+	require.NoError(t, err)
+
+	// Create many hosts and targets (more than batch size)
+	const numTargets = 10002
+	for i := 0; i < numTargets; i++ {
+		host := test.NewHost(t, ds,
+			fmt.Sprintf("host%d", i),
+			fmt.Sprintf("192.168.1.%d", i+10),
+			fmt.Sprintf("host%d_key", i),
+			fmt.Sprintf("host%d_uuid", i),
+			mockClock.Now())
+
+		test.AddHostToCampaign(t, ds, oldCampaign.ID, host.ID)
+	}
+
+	// Verify initial state
+	targets, err := ds.DistributedQueryCampaignTargetIDs(ctx, oldCampaign.ID)
+	require.NoError(t, err)
+	assert.Len(t, targets.HostIDs, numTargets)
+
+	// Run cleanup
+	deleted, err := ds.CleanupCompletedCampaignTargets(ctx, mockClock.Now().Add(-24*time.Hour))
+	require.NoError(t, err)
+	assert.Equal(t, uint(numTargets), deleted)
+
+	// Verify all targets are deleted
+	targets, err = ds.DistributedQueryCampaignTargetIDs(ctx, oldCampaign.ID)
+	require.NoError(t, err)
+	assert.Len(t, targets.HostIDs, 0)
 }
 
 func checkTargets(t *testing.T, ds fleet.Datastore, campaignID uint, expectedTargets fleet.HostTargets) {

@@ -101,12 +101,13 @@ const OSVersionTable = ({
         isAllPagesSelected={false}
         defaultSortHeader={queryParams.order_key}
         defaultSortDirection={queryParams.order_direction}
-        defaultPageIndex={queryParams.page}
+        pageIndex={queryParams.page}
         disableTableHeader
         disableCount
         pageSize={queryParams.per_page}
         onQueryChange={onQueryChange}
         disableNextPage={!hasNextPage}
+        hideFooter={!hasNextPage && queryParams.page === 0}
       />
     </div>
   );

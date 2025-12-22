@@ -35,7 +35,7 @@ Organizations can deploy configuration profiles, settings, and policies aligned 
 
 Fleet brings the GitOps workflow to your organization’s configuration profiles with a full API and scriptable command line interface (CLI). GitOps is a modern approach to Continuous Deployment (CD) that uses Git as the single source of truth for declarative infrastructure and application configurations and MDM configuration profiles.
 
-![Fleet GitOps workflow](../website/assets/images/articles/fleet-mdm-launch-gitops-flow-800x640.jpg)
+![Fleet GitOps workflow](../website/assets/images/articles/fleet-mdm-launch-gitops-flow-800x640@2x.jpg)
 
 ## Programmability and automation make for a better user experience
 

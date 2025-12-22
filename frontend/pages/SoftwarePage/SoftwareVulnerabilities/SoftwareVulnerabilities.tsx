@@ -35,7 +35,6 @@ interface ISoftwareVulnerabilitiesProps {
   currentPage: number;
   teamId?: number;
   showExploitedVulnerabilitiesOnly: boolean;
-  resetPageIndex: boolean;
 }
 
 const SoftwareVulnerabilities = ({
@@ -48,7 +47,6 @@ const SoftwareVulnerabilities = ({
   currentPage,
   teamId,
   showExploitedVulnerabilitiesOnly,
-  resetPageIndex,
 }: ISoftwareVulnerabilitiesProps) => {
   const [tableData, setTableData] = useState<IVulnerabilitiesResponse>();
   const [
@@ -246,7 +244,7 @@ const SoftwareVulnerabilities = ({
   }
 
   if (isError) {
-    return <TableDataError className={`${baseClass}__table-error`} />;
+    return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
   }
 
   return (
@@ -264,7 +262,6 @@ const SoftwareVulnerabilities = ({
         currentPage={currentPage}
         teamId={teamId}
         isLoading={isFetching || isFetchingExactMatch}
-        resetPageIndex={resetPageIndex}
       />
     </div>
   );

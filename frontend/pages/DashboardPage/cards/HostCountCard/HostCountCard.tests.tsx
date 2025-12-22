@@ -1,10 +1,9 @@
 import React from "react";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { renderWithSetup } from "test/test-utils";
 import paths from "router/paths";
 import HostCountCard from "./HostCountCard";
-
-const LOADING_OPACITY = 0.4;
 
 describe("HostCountCard - component", () => {
   it("renders title, count, and image based on the information and data passed in", () => {
@@ -43,7 +42,7 @@ describe("HostCountCard - component", () => {
   });
 
   it("renders tooltip on title hover", async () => {
-    render(
+    const { user } = renderWithSetup(
       <HostCountCard
         count={200}
         title="Windows hosts"
@@ -53,9 +52,12 @@ describe("HostCountCard - component", () => {
       />
     );
 
-    await fireEvent.mouseEnter(screen.getByText("Windows hosts"));
+    await user.hover(screen.getByText("Windows hosts"));
 
-    expect(screen.getByText("Hosts on any Windows device")).toBeInTheDocument();
+    await waitFor(() => {
+      const tooltip = screen.getByText("Hosts on any Windows device");
+      expect(tooltip).toBeInTheDocument();
+    });
   });
 
   // Note: Cannot test path of react-router <Link/> without <Router/>

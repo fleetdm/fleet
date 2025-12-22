@@ -20,6 +20,7 @@ package tables
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -40,8 +41,18 @@ import (
 const (
 	testUsername = "root"
 	testPassword = "toor"
-	testAddress  = "localhost:3307"
 )
+
+var (
+	testAddress = getTestAddress()
+)
+
+func getTestAddress() string {
+	if port := os.Getenv("FLEET_MYSQL_TEST_PORT"); port != "" {
+		return "localhost:" + port
+	}
+	return "localhost:3307"
+}
 
 func newDBConnForTests(t *testing.T) *sqlx.DB {
 	db, err := sqlx.Open(
@@ -153,6 +164,36 @@ func insertQuery(t *testing.T, db *sqlx.DB) uint {
 	require.NoError(t, err)
 
 	return uint(id) //nolint:gosec // dismiss G115
+}
+
+func checkCollation(t *testing.T, db *sqlx.DB) {
+	type collationData struct {
+		CollationName    string `db:"COLLATION_NAME"`
+		TableName        string `db:"TABLE_NAME"`
+		ColumnName       string `db:"COLUMN_NAME"`
+		CharacterSetName string `db:"CHARACTER_SET_NAME"`
+	}
+
+	stmt := `
+SELECT
+	TABLE_NAME, COLLATION_NAME, COLUMN_NAME, CHARACTER_SET_NAME 
+FROM information_schema.columns
+WHERE
+	TABLE_SCHEMA = (SELECT DATABASE()) 
+	AND (CHARACTER_SET_NAME != ? OR COLLATION_NAME != ?)`
+
+	var nonStandardCollations []collationData
+	err := db.Select(&nonStandardCollations, stmt, "utf8mb4", "utf8mb4_unicode_ci")
+	require.NoError(t, err)
+
+	exceptions := []collationData{
+		{"utf8mb4_bin", "enroll_secrets", "secret", "utf8mb4"},
+		{"utf8mb4_bin", "hosts", "node_key", "utf8mb4"},
+		{"utf8mb4_bin", "hosts", "orbit_node_key", "utf8mb4"},
+		{"utf8mb4_bin", "teams", "name_bin", "utf8mb4"},
+	}
+
+	require.ElementsMatch(t, exceptions, nonStandardCollations)
 }
 
 func insertHost(t *testing.T, db *sqlx.DB, teamID *uint) uint {
@@ -313,4 +354,45 @@ func assertRowCount(t *testing.T, db *sqlx.DB, table string, count int) {
 	err := db.Get(&n, fmt.Sprintf("SELECT COUNT(*) FROM %s", table))
 	require.NoError(t, err)
 	assert.Equal(t, count, n)
+}
+
+func insertAppleConfigProfile(t *testing.T, db *sqlx.DB, name, identifier string, vars ...string) string {
+	contents := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>PayloadContent</key>
+        <array>
+            <dict>
+							%s
+            </dict>
+        </array>
+        <key>PayloadDisplayName</key>
+        <string>%s</string>
+        <key>PayloadIdentifier</key>
+        <string>%s</string>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadUUID</key>
+        <string>%s</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+    </dict>
+</plist>`
+	var varDict strings.Builder
+	for i, v := range vars {
+		// add some vars with "${...}" and some with "$..."
+		if i%2 == 0 {
+			v = fmt.Sprintf("{%s}", v)
+		}
+		varDict.WriteString(fmt.Sprintf(`
+						<key>Var%d</key>
+						<string>$%s</string>`, i, v))
+	}
+	profileUUID := uuid.NewString()
+	contents = fmt.Sprintf(contents, varDict.String(), name, identifier, profileUUID)
+
+	execNoErr(t, db, `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, identifier, name, mobileconfig, checksum)
+		VALUES (?, ?, ?, ?, UNHEX(MD5(?)))`, profileUUID, identifier, name, contents, contents)
+	return profileUUID
 }

@@ -13,13 +13,13 @@ import mdmAbmAPI, {
   IGetAbmTokensResponse,
 } from "services/entities/mdm_apple_bm";
 
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 
 import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import AddAbmModal from "./components/AddAbmModal";
@@ -41,9 +41,7 @@ const AddAbmMessage = ({ onAddAbm }: IAddAbmMessageProps) => {
         Automatically enroll newly purchased Apple hosts when they&apos;re first
         unboxed and set up by your end users.
       </p>
-      <Button variant="brand" onClick={onAddAbm}>
-        Add ABM
-      </Button>
+      <Button onClick={onAddAbm}>Add ABM</Button>
     </div>
   );
 };
@@ -146,7 +144,9 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
 
     if (!config?.mdm.enabled_and_configured) {
       return (
-        <TurnOnMdmMessage
+        <GenericMsgWithNavButton
+          path={PATHS.ADMIN_INTEGRATIONS_MDM}
+          buttonText="Turn on"
           router={router}
           header="Turn on Apple MDM"
           info="To add your ABM and enable automatic enrollment for macOS, iOS, and
@@ -161,11 +161,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
 
     // TODO: error UI
     if (showDataError) {
-      return (
-        <div>
-          <DataError />
-        </div>
-      );
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
     if (abmTokens?.length === 0) {
@@ -176,8 +172,9 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       return (
         <>
           <p>
-            Add your ABM to automatically enroll newly purchased Apple hosts
-            when they&apos;re first unboxed and set up by your end users.
+            Add your ABM to enable automatic enrollment for company-owned hosts
+            and enrollment, via a Managed Apple Account, for personal (BYOD)
+            hosts.
           </p>
           <AppleBusinessManagerTable
             abmTokens={abmTokens}
@@ -195,20 +192,20 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   return (
     <MainContent className={baseClass}>
       <>
-        <BackLink
-          text="Back to MDM"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          className={`${baseClass}__back-to-mdm`}
-        />
+        <div className={`${baseClass}__header-links`}>
+          <BackButton
+            text="Back to MDM"
+            path={PATHS.ADMIN_INTEGRATIONS_MDM}
+            className={`${baseClass}__back-to-mdm`}
+          />
+        </div>
         <div className={`${baseClass}__page-content`}>
           <div className={`${baseClass}__page-header-section`}>
             <h1>Apple Business Manager (ABM)</h1>
             {isPremiumTier &&
               abmTokens?.length !== 0 &&
               !!config?.mdm.enabled_and_configured && (
-                <Button variant="brand" onClick={onAddAbm}>
-                  Add ABM
-                </Button>
+                <Button onClick={onAddAbm}>Add ABM</Button>
               )}
           </div>
           <>{renderContent()}</>

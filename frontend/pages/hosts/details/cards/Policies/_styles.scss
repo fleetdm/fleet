@@ -1,7 +1,6 @@
-.policies-card {
-  .info-banner {
-    margin-bottom: 1rem;
-  }
+.host-policies-card {
+  @include vertical-page-tab-panel-layout;
+
   .table-container__header {
     display: none;
   }
@@ -15,38 +14,7 @@
           width: 0;
         }
         .linkToFilteredHosts__header {
-          width: 140px;
-        }
-      }
-      tbody {
-        tr {
-          .name__cell {
-            max-width: 0; // sets ellipsis
-
-            .truncated-tooltip {
-              font-weight: $regular;
-            }
-          }
-
-          .policy-link {
-            opacity: 0;
-            transition: 250ms;
-            text-overflow: none;
-          }
-          &:hover {
-            .policy-link {
-              opacity: 1;
-            }
-          }
-          .policy-info {
-            width: 100%; // sets ellipsis
-            justify-content: left;
-
-            &::after {
-              content: url("../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png");
-              transform: scale(0.5);
-            }
-          }
+          width: 125px;
         }
       }
     }

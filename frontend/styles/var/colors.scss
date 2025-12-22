@@ -1,20 +1,30 @@
-// Core
+// 2025 branding
 $core-fleet-black: #192147;
-$core-fleet-white: #ffffff; // TODO: merge with core-white
-$core-fleet-blue: #3e4771;
-$core-vibrant-blue: #6a67fe;
-$core-vibrant-red: #ff5c83;
-$core-fleet-purple: #ae6ddf;
-$core-white: #ffffff; // TODO: merge with core-fleet-white
-$core-dark-blue-grey: #506e92;
-$site-nav-on-hover: #0e1533;
-
-// UI
+$core-fleet-green: #009a7d;
+$core-fleet-white: #ffffff;
 $ui-fleet-black-75: #515774;
 $ui-fleet-black-50: #8b8fa2;
 $ui-fleet-black-33: #b3b6c1;
 $ui-fleet-black-25: #c5c7d1;
 $ui-fleet-black-10: #e2e4ea;
+$ui-fleet-black-5: #f4f4f6;
+$core-focused-outline: $core-fleet-black;
+
+// 2025 secondary colors
+$ui-fleet-black-75-over: darken(#515774, 5%);
+$ui-fleet-black-75-down: darken(#515774, 10%);
+$core-fleet-green-over: darken(#009a7d, 5%);
+$core-fleet-green-down: darken(#009a7d, 10%);
+
+// Core
+$core-fleet-blue: #3e4771;
+$core-vibrant-blue: #6a67fe;
+$core-vibrant-red: #ff5c83;
+$core-fleet-purple: #ae6ddf;
+$core-dark-blue-grey: #506e92;
+$site-nav-on-hover: #0e1533;
+
+// UI
 $ui-fleet-blue-10: #f9fafc;
 $ui-dark-blue-gray: #afbec1;
 $ui-blue-gray: #dbe3e5;
@@ -42,6 +52,7 @@ $rainbow-green: #63c740;
 $rainbow-blue: #5cabdf;
 
 // Gradients
+$gradient-background: #eff6fa; // 2025 gradient start color
 $gradients-dark-gradient: linear-gradient(270deg, #201e43 0%, #353d62 100%);
 $gradients-dark-gradient-vertical: linear-gradient(
   360deg,
@@ -55,7 +66,8 @@ $core-vibrant-red-over: #e93661;
 $core-vibrant-red-down: #cb3559;
 $core-vibrant-blue-over: #5d5ae7;
 $core-vibrant-blue-down: #4b4ab4;
-$core-focused-outline: #d9d9fe;
+$ui-success-over: #36a26d;
+$ui-success-down: #2b7f56;
 $core-fleet-blue-over: #303860;
 $core-fleet-blue-down: $core-fleet-black;
 

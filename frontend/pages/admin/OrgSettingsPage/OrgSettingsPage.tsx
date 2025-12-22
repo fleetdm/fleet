@@ -51,7 +51,7 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
   });
 
   const onFormSubmit = useCallback(
-    (formUpdates: DeepPartial<IConfig>) => {
+    async (formUpdates: DeepPartial<IConfig>) => {
       if (!appConfig) {
         return false;
       }
@@ -62,47 +62,46 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
       // send all formUpdates.agent_options because diff overrides all agent options
       diff.agent_options = formUpdates.agent_options;
 
-      configAPI
-        .update(diff)
-        .then(() => {
-          renderFlash("success", "Successfully updated settings.");
-          refetchConfig();
-        })
-        .catch((response: { data: IApiError }) => {
-          if (
-            response?.data.errors[0].reason.includes("could not dial smtp host")
-          ) {
-            renderFlash(
-              "error",
-              "Could not connect to SMTP server. Please try again."
-            );
-          } else if (response?.data.errors) {
-            const reason = response?.data.errors[0].reason;
-            const agentOptionsInvalid =
-              reason.includes("unsupported key provided") ||
-              reason.includes("invalid value type");
-            const isAgentOptionsError =
-              agentOptionsInvalid ||
-              reason.includes("script_execution_timeout' value exceeds limit.");
-            renderFlash(
-              "error",
-              <>
-                Couldn&apos;t update{" "}
-                {isAgentOptionsError ? "agent options" : "settings"}: {reason}
-                {agentOptionsInvalid && (
-                  <>
-                    <br />
-                    If you&apos;re not using the latest osquery, use the
-                    fleetctl apply --force command to override validation.
-                  </>
-                )}
-              </>
-            );
-          }
-        })
-        .finally(() => {
-          setIsUpdatingSettings(false);
-        });
+      try {
+        await configAPI.update(diff);
+        renderFlash("success", "Successfully updated settings.");
+        refetchConfig();
+        return true;
+      } catch (response) {
+        const resp = response as undefined | { data: IApiError };
+
+        if (resp?.data.errors[0].reason.includes("could not dial smtp host")) {
+          renderFlash(
+            "error",
+            "Could not connect to SMTP server. Please try again."
+          );
+        } else if (resp?.data.errors) {
+          const reason = resp?.data.errors[0].reason;
+          const agentOptionsInvalid =
+            reason.includes("unsupported key provided") ||
+            reason.includes("invalid value type");
+          const isAgentOptionsError =
+            agentOptionsInvalid ||
+            reason.includes("script_execution_timeout' value exceeds limit.");
+          renderFlash(
+            "error",
+            <>
+              Couldn&apos;t update{" "}
+              {isAgentOptionsError ? "agent options" : "settings"}: {reason}
+              {agentOptionsInvalid && (
+                <>
+                  <br />
+                  If you&apos;re not using the latest osquery, use the fleetctl
+                  apply --force command to override validation.
+                </>
+              )}
+            </>
+          );
+        }
+        return false;
+      } finally {
+        setIsUpdatingSettings(false);
+      }
     },
     [appConfig, refetchConfig, renderFlash]
   );
@@ -139,6 +138,7 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
               handleSubmit={onFormSubmit}
               isUpdatingSettings={isUpdatingSettings}
               isPremiumTier={isPremiumTier}
+              router={router}
             />
           ) : (
             <Spinner />

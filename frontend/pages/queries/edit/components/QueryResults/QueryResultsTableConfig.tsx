@@ -11,6 +11,8 @@ import {
   getUniqueColsAreNumTypeFromRows,
   internallyTruncateText,
 } from "utilities/helpers";
+import PATHS from "router/paths";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
 const _unshiftHostname = <T extends object>(columns: Column<T>[]) => {
   const newHeaders = [...columns];
@@ -39,6 +41,10 @@ const generateColumnConfigsFromRows = <T extends Record<keyof T, unknown>>(
     string,
     boolean
   >;
+
+  // We are only using the host_id column for the hostname link, so we can remove it from the table.
+  colsAreNumTypes.delete("host_id");
+
   const columnConfigs = Array.from(colsAreNumTypes.keys()).map<Column<T>>(
     (colName) => {
       return {
@@ -52,6 +58,17 @@ const generateColumnConfigsFromRows = <T extends Record<keyof T, unknown>>(
         // generic for convenience, can assume keyof T is a string
         accessor: (data) => data[colName as keyof T],
         Cell: (cellProps: CellProps<T>) => {
+          if (cellProps?.cell?.column?.id === "Host") {
+            // @ts-ignore
+            const hostID = cellProps.row.original.host_id;
+            return (
+              <LinkCell
+                value={cellProps.cell.value}
+                path={PATHS.HOST_DETAILS(hostID)}
+              />
+            );
+          }
+
           const val = cellProps?.cell?.value;
           return !!val?.length && val.length > 300
             ? internallyTruncateText(val)

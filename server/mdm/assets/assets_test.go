@@ -157,11 +157,12 @@ func TestABMToken(t *testing.T) {
 	require.NoError(t, err)
 
 	testBMToken := &nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+		ConsumerKey:    "test_consumer",
+		ConsumerSecret: "test_secret",
+		AccessToken:    "test_access_token",
+		AccessSecret:   "test_access_secret",
+		// Use 2037 to avoid Y2K38 issues with 32-bit timestamps and potential MySQL date validation issues
+		AccessTokenExpiry: time.Date(2037, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 
 	rawToken, err := json.Marshal(testBMToken)

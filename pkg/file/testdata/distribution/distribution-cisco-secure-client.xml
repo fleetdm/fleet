@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<installer-gui-script minSpecVersion="1">
+    <title>Cisco Secure Client</title>
+    <background file="pkg_background.png" scaling="proportional" alignment="bottomleft"/>
+    <license file="License.rtf"/>
+    <options customize="never" rootVolumeOnly="true" hostArchitectures="x86_64,arm64"/>
+    <choices-outline>
+        <line choice="choice_anyconnect_vpn"/>
+    </choices-outline>
+    <choice id="choice_anyconnect_vpn" visible="true" title="AnyConnect VPN" description="Installs the module that enables VPN capabilities.">
+        <pkg-ref id="com.cisco.pkg.anyconnect.vpn"/>
+    </choice>
+    <pkg-ref id="com.cisco.pkg.anyconnect.vpn" version="5.1.3.62" installKBytes="63364">#vpn_module.pkg</pkg-ref>
+    <installation-check script="InstallationCheck()"/>
+    <volume-check script="VolumeCheck()"/>
+    <script>
+    function InstallationCheck()
+    {
+        if(!(system.compareVersions(system.version.ProductVersion, '11.0') &gt;= 0))
+        {
+            my.result.title = 'Cisco Secure Client';
+            my.result.message = 'This software requires macOS 11 or later.';
+            my.result.type = 'Fatal';
+            return false;
+        }
+ 
+        return true;
+    }
+    
+    function VolumeCheck()
+    {
+        // version of VPN being installed has to be higher than the version already installed
+
+        var vpnReceipt = my.target.receiptForIdentifier("com.cisco.pkg.anyconnect.vpn");
+        var vpnPackage = choices.choice_anyconnect_vpn.packages[0];
+
+        // if the receipt is not there assume no VPN installed or pre-3.1.1 version so it is OK to install
+        if (vpnReceipt)
+        {
+            // there is a 3.1.1+ version of VPN already installed
+            // check to see if version in this package is newer
+            var comparison = system.compareVersions(vpnReceipt.version, vpnPackage.version);
+
+            if (comparison == 0)
+            {
+                // versions are the same
+                my.result.message = 'Version ' + vpnReceipt.version + ' of Cisco Secure Client is already installed.';
+                my.result.type = 'Fatal';
+                return false;
+            }
+            else if (comparison &gt; 0)
+            {
+                // installed version is newer
+                my.result.message = 'Newer version ' + vpnReceipt.version + ' of Cisco Secure Client is already installed.';
+                my.result.type = 'Fatal';
+                return false;
+            }
+        }
+
+        // Check if standalone NVM is installed
+
+        var nvmStandaloneReceipt = my.target.receiptForIdentifier("com.cisco.pkg.anyconnect.nvmstandalone");
+        if(nvmStandaloneReceipt)
+        {
+            // if version of standalone NVM installed is greater than Cisco Secure Client package version, fail with an error message
+            var comparison = system.compareVersions(nvmStandaloneReceipt.version, vpnPackage.version);
+
+            if (comparison &gt; 0)
+            {
+                my.result.message = 'Version ' + nvmStandaloneReceipt.version + ' of Cisco Secure Client - Standalone Network Visibility Module is already installed.';
+                my.result.type = 'Fatal';
+                return false;
+            }
+        }
+
+        return true;
+    }
+    </script>
+    <pkg-ref id="com.cisco.pkg.anyconnect.vpn">
+        <bundle-version>
+            <bundle CFBundleShortVersionString="5.1.3.62" CFBundleVersion="5.1.3.62" id="com.cisco.secureclient.vpn.notification" path="opt/cisco/secureclient/bin/Cisco Secure Client - Notification.app"/>
+            <bundle id="com.cisco.secureclient.vpn.service" path="opt/cisco/secureclient/bin/Cisco Secure Client - AnyConnect VPN Service.app"/>
+            <bundle CFBundleVersion="5.1.3.62" id="com.cisco.secureclient.vpndownloader" path="opt/cisco/secureclient/bin/vpndownloader.app"/>
+            <bundle CFBundleShortVersionString="5.1.3.62" CFBundleVersion="5.1.3.62" id="com.cisco.secureclient.gui" path="Applications/Cisco/Cisco Secure Client.app"/>
+            <bundle CFBundleShortVersionString="5.1.3.14" CFBundleVersion="5.1.3.14" id="com.cisco.anyconnect.macos.acsock" path="Applications/Cisco/Cisco Secure Client - Socket Filter.app"/>
+            <bundle CFBundleShortVersionString="1.0" CFBundleVersion="1" id="com.cisco.secureclient.acwebhelper" path="opt/cisco/secureclient/bin/Cisco Secure Client - Web Browser.app"/>
+            <bundle CFBundleShortVersionString="5.1.3.62" CFBundleVersion="5.1.3.62" id="com.cisco.secureclient.uninstaller" path="Applications/Cisco/Uninstall Cisco Secure Client.app"/>
+        </bundle-version>
+    </pkg-ref>
+</installer-gui-script>

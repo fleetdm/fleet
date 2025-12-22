@@ -2,21 +2,22 @@ package tables
 
 import (
 	"context"
+	"testing"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestUp_20240607133721(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Insert data into software_titles
-	title1 := execNoErrLastID(t, db, "INSERT INTO software_titles (name, source, browser) VALUES (?, ?, ?)", "sw1", "src1", "")
+	title1 := execNoErrLastID(t, db, "INSERT INTO software_titles (name, source, extension_for) VALUES (?, ?, ?)", "sw1", "src1", "")
 
 	// Insert software
 	const insertStmt = `INSERT INTO software
-		(name, version, source, browser, checksum, title_id)
+		(name, version, source, extension_for, checksum, title_id)
 	VALUES
 		(?, ?, ?, ?, ?, ?)`
 
@@ -32,7 +33,7 @@ func TestUp_20240607133721(t *testing.T) {
 	require.Len(t, softwareTitles, 3)
 
 	var software []fleet.Software
-	require.NoError(t, db.SelectContext(context.Background(), &software, `SELECT id, name, source, browser, title_id FROM software`))
+	require.NoError(t, db.SelectContext(context.Background(), &software, `SELECT id, name, source, extension_for, title_id FROM software`))
 	require.Len(t, software, 4)
 
 	for _, sw := range software {
@@ -42,12 +43,11 @@ func TestUp_20240607133721(t *testing.T) {
 			if *sw.TitleID == title.ID {
 				assert.Equal(t, sw.Name, title.Name)
 				assert.Equal(t, sw.Source, title.Source)
-				assert.Equal(t, sw.Browser, title.Browser)
+				assert.Equal(t, sw.ExtensionFor, title.ExtensionFor)
 				found = true
 				break
 			}
 		}
 		assert.True(t, found)
 	}
-
 }

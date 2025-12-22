@@ -16,8 +16,10 @@ import configAPI from "services/entities/config";
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
-import SectionHeader from "components/SectionHeader";
-
+import Spinner from "components/Spinner";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import PageDescription from "components/PageDescription";
+import Card from "components/Card";
 import AddIntegrationModal from "./components/AddIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
 import EmptyIntegrationsTable from "./components/EmptyIntegrationsTable";
@@ -267,41 +269,51 @@ const Integrations = (): JSX.Element => {
     [jiraIntegrations, zendeskIntegrations]
   );
 
-  return (
-    <div className={`${baseClass}`}>
-      <SectionHeader title="Ticket destinations" />
-      <p className={`${baseClass}__page-description`}>
-        Add or edit integrations to create tickets when Fleet detects new
-        vulnerabilities.
-      </p>
-      {loadingIntegrationsError ? (
-        <TableDataError />
-      ) : (
-        <TableContainer
-          columnConfigs={tableHeaders}
-          data={tableData}
-          isLoading={isLoadingIntegrations}
-          defaultSortHeader="name"
-          defaultSortDirection="asc"
-          actionButton={{
-            name: "add integration",
-            buttonText: "Add integration",
-            variant: "brand",
-            onActionButtonClick: toggleAddIntegrationModal,
-            hideButton: !tableData?.length,
-          }}
-          resultsTitle="integrations"
-          emptyComponent={() => (
+  const renderTable = () => {
+    if (loadingIntegrationsError) {
+      return <TableDataError />;
+    }
+    if (isLoadingIntegrations) {
+      return <Spinner />;
+    }
+    return (
+      <TableContainer
+        columnConfigs={tableHeaders}
+        data={tableData}
+        defaultSortHeader="name"
+        defaultSortDirection="asc"
+        isLoading={false}
+        actionButton={{
+          name: "add integration",
+          buttonText: "Add integration",
+          variant: "default",
+          onClick: toggleAddIntegrationModal,
+          hideButton: !tableData?.length,
+        }}
+        resultsTitle="integrations"
+        emptyComponent={() => (
+          <Card borderRadiusSize="small">
             <EmptyIntegrationsTable
               className={noIntegrationsClass}
               onActionButtonClick={toggleAddIntegrationModal}
             />
-          )}
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          disablePagination
-        />
-      )}
+          </Card>
+        )}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        disablePagination
+      />
+    );
+  };
+
+  return (
+    <SettingsSection title="Ticket destinations" className={baseClass}>
+      <PageDescription
+        content="Add or edit integrations to create tickets when Fleet detects new
+        vulnerabilities."
+        variant="right-panel"
+      />
+      {renderTable()}
       {showAddIntegrationModal && (
         <AddIntegrationModal
           onCancel={toggleAddIntegrationModal}
@@ -323,7 +335,7 @@ const Integrations = (): JSX.Element => {
           isUpdatingIntegration={isUpdatingIntegration}
         />
       )}
-    </div>
+    </SettingsSection>
   );
 };
 

@@ -64,7 +64,7 @@ const HQRTable = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQuery}
-          variant="text-icon"
+          variant="inverse"
         >
           <>
             Show query <Icon name="eye" />
@@ -73,11 +73,11 @@ const HQRTable = ({
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
-          variant="text-icon"
+          variant="inverse"
         >
           <>
             Export results
-            <Icon name="download" color="core-fleet-blue" />
+            <Icon name="download" />
           </>
         </Button>
       </div>
@@ -87,6 +87,16 @@ const HQRTable = ({
   const renderEmptyState = useCallback(() => {
     // rows.length === 0
 
+    if (reportClipped) {
+      return (
+        <EmptyTable
+          className={`${baseClass}__report-clipped`}
+          graphicName="empty-software"
+          header="Report clipped"
+          info="This query has paused reporting in Fleet, and no results were saved for this host."
+        />
+      );
+    }
     if (!lastFetched) {
       // collecting results
       return (
@@ -95,16 +105,6 @@ const HQRTable = ({
           graphicName="collecting-results"
           header="Collecting results..."
           info={`Fleet is collecting query results from ${hostName}. Check back later.`}
-        />
-      );
-    }
-    if (reportClipped) {
-      return (
-        <EmptyTable
-          className={`${baseClass}__report-clipped`}
-          graphicName="empty-software"
-          header="Report clipped"
-          info="This query has paused reporting in Fleet, and no results were saved for this host."
         />
       );
     }

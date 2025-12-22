@@ -46,6 +46,7 @@ const TextCell = ({
     [grey, italic] = [true, true];
   }
 
+  // TODO: Refactor to use TooltipWrapper component
   const renderEmptyCell = () => {
     if (emptyCellTooltipText) {
       const tooltipId = uniqueId();

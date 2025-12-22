@@ -180,20 +180,22 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
   // ...
 
   return (
-    <>
-      <MainContent className={baseClass}>
-        <PackForm
-          className={`${baseClass}__pack-form`}
-          handleSubmit={handleSubmit}
-          onFetchTargets={onFetchTargets}
-          selectedTargetsCount={selectedTargetsCount}
-          isPremiumTier={isPremiumTier}
-        />
-      </MainContent>
-      <SidePanelContent>
-        <PackInfoSidePanel />
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>
+          <PackForm
+            className={`${baseClass}__pack-form`}
+            handleSubmit={handleSubmit}
+            onFetchTargets={onFetchTargets}
+            selectedTargetsCount={selectedTargetsCount}
+            isPremiumTier={isPremiumTier}
+          />
+        </MainContent>
+        <SidePanelContent>
+          <PackInfoSidePanel />
       </SidePanelContent>
     </>
+  </SidePanelPage>
   );
 };
 
@@ -208,9 +210,10 @@ When building a React-controlled form:
 - Use the native HTML `form` element to wrap the form.
 - Use a `Button` component with `type="submit"` for its submit button.
 - Write a submit handler, e.g. `handleSubmit`, that accepts an `evt:
-React.FormEvent<HTMLFormElement>` argument and, critically, calls `evt.preventDefault()` in its
-body. This prevents the HTML `form`'s default submit behavior from interfering with our custom
+React.FormEvent<HTMLFormElement>` argument and, critically:
+  - calls `evt.preventDefault()` in its body. This prevents the HTML `form`'s default submit behavior from interfering with our custom
 handler's logic.
+  - does nothing (e.g., returns `null`) if the form is in an invalid state, preventing submission by any means.
 - Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`)
 
 ### Data validation
@@ -240,7 +243,7 @@ away from a field or hit enter, actions which imply they are finished editing th
 an error as soon as possible, that is, as soon as they make the fixing change. e.g.
 
 ```tsx
-const onInputChange = ({ name, value }: IFormField) => {
+const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
   const newFormData = { ...formData, [name]: value };
   setFormData(newFormData);
   const newErrs = validateFormData(newFormData);
@@ -248,7 +251,9 @@ const onInputChange = ({ name, value }: IFormField) => {
   // new errors are only set onBlur
   const errsToSet: Record<string, string> = {};
   Object.keys(formErrors).forEach((k) => {
+    // @ts-ignore
     if (newErrs[k]) {
+      // @ts-ignore
       errsToSet[k] = newErrs[k];
     }
   });
@@ -270,7 +275,6 @@ const onInputBlur = () => {
 ```tsx
 const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
   evt.preventDefault();
-
   // return null if there are errors
   const errs = validateFormData(formData);
   if (Object.keys(errs).length > 0) {

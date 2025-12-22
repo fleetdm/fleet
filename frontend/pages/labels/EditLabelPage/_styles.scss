@@ -1,5 +1,5 @@
 .edit-label-page {
-  h1 {
-    margin-bottom: $pad-xxlarge;
-  }
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }

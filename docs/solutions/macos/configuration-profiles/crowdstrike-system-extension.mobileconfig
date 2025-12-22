@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>AllowUserOverrides</key>
+            <true/>
+            <key>AllowedSystemExtensions</key>
+            <dict>
+                <key>X9E956P446</key>
+                <array>
+                    <string>com.crowdstrike.falcon.Agent</string>
+                </array>
+            </dict>
+            <key>NonRemovableFromUISystemExtensions</key>
+            <dict>
+                <key>X9E956P446</key>
+                <array>
+                    <string>com.crowdstrike.falcon.Agent</string>
+                </array>
+            </dict>
+            <key>PayloadDescription</key>
+            <string>Configures System Extensions Policy settings for CrowdStrike Falcon</string>
+            <key>PayloadDisplayName</key>
+            <string>System Extensions - Crowdstrike</string>
+            <key>PayloadIdentifier</key>
+            <string>com.fleet.systemextensions</string>
+            <key>PayloadOrganization</key>
+            <string>CrowdStrike Inc.</string>
+            <key>PayloadType</key>
+            <string>com.apple.system-extension-policy</string>
+            <key>PayloadUUID</key>
+            <string>6527669C-0C1F-4B84-998F-33902DBFEB86</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+        </dict>
+    </array>
+    <key>PayloadDescription</key>
+    <string>CrowdStrike Falcon System Extensions configuration</string>
+    <key>PayloadDisplayName</key>
+    <string>CrowdStrike - System Extensions</string>
+    <key>PayloadEnabled</key>
+    <true/>
+    <key>PayloadIdentifier</key>
+    <string>com.fleet.systemextensions</string>
+    <key>PayloadOrganization</key>
+    <string>Fleet</string>
+    <key>PayloadRemovalDisallowed</key>
+    <false/>
+    <key>PayloadScope</key>
+    <string>System</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>C84A8495-1B68-4C28-B29B-FDF3A40018D4</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>

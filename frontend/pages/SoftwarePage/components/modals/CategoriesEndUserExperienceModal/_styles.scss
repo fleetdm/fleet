@@ -1,0 +1,58 @@
+.categories-end-user-experience-preview-modal {
+  .modal__content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__preview {
+    img {
+      width: 100%;
+    }
+  }
+
+  .modal-cta-wrap {
+    margin-top: 0; // Defer to new gap styling
+  }
+
+  &__preview-card {
+    max-height: 300px;
+    overflow: hidden;
+
+    .card-header__header {
+      font-size: initial;
+    }
+
+    &__self-service {
+      width: 515px;
+      height: 310px;
+      @include vertical-card-layout;
+    }
+
+    .categories-menu {
+      top: 0;
+      width: 200px;
+    }
+
+    .data-table__table {
+      width: 325px;
+    }
+  }
+  &__table {
+    display: flex;
+    flex-direction: row;
+  }
+
+  &__disabled-overlay {
+    position: absolute;
+    width: 540px;
+    height: 335px;
+    z-index: 1000;
+  }
+}
+
+// Pop up preview immediately.
+.modal__background:has(.categories-end-user-experience-preview-modal) {
+  transition: none;
+  animation: none;
+}

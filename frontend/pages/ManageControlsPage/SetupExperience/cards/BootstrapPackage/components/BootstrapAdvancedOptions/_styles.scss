@@ -1,0 +1,17 @@
+.bootstrap-advanced-options {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-large;
+
+  &__accordion-title {
+    // use this so we dont center the text.
+    justify-content: normal;
+    align-self: flex-start;
+  }
+
+  &__advanced-options-controls {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+}

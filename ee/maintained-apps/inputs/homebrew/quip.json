@@ -1,0 +1,8 @@
+{
+  "name": "Quip",
+  "unique_identifier": "com.quip.Desktop",
+  "token": "quip",
+  "installer_format": "dmg",
+  "slug": "quip/darwin",
+  "default_categories": ["Productivity"]
+}

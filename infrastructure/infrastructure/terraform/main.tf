@@ -44,12 +44,11 @@ terraform {
 locals {
   accounts = {
     frontend-loadtesting     = "851787985745"
-    fleet-cloud-sandbox-prod = "411315989055"
-    fleet-cloud-sandbox-dev  = "968703308407"
     dogfood                  = "160035666661"
     loadtesting              = "917007347864"
     root                     = "831217569274"
     fleet-cloud              = "611884880216"
+    fleet-try                = "564445215450"
   }
 }
 

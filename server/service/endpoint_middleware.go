@@ -5,7 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/certserial"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	middleware_log "github.com/fleetdm/fleet/v4/server/service/middleware/log"
@@ -17,6 +21,23 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/go-kit/kit/endpoint"
 )
+
+// extractCertSerialFromHeader extracts certificate serial from X-Client-Cert-Serial
+// header (set by load balancer during mTLS) for iOS/iPadOS device authentication.
+func extractCertSerialFromHeader(ctx context.Context, r *http.Request) context.Context {
+	serialStr := r.Header.Get("X-Client-Cert-Serial")
+	if serialStr == "" {
+		return ctx
+	}
+
+	serial, err := strconv.ParseUint(serialStr, 10, 64)
+	if err != nil {
+		// Force cert auth on parse error instead of falling back to token auth.
+		return certserial.NewContext(ctx, 0)
+	}
+
+	return certserial.NewContext(ctx, serial)
+}
 
 func logJSON(logger log.Logger, v interface{}, key string) {
 	jsonV, err := json.Marshal(v)
@@ -41,14 +62,37 @@ func instrumentHostLogger(ctx context.Context, hostID uint, extras ...interface{
 	)
 }
 
+// authenticatedDevice checks the validity of the device auth token
+// provided in the request, and attaches the corresponding host to the
+// context for the request.
 func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
 	authDeviceFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
-		token, err := getDeviceAuthToken(request)
+		identifier, err := getDeviceAuthToken(request)
 		if err != nil {
 			return nil, err
 		}
 
-		host, debug, err := svc.AuthenticateDevice(ctx, token)
+		var host *fleet.Host
+		var debug bool
+		var authnMethod authz_ctx.AuthenticationMethod
+
+		if certSerial, ok := certserial.FromContext(ctx); ok {
+			// Header presence signals cert auth intent, even if serial is invalid.
+			host, debug, err = svc.AuthenticateDeviceByCertificate(ctx, certSerial, identifier)
+			authnMethod = authz_ctx.AuthnDeviceCertificate
+		} else {
+			// Try token auth first (hot path for Fleet Desktop).
+			host, debug, err = svc.AuthenticateDevice(ctx, identifier)
+			if err == nil {
+				authnMethod = authz_ctx.AuthnDeviceToken
+			} else {
+				// Fallback to UUID auth for iOS/iPadOS self-service via URL.
+				// The identifier (from {token}) is treated as the device UUID.
+				host, debug, err = svc.AuthenticateIDeviceByURL(ctx, identifier)
+				authnMethod = authz_ctx.AuthnDeviceURL
+			}
+		}
+
 		if err != nil {
 			logging.WithErr(ctx, err)
 			return nil, err
@@ -62,7 +106,7 @@ func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.End
 		ctx = hostctx.NewContext(ctx, host)
 		instrumentHostLogger(ctx, host.ID)
 		if ac, ok := authz_ctx.FromContext(ctx); ok {
-			ac.SetAuthnMethod(authz_ctx.AuthnDeviceToken)
+			ac.SetAuthnMethod(authnMethod)
 		}
 
 		resp, err := next(ctx, request)
@@ -125,9 +169,14 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 	return middleware_log.Logged(authHostFunc)
 }
 
-func authenticatedOrbitHost(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
+func authenticatedOrbitHost(
+	svc fleet.Service,
+	logger log.Logger,
+	next endpoint.Endpoint,
+	orbitNodeKeyGetter func(context.Context, interface{}) (string, error),
+) endpoint.Endpoint {
 	authHostFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
-		nodeKey, err := getOrbitNodeKey(request)
+		nodeKey, err := orbitNodeKeyGetter(ctx, request)
 		if err != nil {
 			return nil, err
 		}
@@ -162,11 +211,20 @@ func authenticatedOrbitHost(svc fleet.Service, logger log.Logger, next endpoint.
 	return middleware_log.Logged(authHostFunc)
 }
 
-func getOrbitNodeKey(r interface{}) (string, error) {
+func getOrbitNodeKey(ctx context.Context, r interface{}) (string, error) {
 	if onk, err := r.(interface{ orbitHostNodeKey() string }); err {
 		return onk.orbitHostNodeKey(), nil
 	}
 	return "", errors.New("error getting orbit node key")
+}
+
+func authHeaderValue(prefix string) func(ctx context.Context, r interface{}) (string, error) {
+	return func(ctx context.Context, r interface{}) (string, error) {
+		if authHeader, ok := ctx.Value(kithttp.ContextKeyRequestAuthorization).(string); ok {
+			return strings.TrimPrefix(authHeader, prefix), nil
+		}
+		return "", nil
+	}
 }
 
 func getNodeKey(r interface{}) (string, error) {

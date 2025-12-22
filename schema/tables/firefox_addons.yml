@@ -9,7 +9,7 @@ examples: |-
   automatic update status.
 
   ```
-  SELECT u.username, f.identifier, f.creator, f.description, f.version, f.autoupdate FROM users u CROSS JOIN firefox_addons f USING (uid) WHERE f.active='1';
+  SELECT u.username, f.identifier, f.creator, f.description, f.version, f.autoupdate FROM users u INNER JOIN firefox_addons f USING (uid) WHERE f.active='1';
   ```
 notes: Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
 columns:

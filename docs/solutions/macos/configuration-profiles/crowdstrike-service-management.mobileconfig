@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>PayloadDescription</key>
+            <string>Configures Service Management settings for CrowdStrike Falcon</string>
+            <key>PayloadDisplayName</key>
+            <string>Service Management</string>
+            <key>PayloadIdentifier</key>
+            <string>com.fleet.servicemanagement</string>
+            <key>PayloadOrganization</key>
+            <string>CrowdStrike Inc.</string>
+            <key>PayloadType</key>
+            <string>com.apple.servicemanagement</string>
+            <key>PayloadUUID</key>
+            <string>B2C3D4E5-F6G7-8901-2345-678901BCDEFG</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>Rules</key>
+            <array>
+                <dict>
+                    <key>RuleType</key>
+                    <string>BundleIdentifier</string>
+                    <key>RuleValue</key>
+                    <string>com.crowdstrike.falcon.UserAgent</string>
+                </dict>
+                <dict>
+                    <key>RuleType</key>
+                    <string>TeamIdentifier</string>
+                    <key>RuleValue</key>
+                    <string>X9E956P446</string>
+                </dict>
+            </array>
+        </dict>
+    </array>
+    <key>PayloadDescription</key>
+    <string>CrowdStrike Falcon Service Management configuration</string>
+    <key>PayloadDisplayName</key>
+    <string>CrowdStrike - Service Management</string>
+    <key>PayloadEnabled</key>
+    <true/>
+    <key>PayloadIdentifier</key>
+    <string>com.fleet.servicemanagement</string>
+    <key>PayloadOrganization</key>
+    <string>Fleet</string>
+    <key>PayloadRemovalDisallowed</key>
+    <false/>
+    <key>PayloadScope</key>
+    <string>System</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>5007F4E7-372B-4B90-8E64-BDC59E4C1D93</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>

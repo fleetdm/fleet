@@ -6,7 +6,7 @@ import Button from "components/buttons/Button";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import { ITeam } from "interfaces/team";
+import { ITeam, ITeamSummary } from "interfaces/team";
 
 interface ITransferHostModal {
   isGlobalAdmin: boolean;
@@ -16,6 +16,8 @@ interface ITransferHostModal {
   isUpdating: boolean;
   /** Manage host page only */
   multipleHosts?: boolean;
+  /** Selected team's id on manage host page, or host detail's team id */
+  hostsTeamId?: number | null;
 }
 
 interface INoTeamOption {
@@ -36,6 +38,7 @@ const TransferHostModal = ({
   isGlobalAdmin,
   isUpdating,
   multipleHosts,
+  hostsTeamId,
 }: ITransferHostModal): JSX.Element => {
   const [selectedTeam, setSelectedTeam] = useState<ITeam | INoTeamOption>();
 
@@ -56,28 +59,28 @@ const TransferHostModal = ({
   }, [onSubmit, selectedTeam]);
 
   const createTeamDropdownOptions = () => {
-    const teamOptions = teams.map((team) => {
-      return {
-        value: team.id,
-        label: team.name,
-      };
-    });
-    return [NO_TEAM_OPTION, ...teamOptions];
+    const teamOptions = teams
+      .filter((team) => team.id !== hostsTeamId) // Remove current team from options
+      .map((team) => {
+        return {
+          value: team.id,
+          label: team.name,
+        };
+      });
+
+    // Hosts on no team cannot transfer to no team again
+    const canTransferToNoTeam = hostsTeamId !== 0 && hostsTeamId !== null;
+
+    return canTransferToNoTeam ? [NO_TEAM_OPTION, ...teamOptions] : teamOptions;
   };
 
-  const diskEncryptionMsg = (
-    <>
-      The {multipleHosts ? "hosts'" : "host's"} disk encryption{" "}
-      {multipleHosts ? "keys are" : "key is"} deleted if{" "}
-      {multipleHosts ? "they're" : "it's"} transferred to a team with disk
-      encryption turned off.
-    </>
-  );
-
   return (
-    <Modal onExit={onCancel} title="Transfer hosts" className={baseClass}>
+    <Modal
+      onExit={onCancel}
+      title={`Transfer host${multipleHosts ? "s" : ""}`}
+      className={baseClass}
+    >
       <>
-        <p>{diskEncryptionMsg}</p>
         <form className={`${baseClass}__form`}>
           <Dropdown
             wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
@@ -86,7 +89,7 @@ const TransferHostModal = ({
             options={createTeamDropdownOptions()}
             onChange={onChangeSelectTeam}
             placeholder="Select a team"
-            searchable={false}
+            searchable
             autoFocus
           />
           {isGlobalAdmin ? (
@@ -104,7 +107,6 @@ const TransferHostModal = ({
             <Button
               disabled={selectedTeam === undefined}
               type="button"
-              variant="brand"
               onClick={onSubmitTransferHost}
               className="transfer-loading"
               isLoading={isUpdating}

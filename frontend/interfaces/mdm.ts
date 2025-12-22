@@ -1,4 +1,5 @@
 import { IConfigServerSettings } from "./config";
+import { HostAndroidCertStatus } from "./host";
 
 export interface IMdmApple {
   common_name: string;
@@ -44,18 +45,67 @@ export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
   return server_url.concat("/mdm/apple/mdm");
 };
 
-export const MDM_ENROLLMENT_STATUS = {
-  "On (manual)": "manual",
-  "On (automatic)": "automatic",
-  Off: "unenrolled",
-  Pending: "pending",
-};
+/** These are the values the API will send back to the UI for mdm enrollment status */
+export type MdmEnrollmentStatus =
+  | "On (manual)"
+  | "On (automatic)"
+  | "On (personal)"
+  | "On (company-owned)"
+  | "Off"
+  | "Pending";
 
-export type MdmEnrollmentStatus = keyof typeof MDM_ENROLLMENT_STATUS;
+/** This is the filter value used for query string parameters */
+export type MdmEnrollmentFilterValue =
+  | "manual"
+  | "automatic"
+  | "personal"
+  | "unenrolled"
+  | "pending";
+
+interface IMdmEnrollmentStatusUIData {
+  displayName: string;
+  filterValue: MdmEnrollmentFilterValue;
+}
+
+/** This maps the MdmEnrollmentStatus to the various data needed in the UI.
+ * This include the display name, and the filter values.
+ */
+export const MDM_ENROLLMENT_STATUS_UI_MAP: Record<
+  MdmEnrollmentStatus,
+  IMdmEnrollmentStatusUIData
+> = {
+  "On (manual)": {
+    displayName: "On (manual)",
+    filterValue: "manual",
+  },
+  "On (automatic)": {
+    // This is the new name for "On (automatic)". The API will still return
+    // "On (automatic)" for backwards compatibility.
+    displayName: "On (company-owned)",
+    filterValue: "automatic",
+  },
+  "On (personal)": {
+    displayName: "On (personal)",
+    filterValue: "personal",
+  },
+  Off: {
+    displayName: "Off",
+    filterValue: "unenrolled",
+  },
+  Pending: {
+    displayName: "Pending",
+    filterValue: "pending",
+  },
+  "On (company-owned)": {
+    displayName: "On (company-owned)",
+    filterValue: "automatic",
+  },
+};
 
 export interface IMdmStatusCardData {
   status: MdmEnrollmentStatus;
   hosts: number;
+  selectedPlatformLabelId?: number;
 }
 
 export interface IMdmAggregateStatus {
@@ -81,6 +131,7 @@ export interface IMdmSummaryMdmSolution extends IMdmSolution {
 interface IMdmStatus {
   enrolled_manual_hosts_count: number;
   enrolled_automated_hosts_count: number;
+  enrolled_personal_hosts_count: number;
   unenrolled_hosts_count: number;
   pending_hosts_count?: number;
   hosts_count: number;
@@ -92,7 +143,13 @@ export interface IMdmSummaryResponse {
   mobile_device_management_solution: IMdmSummaryMdmSolution[] | null;
 }
 
-export type ProfilePlatform = "darwin" | "windows" | "ios" | "ipados" | "linux";
+export type ProfilePlatform =
+  | "darwin"
+  | "windows"
+  | "ios"
+  | "ipados"
+  | "linux"
+  | "android";
 
 export interface IProfileLabel {
   name: string;
@@ -122,14 +179,21 @@ export type MdmDDMProfileStatus =
   | "acknowledged";
 
 export type ProfileOperationType = "remove" | "install";
+export type ProfileScope = "device" | "user";
 
 export interface IHostMdmProfile {
   profile_uuid: string;
   name: string;
   operation_type: ProfileOperationType | null;
   platform: ProfilePlatform;
-  status: MdmProfileStatus | MdmDDMProfileStatus | LinuxDiskEncryptionStatus;
+  status:
+    | MdmProfileStatus
+    | MdmDDMProfileStatus
+    | LinuxDiskEncryptionStatus
+    | HostAndroidCertStatus;
   detail: string;
+  scope: ProfileScope | null;
+  managed_local_account: string | null;
 }
 
 // TODO - move disk encryption related types to dedicated file
@@ -141,11 +205,11 @@ export type DiskEncryptionStatus =
   | "failed"
   | "removing_enforcement";
 
-/** Currently windows disk enxryption status will only be one of these four
+/** Currently windows disk encryption status will only be one of these four
 values. In the future we may add more. */
 export type WindowsDiskEncryptionStatus = Extract<
   DiskEncryptionStatus,
-  "verified" | "verifying" | "enforcing" | "failed"
+  "verified" | "verifying" | "enforcing" | "failed" | "action_required"
 >;
 
 export const isWindowsDiskEncryptionStatus = (
@@ -156,6 +220,7 @@ export const isWindowsDiskEncryptionStatus = (
     case "verifying":
     case "enforcing":
     case "failed":
+    case "action_required":
       return true;
     default:
       return false;
@@ -173,6 +238,8 @@ export const isLinuxDiskEncryptionStatus = (
   ["verified", "failed", "action_required"].includes(status);
 
 export const FLEET_FILEVAULT_PROFILE_DISPLAY_NAME = "Disk encryption";
+export const FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID =
+  "fleet-host-certificate-template";
 
 export interface IMdmSSOReponse {
   url: string;
@@ -198,21 +265,42 @@ export enum BootstrapPackageStatus {
   FAILED = "failed",
 }
 
-/**
- * IMdmCommandResult is the shape of an mdm command result object
- * returned by the Fleet API.
- */
-export interface IMdmCommandResult {
-  host_uuid: string;
-  command_uuid: string;
-  /** Status is the status of the command. It can be one of Acknowledged, Error, or NotNow for
-	// Apple, or 200, 400, etc for Windows.  */
-  status: string;
-  updated_at: string;
-  request_type: string;
-  hostname: string;
-  /** Payload is a base64-encoded string containing the MDM command request */
-  payload: string;
-  /** Result is a base64-enconded string containing the MDM command response */
-  result: string;
-}
+export const isEnrolledInMdm = (
+  hostMdmEnrollmentStatus: MdmEnrollmentStatus | null
+): hostMdmEnrollmentStatus is MdmEnrollmentStatus => {
+  if (!hostMdmEnrollmentStatus) {
+    return false;
+  }
+  return [
+    "On (automatic)",
+    "On (manual)",
+    "On (personal)",
+    "On (company-owned)",
+  ].includes(hostMdmEnrollmentStatus);
+};
+
+export const isBYODManualEnrollment = (
+  enrollmentStatus: MdmEnrollmentStatus | null
+) => {
+  return enrollmentStatus === "On (manual)";
+};
+
+/** This checks if the device is enrolled via an Apple ID user enrollment.
+ * We refer to that as "account driven user enrollment" */
+export const isBYODAccountDrivenUserEnrollment = (
+  enrollmentStatus: MdmEnrollmentStatus | null
+) => {
+  return enrollmentStatus === "On (personal)";
+};
+
+/** This check is the device is enrolled via Automated Device Enrollment (ADE, also known as DEP)
+ * This was previously known as automatic enrollment but was updatd to company owned. Here we check
+ * for both to current and legacy enrollment status */
+export const isAutomaticDeviceEnrollment = (
+  enrollmentStatus: MdmEnrollmentStatus | null
+) => {
+  return (
+    enrollmentStatus === "On (company-owned)" ||
+    enrollmentStatus === "On (automatic)"
+  );
+};

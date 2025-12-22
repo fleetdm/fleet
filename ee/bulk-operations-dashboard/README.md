@@ -38,9 +38,7 @@ To run a local bulk operations dashboard with docker, you can follow these instr
 
   1. `sails_custom__fleetBaseUrl`: The full URL of your Fleet instance. (e.g., https://fleet.example.com)
 
-  2. `sails_custom__fleetApiToken`: An API token for an API-only user on your Fleet instance.
-
-  >You can read about how to create an API-only user and get it's token [here](https://fleetdm.com/docs/using-fleet/fleetctl-cli#create-api-only-user)
+  2. `sails_custom__fleetApiToken`: An API token for an [API-only user](https://fleetdm.com/docs/using-fleet/fleetctl-cli#create-api-only-user) on your Fleet instance.
 
 3. Open the `ee/bulk-operations-dashboard/` folder in your terminal.
 

@@ -11,6 +11,7 @@ const DEFAULT_ACTIVITY_MOCK: IActivity = {
   actor_id: 1,
   actor_gravatar: "",
   actor_email: "test@example.com",
+  actor_api_only: false,
   fleet_initiated: false,
   type: ActivityType.EditedAgentOptions,
 };
@@ -32,5 +33,3 @@ export const createMockHostPastActivity = (
 ): IHostPastActivity => {
   return { ...DEFAULT_HOST_PAST_ACTIVITY_MOCK, ...overrides };
 };
-
-export default createMockActivity;

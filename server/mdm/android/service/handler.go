@@ -17,7 +17,6 @@ func GetRoutes(fleetSvc fleet.Service, svc android.Service) endpoint_utils.Handl
 const pubSubPushPath = "/api/v1/fleet/android_enterprise/pubsub"
 
 func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption) {
-
 	// //////////////////////////////////////////
 	// User-authenticated endpoints
 	ue := newUserAuthenticatedEndpointer(fleetSvc, svc, opts, r, apiVersions()...)
@@ -34,8 +33,7 @@ func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Ser
 
 	ne.GET("/api/_version_/fleet/android_enterprise/connect/{token}", enterpriseSignupCallbackEndpoint, enterpriseSignupCallbackRequest{})
 	ne.GET("/api/_version_/fleet/android_enterprise/enrollment_token", enrollmentTokenEndpoint, enrollmentTokenRequest{})
-	ne.POST(pubSubPushPath, pubSubPushEndpoint, pubSubPushRequest{})
-
+	ne.POST(pubSubPushPath, pubSubPushEndpoint, PubSubPushRequest{})
 }
 
 func apiVersions() []string {

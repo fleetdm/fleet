@@ -14,15 +14,16 @@ import (
 )
 
 const (
-	read          = fleet.ActionRead
-	list          = fleet.ActionList
-	write         = fleet.ActionWrite
-	writeRole     = fleet.ActionWriteRole
-	run           = fleet.ActionRun
-	runNew        = fleet.ActionRunNew
-	changePwd     = fleet.ActionChangePassword
-	selectiveRead = fleet.ActionSelectiveRead
-	selectiveList = fleet.ActionSelectiveList
+	read               = fleet.ActionRead
+	list               = fleet.ActionList
+	write              = fleet.ActionWrite
+	writeRole          = fleet.ActionWriteRole
+	run                = fleet.ActionRun
+	runNew             = fleet.ActionRunNew
+	changePwd          = fleet.ActionChangePassword
+	selectiveRead      = fleet.ActionSelectiveRead
+	selectiveList      = fleet.ActionSelectiveList
+	cancelHostActivity = fleet.ActionCancelHostActivity
 )
 
 var auth *Authorizer
@@ -744,12 +745,15 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: nil, object: host, action: list, allow: false},
 		{user: nil, object: host, action: selectiveList, allow: false},
 		{user: nil, object: host, action: selectiveRead, allow: false},
+		{user: nil, object: host, action: cancelHostActivity, allow: false},
 		{user: nil, object: hostTeam1, action: read, allow: false},
 		{user: nil, object: hostTeam1, action: write, allow: false},
 		{user: nil, object: hostTeam1, action: selectiveRead, allow: false},
+		{user: nil, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: nil, object: hostTeam2, action: read, allow: false},
 		{user: nil, object: hostTeam2, action: write, allow: false},
 		{user: nil, object: hostTeam2, action: selectiveRead, allow: false},
+		{user: nil, object: hostTeam2, action: cancelHostActivity, allow: false},
 
 		// No host access if the user has no roles.
 		{user: test.UserNoRoles, object: host, action: read, allow: false},
@@ -757,12 +761,15 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserNoRoles, object: host, action: list, allow: false},
 		{user: test.UserNoRoles, object: host, action: selectiveList, allow: false},
 		{user: test.UserNoRoles, object: host, action: selectiveRead, allow: false},
+		{user: test.UserNoRoles, object: host, action: cancelHostActivity, allow: false},
 		{user: test.UserNoRoles, object: hostTeam1, action: read, allow: false},
 		{user: test.UserNoRoles, object: hostTeam1, action: write, allow: false},
 		{user: test.UserNoRoles, object: hostTeam1, action: selectiveRead, allow: false},
+		{user: test.UserNoRoles, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: test.UserNoRoles, object: hostTeam2, action: read, allow: false},
 		{user: test.UserNoRoles, object: hostTeam2, action: write, allow: false},
 		{user: test.UserNoRoles, object: hostTeam2, action: selectiveRead, allow: false},
+		{user: test.UserNoRoles, object: hostTeam2, action: cancelHostActivity, allow: false},
 
 		// Global observer can read all
 		{user: test.UserObserver, object: host, action: read, allow: true},
@@ -770,12 +777,15 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserObserver, object: host, action: list, allow: true},
 		{user: test.UserObserver, object: host, action: selectiveList, allow: true},
 		{user: test.UserObserver, object: host, action: selectiveRead, allow: true},
+		{user: test.UserObserver, object: host, action: cancelHostActivity, allow: false},
 		{user: test.UserObserver, object: hostTeam1, action: read, allow: true},
 		{user: test.UserObserver, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserObserver, object: hostTeam1, action: write, allow: false},
+		{user: test.UserObserver, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: test.UserObserver, object: hostTeam2, action: read, allow: true},
 		{user: test.UserObserver, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserObserver, object: hostTeam2, action: write, allow: false},
+		{user: test.UserObserver, object: hostTeam2, action: cancelHostActivity, allow: false},
 
 		// Global observer+ can read all
 		{user: test.UserObserverPlus, object: host, action: read, allow: true},
@@ -783,12 +793,15 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserObserverPlus, object: host, action: list, allow: true},
 		{user: test.UserObserverPlus, object: host, action: selectiveList, allow: true},
 		{user: test.UserObserverPlus, object: host, action: selectiveRead, allow: true},
+		{user: test.UserObserverPlus, object: host, action: cancelHostActivity, allow: false},
 		{user: test.UserObserverPlus, object: hostTeam1, action: read, allow: true},
 		{user: test.UserObserverPlus, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserObserverPlus, object: hostTeam1, action: write, allow: false},
+		{user: test.UserObserverPlus, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: test.UserObserverPlus, object: hostTeam2, action: read, allow: true},
 		{user: test.UserObserverPlus, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserObserverPlus, object: hostTeam2, action: write, allow: false},
+		{user: test.UserObserverPlus, object: hostTeam2, action: cancelHostActivity, allow: false},
 
 		// Global admin can read/write all
 		{user: test.UserAdmin, object: host, action: read, allow: true},
@@ -796,12 +809,15 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserAdmin, object: host, action: write, allow: true},
 		{user: test.UserAdmin, object: host, action: list, allow: true},
 		{user: test.UserAdmin, object: host, action: selectiveList, allow: true},
+		{user: test.UserAdmin, object: host, action: cancelHostActivity, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: read, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: write, allow: true},
+		{user: test.UserAdmin, object: hostTeam1, action: cancelHostActivity, allow: true},
 		{user: test.UserAdmin, object: hostTeam2, action: read, allow: true},
 		{user: test.UserAdmin, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserAdmin, object: hostTeam2, action: write, allow: true},
+		{user: test.UserAdmin, object: hostTeam2, action: cancelHostActivity, allow: true},
 
 		// Global maintainer can read/write all
 		{user: test.UserMaintainer, object: host, action: read, allow: true},
@@ -809,12 +825,15 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserMaintainer, object: host, action: write, allow: true},
 		{user: test.UserMaintainer, object: host, action: list, allow: true},
 		{user: test.UserMaintainer, object: host, action: selectiveList, allow: true},
+		{user: test.UserMaintainer, object: host, action: cancelHostActivity, allow: true},
 		{user: test.UserMaintainer, object: hostTeam1, action: read, allow: true},
 		{user: test.UserMaintainer, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserMaintainer, object: hostTeam1, action: write, allow: true},
+		{user: test.UserMaintainer, object: hostTeam1, action: cancelHostActivity, allow: true},
 		{user: test.UserMaintainer, object: hostTeam2, action: read, allow: true},
 		{user: test.UserMaintainer, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserMaintainer, object: hostTeam2, action: write, allow: true},
+		{user: test.UserMaintainer, object: hostTeam2, action: cancelHostActivity, allow: true},
 
 		// Global GitOps can write and selectively read all.
 		{user: test.UserGitOps, object: host, action: read, allow: false},
@@ -822,12 +841,15 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserGitOps, object: host, action: selectiveRead, allow: true},
 		{user: test.UserGitOps, object: host, action: list, allow: false},
 		{user: test.UserGitOps, object: host, action: selectiveList, allow: true},
+		{user: test.UserGitOps, object: host, action: cancelHostActivity, allow: false},
 		{user: test.UserGitOps, object: hostTeam1, action: read, allow: false},
 		{user: test.UserGitOps, object: hostTeam1, action: write, allow: true},
 		{user: test.UserGitOps, object: hostTeam1, action: selectiveRead, allow: true},
+		{user: test.UserGitOps, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: test.UserGitOps, object: hostTeam2, action: read, allow: false},
 		{user: test.UserGitOps, object: hostTeam2, action: write, allow: true},
 		{user: test.UserGitOps, object: hostTeam2, action: selectiveRead, allow: true},
+		{user: test.UserGitOps, object: hostTeam2, action: cancelHostActivity, allow: false},
 
 		// Team observer can read only on appropriate team
 		{user: teamObserver, object: host, action: read, allow: false},
@@ -835,12 +857,15 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamObserver, object: host, action: write, allow: false},
 		{user: teamObserver, object: host, action: list, allow: true},
 		{user: teamObserver, object: host, action: selectiveList, allow: true},
+		{user: teamObserver, object: host, action: cancelHostActivity, allow: false},
 		{user: teamObserver, object: hostTeam1, action: read, allow: true},
 		{user: teamObserver, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamObserver, object: hostTeam1, action: write, allow: false},
+		{user: teamObserver, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: teamObserver, object: hostTeam2, action: read, allow: false},
 		{user: teamObserver, object: hostTeam2, action: selectiveRead, allow: false},
 		{user: teamObserver, object: hostTeam2, action: write, allow: false},
+		{user: teamObserver, object: hostTeam2, action: cancelHostActivity, allow: false},
 
 		// Team observer+ can read only on appropriate team
 		{user: teamObserverPlus, object: host, action: read, allow: false},
@@ -848,12 +873,15 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamObserverPlus, object: host, action: write, allow: false},
 		{user: teamObserverPlus, object: host, action: list, allow: true},
 		{user: teamObserverPlus, object: host, action: selectiveList, allow: true},
+		{user: teamObserverPlus, object: host, action: cancelHostActivity, allow: false},
 		{user: teamObserverPlus, object: hostTeam1, action: read, allow: true},
 		{user: teamObserverPlus, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamObserverPlus, object: hostTeam1, action: write, allow: false},
+		{user: teamObserverPlus, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: teamObserverPlus, object: hostTeam2, action: read, allow: false},
 		{user: teamObserverPlus, object: hostTeam2, action: selectiveRead, allow: false},
 		{user: teamObserverPlus, object: hostTeam2, action: write, allow: false},
+		{user: teamObserverPlus, object: hostTeam2, action: cancelHostActivity, allow: false},
 
 		// Team maintainer can read/write only on appropriate team
 		{user: teamMaintainer, object: host, action: read, allow: false},
@@ -861,11 +889,14 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamMaintainer, object: host, action: write, allow: false},
 		{user: teamMaintainer, object: host, action: list, allow: true},
 		{user: teamMaintainer, object: host, action: selectiveList, allow: true},
+		{user: teamMaintainer, object: host, action: cancelHostActivity, allow: false},
 		{user: teamMaintainer, object: hostTeam1, action: read, allow: true},
 		{user: teamMaintainer, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamMaintainer, object: hostTeam1, action: write, allow: true},
+		{user: teamMaintainer, object: hostTeam1, action: cancelHostActivity, allow: true},
 		{user: teamMaintainer, object: hostTeam2, action: read, allow: false},
 		{user: teamMaintainer, object: hostTeam2, action: write, allow: false},
+		{user: teamMaintainer, object: hostTeam2, action: cancelHostActivity, allow: false},
 
 		// Team admin can read/write only on appropriate team
 		{user: teamAdmin, object: host, action: read, allow: false},
@@ -873,23 +904,29 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamAdmin, object: host, action: write, allow: false},
 		{user: teamAdmin, object: host, action: list, allow: true},
 		{user: teamAdmin, object: host, action: selectiveList, allow: true},
+		{user: teamAdmin, object: host, action: cancelHostActivity, allow: false},
 		{user: teamAdmin, object: hostTeam1, action: read, allow: true},
 		{user: teamAdmin, object: hostTeam1, action: write, allow: true},
+		{user: teamAdmin, object: hostTeam1, action: cancelHostActivity, allow: true},
 		{user: teamAdmin, object: hostTeam2, action: read, allow: false},
 		{user: teamAdmin, object: hostTeam2, action: write, allow: false},
+		{user: teamAdmin, object: hostTeam2, action: cancelHostActivity, allow: false},
 
 		// Team GitOps can cannot read hosts, but it can write and selectively read them.
 		{user: teamGitOps, object: host, action: read, allow: false},
 		{user: teamGitOps, object: host, action: write, allow: false},
 		{user: teamGitOps, object: host, action: selectiveRead, allow: false},
+		{user: teamGitOps, object: host, action: cancelHostActivity, allow: false},
 		{user: teamGitOps, object: hostTeam1, action: read, allow: false},
 		{user: teamGitOps, object: hostTeam1, action: list, allow: false},
 		{user: teamGitOps, object: hostTeam1, action: selectiveList, allow: true},
 		{user: teamGitOps, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamGitOps, object: hostTeam1, action: write, allow: false},
+		{user: teamGitOps, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: read, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: write, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: selectiveRead, allow: false},
+		{user: teamGitOps, object: hostTeam2, action: cancelHostActivity, allow: false},
 	})
 }
 
@@ -2359,5 +2396,122 @@ func TestHostHealth(t *testing.T) {
 		{user: test.UserMaintainer, object: hostHealth, action: read, allow: true},
 		{user: test.UserTeamMaintainerTeam1, object: hostHealth, action: read, allow: true},
 		{user: test.UserTeamMaintainerTeam2, object: hostHealth, action: read, allow: false},
+	})
+}
+
+func TestMDMAppleEULA(t *testing.T) {
+	t.Parallel()
+
+	eula := &fleet.MDMEULA{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: eula, action: read, allow: false},
+		{user: test.UserGitOps, object: eula, action: read, allow: true},
+		{user: test.UserGitOps, object: eula, action: write, allow: true},
+
+		{user: test.UserTeamGitOpsTeam1, object: eula, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: eula, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: eula, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: eula, action: write, allow: false},
+
+		{user: test.UserAdmin, object: eula, action: read, allow: true},
+		{user: test.UserAdmin, object: eula, action: write, allow: true},
+
+		{user: test.UserTeamAdminTeam1, object: eula, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: eula, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: eula, action: read, allow: false},
+		{user: test.UserTeamAdminTeam2, object: eula, action: write, allow: false},
+
+		{user: test.UserObserver, object: eula, action: read, allow: false},
+		{user: test.UserObserver, object: eula, action: write, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: eula, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: eula, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: eula, action: read, allow: false},
+		{user: test.UserTeamObserverTeam2, object: eula, action: write, allow: false},
+
+		{user: test.UserMaintainer, object: eula, action: read, allow: false},
+		{user: test.UserMaintainer, object: eula, action: write, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: eula, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: eula, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: eula, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: eula, action: write, allow: false},
+	})
+}
+
+func TestCertificateAuthorities(t *testing.T) {
+	t.Parallel()
+	certificateAuthority := &fleet.CertificateAuthority{}
+
+	runTestCases(t, []authTestCase{
+		{user: nil, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserGitOps, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserGitOps, object: certificateAuthority, action: write, allow: true},
+
+		{user: test.UserTeamGitOpsTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: certificateAuthority, action: write, allow: false},
+
+		{user: test.UserAdmin, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserAdmin, object: certificateAuthority, action: write, allow: true},
+
+		{user: test.UserTeamAdminTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamAdminTeam2, object: certificateAuthority, action: write, allow: false},
+
+		{user: test.UserObserver, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserObserver, object: certificateAuthority, action: write, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamObserverTeam2, object: certificateAuthority, action: write, allow: false},
+
+		{user: test.UserMaintainer, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserMaintainer, object: certificateAuthority, action: write, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: certificateAuthority, action: write, allow: false},
+	})
+}
+
+func TestAuthorizeSecretVariables(t *testing.T) {
+	t.Parallel()
+
+	secretVariable := &fleet.SecretVariable{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: secretVariable, action: read, allow: false},
+
+		{user: test.UserNoRoles, object: secretVariable, action: read, allow: false},
+
+		// Global admins, maintainers, and gitops can read/write.
+		{user: test.UserAdmin, object: secretVariable, action: read, allow: true},
+		{user: test.UserAdmin, object: secretVariable, action: write, allow: true},
+		{user: test.UserMaintainer, object: secretVariable, action: read, allow: true},
+		{user: test.UserMaintainer, object: secretVariable, action: write, allow: true},
+		{user: test.UserGitOps, object: secretVariable, action: read, allow: true},
+		{user: test.UserGitOps, object: secretVariable, action: write, allow: true},
+
+		// Global observers and observer_plus can read but cannot write.
+		{user: test.UserObserver, object: secretVariable, action: read, allow: true},
+		{user: test.UserObserver, object: secretVariable, action: write, allow: false},
+		{user: test.UserObserverPlus, object: secretVariable, action: read, allow: true},
+		{user: test.UserObserverPlus, object: secretVariable, action: write, allow: false},
+
+		// Team users can read but cannot write.
+		{user: test.UserTeamAdminTeam1, object: secretVariable, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: secretVariable, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: secretVariable, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: secretVariable, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: secretVariable, action: read, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: secretVariable, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: secretVariable, action: read, allow: true},
+		{user: test.UserTeamObserverPlusTeam1, object: secretVariable, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: secretVariable, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: secretVariable, action: write, allow: false},
 	})
 }

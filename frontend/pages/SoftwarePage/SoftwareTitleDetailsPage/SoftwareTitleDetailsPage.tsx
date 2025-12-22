@@ -1,6 +1,6 @@
 /** software/titles/:id */
 
-import React, { useCallback, useContext } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
@@ -9,39 +9,31 @@ import { AxiosError } from "axios";
 import paths from "router/paths";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { AppContext } from "context/app";
-import {
-  ISoftwareTitleDetails,
-  formatSoftwareType,
-  isIpadOrIphoneSoftwareSource,
-} from "interfaces/software";
 import { ignoreAxiosError } from "interfaces/errors";
-import softwareAPI, {
-  ISoftwareTitleResponse,
-  IGetSoftwareTitleQueryKey,
-} from "services/entities/software";
+import { ISoftwareTitleDetails } from "interfaces/software";
 import {
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
+import softwareAPI, {
+  ISoftwareTitleResponse,
+  IGetSoftwareTitleQueryKey,
+} from "services/entities/software";
+
 import { getPathWithQueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
-import Card from "components/Card";
-
-import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
-import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
-import DetailsNoHosts from "../components/DetailsNoHosts";
+import DetailsNoHosts from "../components/cards/DetailsNoHosts";
+import SoftwareSummaryCard from "./SoftwareSummaryCard";
 import SoftwareInstallerCard from "./SoftwareInstallerCard";
-import { getInstallerCardInfo } from "./helpers";
 
 const baseClass = "software-title-details-page";
 
 interface ISoftwareTitleDetailsRouteParams {
   id: string;
-  team_id?: string;
 }
 
 type ISoftwareTitleDetailsPageProps = RouteComponentProps<
@@ -60,11 +52,14 @@ const SoftwareTitleDetailsPage = ({
     isTeamAdmin,
     isTeamMaintainer,
     isTeamObserver,
+    config,
   } = useContext(AppContext);
   const handlePageError = useErrorHandler();
 
   // TODO: handle non integer values
   const softwareId = parseInt(routeParams.id, 10);
+  const autoOpenGitOpsYamlModal =
+    location.query.gitops_yaml === "true" && config?.gitops.gitops_mode_enabled;
 
   const {
     currentTeamId,
@@ -77,6 +72,12 @@ const SoftwareTitleDetailsPage = ({
     includeAllTeams: true,
     includeNoTeam: true,
   });
+
+  // gitOpsYamlParam URL Param controls whether the View Yaml modal is opened on page load
+  // as it automatically opens from adding flow of custom software in gitOps mode
+  const [showViewYamlModal, setShowViewYamlModal] = useState(
+    autoOpenGitOpsYamlModal || false
+  );
 
   const {
     data: softwareTitle,
@@ -105,6 +106,10 @@ const SoftwareTitleDetailsPage = ({
 
   const isAvailableForInstall =
     !!softwareTitle?.software_package || !!softwareTitle?.app_store_app;
+
+  const onToggleViewYaml = () => {
+    setShowViewYamlModal(!showViewYamlModal);
+  };
 
   const onDeleteInstaller = useCallback(() => {
     if (softwareTitle?.versions?.length) {
@@ -137,25 +142,37 @@ const SoftwareTitleDetailsPage = ({
       hasPermission &&
       isAvailableForInstall;
 
-    if (showInstallerCard) {
-      const installerCardData = getInstallerCardInfo(title);
-      return (
-        <SoftwareInstallerCard
-          softwareInstaller={installerCardData.softwarePackage}
-          name={installerCardData.name}
-          version={installerCardData.version}
-          addedTimestamp={installerCardData.addedTimestamp}
-          status={installerCardData.status}
-          isSelfService={installerCardData.isSelfService}
-          softwareId={softwareId}
-          teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
-          onDelete={onDeleteInstaller}
-          refetchSoftwareTitle={refetchSoftwareTitle}
-        />
-      );
+    if (!showInstallerCard) {
+      return null;
     }
 
-    return null;
+    return (
+      <SoftwareInstallerCard
+        softwareTitle={title}
+        softwareId={softwareId}
+        teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
+        teamIdForApi={teamIdForApi}
+        onDelete={onDeleteInstaller}
+        isLoading={isSoftwareTitleLoading}
+        onToggleViewYaml={onToggleViewYaml}
+        showViewYamlModal={showViewYamlModal}
+      />
+    );
+  };
+
+  const renderSoftwareSummaryCard = (title: ISoftwareTitleDetails) => {
+    return (
+      <SoftwareSummaryCard
+        softwareTitle={title}
+        softwareId={softwareId}
+        teamId={teamIdForApi}
+        isAvailableForInstall={isAvailableForInstall}
+        isLoading={isSoftwareTitleLoading}
+        router={router}
+        refetchSoftwareTitle={refetchSoftwareTitle}
+        onToggleViewYaml={onToggleViewYaml}
+      />
+    );
   };
 
   const renderContent = () => {
@@ -175,43 +192,8 @@ const SoftwareTitleDetailsPage = ({
     if (softwareTitle) {
       return (
         <>
-          <SoftwareDetailsSummary
-            title={softwareTitle.name}
-            type={formatSoftwareType(softwareTitle)}
-            versions={softwareTitle.versions?.length ?? 0}
-            hosts={softwareTitle.hosts_count}
-            countsUpdatedAt={softwareTitle.counts_updated_at}
-            queryParams={{
-              software_title_id: softwareId,
-              team_id: teamIdForApi,
-            }}
-            name={softwareTitle.name}
-            source={softwareTitle.source}
-            iconUrl={
-              softwareTitle.app_store_app
-                ? softwareTitle.app_store_app.icon_url
-                : undefined
-            }
-          />
+          {renderSoftwareSummaryCard(softwareTitle)}
           {renderSoftwareInstallerCard(softwareTitle)}
-          <Card
-            borderRadiusSize="xxlarge"
-            includeShadow
-            className={`${baseClass}__versions-section`}
-          >
-            <h2>Versions</h2>
-            <SoftwareTitleDetailsTable
-              router={router}
-              data={softwareTitle.versions ?? []}
-              isLoading={isSoftwareTitleLoading}
-              teamIdForApi={teamIdForApi}
-              isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(
-                softwareTitle.source
-              )}
-              isAvailableForInstall={isAvailableForInstall}
-              countsUpdatedAt={softwareTitle.counts_updated_at}
-            />
-          </Card>
         </>
       );
     }
@@ -221,7 +203,7 @@ const SoftwareTitleDetailsPage = ({
 
   return (
     <MainContent className={baseClass}>
-      {isPremiumTier && (
+      {isPremiumTier && !config?.partnerships?.enable_primo && (
         <TeamsHeader
           isOnGlobalTeam={isOnGlobalTeam}
           currentTeamId={currentTeamId}

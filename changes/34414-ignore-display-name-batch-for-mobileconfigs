@@ -1,0 +1,1 @@
+- Fixed an issue where batch uploading mobileconfig profiles failed due to display name checks.

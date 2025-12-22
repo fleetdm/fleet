@@ -1,4 +1,10 @@
-import React, { useContext, useCallback, useEffect, useState } from "react";
+import React, {
+  useContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { pick } from "lodash";
@@ -26,6 +32,7 @@ import { API_ALL_TEAMS_ID } from "interfaces/team";
 import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import PATHS from "router/paths";
 
+import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
@@ -157,7 +164,10 @@ const ManageQueriesPage = ({
     }
   );
 
-  const enhancedQueries = queriesResponse?.queries.map(enhanceQuery);
+  // Enhance the queries from the response when they are changed.
+  const enhancedQueries = useMemo(() => {
+    return queriesResponse?.queries.map(enhanceQuery) || [];
+  }, [queriesResponse]);
 
   const queriesAvailableToAutomate =
     (teamIdForApi !== API_ALL_TEAMS_ID
@@ -181,6 +191,13 @@ const ManageQueriesPage = ({
   useEffect(() => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
   }, []);
+
+  const onTeamChange = useCallback(
+    (teamId: number) => {
+      handleTeamChange(teamId);
+    },
+    [handleTeamChange]
+  );
 
   const onCreateQueryClick = useCallback(() => {
     setLastEditedQueryBody(DEFAULT_QUERY.query);
@@ -244,19 +261,18 @@ const ManageQueriesPage = ({
   }, [refetchQueries, selectedQueryIds, toggleDeleteQueryModal]);
 
   const renderHeader = () => {
-    if (isPremiumTier) {
-      if (userTeams) {
-        if (userTeams.length > 1 || isOnGlobalTeam) {
-          return (
-            <TeamsDropdown
-              currentUserTeams={userTeams}
-              selectedTeamId={currentTeamId}
-              onChange={handleTeamChange}
-            />
-          );
-        } else if (!isOnGlobalTeam && userTeams.length === 1) {
-          return <h1>{userTeams[0].name}</h1>;
-        }
+    if (isPremiumTier && userTeams && !config?.partnerships?.enable_primo) {
+      if (userTeams.length > 1 || isOnGlobalTeam) {
+        return (
+          <TeamsDropdown
+            currentUserTeams={userTeams}
+            selectedTeamId={currentTeamId}
+            onChange={onTeamChange}
+          />
+        );
+      }
+      if (userTeams.length === 1 && !isOnGlobalTeam) {
+        return <h1>{userTeams[0].name}</h1>;
       }
     }
     return <h1>Queries</h1>;
@@ -264,7 +280,7 @@ const ManageQueriesPage = ({
 
   const renderQueriesTable = () => {
     if (queriesError) {
-      return <TableDataError />;
+      return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
     }
     return (
       <QueriesTable
@@ -355,6 +371,10 @@ const ManageQueriesPage = ({
             availableQueries={queriesAvailableToAutomate}
             automatedQueryIds={automatedQueryIds}
             logDestination={config?.logging.result.plugin || ""}
+            webhookDestination={config?.logging.result.config?.result_url}
+            filesystemDestination={
+              config?.logging.result.config?.result_log_file
+            }
           />
         )}
         {showPreviewDataModal && (
@@ -372,50 +392,52 @@ const ManageQueriesPage = ({
     isTeamMaintainer ||
     isObserverPlus; // isObserverPlus checks global and selected team
 
+  let dropdownHelpText: string;
+  if (isAnyTeamSelected) {
+    dropdownHelpText = "Gather data about all hosts assigned to this team.";
+  } else if (config?.partnerships?.enable_primo) {
+    dropdownHelpText = "Gather data about your hosts.";
+  } else {
+    dropdownHelpText = "Gather data about all hosts.";
+  }
+
   return (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
+      <>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
               <div className={`${baseClass}__title`}>{renderHeader()}</div>
             </div>
-          </div>
-
-          {canCustomQuery && (
-            <div className={`${baseClass}__action-button-container`}>
-              {(isGlobalAdmin || isTeamAdmin) &&
-                !!queriesAvailableToAutomate.length && (
+            {canCustomQuery && (
+              <div className={`${baseClass}__action-button-container`}>
+                {(isGlobalAdmin || isTeamAdmin) &&
+                  !!queriesAvailableToAutomate.length && (
+                    <Button
+                      onClick={onManageAutomationsClick}
+                      className={`${baseClass}__manage-automations button`}
+                      variant="inverse"
+                    >
+                      Manage automations
+                    </Button>
+                  )}
+                {canCustomQuery && (
                   <Button
-                    onClick={onManageAutomationsClick}
-                    className={`${baseClass}__manage-automations button`}
-                    variant="inverse"
+                    className={`${baseClass}__create-button`}
+                    onClick={onCreateQueryClick}
                   >
-                    Manage automations
+                    {isObserverPlus ? "Live query" : "Add query"}
                   </Button>
                 )}
-              {canCustomQuery && (
-                <Button
-                  variant="brand"
-                  className={`${baseClass}__create-button`}
-                  onClick={onCreateQueryClick}
-                >
-                  {isObserverPlus ? "Live query" : "Add query"}
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-        <div className={`${baseClass}__description`}>
-          <p>
-            {isAnyTeamSelected
-              ? "Gather data about all hosts assigned to this team."
-              : "Gather data about all hosts."}
-          </p>
+              </div>
+            )}
+          </div>
+
+          <PageDescription content={dropdownHelpText} />
         </div>
         {renderQueriesTable()}
         {renderModals()}
-      </div>
+      </>
     </MainContent>
   );
 };

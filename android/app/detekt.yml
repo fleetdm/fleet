@@ -1,0 +1,44 @@
+build:
+  maxIssues: 0
+
+naming:
+  FunctionNaming:
+    active: false # Allow Composable functions to use PascalCase
+  VariableNaming:
+    active: false # Allow TAG constants to be uppercase
+
+style:
+  MagicNumber:
+    active: false # Color hex values are standard in Compose
+  MaxLineLength:
+    active: false # Handled by ktlint
+  ReturnCount:
+    active: true
+    max: 5
+
+complexity:
+  CognitiveComplexMethod:
+    active: false
+  ComplexCondition:
+    active: false
+  ComplexInterface:
+    active: false
+  CyclomaticComplexMethod:
+    active: false # Up to engineers to determine if method is too complex
+  LargeClass:
+    active: false
+  LongMethod:
+    active: false # Up to engineers to determine if method is too long
+  LongParameterList:
+    active: false
+  NamedArguments:
+    threshold: 5
+    ignoreArgumentsMatchingNames: true
+  NestedBlockDepth:
+    threshold: 5 # Android receivers often need nested blocks
+  TooManyFunctions:
+    active: false
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: false # Sometimes necessary for robustness in Android

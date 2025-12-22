@@ -1,4 +1,6 @@
 .disk-encryption {
+  @include vertical-card-layout;
+
   .premium-feature-message-container {
     justify-content: initial;
     align-items: initial;
@@ -6,10 +8,6 @@
 
   > p {
     margin: 0;
-  }
-
-  &__save-button {
-    margin-top: $pad-large;
   }
 
   .disk-encryption-content {

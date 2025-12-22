@@ -47,7 +47,7 @@ export const PlatformSelector = ({
     if (!installSoftware) {
       return null;
     }
-    const softwareName = installSoftware.name;
+    const softwareName = installSoftware.display_name || installSoftware.name;
     const softwareId = installSoftware.software_title_id.toString();
     const softwareLink = getPathWithQueryParams(
       paths.SOFTWARE_TITLE_DETAILS(softwareId),
@@ -55,28 +55,30 @@ export const PlatformSelector = ({
     );
 
     return (
-      <span className={`${baseClass}__install-software`}>
-        <CustomLink text={softwareName} url={softwareLink} /> will only install
-        on{" "}
-        <TooltipWrapper
-          tipContent={
-            <>
-              To see targets, select{" "}
-              <b>{softwareName} &gt; Actions &gt; Edit</b>. Currently, hosts
-              that aren&apos;t targeted show an empty (---) policy status.
-            </>
-          }
-        >
-          targeted hosts
-        </TooltipWrapper>
-        .
-      </span>
+      <div className="form-field__help-text">
+        <span className={`${baseClass}__install-software`}>
+          <CustomLink text={softwareName} url={softwareLink} /> will only
+          install on{" "}
+          <TooltipWrapper
+            tipContent={
+              <>
+                To see targets, select{" "}
+                <b>{softwareName} &gt; Actions &gt; Edit</b>. Currently, hosts
+                that aren&apos;t targeted show an empty (---) policy status.
+              </>
+            }
+          >
+            targeted hosts
+          </TooltipWrapper>
+          .
+        </span>
+      </div>
     );
   };
 
   return (
     <div className={`${parentClass}__${baseClass} ${baseClass} form-field`}>
-      <span className={labelClasses}>Target:</span>
+      <span className={labelClasses}>Target</span>
       <span className={`${baseClass}__checkboxes`}>
         <Checkbox
           value={checkDarwin}
@@ -111,10 +113,7 @@ export const PlatformSelector = ({
           ChromeOS
         </Checkbox>
       </span>
-      <div className="form-field__help-text">
-        Policy runs on all hosts with these platforms.
-        {renderInstallSoftwareHelpText()}
-      </div>
+      {renderInstallSoftwareHelpText()}
     </div>
   );
 };

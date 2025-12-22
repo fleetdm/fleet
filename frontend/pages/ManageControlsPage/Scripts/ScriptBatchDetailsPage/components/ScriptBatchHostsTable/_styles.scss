@@ -1,0 +1,16 @@
+.script-batch-hosts-table {
+  .host-name-cell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .script-output-cell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    .tooltip-truncated-text {
+      max-width: 78%;
+      white-space: nowrap;
+    }
+  }
+}

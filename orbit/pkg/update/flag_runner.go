@@ -153,7 +153,7 @@ func (r *ExtensionRunner) Run(config *fleet.OrbitConfig) error {
 	}
 
 	// Filter out extensions not targeted to this OS.
-	extensions.FilterByHostPlatform(runtime.GOOS)
+	extensions.FilterByHostPlatform(runtime.GOOS, runtime.GOARCH)
 
 	var sb strings.Builder
 	for extensionName, extensionInfo := range extensions {
@@ -295,7 +295,7 @@ func readFlagFile(rootDir string) (map[string]string, error) {
 			continue
 		}
 		// split each line by "="
-		str := strings.Split(line, "=")
+		str := strings.SplitN(line, "=", 2)
 		if len(str) == 2 {
 			result[str[0]] = str[1]
 		}

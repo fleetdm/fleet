@@ -11,7 +11,6 @@ import sessionsAPI from "services/entities/sessions";
 
 import Button from "components/buttons/Button";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 import Spinner from "components/Spinner";
 
 interface IMfaPage {
@@ -96,39 +95,28 @@ const MfaPage = ({ router, params }: IMfaPage) => {
 
   if (!shouldFinishMFA) {
     return (
-      <AuthenticationFormWrapper>
-        <div className={baseClass}>
-          <Button variant="brand" onClick={onClickFinishLoginButton}>
-            Log in
-          </Button>
-        </div>
+      <AuthenticationFormWrapper className={baseClass}>
+        <Button onClick={onClickFinishLoginButton}>Log in</Button>
       </AuthenticationFormWrapper>
     );
   }
 
   if (isExpired) {
     return (
-      <AuthenticationFormWrapper>
-        <StackedWhiteBoxes className={baseClass}>
-          <>
-            <p>
-              <b>That link is expired.</b>
-            </p>
+      <AuthenticationFormWrapper className={baseClass} header="Invalid token">
+        <>
+          <div className={`${baseClass}__description`}>
             <p>Log in again for a new link.</p>
-            <Button variant="brand" onClick={onClickLoginButton}>
-              Back to login
-            </Button>
-          </>
-        </StackedWhiteBoxes>
+          </div>
+          <Button onClick={onClickLoginButton}>Back to login</Button>
+        </>
       </AuthenticationFormWrapper>
     );
   }
 
   return (
-    <AuthenticationFormWrapper>
-      <div className={baseClass}>
-        <Spinner />
-      </div>
+    <AuthenticationFormWrapper className={baseClass}>
+      <Spinner />
     </AuthenticationFormWrapper>
   );
 };

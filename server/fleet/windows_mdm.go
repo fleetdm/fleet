@@ -2,10 +2,12 @@ package fleet
 
 import (
 	"bytes"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"time"
 
@@ -58,7 +60,7 @@ type MDMWindowsConfigProfile struct {
 //
 // [1]: http://www.w3.org/TR/2006/REC-xml-20060816
 // [2]: https://winprotocoldoc.blob.core.windows.net/productionwindowsarchives/MS-MDM/%5bMS-MDM%5d.pdf
-func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
+func (m *MDMWindowsConfigProfile) ValidateUserProvided(enableCustomOSUpdates bool) error {
 	if len(bytes.TrimSpace(m.SyncML)) == 0 {
 		return errors.New("The file should include valid XML.")
 	}
@@ -78,8 +80,11 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	// we don't need to validate the required nesting
 	// structure (Target>Item>LocURI) so we don't need to track all the tags.
 	var inValidNode bool
+	var inExec bool
 	var inLocURI bool
 	var inComment bool
+
+	windowSCEPProfileValidator := newWindowsSCEPProfileValidator()
 
 	for {
 		tok, err := dec.Token()
@@ -104,8 +109,8 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 		case xml.StartElement:
 			// Top-level comments should be followed by <Replace> or <Add> elements
 			if inComment {
-				if !inValidNode && t.Name.Local != "Replace" && t.Name.Local != "Add" {
-					return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements after comments")
+				if !inValidNode && t.Name.Local != "Replace" && t.Name.Local != "Add" && t.Name.Local != "Exec" {
+					return errors.New("Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements after comments")
 				}
 				inValidNode = true
 				inComment = false
@@ -114,15 +119,18 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 			switch t.Name.Local {
 			case "Replace", "Add":
 				inValidNode = true
+			case "Exec":
+				inValidNode = true
+				inExec = true
 			case "LocURI":
 				if !inValidNode {
-					return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements.")
+					return errors.New("Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.")
 				}
 				inLocURI = true
 
 			default:
 				if !inValidNode {
-					return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements.")
+					return errors.New("Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.")
 				}
 			}
 
@@ -130,17 +138,35 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 			switch t.Name.Local {
 			case "Replace", "Add":
 				inValidNode = false
+			case "Exec":
+				inValidNode = false
+				inExec = false
 			case "LocURI":
 				inLocURI = false
 			}
 
 		case xml.CharData:
 			if inLocURI {
-				if err := validateFleetProvidedLocURI(string(t)); err != nil {
+				if inExec {
+					if err := windowSCEPProfileValidator.validateExecLocURI(string(t)); err != nil {
+						return err
+					}
+					continue
+				}
+
+				if err := windowSCEPProfileValidator.validateLocURI(string(t)); err != nil {
+					return err
+				}
+
+				if err := validateFleetProvidedLocURI(string(t), enableCustomOSUpdates); err != nil {
 					return err
 				}
 			}
 		}
+	}
+
+	if err := windowSCEPProfileValidator.finalizeValidation(); err != nil {
+		return err
 	}
 
 	return nil
@@ -151,10 +177,13 @@ var fleetProvidedLocURIValidationMap = map[string][]string{
 	syncml.FleetOSUpdateTargetLocURI:  {"Windows updates", "mdm.windows_updates"},
 }
 
-func validateFleetProvidedLocURI(locURI string) error {
+func validateFleetProvidedLocURI(locURI string, enableCustomOSUpdates bool) error {
 	sanitizedLocURI := strings.TrimSpace(locURI)
 	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
 		if strings.Contains(sanitizedLocURI, fleetLocURI) {
+			if fleetLocURI == syncml.FleetOSUpdateTargetLocURI && enableCustomOSUpdates {
+				continue
+			}
 			if fleetLocURI == syncml.FleetBitLockerTargetLocURI {
 				return errors.New(syncml.DiskEncryptionProfileRestrictionErrMsg)
 			}
@@ -163,6 +192,228 @@ func validateFleetProvidedLocURI(locURI string) error {
 					errHints[0], errHints[1])
 			}
 			return fmt.Errorf("Custom configuration profiles can't include these settings. %q", errHints)
+		}
+	}
+
+	return nil
+}
+
+// The following list of SCEP LocURIs is based on the documentation at
+// https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp#devicescep
+// Where going through all items, only for those with (Add or Replace) under "Supported operations" are included,
+// and then based on it being marked Optional, or Required in the description.
+
+// A list containg all valid SCEP Profile LocURIs, a combination of optional and required to validate for non-SCEP LocURIs.
+var validDeviceSCEPProfileLocURIs = slices.Concat([]string{
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/AADKeyIdentifierList", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/ContainerName", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/CustomTextToShowInPrompt", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/KeyProtection", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/RetryCount", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/RetryDelay", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/SubjectAlternativeNames", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/TemplateName", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/ValidPeriod", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/ValidPeriodUnits", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+}, requiredDeviceSCEPProfileLocURIs)
+
+var validUserSCEPProfileLocURIs = slices.Concat([]string{
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/AADKeyIdentifierList", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/ContainerName", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/CustomTextToShowInPrompt", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/KeyProtection", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/RetryCount", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/RetryDelay", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/SubjectAlternativeNames", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/TemplateName", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/ValidPeriod", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/ValidPeriodUnits", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+}, requiredUserSCEPProfileLocURIs)
+
+var requiredDeviceSCEPProfileLocURIs = []string{
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/CAThumbprint", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/Challenge", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/EKUMapping", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/HashAlgorithm", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/KeyLength", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/KeyUsage", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/ServerURL", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/SubjectName", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+}
+
+var requiredUserSCEPProfileLocURIs = []string{
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/CAThumbprint", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/Challenge", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/EKUMapping", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/HashAlgorithm", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/KeyLength", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/KeyUsage", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/ServerURL", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/SubjectName", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+}
+
+var validDeviceExecSCEPProfileLocURIs = []string{
+	fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/Enroll", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+}
+
+var validUserExecSCEPProfileLocURIs = []string{
+	fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/Enroll", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+}
+
+type windowsSCEPProfileValidator struct {
+	totalLocURIs                int
+	totalExecLocURIs            int
+	foundLocURIs                map[string]bool
+	foundExecLocURIs            map[string]bool
+	requiredSCEPProfileLocURIs  *[]string
+	validSCEPProfileLocURIs     *[]string
+	validExecSCEPProfileLocURIs *[]string
+}
+
+func newWindowsSCEPProfileValidator() *windowsSCEPProfileValidator {
+	return &windowsSCEPProfileValidator{
+		foundLocURIs:     make(map[string]bool),
+		foundExecLocURIs: make(map[string]bool),
+	}
+}
+
+func (v windowsSCEPProfileValidator) normalizeSCEPLocURI(locURI string) string {
+	trimmed := strings.TrimSpace(locURI)
+	// Accept braces version of the Fleet Var, and normalize it to the non-braces for validation.
+	return strings.ReplaceAll(trimmed, FleetVarSCEPWindowsCertificateID.WithBraces(), FleetVarSCEPWindowsCertificateID.WithPrefix())
+}
+
+func (v *windowsSCEPProfileValidator) isSCEPProfile() bool {
+	return len(v.foundLocURIs) > 0 || (v.totalExecLocURIs > 0 && len(v.foundExecLocURIs) > 0)
+}
+
+func (v *windowsSCEPProfileValidator) validateLocURI(locURI string) error {
+	normalizedLocURI := v.normalizeSCEPLocURI(locURI)
+
+	if err := v.setLocURIArrays(normalizedLocURI); err != nil {
+		return err
+	}
+
+	// If we see a LocURI with SCEP prefix, but no Fleet Var we fail early.
+	if v.isSCEPLocURIWithoutFleetVar(normalizedLocURI) {
+		return fmt.Errorf("You must use %q after \"ClientCertificateInstall/SCEP/\".", FleetVarSCEPWindowsCertificateID.WithPrefix())
+	}
+
+	if slices.Contains(*v.validSCEPProfileLocURIs, normalizedLocURI) {
+		v.foundLocURIs[normalizedLocURI] = true
+	}
+
+	v.totalLocURIs++
+	return nil
+}
+
+func (v *windowsSCEPProfileValidator) validateExecLocURI(locURI string) error {
+	normalizedLocURI := v.normalizeSCEPLocURI(locURI)
+
+	if err := v.setLocURIArrays(normalizedLocURI); err != nil {
+		return err
+	}
+
+	// If we see a LocURI with SCEP prefix, but no Fleet Var we fail early.
+	if v.isSCEPLocURIWithoutFleetVar(normalizedLocURI) {
+		return fmt.Errorf("You must use %q after \"ClientCertificateInstall/SCEP/\".", FleetVarSCEPWindowsCertificateID.WithPrefix())
+	}
+
+	if slices.Contains(*v.validExecSCEPProfileLocURIs, normalizedLocURI) {
+		v.foundExecLocURIs[normalizedLocURI] = true
+	}
+
+	v.totalExecLocURIs++
+	return nil
+}
+
+func (v *windowsSCEPProfileValidator) setLocURIArrays(locURI string) error {
+	switch {
+	case IsWindowsSCEPLocURI(locURI) && v.validExecSCEPProfileLocURIs == nil:
+		if strings.HasPrefix(locURI, "./User") {
+			v.requiredSCEPProfileLocURIs = &requiredUserSCEPProfileLocURIs
+			v.validSCEPProfileLocURIs = &validUserSCEPProfileLocURIs
+			v.validExecSCEPProfileLocURIs = &validUserExecSCEPProfileLocURIs
+		} else {
+			v.requiredSCEPProfileLocURIs = &requiredDeviceSCEPProfileLocURIs
+			v.validSCEPProfileLocURIs = &validDeviceSCEPProfileLocURIs
+			v.validExecSCEPProfileLocURIs = &validDeviceExecSCEPProfileLocURIs
+		}
+	case !IsWindowsSCEPLocURI(locURI) && v.validExecSCEPProfileLocURIs == nil:
+		// Not a SCEP profile, set empty arrays to avoid nil pointer dereference later.
+		emptyArray := []string{}
+		v.requiredSCEPProfileLocURIs = &emptyArray
+		v.validSCEPProfileLocURIs = &emptyArray
+		v.validExecSCEPProfileLocURIs = &emptyArray
+	case IsWindowsSCEPLocURI(locURI) && v.validExecSCEPProfileLocURIs != nil:
+		// Check against mixing Device and User SCEP LocURIs.
+		firstValidLocURI := (*v.validSCEPProfileLocURIs)[0]
+		if strings.HasPrefix(firstValidLocURI, "./Device") && strings.HasPrefix(locURI, "./User") ||
+			strings.HasPrefix(firstValidLocURI, "./User") && strings.HasPrefix(locURI, "./Device") {
+			return errors.New("All <LocURI> elements in the SCEP profile must start either with \"./Device\" or \"./User\".")
+		}
+	}
+
+	return nil
+}
+
+// isSCEPLocURIWithoutFleetVar checks that the provided locURI starts with the SCEP prefix
+// and that it includes the required Fleet Var for SCEP Windows Certificate ID.
+// Skips any locURI that does not start with the SCEP prefix.
+func (v windowsSCEPProfileValidator) isSCEPLocURIWithoutFleetVar(locURI string) bool {
+	if (strings.HasPrefix(locURI, "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/") &&
+		!strings.HasPrefix(locURI, fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s", FleetVarSCEPWindowsCertificateID.WithPrefix())) &&
+		!strings.HasPrefix(locURI, fmt.Sprintf("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/%s", FleetVarSCEPWindowsCertificateID.WithBraces()))) ||
+		(strings.HasPrefix(locURI, "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/") &&
+			!strings.HasPrefix(locURI, fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s", FleetVarSCEPWindowsCertificateID.WithPrefix())) &&
+			!strings.HasPrefix(locURI, fmt.Sprintf("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/%s", FleetVarSCEPWindowsCertificateID.WithBraces()))) {
+		return true
+	}
+	return false
+}
+
+func IsWindowsSCEPLocURI(locURI string) bool {
+	return strings.HasPrefix(locURI, "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/") ||
+		strings.HasPrefix(locURI, "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/")
+}
+
+func (v *windowsSCEPProfileValidator) finalizeValidation() error {
+	if !v.isSCEPProfile() {
+		// Cheeky validation here, to only allow Exec elements in SCEP profiles.
+		if v.totalExecLocURIs > 0 {
+			return errors.New("Only SCEP profiles can include <Exec> elements.")
+		}
+		return nil // Not a SCEP profile, nothing to validate here.
+	}
+
+	// If we reach here with empty arrays something has gone wrong.
+	if len(*v.validExecSCEPProfileLocURIs) == 0 || len(*v.validSCEPProfileLocURIs) == 0 || len(*v.requiredSCEPProfileLocURIs) == 0 {
+		return errors.New("Internal error validating SCEP profile LocURIs.")
+	}
+
+	// Check that at least one Exec LocURI is present and it matches the only one we have in the array.
+	validExecLocURIs := *v.validExecSCEPProfileLocURIs
+	if len(v.foundExecLocURIs) != 1 && !v.foundExecLocURIs[validExecLocURIs[0]] {
+		return errors.New("\"ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.")
+	}
+
+	if v.totalExecLocURIs != 1 {
+		return errors.New("SCEP profiles must include exactly one <Exec> element.")
+	}
+
+	// Verify that we do not have any non-scep loc URIs present
+	if v.totalLocURIs != len(v.foundLocURIs) {
+		return errors.New("Only options that have <LocURI> starting with \"ClientCertificateInstall/SCEP/\" can be added to SCEP profile.")
+	}
+
+	// Check that all required LocURIs are present
+	for _, requiredLocURI := range *v.requiredSCEPProfileLocURIs {
+		if !v.foundLocURIs[requiredLocURI] {
+			trimmedPrefix := strings.TrimPrefix(requiredLocURI, "./Device/Vendor/MSFT/")
+			trimmedPrefix = strings.TrimPrefix(trimmedPrefix, "./User/Vendor/MSFT/")
+			return fmt.Errorf("%q is missing. Please add and try again.", trimmedPrefix)
 		}
 	}
 
@@ -210,4 +461,43 @@ type MDMWindowsBulkUpsertHostProfilePayload struct {
 type MDMWindowsProfileContents struct {
 	SyncML   []byte `db:"syncml"`
 	Checksum []byte `db:"checksum"`
+}
+
+// MDMWindowsWipeType specifies what type of remote wipe we want
+// to perform.
+type MDMWindowsWipeType int
+
+const (
+	MDMWindowsWipeTypeDoWipe MDMWindowsWipeType = iota
+	MDMWindowsWipeTypeDoWipeProtected
+)
+
+var wipeTypeVariants = map[MDMWindowsWipeType]string{
+	MDMWindowsWipeTypeDoWipe:          "doWipe",
+	MDMWindowsWipeTypeDoWipeProtected: "doWipeProtected",
+}
+
+func (wt *MDMWindowsWipeType) String() string {
+	if wt == nil {
+		return "<nil>"
+	}
+	return wipeTypeVariants[*wt]
+}
+
+func (wt *MDMWindowsWipeType) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	for k, v := range wipeTypeVariants {
+		if v == s {
+			*wt = k
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid WipeType: %s", s)
+}
+
+type MDMWindowsWipeMetadata struct {
+	WipeType MDMWindowsWipeType `json:"wipe_type"`
 }

@@ -2,7 +2,12 @@ package auth
 
 import (
 	"context"
+	"net/http"
+	"time"
 
+	kithttp "github.com/go-kit/kit/transport/http"
+
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -39,7 +44,23 @@ func AuthenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 			return next(ctx, request)
 		}
 
-		// if not succesful, try again this time with errors
+		requestPath, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
+
+		httpSig, sigOk := httpsig.FromContext(ctx)
+		if sigOk && httpsig.IsSigAuthEndpoint(requestPath) {
+			if time.Now().After(httpSig.NotValidAfter) {
+				return nil, fleet.NewAuthFailedError("host identity certificate expired")
+			}
+			if httpSig.HostID == nil {
+				return nil, fleet.NewAuthFailedError("identity certificate is not linked to a specific host")
+			}
+			if ac, ok := authz.FromContext(ctx); ok {
+				ac.SetAuthnMethod(authz.AuthnHTTPMessageSignature)
+			}
+			return next(ctx, request)
+		}
+
+		// if not successful, try again this time with errors
 		sessionKey, ok := token.FromContext(ctx)
 		if !ok {
 			return nil, fleet.NewAuthHeaderRequiredError("no auth token")
@@ -66,4 +87,45 @@ func AuthenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 
 func UnauthenticatedRequest(_ fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
 	return log.Logged(next)
+}
+
+// errorHandler has the same signature as http.Error
+type errorHandler func(w http.ResponseWriter, detail string, status int)
+
+func AuthenticatedUserMiddleware(svc fleet.Service, errHandler errorHandler, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// first check if already successfully set
+		if v, ok := viewer.FromContext(r.Context()); ok {
+			if v.User.IsAdminForcedPasswordReset() {
+				errHandler(w, fleet.ErrPasswordResetRequired.Error(), http.StatusUnauthorized)
+				return
+			}
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// if not successful, try again this time with errors
+		sessionKey, ok := token.FromContext(r.Context())
+		if !ok {
+			errHandler(w, fleet.NewAuthHeaderRequiredError("no auth token").Error(), http.StatusUnauthorized)
+			return
+		}
+
+		v, err := AuthViewer(r.Context(), string(sessionKey), svc)
+		if err != nil {
+			errHandler(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+
+		if v.User.IsAdminForcedPasswordReset() {
+			errHandler(w, fleet.ErrPasswordResetRequired.Error(), http.StatusUnauthorized)
+			return
+		}
+
+		ctx := viewer.NewContext(r.Context(), *v)
+		if ac, ok := authz.FromContext(r.Context()); ok {
+			ac.SetAuthnMethod(authz.AuthnUserToken)
+		}
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }

@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	VersionPattern = regexp.MustCompile(`(?i)version (\d+\.\d+(\.\d+)?) \(?build \d+\)?`)
-	cveLinkPattern = regexp.MustCompile(`CVE(-\d+)+$`)
+	VersionPattern     = regexp.MustCompile(`(?i)version (\d+\.\d+(\.\d+)?) \(?build \d+\)?`)
+	BuildNumberPattern = regexp.MustCompile(`(?i)\(build (\d+)\)?`)
+	cveLinkPattern     = regexp.MustCompile(`CVE(-\d+)+$`)
 )
 
 var IdToType = map[string]ProductType{
@@ -273,6 +274,31 @@ func parseReleaseHTML(reader io.Reader) ([]ReleaseNote, error) {
 
 				// A table cell could contain either the "product" name ...
 				if t.Type == html.TextToken {
+					pName := strings.ToLower(strings.Trim(t.Data, " "))
+					for k, v := range nameToType {
+						if strings.HasPrefix(pName, k) {
+							currentProduct = v
+						}
+					}
+				}
+
+				// Above, a state change ('insideSecUpts = true') occurs when a 'strong'
+				// element's inner text is 'Application'. Following this state change,
+				// subsequent 'strong' elements can contain the specific Office product
+				// name.
+				//
+				// Example:
+				// <tr>
+				// <td style="text-align: left;"><strong>Word</strong></td>
+				//                                ^----^ ^--^
+				//                                |      |
+				//                                |      |- The product name.
+				//                                |- The 'strong' element.
+				// ...
+				// </tr>
+				if t.Data == "strong" {
+					z.Next()
+					t := z.Token()
 					pName := strings.ToLower(strings.Trim(t.Data, " "))
 					for k, v := range nameToType {
 						if strings.HasPrefix(pName, k) {

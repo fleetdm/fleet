@@ -11,7 +11,6 @@ import (
 )
 
 func TestAsyncLastSeen(t *testing.T) {
-	t.Skip("Skipping flaky test. Re-enable after fixing #24652")
 	t.Parallel()
 
 	runLoopAndWait := func(t *testing.T, als *asyncLastSeen) (ctx context.Context, stop func()) {
@@ -52,6 +51,7 @@ func TestAsyncLastSeen(t *testing.T) {
 
 		var mu sync.Mutex
 		var gotIDs []string
+		flushCh := make(chan bool, 3) // We expect 3 flushes in this test
 		als := newAsyncLastSeen(10*time.Millisecond, 10, func(ctx context.Context, ids []string) {
 			mu.Lock()
 			defer mu.Unlock()
@@ -61,20 +61,22 @@ func TestAsyncLastSeen(t *testing.T) {
 				gotIDs = append(gotIDs, "|")
 			}
 			gotIDs = append(gotIDs, ids...)
+			flushCh <- true
 		})
 		ctx, stop := runLoopAndWait(t, als)
 
 		als.markHostSeen(ctx, "1")
 		als.markHostSeen(ctx, "2")
-		time.Sleep(100 * time.Millisecond) // oversleep to avoid slow timers issues on CI
+		waitForFlushChannel(t, flushCh, 500*time.Millisecond)
 		als.markHostSeen(ctx, "3")
-		time.Sleep(100 * time.Millisecond) // oversleep to avoid slow timers issues on CI
+		waitForFlushChannel(t, flushCh, 500*time.Millisecond)
 		als.markHostSeen(ctx, "4")
 		als.markHostSeen(ctx, "5")
 		als.markHostSeen(ctx, "6")
-		time.Sleep(100 * time.Millisecond) // oversleep to avoid slow timers issues on CI
+		waitForFlushChannel(t, flushCh, 500*time.Millisecond)
 
 		stop()
+		close(flushCh)
 
 		mu.Lock()
 		defer mu.Unlock()
@@ -145,4 +147,13 @@ func TestAsyncLastSeen(t *testing.T) {
 		defer mu.Unlock()
 		require.Equal(t, "123|4|5|6", strings.Join(gotIDs, ""))
 	})
+}
+
+func waitForFlushChannel(t *testing.T, ch <-chan bool, timeout time.Duration) {
+	select {
+	case <-ch:
+		// ok
+	case <-time.After(timeout):
+		t.Fatal("timeout waiting for flush channel")
+	}
 }

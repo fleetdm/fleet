@@ -4,8 +4,7 @@ import ListItem from "components/ListItem";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
-
-import { ICertAuthorityListData } from "../../helpers";
+import { ICertAuthorityListData } from "../CertificateAuthorityList/CertificateAuthorityList";
 
 const baseClass = "cert-authority-list-item";
 
@@ -24,9 +23,9 @@ const Actions = ({ onEdit, onDelete }: IActionsProps) => {
             disabled={disableChildren}
             onClick={onEdit}
             className={`${baseClass}__action-button`}
-            variant="text-icon"
+            variant="icon"
           >
-            <Icon name="pencil" color="ui-fleet-black-75" />
+            <Icon name="pencil" />
           </Button>
         )}
       />
@@ -37,24 +36,14 @@ const Actions = ({ onEdit, onDelete }: IActionsProps) => {
             disabled={disableChildren}
             onClick={onDelete}
             className={`${baseClass}__action-button`}
-            variant="text-icon"
+            variant="icon"
           >
-            <Icon name="trash" color="ui-fleet-black-75" />
+            <Icon name="trash" />
           </Button>
         )}
       />
     </>
   );
-};
-
-const generateCertDetails = (certId: string) => {
-  if (certId.includes("ndes")) {
-    return "Microsoft Network Device Enrollment Service (NDES)";
-  } else if (certId.includes("digicert")) {
-    return "DigiCert";
-  }
-
-  return "Custom Simple Certificate Enrollment Protocol (SCEP)";
 };
 
 interface ICertAuthorityListItemProps {
@@ -73,7 +62,7 @@ const CertAuthorityListItem = ({
       className={baseClass}
       graphic="file-certificate"
       title={cert.name}
-      details={generateCertDetails(cert.id)}
+      details={cert.description}
       actions={<Actions onEdit={onClickEdit} onDelete={onClickDelete} />}
     />
   );

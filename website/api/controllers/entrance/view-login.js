@@ -30,7 +30,7 @@ module.exports = {
       if(this.req.me.isSuperAdmin){
         throw {redirect: '/admin/generate-license'};
       } else {
-        throw {redirect: '/start'};
+        throw {redirect: '/try'};
       }
     }
 

@@ -50,8 +50,9 @@ const ResetPasswordForm = ({
 
     const validationErrors: { [key: string]: string } = {};
 
-    if (!validatePassword(newPassword)) {
-      validationErrors.new_password = "Password must meet the criteria below";
+    const { isValid, error } = validatePassword(newPassword);
+    if (!isValid) {
+      validationErrors.new_password = error;
     }
 
     if (!validatePresence(newPasswordConfirmation)) {
@@ -119,7 +120,6 @@ const ResetPasswordForm = ({
       <div className="button-wrap">
         <Button
           type="submit"
-          variant="brand"
           onClick={onFormSubmit}
           className={`${baseClass}__btn`}
         >

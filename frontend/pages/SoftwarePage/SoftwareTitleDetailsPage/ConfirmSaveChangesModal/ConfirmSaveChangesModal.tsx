@@ -1,5 +1,7 @@
 import React from "react";
 
+import { InstallerType } from "interfaces/software";
+
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
@@ -8,8 +10,9 @@ const baseClass = "save-changes-modal";
 export interface IConfirmSaveChangesModalProps {
   onSaveChanges: () => void;
   softwareInstallerName?: string;
-  installerType: "package" | "vpp";
+  installerType: InstallerType;
   onClose: () => void;
+  isLoading: boolean;
 }
 
 const ConfirmSaveChangesModal = ({
@@ -17,6 +20,7 @@ const ConfirmSaveChangesModal = ({
   softwareInstallerName,
   installerType,
   onClose,
+  isLoading,
 }: IConfirmSaveChangesModalProps) => {
   const warningText =
     installerType === "package" ? (
@@ -52,8 +56,8 @@ const ConfirmSaveChangesModal = ({
           <Button
             type="button"
             onClick={onSaveChanges}
-            variant="brand"
             className="save-loading"
+            isLoading={isLoading}
           >
             Save
           </Button>

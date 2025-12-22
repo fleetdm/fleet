@@ -13,6 +13,7 @@ type IndexedCPEItem struct {
 	Part       string
 	Product    string `json:"product" db:"product"`
 	Vendor     string `json:"vendor" db:"vendor"`
+	SWEdition  string `json:"sw_edition" db:"sw_edition"`
 	Deprecated bool   `json:"deprecated" db:"deprecated"`
 	Weight     int    `db:"weight"`
 }
@@ -23,6 +24,7 @@ func (i *IndexedCPEItem) FmtStr(s *fleet.Software) string {
 	cpe.Vendor = i.Vendor
 	cpe.Product = i.Product
 	cpe.TargetSW = targetSW(s)
+	cpe.SWEdition = i.SWEdition
 
 	// Some version strings (e.g. Python pre-releases) contain a part that should be placed in the
 	// CPE's update field. Parse that out (if it exists).

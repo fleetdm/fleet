@@ -1,0 +1,8 @@
+{
+  "name": "Arc",
+  "unique_identifier": "company.thebrowser.Browser",
+  "token": "arc",
+  "installer_format": "zip",
+  "slug": "arc/darwin",
+  "default_categories": ["Browsers"]
+}

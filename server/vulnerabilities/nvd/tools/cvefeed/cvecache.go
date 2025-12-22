@@ -150,13 +150,11 @@ func (c *Cache) Get(cpes []*wfn.Attributes) []MatchResult {
 	cves := c.data[key]
 	if cves != nil {
 		atomic.AddInt64(&c.numHits, 1)
-
+		cves.evictionIndex = c.evictionQ.touch(cves.evictionIndex)
 		// value is being computed, wait till ready
 		c.mu.Unlock()
 		<-cves.ready
-		c.mu.Lock() // TODO: XXX: ugly, consider using atomic.Value instead
-		cves.evictionIndex = c.evictionQ.touch(cves.evictionIndex)
-		c.mu.Unlock()
+
 		return cves.res
 	}
 	// first request; the goroutine that sent it computes the value

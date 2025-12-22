@@ -21,7 +21,7 @@ func TestLauncherEnrollment(t *testing.T) {
 
 	nodeKey, invalid, err := launcher.RequestEnrollment(ctx, "secret", "identifier", service.EnrollmentDetails{})
 	require.Nil(t, err)
-	assert.True(t, tls.EnrollAgentFuncInvoked)
+	assert.True(t, tls.EnrollOsqueryFuncInvoked)
 	assert.False(t, invalid)
 	assert.Equal(t, "noop", nodeKey)
 }
@@ -105,7 +105,7 @@ func newTestService(t *testing.T) (*launcherWrapper, *mock.TLSService) {
 // To test additional behaviors, override the funcs on the TLSService struct.
 func newTLSService(t *testing.T) *mock.TLSService {
 	return &mock.TLSService{
-		EnrollAgentFunc: func(
+		EnrollOsqueryFunc: func(
 			ctx context.Context,
 			enrollSecret string,
 			hostIdentifier string,

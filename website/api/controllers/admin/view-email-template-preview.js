@@ -135,6 +135,13 @@ module.exports = {
           emailAddress: 'sage@example.com',
         };
         break;
+      case 'email-fleet-premium-trial':
+        // layout = 'layout-nurture-email';
+        fakeData = {
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
+        };
+        break;
       case 'email-deal-registration':
         layout = 'layout-email';
         fakeData = {
@@ -163,10 +170,40 @@ module.exports = {
           message: 'Hi, this is a contact form message!',
         };
         break;
+      case 'email-fleet-premium-local-trial-started':
+        layout = 'layout-nurture-email';
+        fakeData = {
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
+        };
+        break;
+      case 'email-fleet-premium-local-trial-ended':
+        layout = 'layout-nurture-email';
+        fakeData = {
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
+        };
+        break;
+      case 'email-fleet-premium-pov-trial-started':
+        layout = 'layout-nurture-email';
+        fakeData = {
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
+        };
+        break;
+      case 'email-fleet-premium-pov-trial-ended':
+        layout = 'layout-nurture-email';
+        fakeData = {
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
+        };
+        break;
       default:
         layout = 'layout-email-newsletter';
         fakeData = {
           emailAddress: 'sage@example.com',
+          firstName: 'Sage',
+          lastName: 'Scorpion',
         };
     }
 

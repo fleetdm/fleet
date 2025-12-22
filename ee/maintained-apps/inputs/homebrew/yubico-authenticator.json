@@ -1,0 +1,8 @@
+{
+  "name": "Yubico Authenticator",
+  "unique_identifier": "com.yubico.yubioath",
+  "token": "yubico-authenticator",
+  "installer_format": "dmg",
+  "slug": "yubico-authenticator/darwin",
+  "default_categories": ["Productivity"]
+}

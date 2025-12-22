@@ -17,7 +17,8 @@ import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { ILabelSummary } from "interfaces/label";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
-import BackLink from "components/BackLink";
+import SidePanelPage from "components/SidePanelPage";
+import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
@@ -28,6 +29,8 @@ import Card from "components/Card";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
+
 import FleetAppDetailsForm from "./FleetAppDetailsForm";
 import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetailsForm";
 
@@ -35,10 +38,7 @@ import AddFleetAppSoftwareModal from "./AddFleetAppSoftwareModal";
 import FleetAppDetailsModal from "./FleetAppDetailsModal";
 
 import { getErrorMessage } from "./helpers";
-
-const DEFAULT_ERROR_MESSAGE = "Couldn't add. Please try again.";
-const REQUEST_TIMEOUT_ERROR_MESSAGE =
-  "Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.";
+import TooltipWrapper from "../../../../../components/TooltipWrapper";
 
 const baseClass = "fleet-maintained-app-details-page";
 
@@ -55,11 +55,28 @@ const FleetAppSummary = ({
   version,
   onClickShowAppDetails,
 }: IFleetAppSummaryProps) => {
+  let versionElement = <>{version}</>;
+
+  if (version === "latest") {
+    versionElement = (
+      <TooltipWrapper
+        tipContent={
+          <>
+            To preview the version select <b>Show details</b>
+            <br />
+            and download {name} using the URL.
+          </>
+        }
+      >
+        Latest
+      </TooltipWrapper>
+    );
+  }
+
   return (
     <Card
       className={`${baseClass}__fleet-app-summary`}
       borderRadiusSize="medium"
-      color="grey"
     >
       <div className={`${baseClass}__fleet-app-summary--left`}>
         <SoftwareIcon name={name} size="medium" />
@@ -75,13 +92,13 @@ const FleetAppSummary = ({
             <div
               className={`${baseClass}__fleet-app-summary--details--version`}
             >
-              {version}
+              {versionElement}
             </div>
           </div>
         </div>
       </div>
       <div className={`${baseClass}__fleet-app-summary--show-details`}>
-        <Button variant="text-icon" onClick={onClickShowAppDetails}>
+        <Button variant="inverse" onClick={onClickShowAppDetails}>
           <Icon name="info" /> Show details
         </Button>
       </div>
@@ -124,6 +141,7 @@ const FleetMaintainedAppDetailsPage = ({
 
   const handlePageError = useErrorHandler();
   const { isPremiumTier } = useContext(AppContext);
+
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
@@ -133,6 +151,10 @@ const FleetMaintainedAppDetailsPage = ({
     setShowAddFleetAppSoftwareModal,
   ] = useState(false);
   const [showAppDetailsModal, setShowAppDetailsModal] = useState(false);
+  const [
+    showPreviewEndUserExperience,
+    setShowPreviewEndUserExperience,
+  ] = useState(false);
 
   const {
     data: fleetApp,
@@ -173,6 +195,10 @@ const FleetMaintainedAppDetailsPage = ({
     setShowAppDetailsModal(true);
   };
 
+  const onClickPreviewEndUserExperience = () => {
+    setShowPreviewEndUserExperience(!showPreviewEndUserExperience);
+  };
+
   const backToAddSoftwareUrl = getPathWithQueryParams(
     PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
     { team_id: teamId }
@@ -188,22 +214,21 @@ const FleetMaintainedAppDetailsPage = ({
 
     setShowAddFleetAppSoftwareModal(true);
 
-    let titleId: number | undefined;
     try {
-      const res = await softwareAPI.addFleetMaintainedApp(
-        parseInt(teamId, 10),
-        {
-          ...formData,
-          appId,
-        }
-      );
-      titleId = res.software_title_id;
+      const {
+        software_title_id: softwareFmaTitleId,
+      } = await softwareAPI.addFleetMaintainedApp(parseInt(teamId, 10), {
+        ...formData,
+        appId,
+      });
 
       router.push(
-        getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
-          team_id: teamId,
-          available_for_install: true,
-        })
+        getPathWithQueryParams(
+          PATHS.SOFTWARE_TITLE_DETAILS(softwareFmaTitleId.toString()),
+          {
+            team_id: teamId,
+          }
+        )
       );
 
       renderFlash(
@@ -215,18 +240,7 @@ const FleetMaintainedAppDetailsPage = ({
     } catch (error) {
       const ae = (typeof error === "object" ? error : {}) as AxiosResponse;
 
-      const errorMessage = getErrorMessage(ae);
-
-      if (
-        ae.status === 408 ||
-        errorMessage.includes("json decoder error") // 400 bad request when really slow
-      ) {
-        renderFlash("error", REQUEST_TIMEOUT_ERROR_MESSAGE);
-      } else if (errorMessage) {
-        renderFlash("error", errorMessage);
-      } else {
-        renderFlash("error", DEFAULT_ERROR_MESSAGE);
-      }
+      renderFlash("error", getErrorMessage(ae));
     }
 
     setShowAddFleetAppSoftwareModal(false);
@@ -242,13 +256,13 @@ const FleetMaintainedAppDetailsPage = ({
     }
 
     if (isErrorFleetApp || isErrorLabels) {
-      return <DataError className={`${baseClass}__data-error`} />;
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
     if (fleetApp) {
       return (
         <>
-          <BackLink
+          <BackButton
             text="Back to add software"
             path={backToAddSoftwareUrl}
             className={`${baseClass}__back-to-add-software`}
@@ -263,6 +277,7 @@ const FleetMaintainedAppDetailsPage = ({
             />
             <FleetAppDetailsForm
               labels={labels || []}
+              categories={fleetApp.categories}
               name={fleetApp.name}
               showSchemaButton={!isSidePanelOpen}
               defaultInstallScript={fleetApp.install_script}
@@ -273,8 +288,14 @@ const FleetMaintainedAppDetailsPage = ({
               onCancel={onCancel}
               onSubmit={onSubmit}
               softwareTitleId={fleetApp.software_title_id}
+              onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
             />
           </div>
+          {showPreviewEndUserExperience && (
+            <CategoriesEndUserExperienceModal
+              onCancel={onClickPreviewEndUserExperience}
+            />
+          )}
         </>
       );
     }
@@ -283,31 +304,34 @@ const FleetMaintainedAppDetailsPage = ({
   };
 
   return (
-    <>
-      <MainContent className={baseClass}>
-        <>{renderContent()}</>
-      </MainContent>
-      {isPremiumTier && fleetApp && isSidePanelOpen && (
-        <SidePanelContent className={`${baseClass}__side-panel`}>
-          <QuerySidePanel
-            key="query-side-panel"
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            selectedOsqueryTable={selectedOsqueryTable}
-            onClose={() => setSidePanelOpen(false)}
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>
+          <>{renderContent()}</>
+        </MainContent>
+        {isPremiumTier && fleetApp && isSidePanelOpen && (
+          <SidePanelContent className={`${baseClass}__side-panel`}>
+            <QuerySidePanel
+              key="query-side-panel"
+              onOsqueryTableSelect={onOsqueryTableSelect}
+              selectedOsqueryTable={selectedOsqueryTable}
+              onClose={() => setSidePanelOpen(false)}
+            />
+          </SidePanelContent>
+        )}
+        {showAddFleetAppSoftwareModal && <AddFleetAppSoftwareModal />}
+        {showAppDetailsModal && fleetApp && (
+          <FleetAppDetailsModal
+            name={fleetApp.name}
+            platform={fleetApp.platform}
+            version={fleetApp.version}
+            slug={fleetApp.slug}
+            url={fleetApp.url}
+            onCancel={() => setShowAppDetailsModal(false)}
           />
-        </SidePanelContent>
-      )}
-      {showAddFleetAppSoftwareModal && <AddFleetAppSoftwareModal />}
-      {showAppDetailsModal && fleetApp && (
-        <FleetAppDetailsModal
-          name={fleetApp.name}
-          platform={fleetApp.platform}
-          version={fleetApp.version}
-          url={fleetApp.url}
-          onCancel={() => setShowAppDetailsModal(false)}
-        />
-      )}
-    </>
+        )}
+      </>
+    </SidePanelPage>
   );
 };
 

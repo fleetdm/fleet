@@ -1,8 +1,13 @@
 import React, { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
+
 import { IconNames } from "components/icons";
+import TooltipWrapper from "components/TooltipWrapper";
+
 // @ts-ignore
 import InputFieldWithIcon from "../InputFieldWithIcon";
+
+const baseClass = "search-field";
 
 export interface ISearchFieldProps {
   placeholder: string;
@@ -11,6 +16,8 @@ export interface ISearchFieldProps {
   onClick?: (e: React.MouseEvent) => void;
   clearButton?: boolean;
   icon?: IconNames;
+  tooltip?: React.ReactNode;
+  disabled?: boolean;
 }
 
 const SearchField = ({
@@ -20,6 +27,8 @@ const SearchField = ({
   clearButton,
   onClick,
   icon = "search",
+  tooltip,
+  disabled,
 }: ISearchFieldProps): JSX.Element => {
   const [searchQueryInput, setSearchQueryInput] = useState(defaultValue);
 
@@ -33,16 +42,29 @@ const SearchField = ({
   };
 
   return (
-    <InputFieldWithIcon
-      name={icon}
-      placeholder={placeholder}
-      value={searchQueryInput}
-      onChange={onInputChange}
-      onClick={onClick}
-      clearButton={clearButton}
-      iconPosition="start"
-      iconSvg={icon}
-    />
+    <>
+      <TooltipWrapper
+        disableTooltip={!tooltip}
+        tipContent={tooltip}
+        position="top"
+        showArrow
+        underline={false}
+        tooltipClass={`${baseClass}__tooltip-text`}
+        className={`${baseClass}__tooltip-container`}
+      >
+        <InputFieldWithIcon
+          name={icon}
+          placeholder={placeholder}
+          value={searchQueryInput}
+          onChange={onInputChange}
+          onClick={onClick}
+          clearButton={clearButton}
+          iconPosition="start"
+          iconSvg={icon}
+          disabled={disabled}
+        />
+      </TooltipWrapper>
+    </>
   );
 };
 

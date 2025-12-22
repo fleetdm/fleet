@@ -1,6 +1,6 @@
+import React from "react";
 import classnames from "classnames";
 import TooltipWrapper from "components/TooltipWrapper";
-import React from "react";
 
 import { secondsToHms } from "utilities/helpers";
 
@@ -13,6 +13,7 @@ interface IAgentOptionsProps {
   osqueryData: { [key: string]: any };
   wrapFleetHelper: (helperFn: (value: any) => string, value: string) => string;
   isChromeOS?: boolean;
+  className?: string;
 }
 
 const CHROMEOS_AGENT_OPTIONS = ["Not supported", "Not supported", "10 secs"];
@@ -22,8 +23,9 @@ const AgentOptions = ({
   osqueryData,
   wrapFleetHelper,
   isChromeOS = false,
+  className,
 }: IAgentOptionsProps): JSX.Element => {
-  const classNames = classnames(baseClass, {
+  const classNames = classnames(baseClass, className, {
     [`${baseClass}__chrome-os`]: isChromeOS,
   });
 
@@ -56,7 +58,6 @@ const AgentOptions = ({
     <Card
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
       className={classNames}
     >
       <CardHeader

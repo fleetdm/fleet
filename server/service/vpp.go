@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -50,43 +51,48 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 //////////////////////////////////////////////////////////////////////////////
 
 type addAppStoreAppRequest struct {
-	TeamID           *uint                     `json:"team_id"`
-	AppStoreID       string                    `json:"app_store_id"`
-	Platform         fleet.AppleDevicePlatform `json:"platform"`
-	SelfService      bool                      `json:"self_service"`
-	AutomaticInstall bool                      `json:"automatic_install"`
-	LabelsIncludeAny []string                  `json:"labels_include_any"`
-	LabelsExcludeAny []string                  `json:"labels_exclude_any"`
+	TeamID           *uint                           `json:"team_id"`
+	AppStoreID       string                          `json:"app_store_id"`
+	Platform         fleet.InstallableDevicePlatform `json:"platform"`
+	SelfService      bool                            `json:"self_service"`
+	AutomaticInstall bool                            `json:"automatic_install"`
+	LabelsIncludeAny []string                        `json:"labels_include_any"`
+	LabelsExcludeAny []string                        `json:"labels_exclude_any"`
+	Categories       []string                        `json:"categories"`
+	Configuration    json.RawMessage                 `json:"configuration,omitempty"`
 }
 
 type addAppStoreAppResponse struct {
-	Err error `json:"error,omitempty"`
+	TitleID uint  `json:"software_title_id,omitempty"`
+	Err     error `json:"error,omitempty"`
 }
 
 func (r addAppStoreAppResponse) Error() error { return r.Err }
 
 func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addAppStoreAppRequest)
-	err := svc.AddAppStoreApp(ctx, req.TeamID, fleet.VPPAppTeam{
+	titleID, err := svc.AddAppStoreApp(ctx, req.TeamID, fleet.VPPAppTeam{
 		VPPAppID:             fleet.VPPAppID{AdamID: req.AppStoreID, Platform: req.Platform},
 		SelfService:          req.SelfService,
 		LabelsIncludeAny:     req.LabelsIncludeAny,
 		LabelsExcludeAny:     req.LabelsExcludeAny,
 		AddAutoInstallPolicy: req.AutomaticInstall,
+		Categories:           req.Categories,
+		Configuration:        req.Configuration,
 	})
 	if err != nil {
 		return &addAppStoreAppResponse{Err: err}, nil
 	}
 
-	return &addAppStoreAppResponse{}, nil
+	return &addAppStoreAppResponse{TitleID: titleID}, nil
 }
 
-func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppTeam) error {
+func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppTeam) (uint, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return 0, fleet.ErrMissingLicense
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -94,11 +100,22 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppT
 //////////////////////////////////////////////////////////////////////////////
 
 type updateAppStoreAppRequest struct {
-	TitleID          uint     `url:"title_id"`
-	TeamID           *uint    `json:"team_id"`
-	SelfService      bool     `json:"self_service"`
-	LabelsIncludeAny []string `json:"labels_include_any"`
-	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	TitleID           uint            `url:"title_id"`
+	TeamID            *uint           `json:"team_id"`
+	SelfService       *bool           `json:"self_service"`
+	LabelsIncludeAny  []string        `json:"labels_include_any"`
+	LabelsExcludeAny  []string        `json:"labels_exclude_any"`
+	Categories        []string        `json:"categories"`
+	Configuration     json.RawMessage `json:"configuration,omitempty"`
+	DisplayName       *string         `json:"display_name"`
+	AutoUpdateEnabled *bool           `json:"auto_update_enabled,omitempty"`
+	// AutoUpdateStartTime is the beginning of the maintenance window for the software title.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateStartTime *string `json:"auto_update_start_time,omitempty"`
+	// AutoUpdateStartTime is the end of the maintenance window for the software title.
+	// If the end time is less than the start time, the window wraps to the next day.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateEndTime *string `json:"auto_update_end_time,omitempty"`
 }
 
 type updateAppStoreAppResponse struct {
@@ -111,15 +128,34 @@ func (r updateAppStoreAppResponse) Error() error { return r.Err }
 func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateAppStoreAppRequest)
 
-	updatedApp, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, req.SelfService, req.LabelsIncludeAny, req.LabelsExcludeAny)
+	updatedApp, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, fleet.AppStoreAppUpdatePayload{
+		SelfService:      req.SelfService,
+		LabelsIncludeAny: req.LabelsIncludeAny,
+		LabelsExcludeAny: req.LabelsExcludeAny,
+		Categories:       req.Categories,
+		Configuration:    req.Configuration,
+		DisplayName:      req.DisplayName,
+	})
 	if err != nil {
 		return updateAppStoreAppResponse{Err: err}, nil
+	}
+
+	if req.AutoUpdateEnabled != nil && req.AutoUpdateStartTime != nil && req.AutoUpdateEndTime != nil {
+		// Update AutoUpdateConfig separately
+		err = svc.UpdateSoftwareTitleAutoUpdateConfig(ctx, req.TitleID, req.TeamID, fleet.SoftwareAutoUpdateConfig{
+			AutoUpdateEnabled:   req.AutoUpdateEnabled,
+			AutoUpdateStartTime: req.AutoUpdateStartTime,
+			AutoUpdateEndTime:   req.AutoUpdateEndTime,
+		})
+		if err != nil {
+			return updateAppStoreAppResponse{Err: err}, nil
+		}
 	}
 
 	return updateAppStoreAppResponse{AppStoreApp: updatedApp}, nil
 }
 
-func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny []string) (*fleet.VPPAppStoreApp, error) {
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

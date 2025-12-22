@@ -1,19 +1,25 @@
+import { InjectedRouter } from "react-router";
+
 import PATHS from "router/paths";
 import { ISideNavItem } from "pages/admin/components/SideNav/SideNav";
-import { IMdmProfile } from "interfaces/mdm";
 
 import DiskEncryption from "./cards/DiskEncryption";
 import CustomSettings from "./cards/CustomSettings";
+import Certificates from "./cards/Certificates";
+import { ICustomSettingsProps } from "./cards/CustomSettings/CustomSettings";
+import { IDiskEncryptionProps } from "./cards/DiskEncryption/DiskEncryption";
 
-interface IOSSettingsCardProps {
-  currentTeamId?: number;
-  profiles?: IMdmProfile[];
-  onProfileUpload?: () => void;
-  onProfileDelete?: () => void;
+export interface IOSSettingsCommonProps {
+  currentTeamId: number;
+  router: InjectedRouter;
+  /** handler that fires when a change occures on the section (e.g. disk encryption
+   * enabled, profile uploaded) */
+  onMutation: () => void;
 }
 
-// TODO: types
-const OS_SETTINGS_NAV_ITEMS: ISideNavItem<IOSSettingsCardProps | any>[] = [
+type IOSSettingsCardProps = IDiskEncryptionProps | ICustomSettingsProps;
+
+const OS_SETTINGS_NAV_ITEMS: ISideNavItem<IOSSettingsCardProps>[] = [
   {
     title: "Disk encryption",
     urlSection: "disk-encryption",
@@ -25,6 +31,12 @@ const OS_SETTINGS_NAV_ITEMS: ISideNavItem<IOSSettingsCardProps | any>[] = [
     urlSection: "custom-settings",
     path: PATHS.CONTROLS_CUSTOM_SETTINGS,
     Card: CustomSettings,
+  },
+  {
+    title: "Certificates",
+    Card: Certificates,
+    urlSection: "certificates",
+    path: PATHS.CONTROLS_CERTIFICATES,
   },
 ];
 

@@ -1,0 +1,17 @@
+.local-user-accounts-card {
+  @include vertical-card-layout;
+
+  .data-table-block {
+    .data-table__table {
+      thead {
+        .username__header {
+          width: $col-md;
+        }
+
+        .shell__header {
+          width: $col-md;
+        }
+      }
+    }
+  }
+}

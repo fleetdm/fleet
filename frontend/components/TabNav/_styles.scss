@@ -1,61 +1,48 @@
 .tab-nav {
-  position: sticky;
   top: 0;
-  background-color: $core-white;
-  z-index: 2;
+  // No background color as TabNav is often over a background gradient
 
   .react-tabs {
+    // Remove 12px top margin react-tab adds causing buggy 12px gap in all uses
+    // TODO: Find upstream fix
+    margin-top: -12px;
+
     &__tab-list {
       display: inline-flex;
       align-items: flex-start;
-      gap: $pad-xxlarge;
-      border-bottom: 1px solid $ui-fleet-black-10;
+      gap: $pad-medium;
+      border-bottom: none;
       width: 100%;
-      height: 43px;
-    }
-    .tab-text {
-      display: flex; /* Ensure text and count are aligned horizontally */
-      align-items: center; /* Vertically align items */
-
-      .tab-text__text {
-        display: relative;
-
-        // Reserve space for bold text using a hidden pseudo-element
-        &::before {
-          content: attr(data-text); /* Same text as the visible one */
-          font-weight: bold; /* Mimic bold styling */
-          visibility: hidden; /* Keep it invisible */
-          position: absolute; /* Prevent it from affecting layout */
-        }
-      }
+      height: 33px;
+      margin: 0; // Override react-tab 10px bottom margin
+      position: relative; // Required for shift left
     }
 
     &__tab {
-      padding: 5px 0 $pad-medium;
       font-size: $x-small;
+      border-radius: $border-radius-large;
       border: none;
+      padding: 6px $pad-small;
       display: inline-flex;
       flex-direction: column;
       align-items: center;
       line-height: 21px;
 
+      // Undoes blue native shadow
       &:focus {
         box-shadow: none;
         outline: 0;
-        &:after {
-          left: 0;
-          bottom: 0;
-        }
+      }
+
+      &:hover {
+        background-color: $ui-fleet-black-5;
       }
 
       // focus-visible only highlights when tabbing not clicking
+      // outline instead of border prevents pixel shifts
       &:focus-visible {
-        .tab-text {
-          border-radius: $border-radius;
-          // Outline used instead of border not to shift component
-          outline: 1px solid $ui-vibrant-blue-25;
-          outline-offset: -1px;
-        }
+        outline: 1px solid $core-focused-outline;
+        outline-offset: -1px;
       }
 
       // // Bolding text when the button is active causes a layout shift
@@ -72,51 +59,17 @@
 
       &--selected {
         font-weight: $bold;
-
-        &::after {
-          content: "";
-          width: 100%;
-          height: 0;
-          border-bottom: 2px solid $core-vibrant-blue;
-          position: absolute;
-          bottom: 0;
-          left: 0;
-        }
-      }
-
-      &:hover {
-        &::after {
-          content: "";
-          width: 100%;
-          height: 0;
-          border-bottom: 2px solid $core-vibrant-blue;
-          position: absolute;
-          bottom: 0;
-          left: 0;
-        }
+        background-color: $ui-fleet-black-5;
       }
 
       &--disabled {
         cursor: not-allowed;
-
-        &:hover {
-          &::after {
-            content: "";
-            width: 100%;
-            height: 0;
-            border-bottom: 0;
-            position: absolute;
-            bottom: 0;
-            left: 0;
-          }
-        }
-      }
-
-      &.no-count:not(.errors-empty).react-tabs__tab--selected::after {
-        bottom: -2px;
       }
     }
-    &__tab-panel {
+
+    &__tab-panel--selected {
+      margin-top: $gap-page-component;
+
       .no-results-message {
         margin-top: $pad-xxlarge;
         font-size: $small;
@@ -127,6 +80,102 @@
           font-size: $x-small;
           font-weight: $regular;
           display: block;
+        }
+      }
+    }
+
+    .tab-text {
+      display: flex; /* Ensure text and count are aligned horizontally */
+      align-items: center; /* Vertically align items */
+
+      .tab-text__text {
+        // Reserve space for bold text using a hidden pseudo-element
+        &::before {
+          content: attr(data-text); /* Same text as the visible one */
+          font-weight: $bold; /* Mimic bold styling */
+          visibility: hidden; /* Keep it invisible */
+          position: absolute; /* Prevent it from affecting layout */
+        }
+      }
+    }
+  }
+
+  // All secondary tab styling
+  &--secondary {
+    .react-tabs {
+      &__tab-list {
+        gap: $pad-xxlarge;
+        border-bottom: 1px solid $ui-fleet-black-10;
+        padding-bottom: 10px;
+      }
+
+      &__tab {
+        padding: 5px 0 $pad-medium;
+
+        &:hover {
+          background-color: transparent;
+        }
+
+        // Aligns underline correctly when focused
+        &:focus {
+          &:after {
+            left: 0;
+            bottom: 0;
+          }
+        }
+
+        &:focus-visible {
+          outline: none; // Undo primary tabbing through app styling as it runs into edges
+
+          .tab-text {
+            outline: 1px solid $core-focused-outline;
+            outline-offset: 3px;
+            border-radius: $border-radius;
+          }
+        }
+
+        &--selected {
+          background-color: transparent;
+
+          &::after {
+            content: "";
+            width: 100%;
+            height: 0;
+            border-bottom: 2px solid $core-fleet-black;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+          }
+        }
+
+        &:hover {
+          &::after {
+            content: "";
+            width: 100%;
+            height: 0;
+            border-bottom: 2px solid $core-fleet-black;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+          }
+        }
+
+        &--disabled {
+          &:hover {
+            &::after {
+              content: "";
+              width: 100%;
+              height: 0;
+              border-bottom: 0;
+              position: absolute;
+              bottom: 0;
+              left: 0;
+            }
+          }
+        }
+
+        &.no-count:not(.errors-empty).react-tabs__tab--selected::after {
+          bottom: -2px;
         }
       }
     }

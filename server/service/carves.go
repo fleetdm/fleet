@@ -293,7 +293,7 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 
 	if err := svc.validateCarveBlock(payload, carve); err != nil {
 		carve.Error = ptr.String(err.Error())
-		if errRecord := svc.carveStore.UpdateCarve(ctx, carve); err != nil {
+		if errRecord := svc.carveStore.UpdateCarve(ctx, carve); errRecord != nil {
 			logging.WithExtras(ctx, "validate_carve_error", errRecord, "carve_id", carve.ID)
 		}
 
@@ -302,7 +302,7 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 
 	if err := svc.carveStore.NewBlock(ctx, carve, payload.BlockId, payload.Data); err != nil {
 		carve.Error = ptr.String(err.Error())
-		if errRecord := svc.carveStore.UpdateCarve(ctx, carve); err != nil {
+		if errRecord := svc.carveStore.UpdateCarve(ctx, carve); errRecord != nil {
 			logging.WithExtras(ctx, "record_carve_error", errRecord, "carve_id", carve.ID)
 		}
 

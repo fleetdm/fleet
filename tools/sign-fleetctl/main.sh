@@ -30,6 +30,7 @@ echo "Signing binary..."
 printf "%s" "$APPLE_APPLICATION_CERTIFICATE" | base64 --decode > certificate.p12
 rcodesign sign --p12-file certificate.p12 \
                --p12-password "$APPLE_APPLICATION_CERTIFICATE_PASSWORD" \
+               --binary-identifier com.fleetdm.fleetctl \
                --for-notarization "$FLEETCTL_BINARY_PATH"
 
 echo "Notarizing binary..."

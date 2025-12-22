@@ -22,6 +22,8 @@ func panicif(err error) {
 	}
 }
 
+const cleanEnvVar = "MSRC_CLEAN"
+
 func main() {
 	wd, err := os.Getwd()
 	panicif(err)
@@ -47,9 +49,8 @@ func main() {
 	fmt.Println("Downloading existing MSRC bulletins...")
 	eBulletins, err := ghAPI.MSRCBulletins(ctx)
 	panicif(err)
-
 	var bulletins []*parsed.SecurityBulletin
-	if len(eBulletins) == 0 {
+	if len(eBulletins) == 0 || os.Getenv(cleanEnvVar) != "false" {
 		fmt.Println("None found, backfilling...")
 		bulletins, err = backfill(now.Month(), now.Year(), msrcAPI)
 		panicif(err)

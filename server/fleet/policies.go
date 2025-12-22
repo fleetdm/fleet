@@ -48,6 +48,14 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ScriptID *uint
+	// LabelsExcludeAny is a list of labels that are targeted by this policy
+	LabelsIncludeAny []string
+	// LabelsExcludeAny is a list of labels excluded from being targeted by this policy
+	LabelsExcludeAny []string
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	//
+	// Only applies to team policies.
+	ConditionalAccessEnabled bool
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -80,13 +88,20 @@ type NewTeamPolicyPayload struct {
 	SoftwareTitleID *uint
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	ScriptID *uint
+	// LabelsExcludeAny is a list of labels that are targeted by this policy
+	LabelsIncludeAny []string
+	// LabelsExcludeAny is a list of labels excluded from being targeted by this policy
+	LabelsExcludeAny []string
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	ConditionalAccessEnabled bool
 }
 
 var (
-	errPolicyEmptyName       = errors.New("policy name cannot be empty")
-	errPolicyEmptyQuery      = errors.New("policy query cannot be empty")
-	errPolicyIDAndQuerySet   = errors.New("both fields \"queryID\" and \"query\" cannot be set")
-	errPolicyInvalidPlatform = errors.New("invalid policy platform")
+	errPolicyEmptyName         = errors.New("policy name cannot be empty")
+	errPolicyEmptyQuery        = errors.New("policy query cannot be empty")
+	errPolicyIDAndQuerySet     = errors.New("both fields \"queryID\" and \"query\" cannot be set")
+	errPolicyInvalidPlatform   = errors.New("invalid policy platform")
+	errPolicyConflictingLabels = errors.New("policy cannot include both labels_include_any and labels_exclude_any")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -108,6 +123,9 @@ func (p PolicyPayload) Verify() error {
 	}
 	if err := verifyPolicyPlatforms(p.Platform); err != nil {
 		return err
+	}
+	if len(p.LabelsIncludeAny) > 0 && len(p.LabelsExcludeAny) > 0 {
+		return errPolicyConflictingLabels
 	}
 	return nil
 }
@@ -174,6 +192,14 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ScriptID optjson.Any[uint] `json:"script_id" premium:"true"`
+	// LabelsExcludeAny is a list of labels that are targeted by this policy
+	LabelsIncludeAny []string `json:"labels_include_any"`
+	// LabelsExcludeAny is a list of labels excluded from being targeted by this policy
+	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	//
+	// Only applies to team policies.
+	ConditionalAccessEnabled *bool `json:"conditional_access_enabled" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
@@ -226,10 +252,23 @@ type PolicyData struct {
 	// Empty string targets all platforms.
 	Platform string `json:"platform" db:"platforms"`
 
+	// LabelsExcludeAny is a list of labels that are targeted by this policy
+	LabelsIncludeAny []LabelIdent `json:"labels_include_any,omitempty"`
+	// LabelsExcludeAny is a list of labels excluded from being targeted by this policy
+	LabelsExcludeAny []LabelIdent `json:"labels_exclude_any,omitempty"`
+
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy.
+	//
+	// Only applies to team policies.
 	CalendarEventsEnabled bool  `json:"calendar_events_enabled" db:"calendar_events_enabled"`
 	SoftwareInstallerID   *uint `json:"-" db:"software_installer_id"`
 	VPPAppsTeamsID        *uint `json:"-" db:"vpp_apps_teams_id"`
 	ScriptID              *uint `json:"-" db:"script_id"`
+
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	//
+	// Only applies to team policies.
+	ConditionalAccessEnabled bool `json:"conditional_access_enabled" db:"conditional_access_enabled"`
 
 	UpdateCreateTimestamps
 }
@@ -271,9 +310,9 @@ type PolicySoftwareInstallerData struct {
 }
 
 type PolicyVPPData struct {
-	ID       uint                `db:"id"`
-	AdamID   string              `db:"adam_id"`
-	Platform AppleDevicePlatform `db:"platform"`
+	ID       uint                      `db:"id"`
+	AdamID   string                    `db:"adam_id"`
+	Platform InstallableDevicePlatform `db:"platform"`
 }
 
 type PolicyScriptData struct {
@@ -340,7 +379,13 @@ type PolicySpec struct {
 	SoftwareTitleID *uint `json:"software_title_id"`
 	// ScriptID is the ID of the script associated with this policy (team policies only).
 	// When editing a policy, if this is nil or 0 then the script ID is unset from the policy.
-	ScriptID *uint `json:"script_id"`
+	ScriptID         *uint    `json:"script_id"`
+	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	//
+	// Only applies to team policies.
+	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
 }
 
 // PolicySoftwareTitle contains software title data for policies.
@@ -349,7 +394,8 @@ type PolicySoftwareTitle struct {
 	SoftwareTitleID uint `json:"software_title_id" db:"title_id"`
 	// Name is the associated installer title name
 	// (not the package name, but the installed software title).
-	Name string `json:"name" db:"name"`
+	Name        string `json:"name" db:"name"`
+	DisplayName string `json:"display_name" db:"display_name"`
 }
 
 // PolicyScript contains script data for policies.

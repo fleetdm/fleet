@@ -6,40 +6,70 @@ import MdmSettings from "./cards/MdmSettings";
 import Calendars from "./cards/Calendars";
 import ChangeManagement from "./cards/ChangeManagement";
 import CertificateAuthorities from "./cards/CertificateAuthorities";
+import ConditionalAccess from "./cards/ConditionalAccess";
+import IdentityProviders from "./cards/IdentityProviders";
+import Sso from "./cards/Sso";
+import GlobalHostStatusWebhook from "../IntegrationsPage/cards/GlobalHostStatusWebhook";
 
-const integrationSettingsNavItems: ISideNavItem<any>[] = [
-  // TODO: types
-  {
-    title: "Ticket destinations",
-    urlSection: "ticket-destinations",
-    path: PATHS.ADMIN_INTEGRATIONS_TICKET_DESTINATIONS,
-    Card: Integrations,
-  },
-  {
-    title: "Mobile device management (MDM)",
-    urlSection: "mdm",
-    path: PATHS.ADMIN_INTEGRATIONS_MDM,
-    Card: MdmSettings,
-  },
-  {
-    title: "Calendars",
-    urlSection: "calendars",
-    path: PATHS.ADMIN_INTEGRATIONS_CALENDARS,
-    Card: Calendars,
-  },
-  {
-    title: "Change management",
-    urlSection: "change-management",
-    path: PATHS.ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT,
-    Card: ChangeManagement,
-  },
-  // TODO: digicert update: add this back when the feature is ready
-  {
-    title: "Certificates",
-    urlSection: "certificates",
-    path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
-    Card: CertificateAuthorities,
-  },
-];
+const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
+  const items: ISideNavItem<any>[] = [
+    {
+      title: "Ticket destinations",
+      urlSection: "ticket-destinations",
+      path: PATHS.ADMIN_INTEGRATIONS_TICKET_DESTINATIONS,
+      Card: Integrations,
+    },
+    {
+      title: "MDM",
+      urlSection: "mdm",
+      path: PATHS.ADMIN_INTEGRATIONS_MDM,
+      Card: MdmSettings,
+    },
+    {
+      title: "Calendars",
+      urlSection: "calendars",
+      path: PATHS.ADMIN_INTEGRATIONS_CALENDARS,
+      Card: Calendars,
+    },
+    {
+      title: "Change management",
+      urlSection: "change-management",
+      path: PATHS.ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT,
+      Card: ChangeManagement,
+    },
+    {
+      title: "Single sign-on (SSO)",
+      urlSection: "sso",
+      path: PATHS.ADMIN_INTEGRATIONS_SSO_FLEET_USERS,
+      Card: Sso,
+    },
+    {
+      title: "Certificate authorities",
+      urlSection: "certificate-authorities",
+      path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
+      Card: CertificateAuthorities,
+    },
+    {
+      title: "Identity provider (IdP)",
+      urlSection: "identity-provider",
+      path: PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER,
+      Card: IdentityProviders,
+    },
+    {
+      title: "Host status webhook",
+      urlSection: "host-status-webhook",
+      path: PATHS.ADMIN_INTEGRATIONS_HOST_STATUS_WEBHOOK,
+      Card: GlobalHostStatusWebhook,
+    },
+    {
+      title: "Conditional access",
+      urlSection: "conditional-access",
+      path: PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS,
+      Card: ConditionalAccess,
+    },
+  ];
 
-export default integrationSettingsNavItems;
+  return items;
+};
+
+export default getIntegrationSettingsNavItems;

@@ -1,4 +1,8 @@
-import { IHostCertificate } from "interfaces/certificates";
+import {
+  ICertificateAuthorityPartial,
+  IHostCertificate,
+} from "interfaces/certificates";
+import { ICertificate } from "services/entities/certificates";
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
 const DEFAULT_HOST_CERTIFICATE_MOCK: IHostCertificate = {
@@ -24,6 +28,8 @@ const DEFAULT_HOST_CERTIFICATE_MOCK: IHostCertificate = {
     organizational_unit: "Test Inc.",
     common_name: "Test Biz",
   },
+  source: "system",
+  username: "",
 };
 
 export const createMockHostCertificate = (
@@ -38,10 +44,37 @@ const DEFAULT_HOST_CERTIFICATES_RESPONSE_MOCK: IGetHostCertificatesResponse = {
     has_next_results: false,
     has_previous_results: false,
   },
+  count: 1,
 };
 
 export const createMockGetHostCertificatesResponse = (
   overrides?: Partial<IGetHostCertificatesResponse>
 ): IGetHostCertificatesResponse => {
   return { ...DEFAULT_HOST_CERTIFICATES_RESPONSE_MOCK, ...overrides };
+};
+
+const DEFAULT_CERT_AUTHORITY_PARTIAL_MOCK: ICertificateAuthorityPartial = {
+  id: 1,
+  name: "Test CA",
+  type: "digicert",
+};
+
+export const createMockCertificateAuthorityPartial = (
+  overrides?: Partial<ICertificateAuthorityPartial>
+): ICertificateAuthorityPartial => {
+  return { ...DEFAULT_CERT_AUTHORITY_PARTIAL_MOCK, ...overrides };
+};
+
+const DEFAULT_ANDROID_CERT_MOCK: ICertificate = {
+  id: 1,
+  name: "Test Android Certificate",
+  certificate_authority_id: 1,
+  certificate_authority_name: "Test CA",
+  created_at: "2021-08-19T02:02:17Z",
+};
+
+export const createMockAndroidCert = (
+  overrides?: Partial<ICertificate>
+): ICertificate => {
+  return { ...DEFAULT_ANDROID_CERT_MOCK, ...overrides };
 };

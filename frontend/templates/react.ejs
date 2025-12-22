@@ -1,60 +1,18 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <!-- isProduction comes from build time webpack config -->
-    <% if (isProduction) { %>
-    <!-- ServerType comes from runtime server -->
-    {{ if (eq .ServerType "sandbox") }}
-    <!-- these scripts are to add google analytics on production sandbox instances -->
-    <script
-      async
-      type="text/javascript"
-      src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"
-    ></script>
-    <script type="text/javascript">
-      window.dataLayer = window.dataLayer || [];
-      function gtag() {
-        dataLayer.push(arguments);
-      }
-      gtag("js", new Date());
-      gtag("config", "G-JC3DRNY1GV");
-    </script>
-
-    <!-- adds pendo client for production sandbox instances -->
-    <script>
-      (function (apiKey) {
-        (function (p, e, n, d, o) {
-          var v, w, x, y, z;
-          o = p[d] = p[d] || {};
-          o._q = o._q || [];
-          v = ["initialize", "identify", "updateOptions", "pageLoad", "track"];
-          for (w = 0, x = v.length; w < x; ++w)
-            (function (m) {
-              o[m] =
-                o[m] ||
-                function () {
-                  o._q[m === v[0] ? "unshift" : "push"](
-                    [m].concat([].slice.call(arguments, 0))
-                  );
-                };
-            })(v[w]);
-          y = e.createElement(n);
-          y.async = !0;
-          y.src = "https://cdn.pendo.io/agent/static/" + apiKey + "/pendo.js";
-          z = e.getElementsByTagName(n)[0];
-          z.parentNode.insertBefore(y, z);
-        })(window, document, "script", "pendo");
-      })("b323499a-2a2e-43eb-5c83-56882bda486f");
-    </script>
-    {{
-      end
-    }}
-    <% } %>
-
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-
     <meta name="robots" content="noindex" />
+    <meta name="viewport" content="width=768" id="viewport-meta-tag" />
+
+    <script>
+      // If URL contains /device/, set mobile-friendly viewport
+      if (window.location.pathname.includes("/device/")) {
+        document
+          .getElementById("viewport-meta-tag")
+          .setAttribute("content", "width=device-width, initial-scale=1.0");
+      }
+    </script>
 
     <link
       rel="stylesheet"
@@ -74,12 +32,6 @@
       async
       defer
       src="{{.URLPrefix}}<%= htmlWebpackPlugin.files.js[0] %>"
-      onload="this.parentElement.removeChild(this)"
     ></script>
-    <!-- Because iOS hates interactive stuff, we have to kill it with fire -->
-    <script>
-      document.addEventListener("touchstart", function () {}, false);
-    </script>
-    <!-- End Apple Hate -->
   </body>
 </html>

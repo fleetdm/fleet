@@ -1,6 +1,8 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
 /* eslint-disable jsx-a11y/interactive-supports-focus */
 import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
+import { useQuery } from "react-query";
+
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
 import { useDebouncedCallback } from "use-debounce";
@@ -13,17 +15,21 @@ import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
+import CUSTOM_TARGET_OPTIONS from "pages/policies/helpers";
 
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { DEFAULT_POLICIES } from "pages/policies/constants";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 
 import Avatar from "components/Avatar";
 import SQLEditor from "components/SQLEditor";
 // @ts-ignore
-import validateQuery from "components/forms/validators/validate_query";
+import { validateQuery } from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -31,8 +37,16 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
+import PageDescription from "components/PageDescription";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import CustomLink from "components/CustomLink";
+import TargetLabelSelector from "components/TargetLabelSelector";
+import DataSet from "components/DataSet";
+
+import labelsAPI, {
+  getCustomLabels,
+  ILabelsSummaryResponse,
+} from "services/entities/labels";
 
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
 
@@ -100,6 +114,12 @@ const PolicyForm = ({
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isEditingResolution, setIsEditingResolution] = useState(false);
 
+  const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
+  const [selectedCustomTarget, setSelectedCustomTarget] = useState(
+    "labelsIncludeAny"
+  );
+  const [selectedLabels, setSelectedLabels] = useState({});
+
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
   const {
@@ -110,6 +130,8 @@ const PolicyForm = ({
     lastEditedQueryResolution,
     lastEditedQueryCritical,
     lastEditedQueryPlatform,
+    lastEditedQueryLabelsIncludeAny,
+    lastEditedQueryLabelsExcludeAny,
     defaultPolicy,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
@@ -118,6 +140,19 @@ const PolicyForm = ({
     setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
+
+  const onSelectLabel = ({
+    name: labelName,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => {
+    setSelectedLabels({
+      ...selectedLabels,
+      [labelName]: value,
+    });
+  };
 
   const {
     currentUser,
@@ -131,6 +166,20 @@ const PolicyForm = ({
     isPremiumTier,
     config,
   } = useContext(AppContext);
+
+  const {
+    data: { labels } = { labels: [] },
+    isFetching: isFetchingLabels,
+  } = useQuery<ILabelsSummaryResponse, Error>(
+    ["custom_labels"],
+    () => labelsAPI.summary(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier,
+      staleTime: 10000,
+      select: (res) => ({ labels: getCustomLabels(res.labels) }),
+    }
+  );
 
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
   const aiFeaturesDisabled =
@@ -177,6 +226,30 @@ const PolicyForm = ({
   const isNewTemplatePolicy =
     !policyIdForEdit &&
     DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
+
+  useEffect(() => {
+    setSelectedTargetType(
+      !lastEditedQueryLabelsIncludeAny.length &&
+        !lastEditedQueryLabelsExcludeAny.length
+        ? "All hosts"
+        : "Custom"
+    );
+    setSelectedCustomTarget(
+      lastEditedQueryLabelsExcludeAny.length
+        ? "labelsExcludeAny"
+        : "labelsIncludeAny"
+    );
+    setSelectedLabels(
+      lastEditedQueryLabelsIncludeAny
+        .concat(lastEditedQueryLabelsExcludeAny)
+        .reduce((acc, label) => {
+          return {
+            ...acc,
+            [label.name]: true,
+          };
+        }, {}) || {}
+    );
+  }, [lastEditedQueryLabelsIncludeAny, lastEditedQueryLabelsExcludeAny]);
 
   useEffect(() => {
     if (isNewTemplatePolicy) {
@@ -276,6 +349,20 @@ const PolicyForm = ({
         query: lastEditedQueryBody,
         resolution: lastEditedQueryResolution,
         platform: newPlatformString,
+        labels_include_any:
+          selectedTargetType === "Custom" &&
+          selectedCustomTarget === "labelsIncludeAny"
+            ? Object.entries(selectedLabels)
+                .filter(([, selected]) => selected)
+                .map(([labelName]) => labelName)
+            : [],
+        labels_exclude_any:
+          selectedTargetType === "Custom" &&
+          selectedCustomTarget === "labelsExcludeAny"
+            ? Object.entries(selectedLabels)
+                .filter(([, selected]) => selected)
+                .map(([labelName]) => labelName)
+            : [],
       };
       if (isPremiumTier) {
         payload.critical = lastEditedQueryCritical;
@@ -290,22 +377,25 @@ const PolicyForm = ({
 
   const renderAuthor = (): JSX.Element | null => {
     return storedPolicy ? (
-      <>
-        <b>Author</b>
-        <div>
-          <Avatar
-            user={addGravatarUrlToResource({
-              email: storedPolicy.author_email,
-            })}
-            size="xsmall"
-          />
-          <span>
-            {storedPolicy.author_name === currentUser?.name
-              ? "You"
-              : storedPolicy.author_name}
-          </span>
-        </div>
-      </>
+      <DataSet
+        className={`${baseClass}__author`}
+        title="Author"
+        value={
+          <>
+            <Avatar
+              user={addGravatarUrlToResource({
+                email: storedPolicy.author_email,
+              })}
+              size="xsmall"
+            />
+            <span>
+              {storedPolicy.author_name === currentUser?.name
+                ? "You"
+                : storedPolicy.author_name}
+            </span>
+          </>
+        }
+      />
     ) : null;
   };
 
@@ -313,10 +403,10 @@ const PolicyForm = ({
     return (
       <div className={`${baseClass}__sql-editor-label-actions`}>
         {showOpenSchemaActionText && (
-          <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
+          <Button variant="inverse" onClick={onOpenSchemaSidebar}>
             <>
               Schema
-              <Icon name="info" size="small" />
+              <Icon name="info" />
             </>
           </Button>
         )}
@@ -350,12 +440,12 @@ const PolicyForm = ({
     }
   };
 
-  const policyNameWrapperBase = "policy-name-wrapper";
+  const policyNameWrapperBase = `${baseClass}__policy-name-wrapper`;
   const policyNameWrapperClasses = classnames(policyNameWrapperBase, {
     [`${baseClass}--editing`]: isEditingName,
   });
 
-  const policyDescriptionWrapperBase = "policy-description-wrapper";
+  const policyDescriptionWrapperBase = `${baseClass}__policy-description-wrapper`;
   const policyDescriptionWrapperClasses = classnames(
     policyDescriptionWrapperBase,
     {
@@ -363,7 +453,7 @@ const PolicyForm = ({
     }
   );
 
-  const policyResolutionWrapperBase = "policy-resolution-wrapper";
+  const policyResolutionWrapperBase = `${baseClass}__policy-resolution-wrapper`;
   const policyResolutionWrapperClasses = classnames(
     policyResolutionWrapperBase,
     {
@@ -405,8 +495,11 @@ const PolicyForm = ({
                 />
                 <Icon
                   name="pencil"
-                  className={`edit-icon ${isEditingName ? "hide" : ""}`}
+                  className={`${baseClass}__edit-icon ${
+                    isEditingName ? `${baseClass}__edit-icon--hide` : ""
+                  }`}
                   size="small-medium"
+                  color="core-fleet-green"
                 />
               </div>
             );
@@ -458,6 +551,7 @@ const PolicyForm = ({
                   name="pencil"
                   className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
                   size="small-medium"
+                  color="core-fleet-green"
                 />
               </div>
             );
@@ -473,7 +567,7 @@ const PolicyForm = ({
     if (isEditMode) {
       return (
         <div className={`form-field ${baseClass}__policy-resolve`}>
-          <div className="form-field__label">Resolve:</div>
+          <div className="form-field__label">Resolve</div>
           <GitOpsModeTooltipWrapper
             position="right"
             tipOffset={16}
@@ -505,6 +599,7 @@ const PolicyForm = ({
                     name="pencil"
                     className={`edit-icon ${isEditingResolution ? "hide" : ""}`}
                     size="small-medium"
+                    color="core-fleet-green"
                   />
                 </div>
               );
@@ -530,7 +625,7 @@ const PolicyForm = ({
 
   const renderCriticalPolicy = () => {
     return (
-      <div className="critical-checkbox-wrapper">
+      <div className={`${baseClass}__critical-checkbox-wrapper`}>
         <Checkbox
           name="critical-policy"
           className="critical-policy"
@@ -547,7 +642,7 @@ const PolicyForm = ({
               </p>
             }
           >
-            Critical:
+            Critical
           </TooltipWrapper>
         </Checkbox>
       </div>
@@ -561,22 +656,23 @@ const PolicyForm = ({
   const renderNonEditableForm = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
-        <div className="name-description-resolve">
-          <h1 className={`${baseClass}__policy-name no-hover`}>
-            {lastEditedQueryName}
-          </h1>
-          <p className={`${baseClass}__policy-description no-hover`}>
-            {lastEditedQueryDescription}
-          </p>
-          <p className="resolve-title">
-            <strong>Resolve:</strong>
-          </p>
-          <p className={`${baseClass}__policy-resolution no-hover`}>
-            {lastEditedQueryResolution}
-          </p>
-        </div>
-        <div className="author">{renderAuthor()}</div>
+        <h1
+          className={`${baseClass}__policy-name ${baseClass}__policy-name--no-hover`}
+        >
+          {lastEditedQueryName}
+        </h1>
+        {renderAuthor()}
       </div>
+      <PageDescription
+        className={`${baseClass}__policy-description no-hover`}
+        content={lastEditedQueryDescription}
+      />
+      <p className="resolve-title">
+        <strong>Resolve:</strong>
+      </p>
+      <p className={`${baseClass}__policy-resolution no-hover`}>
+        {lastEditedQueryResolution}
+      </p>
       <RevealButton
         isShowing={showQueryEditor}
         className={baseClass}
@@ -598,7 +694,6 @@ const PolicyForm = ({
         <div className="button-wrap">
           <Button
             className={`${baseClass}__run`}
-            variant="blue-green"
             onClick={goToSelectTargets}
             disabled={isEditMode && !isAnyPlatformSelected}
           >
@@ -617,19 +712,21 @@ const PolicyForm = ({
     const disableSaveFormErrors =
       (isEditMode && !isAnyPlatformSelected) ||
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
+      (selectedTargetType === "Custom" &&
+        !Object.entries(selectedLabels).some(([, value]) => {
+          return value;
+        })) ||
       !!size(errors);
 
     return (
       <>
         <form className={`${baseClass}__wrapper`} autoComplete="off">
           <div className={`${baseClass}__title-bar`}>
-            <div className="name-description-resolve">
-              {renderName()}
-              {renderDescription()}
-              {renderResolution()}
-            </div>
-            <div className="author">{isEditMode && renderAuthor()}</div>
+            <div className={`${baseClass}__policy-name`}>{renderName()}</div>
+            {isEditMode && renderAuthor()}
           </div>
+          {renderDescription()}
+          {renderResolution()}
           <SQLEditor
             value={lastEditedQueryBody}
             error={errors.query}
@@ -642,10 +739,29 @@ const PolicyForm = ({
             handleSubmit={promptSavePolicy}
             wrapEnabled
             focus={!isEditMode}
-            disabled={gitOpsModeEnabled}
           />
           {renderPlatformCompatibility()}
           {isEditMode && platformSelector.render()}
+          {isEditMode && isPremiumTier && (
+            <TargetLabelSelector
+              selectedTargetType={selectedTargetType}
+              selectedCustomTarget={selectedCustomTarget}
+              customTargetOptions={CUSTOM_TARGET_OPTIONS}
+              onSelectCustomTarget={setSelectedCustomTarget}
+              selectedLabels={selectedLabels}
+              className={`${baseClass}__target`}
+              onSelectTargetType={setSelectedTargetType}
+              onSelectLabel={onSelectLabel}
+              labels={labels || []}
+              customHelpText={
+                <span className="form-field__help-text">
+                  Policy will target hosts on selected platforms that{" "}
+                  <b>have any</b> of these labels:
+                </span>
+              }
+              suppressTitle
+            />
+          )}
           {isEditMode && isPremiumTier && renderCriticalPolicy()}
           {renderLiveQueryWarning()}
           <div className="button-wrap">
@@ -661,7 +777,6 @@ const PolicyForm = ({
                       data-tip-disable={!isEditMode || isAnyPlatformSelected}
                     >
                       <Button
-                        variant="brand"
                         onClick={promptSavePolicy()}
                         disabled={disableSaveFormErrors || disableChildren}
                         className="save-loading"
@@ -697,14 +812,13 @@ const PolicyForm = ({
               }
             >
               <Button
-                className={`${baseClass}__run`}
-                variant="blue-green"
                 onClick={goToSelectTargets}
                 disabled={
                   (isEditMode && !isAnyPlatformSelected) || disabledLiveQuery
                 }
+                variant="inverse"
               >
-                Run
+                Run <Icon name="run" />
               </Button>
             </span>
             <ReactTooltip
@@ -741,6 +855,7 @@ const PolicyForm = ({
             isFetchingAutofillResolution={isFetchingAutofillResolution}
             onClickAutofillDescription={onClickAutofillDescription}
             onClickAutofillResolution={onClickAutofillResolution}
+            labels={labels}
           />
         )}
       </>

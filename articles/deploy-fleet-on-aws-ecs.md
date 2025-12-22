@@ -5,7 +5,7 @@
 
 ![Deploy Fleet on AWS ECS](../website/assets/images/articles/deploy-fleet-on-aws-ecs-800x450@2x.png)
 
-Terraform reference architecture can be found [here](https://github.com/fleetdm/fleet-terraform)
+A Terraform reference architecture can be found in the [fleetdm/terrqform](https://github.com/fleetdm/fleet-terraform) repository.
 
 ### Infrastructure dependencies
 

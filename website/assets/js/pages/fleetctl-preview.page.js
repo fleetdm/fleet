@@ -7,7 +7,7 @@ parasails.registerPage('fleetctl-preview', {
     installCommands: {
       macos: 'curl -sSL https://fleetdm.com/resources/install-fleetctl.sh | bash',
       linux: 'curl -sSL https://fleetdm.com/resources/install-fleetctl.sh | bash',
-      windows: `for /f "tokens=1,* delims=:" %a in ('curl -s https://api.github.com/repos/fleetdm/fleet/releases/latest ^| findstr "browser_download_url" ^| findstr "_windows.zip"') do (curl -kOL %b) && if not exist "%USERPROFILE%\\.fleetctl" mkdir "%USERPROFILE%\\.fleetctl" && for /f "delims=" %a in ('dir /b fleetctl_*_windows.zip') do tar -xf "%a" --strip-components=1 -C "%USERPROFILE%\\.fleetctl" && del "%a"`,
+      windows: `for /f "tokens=1,* delims=:" %a in ('curl -s https://api.github.com/repos/fleetdm/fleet/releases/latest ^| findstr "browser_download_url" ^| findstr "_windows_amd64.zip"') do (curl -kOL %b) && if not exist "%USERPROFILE%\\.fleetctl" mkdir "%USERPROFILE%\\.fleetctl" && for /f "delims=" %a in ('dir /b fleetctl_*_windows_amd64.zip') do tar -xf "%a" --strip-components=1 -C "%USERPROFILE%\\.fleetctl" && del "%a"`,
       npm: 'npm install fleetctl -g',
     },
     fleetctlPreviewTerminalCommand: {
@@ -15,7 +15,9 @@ parasails.registerPage('fleetctl-preview', {
       linux: '~/.fleetctl/fleetctl preview',
       windows: `%USERPROFILE%\\.fleetctl\\fleetctl preview`,
       npm: 'fleetctl preview',
-    }
+    },
+    // For conditionally rendering messages based on if the user is logged in or not.
+    me: undefined,
 
   },
 

@@ -54,8 +54,8 @@ func TestSetupExperienceAuth(t *testing.T) {
 			return newNotFoundError() // TODO: confirm if we want to return not found on deletes
 		}
 	}
-	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
-		return &fleet.Team{ID: id}, nil
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: id}, nil
 	}
 	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
 		return nil
@@ -268,6 +268,10 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					return true, nil
 				}
 				ds.MaybeUpdateSetupExperienceScriptStatusFuncInvoked = false
+				ds.HostByIdentifierFunc = func(ctx context.Context, uuid string) (*fleet.Host, error) {
+					require.Equal(t, hostUUID, uuid)
+					return &fleet.Host{ID: 1, UUID: uuid, Platform: "linux"}, nil
+				}
 
 				result := fleet.SetupExperienceScriptResult{
 					HostUUID:    hostUUID,
@@ -322,6 +326,10 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					return true, nil
 				}
 				ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked = false
+				ds.HostByIdentifierFunc = func(ctx context.Context, uuid string) (*fleet.Host, error) {
+					require.Equal(t, hostUUID, uuid)
+					return &fleet.Host{ID: 1, UUID: uuid, Platform: "linux"}, nil
+				}
 
 				result := fleet.SetupExperienceSoftwareInstallResult{
 					HostUUID:        hostUUID,
@@ -405,6 +413,10 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					return true, nil
 				}
 				ds.MaybeUpdateSetupExperienceVPPStatusFuncInvoked = false
+				ds.HostByIdentifierFunc = func(ctx context.Context, uuid string) (*fleet.Host, error) {
+					require.Equal(t, hostUUID, uuid)
+					return &fleet.Host{ID: 1, UUID: uuid, Platform: "linux"}, nil
+				}
 
 				result := fleet.SetupExperienceVPPInstallResult{
 					HostUUID:      hostUUID,

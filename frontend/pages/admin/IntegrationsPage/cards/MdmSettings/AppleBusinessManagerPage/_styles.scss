@@ -1,12 +1,8 @@
 .apple-business-manager-page {
-  &__back-to-mdm {
-    margin-bottom: $pad-xlarge;
-  }
+  @include vertical-page-layout;
 
   &__page-content {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-xxlarge;
+    @include vertical-page-layout;
   }
 
   &__page-header-section {
@@ -34,7 +30,6 @@
     > h2 {
       margin-bottom: $pad-small;
       font-size: $small;
-      font-weight: $bold;
     }
 
     > p {

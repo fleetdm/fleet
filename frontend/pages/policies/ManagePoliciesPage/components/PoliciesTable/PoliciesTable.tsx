@@ -4,22 +4,28 @@ import { AppContext } from "context/app";
 import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
-
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
+import {
+  DEFAULT_SORT_COLUMN,
+  DEFAULT_SORT_DIRECTION,
+  DEFAULT_PAGE_SIZE,
+} from "../../ManagePoliciesPage";
+
+// isLastPage is removable if/when API is updated to include meta.has_next_results
+const isLastPage = (count: number, pageSize: number, page: number) => {
+  return count <= pageSize * (page + 1);
+};
 
 const baseClass = "policies-table";
-
-const DEFAULT_SORT_DIRECTION = "asc";
-const DEFAULT_SORT_HEADER = "name";
 
 interface IPoliciesTableProps {
   policiesList: IPolicyStats[];
   isLoading: boolean;
-  onDeletePolicyClick: (selectedTableIds: number[]) => void;
-  canAddOrDeletePolicy?: boolean;
+  onDeletePoliciesClick: (selectedTableIds: number[]) => void;
+  canAddOrDeletePolicies?: boolean;
   hasPoliciesToDelete?: boolean;
   currentTeam: ITeamSummary | undefined;
   currentAutomatedPolicies?: number[];
@@ -30,14 +36,14 @@ interface IPoliciesTableProps {
   sortHeader?: "name" | "failing_host_count";
   sortDirection?: "asc" | "desc";
   page: number;
-  resetPageIndex: boolean;
+  count: number;
 }
 
 const PoliciesTable = ({
   policiesList,
   isLoading,
-  onDeletePolicyClick,
-  canAddOrDeletePolicy,
+  onDeletePoliciesClick,
+  canAddOrDeletePolicies,
   hasPoliciesToDelete,
   currentTeam,
   currentAutomatedPolicies,
@@ -48,7 +54,7 @@ const PoliciesTable = ({
   sortHeader,
   sortDirection,
   page,
-  resetPageIndex,
+  count,
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
@@ -59,7 +65,7 @@ const PoliciesTable = ({
       "Add policies to detect device health issues and trigger automations.",
   };
 
-  if (isPremiumTier) {
+  if (isPremiumTier && !config?.partnerships?.enable_primo) {
     if (
       currentTeam?.id === null ||
       currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
@@ -70,7 +76,7 @@ const PoliciesTable = ({
     }
   }
 
-  if (!canAddOrDeletePolicy) {
+  if (!canAddOrDeletePolicies) {
     emptyState.info = "";
   }
 
@@ -84,7 +90,7 @@ const PoliciesTable = ({
   const searchable = !(policiesList?.length === 0 && searchQuery === "");
 
   const hasPermissionAndPoliciesToDelete =
-    canAddOrDeletePolicy && hasPoliciesToDelete;
+    canAddOrDeletePolicies && hasPoliciesToDelete;
 
   return (
     <div className={baseClass}>
@@ -95,26 +101,28 @@ const PoliciesTable = ({
             selectedTeamId: currentTeam?.id,
             hasPermissionAndPoliciesToDelete,
           },
-          isPremiumTier
+          isPremiumTier,
+          config?.partnerships?.enable_primo
         )}
         data={generateDataSet(
           policiesList,
           currentAutomatedPolicies,
-          config?.update_interval.osquery_policy
+          config?.update_interval?.osquery_policy
         )}
         isLoading={isLoading}
-        defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
+        defaultSortHeader={sortHeader || DEFAULT_SORT_COLUMN}
         defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
         defaultSearchQuery={searchQuery}
-        defaultPageIndex={page}
+        pageIndex={page}
+        disableNextPage={isLastPage(count, DEFAULT_PAGE_SIZE, page)}
         showMarkAllPages={false}
         isAllPagesSelected={false}
         primarySelectAction={{
           name: "delete policy",
           buttonText: "Delete",
           iconSvg: "trash",
-          variant: "text-icon",
-          onActionButtonClick: onDeletePolicyClick,
+          variant: "inverse",
+          onClick: onDeletePoliciesClick,
         }}
         emptyComponent={() =>
           EmptyTable({
@@ -129,7 +137,6 @@ const PoliciesTable = ({
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
         searchable={searchable}
-        resetPageIndex={resetPageIndex}
       />
     </div>
   );

@@ -26,7 +26,7 @@
 #  ║║║╠═╣║║║╠═╣║ ╦║╣  ║║  ║  ║  ║ ║║ ║ ║║
 #  ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝═╩╝  ╚═╝╩═╝╚═╝╚═╝═╩╝
 - industryName: Managed cloud
-  description: Have Fleet host it for you (currently only available for customers with 300+ hosts.  PS. Wish we could host for you?  We're working on it!  Please let us know if you know of a good partner.  In the meantime, join fleetdm.com/support and we're happy to help you deploy Fleet yourself.)
+  description: Have Fleet host it for you (currently only available for customers with 700+ hosts.  PS. Wish we could host for you?  We're working on it!  Please let us know if you know of a good partner.  In the meantime, join fleetdm.com/support and we're happy to help you deploy Fleet yourself.)
   pricingTableCategories: [Deployment]
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   tier: Premium
@@ -108,7 +108,7 @@
   pricingTableCategories: [Configuration]
   usualDepartment: IT
   waysToUse:
-    - description: Supply-chain Levels for Software Artifacts (SLSA) attestations for the fleetd binary artifacts and server container image to enable verification that the binaries are built and uploaded using GitHub Actions from the Fleet repository at a particular commit SHA coming soon (2024-12-31).
+    - description: Supply-chain Levels for Software Artifacts (SLSA) attestations for the fleetd binary artifacts and server container image to enable verification that the binaries are built and uploaded using GitHub Actions from the Fleet repository at a particular commit SHA.
     - moreInfoUrl: https://github.com/fleetdm/fleet/issues/20219
 #
 #  ╔═╗╔═╗╔╦╗╔╦╗╔═╗╔╗╔╔╦╗  ╦  ╦╔╗╔╔═╗  ╔╦╗╔═╗╔═╗╦    ┌─  ╔═╗╦  ╦  ─┐
@@ -216,7 +216,7 @@
 #  ║  ╠╦╝║ ║╚═╗╚═╗───╠═╝║  ╠═╣ ║ ╠╣ ║ ║╠╦╝║║║  ║║║ ║║║║║  ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║ 
 #  ╚═╝╩╚═╚═╝╚═╝╚═╝   ╩  ╩═╝╩ ╩ ╩ ╚  ╚═╝╩╚═╩ ╩  ╩ ╩═╩╝╩ ╩  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩ 
 - industryName: Cross-platform MDM support
-  description: Apple, Windows, and Linux.
+  description: Apple, Windows (x64 and Arm), Linux (amd64 and Arm), and Android (coming soon).
   documentationUrl: https://fleetdm.com/announcements/debunk-the-cross-platform-myth
   tier: Premium
   jamfProHasFeature: appleOnly
@@ -229,7 +229,7 @@
 #  ║║║ ║║║║║  ║║║║║ ╦╠╦╝╠═╣ ║ ║║ ║║║║
 #  ╩ ╩═╩╝╩ ╩  ╩ ╩╩╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝
 - industryName: MDM migration #   « end-user initiated MDM migration, with interactive UI
-  description: Easily move your devices from your current MDM solution to Fleet.
+  description: Easily move your macOS, iOS/iPadOS, Windows, and Linux devices from your current MDM solution to Fleet.
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
@@ -243,7 +243,7 @@
 #  ╚═╝╚═╝╩╚═╚═╝   ╩ ╚═╝╚═╝╚═╝╩ ╩  ╚═╝╚═╝ ╩ ╚═╝╩  
 - industryName: Zero-touch setup
   description: Zero-touch setup for macOS, iOS/iPadOS, and Windows.
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience
+  documentationUrl: https://fleetdm.com/guides/setup-experience
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
@@ -266,7 +266,7 @@
 #  ╠╩╗╚╦╝║ ║ ║║  ║╣ ║║║╠╦╝║ ║║  ║  ║║║║╣ ║║║ ║ 
 #  ╚═╝ ╩ ╚═╝═╩╝  ╚═╝╝╚╝╩╚═╚═╝╩═╝╩═╝╩ ╩╚═╝╝╚╝ ╩ 
 - industryName: Bring your own device (BYOD) enrollment
-  description: BYOD enrollment for macOS, iOS/iPadOS, Windows, and Android (coming soon) devices.
+  description: BYOD enrollment for macOS, iOS/iPadOS, Windows, and Android devices.
   documentationUrl: https://fleetdm.com/guides/sysadmin-diaries-device-enrollment#byod-enrollment
   tier: Free
   jamfProHasFeature: yes
@@ -277,13 +277,31 @@
   waysToUse:
     - description: Support ACME as a protocol for MDM certificate generation. Coming soon (2025-03-31)
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15611 
+- industryName: Work profiles for personal (BYOD) Android
+  description: Separate work data and apps from personal ones with work profiles on personal Android devices.
+  documentationUrl: https://fleetdm.com/guides/android-mdm-setup
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
+- industryName: Account-based user enrollment for iOS/iPadOS
+  description: Manage work data on personally-owned (BYOD) iPhones and iPads using a user’s managed Apple Account, without accessing personal apps or data.
+  documentationUrl: https://github.com/fleetdm/fleet/issues/27390
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
 #  
 #  ╦ ╦╔═╗╔═╗╦═╗  ╔═╗╔═╗╔═╗╔═╗╦ ╦╔╗╔╔╦╗  ╔═╗╦ ╦╔╗╔╔═╗
 #  ║ ║╚═╗║╣ ╠╦╝  ╠═╣║  ║  ║ ║║ ║║║║ ║   ╚═╗╚╦╝║║║║  
 #  ╚═╝╚═╝╚═╝╩╚═  ╩ ╩╚═╝╚═╝╚═╝╚═╝╝╚╝ ╩   ╚═╝ ╩ ╝╚╝╚═╝
 - industryName: User account sync
   description: Sync macOS local user accounts via Okta, AD, or any IdP. 
-  documentationUrl: https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula
+  documentationUrl: https://fleetdm.com/guides/setup-experience#end-user-authentication
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Devices]
   usualDepartment: IT
@@ -326,6 +344,16 @@
       moreInfoUrl: https://docs.google.com/document/d/1qFYtMoKh3zyERLhbErJOEOo2me6Bc7KOOkjKn482Sqc/edit
     - description: See what servers someone is logged-in on
       moreInfoUrl: https://community.spiceworks.com/topic/138171-is-there-a-way-to-see-what-servers-someone-is-logged-in-on
+- industryName: Human-endpoint mapping (IdP groups)
+  description: Add user information (e.g full name and groups) from your identity provider (e.g Okta) to your devices using the SCIM protocol.
+  documentationUrl: https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts
+  pricingTableCategories: [Devices]
+  productCategories: [Endpoint operations,Device management]
+  tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+  waysToUse:
+    - description: Add user information from your IdP to your devices via SCIM protocol.
 #  
 #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦╔╗╔╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦═╗╦ ╦
 #   ║║║╣ ╚╗╔╝║║  ║╣   ║║║║╚╗╔╝║╣ ║║║ ║ ║ ║╠╦╝╚╦╝
@@ -410,6 +438,7 @@
   productCategories: [Device management,Vulnerability management]
   pricingTableCategories: [Devices]
   waysToUse:
+    - description: Enforce OS updates on macOS, iOS/iPadOS, Windows, and Android (coming soon).
     - description: Enforce macOS updates via Nudge.
     - description: Progressively enhance from Nudge to DDM-based OS updates.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/17295
@@ -419,7 +448,7 @@
 #  ║╣ ║║║╠╣ ║ ║╠╦╝║  ║╣   ║ ║╚═╗  ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
 #  ╚═╝╝╚╝╚  ╚═╝╩╚═╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝ ╩  ╩ ╩╝╚╝╚═╝╚═╝
 - industryName: Enforce OS settings
-  description: MDM support for macOS, iOS/iPadOS, Windows, and Android (coming soon) devices. Management support for Linux.
+  description: Using configuration profiles, enforce OS settings like security restrictions, screen lock, Wi-Fi, and more on macOS, iOS, iPadOS, Windows, and Android (coming soon) devices. Using scripts, enforce OS settings on Linux devices.
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings
   usualDepartment: IT
   tier: Free
@@ -434,8 +463,8 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/17315
     - description: Automatically re-deploy configuration profiles when they're not installed.
     - description: Deploy configuration profiles on iOS/iPadOS.
-    - description: See a list of the upcoming MDM commands and scripts in unified queue. Coming soon (2024-07-15)
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15920
+    - description: See a list of the upcoming MDM commands (coming soon).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/34704
     - description: Send MDM commands to tell end users to update their OS.
       moreInfoUrl: https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update
     - description: Configure agent options remotely, over the air.  (Includes osquery config, and osquery startup flags.).
@@ -480,7 +509,7 @@
     - description: Control and restore access to applications by automatically restricting access when devices do not meet particular security requirements.
       moreInfoUrl: https://duo.com/docs/device-health
   demos:
-    - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems. Coming soon (2024-09-30).
+    - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems (coming soon).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/16236
     - description: Implement multivariate device trust
       moreInfoUrl: https://youtu.be/5sFOdpMLXQg?feature=shared&t=1445
@@ -520,7 +549,7 @@
 #  ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║   ║║║╣ ╠═╝║  ║ ║╚╦╝║║║║╣ ║║║ ║ 
 #  ╩ ╩╩  ╩  ╩═╝╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝  ═╩╝╚═╝╩  ╩═╝╚═╝ ╩ ╩ ╩╚═╝╝╚╝ ╩ 
 - industryName: Application deployment
-  description: Deploy applications on macOS, iOS/iPadOS, Linux, Windows, and Android (coming soon). Additionally, install macOS and iOS/iPadOS apps from the App Store.
+  description: Deploy applications on macOS, iOS/iPadOS, Linux, Windows, and Android. Additionally, install macOS and iOS/iPadOS apps from the App Store.
   documentationUrl: https://fleetdm.com/guides/deploy-software-packages
   tier: Premium
   jamfProHasFeature: appleOnly
@@ -534,8 +563,6 @@
    - description: Easily configure and install SentinelOne, Crowdstrike, and other security tools.
      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921 
    - description: Offer licenses for Photoshop and other App Sore apps for your end users.
-   - description: iOS/iPadOS coming soon (2024-08-11).
-     moreInfoUrl: https://github.com/fleetdm/fleet/issues/14899
 #  
 #  ╔═╗╔═╗╦  ╔═╗  ╔═╗╔═╗╦═╗╦  ╦╦╔═╗╔═╗  ╔═╗╔═╗╔═╗╦  ╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╔╦╗╦╔═╗╔╗╔                                   
 #  ╚═╗║╣ ║  ╠╣───╚═╗║╣ ╠╦╝╚╗╔╝║║  ║╣   ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║  ║║║║╚═╗ ║ ╠═╣║  ║  ╠═╣ ║ ║║ ║║║║                                   
@@ -643,11 +670,11 @@
 #  ╚═╝╚═╝╝╚╝═╩╝  ╩═╝╚═╝╚═╝╩ ╩  ╩ ╩╝╚╝═╩╝  ╚╩╝╩╩  ╚═╝  ╚═╝╚═╝╩ ╩╩ ╩╩ ╩╝╚╝═╩╝╚═╝
 - industryName: Send lock and wipe commands
   description: Secure your devices with remote lock and wipe commands if lost or stolen.
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
+  documentationUrl: https://fleetdm.com/guides/lock-wipe-hosts
   waysToUse:
-    - description: High-level remote lock for macOS, Windows, and Linux.
+    - description: High-level remote lock for macOS, Windows, Linux, and Android (coming soon).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/9949
-    - description: High-level remote wipe for macOS, Windows, and Linux.
+    - description: High-level remote wipe for macOS, Windows, Linux, iOS/iPadOS, and Android (coming soon).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/9951
   tier: Premium
   jamfProHasFeature: appleOnly
@@ -1070,6 +1097,7 @@
 #  ╚╩╝╚═╝╚═╝╩ ╩╚═╝╚═╝╩ ╩╚═╝
 - industryName: Webhooks
   friendlyName: Automations
+  description: Configure automations that send webhooks to specific URLs when Fleet detects changes to host, policy, and CVE statuses.
   documentationUrl: https://fleetdm.com/docs/using-fleet/automations#automations
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
@@ -1117,7 +1145,7 @@
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
 - industryName: Grant Wi-Fi access
-  description: Help your end users connect to Wi-Fi by adding your Simple Certificate Enrollment Protocol (SCEP) server.                
+  description: Help your end users connect to Wi-Fi by adding your certificate authority (CA).                
   documentationUrl: https://fleetdm.com/guides/ndes-scep-proxy
   isExperimental: yes
   productCategories: [Device management]
@@ -1168,7 +1196,7 @@
 - industryName: Third-party orchestration
   friendlyName: Borrow off-the-shelf tactics from legendary brands
   documentationUrl: https://fleetdm.com/integrations
-  description: Plug Fleet into other frameworks and tools like Puppet, Vanta, etc.
+  description: Plug Fleet into other frameworks and tools like Tines, Torq, Vanta, etc.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
@@ -1176,10 +1204,9 @@
   tier: Premium
   waysToUse:
     - description: (Vanta) Trigger a workflow based on a failing policy.
-    - description: (Puppet) Easily issue MDM commands, standardize data across operating systems, and map macOS+Windows settings to computers with the Puppet module.
-    - description: (Torq) Build custom workflows that trigger in various situations.
+    - description: (Tines, Torq) Build custom workflows that trigger in various situations.
     - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
-  buzzwords: [Vanta,Puppet,Custom IdP]
+  buzzwords: [Vanta,Torq,Custom IdP]
 #  
 #  ╔╦╗╦ ╦╔╗╔╦╔═╦  ╔═╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔╗ ╦╦  ╦╔╦╗╦ ╦ 
 #  ║║║║ ║║║║╠╩╗║  ║  ║ ║║║║╠═╝╠═╣ ║ ║╠╩╗║║  ║ ║ ╚╦╝ 

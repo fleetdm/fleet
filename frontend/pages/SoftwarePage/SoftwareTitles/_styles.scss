@@ -1,5 +1,4 @@
 .software-titles {
-  &__table-error {
-    margin-top: $pad-xxxlarge;
-  }
+  @include vertical-page-tab-panel-layout;
+  margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
 }

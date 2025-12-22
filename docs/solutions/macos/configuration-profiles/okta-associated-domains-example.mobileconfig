@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>Configuration</key>
+			<array>
+				<dict>
+					<key>ApplicationIdentifier</key>
+					<string>B7F62B65BN.com.okta.mobile.auth-service-extension</string>
+					<key>AssociatedDomains</key>
+					<array>
+						<string>authsrv:yourdomain.okta.com</string>
+					</array>
+					<key>EnableDirectDownloads</key>
+					<false/>
+				</dict>
+				<dict>
+					<key>ApplicationIdentifier</key>
+					<string>B7F62B65BN.com.okta.mobile</string>
+					<key>AssociatedDomains</key>
+					<array>
+						<string>authsrv:yourdomain.okta.com</string>
+					</array>
+					<key>EnableDirectDownloads</key>
+					<false/>
+				</dict>
+			</array>
+			<key>PayloadDisplayName</key>
+			<string>Associated Domains</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.associated-domains.AD01A510-5471-43E0-B7CD-491C34E4079C</string>
+			<key>PayloadType</key>
+			<string>com.apple.associated-domains</string>
+			<key>PayloadUUID</key>
+			<string>AD01A510-5471-43E0-B7CD-491C34E4079C</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>Okta Associated Domains</string>
+	<key>PayloadIdentifier</key>
+	<string>com.okta.device.access.F68162FE-673F-4C43-AF6C-47B3DB6C35AD</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>F68162FE-673F-4C43-AF6C-47B3DB6C35AD</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

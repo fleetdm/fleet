@@ -1,0 +1,8 @@
+{
+  "name": "Notion Calendar",
+  "unique_identifier": "com.cron.electron",
+  "token": "notion-calendar",
+  "installer_format": "zip",
+  "slug": "notion-calendar/darwin",
+  "default_categories": ["Productivity"]
+}

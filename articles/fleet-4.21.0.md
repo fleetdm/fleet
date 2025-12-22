@@ -27,7 +27,7 @@ In addition to validating required keys and the type of document values, Fleet m
 ## Manage osquery flags remotely with Orbit
 **Available in Fleet Free and Fleet Premium**
 
-![Manage osquery flags remotely with Orbit](../website/assets/images/articles/fleet-4.21.0.gif)
+![Manage osquery flags remotely with Orbit](../website/assets/images/articles/fleet-4.21.0-800x450@2x.gif)
 
 Admins used to need a software orchestration tool (e.g., Chef) to deploy new osquery flags to the end user. Now, you can specify new flags in Fleet — and Orbit will restart osquery with the appropriate flags.
 

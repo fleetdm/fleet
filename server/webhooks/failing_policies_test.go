@@ -125,7 +125,8 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
         "failing_host_count": 2,
         "host_count_updated_at": null,
 		"critical": true,
-		"calendar_events_enabled": false
+		"calendar_events_enabled": false,
+		"conditional_access_enabled": false
     },
     "hosts": [
         {
@@ -234,11 +235,11 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 		}
 		return policy, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid == teamID {
-			return &fleet.Team{
+			return &fleet.TeamLite{
 				ID: teamID,
-				Config: fleet.TeamConfig{
+				Config: fleet.TeamConfigLite{
 					WebhookSettings: fleet.TeamWebhookSettings{
 						FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 							Enable:         true,
@@ -312,7 +313,8 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
         "failing_host_count": 1,
         "host_count_updated_at": null,
 		"critical": false,
-		"calendar_events_enabled": true
+		"calendar_events_enabled": true,
+		"conditional_access_enabled": false
     },
     "hosts": [
         {

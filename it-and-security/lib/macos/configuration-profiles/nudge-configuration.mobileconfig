@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>Nudge Preferences</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.nudge.preferences</string>
+			<key>PayloadType</key>
+			<string>com.github.macadmins.Nudge</string>
+			<key>PayloadUUID</key>
+			<string>69B22694-8FF8-40A0-AEE6-D5385BBF765D</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>optionalFeatures</key>
+			<dict>
+				<key>acceptableApplicationBundleIDs</key>
+				<array>
+					<string>us.zoom.xos</string>
+				</array>
+				<key>acceptableCameraUsage</key>
+				<true/>
+				<key>acceptableScreenSharingUsage</key>
+				<true/>
+				<key>aggressiveUserExperience</key>
+				<false/>
+				<key>asynchronousSoftwareUpdate</key>
+				<true/>
+				<key>attemptToFetchMajorUpgrade</key>
+				<true/>
+				<key>disableNudgeForStandardInstalls</key>
+				<false/>
+				<key>disableSoftwareUpdateWorkflow</key>
+				<false/>
+				<key>enforceMinorUpdates</key>
+				<true/>
+				<key>utilizeSOFAFeed</key>
+				<true/>
+				<key>refreshSOFAFeedTime</key>
+				<string>300</string>
+			</dict>
+			<key>osVersionRequirements</key>
+			<array>
+				<dict>
+					<key>aboutUpdateURL</key>
+					<string>https://support.apple.com/en-us/120283</string>
+					<key>requiredMinimumOSVersion</key>
+					<string>latest-minor</string>
+					<key>targetedOSVersionsRule</key>
+					<string>15</string>
+				</dict>
+				<dict>
+					<key>aboutUpdateURL</key>
+					<string>https://www.apple.com/os/macos</string>
+					<key>requiredMinimumOSVersion</key>
+					<string>latest-minor</string>
+					<key>targetedOSVersionsRule</key>
+					<string>26</string>
+				</dict>
+			</array>
+			<key>userExperience</key>
+			<dict>
+				<key>allowGracePeriods</key>
+				<true/>
+				<key>allowLaterDeferralButton</key>
+				<true/>
+				<key>allowMovableWindow</key>
+				<false/>
+				<key>allowUserQuitDeferrals</key>
+				<true/>
+				<key>allowedDeferrals</key>
+				<integer>1000000</integer>
+				<key>approachingRefreshCycle</key>
+				<integer>86400</integer>
+				<key>approachingWindowTime</key>
+				<integer>120</integer>
+				<key>elapsedRefreshCycle</key>
+				<integer>7200</integer>
+				<key>gracePeriodInstallDelay</key>
+				<integer>336</integer>
+				<key>gracePeriodLaunchDelay</key>
+				<integer>168</integer>
+				<key>imminentRefreshCycle</key>
+				<integer>86400</integer>
+				<key>imminentWindowTime</key>
+				<integer>0</integer>
+				<key>initialRefreshCycle</key>
+				<integer>259200</integer>
+				<key>nudgeMajorUpgradeEventLaunchDelay</key>
+				<integer>0</integer>
+				<key>nudgeMinorUpdateEventLaunchDelay</key>
+				<integer>0</integer>
+				<key>randomDelay</key>
+				<false/>
+			</dict>
+			<key>userInterface</key>
+			<dict>
+				<key>fallbackLanguage</key>
+				<string>en</string>
+				<key>forceFallbackLanguage</key>
+				<true/>
+				<key>iconDarkPath</key>
+				<string>/var/fleet/nudge-assets/fleet-logo-dark.png</string>
+				<key>iconLightPath</key>
+				<string>/var/fleet/nudge-assets/fleet-logo-light.png</string>
+				<key>showActivelyExploitedCVEs</key>
+				<true/>
+				<key>showDaysRemainingToUpdate</key>
+				<true/>
+				<key>showDeferralCount</key>
+				<true/>
+				<key>showRequiredDate</key>
+				<true/>
+				<key>simpleMode</key>
+				<false/>
+				<key>singleQuitButton</key>
+				<true/>
+				<key>updateElements</key>
+				<array>
+					<dict>
+						<key>_language</key>
+						<string>en</string>
+						<key>actionButtonText</key>
+						<string>Update</string>
+						<key>informationButtonText</key>
+						<string>More Info</string>
+						<key>mainContentHeader</key>
+						<string>Your device will restart during this update</string>
+						<key>mainContentNote</key>
+						<string>Important Notes</string>
+						<key>mainContentSubHeader</key>
+						<string>Updates can take around 30 minutes to complete</string>
+						<key>mainContentText</key>
+						<string>Your computer is behind on one or more critical updates and must be updated to the Required OS Version indicated on the left and by the Required Date deadline.
+
+This window will appear periodically to remind you until your computer is fully updated, appearing more frequently as the deadline date gets closer.
+
+If you fail to update by the deadline, access and functionality may be limited. Please update at your earliest convenience to avoid any downtime or work disruption.
+
+If you have any questions or need any assistance, please reach out via #help-it-and-enablement in Slack.</string>
+						<key>mainHeader</key>
+						<string>Required software update now available</string>
+						<key>subHeader</key>
+						<string>A friendly reminder from the IT &amp; Enablement team</string>
+						<key>customDeferralButtonText</key>
+						<string>Custom</string>
+						<key>customDeferralDropdownText</key>
+						<string>Defer</string>
+						<key>oneDayDeferralButtonText</key>
+						<string>One Day</string>
+						<key>oneHourDeferralButtonText</key>
+						<string>One Hour</string>
+						<key>primaryQuitButtonText</key>
+						<string>Later</string>
+					</dict>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>Allow Nudge background tasks</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.servicemanagement.9D50FED5-9183-456C-918F-51EBD9E4F95D</string>
+			<key>PayloadType</key>
+			<string>com.apple.servicemanagement</string>
+			<key>PayloadUUID</key>
+			<string>9D50FED5-9183-456C-918F-51EBD9E4F95D</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>Rules</key>
+			<array>
+				<dict>
+					<key>RuleType</key>
+					<string>BundleIdentifier</string>
+					<key>RuleValue</key>
+					<string>com.github.macadmins.Nudge</string>
+				</dict>
+			</array>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>Nudge settings</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.nudge.managed</string>
+	<key>PayloadOrganization</key>
+	<string>Fleet</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>4B4C950F-995A-4567-B0B2-9A34EB4C22AC</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

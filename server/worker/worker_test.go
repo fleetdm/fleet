@@ -34,13 +34,14 @@ func TestWorker(t *testing.T) {
 	ds := new(mock.Store)
 
 	// set up mocks
-	getQueuedJobsCalled := 0
-	ds.GetQueuedJobsFunc = func(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
-		if getQueuedJobsCalled > 0 {
+	getFilteredQueuedJobsCalled := 0
+	ds.GetFilteredQueuedJobsFunc = func(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error) {
+		if getFilteredQueuedJobsCalled > 0 {
 			return nil, nil
 		}
-		getQueuedJobsCalled++
-
+		getFilteredQueuedJobsCalled++
+		require.Equal(t, 1, len(jobNames))
+		require.Equal(t, "test", jobNames[0])
 		argsJSON := json.RawMessage(`{"arg1":"foo"}`)
 		return []*fleet.Job{
 			{
@@ -75,7 +76,7 @@ func TestWorker(t *testing.T) {
 	err := w.ProcessJobs(context.Background())
 	require.NoError(t, err)
 
-	require.True(t, ds.GetQueuedJobsFuncInvoked)
+	require.True(t, ds.GetFilteredQueuedJobsFuncInvoked)
 	require.True(t, ds.UpdateJobFuncInvoked)
 
 	require.True(t, jobCalled)
@@ -93,7 +94,7 @@ func TestWorkerRetries(t *testing.T) {
 		State:   fleet.JobStateQueued,
 		Retries: 0,
 	}
-	ds.GetQueuedJobsFunc = func(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
+	ds.GetFilteredQueuedJobsFunc = func(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error) {
 		if theJob.State == fleet.JobStateQueued {
 			return []*fleet.Job{theJob}, nil
 		}
@@ -131,9 +132,9 @@ func TestWorkerRetries(t *testing.T) {
 		err := w.ProcessJobs(context.Background())
 		require.NoError(t, err)
 
-		require.True(t, ds.GetQueuedJobsFuncInvoked)
+		require.True(t, ds.GetFilteredQueuedJobsFuncInvoked)
 		require.True(t, ds.UpdateJobFuncInvoked)
-		ds.GetQueuedJobsFuncInvoked = false
+		ds.GetFilteredQueuedJobsFuncInvoked = false
 		ds.UpdateJobFuncInvoked = false
 
 		require.Equal(t, i+1, jobCalled)
@@ -173,7 +174,7 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 			Retries: 0,
 		},
 	}
-	ds.GetQueuedJobsFunc = func(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
+	ds.GetFilteredQueuedJobsFunc = func(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error) {
 		var queued []*fleet.Job
 		for _, j := range jobs {
 			if j.State == fleet.JobStateQueued {
@@ -215,9 +216,9 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 	err := w.ProcessJobs(context.Background())
 	require.NoError(t, err)
 
-	require.True(t, ds.GetQueuedJobsFuncInvoked)
+	require.True(t, ds.GetFilteredQueuedJobsFuncInvoked)
 	require.True(t, ds.UpdateJobFuncInvoked)
-	ds.GetQueuedJobsFuncInvoked = false
+	ds.GetFilteredQueuedJobsFuncInvoked = false
 	ds.UpdateJobFuncInvoked = false
 
 	require.Equal(t, fleet.JobStateSuccess, jobs[0].State)
@@ -230,7 +231,7 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 	err = w.ProcessJobs(context.Background())
 	require.NoError(t, err)
 
-	require.True(t, ds.GetQueuedJobsFuncInvoked)
+	require.True(t, ds.GetFilteredQueuedJobsFuncInvoked)
 	require.True(t, ds.UpdateJobFuncInvoked)
 
 	require.Equal(t, fleet.JobStateQueued, jobs[1].State)

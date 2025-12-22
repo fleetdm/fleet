@@ -1,19 +1,21 @@
 package s3
 
 import (
+	"context"
+	"errors"
 	"os"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/stretchr/testify/require"
 )
 
 const (
-	accessKeyID     = "minio"
-	secretAccessKey = "minio123!"
-	testEndpoint    = "localhost:9000"
+	accessKeyID     = "locals3"
+	secretAccessKey = "locals3"
+	testEndpoint    = "http://localhost:9000"
 )
 
 func SetupTestSoftwareInstallerStore(tb testing.TB, bucket, prefix string) *SoftwareInstallerStore {
@@ -28,8 +30,14 @@ func SetupTestBootstrapPackageStore(tb testing.TB, bucket, prefix string) *Boots
 	return store
 }
 
+func SetupTestSoftwareTitleIconStore(tb testing.TB, bucket, prefix string) *SoftwareTitleIconStore {
+	store := setupTestStore(tb, bucket, prefix, NewSoftwareTitleIconStore)
+	tb.Cleanup(func() { cleanupStore(tb, store.s3store) })
+	return store
+}
+
 type testBucketCreator interface {
-	CreateTestBucket(name string) error
+	CreateTestBucket(ctx context.Context, name string) error
 }
 
 func setupTestStore[T testBucketCreator](tb testing.TB, bucket, prefix string, newFn func(config.S3Config) (T, error)) T {
@@ -38,7 +46,7 @@ func setupTestStore[T testBucketCreator](tb testing.TB, bucket, prefix string, n
 	store, err := newFn(config.S3Config{
 		SoftwareInstallersBucket:           bucket,
 		SoftwareInstallersPrefix:           prefix,
-		SoftwareInstallersRegion:           "minio",
+		SoftwareInstallersRegion:           "localhost",
 		SoftwareInstallersEndpointURL:      testEndpoint,
 		SoftwareInstallersAccessKeyID:      accessKeyID,
 		SoftwareInstallersSecretAccessKey:  secretAccessKey,
@@ -47,7 +55,7 @@ func setupTestStore[T testBucketCreator](tb testing.TB, bucket, prefix string, n
 
 		CarvesBucket:           bucket,
 		CarvesPrefix:           prefix,
-		CarvesRegion:           "minio",
+		CarvesRegion:           "localhost",
 		CarvesEndpointURL:      testEndpoint,
 		CarvesAccessKeyID:      accessKeyID,
 		CarvesSecretAccessKey:  secretAccessKey,
@@ -56,7 +64,7 @@ func setupTestStore[T testBucketCreator](tb testing.TB, bucket, prefix string, n
 	})
 	require.Nil(tb, err)
 
-	err = store.CreateTestBucket(bucket)
+	err = store.CreateTestBucket(context.Background(), bucket)
 	require.NoError(tb, err)
 
 	return store
@@ -65,39 +73,41 @@ func setupTestStore[T testBucketCreator](tb testing.TB, bucket, prefix string, n
 func cleanupStore(tb testing.TB, store *s3store) {
 	checkEnv(tb)
 
-	resp, err := store.s3client.ListObjects(&s3.ListObjectsInput{
+	ctx := context.Background()
+	resp, err := store.s3Client.ListObjects(ctx, &s3.ListObjectsInput{
 		Bucket: &store.bucket,
 	})
-	if aerr, ok := err.(awserr.Error); ok {
-		if aerr.Code() == s3.ErrCodeNoSuchBucket {
-			// fine, nothing to clean-up if the bucket no longer exists, no error
-			return
-		}
+	var noSuchBucket *types.NoSuchBucket
+	if errors.As(err, &noSuchBucket) {
+		// OK, nothing to clean-up if the bucket no longer exists, no error
+		return
 	}
 	require.NoError(tb, err)
 
-	var objs []*s3.ObjectIdentifier
+	var objs []types.ObjectIdentifier
 	for _, o := range resp.Contents {
-		objs = append(objs, &s3.ObjectIdentifier{Key: o.Key})
+		objs = append(objs, types.ObjectIdentifier{
+			Key: o.Key,
+		})
 	}
 	if len(objs) > 0 {
-		_, err = store.s3client.DeleteObjects(&s3.DeleteObjectsInput{
+		_, err = store.s3Client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
 			Bucket: &store.bucket,
-			Delete: &s3.Delete{
+			Delete: &types.Delete{
 				Objects: objs,
 			},
 		})
 		require.NoError(tb, err)
 	}
 
-	_, err = store.s3client.DeleteBucket(&s3.DeleteBucketInput{
+	_, err = store.s3Client.DeleteBucket(ctx, &s3.DeleteBucketInput{
 		Bucket: &store.bucket,
 	})
 	require.NoError(tb, err)
 }
 
 func checkEnv(tb testing.TB) {
-	if _, ok := os.LookupEnv("MINIO_STORAGE_TEST"); !ok {
-		tb.Skip("set MINIO_STORAGE_TEST environment variable to run S3-based tests")
+	if _, ok := os.LookupEnv("S3_STORAGE_TEST"); !ok {
+		tb.Skip("set S3_STORAGE_TEST environment variable to run S3-based tests")
 	}
 }

@@ -55,7 +55,7 @@ func (s *FileStorage) IsCertHashAssociated(r *mdm.Request, hash string) (bool, e
 }
 
 func (s *FileStorage) AssociateCertHash(r *mdm.Request, hash string, _ time.Time) error {
-	f, err := os.OpenFile(
+	f, err := os.OpenFile( // nolint:gosec // G302
 		path.Join(s.path, CertAuthAssociationsFilename),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
 		0644,

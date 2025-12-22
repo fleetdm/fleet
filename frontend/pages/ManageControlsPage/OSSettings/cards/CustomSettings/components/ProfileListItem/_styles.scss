@@ -29,6 +29,7 @@
     &--count {
       align-self: center;
       color: $ui-fleet-black-75;
+      font-size: $x-small; // Remove when global default font is implemented
     }
   }
 

@@ -33,12 +33,12 @@
     margin: 0;
   }
 
-  .form-field__help-text {
-    margin-top: $pad-large;
-  }
-
   &__hide-main {
     visibility: hidden;
+  }
+
+  &__preview-button {
+    white-space: nowrap;
   }
 }
 

@@ -1,0 +1,8 @@
+{
+  "name": "Shottr",
+  "unique_identifier": "cc.ffitch.shottr",
+  "token": "shottr",
+  "installer_format": "dmg",
+  "slug": "shottr/darwin",
+  "default_categories": ["Productivity"]
+}

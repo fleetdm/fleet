@@ -45,9 +45,11 @@ jobs:
         uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
           cache: false
-          go-version: '^1.23.4'
+          go-version-file: 'fleet/go.mod'
 
       - name: Ingest maintained apps
+        env:
+          NETWORK_TEST_GITHUB_TOKEN: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
         run: |
           cd fleet
           go mod download
@@ -64,25 +66,17 @@ jobs:
               state: 'open',
               per_page: 100
             });
-            return pullRequests.filter(pr => pr.title.includes('Update Fleet-maintained apps') && pr.user.login === 'github-actions[bot]').map(pr => pr.number);
-
-      - name: Get Assignee IDs
-        id: get_assignee_ids
-        run: |
-          # DEVS=$(awk '/### Software group/{flag=1; next} /#/{flag=0} flag' ./fleet/handbook/company/product-groups.md | awk '/\| Developer[ ]*\|/ {sub(/\| Developer[ ]*\|/, ""); print}' | grep -o '@[^]]*' | tr -d '@' | tr '\n' ',' | sed 's/,$//')
-          # :-(
-          DEVS="iansltx,jahzielv,mostlikelee,ksykulev"
-          echo "github_ids=$DEVS" >> ${GITHUB_OUTPUT}
+            return pullRequests.filter(pr => pr.title.includes('Update Fleet-maintained apps') && pr.user.login === 'fleet-release').map(pr => pr.number);
 
       - name: Log Info
         run: |
-          echo "Will close existing PRs: ${{ steps.search_pr.outputs.result }}"          
-          echo "Will assign new PR to: ${{ steps.get_assignee_ids.outputs.github_ids }}"
+          echo "Will close existing PRs: ${{ steps.search_pr.outputs.result }}"
 
       - name: Create Pull Request
         id: create-pr
         uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e #v7.0.8
         with:
+          token: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
           base: main
           path: fleet
           branch: fma-${{ steps.date.outputs.date }}
@@ -93,7 +87,7 @@ jobs:
 
             Generated automatically with cmd/maintained-apps.
           body: Automated ingestion of latest Fleet-maintained app data.
-          assignees: ${{ steps.get_assignee_ids.outputs.github_ids }}
+          reviewers: allenhouchins
 
       - name: Close Existing PRs
         if: steps.search_pr.outputs.result != '[]'

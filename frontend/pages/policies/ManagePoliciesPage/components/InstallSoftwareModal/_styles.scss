@@ -1,11 +1,5 @@
 .manage-policies-page {
   .install-software-modal {
-    .form-field__help-text {
-      font-size: 14px;
-      line-height: 21px;
-      margin-top: $pad-large;
-    }
-
     .form-field--dropdown {
       width: 276px;
       .Select-placeholder {
@@ -16,7 +10,7 @@
         overflow: visible;
       }
       .Select-menu-outer {
-        max-height: 240px;
+        max-height: 165px; // Prevent scrolling off modal
         overflow-y: auto;
       }
     }

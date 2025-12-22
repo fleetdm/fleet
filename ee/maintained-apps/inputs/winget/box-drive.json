@@ -2,5 +2,9 @@
   "name": "Box Drive",
   "slug": "box-drive/windows",
   "package_identifier": "Box.Box",
-  "unique_identifier": "Box Drive"
+  "unique_identifier": "Box",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
 }

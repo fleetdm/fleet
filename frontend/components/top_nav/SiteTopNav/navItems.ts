@@ -67,6 +67,7 @@ export default (
         pathname: PATHS.CONTROLS,
       },
       exclude: !isMaintainerOrAdmin,
+      alwaysToPathname: true,
       withParams: { type: "query", names: ["team_id"] },
     },
     {

@@ -7,7 +7,7 @@
 
     &-label {
       line-height: 38px;
-      font-size: $small;
+      font-size: $x-small;
     }
   }
 
@@ -20,7 +20,7 @@
   }
   &__label {
     display: block;
-    font-size: $small;
+    font-size: $x-small;
     font-weight: $regular;
     color: $core-fleet-black;
     margin-bottom: $pad-xsmall;
@@ -67,26 +67,26 @@
 
     &:hover:not(.is-disabled) {
       box-shadow: none;
-      border-color: $core-vibrant-blue-over;
+      border-color: $ui-fleet-black-50;
     }
   }
 
   .Select-control {
-    background-color: $ui-light-grey;
+    background-color: $core-fleet-white;
     border: 0;
     border-radius: $border-radius;
     cursor: pointer;
 
     .Select-value {
-      font-size: $small;
-      background-color: $ui-light-grey;
+      font-size: $x-small;
+      background-color: $core-fleet-white;
     }
   }
 
   .Select-value {
-    font-size: $small;
+    font-size: $x-small;
     border-radius: $border-radius;
-    background-color: $ui-light-grey;
+    background-color: $core-fleet-white;
 
     .Select-value-icon {
       border: 0;
@@ -106,21 +106,21 @@
         top: -5px;
         left: -5px;
         visibility: visible;
-        font-size: $small;
+        font-size: $x-small;
         color: $ui-gray;
         text-indent: 0;
       }
 
       &:hover {
         &::after {
-          content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
+          content: url("../assets/images/icon-close-fleet-black-16x16@2x.png");
           transform: scale(0.5);
         }
       }
     }
 
     .Select-value-label {
-      font-size: $small;
+      font-size: $x-small;
       color: $core-fleet-black;
       vertical-align: middle;
     }
@@ -137,7 +137,7 @@
 
   &.is-focused:not(.is-disabled) {
     &.dropdown__select {
-      border: 1px solid $core-vibrant-blue-down;
+      border: 1px solid $ui-fleet-black-50;
     }
   }
 
@@ -147,13 +147,13 @@
         transform: rotate(180deg);
         transition: transform 0.25s ease;
         path {
-          stroke: $core-vibrant-blue-over;
+          stroke: $ui-fleet-black-75-over;
         }
       }
     }
     .dropdown__custom-value .dropdown__icon {
       svg path {
-        fill: $core-vibrant-blue-over;
+        fill: $ui-fleet-black-75-over;
       }
     }
     .Select-control {
@@ -164,25 +164,25 @@
     .dropdown__custom-arrow .dropdown__icon {
       svg {
         path {
-          stroke: $core-vibrant-blue-over;
+          stroke: $ui-fleet-black-75-over;
         }
       }
     }
     .dropdown__custom-value .dropdown__icon {
       svg path {
-        fill: $core-vibrant-blue-over;
+        fill: $ui-fleet-black-75-over;
       }
     }
 
     &.is-open {
       .dropdown__custom-arrow .dropdown__icon {
         svg path {
-          stroke: $core-vibrant-blue-over;
+          stroke: $ui-fleet-black-75-over;
         }
       }
       .dropdown__custom-value .dropdown__icon {
         svg path {
-          fill: $core-vibrant-blue-over;
+          fill: $ui-fleet-black-75-over;
         }
       }
     }
@@ -194,7 +194,7 @@
       .Select-value {
         .Select-value-label {
           color: $core-fleet-black;
-          font-size: $small;
+          font-size: $x-small;
         }
       }
     }
@@ -238,15 +238,15 @@
     }
 
     &.is-focused {
-      background-color: $ui-vibrant-blue-10;
+      background-color: $ui-fleet-black-10;
 
       .Select-icon {
-        color: $ui-vibrant-blue-10;
+        color: $ui-fleet-black-10;
       }
     }
 
     &:active {
-      background-color: $core-vibrant-blue-down;
+      background-color: $ui-fleet-black-75-down;
     }
 
     &:last-child {
@@ -271,13 +271,13 @@
 
   .Select-placeholder {
     color: $core-fleet-blue;
-    font-size: $small;
+    font-size: $x-small;
     line-height: 34px;
     box-sizing: border-box;
   }
   .Select-input {
     color: $core-fleet-blue;
-    font-size: $small;
+    font-size: $x-small;
     box-sizing: border-box;
     height: 34px;
 
@@ -298,7 +298,7 @@
       flex-grow: 1;
 
       .Select-value {
-        border: 1px solid $ui-fleet-black-75;
+        border: 1px solid $ui-fleet-black-50;
         vertical-align: middle;
         margin-top: 0;
         display: inline-flex;
@@ -325,8 +325,8 @@
         cursor: default;
 
         &.is-focused {
-          background-color: $ui-vibrant-blue-10;
-          color: $core-white;
+          background-color: $ui-fleet-black-10;
+          color: $core-fleet-white;
         }
       }
     }

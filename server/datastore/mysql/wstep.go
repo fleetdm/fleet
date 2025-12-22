@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"strings"
 
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
 
@@ -28,7 +28,7 @@ func (ds *Datastore) WSTEPStoreCertificate(ctx context.Context, name string, crt
 	if !crt.SerialNumber.IsInt64() {
 		return errors.New("cannot represent serial number as int64")
 	}
-	certPEM := apple_mdm.EncodeCertPEM(crt)
+	certPEM := certificate.EncodeCertPEM(crt)
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 INSERT INTO wstep_certificates
     (serial, name, not_valid_before, not_valid_after, certificate_pem)

@@ -401,7 +401,6 @@ func (n notFoundErr) Error() string {
 }
 
 func TestCalendarEvents1KHosts(t *testing.T) {
-	t.Parallel()
 	ds := new(mock.Store)
 	ctx := context.Background()
 	var logger kitlog.Logger

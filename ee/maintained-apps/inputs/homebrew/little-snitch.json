@@ -1,0 +1,8 @@
+{
+  "name": "Little Snitch",
+  "slug": "little-snitch/darwin",
+  "unique_identifier": "at.obdev.LittleSnitch",
+  "token": "little-snitch",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
+}

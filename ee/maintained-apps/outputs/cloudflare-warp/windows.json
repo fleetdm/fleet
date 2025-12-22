@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "25.9.558.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Cloudflare WARP' AND publisher = 'Cloudflare, Inc.';"
+      },
+      "installer_url": "https://downloads.cloudflareclient.com/v1/download/windows/version/2025.9.558.0",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "54f8d943",
+      "sha256": "ac519bcc2937d93d67d31497d72a6262801d30cea98894a9584c0b92d0635ba2",
+      "default_categories": [
+        "Productivity"
+      ],
+      "upgrade_code": "{1BF42825-7B65-4CA9-AFFF-B7B5E1CE27B4}"
+    }
+  ],
+  "refs": {
+    "54f8d943": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\nforeach ($product_code in $inst.RelatedProducts(\"{1BF42825-7B65-4CA9-AFFF-B7B5E1CE27B4}\")) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n    \n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n    \n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n    \n    # If the uninstall failed, bail\n    if ($process.ExitCode -ne 0) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n",
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

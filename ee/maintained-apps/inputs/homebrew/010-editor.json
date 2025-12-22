@@ -1,0 +1,8 @@
+{
+  "name": "010 Editor",
+  "unique_identifier": "com.SweetScape.010Editor",
+  "token": "010-editor",
+  "installer_format": "dmg",
+  "slug": "010-editor/darwin",
+  "default_categories": ["Developer tools"]
+}

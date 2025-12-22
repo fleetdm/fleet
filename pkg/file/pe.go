@@ -62,8 +62,8 @@ func ExtractPEMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 		productVersion := strings.TrimSpace(e["ProductVersion"])
 		if productName != "" {
 			productName = strings.TrimSpace(productName)
-			if productName == "7-Zip" {
-				// This may be a 7-Zip self-extracting archive.
+			if productName == "7-Zip" || productName == "InstallAnywhere" {
+				// This may be a 7-Zip or InstallAnywhere self-extracting archive.
 				sfxName = productName
 				sfxVersion = productVersion
 				continue

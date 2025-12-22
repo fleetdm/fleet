@@ -1,0 +1,8 @@
+{
+  "name": "JetBrains Toolbox",
+  "slug": "jetbrains-toolbox/darwin",
+  "unique_identifier": "com.jetbrains.toolbox",
+  "token": "jetbrains-toolbox",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
+} 

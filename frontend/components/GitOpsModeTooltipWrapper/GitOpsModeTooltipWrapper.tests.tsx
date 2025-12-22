@@ -1,7 +1,6 @@
 import React from "react";
 
-import { noop } from "lodash";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
 import Button from "components/buttons/Button";
@@ -31,7 +30,7 @@ describe("GitOpsModeTooltipWrapper", () => {
     const { user } = render(
       <GitOpsModeTooltipWrapper
         renderChildren={(disableChildren) => (
-          <Button disabled={disableChildren} onClick={onSave} variant="brand">
+          <Button disabled={disableChildren} onClick={onSave}>
             Save
           </Button>
         )}
@@ -70,7 +69,7 @@ describe("GitOpsModeTooltipWrapper", () => {
     const { user } = render(
       <GitOpsModeTooltipWrapper
         renderChildren={(disableChildren) => (
-          <Button disabled={disableChildren} onClick={onSave} variant="brand">
+          <Button disabled={disableChildren} onClick={onSave}>
             Save
           </Button>
         )}
@@ -81,7 +80,9 @@ describe("GitOpsModeTooltipWrapper", () => {
     expect(btn).toBeInTheDocument();
 
     await user.hover(btn);
-    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    });
 
     await user.click(btn);
     expect(onSave).not.toHaveBeenCalled();

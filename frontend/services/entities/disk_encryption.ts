@@ -27,7 +27,11 @@ const diskEncryptionService = {
     }
     return sendRequest("GET", path);
   },
-  updateDiskEncryption: (enableDiskEncryption: boolean, teamId?: number) => {
+  updateDiskEncryption: (
+    enableDiskEncryption: boolean,
+    requireBitLockerPIN: boolean,
+    teamId?: number
+  ) => {
     // TODO - use same endpoint for both once issue with new endpoint for no team is resolved
     const {
       UPDATE_DISK_ENCRYPTION: teamsEndpoint,
@@ -37,11 +41,13 @@ const diskEncryptionService = {
       return sendRequest("PATCH", noTeamsEndpoint, {
         mdm: {
           enable_disk_encryption: enableDiskEncryption,
+          windows_require_bitlocker_pin: requireBitLockerPIN,
         },
       });
     }
     return sendRequest("POST", teamsEndpoint, {
       enable_disk_encryption: enableDiskEncryption,
+      windows_require_bitlocker_pin: requireBitLockerPIN,
       // TODO - it would be good to be able to use an API_CONTEXT_NO_TEAM_ID here, but that is
       // currently set to 0, which should actually be undefined since the server expects teamId ==
       // nil for no teams, not 0.

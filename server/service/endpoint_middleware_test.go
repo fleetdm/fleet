@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	kitlog "github.com/go-kit/log"
@@ -137,7 +138,7 @@ func TestAuthenticatedHost(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	expectedHost := fleet.Host{Hostname: "foo!"}
+	expectedHost := fleet.Host{Hostname: "foo!", HasHostIdentityCert: ptr.Bool(false)}
 	goodNodeKey := "foo bar baz bing bang boom"
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

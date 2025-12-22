@@ -1,0 +1,11 @@
+.setup-software-status-cell {
+  display: flex;
+  align-items: center;
+  gap: $pad-xsmall;
+
+  .loading-spinner {
+    margin: 0;
+    width: $pad-medium;
+    height: $pad-medium;
+  }
+}

@@ -14,7 +14,7 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 ### Escrow Linux disk encryption keys
 
-Fleet now supports escrowing the disk encryption keys for Linux (Ubuntu and Fedora) workstations. This means teams can access encrypted data without needing the local password when an employee leaves, simplifying handoffs and ensuring critical data remains accessible while protected. Learn more in the guide [here](https://fleetdm.com/guides/enforce-disk-encryption).
+Fleet now supports [escrowing disk encryption keys](https://fleetdm.com/guides/enforce-disk-encryption) for Linux (Ubuntu and Fedora) workstations. This means teams can access encrypted data without needing the local password when an employee leaves, simplifying handoffs and ensuring critical data remains accessible while protected.
 
 ### Custom targets for OS settings
 

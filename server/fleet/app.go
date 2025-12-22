@@ -42,6 +42,9 @@ type SSOProviderSettings struct {
 	// EntityID is a uri that identifies this service provider
 	EntityID string `json:"entity_id"`
 	// IssuerURI is the uri that identifies the identity provider
+	//
+	// Deprecated: Not used, only left here to not break the API
+	// ("unsupported key provided" error)
 	IssuerURI string `json:"issuer_uri"`
 	// Metadata contains IDP metadata XML
 	Metadata string `json:"metadata"`
@@ -75,6 +78,39 @@ type SSOSettings struct {
 	// EnableJITRoleSync sets whether the roles of existing accounts will be updated
 	// every time SSO users log in (does not have effect if EnableJITProvisioning is false).
 	EnableJITRoleSync bool `json:"enable_jit_role_sync"`
+	// SSOServerURL is an optional URL to use for SSO authentication.
+	// When set, SSO will only work from this URL, not from the server URL.
+	// This is useful for organizations with separate URLs for admin access vs agent/API access.
+	SSOServerURL string `json:"sso_server_url"`
+}
+
+// ConditionalAccessSettings holds the global settings for the "Conditional access" feature.
+// This struct is used in API responses, combining Microsoft Entra (from database) and Okta (from AppConfig).
+type ConditionalAccessSettings struct {
+	// MicrosoftEntraTenantID is the Entra's tenant ID.
+	MicrosoftEntraTenantID string `json:"microsoft_entra_tenant_id"`
+	// MicrosoftEntraConnectionConfigured is true when the tenant has been configured
+	// for "Conditional access" on Entra and Fleet.
+	MicrosoftEntraConnectionConfigured bool `json:"microsoft_entra_connection_configured"`
+
+	// Okta conditional access settings - using optjson for partial updates
+	// All four fields must be set together or all must be empty.
+	OktaIDPID                       optjson.String `json:"okta_idp_id"`
+	OktaAssertionConsumerServiceURL optjson.String `json:"okta_assertion_consumer_service_url"`
+	OktaAudienceURI                 optjson.String `json:"okta_audience_uri"`
+	OktaCertificate                 optjson.String `json:"okta_certificate"`
+}
+
+// OktaConfigured returns true if all Okta conditional access fields are configured.
+// All four fields must be set together for Okta conditional access to be considered configured.
+func (c *ConditionalAccessSettings) OktaConfigured() bool {
+	if c == nil {
+		return false
+	}
+	return c.OktaIDPID.Valid && c.OktaIDPID.Value != "" &&
+		c.OktaAssertionConsumerServiceURL.Valid && c.OktaAssertionConsumerServiceURL.Value != "" &&
+		c.OktaAudienceURI.Valid && c.OktaAudienceURI.Value != "" &&
+		c.OktaCertificate.Valid && c.OktaCertificate.Value != ""
 }
 
 // SMTPSettings is part of the AppConfig which defines the wire representation
@@ -140,7 +176,7 @@ type MDMAppleVolumePurchasingProgramInfo struct {
 // MDM is part of AppConfig and defines the mdm settings.
 type MDM struct {
 	// AppleServerURL is an alternate URL to be used in MDM configuration profiles to differentiate MDM
-	// requests from fleetd requests on customer networks.  AppleServerURL DNS should resolve to the
+	// requests from fleetd requests on customer networks. AppleServerURL DNS should resolve to the
 	// same IP as the Fleet Server URL.
 	// If not set, the server will use Fleet server URL (recommended).
 	AppleServerURL string `json:"apple_server_url"`
@@ -189,11 +225,12 @@ type MDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
-	MacOSSettings           MacOSSettings            `json:"macos_settings"`
-	MacOSSetup              MacOSSetup               `json:"macos_setup"`
-	MacOSMigration          MacOSMigration           `json:"macos_migration"`
-	WindowsMigrationEnabled bool                     `json:"windows_migration_enabled"`
-	EndUserAuthentication   MDMEndUserAuthentication `json:"end_user_authentication"`
+	MacOSSettings                  MacOSSettings            `json:"macos_settings"`
+	MacOSSetup                     MacOSSetup               `json:"macos_setup"`
+	MacOSMigration                 MacOSMigration           `json:"macos_migration"`
+	WindowsMigrationEnabled        bool                     `json:"windows_migration_enabled"`
+	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
+	EndUserAuthentication          MDMEndUserAuthentication `json:"end_user_authentication"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
@@ -203,17 +240,27 @@ type MDM struct {
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 
+	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
+
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
 	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program"`
 
 	// AndroidEnabledAndConfigured is set to true if Fleet successfully bound to an Android Management Enterprise
-	AndroidEnabledAndConfigured bool `json:"android_enabled_and_configured"`
+	AndroidEnabledAndConfigured bool            `json:"android_enabled_and_configured"`
+	AndroidSettings             AndroidSettings `json:"android_settings"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+type DiskEncryptionConfig struct {
+	// Enabled indicates if disk encryption is enabled.
+	Enabled bool
+	// BitLockerPINRequired indicates if a PIN is required for BitLocker disk encryption.
+	BitLockerPINRequired bool
 }
 
 type UIGitOpsModeConfig struct {
@@ -228,10 +275,42 @@ func (c *AppConfig) MDMUrl() string {
 	return c.MDM.AppleServerURL
 }
 
-// AtLeastOnePlatformEnabledAndConfigured returns true if at least one supported platform
-// (macOS or Windows) has MDM enabled and configured.
-func (m MDM) AtLeastOnePlatformEnabledAndConfigured() bool {
-	return m.EnabledAndConfigured || m.WindowsEnabledAndConfigured
+// ConditionalAccessIdPSSOURL returns the SSO server URL for Okta conditional access IdP.
+// It checks for FLEET_DEV_OKTA_SSO_SERVER_URL environment variable first.
+// If not set, it transforms the server URL by prepending "okta." to the hostname.
+// Examples:
+//   - https://foo.example.com -> https://okta.foo.example.com
+//   - https://foo.example.com:8080 -> https://okta.foo.example.com:8080
+//
+// Returns an error if the server URL is not configured or cannot be parsed.
+func (c *AppConfig) ConditionalAccessIdPSSOURL(getenv func(string) string) (string, error) {
+	// Check for dev override
+	if devURL := getenv("FLEET_DEV_OKTA_SSO_SERVER_URL"); devURL != "" {
+		return devURL, nil
+	}
+
+	serverURL := c.ServerSettings.ServerURL
+	if serverURL == "" {
+		return "", errors.New("server URL not configured")
+	}
+
+	// Parse the server URL
+	u, err := url.Parse(serverURL)
+	if err != nil {
+		return "", fmt.Errorf("parse server URL: %w", err)
+	}
+
+	// Prepend "okta." to the hostname
+	if u.Hostname() != "" {
+		// Reconstruct host with port if present
+		newHost := "okta." + u.Hostname()
+		if port := u.Port(); port != "" {
+			newHost = newHost + ":" + port
+		}
+		u.Host = newHost
+	}
+
+	return u.String(), nil
 }
 
 // versionStringRegex is used to validate that a version string is in the x.y.z
@@ -241,6 +320,8 @@ var versionStringRegex = regexp.MustCompile(`^\d+(\.\d+)?(\.\d+)?$`)
 // AppleOSUpdateSettings is the common type that contains the settings
 // for OS updates on Apple devices.
 type AppleOSUpdateSettings struct {
+	// UpdateNewHosts if true, only enforce the latest macOS version for new hosts (during enrollment)
+	UpdateNewHosts optjson.Bool `json:"update_new_hosts"`
 	// MinimumVersion is the required minimum operating system version.
 	MinimumVersion optjson.String `json:"minimum_version"`
 	// Deadline the required installation date for Nudge to enforce the required
@@ -447,6 +528,8 @@ type MacOSSetup struct {
 	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually"`
 	Script                      optjson.String                     `json:"script"`
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
+	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install"`
+	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
 }
 
 func (mos *MacOSSetup) SetDefaultsIfNeeded() {
@@ -467,6 +550,9 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	}
 	if !mos.Software.Valid {
 		mos.Software = optjson.SetSlice([]*MacOSSetupSoftware{})
+	}
+	if !mos.ManualAgentInstall.Valid {
+		mos.ManualAgentInstall = optjson.SetBool(false)
 	}
 }
 
@@ -549,6 +635,7 @@ type AppConfig struct {
 	//
 	// This field is a pointer to avoid returning this information to non-global-admins.
 	SSOSettings *SSOSettings `json:"sso_settings,omitempty"`
+
 	// FleetDesktop holds settings for Fleet Desktop that can be changed via the API.
 	FleetDesktop FleetDesktopSettings `json:"fleet_desktop"`
 
@@ -569,6 +656,10 @@ type AppConfig struct {
 	Scripts optjson.Slice[string] `json:"scripts"`
 
 	YaraRules []YaraRule `json:"yara_rules,omitempty"`
+
+	// ConditionalAccess holds the Okta conditional access settings that are stored in AppConfig.
+	// Note: In API responses, this is combined with Microsoft Entra settings from the database.
+	ConditionalAccess *ConditionalAccessSettings `json:"conditional_access,omitempty"`
 
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.
@@ -594,9 +685,10 @@ func (c *AppConfig) Obfuscate() {
 	for _, zdIntegration := range c.Integrations.Zendesk {
 		zdIntegration.APIToken = MaskedPassword
 	}
-	if c.Integrations.NDESSCEPProxy.Valid {
-		c.Integrations.NDESSCEPProxy.Value.Password = MaskedPassword
-	}
+	// // TODO(hca): confirm that we're properly masking credentials in the new endpoints
+	// if c.Integrations.NDESSCEPProxy.Valid {
+	// 	c.Integrations.NDESSCEPProxy.Value.Password = MaskedPassword
+	// }
 }
 
 // Clone implements cloner.
@@ -683,16 +775,17 @@ func (c *AppConfig) Copy() *AppConfig {
 			maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey, g.ApiKey)
 		}
 	}
-	if len(c.Integrations.DigiCert.Value) > 0 {
-		digicert := make([]DigiCertIntegration, len(c.Integrations.DigiCert.Value))
-		copy(digicert, c.Integrations.DigiCert.Value)
-		clone.Integrations.DigiCert = optjson.SetSlice(digicert)
-	}
-	if len(c.Integrations.CustomSCEPProxy.Value) > 0 {
-		customSCEP := make([]CustomSCEPProxyIntegration, len(c.Integrations.CustomSCEPProxy.Value))
-		copy(customSCEP, c.Integrations.CustomSCEPProxy.Value)
-		clone.Integrations.CustomSCEPProxy = optjson.SetSlice(customSCEP)
-	}
+	// // TODO(hca): do we want to cache the new grouped CAs datastore method?
+	// if len(c.Integrations.DigiCert.Value) > 0 {
+	// 	digicert := make([]DigiCertCA, len(c.Integrations.DigiCert.Value))
+	// 	copy(digicert, c.Integrations.DigiCert.Value)
+	// 	clone.Integrations.DigiCert = optjson.SetSlice(digicert)
+	// }
+	// if len(c.Integrations.CustomSCEPProxy.Value) > 0 {
+	// 	customSCEP := make([]CustomSCEPProxyCA, len(c.Integrations.CustomSCEPProxy.Value))
+	// 	copy(customSCEP, c.Integrations.CustomSCEPProxy.Value)
+	// 	clone.Integrations.CustomSCEPProxy = optjson.SetSlice(customSCEP)
+	// }
 
 	if c.MDM.MacOSSettings.CustomSettings != nil {
 		clone.MDM.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(c.MDM.MacOSSettings.CustomSettings))
@@ -717,6 +810,14 @@ func (c *AppConfig) Copy() *AppConfig {
 			windowsSettings[i] = *mps.Copy()
 		}
 		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
+	}
+
+	if c.MDM.AndroidSettings.CustomSettings.Set {
+		androidSettings := make([]MDMProfileSpec, len(c.MDM.AndroidSettings.CustomSettings.Value))
+		for i, mps := range c.MDM.AndroidSettings.CustomSettings.Value {
+			androidSettings[i] = *mps.Copy()
+		}
+		clone.MDM.AndroidSettings.CustomSettings = optjson.SetSlice(androidSettings)
 	}
 
 	if c.MDM.AppleBusinessManager.Set {
@@ -751,6 +852,12 @@ func (c *AppConfig) Copy() *AppConfig {
 		rules := make([]YaraRule, len(c.YaraRules))
 		copy(rules, c.YaraRules)
 		clone.YaraRules = rules
+	}
+
+	// ConditionalAccess: deep copy the pointer to avoid shared state
+	if c.ConditionalAccess != nil {
+		conditionalAccess := *c.ConditionalAccess
+		clone.ConditionalAccess = &conditionalAccess
 	}
 
 	return &clone
@@ -1126,6 +1233,9 @@ type FleetDesktopSettings struct {
 // DefaultTransparencyURL is the default URL used for the “About Fleet” link in the Fleet Desktop menu.
 const DefaultTransparencyURL = "https://fleetdm.com/transparency"
 
+// SecureframeTransparencyURL is the URL used for the "About Fleet" link in Fleet Desktop when the Secureframe partnership config value is enabled
+const SecureframeTransparencyURL = "https://fleetdm.com/better?utm_content=secureframe"
+
 type OrderDirection int
 
 const (
@@ -1157,7 +1267,7 @@ type ListOptions struct {
 	// After denotes the row to start from. This is meant to be used in conjunction with OrderKey
 	// If OrderKey is "id", it'll assume After is a number and will try to convert it.
 	After string `query:"after,optional"`
-	// Used to request the metadata of a query
+	// Used to request the pagination metadata in the response.
 	IncludeMetadata bool
 
 	// The following fields are for tests, to ensure a deterministic sort order
@@ -1192,8 +1302,12 @@ type ListQueryOptions struct {
 
 type ListActivitiesOptions struct {
 	ListOptions
-
-	Streamed *bool
+	ActivityType string `query:"activity_type,optional"`
+	// StartCreatedAt filters activities created after this ISO string.
+	StartCreatedAt string `query:"start_created_at,optional"`
+	// EndCreatedAt filters activities created before this ISO string.
+	EndCreatedAt string `query:"end_created_at,optional"`
+	Streamed     *bool
 }
 
 // ApplySpecOptions are the options available when applying a YAML or JSON spec.
@@ -1209,6 +1323,10 @@ type ApplySpecOptions struct {
 	// NoCache indicates that cached_mysql calls should be bypassed on the server.
 	// This is needed where related data was just updated and we need that latest data from the DB.
 	NoCache bool
+	// Indicate whether or not the spec should be applied in overwrite mode.
+	// This means that any missing fields in the spec will be set to their default values.
+	// GitOps uses this mode.
+	Overwrite bool
 }
 
 type ApplyTeamSpecOptions struct {
@@ -1243,6 +1361,9 @@ func (o *ApplySpecOptions) RawQuery() string {
 	}
 	if o.NoCache {
 		query.Set("no_cache", "true")
+	}
+	if o.Overwrite {
+		query.Set("overwrite", "true")
 	}
 	return query.Encode()
 }
@@ -1287,7 +1408,7 @@ const (
 	EnrollSecretKind          = "enroll_secret"
 	EnrollSecretDefaultLength = 24
 	// Maximum number of enroll secrets that can be set per team, or globally.
-	// Make sure to change the documentation in docs/Contributing/API-for-Contributors.md
+	// Make sure to change the documentation in docs/Contributing/reference/api-for-contributors.md
 	// if you change that value (look for the string `secrets`).
 	MaxEnrollSecretsCount = 50
 )
@@ -1312,6 +1433,11 @@ const (
 	TierTrial = "trial"
 )
 
+// Partnerships contains specialized configuration options for Fleet partners.
+type Partnerships struct {
+	EnablePrimo bool `json:"enable_primo,omitempty"`
+}
+
 // LicenseInfo contains information about the Fleet license.
 type LicenseInfo struct {
 	// Tier is the license tier (currently "free" or "premium")
@@ -1324,6 +1450,11 @@ type LicenseInfo struct {
 	Expiration time.Time `json:"expiration,omitempty"`
 	// Note is any additional terms of license
 	Note string `json:"note,omitempty"`
+	// AllowDisableTelemetry allows specific customers to not send analytics
+	AllowDisableTelemetry bool `json:"allow_disable_telemetry,omitempty"`
+	// ManagedCloud indicates whether this Fleet instance is a cloud instance.
+	// Currently only used to display UI features only present on cloud instances.
+	ManagedCloud bool `json:"managed_cloud"`
 }
 
 func (l *LicenseInfo) IsPremium() bool {
@@ -1338,6 +1469,11 @@ func (l *LicenseInfo) ForceUpgrade() {
 	if l.Tier == tierBasicDeprecated {
 		l.Tier = TierPremium
 	}
+}
+
+// Both free and specific premium users are allowed to disable telemetry
+func (l *LicenseInfo) IsAllowDisableTelemetry() bool {
+	return !l.IsPremium() || l.AllowDisableTelemetry
 }
 
 const (
@@ -1393,6 +1529,10 @@ type FilesystemConfig struct {
 	config.FilesystemConfig
 }
 
+type WebhookConfig struct {
+	config.WebhookConfig
+}
+
 type PubSubConfig struct {
 	config.PubSubConfig
 }
@@ -1440,6 +1580,7 @@ type DeviceGlobalConfig struct {
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
+	RequireAllSoftware   bool `json:"require_all_software_macos"`
 }
 
 // DeviceFeatures is a subset of AppConfig.Features with information used by
@@ -1471,6 +1612,34 @@ func (ws WindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {
 // Compile-time interface check
 var _ WithMDMProfileSpecs = WindowsSettings{}
 
+type AndroidSettings struct {
+	// NOTE: These are only present here for informational purposes.
+	// (The source of truth for profiles is in MySQL.)
+	CustomSettings optjson.Slice[MDMProfileSpec]          `json:"custom_settings"`
+	Certificates   optjson.Slice[CertificateTemplateSpec] `json:"certificates"`
+}
+
+func (ws AndroidSettings) GetMDMProfileSpecs() []MDMProfileSpec {
+	return ws.CustomSettings.Value
+}
+
+// Compile-time interface check
+var _ WithMDMProfileSpecs = AndroidSettings{}
+
+// only letters, numbers, spaces, dashes, and underscores
+var certificateNamePattern = regexp.MustCompile(`^[\w\s-]+$`)
+
+// CertificateTemplateSpec defines a certificate template to be deployed to devices.
+type CertificateTemplateSpec struct {
+	Name                     string `json:"name"`
+	CertificateAuthorityName string `json:"certificate_authority_name"`
+	SubjectName              string `json:"subject_name"`
+}
+
+func (c CertificateTemplateSpec) NameValid() bool {
+	return certificateNamePattern.MatchString(c.Name)
+}
+
 type YaraRuleSpec struct {
 	Path string `json:"path"`
 }
@@ -1478,4 +1647,11 @@ type YaraRuleSpec struct {
 type YaraRule struct {
 	Name     string `json:"name"`
 	Contents string `json:"contents"`
+}
+
+func (r *YaraRule) Clone() (Cloner, error) {
+	return &YaraRule{
+		Name:     r.Name,
+		Contents: r.Contents,
+	}, nil
 }

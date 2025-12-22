@@ -69,16 +69,16 @@ module.exports = {
       'announcements': 'Announcements',
       'podcasts': 'Podcasts',
       'report': 'Reports',
+      'articles': 'Articles',
     };
     let categoryFriendlyName = categoryFriendlyNamesByCategorySlug[articleCategorySlug];
-    // Set a currentSection variable for the website header based on how the articles category page is linked to in the header navigation dropdown menus.
+    // Set the currentSection variable for the website header to "customers" if the article is shown on the testimonials page.
     let currentSection;
-    if(['guides','releases'].includes(articleCategorySlug)) {
-      // If the articleCategorySlug is guides, or releases, highlight the "Documentation" dropdown.
-      currentSection = 'documentation';
+    if(thisPage.meta.showOnTestimonialsPageWithEmoji) {
+      currentSection = 'customers';
     } else {
-      // If the article is in any other category, highlight the "Community" dropdown.
-      currentSection = 'community';
+      // otherwise, highlight the "More" dropdown.
+      currentSection = 'more';
     }
 
 

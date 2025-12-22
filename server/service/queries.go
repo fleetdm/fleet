@@ -281,6 +281,10 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		})
 	}
 
+	if err := verifyLabelsToAssociate(ctx, svc.ds, p.TeamID, p.LabelsIncludeAny); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
+	}
+
 	query := &fleet.Query{
 		Saved: true,
 
@@ -339,12 +343,30 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		return nil, err
 	}
 
+	var teamID int64
+	var teamName *string
+	if query.TeamID != nil {
+		teamID = int64(*query.TeamID) //nolint:gosec // dismiss G115
+		if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
+			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
+			if err != nil {
+				return nil, err
+			}
+			teamName = &team.Name
+		}
+	} else {
+		teamID = -1 // Use -1 for global queries
+		teamName = nil
+	}
+
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedSavedQuery{
-			ID:   query.ID,
-			Name: query.Name,
+			ID:       query.ID,
+			Name:     query.Name,
+			TeamID:   teamID, // log teamID if available, else -1 for global
+			TeamName: teamName,
 		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for query creation")
@@ -397,6 +419,11 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("query payload verification: %s", err),
 		})
+	}
+
+	// We use query.TeamID because we do not allow changing the team
+	if err := verifyLabelsToAssociate(ctx, svc.ds, query.TeamID, p.LabelsIncludeAny); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
 	shouldDiscardQueryResults, shouldDeleteStats := false, false
@@ -464,12 +491,30 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, err
 	}
 
+	var teamID int64
+	var teamName *string
+	if query.TeamID != nil {
+		teamID = int64(*query.TeamID) //nolint:gosec // dismiss G115
+		if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
+			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
+			if err != nil {
+				return nil, err
+			}
+			teamName = &team.Name
+		}
+	} else {
+		teamID = -1
+		teamName = nil
+	}
+
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeEditedSavedQuery{
-			ID:   query.ID,
-			Name: query.Name,
+			ID:       query.ID,
+			Name:     query.Name,
+			TeamID:   teamID,
+			TeamName: teamName,
 		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for query modification")
@@ -533,11 +578,29 @@ func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) 
 		return err
 	}
 
+	var logTeamID int64
+	var teamName *string
+	if query.TeamID != nil {
+		logTeamID = int64(*query.TeamID) //nolint:gosec // dismiss G115
+		if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
+			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
+			if err != nil {
+				return err
+			}
+			teamName = &team.Name
+		}
+	} else {
+		logTeamID = -1
+		teamName = nil
+	}
+
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedSavedQuery{
-			Name: name,
+			Name:     name,
+			TeamID:   logTeamID,
+			TeamName: teamName,
 		},
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for query deletion")
@@ -570,6 +633,7 @@ func deleteQueryByIDEndpoint(ctx context.Context, request interface{}, svc fleet
 
 func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 	// Load query first to determine if the user can delete it.
+
 	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
@@ -583,11 +647,29 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete query")
 	}
 
+	var logTeamID int64
+	var teamName *string
+	if query.TeamID != nil {
+		logTeamID = int64(*query.TeamID) //nolint:gosec // dismiss G115
+		if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
+			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
+			if err != nil {
+				return err
+			}
+			teamName = &team.Name
+		}
+	} else {
+		logTeamID = -1
+		teamName = nil
+	}
+
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedSavedQuery{
-			Name: query.Name,
+			Name:     query.Name,
+			TeamID:   logTeamID,
+			TeamName: teamName,
 		},
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for query deletion by id")
@@ -621,6 +703,8 @@ func deleteQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.S
 
 func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
 	// Verify that the user is allowed to delete all the requested queries.
+	var logTeamID int64 = -1
+	var teamName *string
 	for _, id := range ids {
 		query, err := svc.ds.Query(ctx, id)
 		if err != nil {
@@ -629,6 +713,18 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 		}
 		if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 			return 0, err
+		}
+
+		// Capture team information for activity logging.
+		if query.TeamID != nil {
+			logTeamID = int64(*query.TeamID) //nolint:gosec // dismiss G115
+			if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
+				team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
+				if err != nil {
+					return 0, err
+				}
+				teamName = &team.Name
+			}
 		}
 	}
 
@@ -641,11 +737,14 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedMultipleSavedQuery{
-			IDs: ids,
+			IDs:      ids,
+			Teamid:   logTeamID,
+			TeamName: teamName,
 		},
 	); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "create activity for query deletions")
 	}
+
 	return n, nil
 }
 
@@ -835,7 +934,7 @@ func (svc *Service) GetQuerySpecs(ctx context.Context, teamID *uint) ([]*fleet.Q
 func (svc *Service) specFromQuery(ctx context.Context, query *fleet.Query) (*fleet.QuerySpec, error) {
 	var teamName string
 	if query.TeamID != nil {
-		team, err := svc.ds.Team(ctx, *query.TeamID)
+		team, err := svc.ds.TeamLite(ctx, *query.TeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get team from id")
 		}

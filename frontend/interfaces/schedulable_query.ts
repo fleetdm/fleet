@@ -90,7 +90,7 @@ export interface ICreateQueryRequestBody {
   description?: string;
   observer_can_run?: boolean;
   discard_data?: boolean;
-  team_id?: number; // global query if ommitted
+  team_id?: number; // global query if undefined
   interval?: number; // default 0 means never run
   platform?: CommaSeparatedPlatformString; // Might more accurately be called `platforms_to_query` – comma-separated string of platforms to query, default all platforms if omitted
   min_osquery_version?: string; // default all versions if ommitted
@@ -104,7 +104,7 @@ export interface ICreateQueryRequestBody {
 // Modify a query by id
 /** PATCH /api/v1/fleet/queries/{id} */
 export interface IModifyQueryRequestBody
-  extends Omit<ICreateQueryRequestBody, "name" | "query"> {
+  extends Omit<ICreateQueryRequestBody, "name" | "query" | "team_id"> {
   id?: number;
   name?: string;
   query?: string;

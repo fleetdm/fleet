@@ -7,7 +7,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 const baseClass = "component__last-updated-text";
 
 interface ILastUpdatedTextBase {
-  lastUpdatedAt?: string;
+  lastUpdatedAt?: string | null;
 }
 
 interface ILastUpdatedTextWithCustomTooltip extends ILastUpdatedTextBase {

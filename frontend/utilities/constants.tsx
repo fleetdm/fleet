@@ -4,6 +4,8 @@ import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { ICampaign } from "interfaces/campaign";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { IHost } from "interfaces/host";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -14,13 +16,13 @@ export enum PolicyResponse {
 }
 
 export const DEFAULT_GRAVATAR_LINK =
-  "https://fleetdm.com/images/permanent/icon-avatar-default-transparent-64x64%402x.png";
+  "https://fleetdm.com/images/permanent/icon-avatar-default-gray-transparent-64x64@2x.png";
 
 export const DEFAULT_GRAVATAR_LINK_DARK =
   "https://fleetdm.com/images/permanent/icon-avatar-default-dark-24x24%402x.png";
 
 export const DEFAULT_GRAVATAR_LINK_FALLBACK =
-  "/assets/images/icon-avatar-default-transparent-64x64%402x.png";
+  "/assets/images/icon-avatar-default-gray-transparent-64x64@2x.png";
 
 export const DEFAULT_GRAVATAR_LINK_DARK_FALLBACK =
   "/assets/images/icon-avatar-default-dark-24x24%402x.png";
@@ -62,10 +64,13 @@ export const GITHUB_NEW_ISSUE_LINK =
 
 /** website links */
 export const FLEET_WEBSITE_URL = "https://fleetdm.com";
+export const TRANSPARENCY_LINK = `${FLEET_WEBSITE_URL}/better`;
 export const SUPPORT_LINK = `${FLEET_WEBSITE_URL}/support`;
 export const CONTACT_FLEET_LINK = `${FLEET_WEBSITE_URL}/contact`;
 export const LEARN_MORE_ABOUT_BASE_LINK = `${FLEET_WEBSITE_URL}/learn-more-about`;
 export const FLEET_GUIDES_BASE_LINK = `${FLEET_WEBSITE_URL}/guides`;
+export const ANDROID_PLAY_STORE_URL =
+  "https://play.google.com/store/apps/details";
 
 /**  July 28, 2016 is the date of the initial commit to fleet/fleet. */
 export const INITIAL_FLEET_DATE = "2016-07-28T00:00:00Z";
@@ -83,6 +88,12 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.21.0 +", value: "5.21.0" },
+  { label: "5.20.0 +", value: "5.20.0" },
+  { label: "5.19.0 +", value: "5.19.0" },
+  { label: "5.18.1 +", value: "5.18.1" },
+  { label: "5.18.0 +", value: "5.18.0" },
+  { label: "5.17.0 +", value: "5.17.0" },
   { label: "5.16.0 +", value: "5.16.0" },
   { label: "5.15.0 +", value: "5.15.0" },
   { label: "5.14.1 +", value: "5.14.1" },
@@ -332,20 +343,26 @@ export const VULNERABILITIES_SEARCH_BOX_TOOLTIP =
   'To search for an exact CVE, surround the string in double quotes (e.g. "CVE-2024-1234")';
 
 // Keys from API
-export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
+export const MDM_STATUS_TOOLTIP: Record<
+  MdmEnrollmentStatus,
+  React.ReactNode
+> = {
   "On (automatic)": (
     <span>
-      MDM was turned on automatically using Apple Automated Device Enrollment
-      (DEP), Windows Autopilot, or Windows Azure AD Join. Administrators can
-      block end users from turning MDM off.
+      MDM was turned on automatically. IT admins can block end users from
+      turning MDM off.
     </span>
   ),
   "On (manual)": (
+    <span>MDM was turned on manually. End users can turn MDM off.</span>
+  ),
+  "On (personal)": (
     <span>
-      MDM was turned on manually (macOS), or hosts were automatically migrated
-      with fleetd (Windows). End users can turn MDM off.
+      MDM was turned on by signing in with Managed Apple Account on iPhone/iPad,
+      or by creating a work profile on Android. End users can turn MDM off.
     </span>
   ),
+  "On (company-owned)": null,
   Off: undefined, // no tooltip specified
   Pending: (
     <span>
@@ -377,6 +394,8 @@ export const BATTERY_TOOLTIP: Record<string, string | React.ReactNode> = {
   ),
 };
 
+export const PRIMO_TOOLTIP = "Teams are disabled while using Primo";
+
 /** Must pass agent options config as empty object */
 export const EMPTY_AGENT_OPTIONS = {
   config: {},
@@ -386,28 +405,18 @@ export const DEFAULT_EMPTY_CELL_VALUE = "---";
 
 export const DOCUMENT_TITLE_SUFFIX = "Fleet";
 
-export const HOST_SUMMARY_DATA = [
+export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "id",
   "status",
   "issues",
-  "memory",
-  "cpu_type",
   "platform",
-  "os_version",
-  "osquery_version",
-  "orbit_version",
-  "fleet_desktop_version",
-  "enroll_secret_name",
   "detail_updated_at",
-  "percent_disk_space_available",
-  "gigs_disk_space_available",
   "team_name",
-  "disk_encryption_enabled",
   "display_name", // Not rendered on my device page
   "maintenance_window", // Not rendered on my device page
 ];
 
-export const HOST_ABOUT_DATA = [
+export const HOST_VITALS_DATA = [
   "seen_time",
   "uptime",
   "last_enrolled_at",
@@ -420,6 +429,18 @@ export const HOST_ABOUT_DATA = [
   "detail_updated_at",
   "last_restarted_at",
   "platform",
+  "uuid",
+  "gigs_disk_space_available",
+  "percent_disk_space_available",
+  "gigs_total_disk_space",
+  "gigs_all_disk_space",
+  "disk_encryption_enabled",
+  "osquery_version",
+  "orbit_version",
+  "fleet_desktop_version",
+  "memory",
+  "cpu_type",
+  "os_version",
 ];
 
 export const HOST_OSQUERY_DATA = [
@@ -450,3 +471,5 @@ export const DATE_FNS_FORMAT_STRINGS = {
   dateAtTime: "E, MMM d 'at' p",
   hoursAndMinutes: "HH:mm",
 };
+
+export const MAX_SCRIPT_BATCH_TARGETS = 5000;

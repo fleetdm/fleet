@@ -4,18 +4,42 @@ $base-class: "button";
   outline-color: $core-focused-outline;
   outline-offset: $offset;
   outline-style: solid;
-  outline-width: 2px;
+  outline-width: 1px;
+}
+
+// Buttons with background colors
+@mixin button-pad-8px-16px {
+  padding: $pad-small $pad-medium;
+  height: 36px;
+}
+
+// Buttons without background colors
+@mixin button-pad-8px-8px {
+  padding: $pad-small $pad-small;
+  height: 36px;
+}
+
+// Size small buttons (with and without background colors)
+@mixin button-pad-4px-8px {
+  padding: $pad-xsmall $pad-small;
+  height: 24px;
 }
 
 @mixin button-variant($color, $hover: null, $active: null, $inverse: false) {
   background-color: $color;
 
   @if $inverse {
+    @include button-pad-8px-8px;
+
+    &__small {
+      @include button-pad-4px-8px;
+    }
+
     &:hover {
-      background-color: rgba(#192147, 0.05);
+      background-color: rgba($core-fleet-black, 0.05);
 
       &:active {
-        background-color: $ui-fleet-black-10;
+        background-color: $ui-fleet-black-5;
       }
     }
 
@@ -30,7 +54,7 @@ $base-class: "button";
         width: 100%;
         height: 100%;
         position: absolute;
-        border: 1px solid $core-vibrant-blue;
+        border: 1px solid $core-focused-outline;
         border-radius: 6px;
       }
     }
@@ -50,22 +74,21 @@ $base-class: "button";
 }
 
 .#{$base-class} {
-  @include button-variant($core-vibrant-blue);
+  @include button-variant($core-fleet-green);
+  @include button-pad-8px-16px;
   transition: color 150ms ease-in-out, background 150ms ease-in-out,
     top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
   position: relative;
-  color: $core-white;
+  color: $core-fleet-white;
   text-decoration: none;
   flex-direction: row;
   justify-content: center;
   align-items: center;
-  padding: $pad-small $pad-medium;
   border-radius: 6px;
   font-size: $x-small;
   font-family: "Inter", sans-serif;
   font-weight: $bold;
   display: inline-flex;
-  height: 38px;
   top: 0;
   border: 0;
   position: relative;
@@ -85,18 +108,20 @@ $base-class: "button";
     align-items: center;
   }
 
-  &--brand {
+  &--default {
     @include button-variant(
-      $core-vibrant-blue,
-      $core-vibrant-blue-over,
-      $core-vibrant-blue-down
+      $core-fleet-green,
+      $core-fleet-green-over,
+      $core-fleet-green-down
     );
     display: flex;
     text-wrap: nowrap;
   }
 
   &--success {
-    @include button-variant($ui-success);
+    @include button-variant($ui-success, $ui-success-over, $ui-success-down);
+    display: flex;
+    text-wrap: nowrap;
   }
 
   &--alert {
@@ -116,35 +141,15 @@ $base-class: "button";
     }
   }
 
-  &--blue-green {
-    @include button-variant($ui-success);
-  }
-
-  &--grey {
-    @include button-variant(
-      $core-fleet-blue,
-      $core-fleet-blue-over,
-      $core-fleet-blue-down
-    );
-  }
-
-  &--warning {
-    @include button-variant($ui-warning);
-  }
-
-  &--link {
-    @include button-variant($core-fleet-purple);
-  }
-
-  &--label {
+  &--pill {
     @include button-variant(
       $ui-off-white,
       $core-vibrant-blue-over,
       null,
       $inverse: true
     );
-    color: $core-vibrant-blue;
-    border: 1px solid $core-vibrant-blue;
+    color: $core-fleet-green;
+    border: 1px solid $core-fleet-green;
     box-sizing: border-box;
     font-size: $xx-small;
     padding: $pad-xsmall 10px;
@@ -157,7 +162,7 @@ $base-class: "button";
 
     &:hover,
     &:focus {
-      border: 1px solid $core-vibrant-blue;
+      border: 1px solid $core-fleet-green;
     }
   }
 
@@ -165,7 +170,7 @@ $base-class: "button";
     @include button-variant(transparent);
     border: 0;
     box-shadow: none;
-    color: $core-vibrant-blue;
+    color: $ui-fleet-black-75;
     font-size: $x-small;
     cursor: pointer;
     margin: 0;
@@ -174,22 +179,22 @@ $base-class: "button";
     line-height: normal;
     text-align: left;
 
-    &:active {
-      color: $core-vibrant-blue-down;
-      box-shadow: none;
-      top: 0;
-    }
-
     &:focus {
       outline: none;
     }
 
     &:hover,
     &:focus {
-      color: $core-vibrant-blue-over;
+      color: $ui-fleet-black-75-over;
       background-color: transparent;
       box-shadow: none;
       text-decoration: underline;
+    }
+
+    &:active {
+      color: $ui-fleet-black-75-down;
+      box-shadow: none;
+      top: 0;
     }
 
     &.light-text {
@@ -197,15 +202,50 @@ $base-class: "button";
     }
   }
 
-  // &--icon, &--small-icon used for no text and svg icons
-  &--text-icon,
-  &--icon,
-  &--small-icon {
+  &--text-link-dark {
     @include button-variant(transparent);
+    border: 0;
+    box-shadow: none;
+    color: $core-fleet-black;
+    font-size: $x-small;
+    cursor: pointer;
+    margin: 0;
+    padding: 0;
+    height: auto;
+    line-height: normal;
+    text-align: left;
+
+    &:focus {
+      outline: none;
+    }
+
+    &:hover,
+    &:focus {
+      background-color: transparent;
+      box-shadow: none;
+      text-decoration: underline;
+    }
+
+    &:active {
+      box-shadow: none;
+      top: 0;
+    }
+  }
+
+  // &--icon is used for svg icon buttons without text
+  &--text-icon,
+  &--icon {
+    @include button-variant(
+      $core-fleet-white,
+      $core-fleet-green-over,
+      $core-fleet-green-down,
+      $inverse: true
+    );
+    background-color: transparent;
     padding: 0;
     border: 0;
     box-shadow: none;
-    color: $core-vibrant-blue;
+    color: $ui-fleet-black-75;
     font-size: $x-small;
     font-weight: $bold;
     cursor: pointer;
@@ -213,10 +253,6 @@ $base-class: "button";
 
     img {
       transform: scale(0.5);
-    }
-
-    &:active {
-      color: $core-vibrant-blue-down;
     }
 
     &:focus {
@@ -231,31 +267,137 @@ $base-class: "button";
         width: 100%;
         height: 100%;
         position: absolute;
-        border: 1px solid $core-vibrant-blue;
+        border: 1px solid $ui-fleet-black-75;
         border-radius: 6px;
       }
     }
 
     &:hover,
     &:focus {
-      color: $core-vibrant-blue;
+      color: $ui-fleet-black-75-over;
 
       svg {
         path {
-          fill: $core-vibrant-blue;
+          fill: $ui-fleet-black-75-over;
         }
       }
 
-      // The SVG icons in these buttons contain a `stroke` instead of a `fill`,
-      // so we need to modify that property instead. Adding a custom `fill`
-      // could make these icons render incorrectly.
-      &.input-field__copy-value-button,
-      &.windows-details-button,
-      [data-testid="chevron-right-icon"] {
+      &:active {
+        color: $ui-fleet-black-75-down;
+
         svg {
           path {
-            fill: none;
-            stroke: $core-vibrant-blue-over;
+            fill: $ui-fleet-black-75-down;
+          }
+        }
+      }
+
+      // If .button--icon-stroke is present, use stroke instead of fill
+      // Some SVG icons in these buttons contain a `stroke` instead of a `fill`,
+      // so we need to modify that property instead. Adding a custom `fill`
+      // could make these icons render incorrectly.
+      &.button--icon-stroke {
+        &:hover,
+        &:focus {
+          svg {
+            path {
+              fill: none; // Prevent fill from interfering
+              stroke: $ui-fleet-black-75-over;
+            }
+          }
+          &:active {
+            svg {
+              path {
+                stroke: $ui-fleet-black-75-down;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // globally styled gap between text and icon
+    .children-wrapper {
+      gap: $pad-small;
+    }
+  }
+
+  // Used for primary buttons with green icon and green text, no underline on hover
+  &--brand-inverse-icon {
+    @include button-variant(transparent);
+    @include button-pad-8px-8px;
+    border: 0;
+    box-shadow: none;
+    color: $core-fleet-green;
+    font-size: $x-small;
+    font-weight: $bold;
+    cursor: pointer;
+    white-space: nowrap;
+
+    &__small {
+      @include button-pad-4px-8px;
+    }
+
+    img {
+      transform: scale(0.5);
+    }
+
+    &:focus {
+      outline: none;
+    }
+
+    &:focus-visible {
+      @include button-focus-outline();
+
+      &::after {
+        content: "";
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        border: 1px solid $ui-fleet-black-75;
+        border-radius: 6px;
+      }
+    }
+
+    &:hover,
+    &:focus {
+      background-color: rgba($core-fleet-black, 0.05);
+      color: $core-fleet-green-over;
+
+      svg {
+        path {
+          fill: $core-fleet-green-over;
+        }
+      }
+
+      &:active {
+        color: $core-fleet-green-down;
+
+        svg {
+          path {
+            fill: $core-fleet-green-down;
+          }
+        }
+      }
+    }
+    // If .button--icon-stroke is present, use stroke instead of fill
+    // Some SVG icons in these buttons contain a `stroke` instead of a `fill`,
+    // so we need to modify that property instead. Adding a custom `fill`
+    // could make these icons render incorrectly.
+    &.button--icon-stroke {
+      &:hover,
+      &:focus {
+        svg {
+          path {
+            fill: none; // Prevent fill from interfering
+            stroke: $core-fleet-green-over;
+          }
+        }
+        &:active {
+          svg {
+            path {
+              stroke: $core-fleet-green-over;
+            }
           }
         }
       }
@@ -268,64 +410,25 @@ $base-class: "button";
   }
 
   &--icon {
-    svg {
-      padding: $pad-icon;
-    }
-  }
-
-  &--small-icon {
-    svg {
-      padding: $pad-small;
-    }
-  }
-
-  &--small-text-icon {
-    @include button-variant(transparent);
-    margin-left: $pad-medium;
-    padding: 4px;
-    border: 1px solid $ui-fleet-black-25;
-    box-shadow: none;
-    color: $core-fleet-black;
-    font-size: $xx-small;
-    font-weight: $bold;
-    cursor: pointer;
-    height: 28px;
-
-    img {
-      width: 12px;
-      height: 12px;
-      padding: $pad-small;
-    }
-
-    &:active {
-      color: $core-vibrant-blue-down;
-    }
-
-    &:focus-visible {
-      color: $core-vibrant-blue-over;
-      border: 1px;
-      border-radius: 2px; // Visble when tabbing
-      background: var(--Core-White, #fff);
-      outline: none;
-      box-shadow: 0px 0px 0px 2px #fff, 0px 0px 0px 4px #d9d9fe;
-    }
-
-    &:hover,
-    &:focus {
-      color: $core-vibrant-blue-over;
-    }
+    @include button-variant(
+      $core-fleet-white,
+      $core-fleet-green-over,
+      $core-fleet-green-down,
+      $inverse: true
+    );
+    background-color: transparent;
   }
 
   &--inverse {
     @include button-variant(
-      $core-white,
-      $core-vibrant-blue-over,
-      $core-vibrant-blue-down,
+      $core-fleet-white,
+      $core-fleet-green-over,
+      $core-fleet-green-down,
       $inverse: true
     );
-    color: $core-vibrant-blue;
+    background-color: transparent;
+    color: $ui-fleet-black-75;
     box-sizing: border-box;
-    padding: $pad-small;
 
     .children-wrapper {
       gap: $pad-small; // For icons next to text like Pagination buttons
@@ -334,33 +437,17 @@ $base-class: "button";
 
   &--inverse-alert {
     @include button-variant(
-      $core-white,
+      $core-fleet-white,
       $core-vibrant-red-over,
       $core-vibrant-red-down,
       $inverse: true
     );
     color: $core-vibrant-red;
-    border: 0;
     box-sizing: border-box;
-
-    &:hover,
-    &:focus {
-      border: 0;
-    }
-  }
-
-  &--block {
-    display: block;
-    width: 100%;
   }
 
   &--disabled {
     @include disabled;
-
-    &:hover,
-    &:focus {
-      cursor: default;
-    }
   }
 
   &--unstyled {
@@ -407,7 +494,7 @@ $base-class: "button";
 
     &:hover,
     &:focus {
-      background-color: $ui-vibrant-blue-10;
+      background-color: $ui-fleet-black-5;
       box-shadow: none;
     }
 
@@ -433,16 +520,22 @@ $base-class: "button";
     }
   }
 
-  &--contextual-nav-item {
-    @include button-variant(transparent, $ui-vibrant-blue-10);
-    display: flex;
-    justify-content: space-between;
-  }
-
   &--oversized {
     background-color: $core-fleet-black;
     padding: $pad-large $pad-small;
     font-size: $medium;
     width: 100%;
+  }
+
+  // Designed to offset padding for text to justify left of parent component
+  &.button--justify-left {
+    left: -$pad-small;
+    margin-right: -$pad-small;
+  }
+
+  // Designed to offset padding for text to justify right of parent component
+  &.button--justify-right {
+    right: -$pad-small;
+    margin-left: -$pad-small;
   }
 }

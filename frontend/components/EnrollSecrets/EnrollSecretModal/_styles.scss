@@ -17,4 +17,14 @@
   &__error {
     color: $ui-error;
   }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .empty-table__container {
+    margin: $pad-large auto $pad-medium;
+  }
 }

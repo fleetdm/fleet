@@ -1,19 +1,22 @@
 {
   "versions": [
     {
-      "version": "134.0.3124.72",
+      "version": "143.0.3650.96",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE identifying_number = '{7D0DCDE2-C44A-3DEA-813E-0658C01C04A0}';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Edge' AND publisher = 'Microsoft Corporation';"
       },
-      "installer_url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/a16ce0d1-6a67-4789-9b5c-99c13ef5e4f1/MicrosoftEdgeEnterpriseX86.msi",
-      "unique_identifier": "Microsoft Edge",
+      "installer_url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/f14840f4-b905-4a62-8b20-b7a2f24512db/MicrosoftEdgeEnterpriseX64.msi",
       "install_script_ref": "8959087b",
-      "uninstall_script_ref": "5910b9ba",
-      "sha256": "89068779f82fdc21523dadeb9263e0851c7b42c5e84ea0c1f6f43a6bf211d681"
+      "uninstall_script_ref": "9526a02a",
+      "sha256": "e041d7134a3933dbc09d4a7ba46049ce465cc7203098fc7b8f3f35451c2c6827",
+      "default_categories": [
+        "Browsers"
+      ],
+      "upgrade_code": "{883C2625-37F7-357F-A0F4-DFAF391B2B9C}"
     }
   ],
   "refs": {
-    "5910b9ba": "$product_code = $PACKAGE_ID\n\n# Fleet uninstalls app using product code that's extracted on upload\nmsiexec /quiet /x $product_code\nExit $LASTEXITCODE\n",
-    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "9526a02a": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\nforeach ($product_code in $inst.RelatedProducts(\"{883C2625-37F7-357F-A0F4-DFAF391B2B9C}\")) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n    \n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n    \n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n    \n    # If the uninstall failed, bail\n    if ($process.ExitCode -ne 0) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n"
   }
 }

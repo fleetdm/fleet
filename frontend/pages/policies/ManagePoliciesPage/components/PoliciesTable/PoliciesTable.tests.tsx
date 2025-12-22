@@ -22,13 +22,13 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[]}
         isLoading={false}
-        onDeletePolicyClick={noop}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         searchQuery=""
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={0}
       />
     );
 
@@ -51,14 +51,14 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[]}
         isLoading={false}
-        onDeletePolicyClick={noop}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
         searchQuery=""
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={0}
       />
     );
 
@@ -83,14 +83,14 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[]}
         isLoading={false}
-        onDeletePolicyClick={noop}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: 1, name: "Some team" }}
         isPremiumTier
         searchQuery=""
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={0}
       />
     );
 
@@ -114,14 +114,14 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[]}
         isLoading={false}
-        onDeletePolicyClick={noop}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
         searchQuery="shouldn't match anything"
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={0}
       />
     );
 
@@ -146,14 +146,14 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[testCriticalPolicy]}
         isLoading={false}
-        onDeletePolicyClick={noop}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
         searchQuery=""
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={[testCriticalPolicy].length}
       />
     );
 
@@ -184,14 +184,14 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[testInheritedPolicy]}
         isLoading={false}
-        onDeletePolicyClick={noop}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: 2, name: "Team 2" }}
         isPremiumTier
         searchQuery=""
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={[testInheritedPolicy].length}
       />
     );
 
@@ -222,14 +222,14 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[testGlobalPolicy]}
         isLoading={false}
-        onDeletePolicyClick={noop}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
         searchQuery=""
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={[testGlobalPolicy].length}
       />
     );
 
@@ -257,20 +257,22 @@ describe("Policies table", () => {
       createMockPolicy({ id: 5, team_id: 2, name: "Team policy 2" }),
     ];
 
+    const policiesList = [...testInheritedPolicies, ...testTeamPolicies];
+
     const { container, user } = render(
       <PoliciesTable
-        policiesList={[...testInheritedPolicies, ...testTeamPolicies]}
+        policiesList={policiesList}
         isLoading={false}
-        onDeletePolicyClick={noop}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: 2, name: "Team 2" }}
         isPremiumTier
         searchQuery=""
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        canAddOrDeletePolicy
+        canAddOrDeletePolicies
         hasPoliciesToDelete
-        resetPageIndex={false}
+        count={policiesList.length}
       />
     );
 

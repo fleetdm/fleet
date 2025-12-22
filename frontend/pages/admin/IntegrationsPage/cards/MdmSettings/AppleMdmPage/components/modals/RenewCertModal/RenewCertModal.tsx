@@ -111,7 +111,7 @@ const RenewCertModal = ({
                 className={`${baseClass}__file-uploader`}
                 accept=".pem"
                 buttonMessage="Choose file"
-                buttonType="link"
+                buttonType="brand-inverse-icon"
                 graphicName="file-pem"
                 message="APNs certificate (.pem)"
                 onFileUpload={onSelectFile}
@@ -125,7 +125,6 @@ const RenewCertModal = ({
             className={`${baseClass}__submit-button ${
               isUploading ? `uploading` : ""
             }`}
-            variant="brand"
             disabled={!certFile || isUploading}
             isLoading={isUploading}
             type="button"

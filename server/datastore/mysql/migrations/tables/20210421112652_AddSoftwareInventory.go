@@ -19,7 +19,7 @@ func Up_20210421112652(tx *sql.Tx) error {
 		version varchar(255) NOT NULL DEFAULT '',
 		source varchar(64) NOT NULL,
         UNIQUE KEY idx_name_version (name, version, source)
-	)`); err != nil {
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`); err != nil {
 		return errors.Wrap(err, "create table software")
 	}
 

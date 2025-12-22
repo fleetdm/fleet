@@ -1,5 +1,4 @@
 .past-activity-feed {
-  margin-top: $pad-large;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -33,11 +32,7 @@
 
     &:hover:not(.button--disabled),
     &:focus {
-      background-color: $ui-vibrant-blue-10;
+      background-color: $ui-fleet-black-10;
     }
-  }
-
-  &__error {
-    margin: $pad-xlarge 0;
   }
 }

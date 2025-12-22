@@ -185,31 +185,189 @@ describe("Host Actions Dropdown", () => {
     });
   });
 
-  it("renders the Show Disk Encryption Key action when on premium tier and we store the disk encryption key", async () => {
-    const render = createCustomRenderer({
-      context: {
-        app: {
-          isPremiumTier: true,
-          currentUser: createMockUser(),
+  describe("Show disk encryption key action", () => {
+    it("hides the show disk encryption key action for macOS device when key is stored but device is not connected to Fleet MDM", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
         },
-      },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus={null}
+          doesStoreEncryptionKey
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm={false}
+          hostPlatform="darwin"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(
+        screen.queryByText("Show disk encryption key")
+      ).not.toBeInTheDocument();
     });
 
-    const { user } = render(
-      <HostActionsDropdown
-        hostTeamId={null}
-        onSelect={noop}
-        hostStatus="online"
-        hostMdmEnrollmentStatus={null}
-        doesStoreEncryptionKey
-        hostMdmDeviceStatus="unlocked"
-        hostScriptsEnabled
-      />
-    );
+    it("hides the show disk encryption key action for iOS device", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
 
-    await user.click(screen.getByText("Actions"));
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus={null}
+          doesStoreEncryptionKey
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="ios"
+        />
+      );
 
-    expect(screen.getByText("Show disk encryption key")).toBeInTheDocument();
+      await user.click(screen.getByText("Actions"));
+
+      expect(
+        screen.queryByText("Show disk encryption key")
+      ).not.toBeInTheDocument();
+    });
+
+    it("hides the show disk encryption key action for Android device", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus={null}
+          doesStoreEncryptionKey
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="android"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(
+        screen.queryByText("Show disk encryption key")
+      ).not.toBeInTheDocument();
+    });
+
+    it("includes the show disk encryption key action when key is stored and macOS device is connected to Fleet MDM", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus={null}
+          doesStoreEncryptionKey
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Show disk encryption key")).toBeInTheDocument();
+    });
+
+    it("includes the show disk encryption key action when key is stored for Linux device", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus={null}
+          doesStoreEncryptionKey
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          hostPlatform="debian"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Show disk encryption key")).toBeInTheDocument();
+    });
+
+    it("includes the show disk encryption key action when key is stored for Windows device", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus={null}
+          doesStoreEncryptionKey
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          hostPlatform="windows"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Show disk encryption key")).toBeInTheDocument();
+    });
   });
 
   describe("Turn off MDM action", () => {
@@ -370,7 +528,7 @@ describe("Host Actions Dropdown", () => {
         },
       });
 
-      const { user, debug } = render(
+      const { user } = render(
         <HostActionsDropdown
           hostTeamId={null}
           onSelect={noop}
@@ -384,8 +542,6 @@ describe("Host Actions Dropdown", () => {
       );
 
       await user.click(screen.getByText("Actions"));
-
-      debug();
 
       expect(screen.getByText("Turn off MDM").parentElement).toHaveClass(
         "actions-dropdown-select__option--is-disabled"
@@ -1230,8 +1386,6 @@ describe("Host Actions Dropdown", () => {
       expect(
         screen.queryByText("Show disk encryption key")
       ).not.toBeInTheDocument();
-      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
-      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
     });
 
     it("renders only the transfer, wipe, and delete options for iPadOS", async () => {
@@ -1270,8 +1424,87 @@ describe("Host Actions Dropdown", () => {
       expect(
         screen.queryByText("Show disk encryption key")
       ).not.toBeInTheDocument();
-      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("personally enrolled hosts (e.g. enrollment status => On (personal)", () => {
+    it("render only the Transfer and Delete options for personally enrolled ios host", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isMacMdmEnabledAndConfigured: true,
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus={"On (personal)"}
+          hostMdmDeviceStatus="unlocked"
+          isConnectedToFleetMdm
+          hostScriptsEnabled
+          hostPlatform="ios"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Transfer")).toBeInTheDocument();
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+      expect(screen.queryByText("Query")).not.toBeInTheDocument();
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
       expect(screen.queryByText("Lock")).not.toBeInTheDocument();
+      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Show disk encryption key")
+      ).not.toBeInTheDocument();
+    });
+
+    it("render only the Transfer and Delete options for personally enrolled ipad host", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus={"On (personal)"}
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          hostPlatform="ipados"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Transfer")).toBeInTheDocument();
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+      expect(screen.queryByText("Query")).not.toBeInTheDocument();
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
+      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
+      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Show disk encryption key")
+      ).not.toBeInTheDocument();
     });
   });
 });

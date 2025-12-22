@@ -216,6 +216,26 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 			}
 			software.AppStoreApp = meta
 		}
+
+		// add in house app data if needed
+		if software.InHouseAppCount > 0 {
+			meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, id)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "get in house app metadata")
+			}
+			if meta != nil {
+				summary, err := svc.ds.GetSummaryHostInHouseAppInstalls(ctx, teamID, meta.InstallerID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get in house app status summary")
+				}
+				meta.Status = &fleet.SoftwareInstallerStatusSummary{
+					Installed:      summary.Installed,
+					PendingInstall: summary.Pending,
+					FailedInstall:  summary.Failed,
+				}
+			}
+			software.SoftwarePackage = meta
+		}
 	}
 
 	return software, nil
@@ -266,4 +286,21 @@ func (svc *Service) UpdateSoftwareName(ctx context.Context, titleID uint, name s
 	}
 
 	return svc.ds.UpdateSoftwareTitleName(ctx, titleID, name)
+}
+
+func (svc *Service) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config fleet.SoftwareAutoUpdateConfig) error {
+	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// Coerce nil teamID to 0.
+	var tID uint
+	if teamID != nil {
+		tID = *teamID
+	}
+	if err := svc.ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, tID, config); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
+	}
+
+	return nil
 }

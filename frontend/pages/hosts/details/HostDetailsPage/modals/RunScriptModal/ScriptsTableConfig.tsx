@@ -83,7 +83,7 @@ export const generateTableColumnConfigs = (
   currentUser: IUser | null,
   hostTeamId: number | null,
   scriptsDisabled: boolean,
-  onClickViewScript: (scriptId: number, scriptDetails: IHostScript) => void,
+  onClickViewScript: (scriptDetails: IHostScript) => void,
   onSelectAction: (value: string, script: IHostScript) => void
 ) => {
   return [
@@ -93,21 +93,21 @@ export const generateTableColumnConfigs = (
       disableSortBy: true,
       accessor: "name",
       Cell: (cellProps: ICellProps) => {
-        const { name, script_id } = cellProps.row.original;
-
         const onClickScriptName = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
-          onClickViewScript(script_id, cellProps.row.original);
+          onClickViewScript(cellProps.row.original);
         };
 
         return (
           <Button
             className="script-info"
             onClick={onClickScriptName}
-            variant="text-icon"
+            variant="inverse"
           >
-            <span className={`script-info-text`}>{name}</span>
+            <span className={`script-info-text`}>
+              {cellProps.row.original.name}
+            </span>
           </Button>
         );
       },
@@ -160,6 +160,7 @@ export const generateTableColumnConfigs = (
             placeholder="Actions"
             disabled={scriptsDisabled}
             menuAlign="right"
+            variant="small-button"
           />
         );
       },

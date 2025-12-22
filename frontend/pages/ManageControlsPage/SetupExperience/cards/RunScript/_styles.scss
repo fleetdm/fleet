@@ -1,0 +1,13 @@
+.run-script {
+  @include vertical-card-layout;
+
+  &__description {
+    margin-top: 0;
+    margin-bottom: $pad-large;
+  }
+
+  &__run-message {
+    margin: 0 0 $pad-small;
+    font-weight: $bold;
+  }
+}

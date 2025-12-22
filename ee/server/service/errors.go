@@ -1,6 +1,8 @@
 package service
 
 import (
+	"net/http"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -52,4 +54,24 @@ func (e NDESInsufficientPermissionsError) Error() string {
 
 func NewNDESInsufficientPermissionsError(msg string) NDESInsufficientPermissionsError {
 	return NDESInsufficientPermissionsError{msg: msg}
+}
+
+type InvalidIDPTokenError struct{}
+
+func (e InvalidIDPTokenError) Error() string {
+	return "Invalid IDP token"
+}
+
+func (e InvalidIDPTokenError) StatusCode() int {
+	return http.StatusForbidden
+}
+
+type InvalidCSRError struct{}
+
+func (e InvalidCSRError) Error() string {
+	return "Invalid CSR"
+}
+
+func (e InvalidCSRError) StatusCode() int {
+	return http.StatusBadRequest
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/x509/pkix"
 	"math/big"
 	"testing"
+	"time"
 
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/stretchr/testify/require"
@@ -47,6 +48,8 @@ func TestAppleMDMPutAndHasCN(t *testing.T) {
 		Subject: pkix.Name{
 			CommonName: name,
 		},
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(365 * 24 * time.Hour),
 	}
 
 	err = depot.Put(name, &cert)

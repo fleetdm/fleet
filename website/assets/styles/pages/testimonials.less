@@ -311,7 +311,7 @@
         align-items: center;
         gap: 4px;
         border-radius: 8px;
-        background: var(--color-brand-vibrant-red, #FF5C83);
+        background: @core-vibrant-green;
         color: var(--Core-White, #FFF);
         text-align: center;
 
@@ -556,6 +556,16 @@
       }
     }
   }
+  [purpose='bottom-cta'] {
+    [purpose='button-row'] {
+      [purpose='cta-button'] {
+        margin-right: 0px;
+        width: 100%;
+        margin-bottom: 16px;
+      }
+    }
+  }
+
   [purpose='video-modal'] {
     [purpose='modal-content'] {
       width: 95vw;

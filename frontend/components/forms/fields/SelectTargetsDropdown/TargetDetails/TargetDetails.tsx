@@ -5,7 +5,7 @@ import classnames from "classnames";
 
 import { humanHostMemory } from "utilities/helpers";
 import FleetIcon from "components/icons/FleetIcon";
-import PlatformIcon from "components/icons/PlatformIcon";
+import OSIcon from "pages/SoftwarePage/components/icons/OSIcon";
 import { ISelectHost, ISelectLabel, ISelectTeam } from "interfaces/target";
 
 import { isTargetHost, isTargetTeam, isTargetLabel } from "../helpers";
@@ -89,7 +89,7 @@ const TargetDetails = ({
             <tr>
               <th>Platform</th>
               <td>
-                <PlatformIcon name={platform} title={platform} />
+                <OSIcon name={platform} />
                 <span className={`${hostBaseClass}__platform-text`}>
                   {" "}
                   {platform}

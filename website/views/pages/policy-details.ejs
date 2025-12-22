@@ -82,12 +82,13 @@
               <a href="/docs">Docs</a>
               <a href="/docs/rest-api">REST API</a>
               <a href="/guides">Guides</a>
-              <a purpose="edit-button" class="d-flex align-items-center text-nowrap" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath+'#L'+policy.lineNumberInYaml"><img alt="A pencil icon" src="/images/pencil-16x16@2x.png">Edit page</a>
+              <a purpose="edit-button" class="d-flex align-items-center text-nowrap" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath+'#L'+policy.lineNumberInYaml" no-icon><img alt="A pencil icon" src="/images/pencil-16x16@2x.png">Edit page</a>
             </div>
           </div>
         </div>
       </div>
     </div>
   </div>
+  <signup-modal></signup-modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

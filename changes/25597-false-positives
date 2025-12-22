@@ -1,1 +1,0 @@
-* Resolved false-positives for the `pass` Homebrew package and `jira` Python package via a vulnerability feed update available to all Fleet versions on 2025-01-22

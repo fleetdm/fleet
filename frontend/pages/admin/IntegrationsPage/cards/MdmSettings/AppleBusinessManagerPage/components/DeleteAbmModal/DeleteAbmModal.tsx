@@ -1,7 +1,6 @@
 import React, { useCallback, useContext, useState } from "react";
 
 import mdmAbmAPI from "services/entities/mdm_apple_bm";
-import { IMdmAbmToken } from "interfaces/mdm";
 import { NotificationContext } from "context/notification";
 
 import Button from "components/buttons/Button";

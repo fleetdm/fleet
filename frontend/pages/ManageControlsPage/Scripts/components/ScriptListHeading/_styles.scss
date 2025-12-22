@@ -1,35 +1,19 @@
 .script-list-heading {
-  font-weight: $bold;
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  font-size: $x-small;
+  font-weight: $bold;
 
-  &__heading-group {
-    flex: 1;
+  &__heading-title {
+    align-content: center;
   }
 
-  &__script-statuses {
-    display: flex;
-    justify-content: center;
+  &__heading-actions {
+    margin: -$pad-medium 0; // Remove vertical padding of button increasing container height
   }
 
-  &__status > div {
-    display: flex;
-    align-items: center;
-    width: 100px;
-    justify-content: center;
-
-    span {
-      margin-left: 12px;
-    }
-  }
-
-  &__tooltip-text {
-    font-weight: normal;
-  }
-
-  @media (max-width: $break-md) {
-    &__script-statuses {
-      justify-content: flex-end;
-    }
+  &__add-button {
+    vertical-align: middle;
   }
 }

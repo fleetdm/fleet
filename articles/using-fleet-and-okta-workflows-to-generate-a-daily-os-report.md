@@ -1,6 +1,6 @@
 # Using Fleet and Okta Workflows to generate a daily OS report
 
-![Using Fleet and Okta Workflows to Generate a daily OS Report](../website/assets/images/articles/using-fleet-and-okta-workflows-to-generate-a-daily-os-report@2x.jpg)
+![Using Fleet and Okta Workflows to Generate a daily OS Report](../website/assets/images/articles/using-fleet-and-okta-workflows-to-generate-a-daily-os-report-800x450@2x.jpg)
 
 _Today we wanted to feature [Harrison](https://kitchenstocomputers.com/fleet/), a member of our community. We thought this piece was exceptionally useful and wanted to share it with you all. If you are interested in contributing to the Fleet blog, feel free to [contact us](https://fleetdm.com/company/contact) or reach out to [@jdstrong](https://osquery.slack.com/team/U04MTPBAHQS) on the osquery slack._ 
 
@@ -116,7 +116,7 @@ With all of the parts needed for the post, we use a final `Compose` card to stri
 ![Okta workflow Compose card composing Slack message.](../website/assets/images/articles/using-fleet-and-okta-workflows-image8-500x426@2x.png "Okta workflow Compose card composing Slack message.")
 
 
-Using one of my favorite cards, the `Construct` we create the key:value pair for our Slack message. So, for example, to post to the Slack API, we need a couple of values like, `channel` and `text`. And since we are using our friendly bot, we throw in the `username` as well. Check out the Slack docs [here](https://api.slack.com/methods/chat.postMessage) for the different keys you can use in the chat.postMessage API method, it's extensive!
+Using one of my favorite cards, the `Construct` we create the key:value pair for our Slack message. So, for example, to post to the Slack API, we need a couple of values like, `channel` and `text`. And since we are using our friendly bot, we throw in the `username` as well. Check out the [Slack API docs](https://api.slack.com/methods/chat.postMessage) for the different keys you can use in the chat.postMessage API method, it's extensive!
 
 ```{
 
@@ -145,5 +145,5 @@ than a 200, but I have skipped that for now.
 <meta name="authorGitHubUsername" value="harrisonravazzolo">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2023-05-09">
-<meta name="articleImageUrl" value="../website/assets/images/articles/using-fleet-and-okta-workflows-to-generate-a-daily-os-report@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/using-fleet-and-okta-workflows-to-generate-a-daily-os-report-800x450@2x.jpg">
 <meta name="description" value="Learn how to use Fleet to query device OS information through the Fleet REST API and automate daily Slack notifications using Okta Workflows.">

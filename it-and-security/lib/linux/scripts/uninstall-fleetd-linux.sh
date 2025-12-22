@@ -1,5 +1,5 @@
 #!/bin/bash
-# Please don't delete. This script is referenced in the guide here: https://fleetdm.com/guides/how-to-uninstall-fleetd
+# Please don't delete. This script is used in tests (tools/tuf/test/migration/migration_test.sh), workflors (.github/workflows/), and in the guide here: https://fleetdm.com/guides/how-to-uninstall-fleetd
 
 if [ $(id -u) -ne 0 ]; then
     echo "Please run as root"
@@ -14,9 +14,9 @@ function remove_fleet {
     
     # Remove any package references
     if command -v dpkg > /dev/null; then
-        dpkg --purge fleetdm-orbit || true
+        dpkg --purge fleet-osquery || true
     elif command -v rpm > /dev/null; then
-        rpm -e fleetdm-orbit || true
+        rpm -e fleet-osquery || true
     fi
     
     # Kill any running Fleet processes
@@ -25,7 +25,7 @@ function remove_fleet {
     # Reload systemd configuration
     systemctl daemon-reload
     
-    echo "Fleet has been successfully removed from the system."
+    echo "Fleetd has been successfully removed from the system."
 }
 
 if [ "$1" = "remove" ]; then
@@ -38,7 +38,7 @@ if [ "$1" = "remove" ]; then
     remove_fleet >>/tmp/fleet_remove_log.txt 2>&1
 else
     # We are in the parent shell, start the detached child and return success
-    echo "Removing fleet, system will be unenrolled in 15 seconds..."
+    echo "Removing fleetd, system will be unenrolled in 15 seconds..."
     echo "Executing detached child process"
     
     # We are root

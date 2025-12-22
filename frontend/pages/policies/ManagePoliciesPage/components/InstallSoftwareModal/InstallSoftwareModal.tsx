@@ -13,6 +13,7 @@ import { IPaginatedListHandle } from "components/PaginatedList";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
+import { getExtensionFromFileName } from "utilities/file/fileUtils";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -64,15 +65,19 @@ const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
   let versionString = "";
 
   if (vppOption) {
-    platformString = "macOS (App Store) • ";
-    versionString = title.app_store_app?.version || "";
+    platformString = "macOS (App Store)";
+    versionString = title.app_store_app?.version
+      ? ` • ${title.app_store_app?.version}`
+      : "";
   } else {
     if (title.platform && title.extension) {
       platformString = `${PLATFORM_DISPLAY_NAMES[title.platform]} (.${
         title.extension
-      }) • `;
+      })`;
     }
-    versionString = title.software_package?.version || "";
+    versionString = title.software_package?.version
+      ? ` • ${title.software_package?.version}`
+      : "";
   }
 
   return `${platformString}${versionString}`;
@@ -115,7 +120,11 @@ const InstallSoftwareModal = ({
     {
       select: (data): IEnhancedSoftwareTitle[] =>
         data.software_titles.map((title) => {
-          const extension = title.software_package?.name.split(".").pop();
+          const extension =
+            (title.software_package &&
+              getExtensionFromFileName(title.software_package?.name)) ||
+            undefined;
+
           return {
             ...title,
             platform: formatSoftwarePlatform(title.source),
@@ -141,7 +150,7 @@ const InstallSoftwareModal = ({
       const foundTitle = titlesAvailableForInstall?.find(
         (title) => title.id === value
       );
-      return foundTitle ? foundTitle.name : "";
+      return foundTitle ? foundTitle.display_name || foundTitle.name : "";
     };
 
     return {
@@ -162,7 +171,7 @@ const InstallSoftwareModal = ({
         )
         .map((title) => {
           return {
-            label: title.name,
+            label: title.display_name || title.name,
             value: title.id,
             helpText: generateSoftwareOptionHelpText(title),
           };
@@ -196,7 +205,7 @@ const InstallSoftwareModal = ({
           if (currentSoftware) {
             options = [
               {
-                label: currentSoftware.name,
+                label: currentSoftware.display_name || currentSoftware.name,
                 value: currentSoftware.id,
                 helpText: generateSoftwareOptionHelpText(currentSoftware),
               },
@@ -287,8 +296,8 @@ const InstallSoftwareModal = ({
                   </span>
                 ) : null;
               }}
-              footer={
-                <p className="form-field__help-text">
+              helpText={
+                <>
                   If compatible with the host, the selected software will be
                   installed when hosts fail the policy. Host counts will reset
                   when new software is selected.{" "}
@@ -297,7 +306,7 @@ const InstallSoftwareModal = ({
                     text="Learn more"
                     newTab
                   />
-                </p>
+                </>
               }
               isUpdating={isUpdating}
               onSubmit={onUpdateInstallSoftware}

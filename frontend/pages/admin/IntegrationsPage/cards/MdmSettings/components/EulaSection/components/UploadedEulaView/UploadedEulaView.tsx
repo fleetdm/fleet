@@ -20,10 +20,10 @@ const UploadedEulaView = ({
   return (
     <div className={baseClass}>
       <p>
-        Require end users to agree to a EULA when they first setup their new
+        Require end users to agree to a EULA when they first set up their new
         macOS hosts.{" "}
         <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula"
+          url="https://fleetdm.com/learn-more-about/setup-experience/end-user-authentication"
           text="Learn more"
           newTab
         />

@@ -26,12 +26,7 @@ const MunkiIssuesTable = ({
   const tableHeaders = munkiIssuesTableHeaders;
 
   return (
-    <Card
-      className={baseClass}
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-      includeShadow
-    >
+    <Card className={baseClass} borderRadiusSize="xxlarge" paddingSize="xlarge">
       <CardHeader header="Munki issues" />
       {munkiIssues?.length ? (
         <div className={deviceType || ""}>

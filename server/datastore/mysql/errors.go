@@ -1,10 +1,14 @@
 package mysql
 
 import (
+	"database/sql/driver"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"strconv"
+	"syscall"
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -20,14 +24,15 @@ func notFound(kind string) *common_mysql.NotFoundError {
 }
 
 type existsError struct {
-	Identifier   interface{}
+	Identifier   any
 	ResourceType string
 	TeamID       *uint
+	TeamName     *string
 
 	fleet.ErrorWithUUID
 }
 
-func alreadyExists(kind string, identifier interface{}) error {
+func alreadyExists(kind string, identifier any) *existsError {
 	if s, ok := identifier.(string); ok {
 		identifier = strconv.Quote(s)
 	}
@@ -37,8 +42,13 @@ func alreadyExists(kind string, identifier interface{}) error {
 	}
 }
 
-func (e *existsError) WithTeamID(teamID uint) error {
+func (e *existsError) WithTeamID(teamID uint) *existsError {
 	e.TeamID = &teamID
+	return e
+}
+
+func (e *existsError) WithTeamName(name string) *existsError {
+	e.TeamName = &name
 	return e
 }
 
@@ -48,8 +58,11 @@ func (e *existsError) Error() string {
 		msg += fmt.Sprintf(" %v", e.Identifier)
 	}
 	msg += " already exists"
-	if e.TeamID != nil {
-		msg += fmt.Sprintf(" with TeamID %d", *e.TeamID)
+	switch {
+	case e.TeamID != nil:
+		msg += fmt.Sprintf(" with TeamID %d.", *e.TeamID)
+	case e.TeamName != nil:
+		msg += fmt.Sprintf(" with team %q.", *e.TeamName)
 	}
 	return msg
 }
@@ -141,10 +154,41 @@ func isMySQLAccessDenied(err error) bool {
 	return false
 }
 
-func isMySQLUnknownStatement(err error) bool {
-	err = ctxerr.Cause(err)
+// isBadConnection checks if the error is a connection-level error that
+// justifies retrying the operation on a new connection.
+func isBadConnection(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, driver.ErrBadConn) ||
+		errors.Is(err, mysql.ErrInvalidConn) ||
+		errors.Is(err, io.ErrUnexpectedEOF) ||
+		errors.Is(err, io.EOF) ||
+		errors.Is(err, syscall.ECONNREFUSED) ||
+		errors.Is(err, syscall.ECONNRESET) ||
+		errors.Is(err, syscall.ENETUNREACH) ||
+		errors.Is(err, syscall.ETIMEDOUT) {
+		return true
+	}
+
 	var mySQLErr *mysql.MySQLError
-	return errors.As(err, &mySQLErr) && (mySQLErr.Number == mysqlerr.ER_UNKNOWN_STMT_HANDLER)
+	if errors.As(err, &mySQLErr) {
+		switch mySQLErr.Number {
+		case 1243, // ER_UNKNOWN_STMT_HANDLER
+			2006, // ER_SERVER_GONE_ERROR
+			1053: // ER_SERVER_SHUTDOWN
+			return true
+		}
+	}
+
+	// Check for underlying network errors.
+	var se *os.SyscallError
+	if errors.As(err, &se) {
+		return errors.Is(se.Err, syscall.ECONNRESET) || errors.Is(se.Err, syscall.EPIPE)
+	}
+
+	return false
 }
 
 // ErrPartialResult indicates that a batch operation was completed,

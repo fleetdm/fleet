@@ -1,59 +1,141 @@
-import React from "react";
+import React, { useContext, useState } from "react";
+import { capitalize } from "lodash";
 
 import PATHS from "router/paths";
+import { buildQueryStringFromParams } from "utilities/url";
+import { SetupExperiencePlatform } from "interfaces/platform";
+import { ISoftwareTitle } from "interfaces/software";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
+import mdmAPI from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
+import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
-import { ISoftwareTitle } from "interfaces/software";
-import LinkWithContext from "components/LinkWithContext";
+import RevealButton from "components/buttons/RevealButton";
 import TooltipWrapper from "components/TooltipWrapper";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
+import {
+  getInstallSoftwareDuringSetupCount,
+  hasNoSoftwareUploaded,
+} from "./helpers";
 
 const baseClass = "add-install-software";
 
+const getPlatformLabel = (platform: SetupExperiencePlatform) => {
+  switch (platform) {
+    case "macos":
+      return "macOS";
+    case "ios":
+      return "iOS";
+    case "ipados":
+      return "iPadOS";
+    default:
+      return capitalize(platform);
+  }
+};
+
+const getAddSoftwareUrl = (
+  platform: SetupExperiencePlatform,
+  teamId: number
+) => {
+  let path = "";
+  switch (platform) {
+    case "ios":
+    case "ipados":
+    case "android":
+      path = PATHS.SOFTWARE_ADD_APP_STORE;
+      break;
+    case "linux":
+      path = PATHS.SOFTWARE_ADD_PACKAGE;
+      break;
+    default:
+      path = PATHS.SOFTWARE_ADD_FLEET_MAINTAINED;
+  }
+
+  const params = {
+    team_id: teamId,
+    // Add android param to preselect Android dropdown on the Add App store page
+    ...(platform === "android" && { platform }),
+  };
+
+  return `${path}?${buildQueryStringFromParams(params)}`;
+};
+
 interface IAddInstallSoftwareProps {
   currentTeamId: number;
+  hasManualAgentInstall: boolean;
   softwareTitles: ISoftwareTitle[] | null;
   onAddSoftware: () => void;
+  platform: SetupExperiencePlatform;
+  savedRequireAllSoftwareMacOS?: boolean | null;
 }
 
 const AddInstallSoftware = ({
   currentTeamId,
+  hasManualAgentInstall,
   softwareTitles,
   onAddSoftware,
+  platform,
+  savedRequireAllSoftwareMacOS,
 }: IAddInstallSoftwareProps) => {
-  const hasNoSoftware = !softwareTitles || softwareTitles.length === 0;
+  const noSoftwareUploaded = hasNoSoftwareUploaded(softwareTitles);
+  const installSoftwareDuringSetupCount = getInstallSoftwareDuringSetupCount(
+    softwareTitles
+  );
+  const { renderFlash } = useContext(NotificationContext);
+  const { config } = useContext(AppContext);
+  const [showMacOSOptions, setShowMacOSOptions] = useState(false);
+  const [requireAllSoftwareMacOS, setRequireAllSoftwareMacOS] = useState(
+    savedRequireAllSoftwareMacOS || false
+  );
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  const getAddedText = () => {
-    if (hasNoSoftware) {
+  // Handle clicking Save button for "Cancel setup if software install fails" option.
+  const onClickSave = async () => {
+    setIsUpdating(true);
+    try {
+      await mdmAPI.updateRequireAllSoftwareMacOS(
+        currentTeamId,
+        requireAllSoftwareMacOS
+      );
+      renderFlash("success", "Successfully updated!");
+    } catch {
+      renderFlash("error", "Couldn't update. Please try again.");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const renderAddedText = () => {
+    if (noSoftwareUploaded) {
       return (
         <>
-          No software available to add. Please{" "}
-          <LinkWithContext
-            to={PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}
-            currentQueryParams={{ team_id: currentTeamId }}
-            withParams={{ type: "query", names: ["team_id"] }}
-          >
-            upload software
-          </LinkWithContext>{" "}
-          to be able to add during setup experience.
+          No {getPlatformLabel(platform)} software available. You can add
+          software on the{" "}
+          <CustomLink
+            url={getAddSoftwareUrl(platform, currentTeamId)}
+            text="Software page"
+          />
+          .
         </>
       );
     }
 
-    const installDuringSetupCount = softwareTitles.filter(
-      (software) =>
-        software.software_package?.install_during_setup ||
-        software.app_store_app?.install_during_setup
-    ).length;
+    const orderTooltip =
+      platform === "android"
+        ? "Software order will vary."
+        : "Installation order will depend on software name, starting with 0-9 then A-Z.";
 
-    return installDuringSetupCount === 0 ? (
-      "No software added."
+    return installSoftwareDuringSetupCount === 0 ? (
+      "No software selected."
     ) : (
       <>
-        {installDuringSetupCount} software will be{" "}
-        <TooltipWrapper tipContent="Software order will vary.">
+        {installSoftwareDuringSetupCount} software item
+        {installSoftwareDuringSetupCount > 1 && "s"} will be{" "}
+        <TooltipWrapper tipContent={orderTooltip}>
           installed during setup
         </TooltipWrapper>
         .
@@ -61,24 +143,13 @@ const AddInstallSoftware = ({
     );
   };
 
-  const getButtonText = () => {
-    if (hasNoSoftware) {
-      return "Add software";
-    }
-
-    const installDuringSetupCount = softwareTitles.filter(
-      (software) =>
-        software.software_package?.install_during_setup ||
-        software.app_store_app?.install_during_setup
-    ).length;
-
-    return installDuringSetupCount === 0
-      ? "Add software"
-      : "Show selected software";
-  };
-
-  const addedText = getAddedText();
-  const buttonText = getButtonText();
+  const manuallyInstallTooltipText = (
+    <>
+      Disabled because you manually install Fleet&apos;s agent (
+      <b>Bootstrap package {">"} Advanced options</b>). Use your bootstrap
+      package to install software during the setup experience.
+    </>
+  );
 
   return (
     <div className={baseClass}>
@@ -86,23 +157,71 @@ const AddInstallSoftware = ({
         <p className={`${baseClass}__description`}>
           Install software on hosts that automatically enroll to Fleet.
         </p>
-        <CustomLink
-          newTab
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-assistant`}
-          text="Learn how"
-        />
       </div>
-      <span className={`${baseClass}__added-text`}>{addedText}</span>
-      <div>
-        <Button
-          className={`${baseClass}__button`}
-          variant="brand"
-          onClick={onAddSoftware}
-          disabled={hasNoSoftware}
-        >
-          {buttonText}
-        </Button>
-      </div>
+      <span className={`${baseClass}__added-text`}>{renderAddedText()}</span>
+      {!noSoftwareUploaded && (
+        <div>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <TooltipWrapper
+                className={`${baseClass}__manual-install-tooltip`}
+                tipContent={manuallyInstallTooltipText}
+                disableTooltip={disableChildren || !hasManualAgentInstall}
+                position="top"
+                showArrow
+                underline={false}
+              >
+                <Button
+                  className={`${baseClass}__button`}
+                  onClick={onAddSoftware}
+                  disabled={
+                    disableChildren ||
+                    hasManualAgentInstall ||
+                    noSoftwareUploaded
+                  }
+                >
+                  Select software
+                </Button>
+              </TooltipWrapper>
+            )}
+          />
+        </div>
+      )}
+      {platform === "macos" && (
+        <div className={`${baseClass}__macos_options_form`}>
+          <RevealButton
+            isShowing={showMacOSOptions}
+            showText="Show advanced options"
+            hideText="Hide advanced options"
+            caretPosition="after"
+            onClick={() => setShowMacOSOptions(!showMacOSOptions)}
+          />
+          {showMacOSOptions && (
+            <form>
+              <Checkbox
+                disabled={config?.gitops.gitops_mode_enabled}
+                value={requireAllSoftwareMacOS}
+                onChange={setRequireAllSoftwareMacOS}
+              >
+                <TooltipWrapper tipContent="If any software fails, the end user won't be let through, and will see a prompt to contact their IT admin. Remaining software installs will be canceled.">
+                  Cancel setup if software install fails
+                </TooltipWrapper>
+              </Checkbox>
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <Button
+                    disabled={disableChildren}
+                    isLoading={isUpdating}
+                    onClick={onClickSave}
+                  >
+                    Save
+                  </Button>
+                )}
+              />
+            </form>
+          )}
+        </div>
+      )}
     </div>
   );
 };

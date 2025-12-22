@@ -184,7 +184,7 @@ func main() {
 	ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (bool, error) {
 		return true, nil
 	}
-	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 		return nil
 	}
 
@@ -192,7 +192,7 @@ func main() {
 		return nil, nil
 	}
 
-	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 		return nil
 	}
 
@@ -206,7 +206,7 @@ func main() {
 		return
 	}
 	printf("Translating CPEs to CVEs...\n")
-	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, *dbDir, logger, true, 1*time.Hour)
+	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, *dbDir, logger, true, time.Now().Add(-time.Hour))
 	if err != nil {
 		panic(err)
 	}

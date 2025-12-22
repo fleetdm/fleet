@@ -42,7 +42,12 @@ class AdminDetails extends Component {
     const tabIndex = currentPage ? 0 : -1;
 
     return (
-      <form onSubmit={handleSubmit} className={className} autoComplete="off">
+      <form
+        onSubmit={handleSubmit}
+        className={className}
+        autoComplete="off"
+        noValidate
+      >
         <p>Additional admins can be designated within the Fleet app.</p>
         <InputField
           {...fields.name}
@@ -56,13 +61,18 @@ class AdminDetails extends Component {
             maxLength: "80",
           }}
         />
-        <InputField {...fields.email} label="Email" tabIndex={tabIndex} />
+        <InputField
+          {...fields.email}
+          label="Email"
+          tabIndex={tabIndex}
+          type="email"
+        />
         <InputField
           {...fields.password}
           label="Password"
           type="password"
           tabIndex={tabIndex}
-          helpText="Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
+          helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
         />
         <InputField
           {...fields.password_confirmation}
@@ -70,14 +80,11 @@ class AdminDetails extends Component {
           tabIndex={tabIndex}
           label="Confirm password"
         />
-        <Button
-          type="submit"
-          tabIndex={tabIndex}
-          disabled={!currentPage}
-          variant="brand"
-        >
-          Next
-        </Button>
+        <div className="button-wrap">
+          <Button type="submit" tabIndex={tabIndex} disabled={!currentPage}>
+            Next
+          </Button>
+        </div>
       </form>
     );
   }

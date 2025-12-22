@@ -5,7 +5,7 @@ interface IPlusProps {
   color?: Colors;
 }
 
-const Plus = ({ color = "core-fleet-blue" }: IPlusProps) => {
+const Plus = ({ color = "ui-fleet-black-75" }: IPlusProps) => {
   return (
     <svg
       width="16"

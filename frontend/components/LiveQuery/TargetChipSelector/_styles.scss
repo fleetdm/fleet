@@ -1,6 +1,6 @@
 .target-chip-selector {
   padding: $pad-small;
-  background-color: $core-white;
+  background-color: $core-fleet-white;
   border: none;
   box-shadow: inset 0 0 0 1px $ui-fleet-black-25;
   border-radius: $border-radius-medium;
@@ -29,21 +29,25 @@
     font-weight: $bold;
   }
   &[data-selected="true"] {
-    background-color: $ui-vibrant-blue-10;
-    box-shadow: inset 0 0 0 1px $core-vibrant-blue;
+    background-color: $ui-off-white;
+    box-shadow: inset 0 0 0 1px $ui-fleet-black-75;
   }
 
   &:hover {
-    background-color: $ui-vibrant-blue-10;
+    background-color: $ui-off-white;
+    box-shadow: inset 0 0 0 1px $core-fleet-black;
+    color: $core-fleet-black;
   }
 
   &:active {
-    box-shadow: inset 0 0 0 1px $core-vibrant-blue-down;
+    background-color: $ui-off-white;
+    box-shadow: inset 0 0 0 1px $core-fleet-black;
+    color: $core-fleet-black;
   }
 
   // When tabbing
   &:focus-visible {
-    outline: 2px solid $ui-vibrant-blue-25;
+    outline: 1px solid $core-focused-outline;
     outline-offset: 1px;
     border-radius: $border-radius;
   }
