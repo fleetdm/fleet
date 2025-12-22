@@ -1367,6 +1367,14 @@ ON DUPLICATE KEY UPDATE
 	return insertedScripts, nil
 }
 
+type hostMDMActions struct {
+	LockRef       *string `db:"lock_ref"`
+	WipeRef       *string `db:"wipe_ref"`
+	UnlockRef     *string `db:"unlock_ref"`
+	UnlockPIN     *string `db:"unlock_pin"`
+	FleetPlatform string  `db:"fleet_platform"`
+}
+
 func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 	const stmt = `
 		SELECT
@@ -1380,17 +1388,10 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		WHERE
 			host_id = ?
 `
-
-	var mdmActions struct {
-		LockRef       *string `db:"lock_ref"`
-		WipeRef       *string `db:"wipe_ref"`
-		UnlockRef     *string `db:"unlock_ref"`
-		UnlockPIN     *string `db:"unlock_pin"`
-		FleetPlatform string  `db:"fleet_platform"`
-	}
-	fleetPlatform := host.FleetPlatform()
+	var mdmActions hostMDMActions
+	hostPlatform := host.FleetPlatform()
 	status := &fleet.HostLockWipeStatus{
-		HostFleetPlatform: fleetPlatform,
+		HostFleetPlatform: hostPlatform,
 	}
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &mdmActions, stmt, host.ID); err != nil {
@@ -1402,21 +1403,34 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		return nil, ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
 
+	err := ds.mapMDMActionsToHostLockWipeStatus(ctx, mdmActions, hostPlatform, status, host)
+	if err != nil {
+		return nil, err
+	}
+
+	return status, nil
+}
+
+// mapMDMActionsToHostLockWipeStatus maps the given hostMDMActions to the given
+// HostLockWipeStatus based on the host platform.
+// This method updates status by reference, so no new result is returned.
+func (ds *Datastore) mapMDMActionsToHostLockWipeStatus(ctx context.Context, mdmActions hostMDMActions, hostPlatform string, status *fleet.HostLockWipeStatus, host *fleet.Host,
+) error {
 	// if we have a fleet platform stored in host_mdm_actions, use it instead of
 	// the host.FleetPlatform() because the platform can be overwritten with an
 	// unknown OS name when a Wipe gets executed.
 	if mdmActions.FleetPlatform != "" {
-		fleetPlatform = mdmActions.FleetPlatform
-		status.HostFleetPlatform = fleetPlatform
+		hostPlatform = mdmActions.FleetPlatform
+		status.HostFleetPlatform = hostPlatform
 	}
 
-	switch fleetPlatform {
+	switch hostPlatform {
 	case "darwin", "ios", "ipados":
-		if mdmActions.UnlockPIN != nil && fleetPlatform == "darwin" {
+		if mdmActions.UnlockPIN != nil && hostPlatform == "darwin" {
 			// Unlock PIN is only available for macOS hosts
 			status.UnlockPIN = *mdmActions.UnlockPIN
 		}
-		if mdmActions.UnlockRef != nil && fleetPlatform == "darwin" {
+		if mdmActions.UnlockRef != nil && hostPlatform == "darwin" {
 			// the unlock reference is a timestamp
 			// (we only store the timestamp for macOS unlocks)
 			var err error
@@ -1428,11 +1442,11 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 				// directly in the DB and messes up the format).
 				status.UnlockRequestedAt = time.Now().UTC()
 			}
-		} else if mdmActions.UnlockRef != nil && fleetPlatform != "darwin" {
+		} else if mdmActions.UnlockRef != nil && hostPlatform != "darwin" {
 			// the unlock reference is an MDM command uuid
 			cmd, cmdRes, err := ds.getHostMDMAppleCommand(ctx, *mdmActions.UnlockRef, host.UUID)
 			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get unlock reference")
+				return ctxerr.Wrap(ctx, err, "get unlock reference")
 			}
 			status.UnlockMDMCommand = cmd
 			status.UnlockMDMCommandResult = cmdRes
@@ -1442,7 +1456,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 			// the lock reference is an MDM command
 			cmd, cmdRes, err := ds.getHostMDMAppleCommand(ctx, *mdmActions.LockRef, host.UUID)
 			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get lock reference")
+				return ctxerr.Wrap(ctx, err, "get lock reference")
 			}
 			status.LockMDMCommand = cmd
 			status.LockMDMCommandResult = cmdRes
@@ -1452,7 +1466,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 			// the wipe reference is an MDM command
 			cmd, cmdRes, err := ds.getHostMDMAppleCommand(ctx, *mdmActions.WipeRef, host.UUID)
 			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get wipe reference")
+				return ctxerr.Wrap(ctx, err, "get wipe reference")
 			}
 			status.WipeMDMCommand = cmd
 			status.WipeMDMCommandResult = cmdRes
@@ -1463,7 +1477,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		if mdmActions.LockRef != nil {
 			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.LockRef, scriptExecutionSearchOpts{IncludeCanceled: true})
 			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get lock reference script result")
+				return ctxerr.Wrap(ctx, err, "get lock reference script result")
 			}
 			status.LockScript = hsr
 		}
@@ -1471,31 +1485,30 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		if mdmActions.UnlockRef != nil {
 			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.UnlockRef, scriptExecutionSearchOpts{IncludeCanceled: true})
 			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get unlock reference script result")
+				return ctxerr.Wrap(ctx, err, "get unlock reference script result")
 			}
 			status.UnlockScript = hsr
 		}
 
 		// wipe is an MDM command on Windows, a script on Linux
 		if mdmActions.WipeRef != nil {
-			if fleetPlatform == "windows" {
+			if hostPlatform == "windows" {
 				cmd, cmdRes, err := ds.getHostMDMWindowsCommand(ctx, *mdmActions.WipeRef, host.UUID)
 				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "get wipe reference")
+					return ctxerr.Wrap(ctx, err, "get wipe reference")
 				}
 				status.WipeMDMCommand = cmd
 				status.WipeMDMCommandResult = cmdRes
 			} else {
 				hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.WipeRef, scriptExecutionSearchOpts{IncludeCanceled: true})
 				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "get wipe reference script result")
+					return ctxerr.Wrap(ctx, err, "get wipe reference script result")
 				}
 				status.WipeScript = hsr
 			}
 		}
 	}
-
-	return status, nil
+	return nil
 }
 
 // GetHostsLockWipeStatusBatch gets the lock/unlock and wipe status for multiple hosts efficiently.
@@ -1530,12 +1543,8 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 	}
 
 	var mdmActionsRows []struct {
-		HostID        uint    `db:"host_id"`
-		LockRef       *string `db:"lock_ref"`
-		WipeRef       *string `db:"wipe_ref"`
-		UnlockRef     *string `db:"unlock_ref"`
-		UnlockPIN     *string `db:"unlock_pin"`
-		FleetPlatform string  `db:"fleet_platform"`
+		HostID uint `db:"host_id"`
+		hostMDMActions
 	}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &mdmActionsRows, query, args...); err != nil {
@@ -1556,22 +1565,10 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 
 	// Build initial status map with platform info
 	statusMap := make(map[uint]*fleet.HostLockWipeStatus, len(hosts))
-	mdmActionsMap := make(map[uint]*struct {
-		LockRef       *string
-		WipeRef       *string
-		UnlockRef     *string
-		UnlockPIN     *string
-		FleetPlatform string
-	})
+	mdmActionsMap := make(map[uint]*hostMDMActions)
 
 	for _, row := range mdmActionsRows {
-		mdmActionsMap[row.HostID] = &struct {
-			LockRef       *string
-			WipeRef       *string
-			UnlockRef     *string
-			UnlockPIN     *string
-			FleetPlatform string
-		}{
+		mdmActionsMap[row.HostID] = &hostMDMActions{
 			LockRef:       row.LockRef,
 			WipeRef:       row.WipeRef,
 			UnlockRef:     row.UnlockRef,
@@ -1588,108 +1585,17 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 		}
 
 		mdmActions, hasMDMActions := mdmActionsMap[host.ID]
-		if hasMDMActions {
-			// Use stored platform if available
-			if mdmActions.FleetPlatform != "" {
-				fleetPlatform = mdmActions.FleetPlatform
-				status.HostFleetPlatform = fleetPlatform
-			}
-
-			// Handle macOS unlock PIN (darwin only)
-			if mdmActions.UnlockPIN != nil && fleetPlatform == "darwin" {
-				status.UnlockPIN = *mdmActions.UnlockPIN
-			}
-
-			// Collect command/script references based on platform
-			switch fleetPlatform {
-			case "darwin", "ios", "ipados":
-				// Apple platforms use MDM commands for lock, unlock (ios/ipados only), and wipe
-				if mdmActions.LockRef != nil {
-					appleCommandRefs = append(appleCommandRefs, refKey{
-						uuid:     *mdmActions.LockRef,
-						hostUUID: host.UUID,
-						hostID:   host.ID,
-						refType:  "lock",
-					})
-				}
-				if mdmActions.UnlockRef != nil && fleetPlatform != "darwin" {
-					// iOS/iPadOS use MDM command for unlock, darwin uses timestamp
-					appleCommandRefs = append(appleCommandRefs, refKey{
-						uuid:     *mdmActions.UnlockRef,
-						hostUUID: host.UUID,
-						hostID:   host.ID,
-						refType:  "unlock",
-					})
-				} else if mdmActions.UnlockRef != nil && fleetPlatform == "darwin" {
-					// For macOS, unlock_ref is a timestamp, parse it here
-					unlockTime, err := time.Parse(time.DateTime, *mdmActions.UnlockRef)
-					if err != nil {
-						// Use current time if format is unexpected
-						unlockTime = time.Now().UTC()
-					}
-					status.UnlockRequestedAt = unlockTime
-				}
-				if mdmActions.WipeRef != nil {
-					appleCommandRefs = append(appleCommandRefs, refKey{
-						uuid:     *mdmActions.WipeRef,
-						hostUUID: host.UUID,
-						hostID:   host.ID,
-						refType:  "wipe",
-					})
-				}
-
-			case "windows":
-				// Windows uses scripts for lock/unlock, MDM command for wipe
-				if mdmActions.LockRef != nil {
-					scriptRefs = append(scriptRefs, refKey{
-						uuid:    *mdmActions.LockRef,
-						hostID:  host.ID,
-						refType: "lock",
-					})
-				}
-				if mdmActions.UnlockRef != nil {
-					scriptRefs = append(scriptRefs, refKey{
-						uuid:    *mdmActions.UnlockRef,
-						hostID:  host.ID,
-						refType: "unlock",
-					})
-				}
-				if mdmActions.WipeRef != nil {
-					windowsCommandRefs = append(windowsCommandRefs, refKey{
-						uuid:     *mdmActions.WipeRef,
-						hostUUID: host.UUID,
-						hostID:   host.ID,
-						refType:  "wipe",
-					})
-				}
-
-			case "linux":
-				// Linux uses scripts for lock, unlock, and wipe
-				if mdmActions.LockRef != nil {
-					scriptRefs = append(scriptRefs, refKey{
-						uuid:    *mdmActions.LockRef,
-						hostID:  host.ID,
-						refType: "lock",
-					})
-				}
-				if mdmActions.UnlockRef != nil {
-					scriptRefs = append(scriptRefs, refKey{
-						uuid:    *mdmActions.UnlockRef,
-						hostID:  host.ID,
-						refType: "unlock",
-					})
-				}
-				if mdmActions.WipeRef != nil {
-					scriptRefs = append(scriptRefs, refKey{
-						uuid:    *mdmActions.WipeRef,
-						hostID:  host.ID,
-						refType: "wipe",
-					})
-				}
-			}
+		statusMap[host.ID] = status
+		if !hasMDMActions {
+			continue
 		}
 
-		statusMap[host.ID] = status
+		// Updating status by reference so we do not need to re set status in statusMap
+		err := ds.mapMDMActionsToHostLockWipeStatus(ctx, *mdmActions, fleetPlatform, status, host)
+		if err != nil {
+			return nil, err
+		}
+
 	}
 
 	// Batch query Apple MDM commands
