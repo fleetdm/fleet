@@ -94,7 +94,7 @@ MDM helps you meet specific regulatory requirements:
 
 Organizations can face substantial penalties when compliance is found to be inadequate during audits. MDM provides the technical enforcement mechanism these frameworks require. When auditors ask for proof that encryption is enforced, organizations can show them configuration profiles that prevent devices from operating without encryption enabled. The MDM server maintains logs showing exactly when encryption was enabled and on which specific devices.
 
-### **5\. Remote visibility shows device status in real-time**
+### 5\. Remote visibility shows device status in real-time
 
 Remote work has mostly eliminated the ability to physically access devices for troubleshooting, meaning IT teams that previously walked to employee desks now support devices they never see in person. This creates gaps where problems only surface after impacting productivity, like discovering an end user has been running an outdated OS version for months only when a security vulnerability makes the news.
 
