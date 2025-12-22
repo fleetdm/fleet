@@ -316,6 +316,7 @@ const Vitals = ({
       />
     );
   };
+
   const renderDiskEncryptionSummary = () => {
     if (!platformSupportsDiskEncryption(platform, os_version)) {
       return <></>;
