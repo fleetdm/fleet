@@ -460,9 +460,6 @@ SELECT
 		,iha.platform as in_house_app_platform
 		,iha.storage_id as in_house_app_storage_id
 		,iha.self_service as in_house_app_self_service
-		,COALESCE(sus.enabled, FALSE) as auto_update_enabled
-		,COALESCE(sus.start_time, '') as auto_update_start_time
-		,COALESCE(sus.end_time, '') as auto_update_end_time
 	{{end}}
 FROM software_titles st
 	{{if hasTeamID .}}
@@ -471,7 +468,6 @@ FROM software_titles st
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND
 			{{if .PackagesOnly}} FALSE {{else}} vat.global_or_team_id = {{teamID .}}{{end}}
-		LEFT JOIN software_update_schedules sus ON sus.title_id = st.id AND sus.team_id = {{teamID .}}
 	{{end}}
 	LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 		(sthc.team_id = {{teamID .}} AND sthc.global_stats = {{if hasTeamID .}} 0 {{else}} 1 {{end}})
