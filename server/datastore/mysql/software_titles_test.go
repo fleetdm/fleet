@@ -2630,9 +2630,9 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Verify that it's the VPP app and that auto-update fields are not set.
-	require.False(t, *titleResult.AutoUpdateEnabled)
-	require.Empty(t, *titleResult.AutoUpdateStartTime)
-	require.Empty(t, *titleResult.AutoUpdateEndTime)
+	require.Nil(t, titleResult.AutoUpdateEnabled)
+	require.Nil(t, titleResult.AutoUpdateStartTime)
+	require.Nil(t, titleResult.AutoUpdateEndTime)
 
 	// Attempt to enable auto-update with invalid start time.
 	startTime := "26:00"
