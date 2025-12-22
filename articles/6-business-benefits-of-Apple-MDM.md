@@ -107,7 +107,7 @@ MDM platforms provide near real-time visibility into device state and critical d
 
 Monitoring device state does not require manual auditing. Device information is collected continuously for as long as a device is enrolled. Problems can be spotted before they escalate into security incidents or productivity blockers and be proactively or dynamically resolved with automated remediation. Admins can troubleshoot reported data instead of coordinating screen sharing sessions or asking users to run terminal commands they do not understand by executing [MDM commands](https://fleetdm.com/mdm-commands) to gather diagnostics or push configuration changes remotely or allowing users to execute pre-configured remediation workflows from Self Service.
 
-### **6\. Self-service reduces IT tickets and onboarding delays**
+### 6\. Self-service reduces IT tickets and onboarding delays
 
 MDM creates friction when poorly configured. Users resent locked-down devices and blocked applications. Done correctly, MDM becomes invisible: New hires power on devices on their first day to find everything already configured and ready, with required applications installed, single sign-on working immediately, and network access ready to go.
 
