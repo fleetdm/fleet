@@ -59,7 +59,7 @@ const EditAutoUpdateConfigModal = ({
 
   const [formError, setFormError] = useState<string | null>(null);
 
-  const validateForm = (curFormData: string) => {
+  const validateForm = (curFormData: ISoftwareAutoUpdateConfigFormData) => {
     let error = null;
     error = null;
     return error;
@@ -92,8 +92,10 @@ const EditAutoUpdateConfigModal = ({
     setIsUpdatingConfiguration(false);
   };
 
-  const onInputChange = (value: string) => {
-    const error = validateForm(value);
+  const onToggleEnabled = (value: boolean) => {
+    const newFormData = { ...formData, enabled: value };
+    setFormData(newFormData);
+    const error = validateForm(newFormData);
     setFormError(error);
     setCanSaveForm(!error);
   };
@@ -111,6 +113,7 @@ const EditAutoUpdateConfigModal = ({
             <Checkbox
               value={formData.enabled}
               className={`${formClass}__self-service-checkbox`}
+              onChange={(newVal: boolean) => onToggleEnabled(newVal)}
             >
               Enable auto updates
             </Checkbox>
