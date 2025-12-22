@@ -1495,7 +1495,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 			}
 		}
 	}
-	return nil, nil
+	return status, nil
 }
 
 // GetHostsLockWipeStatusBatch gets the lock/unlock and wipe status for multiple hosts efficiently.
