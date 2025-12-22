@@ -53,13 +53,14 @@ func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform str
 }
 
 type getSetupExperienceSoftwareRequest struct {
-	Platform string `query:"platform,optional"`
+	// Platforms can be a comma separated list
+	Platforms string `query:"platform,optional"`
 	fleet.ListOptions
 	TeamID uint `query:"team_id"`
 }
 
 func (r *getSetupExperienceSoftwareRequest) ValidateRequest() error {
-	return validateSetupExperiencePlatform(r.Platform)
+	return validateSetupExperiencePlatform(r.Platforms)
 }
 
 type getSetupExperienceSoftwareResponse struct {
@@ -73,7 +74,7 @@ func (r getSetupExperienceSoftwareResponse) Error() error { return r.Err }
 
 func getSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSetupExperienceSoftwareRequest)
-	platform := transformPlatformForSetupExperience(req.Platform)
+	platform := transformPlatformListForSetupExperience(req.Platforms)
 	titles, count, meta, err := svc.ListSetupExperienceSoftware(ctx, platform, req.TeamID, req.ListOptions)
 	if err != nil {
 		return &getSetupExperienceSoftwareResponse{Err: err}, nil
@@ -384,11 +385,13 @@ var setupExperienceSupportedPlatforms = []string{
 	"android",
 }
 
-func validateSetupExperiencePlatform(platform string) error {
-	if platform != "" && !slices.Contains(setupExperienceSupportedPlatforms, platform) {
-		quotedPlatforms := strings.Join(setupExperienceSupportedPlatforms, "\", \"")
-		quotedPlatforms = fmt.Sprintf("\"%s\"", quotedPlatforms)
-		return badRequestf("platform %q unsupported, platform must be one of %s", platform, quotedPlatforms)
+func validateSetupExperiencePlatform(platforms string) error {
+	for platform := range strings.SplitSeq(platforms, ",") {
+		if platform != "" && !slices.Contains(setupExperienceSupportedPlatforms, platform) {
+			quotedPlatforms := strings.Join(setupExperienceSupportedPlatforms, "\", \"")
+			quotedPlatforms = fmt.Sprintf("\"%s\"", quotedPlatforms)
+			return badRequestf("platform %q unsupported, platform must be one of %s", platform, quotedPlatforms)
+		}
 	}
 	return nil
 }
@@ -398,4 +401,11 @@ func transformPlatformForSetupExperience(platform string) string {
 		return "darwin"
 	}
 	return platform
+}
+
+func transformPlatformListForSetupExperience(platforms string) string {
+	if platforms == "" {
+		return "darwin"
+	}
+	return strings.ReplaceAll(platforms, "macos", "darwin")
 }

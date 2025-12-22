@@ -648,7 +648,7 @@ type Service interface {
 	DeleteCertificateTemplate(ctx context.Context, id uint) error
 	ApplyCertificateTemplateSpecs(ctx context.Context, specs []*CertificateRequestSpec) error
 	DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
-	UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status MDMDeliveryStatus, detail *string) error
+	UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status MDMDeliveryStatus, detail *string, operationType *string) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalScheduleService
@@ -954,10 +954,6 @@ type Service interface {
 	// devices. Note that a deviceID is the same as a host's UUID.
 	EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *CommandEnqueueResult, err error)
 
-	// EnqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a command to remove the
-	// profile used for Fleet MDM enrollment from the specified device.
-	EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostID uint) error
-
 	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
 	// team or for hosts with no team.
 	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error
@@ -1112,7 +1108,7 @@ type Service interface {
 	GetMDMCommandResults(ctx context.Context, commandUUID string, hostIdentifier string) ([]*MDMCommandResult, error)
 
 	// ListMDMCommands returns MDM commands based on the provided options.
-	ListMDMCommands(ctx context.Context, opts *MDMCommandListOptions) ([]*MDMCommand, *int64, error)
+	ListMDMCommands(ctx context.Context, opts *MDMCommandListOptions) ([]*MDMCommand, *int64, *PaginationMetadata, error)
 
 	// Set or update the disk encryption key for a host.
 	SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error
@@ -1399,6 +1395,9 @@ type Service interface {
 	BatchApplyCertificateAuthorities(ctx context.Context, groupedCAs GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error
 	// GetGroupedCertificateAuthorities retrieves the grouped certificate authorities
 	GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*GroupedCertificateAuthorities, error)
+
+	// UnenrollMDM unenrolls the host from MDM
+	UnenrollMDM(ctx context.Context, hostID uint) error
 }
 
 type KeyValueStore interface {

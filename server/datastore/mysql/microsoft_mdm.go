@@ -2467,7 +2467,7 @@ func (ds *Datastore) GetWindowsMDMCommandsForResending(ctx context.Context, fail
 		return []*fleet.MDMWindowsCommand{}, nil
 	}
 
-	stmt := `SELECT command_uuid, raw_command, target_loc_uri, created_at, updated_at 
+	stmt := `SELECT command_uuid, raw_command, target_loc_uri, created_at, updated_at
 		FROM windows_mdm_commands WHERE`
 
 	args := []any{}

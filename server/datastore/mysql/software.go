@@ -989,7 +989,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					queryArgs = append(queryArgs, firstArg, title.Source, title.ExtensionFor, bundleID)
 				}
 
-				stmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, upgrade_code
+				stmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, upgrade_code, application_id
 					FROM software_titles
 					WHERE (COALESCE(bundle_identifier, name), source, extension_for, COALESCE(bundle_identifier, '')) IN (%s)`, titlePlaceholders)
 
@@ -1020,6 +1020,54 @@ func (ds *Datastore) preInsertSoftwareInventory(
 							titleIDsByChecksum[checksum] = titleSummary.ID
 							// Don't break here - multiple checksums can map to the same title
 							// (e.g., when software has same truncated name but different versions (very rare))
+						}
+					}
+				}
+
+				// For Android apps, also try matching by application_id since VPP apps use it
+				// and MDM inventory may report different names than the Play Store.
+				var unmatchedAppIDs []string
+				unmatchedByAppID := make(map[string][]string)
+				for checksum, title := range newTitlesNeeded {
+					if _, ok := titleIDsByChecksum[checksum]; ok {
+						continue
+					}
+					if title.ApplicationID != nil && *title.ApplicationID != "" && title.Source == "android_apps" {
+						appID := *title.ApplicationID
+						unmatchedAppIDs = append(unmatchedAppIDs, appID)
+						unmatchedByAppID[appID] = append(unmatchedByAppID[appID], checksum)
+					}
+				}
+
+				if len(unmatchedAppIDs) > 0 {
+					appIDPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(unmatchedAppIDs)), ",")
+					appIDStmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, application_id
+						FROM software_titles
+						WHERE application_id IN (%s) AND source = 'android_apps'`, appIDPlaceholders)
+
+					appIDArgs := make([]any, len(unmatchedAppIDs))
+					for i, appID := range unmatchedAppIDs {
+						appIDArgs[i] = appID
+					}
+
+					var appIDTitleSummaries []fleet.SoftwareTitleSummary
+					if err := sqlx.SelectContext(ctx, tx, &appIDTitleSummaries, appIDStmt, appIDArgs...); err != nil {
+						return ctxerr.Wrap(ctx, err, "select software titles by application_id")
+					}
+
+					for _, titleSummary := range appIDTitleSummaries {
+						if titleSummary.ApplicationID == nil {
+							continue
+						}
+						checksums, ok := unmatchedByAppID[*titleSummary.ApplicationID]
+						if !ok {
+							continue
+						}
+						for _, checksum := range checksums {
+							title := newTitlesNeeded[checksum]
+							if titleSummary.Source == title.Source {
+								titleIDsByChecksum[checksum] = titleSummary.ID
+							}
 						}
 					}
 				}
@@ -3853,7 +3901,7 @@ func pushVersion(softwareIDStr string, softwareTitleRecord *hostSoftware, hostIn
 	}
 }
 
-func hostInstalledVpps(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
+func hostInstalledVpps(ds *Datastore, ctx context.Context, hostID uint, globalOrTeamID uint) ([]*hostSoftware, error) {
 	vppInstalledStmt := `
 		SELECT
 			vpp_apps.title_id AS id,
@@ -3870,12 +3918,12 @@ func hostInstalledVpps(ds *Datastore, ctx context.Context, hostID uint) ([]*host
 		INNER JOIN
 			vpp_apps ON hvsi.adam_id = vpp_apps.adam_id AND hvsi.platform = vpp_apps.platform
 		INNER JOIN
-			vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform
+			vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = ?
 		WHERE
 			hvsi.host_id = ?
 	`
 	var vppInstalled []*hostSoftware
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &vppInstalled, vppInstalledStmt, hostID)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &vppInstalled, vppInstalledStmt, globalOrTeamID, hostID)
 	if err != nil {
 		return nil, err
 	}
@@ -4212,7 +4260,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 	}
 
-	hostInstalledVppsApps, err := hostInstalledVpps(ds, ctx, host.ID)
+	hostInstalledVppsApps, err := hostInstalledVpps(ds, ctx, host.ID, globalOrTeamID)
 	if err != nil {
 		return nil, nil, err
 	}
